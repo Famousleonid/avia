@@ -80,7 +80,6 @@
             position: absolute;
             top: 45%;
             left: 50%;
-            /*            margin: auto;*/
         }
 
         #loading img {
@@ -126,16 +125,6 @@
             <li class="nav-item">
                 <a class="nav-link" data-widget="pushmenu" data-enable-remember="true" href="#" role="button"><i class="fas fa-bars"></i></a>
             </li>
-            <form class="form-inline ml-5">
-                <div class="input-group input-group-sm">
-                    <input class="form-control form-control-navbar" type="search" placeholder="Search" aria-label="Search">
-                    <div class="input-group-append">
-                        <button class="btn btn-navbar" type="submit">
-                            <i class="fas fa-search"></i>
-                        </button>
-                    </div>
-                </div>
-            </form>
         </ul>
 
         <ul class="navbar-nav ml-auto">
@@ -305,7 +294,7 @@
 
 <script src="https://code.jquery.com/jquery-3.7.1.js" integrity="sha256-eKhayi8LEQwp4NKxN+CfCh+3qOVUtJn3QNZ0TciWLP4=" crossorigin="anonymous"></script>
 <script src="{{asset('js/bootstrap.bundle.min.js')}}"></script>
-<script src="{{asset('js/adminlte.min.js')}}"></script>
+{{--<script src="{{asset('js/adminlte.min.js')}}"></script>--}}
 <script src="https://cdn.datatables.net/v/bs4/dt-1.13.8/af-2.6.0/cr-1.7.0/fh-3.4.0/rr-1.4.1/sp-2.2.0/datatables.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
 <script src="https://kit.fontawesome.com/49f401fbd8.js" crossorigin="anonymous"></script>

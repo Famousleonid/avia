@@ -6,18 +6,14 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="keywords" content="avia, repair">
     <meta name="robots" content="none"> <!-- Выключение поисковых роботов  -->
-    <!-- CSRF Token -->
     <meta name="csrf-token" content="{{ csrf_token() }}">
-    <!-- PWA  -->
     <meta name="theme-color" content="#6777ef"/>
     <link rel="apple-touch-icon" href="{{ asset('/img/plane.webp') }}">
     <link rel="manifest" href="{{ asset('/manifest.json') }}">
     <title>{{ config('app.name', 'Aviatechnik') }}</title>
-
     <link rel="stylesheet" href="{{asset('/css/bootstrap.min.css')}}">
     <link rel="stylesheet" href="{{asset('/css/app.css')}}">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap-icons/1.5.0/font/bootstrap-icons.min.css">
-
 
     <style>
         body {
@@ -25,9 +21,7 @@
             width: 100%;
             padding: 0;
             margin: 0;
-
             background: url("/public/img/dolphin.png"), linear-gradient(blue, deepskyblue);
-
             background-repeat: no-repeat;
             background-attachment: fixed;
             background-position: center center;
