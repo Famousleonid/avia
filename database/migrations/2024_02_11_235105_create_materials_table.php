@@ -14,10 +14,10 @@ return new class extends Migration {
     {
         Schema::create('materials', function (Blueprint $table) {
             $table->id();
-            $table->string('Code')->nullable();
-            $table->string('Material')->nullable();
-            $table->string('Specification')->nullable();
-            $table->string('VER')->nullable();
+            $table->string('code')->nullable();
+            $table->string('material')->nullable();
+            $table->string('specification')->nullable();
+            $table->string('ver')->nullable();
             $table->timestamps();
         });
     }

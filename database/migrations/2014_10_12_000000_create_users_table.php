@@ -13,15 +13,20 @@ return new class extends Migration {
             $table->string('name');
             $table->string('email')->unique();
             $table->timestamp('email_verified_at')->nullable();
+            $table->string('password');
+
             $table->tinyInteger('is_admin')->default(0)->unsigned();
-            $table->tinyInteger('role')->default(0)->unsigned();
-            $table->tinyInteger('team')->default(0)->unsigned();
             $table->string('phone', 15)->nullable();
             $table->string('stamp', 10)->nullable();
-            $table->string('password');
+            $table->string('sign')->nullable();
+
             $table->rememberToken();
             $table->timestamps();
             $table->softDeletes();
+
+            $table->foreignId('role_id')->nullable();
+            $table->foreignId('team_id')->nullable();
+
         });
     }
 
