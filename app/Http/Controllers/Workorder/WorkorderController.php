@@ -26,12 +26,14 @@ class WorkorderController extends Controller
 
     public function store(Request $request)
     {
+
         $request->validate([
             'number' => 'required ',
             'unit_id' => 'required',
             'customer_id' => 'required',
             'instruction_id' => 'required',
         ]);
+
 
         $number = Workorder::where('number', $request['number'])->first();
         if ($number) {

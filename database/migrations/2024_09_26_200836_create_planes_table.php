@@ -19,7 +19,11 @@ return new class extends Migration
         });
 
         DB::table('planes')->insert([
-            ['type' => 'ERJ-195'],
+            ['type' => 'ERJ-175'],
+            ['type' => 'ATR-72'],
+            ['type' => 'ATR-42'],
+            ['type' => 'ERJ-190/195'],
+            ['type' => 'CL-601'],
         ]);
     }
 

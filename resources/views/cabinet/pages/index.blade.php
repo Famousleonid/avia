@@ -106,7 +106,7 @@
 
         @if(count($workorders))
 
-            <table data-page-length='22' id="show-main" class="display table-sm table-bordered table-striped table-hover main-table responsive nowrap" style="width:100%;">
+            <table data-page-length='22' id="show-main" class="display table-sm table-bordered table-striped table-hover main-table responsive nowrap table-dark" style="width: 100%">
                 <thead>
                 <tr style="font-size: 12px">
                     <th hidden>Id</th>

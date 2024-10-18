@@ -18,7 +18,10 @@ return new class extends Migration
             $table->string('name');
         });
         DB::table('builders')->insert([
-            ['name' => 'build name'],
+            ['name' => 'LIEBHERR'],
+            ['name' => 'SAFRAN LS'],
+            ['name' => 'GOODRICH'],
+            ['name' => 'ELEB'],
         ]);
     }
 

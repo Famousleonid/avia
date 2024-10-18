@@ -11,7 +11,9 @@
     <link rel="apple-touch-icon" href="{{ asset('/img/plane.webp') }}">
     <link rel="manifest" href="{{ asset('/manifest.json') }}">
     <title>{{ config('app.name', 'Aviatechnik') }}</title>
+
     <link rel="stylesheet" href="{{asset('/css/bootstrap.min.css')}}">
+
     <link rel="stylesheet" href="{{asset('/css/app.css')}}">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap-icons/1.5.0/font/bootstrap-icons.min.css">
 

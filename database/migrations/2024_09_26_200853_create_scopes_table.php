@@ -20,7 +20,8 @@ return new class extends Migration
         });
 
         DB::table('scopes')->insert([
-            ['scope' => 'scopes name'],
+            ['scope' => 'Mechanical'],
+            ['scope' => 'Hydraulic'],
         ]);
 
 

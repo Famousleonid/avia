@@ -11,7 +11,7 @@
            font-weight: bold;
            display: flex;
            justify-content: center;
-           margin-top: 100px;
+           margin-top:40px;
            -webkit-box-reflect: below -15px linear-gradient(transparent, rgba(255, 255, 255, 0.2));
        }
         .wave span {
