@@ -12,7 +12,7 @@ return new class extends Migration {
         Schema::create('general_tasks', function (Blueprint $table) {
             $table->id();
             $table->string('name');
-            $table->timestamps();
+
         });
 
         $dataGeneralTask = [
@@ -23,6 +23,7 @@ return new class extends Migration {
             ['name' => 'CAD List'],
             ['name' => 'stress relief'],
             ['name' => 'check bushing'],
+            ['name' => 'insert bushing'],
             ['name' => 'promote'],
             ['name' => 'assembly'],
             ['name' => 'paint'],

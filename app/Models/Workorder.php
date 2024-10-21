@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\SoftDeletes;
 use Spatie\Activitylog\LogOptions;
 use Spatie\Activitylog\Traits\LogsActivity;
 use Spatie\MediaLibrary\HasMedia;
@@ -13,11 +14,10 @@ class Workorder extends Model implements HasMedia
 {
     use HasFactory, InteractsWithMedia;
     use LogsActivity;
+    use SoftDeletes;
 
-    protected $fillable = ['number', 'user_id', 'unit_id', 'instruction_id', 'customer_id', 'approve', 'approve_at', 'description', 'notes', 'manual', 'serial_number', 'place', 'created_at'];
-
-    protected $dates = ['approve_at'];
-
+    protected $fillable = ['number', 'user_id', 'unit_id', 'instruction_id', 'customer_id', 'approve', 'approve_at', 'description', 'manual', 'serial_number', 'place', 'created_at'];
+    protected $dates = ['approve_at','deleted_at'];
 
     public function getActivitylogOptions(): LogOptions
     {

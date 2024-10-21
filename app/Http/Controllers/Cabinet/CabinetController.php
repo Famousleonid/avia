@@ -7,6 +7,7 @@ use App\Models\Component;
 use App\Models\Main;
 use App\Models\Material;
 use App\Models\Task;
+use App\Models\Team;
 use App\Models\User;
 use App\Models\Workorder;
 use Illuminate\Support\Facades\Auth;
@@ -16,7 +17,7 @@ class CabinetController extends Controller
     public function index()
     {
         $user = Auth::user();
-        $team = $user->team;
+        $team = $user->team->id;
         $mains = Main::all();
         $tasks = Task::all();
         $components = Component::all();
@@ -64,10 +65,11 @@ class CabinetController extends Controller
 
     public function profile()
     {
-        $user = Auth::user();
+        $user = Auth::user()->load('team');
         $avatar = $user->getMedia('avatar')->first();
+        $teams = Team::all();
 
-        return view('cabinet.pages.profile', compact('user', 'avatar'));
+        return view('cabinet.pages.profile', compact('user', 'avatar', 'teams'));
     }
 
     public function techniks()

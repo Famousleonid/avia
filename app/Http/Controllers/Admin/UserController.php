@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Models\Team;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -70,28 +71,28 @@ class UserController extends Controller
         $user = User::find($id);
 
         $avatar = $user->getMedia('avatar')->first(); // ->getUrl('thumb');
+        $teams = Team::all();
 
         if (!$avatar) {
             $avatar = 0;
         }
 
-        return view('admin.user.edit', compact('user', 'avatar'));
+        return view('admin.user.edit', compact('user', 'avatar', 'teams'));
     }
 
     public function update(Request $request, $id)
     {
+        $user = User::find($id);
         $request->phone = $this->removeSpace($request->phone);
-
         $request->validate([
             'name' => 'required',
             'phone' => '',      // |size:10
             'stamp' => 'required',
-            'team' => 'required',
+            'team_id' => 'required',
         ]);
 
         ($request->has('is_admin')) ? $request->request->add(['is_admin' => 1]) : $request->request->add(['is_admin' => 0]);
 
-        $user = User::find($id);
         $user->update($request->all());
 
         return redirect()->back()->with('success', 'Changes saved');

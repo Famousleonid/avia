@@ -114,17 +114,7 @@
                                     <label for="unit_description">Description</label>
                                     <input type="text" name="description" id="unit_description" maxlength="30" value="" class="form-control @error('description') is-invalid @enderror" placeholder="">
                                 </div>
-                                <div class=" col-12 border mb-1 mt-3 border-info rounded">
-                                    <div class="card-header p-1">
-                                        <h3 class="card-title text-info">Note</h3>
-                                    </div>
-                                    <div class="row">
-                                            <textarea name="notes"
-                                                      rows="7"
-                                                      style="width: 100%; resize:none; padding: 10px; ">
-                                            </textarea>
-                                    </div>
-                                </div>
+
                             </div>
 
                             <div class="form-group container-fluid ">

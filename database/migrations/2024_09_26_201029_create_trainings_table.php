@@ -14,11 +14,11 @@ return new class extends Migration
         Schema::create('trainings', function (Blueprint $table) {
             $table->id();
             $table->timestamps();
-
-            $table->foreignId('user_id')->constrained()->onDelete('cascade');  // Ссылка на пользователя
-            $table->foreignId('manuals_id')->constrained('manuals')->onDelete('cascade');  // Ссылка на юнит (CMM)
-            $table->date('date_training')->nullable();
             $table->string('form_type')->nullable();
+            $table->date('date_training')->nullable();
+
+            $table->foreignId('user_id')->constrained()->onDelete('cascade');
+            $table->foreignId('manuals_id')->constrained('manuals')->onDelete('cascade');
 
         });
     }

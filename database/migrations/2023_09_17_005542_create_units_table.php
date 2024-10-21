@@ -2,6 +2,7 @@
 
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
@@ -15,13 +16,20 @@ return new class extends Migration
     {
         Schema::create('units', function (Blueprint $table) {
             $table->id();
-            $table->string('partnumber')->unique();
-            $table->string('description');
-            $table->string('manufacturer')->nullable();
-            $table->integer('lib');
-            $table->string(' aircraft')->nullable();
+            $table->string('part_number')->unique();
             $table->timestamps();
         });
+
+        $csvFile = public_path('data/units.csv');
+        $file = fopen($csvFile, 'r');
+        $headers = fgetcsv($file);
+        while (($row = fgetcsv($file)) !== false) {
+            DB::table('units')->insert([
+                'part_number' => $row[1],
+            ]);
+        }
+        fclose($file);
+
     }
 
     /**

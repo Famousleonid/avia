@@ -18,7 +18,6 @@ return new class extends Migration {
             $table->tinyInteger('is_admin')->default(0)->unsigned();
             $table->string('phone', 15)->nullable();
             $table->string('stamp', 10)->nullable();
-            $table->string('sign')->nullable();
 
             $table->rememberToken();
             $table->timestamps();

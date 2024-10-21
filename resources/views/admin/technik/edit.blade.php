@@ -73,16 +73,10 @@
                         </div>
                         <div class="col-6 ">
                             <label class="sf" for="select_team">Team <span style="color:red; font-size: x-small">(required)</span></label>
-                            <select name="team" id="select_team" class="form-control">
-                                <option value="">- select a team -</option>
-                                <option value="1" {{ $user->team == 1 ? 'selected' : '' }}>Akimov's team</option>
-                                <option value="2" {{ $user->team == 2 ? 'selected' : '' }}>Blinov's team</option>
-                                <option value="3" {{ $user->team == 3 ? 'selected' : '' }}>Steblyk's team</option>
-                                <option value="4" {{ $user->team == 4 ? 'selected' : '' }}>Tchalyi's team</option>
-                                <option value="5" {{ $user->team == 5 ? 'selected' : '' }}>Barysevich's team</option>
-                                <option value="5" {{ $user->team == 6 ? 'selected' : '' }}>Volker's team</option>
-                                <option value="5" {{ $user->team == 7 ? 'selected' : '' }}>Never stop's team</option>
-                                <option value="6" {{ $user->team == 8 ? 'selected' : '' }}>Lipikhin's team</option>
+                            <select name="team_id" id="select_team" class="form-control">
+                                @foreach($teams as $team)
+                                    <option value="{{$team->id}}">{{$team->name}}</option>
+                                @endforeach
                             </select>
                         </div>
 

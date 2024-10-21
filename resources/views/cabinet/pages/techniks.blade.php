@@ -12,17 +12,7 @@
                 </div>
             </div>
             @php
-                $teams = [
-                    0 => "Management",
-                    1 => "Akimov's team",
-                    2 => "Blinov's team",
-                    3 => "Steblyk's team",
-                    4 => "Tchalyi's team",
-                    5 => "Barysevich's team",
-                    6 => "Volker's team",
-                    7 => "Never stop's team",
-                    8 => "Lipikhin's team"
-                ];
+
             @endphp
             <div class="card-body">
                 <div class="box-body table-responsive">
@@ -50,7 +40,7 @@
                                     <td @if(!$user->email_verified_at) style="color:red" @endif>{{$user->name}}</td>
                                     <td>{{$user->email}}</td>
                                     <td class="text-center">{{$user->stamp}}</td>
-                                    <td class="text-center">{{ $teams[$user->team] ?? 'Unknown team' }}</td>
+                                    <td class="text-center">{{$user->team->name ?? 'Unknown team' }}</td>
                                     <td>
                                         <div class="text-center">
 

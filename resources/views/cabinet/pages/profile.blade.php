@@ -67,18 +67,24 @@
                                         <div class="col-6 pt-2">
                                             <b>Stamp:</b>&nbsp;&nbsp;&nbsp;&nbsp;<input name="stamp" class="form-control" value="{{$user->stamp}}">
                                         </div>
-                                        <div class="col-6 ">
-                                            <label class="sf" for="select_team">Team <span style="color:red; font-size: x-small">(required)</span></label>
-                                            <select name="team" id="select_team" class="form-control">
-                                                <option value="">- select a team -</option>
-                                                <option value="1" {{ $user->team == 1 ? 'selected' : '' }}>Akimov's team</option>
-                                                <option value="2" {{ $user->team == 2 ? 'selected' : '' }}>Blinov's team</option>
-                                                <option value="3" {{ $user->team == 3 ? 'selected' : '' }}>Steblyk's team</option>
-                                                <option value="4" {{ $user->team == 4 ? 'selected' : '' }}>Tchalyi's team</option>
-                                                <option value="5" {{ $user->team == 5 ? 'selected' : '' }}>Barysevich's team</option>
-                                                <option value="6" {{ $user->team == 6 ? 'selected' : '' }}>Volker's team</option>
-                                                <option value="7" {{ $user->team == 7 ? 'selected' : '' }}>Never stop's team</option>
-                                                <option value="8" {{ $user->team == 8 ? 'selected' : '' }}>Lipikhin's team</option>
+                                        <div class="col-6">
+                                            <label class="sf" for="select_team">
+                                                Team <span style="color:red; font-size: x-small">(required)</span>
+                                            </label>
+                                            <select name="team_id" id="select_team" class="form-control">
+                                                @if($user->team)
+                                                    <option value="{{ $user->team->id }}" selected>{{ $user->team->name }}</option>
+                                                @else
+                                                    <option value="" disabled selected>Select your team</option>
+                                                @endif
+
+                                                @foreach($teams as $team)
+                                                    @if(!$user->team || $team->id != $user->team->id)
+                                                        <option value="{{ $team->id }}" {{ old('team_id') == $team->id ? 'selected' : '' }}>
+                                                            {{ $team->name }}
+                                                        </option>
+                                                    @endif
+                                                @endforeach
                                             </select>
                                         </div>
                                     </div>

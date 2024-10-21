@@ -15,17 +15,20 @@ return new class extends Migration {
         Schema::create('workorders', function (Blueprint $table) {
             $table->id();
             $table->integer('number')->unique();
-            $table->boolean('approve')->default(false);
             $table->timestamp('approve_at')->nullable();
+            $table->string('approve_name')->nullable();
             $table->string('serial_number')->nullable();
-            $table->string('manual')->nullable();
             $table->string('description')->nullable();
-            $table->text('notes')->nullable();
+            $table->string('amdt')->nullable();
+            $table->string('place')->nullable();
+            $table->timestamp('open_at')->nullable();
             $table->foreignId('unit_id')->constrained();
             $table->foreignId('instruction_id')->constrained();
             $table->foreignId('customer_id')->constrained();
             $table->foreignId('user_id')->constrained();
+
             $table->timestamps();
+            $table->softDeletes();
         });
     }
 

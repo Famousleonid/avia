@@ -4,10 +4,11 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\SoftDeletes;
 
 class Manual extends Model
 {
-    use HasFactory;
+    use HasFactory, softDeletes;
     protected $fillable = [
         'number',
         'title',
@@ -21,6 +22,8 @@ class Manual extends Model
         'builders_id',
         'scopes_id',
     ];
+
+    protected $dates = ['deleted_at'];
 
     // Отношение с моделью AirCraft
     public function plane()
