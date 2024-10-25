@@ -16,8 +16,8 @@ class CabinetController extends Controller
 {
     public function index()
     {
-        $user = Auth::user();
-        $team = $user->team->id;
+        $user = Auth::user()->load('team');
+        $team = optional($user->team)->id;
         $mains = Main::all();
         $tasks = Task::all();
         $components = Component::all();
