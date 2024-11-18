@@ -7,17 +7,18 @@
     <title>Personal page</title>
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="csrf-token" content="{{ csrf_token() }}"/>
-
-    <link rel="stylesheet" href="{{asset('/css/bootstrap.min.css')}}">
-    <link rel="stylesheet" href="{{asset('css/adminlte.min.css')}}">
-    <link rel="stylesheet" href="{{asset('plugins/fontawesome-free/css/all.css')}}">
-    <link rel="stylesheet" href="{{asset('assets/jquery.fancybox.min.css')}}">
-    <link href="https://cdn.datatables.net/v/bs4/dt-1.13.8/af-2.6.0/cr-1.7.0/fh-3.4.0/rr-1.4.1/sp-2.2.0/datatables.min.css" rel="stylesheet">
-    <link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet"/>
+    <link rel="stylesheet" href="{{asset('assets/Bootstrap 5/bootstrap.min.css')}}">
+    <link href="{{asset('assets/Bootstrap 5/bootstrap-icons.css')}}" rel="stylesheet">
+    <link rel="stylesheet" href="{{asset('assets/jquery/jquery.fancybox.min.css')}}">
+    <link href="{{asset('assets/dataTables/datatables.css')}}" rel="stylesheet">
+    <link href="{{asset('assets/select2/css/select2.min.css')}}" rel="stylesheet"/>
+    <link rel="stylesheet" href="{{asset('css/custom_bootstrap.css')}}">
+    <link rel="stylesheet" href="{{asset('css/main.css')}}">
 
     @yield('link')
 
     <style>
+
         .container-checkbox {
             display: block;
             position: relative;
@@ -75,175 +76,40 @@
             transform: rotate(45deg);
         }
 
-        .win {
+        .spinner-win {
             z-index: 120;
             position: absolute;
             top: 45%;
             left: 50%;
+            text-align: center;
         }
 
         #loading img {
             height: 55px;
             width: 55px;
         }
-
-        .firm-border {
-            border-top: 5px solid #F8C50E;
-        }
-
-        .gg {
-            border: 2px solid green;
-        }
-
-        .rr {
-            border: 2px solid red !important;
-        }
-
-        .ss {
-            border: 2px solid blue !important;
-        }
-
-        .colored-svg {
-            width: 150px;
-            height: auto;
-            filter: brightness(0) saturate(100%) invert(100%) sepia(100%) saturate(0%) hue-rotate(283deg) brightness(110%) contrast(101%);
-        }
     </style>
-
+    <script>
+        (function () {
+            const savedTheme = localStorage.getItem('theme') || 'light';
+            document.documentElement.setAttribute('data-bs-theme', savedTheme);
+        })();
+    </script>
 </head>
 
-<body class="hold-transition sidebar-mini">
+<body class="p-0 m-0 g-0">
 
 <div id="spinner-load">
-    <i style="text-align: center;" class="fa fa-spinner fa-spin text-primary fa-3x win"></i>
+    <i class="fa fa-spinner fa-spin text-primary fa-3x spinner-win"></i>
 </div>
 
-<div class="wrapper">
+<div class="row vh-100 g-0">
 
-    <nav class="main-header navbar navbar-expand navbar-black navbar-light shadow ">
-        <ul class="nav ">
-            <li class="nav-item">
-                <a class="nav-link" data-widget="pushmenu" data-enable-remember="true" href="#" role="button"><i class="fas fa-bars"></i></a>
-            </li>
-        </ul>
+    <div class="col-lg-2 col-12">
+        @include('components.sidebar')
+    </div>
 
-        <ul class="navbar-nav ml-auto">
-            <li class="nav-item dropdown">
-                <a class="nav-link" href="{{route('mobile.index')}}">
-                    <i class="far fa-bell"></i>
-                </a>
-            </li>
-            <li class="nav-item">
-                <a class="nav-link" href="" role="button">
-                    <i class="fas fa-th-large"></i>
-                </a>
-            </li>
-        </ul>
-    </nav>
-
-    <aside class="main-sidebar sidebar-dark-primary elevation-4 sidebar-no-expand">
-        <a href="{{ url('/') }}" target="_blank" class="brand-link">
-            <img src="{{asset('img/favicon.webp')}}" width="20"
-                 alt=" Logo"
-                 class="brand-image img-circle elevation-1"
-                 style="opacity: .7">
-            <span class="brand-text font-weight-bold"><img src="{{asset('img/icons/AT_logo-rb.svg')}}" alt="Logo" class="colored-svg" style="width: 120px;"></span>
-        </a>
-
-        <div class="sidebar">
-            <div class="user-panel mt-2 ml-3 pb-2 mb-2 d-flex">
-                <div>
-                    <?php
-                    $user = Auth()->user();
-                    $avatar = $user->getMedia('avatar')->first();
-                    $avatarThumbUrl = $avatar
-                        ? route('image.show.thumb', [
-                            'mediaId' => $avatar->id,
-                            'modelId' => $user->id,
-                            'mediaName' => 'avatar'
-                        ])
-                        : asset('img/avatar.jpeg');
-                    $avatarBigUrl = $avatar
-                        ? route('image.show.big', [
-                            'mediaId' => $avatar->id,
-                            'modelId' => $user->id,
-                            'mediaName' => 'avatar'
-                        ])
-                        : asset('img/avatar.jpeg');
-                    ?>
-                    <a href="{{ $avatarBigUrl }}" data-fancybox="gallery">
-                        <img class="rounded-circle" src="{{ $avatarThumbUrl }}" alt="User Avatar"/>
-                    </a>
-                </div>
-
-                <div class="h5 ml-3 mt-2" style="color: white">
-                    {{Auth::user()->name}}
-                </div>
-            </div>
-
-            <nav class="mt-2">
-                <ul class="nav nav-pills nav-sidebar flex-column" data-widget="treeview" role="menu"
-                    data-accordion="false">
-                    <li class="nav-item">
-                        <a href="{{route('cabinet.index')}}" class="nav-link" onclick="showLoadingSpinner()">
-                            <i class="nav-icon fas fa-home"></i>
-                            <p>Main</p>
-                        </a>
-                    </li>
-                    <li class="nav-item">
-                        <a href="{{route('underway.index')}}" class="nav-link" onclick="showLoadingSpinner()">
-                            <i class="nav-icon fa-solid fa-screwdriver-wrench"></i>
-                            <p>Work in Progress</p>
-                        </a>
-                    </li>
-                    <li class="nav-item">
-                        <a href="{{route('cabinet.profile')}}" class="nav-link" onclick="showLoadingSpinner()">
-                            <i class="white nav-icon far fa-address-card"></i>
-                            <p>Profile</p>
-                        </a>
-                    </li>
-                    @if(Auth()->user()->getRole() == 1)
-                        <li class="nav-item">
-                            <a href="{{route('cabinet.customer.index')}}" class="nav-link" onclick="showLoadingSpinner()">
-                                <i class="nav-icon fa-solid fa-person-military-pointing"></i>
-                                <p>Customers</p>
-                            </a>
-                        </li>
-                    @endif
-                    <li class="nav-item">
-                        <a href="{{route('cabinet.techniks.view')}}" class="nav-link" onclick="showLoadingSpinner()">
-                            <i class="nav-icon fa-regular fa-user"></i>
-                            <p>Techniks</p>
-                        </a>
-                    </li>
-                    <li class="nav-item">
-                        <a href="{{route('cabinet.materials')}}" class="nav-link" onclick="showLoadingSpinner()">
-                            <i class="white nav-icon ">
-                                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="white" class="bi bi-collection" viewBox="0 0 16 16">
-                                    <path d="M2.5 3.5a.5.5 0 0 1 0-1h11a.5.5 0 0 1 0 1zm2-2a.5.5 0 0 1 0-1h7a.5.5 0 0 1 0 1zM0 13a1.5 1.5 0 0 0 1.5 1.5h13A1.5 1.5 0 0 0 16 13V6a1.5 1.5 0 0 0-1.5-1.5h-13A1.5 1.5 0 0 0 0 6zm1.5.5A.5.5 0 0 1 1 13V6a.5.5 0 0 1 .5-.5h13a.5.5 0 0 1 .5.5v7a.5.5 0 0 1-.5.5z"/>
-                                </svg>
-                            </i>
-                            <p>Materials</p>
-                        </a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link" href="{{ route('logout') }}"
-                           onclick="event.preventDefault();
-                                document.getElementById('logout-form-menu').submit();">
-                            <i class="nav-icon fas fa-sign-out-alt"></i>
-                            <p>Logout</p>
-                        </a>
-                        <form id="logout-form-menu" action="{{ route('logout') }}" method="POST" class="d-none">
-                            @csrf
-                        </form>
-                    </li>
-                </ul>
-            </nav>
-        </div>
-    </aside>
-
-    <div class="content-wrapper pt-3">
-
+    <div class="col-lg-10 col-12">
         <div class="container-fluid ">
             <div class="row">
                 <div class="col-12">
@@ -283,27 +149,72 @@
                 </div>
             </div>
         </div>
-
-        @yield('content')
-
+        <div class="content">
+{{--            @yield('content')--}}
+        </div>
     </div>
 
     @include('components.footer')
 
 </div>
 
-<script src="https://code.jquery.com/jquery-3.7.1.js"></script>
-<script src="{{asset('js/bootstrap.bundle.min.js')}}"></script>
-<script src="https://cdn.datatables.net/v/bs4/dt-1.13.8/af-2.6.0/cr-1.7.0/fh-3.4.0/rr-1.4.1/sp-2.2.0/datatables.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
-<script src="https://kit.fontawesome.com/49f401fbd8.js" crossorigin="anonymous"></script>
-<script src="{{ asset('assets/jquery.fancybox.min.js') }}"></script>
-<script src="https://cdn.sheetjs.com/xlsx-0.17.4/package/dist/xlsx.full.min.js"></script>
+
+<script src="{{asset('assets/jquery/jquery371min.js')}}"></script>
+<script src="{{asset('assets/Bootstrap 5/bootstrap.bundle.min.js')}}"></script>
+<script src="{{asset('assets/dataTables/datatables.min.js')}}"></script>
+<script src="{{asset('assets/select2/js/select2.min.js')}}"></script>
+<script src="{{ asset('assets/jquery/jquery.fancybox.min.js') }}"></script>
 
 @yield('scripts')
 
 <script>
-    $(document).ready(function () {
+    document.addEventListener('DOMContentLoaded', function () {
+
+        const themeToggle = document.getElementById('themeToggle');
+        const themeToggleMobile = document.getElementById('themeToggleMobile');
+
+        function updateThemeIcon(theme) {
+            const iconClass = theme === 'dark' ? 'bi-sun' : 'bi-moon';
+            if (themeToggle) {
+                const icon = themeToggle.querySelector('i');
+                if (icon) {
+                    icon.className = `bi ${iconClass}`;
+                }
+            }
+            if (themeToggleMobile) {
+                const icon = themeToggleMobile.querySelector('i');
+                if (icon) {
+                    icon.className = `bi ${iconClass}`;
+                }
+            }
+        }
+
+        function toggleTheme() {
+            let currentTheme = document.documentElement.getAttribute('data-bs-theme');
+            let newTheme = currentTheme === 'light' ? 'dark' : 'light';
+            document.documentElement.setAttribute('data-bs-theme', newTheme);
+            localStorage.setItem('theme', newTheme);
+            updateThemeIcon(newTheme);
+        }
+
+        if (themeToggle) {
+            themeToggle.addEventListener('click', function (e) {
+                e.preventDefault();
+                toggleTheme();
+            });
+        }
+
+        if (themeToggleMobile) {
+            themeToggleMobile.addEventListener('click', function (e) {
+                e.preventDefault();
+                toggleTheme();
+            });
+        }
+
+        let storedTheme = localStorage.getItem('theme') || 'light';
+        document.documentElement.setAttribute('data-bs-theme', storedTheme);
+        updateThemeIcon(storedTheme);
+
 
         $(function () {
             $('[data-toggle="tooltip"]').tooltip()
@@ -320,20 +231,17 @@
             }
         });
 
+        function showLoadingSpinner() {
+            document.querySelector('#spinner-load').classList.remove('d-none');
+        }
+
+        function hideLoadingSpinner() {
+            document.querySelector('#spinner-load').classList.add('d-none');
+        }
+
+        hideLoadingSpinner();
+
     });
-
-    function showLoadingSpinner() {
-        document.querySelector('#spinner-load').classList.remove('d-none');
-
-    }
-
-    function hideLoadingSpinner() {
-        document.querySelector('#spinner-load').classList.add('d-none');
-
-    }
-
-    hideLoadingSpinner();
-
 </script>
 
 </body>

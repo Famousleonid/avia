@@ -112,40 +112,40 @@
                     data-accordion="false">
 
                     <li class="nav-item">
-                        <a href="{{route('admin-workorders.index')}}" class="nav-link">
+                        <a href="{{route('admin.index')}}" class="nav-link">
                             <i class="nav-icon fas fa-w"></i>
                             <p>Workorders</p>
                         </a>
                     </li>
 
                     <li class="nav-item ">
-                        <a href="{{route('techniks.index')}}" class="nav-link">
+                        <a href="" class="nav-link">
                             <i class="nav-icon fas fa-user"></i>
                             <p>Techniks</p>
                         </a>
                     </li>
 
                     <li class="nav-item ">
-                        <a href="{{route('customers.index')}}" class="nav-link">
+                        <a href="" class="nav-link">
                             <i class="nav-icon fa-solid fa-person-military-pointing"></i>
                             <p>Customers</p>
                         </a>
                     </li>
 
                     <li class="nav-item">
-                        <a href="{{route('unit.index')}}" class="nav-link">
+                        <a href="" class="nav-link">
                             <i class=" nav-icon fa-solid fa-cubes"></i>
                             <p>Units</p>
                         </a>
                     </li>
                     <li class="nav-item">
-                        <a href="{{route('component.index')}}" class="nav-link">
+                        <a href="" class="nav-link">
                             <i class="nav-icon fa-solid fa-cube"></i>
                             <p>Components</p>
                         </a>
                     </li>
                     <li class="nav-item">
-                        <a href="{{route('task.index')}}" class="nav-link">
+                        <a href="" class="nav-link">
                             <i class="nav-icon fa-solid fa-people-arrows"></i>
                             <p>Tasks</p>
                         </a>

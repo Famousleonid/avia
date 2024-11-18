@@ -3,13 +3,6 @@
 @section('link')
 
     <style>
-        /*        .context-menu {
-                    position: absolute;
-                    text-align: center;
-                    background: lightgray;
-                    border: 1px solid black;
-                }*/
-
         .context-menu ul {
             padding: 0;
             margin: 0;
@@ -64,13 +57,13 @@
 
 @section('content')
 
-    <section class="container-fluid px-2 ">
+    <section class="">
 
-        <div class="card firm-border p-1 bg-white shadow">
+        <div class="card firm-border p-1 shadow">
             <div class="row ">
 
                 <div class="col-12 col-md-2 input-div">
-                    <span class="h6">All workorders: </span> <span class="text-primary h5 text-right" id="orders_count" style="display:inline-block; min-width:4ch">{{count($workorders)}}</span>
+                    <span class="h6">All workorders: </span>&nbsp; <span class="text-primary h5 text-right" id="orders_count" style="display:inline-block; min-width:4ch">{{count($workorders)}}</span>
                 </div>
                 <div class="col-12 col-md-2 input-div ">
                     <label id="label-color-team" class="container-checkbox text-gray" for="checkbox-my-team">
@@ -206,7 +199,7 @@
                 });
                 /*------------------------------------------------------------------------------------------*/
 
-                const userRole = {{ Auth()->user()->getRole() }};
+
                 const myOnly = document.getElementById('checkbox-my-only');
                 const savedMyOnly = localStorage.getItem('myOnly');
                 const myTeam = document.getElementById('checkbox-my-team');

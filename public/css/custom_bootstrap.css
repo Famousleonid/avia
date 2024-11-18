@@ -1,0 +1,24 @@
+
+:root[data-bs-theme='light'] {
+    --bs-primary: #ff5733;
+    --bs-secondary: #33c3ff;
+    --bs-body-bg: #ffffff;
+    --bs-body-color: #333333;
+    --sidebar-bg: #343A40;
+    --sidebar-color: #ffffff;
+    --nav-link-color: #adb5bd;
+    --nav-link-hover-color: #ffffff;
+    --nav-link-active-color: #ffffff;
+    --nav-link-active-bg: #495057;
+    --bs-tertiary-bg-rgb: 240, 240, 240;
+    --shadow-top-color: rgba(255, 255, 255, 0.5);
+}
+
+:root[data-bs-theme='dark'] {
+    --bs-primary: #ff5733;
+    --bs-secondary: #33c3ff;
+    --bs-body-bg: #121212;
+    --bs-body-color: #ffffff;
+    --nav-link-hover-color: #ffffff;
+    --nav-link-hover-color-bg: #ffffff;
+}
