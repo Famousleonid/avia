@@ -3,7 +3,7 @@
         position: fixed;
         bottom: 0;
         width: 100%;
-        z-index: 1030;
+        z-index: 1050;
         height: 5%;
         padding: 0;
         margin: 0;
