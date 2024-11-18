@@ -4,7 +4,7 @@
         max-width: 240px;
     }
     .sidebar {
-        overflow: hidden;
+        overflow-y: auto;
         background-color: #343A40;
         color: #B9BEC7;
         box-shadow: 0 0 15px 0 var(--shadow-top-color);
@@ -77,10 +77,10 @@
         </div>
 
         <div class="flex-grow-1 d-flex flex-column">
-            @include('components.menu_sidebar')
+            @include('components.menu_sidebar', ['themeToggleId' => 'themeToggle'])
         </div>
 
-        <div class="user-section p-3 mt-auto border-top border-bottom border-1">
+        <div class="p-3 mt-auto border-top border-bottom border-1">
             <a class="nav-link" href="{{ route('logout') }}"
                onclick="event.preventDefault(); document.getElementById('logout-form-menu').submit();">
                 <i class="bi bi-box-arrow-right me-2"></i> Logout
@@ -95,14 +95,14 @@
 <!------------------------------ Button X ----------------------------------------->
 <nav class="navbar navbar-light bg-body-tertiary d-lg-none">
     <div class="container-fluid">
-        <button class="navbar-toggler" type="button" data-bs-toggle="offcanvas" data-bs-target="#offcanvasSidebar">
-            <span class="navbar-toggler-icon"></span>
+        <button class="navbar-toggler " type="button" data-bs-toggle="offcanvas" data-bs-target="#offcanvasSidebar">
+            <span class="navbar-toggler-icon text-white"></span>
         </button>
     </div>
 </nav>
 
 <!---------------------------------- Mobile menu  ----------------------------------->
-<div class="offcanvas offcanvas-start w-50 sidebar" style="height: 95vh;" tabindex="-1" id="offcanvasSidebar">
+<div class="offcanvas offcanvas-start sidebar" style="max-height: 90%; width: 35%;" tabindex="-1" id="offcanvasSidebar">
 
     <div class="offcanvas-header border-bottom border-1">
         <div class="row p-2">
@@ -115,7 +115,7 @@
                 </a>
             </div>
         </div>
-        <button type="button" class="btn-close" data-bs-dismiss="offcanvas"></button>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="offcanvas"></button>
     </div>
 
     <div class="border-bottom border-1 p-2">
@@ -132,10 +132,10 @@
     </div>
 
     <div class="flex-grow-1 d-flex flex-column">
-        @include('components.menu_sidebar')
+        @include('components.menu_sidebar', ['themeToggleId' => 'themeToggleMobile'])
     </div>
 
-    <div class="user-section p-3 mt-auto border-top border-bottom border-1">
+    <div class="p-3 mt-auto border-top border-bottom border-1">
         <a class="nav-link" href="{{ route('logout') }}"
            onclick="event.preventDefault(); document.getElementById('logout-form-menu').submit();">
             <i class="bi bi-box-arrow-right me-2"></i> Logout

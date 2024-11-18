@@ -12,9 +12,9 @@ class MobileController extends Controller
 {
     public function index()
     {
-        $workorders = Workorder::all();
+        // $workorders = Workorder::all();
 
-        return view('mobile.pages.index', compact('workorders'));
+        return view('mobile.pages.index');
     }
 
     public function profile()

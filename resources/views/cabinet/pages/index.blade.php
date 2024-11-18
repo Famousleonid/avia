@@ -50,14 +50,13 @@
             display: none;
         }
 
-
     </style>
 
 @endsection
 
 @section('content')
 
-    <section class="">
+    <section class="mt-1">
 
         <div class="card firm-border p-1 shadow">
             <div class="row ">
@@ -104,20 +103,18 @@
                 <tr style="font-size: 12px">
                     <th hidden>Id</th>
                     <th class="text-center" data-sort="true">Number</th>
-                    <th class="text-center" data-orderable="false">Approve</th>
-                    <th class="text-center" data-orderable="false">W</th>
+                    <th>Approve</th>
                     <th>Unit</th>
-                    <th data-orderable="false">Description</th>
+                    <th>Amdt</th>
+                    <th>Ser.Num.</th>
                     <th>Instruction</th>
-                    <th class="text-center" data-orderable="false">Lib</th>
-                    <th>Technik</th>
                     <th>Customer</th>
-                    <th data-orderable="false">S/N</th>
+                    <th>Lib</th>
+                    <th>Technik</th>
+                    <th>Deccription</th>
                     <th>Place</th>
-                    <th class="text-center" data-orderable="false">Item</th>
                     <th class="text-center" data-orderable="false">*</th>
                     <th class="text-center">Date</th>
-
                 </tr>
                 </thead>
                 <tbody>
@@ -125,16 +122,14 @@
                 @foreach ($workorders as $workorder)
 
                     <tr class="{{ implode(' ', $workorder->class) }}">
-
-
                         <td hidden>{{$workorder->id}}</td>
-                        <td class="text-center">
+                        <td class="">
                             <a href="{{route('main.index', ['workorder_id' => $workorder->id])}}">
                                 w<span style="font-size: 14px" id="" class="text-bold">{{$workorder->number}}</span>
                             </a>
                         </td>
-                        <td class="text-center">
-                            <a class="change_approve" href="{{route('cabinet.workorders.approve', ['id' => $workorder->id])}}">
+                        <td class="">
+                            <a class="change_approve" href="#">
                                 @if($workorder->approve)
                                     <img data-toggle="tooltip" title="@if($workorder->approve_at) {{$workorder->approve_at->format('d.m.Y')}} @endif" src="{{asset('img/ok.png')}}" width="20px" alt="">
                                 @else
@@ -142,25 +137,21 @@
                                 @endif
                             </a>
                         </td>
-                        <td>
-                            <a class="paper_workorder" href="{{route('cabinet.workorders.paper', ['id' => $workorder->id])}}">
-                                <img src="{{asset('img/icons/workorder_paper.png')}}" width="27px" alt="">
-                            </a>
-                        </td>
                         <td class="">{{$workorder->unit->partnumber}}</td>
-                        <td class="" data-toggle="tooltip" title="@if($workorder->notes) {{$workorder->notes}} @endif">{{$workorder->description}}</td>
-                        <td class="">{{$workorder->instruction->name}}</td>
-                        <td class="text-center">{{$workorder->manual}}</td>
-                        <td class="">{{$workorder->user->name}}</td>
-                        <td class="">{{$workorder->customer->name}}</td>
+                        <td hidden>{{$workorder->amdt}}</td>
                         <td class="">{{$workorder->serial_number}}</td>
+                        <td class="">{{$workorder->instruction->name}}</td>
+                        <td class="">{{$workorder->customer->name}}</td>
+                        <td class="">{{$workorder->lib}}</td>
+                        <td class="">{{$workorder->user->name}}</td>
+                        <td class="" >{{$workorder->description}}</td>
                         <td class="">{{$workorder->place}}</td>
                         <td class="text-center">
-                            <a class="change_approve" href="{{route('component.workorders', ['workorder_id' => $workorder->id])}}">
+                            <a class="change_approve" href="#">
                                 <img src="{{asset('img/icons/component.png')}}" width="25px" alt="">
                             </a>
                         </td>
-                        @if(Auth()->user()->getRole() == 1)
+                        @if(Auth()->user()->getRole() === 2)
                             <td class="text-center"><a href="{{route('workorder.edit',$workorder->id)}}"><img src="{{asset('img/set_active2.png')}}" data-toggle="tooltip" title="edit" width="25px" alt=""></a></td>
                         @else
                             <td class="text-center"><img src="{{asset('img/set.png')}}" data-toggle="tooltip" title="you are not allowed to edit" width="20px" alt=""></td>
@@ -181,7 +172,7 @@
 @endsection
 
 @section('scripts')
-    <script type="text/javascript" charset="utf8" src="https://cdn.datatables.net/responsive/2.2.9/js/dataTables.responsive.min.js"></script>
+
     <script>
 
         document.addEventListener('DOMContentLoaded', function () {
@@ -224,16 +215,15 @@
                         {"width": "0%", "targets": 0},
                         {"width": "5%", "targets": 1}, // -- number
                         {"width": "2%", "targets": 2}, // -- approve
-                        {"width": "1%", "targets": 3}, // -- W
                         {"width": "8%", "targets": 4}, // -- unit
-                        {"width": "20%", "targets": 5}, //-- description
+                        {"width": "8%", "targets": 4}, // -- Amdt
+                        {"width": "8%", "targets": 4}, // -- Serial num
                         {"width": "3%", "targets": 6},  // -- instruction
-                        {"width": "2%", "targets": 7}, // -- lib
+                        {"width": "2%", "targets": 7}, // -- customer
+                        {"width": "12%", "targets": 9},  // -- lob
                         {"width": "10%", "targets": 8}, // -- technik
-                        {"width": "12%", "targets": 9},  // -- customer
-                        {"width": "2%", "targets": 10},  // -- s/n
+                        {"width": "20%", "targets": 5}, //-- description
                         {"width": "3%", "targets": 11}, // -- place
-                        {"width": "2%", "targets": 12}, // -- component
                         {"width": "2%", "targets": 13}, // -- edit
                         {"width": "3%", "targets": 14}, // -- date
                     ],

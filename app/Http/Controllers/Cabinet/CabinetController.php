@@ -17,6 +17,7 @@ class CabinetController extends Controller
     public function index()
     {
         $user = Auth::user()->load('team');
+        $role = Auth::user()->getRole();
         $team = optional($user->team)->id;
         $mains = Main::all();
         $tasks = Task::all();
@@ -113,12 +114,12 @@ class CabinetController extends Controller
 
     }
 
-    public function underway()
+    public function progress()
     {
 
         // $base = 1;
 
-        return view('cabinet.pages.underway');
+        return view('cabinet.pages.progress');
 
     }
 

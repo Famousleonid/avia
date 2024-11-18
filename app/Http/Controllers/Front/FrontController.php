@@ -33,6 +33,8 @@ class FrontController extends Controller
         Log::channel('avia')->info('_______ фронт _________');
         $page = ($x ? 'mobile' : 'front') . '.pages.index';
 
+        $page = 'front.pages.index';
+
         if (!Auth::check() && $mobile) return view('auth.login');
 
         // Log::channel('avia')->info('123' . ' 345 ');

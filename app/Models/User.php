@@ -40,7 +40,7 @@ class User extends Authenticatable implements MustVerifyEmail, hasMedia
 
     public function getRole()
     {
-        return $this->role;
+        return $this->role_id;
     }
 
     public function workorder()

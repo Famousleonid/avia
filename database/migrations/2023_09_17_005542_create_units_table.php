@@ -17,7 +17,7 @@ return new class extends Migration
         Schema::create('units', function (Blueprint $table) {
             $table->id();
             $table->string('part_number')->unique();
-            $table->boolean()->default(false);
+            $table->boolean('verified')->default(false);
 
             $table->timestamps();
         });
