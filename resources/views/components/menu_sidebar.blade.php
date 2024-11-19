@@ -3,12 +3,22 @@
 <ul class="nav flex-column" data-accordion="false">
     <li class="nav-item">
         <a class="nav-link" href="{{route('cabinet.index')}}" onclick="showLoadingSpinner()">
-            <i class="bi bi-file-earmark-word fs-4 me-2"></i> Main
+            <i class="bi bi-house fs-5 me-2"></i> Main
         </a>
     </li>
     <li class="nav-item">
         <a class="nav-link" href="{{route('progress.index')}}" onclick="showLoadingSpinner()">
             <i class="bi bi-graph-up-arrow me-2"></i> Progress
+        </a>
+    </li>
+    <li class="nav-item">
+        <a class="nav-link" href="{{route('training.index')}}" onclick="showLoadingSpinner()">
+            <i class="bi bi-list-check me-2"></i> Training
+        </a>
+    </li>
+    <li class="nav-item">
+        <a class="nav-link" href="#" onclick="showLoadingSpinner()">
+            <i class="bi bi-file-earmark-word fs-6 me-2 "></i> Workorder
         </a>
     </li>
     <li class="nav-item">

@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Http\Controllers\General;
+namespace App\Http\Controllers\Cabinet;
 
 use App\Http\Controllers\Controller;
 use App\Models\Customer;
@@ -21,7 +21,7 @@ class WorkorderController extends Controller
         $current_user = Auth::user();
         $users = User::all();
 
-        return view('workorder.create', compact('current_user', 'customers', 'units', 'instructions', 'users'));
+        return view('cabinet.workorder.create', compact('current_user', 'customers', 'units', 'instructions', 'users'));
     }
 
     public function store(Request $request)

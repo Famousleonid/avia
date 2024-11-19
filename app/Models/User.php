@@ -63,6 +63,13 @@ class User extends Authenticatable implements MustVerifyEmail, hasMedia
 
     }
 
+    public function trainings()
+    {
+        return $this->hasMany(Training::class);
+    }
+
+
+
     public function registerAllMediaConversions(): void
     {
         $this->addMediaConversion('thumb')

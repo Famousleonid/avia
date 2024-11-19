@@ -7,15 +7,15 @@ use App\Http\Controllers\Admin\UserController;
 use App\Http\Controllers\Cabinet\MainController;
 use App\Http\Controllers\Cabinet\ProgressController;
 use App\Http\Controllers\Cabinet\TechnikController;
+use App\Http\Controllers\Cabinet\TrainingController;
+use App\Http\Controllers\Cabinet\UnitController;
+use App\Http\Controllers\Cabinet\WorkorderController;
 use App\Http\Controllers\Front\FrontController;
 use App\Http\Controllers\Cabinet\CabinetController;
-use App\Http\Controllers\General\ComponentController;
-use App\Http\Controllers\General\CustomerController;
 use App\Http\Controllers\Admin\GeneralTaskController;
+use App\Http\Controllers\Cabinet\CustomerController;
 use App\Http\Controllers\General\MediaController;
 use App\Http\Controllers\Admin\TaskController;
-use App\Http\Controllers\General\UnitController;
-use App\Http\Controllers\General\WorkorderController;
 use App\Http\Controllers\Mobile\MobileController;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Auth;
@@ -40,7 +40,10 @@ Route::group(['middleware' => ['auth'], 'prefix' => 'cabinet'], function () {
 
     Route::get('/', [CabinetController::class, 'index'])->name('cabinet.index');
     Route::get('/profile', [CabinetController::class, 'profile'])->name('cabinet.profile');
+    Route::get('trainings/form112/{id}', [TrainingController::class, 'showForm112'])->name('training.form112');
+    Route::get('trainings/form132/{id}', [TrainingController::class, 'showForm132'])->name('training.form132');
 
+    Route::resource('/training', TrainingController::class);
     Route::resource('/main', MainController::class);
     Route::resource('/user', UserController::class);
     Route::resource('/workorder', WorkorderController::class);
@@ -68,7 +71,6 @@ Route::group(['middleware' => ['auth', 'isAdmin'], 'prefix' => 'admin'], functio
 
     Route::get('/', [AdminController::class, 'index'])->name('admin.index');
     Route::get('/logs', [AdminController::class, 'activity'])->name('log.activity');
-    Route::resource('/component', ComponentController::class);
     Route::resource('/task', TaskController::class);
     Route::resource('/general_task', GeneralTaskController::class);
     Route::resource('/user', UserController::class);

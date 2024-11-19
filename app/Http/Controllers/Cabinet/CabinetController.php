@@ -17,13 +17,10 @@ class CabinetController extends Controller
     public function index()
     {
         $user = Auth::user()->load('team');
-        $role = Auth::user()->getRole();
         $team = optional($user->team)->id;
         $mains = Main::all();
         $tasks = Task::all();
-        $components = Component::all();
         $workorders = Workorder::with(['customer', 'main', 'user'])->get();
-
 
         $userMains = Main::where('user_id', $user->id)->get()->keyBy('workorder_id');
 
@@ -41,9 +38,8 @@ class CabinetController extends Controller
             return $workorder;
         });
 
-
         if ($user->email_verified_at) {
-            return view('cabinet.pages.index', compact('user', 'workorders', 'mains', 'tasks', 'components'));
+            return view('cabinet.pages.index', compact('user', 'workorders', 'mains', 'tasks' ));
         } else {
             return view('cabinet.master_none_verification', compact('user'));
         }

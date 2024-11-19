@@ -88,6 +88,9 @@
             height: 55px;
             width: 55px;
         }
+        .content {
+            overflow: hidden;
+        }
     </style>
     <script>
         (function () {
