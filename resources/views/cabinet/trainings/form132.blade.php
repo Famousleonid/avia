@@ -4,12 +4,14 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Form 132</title>
-    <link
-        href="https://cdn.jsdelivr.net/npm/bootstrap@5.0.2/dist/css/bootstrap.min.css"
-        rel="stylesheet"
-        integrity="sha384-EVSTQN3/azprG1Anm3QDgpJLIm9Nao0Yz1ztcQTwFspd3yD65VohhpuuCOmLASjC"
-        crossorigin="anonymous">
-    <link rel="stylesheet" href={{asset("dist/css/adminlte.min.css")}}>
+    <link rel="stylesheet" href="{{asset('css/bootstrap.min.css')}}">
+
+{{--    <link--}}
+{{--        href="https://cdn.jsdelivr.net/npm/bootstrap@5.0.2/dist/css/bootstrap.min.css"--}}
+{{--        rel="stylesheet"--}}
+{{--        integrity="sha384-EVSTQN3/azprG1Anm3QDgpJLIm9Nao0Yz1ztcQTwFspd3yD65VohhpuuCOmLASjC"--}}
+{{--        crossorigin="anonymous">--}}
+
     <style>
         body {
             margin: 0;
@@ -30,12 +32,16 @@
             /* Задаем размер страницы Letter (8.5 x 11 дюймов) */
             @page {
                 size: letter;
-                margin: 10mm;
+                /*margin: 6mm;*/
+                margin-left: 15mm;
+                margin-top: 10mm;
+                margin-right: 6mm;
+                margin-bottom: 10mm;
             }
 
             /* Убедитесь, что вся страница помещается на один лист */
             html, body {
-                height: 100%;
+                /*height: 100%;*/
                 width: 105%;
                 margin-left: 1px;
                 padding: 0;
@@ -58,9 +64,9 @@
                 width: 920px;
                 text-align: center;
                 font-size: 10px;
-                background-color: #fff;
-                padding: 10px 20px;
-                min-height: 40px;
+                /*background-color: #fff;*/
+                padding: 1px 20px;
+                min-height: 10px;
             }
 
             /* Обрезка контента и размещение на одной странице */
@@ -182,7 +188,7 @@
 
 <body>
 <!-- Кнопка для печати -->
-<div class="text-start m-3">
+<div class="text-start m-2">
     <button class="btn btn-primary no-print" onclick="window.print()">Печать
         формы
     </button>
@@ -192,23 +198,23 @@
 <div class="container-fluid">
     <div class="row">
         <img src="{{ asset('image/AT_logo-rb.svg') }}" alt="Logo"
-             style="width: 210px; margin: 6px 10px 0;">
+             style="width: 210px; margin: 2px 2px 0;">
     </div>
 
     <div class="row justify-content-center">
         <div class="col-11 text-center">
-            <h2 class="pt-2  text-black"><strong>TRAINEE OBJECTIVES
+            <h3 class="  text-black"><strong>TRAINEE OBJECTIVES
                     ASSESSMENT FORM
 
-                </strong></h2>
-            <h2 class=" mt-n2 text-black"><strong>
+                </strong></h3>
+            <h3 class="  text-black"><strong>
                     (FOR USE BY THE ASSESSOR)
-                </strong></h2>
+                </strong></h3>
 
         </div>
     </div>
 
-    <div class="row mt-2" style="width: 900px">
+    <div class="row " style="width: 900px">
         <div class="col-6 text-black">
             <h5><strong>Trainee Name:</strong></h5>
         </div>
@@ -216,7 +222,7 @@
             <h5><strong>{{ $training->user->name }}</strong></h5>
         </div>
     </div>
-    <div class="row mt-2" style="width: 900px">
+    <div class="row mt-1" style="width: 900px">
         <div class="col-6 text-black">
             <h5><strong>Trainee Position:</strong></h5>
         </div>
@@ -244,10 +250,10 @@
             <h5 class="pt-4"><strong>USE REPORTS & INDICATIONS</strong></h5>
         </div>
         <div class="col-5 text-center border-l ">
-            <h5 class=""><strong>PERFORMANCE ASSESSMENT</strong></h5>
+            <h6 class=""><strong>PERFORMANCE ASSESSMENT</strong></h6>
             <div class="row">
                 <div class="col-7 text-center border-t-r">
-                    <h5 class=""><strong>ATTEMPTS</strong></h5>
+                    <h6 class=""><strong>ATTEMPTS</strong></h6>
                     <div class="row">
                         <div class="col-4 pt-1 text-center
                         border-t"><h6><strong>1st</strong></h6></div>
@@ -258,7 +264,7 @@
                     </div>
                 </div>
                 <div class="col-5 border-t">
-                    <h5 class=""><strong>RESULT *</strong></h5>
+                    <h6 class=""><strong>RESULT *</strong></h6>
                     <div class="row">
                         <div class="col-6  pt-1 text-center
                         border-t"><h6><strong>U</strong></h6></div>
@@ -281,9 +287,12 @@
                 <div class="col-7 text-center border-l">
                     <div class="row">
                         <div class="col-4 text-center pt-2
-                        "><img src="{{ asset('storage/image/forms/check.svg')
+                        ">
+
+                            <img src="{{ asset('storage/image/forms/check.svg')
                             }}" alt="check" class="4"
-                               style="width: 40px"></div>
+                               style="width: 40px">
+                        </div>
                         <div class="col-4 text-center  border-l pt-2
                         "><h3></h3></div>
                         <div class="col-4 text-center  border-l pt-2
@@ -801,7 +810,7 @@
         </div>
     </div>
 
-    <p style="height: 40px"></p>
+{{--    <p style="height: 40px"></p>--}}
 
 
     <div class="row border-all " style="width: 920px">
@@ -1178,7 +1187,7 @@
         <div class="col-7 ">
             <div class="row">
                 <div class="col-2" style="font-size: 0.85rem;">1st attempt</div>
-                <div class="col-10  pt-3 text-center">
+                <div class="col-10   text-center">
                     <h6>Found satisfactory </h6>
                 </div>
             </div>
@@ -1189,14 +1198,17 @@
                     <div class="row">
                         <div class="col-4"></div>
                         <div class="col-4"></div>
-                        <div class="col-4 border-l " style="height: 48px">
+                        <div class="col-4 border-l " style="height: 40px">
+                            <h6 class="ps-3 pt-2"> Vadym</h6>
                         </div>
                     </div>
                 </div>
                 <div class="col-5 ">
                     <div class="row">
-                        <div class="col-12 text-center pt-3 ">
-                            <h6> Vadym Nechyporenko</h6>
+                        <div class="col-12 text-center  ">
+                            <div class="d-flex ">
+                                <h6 class="pe-4 pt-2"> Nechyporenko</h6>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -1281,7 +1293,10 @@
                         <div class="col-4 border-l " style="height: 36px" >
                             <div class="d-flex ">
                                <h6 class="pe-2 pt-2">Succeeded</h6>
-                                <img src="{{asset('/storage/image/forms/check-.svg')}}" alt="">
+
+                                <img src="{{asset
+                                ('/storage/image/forms/check-square.svg')}}"
+                                     alt="">
                             </div>
 
                         </div>
@@ -1395,7 +1410,7 @@
         </div>
     </div>
 
-<div class="pt-3">
+<div class="pt-2">
     NOTE: * The trainee will be required to demonstrate a comprehensive
     understanding of the maintenance manuals and other data related to the
     aircraft component and practical skills to perform maintenance task on
@@ -1419,7 +1434,7 @@
     </div>
 
 </footer>
-<script src={{asset("dist/js/adminlte.js")}}></script>
+
 <!-- Скрипт для печати -->
 <script>
     function printForm() {

@@ -3,7 +3,10 @@
 namespace App\Http\Controllers\Cabinet;
 
 use App\Http\Controllers\Controller;
+use App\Models\Builder;
 use App\Models\Manual;
+use App\Models\Plane;
+use App\Models\Scope;
 use App\Models\Training;
 use Illuminate\Http\Request;
 
@@ -24,6 +27,10 @@ class TrainingController extends Controller
 
         // Обрабатываем группы тренировок для установки дат
         $formattedTrainingLists = [];
+        $planes = Plane::pluck('type', 'id');
+        $builders = Builder::pluck('name', 'id');
+        $scopes = Scope::pluck('scope', 'id');
+
         foreach ($trainingLists as $manualId => $trainings) {
             // Сортируем тренировки по дате
             $sortedTrainings = $trainings->sortBy('date_training');
@@ -39,9 +46,10 @@ class TrainingController extends Controller
                 'last_training' => $lastTraining,
                 'trainings' => $sortedTrainings, // Добавляем все тренировки в группу
             ];
+
         }
 
-        return view('cabinet.trainings.index', compact('formattedTrainingLists'));
+        return view('cabinet.trainings.index', compact('formattedTrainingLists', 'planes', 'builders', 'scopes'));
     }
 
 

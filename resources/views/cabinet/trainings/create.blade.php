@@ -1,4 +1,4 @@
-@extends('cabinet.master')
+@extends('layouts.main_dlb')
 
 @section('content')
 

@@ -9,7 +9,6 @@
         rel="stylesheet"
         integrity="sha384-EVSTQN3/azprG1Anm3QDgpJLIm9Nao0Yz1ztcQTwFspd3yD65VohhpuuCOmLASjC"
         crossorigin="anonymous">
-    <link rel="stylesheet" href={{asset("dist/css/adminlte.min.css")}}>
     <style>
         body {
             margin: 0;
@@ -29,12 +28,12 @@
             /* Задаем размер страницы Letter (8.5 x 11 дюймов) */
             @page {
                 size: letter;
-                margin: 5mm;
+                margin: 2mm;
             }
 
             /* Убедитесь, что вся страница помещается на один лист */
             html, body {
-                height: 90%;
+                height: 85%;
                 width: 105%;
                 margin-left: 10px;
                 padding: 0;
