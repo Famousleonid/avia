@@ -18,27 +18,27 @@ class AdminController extends Controller implements hasMedia
         $id = Auth::user();
         $user = User::find($id);
 
-        return View('admin.main.index', compact('user'));
+        return View('admin.index', compact('user'));
     }
 
-    public function activity()
-    {
-        $acts = Activity::All();
-
-        foreach ($acts as $act) {
-            $modelClass = $act->subject_type;
-            if (class_exists($modelClass)) {
-                $act->subject = $modelClass::find($act->subject_id);
-            } else {
-                $act->subject = null;
-            }
-        }
-
-
-        return View('admin.log.index', compact('acts'));
-
-
-    }
+//    public function activity()
+//    {
+//        $acts = Activity::All();
+//
+//        foreach ($acts as $act) {
+//            $modelClass = $act->subject_type;
+//            if (class_exists($modelClass)) {
+//                $act->subject = $modelClass::find($act->subject_id);
+//            } else {
+//                $act->subject = null;
+//            }
+//        }
+//
+//
+//        return View('admin.log.index', compact('acts'));
+//
+//
+//    }
 
 
 }
