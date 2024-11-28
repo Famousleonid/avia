@@ -70,14 +70,19 @@
                         <img class="rounded-circle" src="{{ $avatarThumbUrl }}" alt="User Avatar" style="width: 45px"/>
                     </a>
                 </div>
-                <div class="h5 ms-2 mt-2">
+                <div class="h5 ms-2 mt-2 text-white">
                     {{Auth::user()->name}}
                 </div>
             </div>
         </div>
 
         <div class="flex-grow-1 d-flex flex-column">
-            @include('components.menu_sidebar', ['themeToggleId' => 'themeToggle'])
+            @if(Auth()->user()->isadmin())
+                @include('components.admin_menu_sidebar', ['themeToggleId' => 'themeToggle'])
+            @else
+                @include('components.menu_sidebar', ['themeToggleId' => 'themeToggle'])
+            @endif
+
         </div>
 
         <div class="p-3 mt-auto border-top border-bottom border-1">
