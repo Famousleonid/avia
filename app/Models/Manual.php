@@ -54,8 +54,5 @@ class Manual extends Model
     {
         return $this->hasMany(Unit::class,'manuals_id');
     }
-    public function manuals()
-    {
-        return $this->belongsTo(Manual::class, 'manuals_id');
-    }
+
 }

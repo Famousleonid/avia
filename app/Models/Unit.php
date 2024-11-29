@@ -12,9 +12,9 @@ class Unit extends Model
     protected $fillable = ['partnumber', 'description', 'lib', 'manufacturer', 'aircraft'];
 
 
-    public function workorder()
+    public function manual()
     {
-        return $this->hasMany(Workorder::class);
+        return $this->hasMany(Manual::class);
     }
 
 

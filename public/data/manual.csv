@@ -1,0 +1,37 @@
+number;title;lib;revision date;unit _name;unit_name_training;training_hours;aircraft;builder;scope
+32-20-04;NLG Assembly, Dressed;4;01.mar.2022;16040-101/-103/-105/-107/-109/-111/-113/-117/-119;;8;CRJ 100/200;Safran LS;hydraulic
+32-10-18;MLG Assembly;6;01.dec.2021;40110-101 thru 118;;8;CL-300 (BD100);Safran LS;hydraulic
+32-20-08;NLG Assembly;7;01.sep.2023;40610-107/-109/-111/-113;;8;CL 300;Safran LS;hydraulic
+32-50-20;Steering Manifold Assembly;10;15.may.2013;40750-101/-103;;;CL 300 (BD100);IN-LHC;hydraulic
+29-20-23;Electric Motor Driven Variable Delivery Hydraulic Pump;15;15.nov.2004;4019501;;;ATR 42/72;Parker;hydraulic
+32-28-04;Shock Absorber;18;14.jun.2019;D22700042-1/-2/-3, D22700000-1/-2/-102, D22700172-1/-2/-3, D22700072;;;ATR 42/72;Safran LS;hydraulic
+21-21-11;Recirculation Fan;19;03.feb.2014;27600-4/-6/-7/-8, 778728-4/-6;;;DASH-8;GE Aviation;
+32-28-01;Leg Assembly, Nose;36;13.may.2019;D22698000-ser, D22698172-ser, D22698042-ser, D22698072, D22698100-ser;;;ATR 42/72;Safran LS;hydraulic
+32-28-02;Leg Assembly, Nose;37;30.nov.2022;D22699000-1/-2/-3/-4/-5/-6/-7, D22699072-1/-2/-3/-4/-5/-6/-105;;;ATR 42/72;Safran ;Mechanical
+29-12-03;Hydraulic Reservoir Assy;42;16.jan.2012;960442-7;;;Q400;Parker;hydraulic
+32-11-03;Dressed Shock Strut Assy, MLG;50;9.dec.2020;46100-29/-31/-33/-35/-37/-39/-41-/-43/-45/-47/-49/-51/-53/-55/-57/-59;;8;Q400;Goodrich;hydraulic
+32-10-15;MLG Assy, Dressed;65;01.sep.2024;17002-101 thru -116;;;CRJ 200, CL 850;Safran LS;hydraulic
+32-50-12;NLG Steering Actuator Assy;68;01.mar.2022;16300-101/-102/-103/-104/-105/-106;;;CRJ 100/200;M-B-D;hydraulic
+32-18-33;Leg Assy, Main;83;29.jul.2022;D23189000-4 thru -24  D231900000;;8;ATR 72;Safran LS;hydraulic
+32-18-34;Leg Structure;83;02.nov.2023;D23191000-2 thru -15  D231920000-2 thru -15;;;ATR 72;M-B-D;Mechanical
+32-18-35;Leg Structure Covering;83;29.jul.2022;D23195000-2 thru -7, D231951000, D23196000 2 thru 7, D23196100-00;;;ATR 72;Safran LS;Mechanical
+32-18-36;Shock Absorber;83;31.mar.2021;D23188000 thru 6;;;ATR 72;Safran LS;hydraulic
+32-18-39;Casing Assembly;83;31.jul.2023;D23567000, D23567100-00, D23568000, D23568100-00;;;ATR 72;Safran LS;Mechanical
+32-18-14;Self-Cleaning Valve;83;29.jul.2022;D23313000;;;ATR 72;Safran LS;hydraulic
+32-10-02-Safran;Drag Strut Assembly, MLG;102;01.mar.2020;10200-5/-7/-9/-11;;;DASH 8;Safran LS;Mechanical
+32-21-04;Shock Strut Assy, Dressed, NLG;111;18.mar.2020;47200-13/-15/-17/-19/-21/-23/-25/-27/-29/-31;;;Q400;Goodrich;hydraulic
+32-20-05;Nose Landing Gear Assy;113;01.sep.2024;20020-101/-103/-105;;;CL 604/605;Safran LS;hydraulic
+32-10-16;MLG Assembly;115;01.sep.2024;19090-103 thru -110;;;CL 604/605;Safran LS;hydraulic
+32-20-03;NLG Assembly;122;01.sep.2024;7300-3/-5/-7/-9/-11/-13/-15/-17, 200924004;;;CL 600/601;Safran LS;hydraulic
+32-50-26;Steering Actuator Assembly;122;01.dec.2020;200812001, 7302-1;;;CL 600/601;Safran LS;hydraulic
+32-10-07;Shock Strut Assy;123;01.jun.2023;10190-101/-103/-105/-107/-109/-111/-113;;;DASH-8-300;Safran LS;hydraulic
+32-21-10;Leg Assy Strut, NLG;143;24.apr.2023;1170B0000-01, 1170C0000-01/-02/-03/-04/-05/-06/-07/-08;;;ERJ 135/145;Liebherr;hydraulic
+32-10-01;Leg Assy, Strut, MLG;145;30.sep.2024;2309-2002-ser, 2309-3002-ser, 2309-3100-ser, 2309-4002-ser;;;ERJ 135/145;ELEB;hydraulic
+32-10-02-Eleb;Shock Absorber, MLG;145;30.sep.2024;2309-2005-001/-003/-005/-007/-401;;;ERJ 135/145;ELEB;hydraulic
+32-21-11;Strut, NLG;146;22.mar.2024;2666A0000-01/-02, 2233A0000-01/-02;;;ERJ 135/145;Liebherr;hydraulic
+32-35-11;Emergency MLG Selector Valve;159;01.dec.1983;10018310;;;DASH 8;SBC;hydraulic
+32-51-21;Steering Manifold Assembly;181;05.jul.2022;1289A0000-01;;;Global Express/5000;Liebherr;hydraulic
+32-21-01;NLG Strut Assy;182;29.jun.2022;22175-105/-107/-109/-111/-113/-115;;;Global Express/5000;Liebherr;hydraulic
+32-20-10;NLG Torque Tube Assy;182;01.jul.2020;26200-101/-103;;;Global Express/5000;M-B-D;Mechanical
+32-10-11;MLG Assembly;183;01.mar.2023;21100-111/-112/-113/-114/-115/-116;;;GLX;Triumph Actuation System;hydraulic
+32-70-07;NLG Drag Brace Assembly;186;01.oct.2020;22500-101/-103/-105;;;Global Express/5000;Safran LS;hydraulic

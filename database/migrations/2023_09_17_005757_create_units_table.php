@@ -18,7 +18,7 @@ return new class extends Migration
             $table->id();
             $table->string('part_number')->unique();
             $table->boolean('verified')->default(false);
-
+            $table->foreignId('manuals_id')->nullable()->constrained()->onDelete('set null');
             $table->timestamps();
         });
 
