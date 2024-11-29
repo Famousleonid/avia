@@ -28,7 +28,7 @@
 
 <div class="row vh-100 g-0">
 
-    <div class="col-lg-2 col-12">
+    <div class="col-lg-2 col-10">
         @include('components.sidebar')
     </div>
 

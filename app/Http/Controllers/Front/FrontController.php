@@ -14,28 +14,28 @@ class FrontController extends Controller
 {
     public function index()
     {
-
-        $pathToFile = Storage::path('private') . "\base.env";
-
-        $valuestore = Valuestore::make($pathToFile);
-
-        $device = Agent::device();
-        $d = Agent::isDesktop();
-        $x = Agent::isMobile();
-        $y = Agent::isTablet();
-        $z = Agent::browser();
-        $zz = Agent::version($z);
-        $n = Agent::platform();
-        $nn = Agent::version($n);
-
-        app('valuestore')->put('mobile', $x);
-        $mobile = app('valuestore')->get('mobile');
-        Log::channel('avia')->info('_______ фронт _________');
-        $page = ($x ? 'mobile' : 'front') . '.pages.index';
+//
+//        $pathToFile = Storage::path('private') . "\base.env";
+//
+//        $valuestore = Valuestore::make($pathToFile);
+//
+//        $device = Agent::device();
+//        $d = Agent::isDesktop();
+//        $x = Agent::isMobile();
+//        $y = Agent::isTablet();
+//        $z = Agent::browser();
+//        $zz = Agent::version($z);
+//        $n = Agent::platform();
+//        $nn = Agent::version($n);
+//
+//        app('valuestore')->put('mobile', $x);
+//        $mobile = app('valuestore')->get('mobile');
+//        Log::channel('avia')->info('_______ фронт _________');
+//        $page = ($x ? 'mobile' : 'front') . '.pages.index';
 
         $page = 'front.pages.index';
-
-        if (!Auth::check() && $mobile) return view('auth.login');
+//
+//        if (!Auth::check() && $mobile) return view('auth.login');
 
         // Log::channel('avia')->info('123' . ' 345 ');
 

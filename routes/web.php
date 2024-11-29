@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\Admin\AdminController;
 
+use App\Http\Controllers\Admin\ManualController;
 use App\Http\Controllers\Admin\MaterialController;
 use App\Http\Controllers\Admin\UserController;
 use App\Http\Controllers\Cabinet\MainController;
@@ -75,6 +76,7 @@ Route::group(['middleware' => ['auth', 'isAdmin'], 'prefix' => 'admin'], functio
     Route::resource('/general_task', GeneralTaskController::class);
     Route::resource('/user', UserController::class);
     Route::resource('/customers', CustomerController::class);
+    Route::resource('/manuals',ManualController::class);
 
 });
 

@@ -1,3 +1,4 @@
+
 @props(['themeToggleId' => 'themeToggle'])
 
 <ul class="nav flex-column" data-accordion="false">
@@ -16,6 +17,12 @@
     <li class="nav-item">
         <a class="nav-link" href="{{route('technik.index')}}" onclick="showLoadingSpinner()">
             <i class="bi bi-airplane me-2"></i> Techniks
+        </a>
+    </li>
+    <li class="nav-item">
+        <a class="nav-link" href="{{route('manuals.index')}}"
+           onclick="showLoadingSpinner()">
+            <i class="bi bi-book-half me-2"></i> Manuals
         </a>
     </li>
     <li class="nav-item">
