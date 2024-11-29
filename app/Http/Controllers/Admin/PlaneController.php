@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Models\Plane;
 use Illuminate\Http\Request;
 
 class PlaneController extends Controller
@@ -31,13 +32,20 @@ class PlaneController extends Controller
      * Store a newly created resource in storage.
      *
      * @param  \Illuminate\Http\Request  $request
-     * @return \Illuminate\Http\Response
+     * @return \Illuminate\Http\JsonResponse
      */
     public function store(Request $request)
     {
-        //
-    }
+        $request->validate([
+            'type' => 'required|string|max:255',
+        ]);
 
+        $airCraft = new Plane();
+        $airCraft->type = $request->type;
+        $airCraft->save();
+
+        return response()->json($airCraft);
+    }
     /**
      * Display the specified resource.
      *

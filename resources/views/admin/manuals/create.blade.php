@@ -1,4 +1,6 @@
-@extends('layouts.main_dlb')
+{{--@extends('layouts.main_dlb')--}}
+
+@extends('admin.master')
 
 @section('content')
     <style>
@@ -18,7 +20,7 @@
             </div>
 
             <div class="card-body">
-                <form method="POST" action="{{ route('admin.manuals.store') }}" enctype="multipart/form-data"
+                <form method="POST" action="{{ route('manuals.store') }}" enctype="multipart/form-data"
                       id="createCMMForm">
                     @csrf
 
@@ -236,11 +238,11 @@
         }
 
         // Обновляем вызовы функции для передачи правильных ID модальных окон
-        handleFormSubmission('addAirCraftForm', '{{ route('admin.planes.store') }}', 'planes_id', 'id', 'type',
+        handleFormSubmission('addAirCraftForm', '{{ route('planes.store') }}', 'planes_id', 'id', 'type',
             'addAirCraftModal');
-        handleFormSubmission('addMFRForm', '{{ route('admin.builders.store') }}', 'builders_id', 'id', 'name',
+        handleFormSubmission('addMFRForm', '{{ route('builders.store') }}', 'builders_id', 'id', 'name',
             'addMFRModal');
-        handleFormSubmission('addScopeForm', '{{ route('admin.scopes.store') }}', 'scopes_id', 'id', 'scope', 'addScopeModal');
+        handleFormSubmission('addScopeForm', '{{ route('scopes.store') }}', 'scopes_id', 'id', 'scope', 'addScopeModal');
 
     </script>
 @endsection

@@ -2,8 +2,11 @@
 
 use App\Http\Controllers\Admin\AdminController;
 
+use App\Http\Controllers\Admin\BuilderController;
 use App\Http\Controllers\Admin\ManualController;
 use App\Http\Controllers\Admin\MaterialController;
+use App\Http\Controllers\Admin\PlaneController;
+use App\Http\Controllers\Admin\ScopeController;
 use App\Http\Controllers\Admin\UserController;
 use App\Http\Controllers\Cabinet\MainController;
 use App\Http\Controllers\Cabinet\ProgressController;
@@ -78,6 +81,12 @@ Route::group(['middleware' => ['auth', 'isAdmin'], 'prefix' => 'admin'], functio
     Route::resource('/customers', CustomerController::class);
     Route::resource('/manuals',ManualController::class);
 
+    Route::post('/planes/store',[PlaneController::class,
+        'store'])->name('planes.store');
+    Route::post('/builders/store',
+        [BuilderController::class,'store'])->name('builders.store');
+    Route::post('/scopes/store',
+        [ScopeController::class,'store'])->name('scopes.store');
 });
 
 

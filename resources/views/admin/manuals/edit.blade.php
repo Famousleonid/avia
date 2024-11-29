@@ -1,4 +1,6 @@
-@extends('layouts.main_dlb')
+{{--@extends('layouts.main_dlb')--}}
+
+@extends('admin.master')
 
 @section('content')
     <style>
@@ -15,7 +17,7 @@
             </div>
 
             <div class="card-body">
-                <form method="POST" action="{{ route('admin.manuals.update', $cmm->id) }}" enctype="multipart/form-data"
+                <form method="POST" action="{{ route('manuals.update', $cmm->id) }}" enctype="multipart/form-data"
                       id="editCMMForm">
                     @csrf
                     @method('PUT')
@@ -249,10 +251,10 @@
             });
         }
 
-        handleFormSubmission('addAirCraftForm', 'addAirCraftModal', '{{ route('admin.planes.store') }}',
+        handleFormSubmission('addAirCraftForm', 'addAirCraftModal', '{{ route('planes.store') }}',
             'planes_id', 'id', 'type');
-        handleFormSubmission('addMFRForm', 'addMFRModal', '{{ route('admin.builders.store') }}', 'builders_id', 'id',
+        handleFormSubmission('addMFRForm', 'addMFRModal', '{{ route('builders.store') }}', 'builders_id', 'id',
             'name');
-        handleFormSubmission('addScopeForm', 'addScopeModal', '{{ route('admin.scopes.store') }}', 'scopes_id', 'id', 'scope');
+        handleFormSubmission('addScopeForm', 'addScopeModal', '{{ route('scopes.store') }}', 'scopes_id', 'id', 'scope');
     </script>
 @endsection

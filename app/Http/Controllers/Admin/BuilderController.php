@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Models\Builder;
 use Illuminate\Http\Request;
 
 class BuilderController extends Controller
@@ -31,11 +32,19 @@ class BuilderController extends Controller
      * Store a newly created resource in storage.
      *
      * @param  \Illuminate\Http\Request  $request
-     * @return \Illuminate\Http\Response
+     * @return \Illuminate\Http\JsonResponse
      */
     public function store(Request $request)
     {
-        //
+        $validatedData = $request->validate([
+            'name' => 'required|string|max:255',
+        ]);
+
+        $mfr = new Builder();
+        $mfr->name = $request->name;
+        $mfr->save();
+
+        return response()->json($mfr);
     }
 
     /**

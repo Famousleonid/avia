@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Models\Scope;
 use Illuminate\Http\Request;
 
 class ScopeController extends Controller
@@ -31,11 +32,19 @@ class ScopeController extends Controller
      * Store a newly created resource in storage.
      *
      * @param  \Illuminate\Http\Request  $request
-     * @return \Illuminate\Http\Response
+     * @return \Illuminate\Http\JsonResponse
      */
     public function store(Request $request)
     {
-        //
+        $validatedData = $request->validate([
+            'scope' => 'required|string|max:255',
+        ]);
+
+        $scope = new Scope();
+        $scope->scope = $request->scope;
+        $scope->save();
+
+        return response()->json($scope);
     }
 
     /**

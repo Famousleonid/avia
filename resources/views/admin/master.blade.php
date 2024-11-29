@@ -22,17 +22,18 @@
             border-top: 5px solid #F8C50E;
         }
     </style>
+
 </head>
 
 <body class="p-0 m-0 g-0">
 
 <div class="row vh-100 g-0">
 
-    <div class="col-lg-2 col-10">
+    <div class="col-lg-2 col-2">
         @include('components.sidebar')
     </div>
 
-    <div class="content">
+    <div class="content col-10">
         @yield('content')
     </div>
 
