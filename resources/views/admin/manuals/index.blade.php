@@ -2,7 +2,7 @@
 
 @section('content')
     <style>
-        /* Добавьте свои стили для адаптивности */
+
         @media (max-width: 1100px) {
             .table th:nth-child(5), .table td:nth-child(5) {
                 display: none;
@@ -25,20 +25,36 @@
                 display: none;
             }
         }
+        .table-toolbar {
+            position: sticky;
+            top: 0;
+            z-index: 20;
+        }
+        .table-wrapper {
+            height: calc(100vh - 150px);
+            overflow-y: auto;
+        }
+        .table thead tr th {
+            position: sticky;
+            top: 40px;
+            z-index: 12;
+        }
     </style>
 
-    <div class="container">
-        <div class="card shadow">
+    <div class="container ">
+        <div class="card ">
             <div class="card-header">
                 <div class="d-flex justify-content-between">
-                    <h3>{{__('Manage CMMs')}}</h3>
-                    <a href="{{ route('manuals.create') }}" class="btn btn-primary mb-3">{{ __('Add CMM') }}</a>
+                    <h5>{{__('Manage CMMs')}}</h5>
+                    <a href="{{ route('manuals.create') }}" class="btn btn-primary btn-sm ">{{ __('Add CMM') }}</a>
                 </div>
             </div>
-
-            <div class="card-body">
+            <div class="table-toolbar d-flex justify-content-between align-items-center p-3">
+                <input type="text" id="tableSearch" class="form-control" placeholder="{{ __('Search...') }}">
+            </div>
+            <div class="table-wrapper">
                 <!-- Поиск таблицы будет работать благодаря data-search="true" -->
-                <table id="cmmTable" data-toggle="table" data-search="true" class="table table-bordered">
+                <table id="cmmTable" data-toggle="table"  class="table table-bordered table-striped">
                     <thead>
                     <tr>
                         <th data-field="number" class="text-center">{{__('Number')}}</th>
@@ -128,5 +144,26 @@
 
         window.onload = checkScreenWidth;
         window.onresize = checkScreenWidth;
+
+        document.getElementById('tableSearch').addEventListener('input', function() {
+            const filter = this.value.toUpperCase();
+            const rows = document.querySelectorAll('#cmmTable tbody tr');
+
+            rows.forEach(row => {
+                const cells = row.getElementsByTagName('td');
+                let match = false;
+
+                for (let i = 0; i < cells.length; i++) {
+                    if (cells[i] && cells[i].innerText.toUpperCase().indexOf(filter) > -1) {
+                        match = true;
+                        break;
+                    }
+                }
+
+                row.style.display = match ? '' : 'none';
+            });
+        });
+
+
     </script>
 @endpush

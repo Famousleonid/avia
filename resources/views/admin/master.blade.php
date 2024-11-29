@@ -23,6 +23,8 @@
         .firm-border {
             border-top: 5px solid #F8C50E;
         }
+
+
     </style>
 
 </head>
@@ -39,7 +41,7 @@
         @yield('content')
     </div>
 
- @include('components.footer')
+    @include('components.footer')
 
 </div>
 

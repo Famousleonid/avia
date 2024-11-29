@@ -137,7 +137,11 @@
     </div>
 
     <div class="flex-grow-1 d-flex flex-column">
-        @include('components.menu_sidebar', ['themeToggleId' => 'themeToggleMobile'])
+        @if(Auth()->user()->isadmin())
+            @include('components.admin_menu_sidebar', ['themeToggleId' => 'themeToggle'])
+        @else
+            @include('components.menu_sidebar', ['themeToggleId' => 'themeToggle'])
+        @endif
     </div>
 
     <div class="p-3 mt-auto border-top border-bottom border-1">
