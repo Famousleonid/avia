@@ -29,11 +29,11 @@
 
 <div class="row vh-100 g-0">
 
-    <div class="col-lg-2 col-2">
+    <div class="col-lg-2 ">
         @include('components.sidebar')
     </div>
 
-    <div class="content col-10">
+    <div class="content col-12 col-lg-10">
         @yield('content')
     </div>
 
