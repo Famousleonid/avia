@@ -15,6 +15,8 @@
     <link rel="stylesheet" href="{{asset('css/custom_bootstrap.css')}}">
     <link rel="stylesheet" href="{{asset('css/main.css')}}">
 
+    <link rel="stylesheet" href="{{asset('assets/bootstrap-table/css/bootstrap-table.min.css')}}">
+
     @yield('links')
 
     <style>
@@ -46,6 +48,9 @@
 <script src="{{asset('assets/dataTables/datatables.min.js')}}"></script>
 <script src="{{asset('assets/select2/js/select2.min.js')}}"></script>
 <script src="{{ asset('assets/jquery/jquery.fancybox.min.js') }}"></script>
+
+<script src="{{asset('assets/bootstrap-table/js/bootstrap-table.min.js')
+}}"></script>
 
 @yield('scripts')
 
