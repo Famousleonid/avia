@@ -3,7 +3,7 @@
 <head>
     <meta charset="utf-8">
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
-    <link rel="icon" href="{{asset('img/favicon_old.png')}}" type="image/png">
+    <link rel="icon" href="{{asset('img/favicon.webp')}}" type="image/png">
     <title>Personal page</title>
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="csrf-token" content="{{ csrf_token() }}"/>
@@ -15,7 +15,6 @@
     <link rel="stylesheet" href="{{asset('css/custom_bootstrap.css')}}">
     <link rel="stylesheet" href="{{asset('css/main.css')}}">
 
-    <link rel="stylesheet" href="{{asset('assets/bootstrap-table/css/bootstrap-table.min.css')}}">
 
     @yield('links')
 
@@ -23,8 +22,6 @@
         .firm-border {
             border-top: 5px solid #F8C50E;
         }
-
-
     </style>
 
 </head>
@@ -50,9 +47,6 @@
 <script src="{{asset('assets/dataTables/datatables.min.js')}}"></script>
 <script src="{{asset('assets/select2/js/select2.min.js')}}"></script>
 <script src="{{ asset('assets/jquery/jquery.fancybox.min.js') }}"></script>
-
-<script src="{{asset('assets/bootstrap-table/js/bootstrap-table.min.js')
-}}"></script>
 
 @yield('scripts')
 
@@ -107,11 +101,11 @@
         $('[data-toggle="tooltip"]').tooltip()
     })
 
+
+
     $('.nav-sidebar a').each(function () {
         let location = window.location.protocol + '//' + window.location.host + window.location.pathname;
-
         let link = this.href;
-
         if (link === location) {
             $(this).addClass('active');
             $(this).closest('.has-treeview').addClass('menu-open');

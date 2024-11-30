@@ -41,7 +41,7 @@
                             <div class="col-xs-12 col-sm-12 col-md-12 mt-2">
                                 <div class="form-group">
                                     <strong>{{__('Image:')}}</strong>
-                                    <input type="file" name="img" class="form-control" placeholder="изображение">
+{{--                                    <input type="file" name="img" class="form-control" placeholder="изображение">--}}
                                 </div>
                             </div>
 
@@ -51,15 +51,21 @@
                                        required>
                             </div>
                             <div class="mt-2">
-                                <label for="units_pn">{{ __('Units PN') }}</label>
-                                <input id='units_pn' type="text" class="form-control" name="units_pn" required>
+                                <label for="unit_name">{{ __('Units PN') }}</label>
+                                <input id='unit_name' type="text" class="form-control"
+                                       name="unit_name"   required>
+                            </div>
+                            <div class="mt-2">
+                                <label for="unit_name_training">{{ __('Units
+                                Training PN') }}</label>
+                                <input id='unit_name_training' type="text" class="form-control" name="unit_name_training" required>
                             </div>
                             <div class=mt-2">
-                                <label for="units_tr">{{ __('Unit First
+                                <label for="training_hours">{{ __('Unit First
                                 Training')
                                 }}</label>
-                                <input id='units_tr' type="text"
-                                       class="form-control" name="units_tr"
+                                <input id='training_hours' type="text"
+                                       class="form-control" name="training_hours"
                                        required>
                             </div>
                         </div>
@@ -113,6 +119,10 @@
                     <button type="submit" class="btn btn-primary mt-3">
                         {{ __('Add CMM') }}
                     </button>
+                    <a href="{{ route('manuals.index') }}" class="btn
+                    btn-secondary mt-3">
+                        {{ __('Cancel') }}
+                    </a>
                 </form>
             </div>
         </div>

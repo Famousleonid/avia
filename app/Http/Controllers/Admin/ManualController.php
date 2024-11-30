@@ -54,8 +54,10 @@ class ManualController extends Controller
                 'title' => 'required',
                 'img' => 'image|nullable',
                 'revision_date' => 'required',
-                'units_pn' => 'nullable',
-                'units_tr' => 'nullable',
+                'unit_name'=> 'nullable',
+                'unit_name_training'=> 'nullable',
+                'training_hours'=> 'nullable',
+
                 'planes_id' => 'required|exists:planes,id',
                 'builders_id' => 'required|exists:builders,id',
                 'scopes_id' => 'required|exists:scopes,id',
@@ -73,16 +75,16 @@ class ManualController extends Controller
                 $validatedData['img'] = $imgName;
             }
 
-            try {
+//            try {
 
                 // Создание новой записи в базе данных
                 Manual::create($validatedData);
                 // Перенаправление пользователя на страницу со списком CMM с сообщением об успешном создании
-                return redirect()->route('admin.manuals.index')->with('success', 'Инструкция успешно создана.');
-            } catch (\Exception $e) {
-                // Обработка ошибки при вставке данных в базу данных
-                return redirect()->back()->withInput()->withErrors(['error' => 'Не удалось создать инструкцию: ' . $e->getMessage()]);
-            }
+                return redirect()->route('manuals.index')->with('success', 'Инструкция успешно создана.');
+//            } catch (\Exception $e) {
+//                // Обработка ошибки при вставке данных в базу данных
+//                return redirect()->back()->withInput()->withErrors(['error' => 'Не удалось создать инструкцию: ' . $e->getMessage()]);
+//            }
         }
     }
 
@@ -106,7 +108,8 @@ class ManualController extends Controller
         $builders = Builder::all(); // Получаем все записи из таблицы MFR
         $scopes = Scope::all(); // Получаем все записи из таблицы Scope
 
-        return view('admin.manuals.edit', compact('cmm', 'planes', 'builders', 'scopes'));
+        return view('admin.manuals.edit', compact('cmm', 'planes', 'builders',
+            'scopes'));
     }
 
 
@@ -119,8 +122,11 @@ class ManualController extends Controller
             'title' => 'required',
             'img' => 'image|nullable',
             'revision_date' => 'required',
-            'units_pn' => 'nullable',
-            'units_tr' => 'nullable',
+
+            'unit_name'=> 'nullable',
+            'unit_name_training'=> 'nullable',
+            'training_hours'=> 'nullable',
+
             'planes_id' => 'required|exists:planes,id',
             'builders_id' => 'required|exists:builders,id',
             'scopes_id' => 'required|exists:scopes,id',
@@ -153,7 +159,7 @@ class ManualController extends Controller
     {
         $cmm = Manual::findOrFail($id);
         $cmm->delete();
-        return redirect()->route('admin.manuals.index')->with('success', 'Manual deleted successfully');
+        return redirect()->route('manuals.index')->with('success', 'Manual deleted successfully');
     }
 }
 

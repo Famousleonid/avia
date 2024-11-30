@@ -43,8 +43,8 @@
                             <div class="col-xs-12 col-sm-12 col-md-12 mt-2">
                                 <div class="form-group">
                                     <strong>{{__('Image:')}}</strong>
-                                    <input type="file" name="img" class="form-control" placeholder="изображение">
-                                    <small>{{__('Leave blank if you do not want to change the image.')}}</small>
+{{--                                    <input type="file" name="img" class="form-control" placeholder="изображение">--}}
+{{--                                    <small>{{__('Leave blank if you do not want to change the image.')}}</small>--}}
                                 </div>
                             </div>
 
@@ -54,18 +54,28 @@
                                        value="{{ old('revision_date', $cmm->revision_date) }}" required>
                             </div>
                             <div class="mt-2">
-                                <label for="units_pn">{{ __('Units PN') }}</label>
-                                <input id='units_pn' type="text" class="form-control" name="units_pn" value="{{ old
-                                ('units_pn',
-                                $cmm->units_pn) }}" required>
+                                <label for="unit_name">{{ __('Units PN') }}</label>
+                                <input id='unit_name' type="text" class="form-control"
+                                       name="unit_name"
+                                       value="{{ old ('unit_name',
+                                $cmm->unit_name) }}" required>
                             </div>
                             <div class="mt-2">
-                                <label for="units_tr">{{ __('Unit First
+                                <label for="unit_name_training">{{ __('Units
+                                Training PN') }}</label>
+                                <input id='unit_name_training' type="text" class="form-control"
+                                       name="unit_name_training"
+                                       value="{{ old ('unit_name_training',
+                                $cmm->unit_name_training) }}" required>
+                            </div>
+                            <div class="mt-2">
+                                <label for="training_hours">{{ __('Unit First
                                 Training')
                                 }}</label>
-                                <input id='units_tr' type="text"
-                                       class="form-control" name="units_tr"
-                                       value="{{ old('units_tr', $cmm->units_tr) }}" required>
+                                <input id='training_hours' type="text"
+                                       class="form-control"
+                                       name="training_hours"
+                                       value="{{ old('training_hours', $cmm->training_hours) }}" required>
                             </div>
                         </div>
                         <div style="width: 300px" class="m-3 p-2 border">
@@ -121,6 +131,9 @@
                     <button type="submit" class="btn btn-primary text-center ">
                         {{ __('UpDate') }}
                     </button>
+                    <a href="{{ route('manuals.index') }}" class="btn btn-secondary">
+                        {{ __('Cancel') }}
+                    </a>
                 </form>
             </div>
         </div>

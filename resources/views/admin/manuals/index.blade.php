@@ -2,79 +2,119 @@
 
 @section('content')
     <style>
-
-        @media (max-width: 1100px) {
-            .table th:nth-child(5), .table td:nth-child(5) {
-                display: none;
-            }
-        }
-
-        @media (max-width: 770px) {
-            .table th:nth-child(3), .table td:nth-child(3),
-            .table th:nth-child(5), .table td:nth-child(5),
-            .table th:nth-child(6), .table td:nth-child(6) {
-                display: none;
-            }
-        }
-
-        @media (max-width: 490px) {
-            .table th:nth-child(3), .table td:nth-child(3),
-            .table th:nth-child(4), .table td:nth-child(4),
-            .table th:nth-child(5), .table td:nth-child(5),
-            .table th:nth-child(6), .table td:nth-child(6) {
-                display: none;
-            }
-        }
-        .table-toolbar {
-            position: sticky;
-            top: 0;
-            z-index: 20;
-        }
         .table-wrapper {
-            height: calc(100vh - 150px);
+            height: calc(100vh - 140px);
             overflow-y: auto;
+            overflow-x: hidden;
         }
-        .table thead tr th {
+
+        .table th, .table td {
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            min-width: 80px;
+            max-width: 190px;
+        }
+
+        .table th:nth-child(1), .table td:nth-child(1) {
+            min-width: 80px;
+            max-width: 90px;
+        }
+
+        .table th:nth-child(2), .table td:nth-child(2) {
+            min-width: 50px;
+            max-width: 250px;
+        }
+
+        .table th:nth-child(3), .table td:nth-child(3) {
+            min-width: 50px;
+            max-width: 250px;
+        }
+
+        .table th:nth-child(6), .table td:nth-child(6) {
+            min-width: 50px;
+            max-width: 70px;
+        }
+
+        .table thead th {
             position: sticky;
-            top: 40px;
-            z-index: 12;
+            height: 50px;
+            top: 0;
+            vertical-align: middle;
+            border-top: 1px;
+            z-index: 1020;
+        }
+
+        @media (max-width: 1200px) {
+            .table th:nth-child(5), .table td:nth-child(5),
+            .table th:nth-child(2), .table td:nth-child(2),
+            .table th:nth-child(3), .table td:nth-child(3) {
+                display: none;
+            }
+        }
+        .table th.sortable {
+            cursor: pointer;
+        }
+
+        .clearable-input {
+            position: relative;
+            width: 400px;
+        }
+        .clearable-input .form-control {
+            padding-right: 2.5rem;
+        }
+        .clearable-input .btn-clear {
+            position: absolute;
+            right: 0.5rem;
+            top: 50%;
+            transform: translateY(-50%);
+            background: none;
+            border: none;
+            cursor: pointer;
         }
     </style>
 
-    <div class="container ">
-        <div class="card ">
-            <div class="card-header">
-                <div class="d-flex justify-content-between">
-                    <h5>{{__('Manage CMMs')}}</h5>
-                    <a href="{{ route('manuals.create') }}" class="btn btn-primary btn-sm ">{{ __('Add CMM') }}</a>
-                </div>
+    <div class="card shadow">
+        <div class="card-header my-1 shadow">
+            <div class="d-flex justify-content-between">
+                <h5 class="text-primary">{{__('Manage CMMs')}}</h5>
+                <a href="{{ route('manuals.create') }}" class="btn btn-primary btn-sm ">{{ __('Add CMM') }}</a>
             </div>
-            <div class="table-toolbar d-flex justify-content-between align-items-center p-3">
-                <input type="text" id="tableSearch" class="form-control" placeholder="{{ __('Search...') }}">
+        </div>
+
+        <div class="d-flex my-2">
+            <div class="clearable-input ps-2">
+                <input id="searchInput" type="text" class="form-control w-100" placeholder="Search...">
+                <button class="btn-clear text-secondary" onclick="document.getElementById('searchInput').value = ''; document.getElementById('searchInput').dispatchEvent(new Event('input'))">
+                    <i class="bi bi-x-circle"></i>
+                </button>
             </div>
-            <div class="table-wrapper">
-                <!-- Поиск таблицы будет работать благодаря data-search="true" -->
-                <table id="cmmTable" data-toggle="table"  class="table table-bordered table-striped">
+        </div>
+
+        @if(count($cmms))
+            <div class="table-wrapper me-3 p-2 pt-0">
+
+                <table id="cmmTable" class="display table table-sm table-hover table-striped">
                     <thead>
-                    <tr>
-                        <th data-field="number" class="text-center">{{__('Number')}}</th>
-                        <th data-field="title" class="text-center">{{__('Title')}}</th>
-                        <th data-field="units_pn" class="text-center">{{__('Units PN')}}</th>
-                        <th data-field="img" class="text-center">{{__('Unit Image')}}</th>
-                        <th data-field="revision_date" class="text-center">{{__('Revision Date')}}</th>
-                        <th data-field="lib" class="text-center">{{__('Library')}}</th>
-                        <th data-field="action" class="text-center">{{__('Action')}}</th>
+                    <tr class="">
+                        <th class="text-primary sortable " data-direction="asc">{{__('Number')}}<i class="bi bi-chevron-expand ms-1"></i></th>
+                        <th class="text-primary ">{{__('Title')}}</th>
+                        <th class="text-primary ">{{__('Units PN')}}</th>
+                        <th class="text-primary text-center ">{{__('Image')}}</th>
+                        <th class="text-primary text-center ">{{__('Rev.Date')}}</th>
+                        <th class="text-primary text-center  sortable" data-direction="asc">{{__('Lib')}} <i class="bi bi-chevron-expand ms-1"></i></th>
+                        <th class="text-primary text-center ">{{__('Action')}}</th>
                     </tr>
                     </thead>
                     <tbody>
                     @foreach($cmms as $cmm)
                         <tr>
-                            <td class="text-center">{{$cmm->number}}</td>
-                            <td class="text-center">{{$cmm->title}}</td>
-                            <td class="text-center">{{$cmm->units_pn}}</td>
+                            <td>{{$cmm->number}}</td>
+                            <td title="{{$cmm->title}}">{{$cmm->title}}</td>
+                            <td title="{{$cmm->unit_name}}">{{$cmm->unit_name}}</td>
                             <td class="text-center">
-                                <a href="#" data-bs-toggle="modal" data-bs-target="#imageModal{{$cmm->id}}">
-                                    <img src="{{ asset('storage/image/cmm/' . $cmm->img) }}" style="width: 36px; cursor: pointer;" alt="Img">
+                                <a href="{{ asset('img/noimage.png') }}" data-fancybox="gallery" data-caption="{{$cmm->title}}">
+                                    <img src="{{ asset('img/noimage.png') }}" style="width: 40px; cursor: pointer;" alt="Img">
                                 </a>
                             </td>
                             <td class="text-center">{{$cmm->revision_date}}</td>
@@ -92,78 +132,63 @@
                                 </form>
                             </td>
                         </tr>
-
-                        <!-- Модальное окно для изображения -->
-                        <div class="modal fade" id="imageModal{{$cmm->id}}" tabindex="-1" role="dialog"
-                             aria-labelledby="imageModalLabel{{$cmm->id}}" aria-hidden="true">
-                            <div class="modal-dialog">
-                                <div class="modal-content">
-                                    <div class="modal-header">
-                                        <h5 class="modal-title" id="imageModalLabel{{$cmm->id}}">{{$cmm->title}}</h5>
-                                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-                                    </div>
-                                    <div class="modal-body">
-                                        @if($cmm->img)
-                                            <img src="{{ asset('storage/image/cmm/' . $cmm->img) }}" alt="{{ $cmm->title }}" class="img-fluid"/>
-                                        @else
-                                            <p>Изображение не доступно.</p>
-                                        @endif
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
                     @endforeach
                     </tbody>
                 </table>
+                @else
+                    <p>Manuals not created</p>
+                @endif
             </div>
-        </div>
-    </div>
-
-    <div id="mobile-message" style="display: none; text-align: center;">
-        <p>Доступна только версия для десктопа.</p>
     </div>
 
 @endsection
 
-@push('scripts')
+@section('scripts')
+
     <script>
-        // Проверка на мобильные устройства
-        function checkScreenWidth() {
-            const screenWidth = window.innerWidth;
-            const table = document.querySelector('.table');
-            const mobileMessage = document.getElementById('mobile-message');
+        document.addEventListener('DOMContentLoaded', function () {
+            const table = document.getElementById('cmmTable');
+            const searchInput = document.getElementById('searchInput');
+            const headers = document.querySelectorAll('.sortable');
 
-            if (screenWidth < 312) {
-                table.style.display = 'none';
-                if (mobileMessage) mobileMessage.style.display = 'block';
-            } else {
-                table.style.display = 'table';
-                if (mobileMessage) mobileMessage.style.display = 'none';
-            }
-        }
+            // Sorting
+            headers.forEach(header => {
+                header.addEventListener('click', () => {
+                    const columnIndex = Array.from(header.parentNode.children).indexOf(header) + 1;
+                    const direction = header.dataset.direction === 'asc' ? 'desc' : 'asc';
+                    header.dataset.direction = direction;
 
-        window.onload = checkScreenWidth;
-        window.onresize = checkScreenWidth;
+                    // Icon
+                    headers.forEach(h => {
+                        const icon = h.querySelector('i');
+                        if (icon) icon.className = 'bi bi-chevron-expand';
+                    });
+                    const currentIcon = header.querySelector('i');
+                    if (currentIcon) currentIcon.className = direction === 'asc' ? 'bi bi-arrow-up' : 'bi bi-arrow-down';
 
-        document.getElementById('tableSearch').addEventListener('input', function() {
-            const filter = this.value.toUpperCase();
-            const rows = document.querySelectorAll('#cmmTable tbody tr');
+                    // Sorting row
+                    const rows = Array.from(table.querySelectorAll('tbody tr'));
+                    rows.sort((a, b) => {
+                        const aText = a.querySelector(`td:nth-child(${columnIndex})`).innerText.trim();
+                        const bText = b.querySelector(`td:nth-child(${columnIndex})`).innerText.trim();
+                        return direction === 'asc' ? aText.localeCompare(bText) : bText.localeCompare(aText);
+                    });
 
-            rows.forEach(row => {
-                const cells = row.getElementsByTagName('td');
-                let match = false;
+                    // Updating the table
+                    rows.forEach(row => table.querySelector('tbody').appendChild(row));
+                });
+            });
 
-                for (let i = 0; i < cells.length; i++) {
-                    if (cells[i] && cells[i].innerText.toUpperCase().indexOf(filter) > -1) {
-                        match = true;
-                        break;
-                    }
-                }
-
-                row.style.display = match ? '' : 'none';
+            // Search
+            searchInput.addEventListener('input', () => {
+                const filter = searchInput.value.toLowerCase();
+                const rows = table.querySelectorAll('tbody tr');
+                rows.forEach(row => {
+                    const text = row.innerText.toLowerCase();
+                    row.style.display = text.includes(filter) ? '' : 'none';
+                });
             });
         });
-
-
     </script>
-@endpush
+
+@endsection
