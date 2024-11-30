@@ -3,6 +3,13 @@
 @section('content')
     <style>
 
+
+        .table-wrapper {
+            height: calc(100vh - 120px);
+            overflow-y: auto;
+        }
+
+        /* Добавьте свои стили для адаптивности */
         @media (max-width: 1100px) {
             .table th:nth-child(5), .table td:nth-child(5) {
                 display: none;
@@ -25,53 +32,50 @@
                 display: none;
             }
         }
-        .table-toolbar {
-            position: sticky;
-            top: 0;
-            z-index: 20;
-        }
-        .table-wrapper {
-            height: calc(100vh - 150px);
-            overflow-y: auto;
-        }
-        .table thead tr th {
-            position: sticky;
-            top: 40px;
-            z-index: 12;
-        }
+
+
+
     </style>
 
-    <div class="container ">
-        <div class="card ">
+    <div class="container">
+        <div class="card shadow  ">
             <div class="card-header">
                 <div class="d-flex justify-content-between">
-                    <h5>{{__('Manage CMMs')}}</h5>
-                    <a href="{{ route('manuals.create') }}" class="btn btn-primary btn-sm ">{{ __('Add CMM') }}</a>
+                    <h3>{{__('Manage CMMs')}}</h3>
+                    <a href="{{ route('manuals.create') }}" class="btn btn-primary ">{{ __('Add CMM') }}</a>
                 </div>
+
             </div>
-            <div class="table-toolbar d-flex justify-content-between align-items-center p-3">
-                <input type="text" id="tableSearch" class="form-control" placeholder="{{ __('Search...') }}">
-            </div>
-            <div class="table-wrapper">
+
+            <div class="card-body table-wrapper ">
                 <!-- Поиск таблицы будет работать благодаря data-search="true" -->
-                <table id="cmmTable" data-toggle="table"  class="table table-bordered table-striped">
-                    <thead>
-                    <tr>
-                        <th data-field="number" class="text-center">{{__('Number')}}</th>
-                        <th data-field="title" class="text-center">{{__('Title')}}</th>
-                        <th data-field="units_pn" class="text-center">{{__('Units PN')}}</th>
-                        <th data-field="img" class="text-center">{{__('Unit Image')}}</th>
-                        <th data-field="revision_date" class="text-center">{{__('Revision Date')}}</th>
-                        <th data-field="lib" class="text-center">{{__('Library')}}</th>
-                        <th data-field="action" class="text-center">{{__('Action')}}</th>
+                <table id="cmmTable" class="table table-bordered
+                table-striped table-wrapper "
+                       data-toggle="table"
+                       data-search="true" >
+                    <thead >
+                    <tr >
+                        <th data-field="number" class="text-center col-number">{{__
+                        ('Number')}}</th>
+                        <th data-field="title" class="text-center col-title">{{__
+                        ('Title')}}</th>
+                        <th data-field="units_pn" class="text-center col-units">{{__
+                        ('Units PN')}}</th>
+                        <th data-field="img" class="text-center col-image">{{__('Unit
+                        Image')}}</th>
+                        <th data-field="revision_date" class="text-center col-revision">{{__('Revision Date')}}</th>
+                        <th data-field="lib" class="text-center col-lib">{{__
+                        ('Library')}}</th>
+                        <th data-field="action" class="text-center col-action">{{__
+                        ('Action')}}</th>
                     </tr>
                     </thead>
-                    <tbody>
+                    <tbody >
                     @foreach($cmms as $cmm)
                         <tr>
                             <td class="text-center">{{$cmm->number}}</td>
                             <td class="text-center">{{$cmm->title}}</td>
-                            <td class="text-center">{{$cmm->units_pn}}</td>
+                            <td class="text-center">{{$cmm->unit_name}}</td>
                             <td class="text-center">
                                 <a href="#" data-bs-toggle="modal" data-bs-target="#imageModal{{$cmm->id}}">
                                     <img src="{{ asset('storage/image/cmm/' . $cmm->img) }}" style="width: 36px; cursor: pointer;" alt="Img">
@@ -144,26 +148,5 @@
 
         window.onload = checkScreenWidth;
         window.onresize = checkScreenWidth;
-
-        document.getElementById('tableSearch').addEventListener('input', function() {
-            const filter = this.value.toUpperCase();
-            const rows = document.querySelectorAll('#cmmTable tbody tr');
-
-            rows.forEach(row => {
-                const cells = row.getElementsByTagName('td');
-                let match = false;
-
-                for (let i = 0; i < cells.length; i++) {
-                    if (cells[i] && cells[i].innerText.toUpperCase().indexOf(filter) > -1) {
-                        match = true;
-                        break;
-                    }
-                }
-
-                row.style.display = match ? '' : 'none';
-            });
-        });
-
-
     </script>
 @endpush
