@@ -190,7 +190,7 @@
         <div class="col-10 border-bottom pt-4 topic-content text-center">
             <h5>
                 <strong>{{ $training->manual->title }}: {{
-                $training->manual->units_pn }}</strong>
+                $training->manual->unit_name_training }}</strong>
             </h5>
         </div>
         <div class="col-2 border-l-t-r pt-1 text-center hrs-topic">
@@ -221,7 +221,7 @@
         <div class="col-10 border-bottom pt-4 topic-content text-center">
             <h5>
                 <strong>{{ $training->manual->title }}: {{
-                $training->manual->units_pn }}</strong>
+                $training->manual->unit_name_training }}</strong>
             </h5>
         </div>
         <div class="col-2  pt-1 text-center hrs-topic">
@@ -253,7 +253,7 @@
         <div class="col-10 border-bottom pt-4 topic-content text-center">
             <h5>
                 <strong>{{ $training->manual->title }}: {{
-                $training->manual->units_pn }}</strong>
+                $training->manual->unit_name_training }}</strong>
             </h5>
         </div>
         <div class="col-2  pt-1 text-center hrs-topic">
@@ -284,7 +284,7 @@
         <div class="col-10 border-bottom pt-4 topic-content text-center">
             <h5>
                 <strong>{{ $training->manual->title }}: {{
-                $training->manual->units_pn }}</strong>
+                $training->manual->unit_name_training }}</strong>
             </h5>
         </div>
 
@@ -310,7 +310,7 @@
         <div class="col-10 border-bottom pt-4 topic-content text-center">
             <h5>
                 <strong>{{ $training->manual->title }}: {{
-                $training->manual->units_pn }}</strong>
+                $training->manual->unit_name_training }}</strong>
             </h5>
         </div>
 

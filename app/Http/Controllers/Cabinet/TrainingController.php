@@ -64,13 +64,16 @@ class TrainingController extends Controller
     {
         $userId = auth()->id();
 
+        $planes = Plane::pluck('type', 'id');
+
+
         // Получаем ID юнитов, которые уже добавлены для текущего пользователя
         $addedCmmIds = Training::where('user_id', $userId)->pluck('manuals_id');
 
         // Получаем юниты, которые не добавлены для текущего пользователя
         $manuals = Manual::whereNotIn('id', $addedCmmIds)->get();
 
-        return view('cabinet.trainings.create', compact('manuals'));
+        return view('cabinet.trainings.create', compact('manuals','planes'));
 
     }
 

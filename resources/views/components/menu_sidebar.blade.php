@@ -17,6 +17,12 @@
         </a>
     </li>
     <li class="nav-item">
+        <a class="nav-link" href="{{route('manuals-user.index')}}"
+           onclick="showLoadingSpinner()">
+            <i class="bi bi-book-half me-2"></i> Manuals
+        </a>
+    </li>
+    <li class="nav-item">
         <a class="nav-link" href="#" onclick="showLoadingSpinner()">
             <i class="bi bi-file-earmark-word fs-6 me-2 "></i> Workorder
         </a>

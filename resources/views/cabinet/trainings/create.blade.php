@@ -1,4 +1,4 @@
-@extends('layouts.main_dlb')
+@extends('cabinet.master')
 
 @section('content')
 
@@ -21,7 +21,13 @@
                         <select id="manuals_id" name="manuals_id" class="form-control" required>
                             <option value="">{{ __('Select Unit PN') }}</option>
                             @foreach ($manuals as $manual)
-                                <option value="{{ $manual->id }}">{{ $manual->title }} ({{ $manual->units_pn }})</option>
+                                <option value="{{ $manual->id }}">
+                                    {{$manual->title }}
+                                    (
+                                    {{$manual->unit_name_training}}
+{{--                                    AirCraft:--}}
+{{--                                    {{$manual->manual->planes_id->type}}--}}
+                                    )</option>
                             @endforeach
                         </select>
                     </div>

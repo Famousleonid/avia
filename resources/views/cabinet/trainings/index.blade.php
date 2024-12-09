@@ -268,7 +268,8 @@
                                                         id="imageModalLabel{{ $trainingList['first_training']->manual->id }}">
                                                         {{ $trainingList['first_training']->manual->title }}{{__(': ')}}
                                                     </h5 >
-                                                    <h6>{{ $trainingList['first_training']->manual->units_pn }}</h6>
+                                                    <h6>{{
+                                                    $trainingList['first_training']->manual->unit_name_training }}</h6>
                                                 </div>
                                                 <button type="button"
                                                         class="btn-close pb-2"
