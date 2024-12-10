@@ -78,6 +78,7 @@
         <div class="card-header my-1 shadow">
             <div class="d-flex justify-content-between">
                 <h5 class="text-primary">{{__('CMMs')}}</h5>
+
 {{--                <a href="{{ route('manuals.create') }}" class="btn btn-primary btn-sm ">{{ __('Add CMM') }}</a>--}}
             </div>
         </div>

@@ -78,6 +78,7 @@
     </style>
 
     <div class="card shadow">
+
         <div class="card-header my-1 shadow">
             <div class="d-flex justify-content-between">
                 <h5 class="text-primary">{{__('Manage CMMs')}}</h5>
@@ -88,13 +89,15 @@
         <div class="d-flex my-2">
             <div class="clearable-input ps-2">
                 <input id="searchInput" type="text" class="form-control w-100" placeholder="Search...">
-                <button class="btn-clear text-secondary" onclick="document.getElementById('searchInput').value = ''; document.getElementById('searchInput').dispatchEvent(new Event('input'))">
+                <button class="btn-clear text-secondary" onclick="document.getElementById('searchInput').value = '';
+                    document.getElementById('searchInput').dispatchEvent(new Event('input'))">
                     <i class="bi bi-x-circle"></i>
                 </button>
             </div>
         </div>
 
         @if(count($cmms))
+
             <div class="table-wrapper me-3 p-2 pt-0">
 
                 <table id="cmmTable" class="display table table-sm table-hover table-striped">
