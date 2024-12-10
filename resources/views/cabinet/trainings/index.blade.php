@@ -262,7 +262,7 @@
                                      aria-hidden="true">
                                     <div class="modal-dialog modal-dialog-centered" role="document">
                                         <div class="modal-content">
-                                            <div class="modal-header">
+                                            <div class="modal-header bg-gradient">
                                                 <div>
                                                     <h5 class="modal-title"
                                                         id="imageModalLabel{{ $trainingList['first_training']->manual->id }}">
@@ -277,14 +277,21 @@
                                                         aria-label="Close"></button>
                                             </div>
 
-                                            <div class="modal-body">
-                                                <div class="d-flex">
+                                            <div class="modal-body bg-white">
+                                                <div class="d-flex bg-white">
                                                     <div class="me-2">
-                                                        <img src="{{ asset('storage/image/cmm/' . $trainingList['first_training']->manual->img) }}"
-                                                             style="max-width: 200px;"
-                                                             alt="{{ $trainingList['first_training']->manual->title }}">
+
+                                                        @if($trainingList['first_training']->manual->getFirstMediaUrl('manuals'))
+                                                            <img src="{{
+                                                            $trainingList['first_training']->manual->getBigImageUrl('manuals') }}" style="width: 200px;"
+                                                                 alt="{{ $trainingList['first_training']->manual->title }}"
+                                                            >
+                                                        @else
+                                                            <p>No image available</p>
+                                                        @endif
+
                                                     </div>
-                                                    <div>
+                                                    <div class="bg-white text-black">
                                                         <p><strong>{{ __('CMM:') }}</strong> {{ $trainingList['first_training']->manual->number }}</p>
                                                         <p><strong>{{ __('Description:') }}</strong>
                                                             {{ $trainingList['first_training']->manual->title }}</p>
