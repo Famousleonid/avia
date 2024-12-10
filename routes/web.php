@@ -55,8 +55,7 @@ Route::group(['middleware' => ['auth'], 'prefix' => 'cabinet'], function () {
     Route::resource('/customer', CustomerController::class);
     Route::resource('/technik', TechnikController::class);
     Route::resource('/materials', MaterialController::class);
-    Route::resource('/manuals-user',
-        \App\Http\Controllers\Cabinet\ManualController::class);
+    Route::resource('/manuals-user',ManualController::class);
 
     Route::post('profile/change_password/user/{id}/', [UserController::class, 'changePassword'])->name('profile.changePassword');
     Route::get('/progress', [ProgressController::class, 'index'])->name('progress.index');
@@ -83,12 +82,9 @@ Route::group(['middleware' => ['auth', 'isAdmin'], 'prefix' => 'admin'], functio
     Route::resource('/customers', CustomerController::class);
     Route::resource('/manuals',ManualController::class);
 
-    Route::post('/planes/store',[PlaneController::class,
-        'store'])->name('planes.store');
-    Route::post('/builders/store',
-        [BuilderController::class,'store'])->name('builders.store');
-    Route::post('/scopes/store',
-        [ScopeController::class,'store'])->name('scopes.store');
+    Route::post('/planes/store',[PlaneController::class, 'store'])->name('planes.store');
+    Route::post('/builders/store', [BuilderController::class,'store'])->name('builders.store');
+    Route::post('/scopes/store',  [ScopeController::class,'store'])->name('scopes.store');
 });
 
 

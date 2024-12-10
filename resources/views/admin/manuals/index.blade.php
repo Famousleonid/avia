@@ -52,6 +52,7 @@
                 display: none;
             }
         }
+
         .table th.sortable {
             cursor: pointer;
         }
@@ -60,9 +61,11 @@
             position: relative;
             width: 400px;
         }
+
         .clearable-input .form-control {
             padding-right: 2.5rem;
         }
+
         .clearable-input .btn-clear {
             position: absolute;
             right: 0.5rem;
@@ -85,7 +88,7 @@
         <div class="d-flex my-2">
             <div class="clearable-input ps-2">
                 <input id="searchInput" type="text" class="form-control w-100" placeholder="Search...">
-                <button class="btn-clear text-secondary"  onclick="document.getElementById('searchInput').value = ''; document.getElementById('searchInput').dispatchEvent(new Event('input'))">
+                <button class="btn-clear text-secondary" onclick="document.getElementById('searchInput').value = ''; document.getElementById('searchInput').dispatchEvent(new Event('input'))">
                     <i class="bi bi-x-circle"></i>
                 </button>
             </div>
@@ -95,15 +98,15 @@
             <div class="table-wrapper me-3 p-2 pt-0">
 
                 <table id="cmmTable" class="display table table-sm table-hover table-striped">
-                    <thead>
-                    <tr class="">
-                        <th class="text-primary sortable " data-direction="asc">{{__('Number')}}<i class="bi bi-chevron-expand ms-1"></i></th>
-                        <th class="text-primary  sortable">{{__('Title')}}<i class="bi bi-chevron-expand ms-1"></i></th>
-                        <th class="text-primary  sortable">{{__('Units PN')}}<i class="bi bi-chevron-expand ms-1"></i></th>
-                        <th class="text-primary text-center ">{{__('Image')}}</th>
-                        <th class="text-primary text-center ">{{__('Rev.Date')}}</th>
-                        <th class="text-primary text-center  sortable" data-direction="asc">{{__('Lib')}} <i class="bi bi-chevron-expand ms-1"></i></th>
-                        <th class="text-primary text-center ">{{__('Action')}}</th>
+                    <thead class="bg-gradient">
+                    <tr>
+                        <th class="text-primary sortable bg-gradient " data-direction="asc">{{__('Number')}}<i class="bi bi-chevron-expand ms-1"></i></th>
+                        <th class="text-primary  sortable bg-gradient">{{__('Title')}}<i class="bi bi-chevron-expand ms-1"></i></th>
+                        <th class="text-primary  sortable bg-gradient">{{__('Units PN')}}<i class="bi bi-chevron-expand ms-1"></i></th>
+                        <th class="text-primary text-center bg-gradient">{{__('Image')}}</th>
+                        <th class="text-primary text-center bg-gradient">{{__('Rev.Date')}}</th>
+                        <th class="text-primary text-center  sortable bg-gradient" data-direction="asc">{{__('Lib')}} <i class="bi bi-chevron-expand ms-1"></i></th>
+                        <th class="text-primary text-center bg-gradient">{{__('Action')}}</th>
                     </tr>
                     </thead>
                     <tbody>
@@ -113,8 +116,8 @@
                             <td title="{{$cmm->title}}">{{$cmm->title}}</td>
                             <td title="{{$cmm->unit_name}}">{{$cmm->unit_name}}</td>
                             <td class="text-center">
-                                <a href="{{ asset('img/noimage.png') }}" data-fancybox="gallery" data-caption="{{$cmm->title}}">
-                                    <img src="{{ asset('img/noimage.png') }}" style="width: 40px; cursor: pointer;" alt="Img">
+                                <a href="{{ $cmm->getBigImageUrl('manuals') }}" data-fancybox="gallery">
+                                    <img class="rounded-circle" src="{{ $cmm->getThumbnailUrl('manuals') }}" width="50" height="50" alt="Image"/>
                                 </a>
                             </td>
                             <td class="text-center">{{$cmm->revision_date}}</td>

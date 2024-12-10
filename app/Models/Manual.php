@@ -5,10 +5,14 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Illuminate\Support\Facades\Log;
+use Spatie\MediaLibrary\HasMedia;
+use Spatie\MediaLibrary\InteractsWithMedia;
 
-class Manual extends Model
+class Manual extends Model implements  hasMedia
 {
-    use HasFactory, softDeletes;
+    use HasFactory, softDeletes, InteractsWithMedia;
+
     protected $fillable = [
         'number',
         'title',
@@ -54,5 +58,27 @@ class Manual extends Model
     {
         return $this->hasMany(Unit::class,'manuals_id');
     }
+    public function registerAllMediaConversions(): void
+    {
+        $this->addMediaConversion('thumb')
+            ->width(100)
+            ->height(100)
+            ->nonOptimized();
 
+    }
+    public function getThumbnailUrl($collection)
+    {
+        $media = $this->getMedia($collection)->first();
+        return $media
+            ? route('image.show.thumb', ['mediaId' => $media->id, 'modelId' => $this->id, 'mediaName' => 'manual'])
+            : asset('img/noimage.png');
+    }
+
+    public function getBigImageUrl($collection)
+    {
+        $media = $this->getMedia($collection)->first();
+        return $media
+            ? route('image.show.big', ['mediaId' => $media->id, 'modelId' => $this->id, 'mediaName' => 'manual'])
+            : asset('img/noimage.png');
+    }
 }

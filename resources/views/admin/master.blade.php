@@ -22,6 +22,12 @@
         .firm-border {
             border-top: 5px solid #F8C50E;
         }
+        .active {
+            color: white;
+        }
+        .menu-open {
+            color: white;
+        }
     </style>
 
 </head>
@@ -111,8 +117,9 @@
         console.log(link)
 
         if (link === location) {
-            $(this).addClass('active');
-            $(this).closest('.has-treeview').addClass('menu-open');
+            console.log(this)
+            $(this).addClass('text-white bg-primary');
+           // $(this).closest('.nav').addClass('menu-open');
         }
     });
 

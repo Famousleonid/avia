@@ -1,22 +1,16 @@
-{{--@extends('layouts.main_dlb')--}}
-
 @extends('admin.master')
 
 @section('content')
     <style>
         .container {
-            max-width: 600px;
-        }
-
-        .push-top {
-            margin-top: 50px;
+            max-width: 700px;
         }
     </style>
 
-    <div class="container">
-        <div class="card">
+    <div class="container mt-3 ">
+        <div class="card  bg-gradient">
             <div class="card-header">
-                Создать новый CMM
+                <h4 class="text-primary">Create new CMM</h4>
             </div>
 
             <div class="card-body">
@@ -27,7 +21,7 @@
                     <div class="form-group d-flex">
                         <div class="mt-2 m-3  p-2">
                             <div>
-                                <label for="wo">{{ __('Номер CMM') }}</label>
+                                <label for="wo">{{ __('Number CMM') }}</label>
                                 <input id='wo' type="text" class="form-control" name="number" required>
                                 @error('number')
                                 <div class="text-danger">{{ $message }}</div>
@@ -41,19 +35,18 @@
                             <div class="col-xs-12 col-sm-12 col-md-12 mt-2">
                                 <div class="form-group">
                                     <strong>{{__('Image:')}}</strong>
-{{--                                    <input type="file" name="img" class="form-control" placeholder="изображение">--}}
+                                    <input type="file" name="img" class="form-control" placeholder="Image">
                                 </div>
                             </div>
 
-                            <div class="mt-1">
+                            <div class="mt-2">
                                 <label for="revision_date">{{ __('Revision Date') }}</label>
-                                <input id='revision_date' type="date" class="form-control" name="revision_date"
-                                       required>
+                                <input id='revision_date' type="date" class="form-control" name="revision_date" required>
                             </div>
                             <div class="mt-2">
                                 <label for="unit_name">{{ __('Units PN') }}</label>
                                 <input id='unit_name' type="text" class="form-control"
-                                       name="unit_name"   required>
+                                       name="unit_name" required>
                             </div>
                             <div class="mt-2">
                                 <label for="unit_name_training">{{ __('Units
@@ -116,13 +109,11 @@
 
                     </div>
 
-                    <button type="submit" class="btn btn-primary mt-3">
-                        {{ __('Add CMM') }}
-                    </button>
-                    <a href="{{ route('manuals.index') }}" class="btn
-                    btn-secondary mt-3">
-                        {{ __('Cancel') }}
-                    </a>
+                    <div class="text-end">
+                        <button type="submit" class="btn btn-primary mt-3 ">{{ __('Add CMM') }}</button>
+                        <a href="{{ route('manuals.index') }}" class="btn btn-secondary mt-3">{{ __('Cancel') }} </a>
+                    </div>
+
                 </form>
             </div>
         </div>

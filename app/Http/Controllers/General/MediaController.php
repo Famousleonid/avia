@@ -5,6 +5,7 @@ namespace App\Http\Controllers\General;
 use App\Http\Controllers\Controller;
 use App\Models\User;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
 use Spatie\MediaLibrary\MediaCollections\Models\Media;
 
 class MediaController extends Controller
@@ -41,10 +42,13 @@ class MediaController extends Controller
     public function showThumb($mediaId, $modelId, $mediaName)
     {
 
-        $model = User::find($modelId);
-        $media = $model->getMedia($mediaName)->where('id', $mediaId)->first();
+        $media = Media::find($mediaId);
+        $thumbPath = $media->getPath('thumb');
 
-        return response()->file($media->getPath('thumb'));
+        Log::channel('avia')->info('showThumb called', compact('mediaId', 'modelId', 'mediaName'));
+
+
+        return response()->file($thumbPath);
     }
 
     public function showBig($mediaId, $modelId, $mediaName)

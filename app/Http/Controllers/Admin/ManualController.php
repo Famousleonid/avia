@@ -48,11 +48,10 @@ class ManualController extends Controller
     {
         {
             // dd($request);
-            // Валидация входящих данных
+
             $validatedData = $request->validate([
                 'number' => 'required',
                 'title' => 'required',
-                'img' => 'image|nullable',
                 'revision_date' => 'required',
                 'unit_name'=> 'nullable',
                 'unit_name_training'=> 'nullable',
@@ -64,27 +63,14 @@ class ManualController extends Controller
                 'lib' => 'required'
             ]);
 
+            $manual = Manual::create($validatedData);
 
-            // Если изображение присутствует в запросе
             if ($request->hasFile('img')) {
-                // Генерация уникального имени для файла изображения
-                $imgName = time() . '.' . $request->img->getClientOriginalExtension();
-                // Перемещение изображения в директорию storage/app/public/image/cmm
-                $request->img->storeAs('image/cmm', $imgName, 'public');
-                // Добавление имени файла изображения в массив данных для создания записи
-                $validatedData['img'] = $imgName;
+                $manual->addMedia($request->file('img'))->toMediaCollection('manuals');
             }
 
-//            try {
+                return redirect()->route('manuals.index')->with('success', 'Manual success created.');
 
-                // Создание новой записи в базе данных
-                Manual::create($validatedData);
-                // Перенаправление пользователя на страницу со списком CMM с сообщением об успешном создании
-                return redirect()->route('manuals.index')->with('success', 'Инструкция успешно создана.');
-//            } catch (\Exception $e) {
-//                // Обработка ошибки при вставке данных в базу данных
-//                return redirect()->back()->withInput()->withErrors(['error' => 'Не удалось создать инструкцию: ' . $e->getMessage()]);
-//            }
         }
     }
 
@@ -141,13 +127,10 @@ class ManualController extends Controller
 
             // Генерируем уникальное имя для изображения
             $imgName = time() . '.' . $request->img->getClientOriginalExtension();
-            // Сохраняем изображение в указанной директории
             $request->img->storeAs('image/cmm', $imgName, 'public');
-            // Добавляем имя изображения в массив данных для валидации
             $validatedData['img'] = $imgName;
         }
 
-        // Обновляем запись в модели с использованием валидированных данных
         $cmm->update($validatedData);
 
         return redirect()->route('admin.manuals.index')->with('success', 'Manual updated successfully');
