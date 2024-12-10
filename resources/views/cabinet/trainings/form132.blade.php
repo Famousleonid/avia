@@ -239,7 +239,7 @@
         <div class="col-6 text-black text-center  border-bottom border-dark">
             <h5 class="mt-1"><strong>{{ $training->manual->title
             }}</strong></h5>
-            <h5 class="mt-n2"><strong>{{ $training->manual->units_pn }}</strong>
+            <h5 class="mt-n2"><strong>{{ $training->manual->unit_name_training }}</strong>
             </h5>
         </div>
     </div>

@@ -55,6 +55,8 @@ Route::group(['middleware' => ['auth'], 'prefix' => 'cabinet'], function () {
     Route::resource('/customer', CustomerController::class);
     Route::resource('/technik', TechnikController::class);
     Route::resource('/materials', MaterialController::class);
+    Route::resource('/manuals-user',
+        \App\Http\Controllers\Cabinet\ManualController::class);
 
     Route::post('profile/change_password/user/{id}/', [UserController::class, 'changePassword'])->name('profile.changePassword');
     Route::get('/progress', [ProgressController::class, 'index'])->name('progress.index');

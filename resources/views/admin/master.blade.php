@@ -10,7 +10,7 @@
     <link rel="stylesheet" href="{{asset('assets/Bootstrap 5/bootstrap.min.css')}}">
     <link href="{{asset('assets/Bootstrap 5/bootstrap-icons.css')}}" rel="stylesheet">
     <link rel="stylesheet" href="{{asset('assets/jquery/jquery.fancybox.min.css')}}">
-    <link href="{{asset('assets/dataTables/datatables.css')}}" rel="stylesheet">
+{{--    <link href="{{asset('assets/dataTables/datatables.css')}}" rel="stylesheet">--}}
     <link href="{{asset('assets/select2/css/select2.min.css')}}" rel="stylesheet"/>
     <link rel="stylesheet" href="{{asset('css/custom_bootstrap.css')}}">
     <link rel="stylesheet" href="{{asset('css/main.css')}}">
@@ -44,7 +44,7 @@
 
 <script src="{{asset('assets/jquery/jquery371min.js')}}"></script>
 <script src="{{asset('assets/Bootstrap 5/bootstrap.bundle.min.js')}}"></script>
-<script src="{{asset('assets/dataTables/datatables.min.js')}}"></script>
+{{--<script src="{{asset('assets/dataTables/datatables.min.js')}}"></script>--}}
 <script src="{{asset('assets/select2/js/select2.min.js')}}"></script>
 <script src="{{ asset('assets/jquery/jquery.fancybox.min.js') }}"></script>
 
@@ -101,11 +101,15 @@
         $('[data-toggle="tooltip"]').tooltip()
     })
 
+    //------------------------------------------------------------------------------------------------------------------------
 
-
-    $('.nav-sidebar a').each(function () {
+    $('#sidebarMenu a').each(function () {
         let location = window.location.protocol + '//' + window.location.host + window.location.pathname;
         let link = this.href;
+
+        console.log(location)
+        console.log(link)
+
         if (link === location) {
             $(this).addClass('active');
             $(this).closest('.has-treeview').addClass('menu-open');
