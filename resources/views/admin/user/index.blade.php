@@ -136,32 +136,10 @@
                                      style="color:red" @endif>{{$user->name}}</td>
                             <td class="text-center">{{$user->email}}</td>
                             <td class="text-center">{{$user->team->name ?? 'Unknown team' }}</td>
-                            <td>
-                                <div class="text-center">
-
-                                        <?php
-                                        $avatar = $user->getMedia('avatar')->first();
-                                        $avatarThumbUrl = $avatar
-                                            ? route('image.show.thumb', [
-                                                'mediaId' => $avatar->id,
-                                                'modelId' => $user->id,
-                                                'mediaName' => 'avatar'
-                                            ])
-                                            : asset('img/noimage.png');
-                                        $avatarBigUrl = $avatar
-                                            ? route('image.show.big', [
-                                                'mediaId' => $avatar->id,
-                                                'modelId' => $user->id,
-                                                'mediaName' => 'avatar'
-                                            ])
-                                            : asset('img/noimage2.png');
-                                        ?>
-                                    <a href="{{ $avatarBigUrl }}" data-fancybox="gallery">
-                                        <img class="rounded-circle" src="{{ $avatarThumbUrl }}" width="50" height="50" alt="User Avatar"/>
-                                    </a>
-
-
-                                </div>
+                            <td class="text-center">
+                                <a href="{{ $cmm->getBigImageUrl('avatars') }}" data-fancybox="gallery">
+                                    <img class="rounded-circle" src="{{ $cmm->getThumbnailUrl('avatars') }}" width="50" height="50" alt="Image"/>
+                                </a>
                             </td>
                             <td class="text-center">
 
@@ -181,12 +159,7 @@
 
                     @endforeach
                     </tbody>
-
                 </table>
-
-
-
-
                 @else
                     <p>Users not Created</p>
                 @endif

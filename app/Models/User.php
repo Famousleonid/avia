@@ -78,6 +78,20 @@ class User extends Authenticatable implements MustVerifyEmail, hasMedia
             ->nonOptimized();
 
     }
+    public function getThumbnailUrl($collection)
+    {
+        $media = $this->getMedia($collection)->first();
+        return $media
+            ? route('image.show.thumb', ['mediaId' => $media->id, 'modelId' => $this->id, 'mediaName' => 'manual'])
+            : asset('img/noimage.png');
+    }
 
+    public function getBigImageUrl($collection)
+    {
+        $media = $this->getMedia($collection)->first();
+        return $media
+            ? route('image.show.big', ['mediaId' => $media->id, 'modelId' => $this->id, 'mediaName' => 'manual'])
+            : asset('img/noimage.png');
+    }
 
 }
