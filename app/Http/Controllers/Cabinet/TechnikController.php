@@ -104,7 +104,7 @@ class TechnikController extends Controller
             $avatar = 0;
         }
 
-        return view('admin.technik.edit', compact('user', 'avatar'));
+        return view('cabinet.technik.edit', compact('user', 'avatar'));
     }
 
     /**

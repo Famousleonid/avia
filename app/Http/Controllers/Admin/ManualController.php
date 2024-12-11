@@ -103,10 +103,10 @@ class ManualController extends Controller
     public function update(Request $request, $id)
     {
         $cmm = Manual::findOrFail($id);
+
         $validatedData = $request->validate([
             'number' => 'required',
             'title' => 'required',
-            'img' => 'image|nullable',
             'revision_date' => 'required',
 
             'unit_name'=> 'nullable',
@@ -119,22 +119,23 @@ class ManualController extends Controller
             'lib' => 'required',
         ]);
 
+        // Если загружено новое изображение
         if ($request->hasFile('img')) {
-            // Если загружено новое изображение, удаляем старое, если оно существует
-            if ($cmm->img) {
-                Storage::disk('public')->delete('image/cmm/' . $cmm->img);
+            // Удаляем старое изображение из медиаколлекции, если оно существует
+            if ($cmm->getMedia('manuals')->isNotEmpty()) {
+                $cmm->getMedia('manuals')->first()->delete();
             }
 
-            // Генерируем уникальное имя для изображения
-            $imgName = time() . '.' . $request->img->getClientOriginalExtension();
-            $request->img->storeAs('image/cmm', $imgName, 'public');
-            $validatedData['img'] = $imgName;
+            // Добавляем новое изображение в медиаколлекцию
+            $cmm->addMedia($request->file('img'))->toMediaCollection('manuals');
         }
 
+        // Обновляем остальные данные вручную
         $cmm->update($validatedData);
 
-        return redirect()->route('admin.manuals.index')->with('success', 'Manual updated successfully');
+        return redirect()->route('manuals.index')->with('success', 'Manual updated successfully');
     }
+
 
 
 // Destroy method
