@@ -1,0 +1,21 @@
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+.firm-border {
+    border-top: 5px solid #F8C50E;
+}
+
+.gg {
+    border: 2px solid green;
+}
+
+.rr {
+    border: 2px solid red !important;
+}
+
+.ss {
+    border: 2px solid blue;
+}
