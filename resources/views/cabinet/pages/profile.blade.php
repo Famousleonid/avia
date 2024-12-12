@@ -51,7 +51,7 @@
                             <div class="col-12 text-center">
                                 <b class="text-blue">Email:</b>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<b class="">{{$user->email}}</b>
                             </div>
-                            <form action="{{route('cabinet.users.update',['users' => $user->id])}}" class="createForm" method="POST">
+                            <form action="{{route('cabinet.users.update',['user' => $user->id])}}" class="createForm" method="POST">
                                 @method('PUT')
                                 @csrf
                                 <div class="row">

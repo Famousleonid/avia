@@ -76,9 +76,8 @@ Route::group(['middleware' => ['auth', 'isAdmin'], 'prefix' => 'admin', 'as' =>'
     Route::resource('/builders', \App\Http\Controllers\Admin\BuilderController::class);
     Route::resource('/scopes',  \App\Http\Controllers\Admin\ScopeController::class);
     Route::resource('/materials',  \App\Http\Controllers\Admin\MaterialController::class);
-
-    Route::post('/roles/store', [RoleController::class, 'store'])->name('roles.store');
-    Route::post('/teams/store', [TeamController::class, 'store'])->name('teams.store');
+    Route::resource('/roles', \App\Http\Controllers\Admin\RoleController::class);
+    Route::resource('/teams', \App\Http\Controllers\Admin\TeamController::class);
 });
 
 

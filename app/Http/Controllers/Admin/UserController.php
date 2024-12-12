@@ -27,7 +27,7 @@ class UserController extends Controller
         $avatar = $user->getMedia('avatar')->first();
 
 
-        return View('admin.users.index', compact('users', 'avatar'));
+        return View('admin.user.index', compact('users', 'avatar'));
 
     }
 
@@ -36,7 +36,7 @@ class UserController extends Controller
         $roles = Role::all();
         $teams = Team::all();
 
-        return View('admin.users.create', compact('roles', 'teams'));
+        return View('admin.user.create', compact('roles', 'teams'));
 
     }
 
@@ -67,7 +67,7 @@ class UserController extends Controller
         }
 
 
-        return redirect()->route('users.index')->with('success', 'Пользователь добавлен');
+        return redirect()->route('admin.user.index')->with('success', 'Пользователь добавлен');
     }
 
     public function edit($id)
@@ -83,7 +83,7 @@ class UserController extends Controller
             $avatar = 0;
         }
 
-        return view('admin.users.edit', compact('user', 'avatar', 'teams','roles'));
+        return view('admin.user.edit', compact('user', 'avatar', 'teams','roles'));
     }
 
     public function update(Request $request, $id)
@@ -113,7 +113,7 @@ class UserController extends Controller
             return back()->withErrors('The databases are linked. First remove...');
         }
 
-        return redirect()->route('users.index')->with('success', 'User deleted');
+        return redirect()->route('admin.user.index')->with('success', 'User deleted');
     }
 
     public function removeSpace($var)

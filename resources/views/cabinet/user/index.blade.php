@@ -98,11 +98,11 @@
 
                                     <td class="text-center"><span style="display: none">{{$user->created_at}}</span>{{$user->created_at->format('d.m.Y')}}</td>
                                     <td class="text-center">
-                                        <a href="{{route('cabinet.users.edit', ['users' => $user->id]) }}"><img src="{{asset('img/set.png')}}" width="25" alt=""></a>
+                                        <a href="{{route('cabinet.users.edit', ['user' => $user->id]) }}"><img src="{{asset('img/set.png')}}" width="25" alt=""></a>
                                     </td>
                                     <td class="text-center">
                                         <div>
-                                            <form action="{{route('cabinet.users.destroy', ['users' => $user->id])}}" method="post">
+                                            <form action="{{route('cabinet.users.destroy', ['user' => $user->id])}}" method="post">
                                                 @csrf
                                                 @method('DELETE')
 
