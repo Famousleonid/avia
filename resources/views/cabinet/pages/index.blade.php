@@ -91,7 +91,7 @@
                 </div>
 
                 <div class="col-12 col-md-3 input-div ">
-                    <a id="new_workorder_create" href={{route('workorder.create')}} class=""><img src="{{asset('img/plus.png')}}" width="33px" alt="" data-toggle="tooltip" data-placement="top" title="Add new workorder"></a>
+                    <a id="new_workorder_create" href={{route('cabinet.workorders.create')}} class=""><img src="{{asset('img/plus.png')}}" width="33px" alt="" data-toggle="tooltip" data-placement="top" title="Add new workorder"></a>
                     <span class="ml-1 ">ADD new workorder</span>
                 </div>
             </div>
@@ -156,12 +156,12 @@
                         <td class="">{{$workorder->serial_number}}</td>
                         <td class="">{{$workorder->place}}</td>
                         <td class="text-center">
-                            <a class="change_approve" href="{{route('component.workorders', ['workorder_id' => $workorder->id])}}">
+                            <a class="change_approve" href="#">
                                 <img src="{{asset('img/icons/component.png')}}" width="25px" alt="">
                             </a>
                         </td>
                         @if(Auth()->user()->getRole() == 1)
-                            <td class="text-center"><a href="{{route('workorder.edit',$workorder->id)}}"><img src="{{asset('img/set_active2.png')}}" data-toggle="tooltip" title="edit" width="25px" alt=""></a></td>
+                            <td class="text-center"><a href="{{route('cabinet.workorders.edit',$workorder->id)}}"><img src="{{asset('img/set_active2.png')}}" data-toggle="tooltip" title="edit" width="25px" alt=""></a></td>
                         @else
                             <td class="text-center"><img src="{{asset('img/set.png')}}" data-toggle="tooltip" title="you are not allowed to edit" width="20px" alt=""></td>
                         @endif

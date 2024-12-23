@@ -3,7 +3,7 @@
 @section('content')
     <style>
         .container {
-            max-width: 700px;
+            max-width: 750px;
         }
     </style>
 
@@ -14,7 +14,7 @@
             </div>
 
             <div class="card-body">
-                <form method="POST" action="{{ route('manuals.store') }}" enctype="multipart/form-data"
+                <form method="POST" action="{{ route('admin.manuals.store') }}" enctype="multipart/form-data"
                       id="createCMMForm">
                     @csrf
 
@@ -49,14 +49,11 @@
                                        name="unit_name" required>
                             </div>
                             <div class="mt-2">
-                                <label for="unit_name_training">{{ __('Units
-                                Training PN') }}</label>
+                                <label for="unit_name_training">{{ __('Units Training PN') }}</label>
                                 <input id='unit_name_training' type="text" class="form-control" name="unit_name_training" required>
                             </div>
                             <div class=mt-2">
-                                <label for="training_hours">{{ __('Unit First
-                                Training')
-                                }}</label>
+                                <label for="training_hours">{{ __('Unit First Training') }}</label>
                                 <input id='training_hours' type="text"
                                        class="form-control" name="training_hours"
                                        required>
@@ -64,11 +61,9 @@
                         </div>
                         <div style="width: 320px" class="m-3 p-2 ">
                             <div class="form-group ">
-                                <label for="planes_id">{{ __('AirCraft Type')
-                            }}</label>
+                                <label for="planes_id">{{ __('AirCraft Type')  }}</label>
                                 <select id="planes_id" name="planes_id" class="form-control" required>
-                                    <option value="">{{ __('Select AirCraft')
-                                }}</option>
+                                    <option value="">{{ __('Select AirCraft') }}</option>
                                     @foreach ($planes as $plane)
                                         <option value="{{ $plane->id }}">{{ $plane->type }}</option>
                                     @endforeach
@@ -111,7 +106,7 @@
 
                     <div class="text-end">
                         <button type="submit" class="btn btn-primary mt-3 ">{{ __('Add CMM') }}</button>
-                        <a href="{{ route('manuals.index') }}" class="btn btn-secondary mt-3">{{ __('Cancel') }} </a>
+                        <a href="{{ route('admin.manuals.index') }}" class="btn btn-secondary mt-3">{{ __('Cancel') }} </a>
                     </div>
 
                 </form>
@@ -157,7 +152,7 @@
                     @csrf
                     <div class="modal-body">
                         <div class="form-group">
-                            <label for="builderName">{{ __('Название MFR') }}</label>
+                            <label for="builderName">{{ __('Name MFR') }}</label>
                             <input type="text" class="form-control" id="builderName" name="name" required>
                         </div>
                     </div>
@@ -239,11 +234,11 @@
         }
 
         // Обновляем вызовы функции для передачи правильных ID модальных окон
-        handleFormSubmission('addAirCraftForm', '{{ route('planes.store') }}', 'planes_id', 'id', 'type',
+        handleFormSubmission('addAirCraftForm', '{{ route('admin.planes.store') }}', 'planes_id', 'id', 'type',
             'addAirCraftModal');
-        handleFormSubmission('addMFRForm', '{{ route('builders.store') }}', 'builders_id', 'id', 'name',
+        handleFormSubmission('addMFRForm', '{{ route('admin.builders.store') }}', 'builders_id', 'id', 'name',
             'addMFRModal');
-        handleFormSubmission('addScopeForm', '{{ route('scopes.store') }}', 'scopes_id', 'id', 'scope', 'addScopeModal');
+        handleFormSubmission('addScopeForm', '{{ route('admin.scopes.store') }}', 'scopes_id', 'id', 'scope', 'addScopeModal');
 
     </script>
 @endsection

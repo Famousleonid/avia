@@ -1,127 +1,119 @@
-@extends('admin.master')
+@extends('cabinet.master')
 
 @section('content')
     <style>
         .container {
-            max-width: 750px;
+            max-width: 700px;
         }
     </style>
 
-    <div class="container ">
-        <div class="card bg-gradient">
+    <div class="container mt-3 ">
+        <div class="card  bg-gradient">
             <div class="card-header">
-                <h5><strong>{{__('Edit CMM:')}}</strong> {{ $cmm->number }}</h5>
+                <h4 class="text-primary">Create new CMM</h4>
             </div>
 
             <div class="card-body">
-                <form method="POST" action="{{ route('admin.manuals.update', [ 'manual' => $cmm->id] ) }}" enctype="multipart/form-data"
-                      id="editCMMForm">
+                <form method="POST" action="{{ route('manuals.store') }}" enctype="multipart/form-data"
+                      id="createCMMForm">
                     @csrf
-                    @method('PUT')
 
-                    <div class="form-group d-flex ">
-                        <div class="mt-2 m-3 border p-2">
+                    <div class="form-group d-flex">
+                        <div class="mt-2 m-3  p-2">
                             <div>
-                                <label for="cmm_num">{{ __('CMM Number') }}</label>
-                                <input id='cmm_num' type="text"
-                                       class="form-control" name="number" value="{{ old('number', $cmm->number) }}"
-                                       required>
+                                <label for="wo">{{ __('Number CMM') }}</label>
+                                <input id='wo' type="text" class="form-control" name="number" required>
                                 @error('number')
                                 <div class="text-danger">{{ $message }}</div>
                                 @enderror
                             </div>
-                            <div class="mt-2">
+                            <div class="">
                                 <label for="title">{{ __('Description') }}</label>
-                                <input id='title' type="text" class="form-control" name="title"
-                                       value="{{ old('title', $cmm->title) }}" required>
+                                <input id='title' type="text" class="form-control" name="title" required>
                             </div>
 
                             <div class="col-xs-12 col-sm-12 col-md-12 mt-2">
                                 <div class="form-group">
                                     <strong>{{__('Image:')}}</strong>
                                     <input type="file" name="img" class="form-control" placeholder="Image">
-                                    {{--                                    <input type="file" name="img" class="form-control" placeholder="изображение">--}}
-                                    <small>{{__('Leave blank if you do not want to change the image.')}}</small>
                                 </div>
                             </div>
 
-                            <div class="">
+                            <div class="mt-2">
                                 <label for="revision_date">{{ __('Revision Date') }}</label>
-                                <input id='revision_date' type="date" class="form-control" name="revision_date"
-                                       value="{{ old('revision_date', $cmm->revision_date) }}" required>
+                                <input id='revision_date' type="date" class="form-control" name="revision_date" required>
                             </div>
                             <div class="mt-2">
                                 <label for="unit_name">{{ __('Units PN') }}</label>
                                 <input id='unit_name' type="text" class="form-control"
-                                       name="unit_name"
-                                       value="{{ old ('unit_name', $cmm->unit_name) }}" required>
+                                       name="unit_name" required>
                             </div>
                             <div class="mt-2">
-                                <label for="unit_name_training">{{ __('Units Training PN') }}</label>
-                                <input id='unit_name_training' type="text" class="form-control"
-                                       name="unit_name_training"
-                                       value="{{ old ('unit_name_training', $cmm->unit_name_training) }}" required>
+                                <label for="unit_name_training">{{ __('Units
+                                Training PN') }}</label>
+                                <input id='unit_name_training' type="text" class="form-control" name="unit_name_training" required>
                             </div>
-                            <div class="mt-2">
-                                <label for="training_hours">{{ __('Unit First Training') }}</label>
+                            <div class=mt-2">
+                                <label for="training_hours">{{ __('Unit First
+                                Training')
+                                }}</label>
                                 <input id='training_hours' type="text"
-                                       class="form-control"
-                                       name="training_hours"
-                                       value="{{ old('training_hours', $cmm->training_hours) }}" required>
+                                       class="form-control" name="training_hours"
+                                       required>
                             </div>
                         </div>
-                        <div style="width: 300px" class="m-3 p-2 border">
+                        <div style="width: 320px" class="m-3 p-2 ">
                             <div class="form-group ">
-                                <label for="planes_id">{{ __('AirCraft Type') }}</label>
+                                <label for="planes_id">{{ __('AirCraft Type')
+                            }}</label>
                                 <select id="planes_id" name="planes_id" class="form-control" required>
-                                    <option value="">{{ __('Select AirCraft') }}</option>
+                                    <option value="">{{ __('Select AirCraft')
+                                }}</option>
                                     @foreach ($planes as $plane)
-                                        <option value="{{ $plane->id }}" {{ $plane->id == $cmm->planes_id ? 'selected' : '' }}>{{ $plane->type }}</option>
+                                        <option value="{{ $plane->id }}">{{ $plane->type }}</option>
                                     @endforeach
                                 </select>
                                 <button type="button" class="btn btn-link" data-bs-toggle="modal"
                                         data-bs-target="#addAirCraftModal">{{ __('Add AirCraft') }}</button>
                             </div>
 
-                            <div class="form-group mt-2 ">
+                            <div class="form-group ">
                                 <label for="builders_id">{{ __('MFR') }}</label>
                                 <select id="builders_id" name="builders_id" class="form-control" required>
                                     <option value="">{{ __('Select MFR') }}</option>
                                     @foreach ($builders as $builder)
-                                        <option value="{{ $builder->id }}" {{ $builder->id == $cmm->builders_id ? 'selected' : '' }}>{{ $builder->name }}</option>
+                                        <option value="{{ $builder->id }}">{{ $builder->name }}</option>
                                     @endforeach
                                 </select>
                                 <button type="button" class="btn btn-link" data-bs-toggle="modal"
                                         data-bs-target="#addMFRModal">{{ __('Add MFR') }}</button>
                             </div>
 
-                            <div class="form-group mt-2">
+                            <div class="form-group ">
                                 <label for="scopes_id">{{ __('Scope') }}</label>
                                 <select id="scopes_id" name="scopes_id" class="form-control" required>
                                     <option value="">{{ __('Select Scope') }}</option>
                                     @foreach ($scopes as $scope)
-                                        <option value="{{ $scope->id }}" {{ $scope->id == $cmm->scopes_id ? 'selected' : '' }}>{{ $scope->scope }}</option>
+                                        <option value="{{ $scope->id }}">{{ $scope->scope }}</option>
                                     @endforeach
                                 </select>
-                                <button type="button" class="btn btn-link " data-bs-toggle="modal"
+                                <button type="button" class="btn btn-link" data-bs-toggle="modal"
                                         data-bs-target="#addScopeModal">{{ __('Add Scope') }}</button>
                             </div>
-                            <div class="">
+                            <div>
                                 <label for="lib">{{ __('Library Number') }}</label>
-                                <input id='lib' type="text" class="form-control" name="lib"
-                                       value="{{ old('lib', $cmm->lib) }}" required>
+                                <input id='lib' type="text" class="form-control" name="lib" required>
                             </div>
 
                         </div>
 
                     </div>
 
-                    <button type="submit" class="btn btn-primary text-center ">
-                        {{ __('UpDate') }}
-                    </button>
-                    <a href="{{ route('admin.manuals.index') }}" class="btn btn-secondary">
-                        {{ __('Cancel') }}
-                    </a>
+                    <div class="text-end">
+                        <button type="submit" class="btn btn-primary mt-3 ">{{ __('Add CMM') }}</button>
+                        <a href="{{ route('manuals.index') }}" class="btn btn-secondary mt-3">{{ __('Cancel') }} </a>
+                    </div>
+
                 </form>
             </div>
         </div>
@@ -140,8 +132,8 @@
                     @csrf
                     <div class="modal-body">
                         <div class="form-group">
-                            <label for="airCraftName">{{ __('Type AirCraft') }}</label>
-                            <input type="text" class="form-control" id="airCraftName" name="type" required>
+                            <label for="planeName">{{ __('AirCraft Type') }}</label>
+                            <input type="text" class="form-control" id="planeName" name="type" required>
                         </div>
                     </div>
                     <div class="modal-footer">
@@ -159,18 +151,18 @@
             <div class="modal-content">
                 <div class="modal-header">
                     <h5 class="modal-title" id="addMFRModalLabel">{{ __('Add MFR') }}</h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Закрыть"></button>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
                 <form method="POST" id="addMFRForm">
                     @csrf
                     <div class="modal-body">
                         <div class="form-group">
-                            <label for="mfrName">{{ __('Name MFR') }}</label>
-                            <input type="text" class="form-control" id="mfrName" name="name" required>
+                            <label for="builderName">{{ __('Название MFR') }}</label>
+                            <input type="text" class="form-control" id="builderName" name="name" required>
                         </div>
                     </div>
                     <div class="modal-footer">
-                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Закрыть"></button>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                         <button type="submit" class="btn btn-primary">{{ __('Save') }}</button>
                     </div>
                 </form>
@@ -184,18 +176,18 @@
             <div class="modal-content">
                 <div class="modal-header">
                     <h5 class="modal-title" id="addScopeModalLabel">{{ __('Add Scope') }}</h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Закрыть"></button>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
                 <form method="POST" id="addScopeForm">
                     @csrf
                     <div class="modal-body">
                         <div class="form-group">
-                            <label for="scopeName">{{ __('Name Scope') }}</label>
+                            <label for="scopeName">{{ __('Scope') }}</label>
                             <input type="text" class="form-control" id="scopeName" name="scope" required>
                         </div>
                     </div>
                     <div class="modal-footer">
-                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Закрыть"></button>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                         <button type="submit" class="btn btn-primary">{{ __('Save') }}</button>
                     </div>
                 </form>
@@ -205,9 +197,14 @@
 
     <script>
         // Функция для обработки отправки форм для самолетов, MFR и Scope
-        function handleFormSubmission(formId, modalId, route, selectId, dataKey, dataValue) {
+        function handleFormSubmission(formId, route, selectId, dataKey, dataValue, modalId) {
             document.getElementById(formId).addEventListener('submit', function (event) {
                 event.preventDefault();
+                if (this.submitted) {
+                    return;
+                }
+                this.submitted = true;
+
                 let formData = new FormData(this);
                 fetch(route, {
                     method: 'POST',
@@ -218,36 +215,35 @@
                 })
                     .then(response => response.json())
                     .then(data => {
+                        // Добавляем новый элемент в Select
                         let select = document.getElementById(selectId);
                         let option = document.createElement('option');
                         option.value = data[dataKey];
                         option.text = data[dataValue];
+                        option.selected = true; // Автоматически выбираем новый элемент
                         select.add(option);
 
-                        // 2. Закрываем модальное окно вручную
-                        let modalElement = document.getElementById(modalId);
+                        // Закрываем модальное окно
+                        let modal = bootstrap.Modal.getInstance(document.getElementById(modalId));
+                        modal.hide();
 
-                        if (modalElement) {
-                            let modal = bootstrap.Modal.getInstance(modalElement);
-                            if (modal) {
-                                modal.hide();
-                            } else {
-                                // Если нет экземпляра, создайте новый и закройте его
-                                let newModal = new bootstrap.Modal(modalElement);
-                                newModal.hide();
-                            }
-                        }
-                        // 3. Очистка формы
-                        // document.getElementById(formId).reset();
+                        // Сброс формы
+                        document.getElementById(formId).reset();
+                        this.submitted = false;
                     })
-                    .catch(error => console.error('Ошибка:', error));
+                    .catch(error => {
+                        console.error('Ошибка:', error);
+                        this.submitted = false;
+                    });
             });
         }
 
-        handleFormSubmission('addAirCraftForm', 'addAirCraftModal', '{{ route('admin.planes.store') }}',
-            'planes_id', 'id', 'type');
-        handleFormSubmission('addMFRForm', 'addMFRModal', '{{ route('admin.builders.store') }}', 'builders_id', 'id',
-            'name');
-        handleFormSubmission('addScopeForm', 'addScopeModal', '{{ route('admin.scopes.store') }}', 'scopes_id', 'id', 'scope');
+        // Обновляем вызовы функции для передачи правильных ID модальных окон
+        handleFormSubmission('addAirCraftForm', '{{ route('planes.store') }}', 'planes_id', 'id', 'type',
+            'addAirCraftModal');
+        handleFormSubmission('addMFRForm', '{{ route('builders.store') }}', 'builders_id', 'id', 'name',
+            'addMFRModal');
+        handleFormSubmission('addScopeForm', '{{ route('scopes.store') }}', 'scopes_id', 'id', 'scope', 'addScopeModal');
+
     </script>
 @endsection

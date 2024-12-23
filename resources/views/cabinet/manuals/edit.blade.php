@@ -1,20 +1,21 @@
-@extends('admin.master')
+@extends('cabinet.master')
 
 @section('content')
     <style>
         .container {
-            max-width: 750px;
+            max-width: 650px;
         }
+
     </style>
 
-    <div class="container ">
-        <div class="card bg-gradient">
+    <div class="container">
+        <div class="card">
             <div class="card-header">
                 <h5><strong>{{__('Edit CMM:')}}</strong> {{ $cmm->number }}</h5>
             </div>
 
             <div class="card-body">
-                <form method="POST" action="{{ route('admin.manuals.update', [ 'manual' => $cmm->id] ) }}" enctype="multipart/form-data"
+                <form method="POST" action="{{ route('manuals.update', $cmm->id) }}" enctype="multipart/form-data"
                       id="editCMMForm">
                     @csrf
                     @method('PUT')
@@ -22,7 +23,8 @@
                     <div class="form-group d-flex ">
                         <div class="mt-2 m-3 border p-2">
                             <div>
-                                <label for="cmm_num">{{ __('CMM Number') }}</label>
+                                <label for="cmm_num">{{ __('CMM Number')
+                                }}</label>
                                 <input id='cmm_num' type="text"
                                        class="form-control" name="number" value="{{ old('number', $cmm->number) }}"
                                        required>
@@ -40,7 +42,7 @@
                                 <div class="form-group">
                                     <strong>{{__('Image:')}}</strong>
                                     <input type="file" name="img" class="form-control" placeholder="Image">
-                                    {{--                                    <input type="file" name="img" class="form-control" placeholder="изображение">--}}
+{{--                                    <input type="file" name="img" class="form-control" placeholder="изображение">--}}
                                     <small>{{__('Leave blank if you do not want to change the image.')}}</small>
                                 </div>
                             </div>
@@ -54,16 +56,21 @@
                                 <label for="unit_name">{{ __('Units PN') }}</label>
                                 <input id='unit_name' type="text" class="form-control"
                                        name="unit_name"
-                                       value="{{ old ('unit_name', $cmm->unit_name) }}" required>
+                                       value="{{ old ('unit_name',
+                                $cmm->unit_name) }}" required>
                             </div>
                             <div class="mt-2">
-                                <label for="unit_name_training">{{ __('Units Training PN') }}</label>
+                                <label for="unit_name_training">{{ __('Units
+                                Training PN') }}</label>
                                 <input id='unit_name_training' type="text" class="form-control"
                                        name="unit_name_training"
-                                       value="{{ old ('unit_name_training', $cmm->unit_name_training) }}" required>
+                                       value="{{ old ('unit_name_training',
+                                $cmm->unit_name_training) }}" required>
                             </div>
                             <div class="mt-2">
-                                <label for="training_hours">{{ __('Unit First Training') }}</label>
+                                <label for="training_hours">{{ __('Unit First
+                                Training')
+                                }}</label>
                                 <input id='training_hours' type="text"
                                        class="form-control"
                                        name="training_hours"
@@ -72,11 +79,13 @@
                         </div>
                         <div style="width: 300px" class="m-3 p-2 border">
                             <div class="form-group ">
-                                <label for="planes_id">{{ __('AirCraft Type') }}</label>
+                                <label for="planes_id">{{ __('AirCraft Type')
+                            }}</label>
                                 <select id="planes_id" name="planes_id" class="form-control" required>
                                     <option value="">{{ __('Select AirCraft') }}</option>
                                     @foreach ($planes as $plane)
-                                        <option value="{{ $plane->id }}" {{ $plane->id == $cmm->planes_id ? 'selected' : '' }}>{{ $plane->type }}</option>
+                                        <option value="{{ $plane->id }}" {{ $plane->id == $cmm->planes_id ?
+                                        'selected' : '' }}>{{ $plane->type }}</option>
                                     @endforeach
                                 </select>
                                 <button type="button" class="btn btn-link" data-bs-toggle="modal"
@@ -88,7 +97,8 @@
                                 <select id="builders_id" name="builders_id" class="form-control" required>
                                     <option value="">{{ __('Select MFR') }}</option>
                                     @foreach ($builders as $builder)
-                                        <option value="{{ $builder->id }}" {{ $builder->id == $cmm->builders_id ? 'selected' : '' }}>{{ $builder->name }}</option>
+                                        <option value="{{ $builder->id }}" {{ $builder->id == $cmm->builders_id ?
+                                        'selected' : '' }}>{{ $builder->name }}</option>
                                     @endforeach
                                 </select>
                                 <button type="button" class="btn btn-link" data-bs-toggle="modal"
@@ -98,7 +108,8 @@
                             <div class="form-group mt-2">
                                 <label for="scopes_id">{{ __('Scope') }}</label>
                                 <select id="scopes_id" name="scopes_id" class="form-control" required>
-                                    <option value="">{{ __('Select Scope') }}</option>
+                                    <option value="">{{ __('Select Scope')
+                                    }}</option>
                                     @foreach ($scopes as $scope)
                                         <option value="{{ $scope->id }}" {{ $scope->id == $cmm->scopes_id ? 'selected' : '' }}>{{ $scope->scope }}</option>
                                     @endforeach
@@ -119,7 +130,7 @@
                     <button type="submit" class="btn btn-primary text-center ">
                         {{ __('UpDate') }}
                     </button>
-                    <a href="{{ route('admin.manuals.index') }}" class="btn btn-secondary">
+                    <a href="{{ route('manuals.index') }}" class="btn btn-secondary">
                         {{ __('Cancel') }}
                     </a>
                 </form>
@@ -133,20 +144,23 @@
         <div class="modal-dialog">
             <div class="modal-content">
                 <div class="modal-header">
-                    <h5 class="modal-title" id="addAirCraftModalLabel">{{ __('Add AirCraft') }}</h5>
+                    <h5 class="modal-title" id="addAirCraftModalLabel">{{ __
+                    ('Add AirCraft') }}</h5>
                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Закрыть"></button>
                 </div>
                 <form method="POST" id="addAirCraftForm">
                     @csrf
                     <div class="modal-body">
                         <div class="form-group">
-                            <label for="airCraftName">{{ __('Type AirCraft') }}</label>
+                            <label for="airCraftName">{{ __('Type AirCraft')
+                            }}</label>
                             <input type="text" class="form-control" id="airCraftName" name="type" required>
                         </div>
                     </div>
                     <div class="modal-footer">
                         <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Закрыть"></button>
-                        <button type="submit" class="btn btn-primary">{{ __('Save') }}</button>
+                        <button type="submit" class="btn btn-primary">{{ __
+                        ('Save') }}</button>
                     </div>
                 </form>
             </div>
@@ -158,7 +172,8 @@
         <div class="modal-dialog">
             <div class="modal-content">
                 <div class="modal-header">
-                    <h5 class="modal-title" id="addMFRModalLabel">{{ __('Add MFR') }}</h5>
+                    <h5 class="modal-title" id="addMFRModalLabel">{{ __('Add
+                    MFR') }}</h5>
                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Закрыть"></button>
                 </div>
                 <form method="POST" id="addMFRForm">
@@ -171,7 +186,8 @@
                     </div>
                     <div class="modal-footer">
                         <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Закрыть"></button>
-                        <button type="submit" class="btn btn-primary">{{ __('Save') }}</button>
+                        <button type="submit" class="btn btn-primary">{{ __
+                        ('Save') }}</button>
                     </div>
                 </form>
             </div>
@@ -183,20 +199,23 @@
         <div class="modal-dialog">
             <div class="modal-content">
                 <div class="modal-header">
-                    <h5 class="modal-title" id="addScopeModalLabel">{{ __('Add Scope') }}</h5>
+                    <h5 class="modal-title" id="addScopeModalLabel">{{ __('Add
+                    Scope') }}</h5>
                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Закрыть"></button>
                 </div>
                 <form method="POST" id="addScopeForm">
                     @csrf
                     <div class="modal-body">
                         <div class="form-group">
-                            <label for="scopeName">{{ __('Name Scope') }}</label>
+                            <label for="scopeName">{{ __('Name Scope')
+                            }}</label>
                             <input type="text" class="form-control" id="scopeName" name="scope" required>
                         </div>
                     </div>
                     <div class="modal-footer">
                         <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Закрыть"></button>
-                        <button type="submit" class="btn btn-primary">{{ __('Save') }}</button>
+                        <button type="submit" class="btn btn-primary">{{ __
+                        ('Save') }}</button>
                     </div>
                 </form>
             </div>
@@ -244,10 +263,10 @@
             });
         }
 
-        handleFormSubmission('addAirCraftForm', 'addAirCraftModal', '{{ route('admin.planes.store') }}',
+        handleFormSubmission('addAirCraftForm', 'addAirCraftModal', '{{ route('planes.store') }}',
             'planes_id', 'id', 'type');
-        handleFormSubmission('addMFRForm', 'addMFRModal', '{{ route('admin.builders.store') }}', 'builders_id', 'id',
+        handleFormSubmission('addMFRForm', 'addMFRModal', '{{ route('builders.store') }}', 'builders_id', 'id',
             'name');
-        handleFormSubmission('addScopeForm', 'addScopeModal', '{{ route('admin.scopes.store') }}', 'scopes_id', 'id', 'scope');
+        handleFormSubmission('addScopeForm', 'addScopeModal', '{{ route('scopes.store') }}', 'scopes_id', 'id', 'scope');
     </script>
 @endsection

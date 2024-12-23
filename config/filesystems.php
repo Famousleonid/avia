@@ -35,12 +35,12 @@ return [
             'root' => storage_path('app'),
         ],
 
-//        'private' => [
-//            'driver' => 'local',
-//            'root' => storage_path('app/private'),
-//            'url' => env('APP_URL') . '/private',
-//            'visibility' => 'public',
-//        ],
+        'private' => [
+            'driver' => 'local',
+            'root' => storage_path('app/private'),
+            'url' => env('APP_URL') . '/private',
+            'visibility' => 'public',
+        ],
 
         'public' => [
             'driver' => 'local',

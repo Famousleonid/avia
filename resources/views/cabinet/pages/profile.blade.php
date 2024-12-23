@@ -51,7 +51,7 @@
                             <div class="col-12 text-center">
                                 <b class="text-blue">Email:</b>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<b class="">{{$user->email}}</b>
                             </div>
-                            <form action="{{route('user.update',['user' => $user->id])}}" class="createForm" method="POST">
+                            <form action="{{route('cabinet.users.update',['user' => $user->id])}}" class="createForm" method="POST">
                                 @method('PUT')
                                 @csrf
                                 <div class="row">
@@ -95,14 +95,14 @@
                                             <button id="ntSaveFormsSubmit" type="submit" class="btn btn-info btn-block ntSaveFormsSubmit">Save</button>
                                         </div>
                                         <div class="col-5 m-auto">
-                                            <a href="{{ route('cabinet.index')}}" class="btn btn-secondary btn-block">Cancel</a>
+                                            <a href="{{ route('cabinet.users.index')}}" class="btn btn-secondary btn-block">Cancel</a>
                                         </div>
                                     </div>
                                 </div>
                             </form>
                             <div class="form-group container-fluid mb-3 row">
                                 <div class="col-lg-12 m-auto">
-                                    <form action="{{route('profile.changePassword', ['id' => $user->id])}}" method="post"
+                                    <form action="{{route('cabinet.profile.changePassword', ['id' => $user->id])}}" method="post"
                                     @method('POST')
                                     @csrf
                                     @include('components.updatepassword')

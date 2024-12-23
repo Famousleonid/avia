@@ -1,9 +1,8 @@
 <?php
 
-namespace App\Http\Controllers\Admin;
+namespace App\Http\Controllers\Cabinet;
 
 use App\Http\Controllers\Controller;
-use App\Models\Role;
 use App\Models\Team;
 use App\Models\User;
 use Illuminate\Http\Request;
@@ -27,17 +26,13 @@ class UserController extends Controller
         $avatar = $user->getMedia('avatar')->first();
 
 
-        return View('admin.users.index', compact('users', 'avatar'));
+        return View('cabinet.user.index', compact('users', 'avatar'));
 
     }
 
     public function create()
     {
-        $roles = Role::all();
-        $teams = Team::all();
-
-        return View('admin.users.create', compact('roles', 'teams'));
-
+        return View('cabinet.users.create');
     }
 
     public function store(Request $request)
@@ -48,29 +43,41 @@ class UserController extends Controller
             'password' => ['required', 'string', 'min:3'],
         ]);
 
-        $data = $request->all();
-        $data['is_admin'] = isset($request->is_admin) ? 1 : 0;
-        $data['password'] = Hash::make($request->password);
+        if (isset($request->is_admin))
+            $request->is_admin = 1;
+        else {
+            $request->is_admin = 0;
+        }
+        $request->password = Hash::make($request->password);
 
-        $user = User::create($data);
+        $user = User::create($request->all());
 
-        if ($request->hasFile('img')) {
-            $user->addMedia($request->file('img'))->toMediaCollection('avatar');
+        if ($request->hasFile('avatar')) {
+
+            $user->addMedia($request->file('avatar'))->toMediaCollection('avatars');
+
+            $media = $user->getMedia('avatars')->first();
+            $path = $media->getPath();
+            $url = $media->getUrl();
         }
 
 
-
-        return redirect()->route('admin.users.index')->with('success', 'Пользователь добавлен');
+        return redirect()->route('users.index')->with('success', 'Пользователь добавлен');
     }
 
     public function edit($id)
     {
 
         $user = User::find($id);
-        $teams = Team::all();
-        $roles = Role::all();
 
-        return view('admin.users.edit', compact('user', 'teams','roles'));
+        $avatar = $user->getMedia('avatar')->first(); // ->getUrl('thumb');
+        $teams = Team::all();
+
+        if (!$avatar) {
+            $avatar = 0;
+        }
+
+        return view('admin.users.edit', compact('user', 'avatar', 'teams'));
     }
 
     public function update(Request $request, $id)
@@ -86,16 +93,9 @@ class UserController extends Controller
 
         ($request->has('is_admin')) ? $request->request->add(['is_admin' => 1]) : $request->request->add(['is_admin' => 0]);
 
-        if ($request->hasFile('img')) {
-            if ($user->getMedia('avatar')->isNotEmpty()) {
-                $user->getMedia('avatar')->first()->delete();
-            }
-
-            $user->addMedia($request->file('img'))->toMediaCollection('avatar');
-        }
         $user->update($request->all());
 
-        return redirect()->route('admin.users.index')->with('success', 'Changes saved');
+        return redirect()->back()->with('success', 'Changes saved');
 
     }
 
@@ -107,7 +107,7 @@ class UserController extends Controller
             return back()->withErrors('The databases are linked. First remove...');
         }
 
-        return redirect()->route('admin.users.index')->with('success', 'Technik deleted');
+        return redirect()->route('users.index')->with('success', 'User deleted');
     }
 
     public function removeSpace($var)

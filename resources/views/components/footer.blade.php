@@ -38,6 +38,6 @@
     </div>
     <div class="col-1"></div>
     <div class="col-2 text-end version-info pe-4" >
-        <b>Version</b> 1.0.3
+        <b>Version</b> 1.1.0
     </div>
 </footer>

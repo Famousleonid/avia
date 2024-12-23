@@ -18,7 +18,7 @@ class User extends Authenticatable implements MustVerifyEmail, hasMedia
     use HasFactory, Notifiable, InteractsWithMedia;
     use LogsActivity, softDeletes;
 
-    protected $fillable = ['name', 'email', 'password', 'email_verified_at', 'is_admin', 'role_id', 'phone', 'chat', 'stamp', 'team_id'];
+    protected $fillable = ['name', 'email', 'password', 'email_verified_at', 'is_admin', 'role_id', 'phone', 'stamp', 'team_id'];
     protected $casts = ['email_verified_at' => 'datetime'];
     protected $hidden = ['password', 'remember_token'];
     protected static $logAttributes = ['name', 'password', 'phone', 'stamp'];
@@ -78,6 +78,20 @@ class User extends Authenticatable implements MustVerifyEmail, hasMedia
             ->nonOptimized();
 
     }
+    public function getThumbnailUrl($collection)
+    {
+        $media = $this->getMedia($collection)->first();
+        return $media
+            ? route('image.show.thumb', ['mediaId' => $media->id, 'modelId' => $this->id, 'mediaName' => 'avatar'])
+            : asset('img/noimage.png');
+    }
 
+    public function getBigImageUrl($collection)
+    {
+        $media = $this->getMedia($collection)->first();
+        return $media
+            ? route('image.show.big', ['mediaId' => $media->id, 'modelId' => $this->id, 'mediaName' => 'avatar'])
+            : asset('img/noimage.png');
+    }
 
 }

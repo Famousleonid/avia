@@ -80,7 +80,7 @@
             @if(Auth()->user()->isadmin())
                 @include('components.admin_menu_sidebar', ['themeToggleId' => 'themeToggle'])
             @else
-                @include('components.menu_sidebar', ['themeToggleId' => 'themeToggle'])
+                @include('components.cabinet_menu_sidebar', ['themeToggleId' => 'themeToggle'])
             @endif
 
         </div>
@@ -140,7 +140,7 @@
         @if(Auth()->user()->isadmin())
             @include('components.admin_menu_sidebar', ['themeToggleId' => 'themeToggle'])
         @else
-            @include('components.menu_sidebar', ['themeToggleId' => 'themeToggle'])
+            @include('components.cabinet_menu_sidebar', ['themeToggleId' => 'themeToggle'])
         @endif
     </div>
 

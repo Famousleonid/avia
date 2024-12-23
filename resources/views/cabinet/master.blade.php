@@ -76,13 +76,7 @@
             transform: rotate(45deg);
         }
 
-        .spinner-win {
-            z-index: 120;
-            position: absolute;
-            top: 45%;
-            left: 50%;
-            text-align: center;
-        }
+
 
         #loading img {
             height: 55px;
@@ -161,12 +155,11 @@
 
 </div>
 
-
 <script src="{{asset('assets/jquery/jquery371min.js')}}"></script>
 <script src="{{asset('assets/Bootstrap 5/bootstrap.bundle.min.js')}}"></script>
-{{--<script src="{{asset('assets/dataTables/datatables.min.js')}}"></script>--}}
 <script src="{{asset('assets/select2/js/select2.min.js')}}"></script>
 <script src="{{ asset('assets/jquery/jquery.fancybox.min.js') }}"></script>
+<script src="{{ asset('js/main.js') }}"></script>
 
 @yield('scripts')
 
@@ -223,6 +216,8 @@
             $('[data-toggle="tooltip"]').tooltip()
         })
 
+        // ------------------------------------------------------------
+
         $('.nav-sidebar a').each(function () {
             let location = window.location.protocol + '//' + window.location.host + window.location.pathname;
 
@@ -234,16 +229,20 @@
             }
         });
 
-        function showLoadingSpinner() {
-            document.querySelector('#spinner-load').classList.remove('d-none');
-        }
-
-        function hideLoadingSpinner() {
-            document.querySelector('#spinner-load').classList.add('d-none');
-        }
 
         hideLoadingSpinner();
+        //------------------------------------------------------------------------------------------------------------------------
 
+        $('#sidebarMenu a').each(function () {
+            let location = window.location.protocol + '//' + window.location.host + window.location.pathname;
+            let link = this.href;
+
+            if (link === location) {
+                console.log(this)
+                $(this).addClass('text-white bg-primary');
+                // $(this).closest('.nav').addClass('menu-open');
+            }
+        });
     });
 </script>
 

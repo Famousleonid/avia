@@ -23,9 +23,9 @@ class ManualController extends Controller
     public function index()
     {
 
-        $cmms = Manual::with(['plane', 'builder', 'scope'])->get(); // Загружаем
-        // связанные модели
-        return view('cabinet.manuals-user.index', compact('cmms'));
+        $cmms = Manual::with(['plane', 'builder', 'scope'])->get(); //
+
+        return view('cabinet.manuals.index', compact('cmms'));
 
     }
 
@@ -34,11 +34,7 @@ class ManualController extends Controller
      */
     public function create()
     {
-//        $planes = Plane::all();
-//        $builders = Builder::all();
-//        $scopes = Scope::all();
-//
-//        return view('admin.manuals.create', compact('planes', 'builders', 'scopes'));
+
     }
 
     /**

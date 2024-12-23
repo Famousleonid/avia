@@ -54,7 +54,7 @@
                     <h3 class="card-title text-bold">List of workorders ( <span style="color: blue">{{count($workorders)}}</span> pieces ) </h3>
                 </div>
                 <div class="col-4">
-                    <a id="admin_new_firm_create" href={{route('workorder.create')}} class=""><img src="{{asset('img/plus.png')}}" width="50px" alt="" data-toggle="tooltip" data-placement="top" title="Add new workorder"></a>
+                    <a id="admin_new_firm_create" href={{route('cabinet.workorders.create')}} class=""><img src="{{asset('img/plus.png')}}" width="50px" alt="" data-toggle="tooltip" data-placement="top" title="Add new workorder"></a>
                 </div>
 
                 <div class="card-tools ml-auto pr-2">

@@ -1,27 +1,24 @@
 <?php
 
-namespace App\Http\Controllers\Admin;
+namespace App\Http\Controllers\Cabinet;
 
 use App\Http\Controllers\Controller;
 use App\Models\Material;
+use App\Models\User;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 
 class MaterialController extends Controller
 {
     public function index()
     {
+        $materials = Material::all();
 
-        $materials = Material::All();
+        return View('admin.material.index', compact('materials'));
 
-        return view('admin.materials.index', compact('materials'));
     }
 
     public function create()
-    {
-        //
-    }
-
-    public function store(Request $request)
     {
         //
     }

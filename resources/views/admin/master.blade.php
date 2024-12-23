@@ -10,37 +10,38 @@
     <link rel="stylesheet" href="{{asset('assets/Bootstrap 5/bootstrap.min.css')}}">
     <link href="{{asset('assets/Bootstrap 5/bootstrap-icons.css')}}" rel="stylesheet">
     <link rel="stylesheet" href="{{asset('assets/jquery/jquery.fancybox.min.css')}}">
-{{--    <link href="{{asset('assets/dataTables/datatables.css')}}" rel="stylesheet">--}}
     <link href="{{asset('assets/select2/css/select2.min.css')}}" rel="stylesheet"/>
     <link rel="stylesheet" href="{{asset('css/custom_bootstrap.css')}}">
     <link rel="stylesheet" href="{{asset('css/main.css')}}">
-
+    <script>
+        (function () {
+            const savedTheme = localStorage.getItem('theme') || 'light';
+            document.documentElement.setAttribute('data-bs-theme', savedTheme);
+        })();
+    </script>
 
     @yield('links')
 
     <style>
-        .firm-border {
-            border-top: 5px solid #F8C50E;
-        }
-        .active {
-            color: white;
-        }
-        .menu-open {
-            color: white;
+        .content {
+            overflow: hidden;
         }
     </style>
-
 </head>
 
 <body class="p-0 m-0 g-0">
 
+<div id="spinner-load" class=" spinner-border text-warning spinner-win" role="status">
+    <span class="visually-hidden">Loading...</span>
+</div>
+
 <div class="row vh-100 g-0">
 
-    <div class="col-lg-2 ">
+    <div class="col-lg-2 bg-body">
         @include('components.sidebar')
     </div>
 
-    <div class="content col-12 col-lg-10">
+    <div class="content col-12 col-lg-10 p-2 bg-body">
         @yield('content')
     </div>
 
@@ -50,79 +51,78 @@
 
 <script src="{{asset('assets/jquery/jquery371min.js')}}"></script>
 <script src="{{asset('assets/Bootstrap 5/bootstrap.bundle.min.js')}}"></script>
-{{--<script src="{{asset('assets/dataTables/datatables.min.js')}}"></script>--}}
 <script src="{{asset('assets/select2/js/select2.min.js')}}"></script>
 <script src="{{ asset('assets/jquery/jquery.fancybox.min.js') }}"></script>
+<script src="{{ asset('js/main.js') }}"></script>
 
 @yield('scripts')
 
 <script>
-    const themeToggle = document.getElementById('themeToggle');
-    const themeToggleMobile = document.getElementById('themeToggleMobile');
 
-    function updateThemeIcon(theme) {
-        const iconClass = theme === 'dark' ? 'bi-sun' : 'bi-moon';
+    window.addEventListener('load', function () {
+        hideLoadingSpinner();
+
+
+        const themeToggle = document.getElementById('themeToggle');
+        const themeToggleMobile = document.getElementById('themeToggleMobile');
+
+        function updateThemeIcon(theme) {
+            const iconClass = theme === 'dark' ? 'bi-sun' : 'bi-moon';
+            if (themeToggle) {
+                const icon = themeToggle.querySelector('i');
+                if (icon) {
+                    icon.className = `bi ${iconClass}`;
+                }
+            }
+            if (themeToggleMobile) {
+                const icon = themeToggleMobile.querySelector('i');
+                if (icon) {
+                    icon.className = `bi ${iconClass}`;
+                }
+            }
+        }
+
+        function toggleTheme() {
+            let currentTheme = document.documentElement.getAttribute('data-bs-theme');
+            let newTheme = currentTheme === 'light' ? 'dark' : 'light';
+            document.documentElement.setAttribute('data-bs-theme', newTheme);
+            localStorage.setItem('theme', newTheme);
+            updateThemeIcon(newTheme);
+        }
+
         if (themeToggle) {
-            const icon = themeToggle.querySelector('i');
-            if (icon) {
-                icon.className = `bi ${iconClass}`;
-            }
+            themeToggle.addEventListener('click', function (e) {
+                e.preventDefault();
+                toggleTheme();
+            });
         }
+
         if (themeToggleMobile) {
-            const icon = themeToggleMobile.querySelector('i');
-            if (icon) {
-                icon.className = `bi ${iconClass}`;
+            themeToggleMobile.addEventListener('click', function (e) {
+                e.preventDefault();
+                toggleTheme();
+            });
+        }
+
+        let storedTheme = localStorage.getItem('theme') || 'light';
+        document.documentElement.setAttribute('data-bs-theme', storedTheme);
+        updateThemeIcon(storedTheme);
+
+
+        $(function () {
+            $('[data-toggle="tooltip"]').tooltip()
+        })
+
+        //------------------------------------------------------------------------------------------------------------------------
+
+        $('#sidebarMenu a').each(function () {
+            let location = window.location.protocol + '//' + window.location.host + window.location.pathname;
+            let link = this.href;
+            if (link === location) {
+                $(this).addClass('text-white bg-primary');
             }
-        }
-    }
-
-    function toggleTheme() {
-        let currentTheme = document.documentElement.getAttribute('data-bs-theme');
-        let newTheme = currentTheme === 'light' ? 'dark' : 'light';
-        document.documentElement.setAttribute('data-bs-theme', newTheme);
-        localStorage.setItem('theme', newTheme);
-        updateThemeIcon(newTheme);
-    }
-
-    if (themeToggle) {
-        themeToggle.addEventListener('click', function (e) {
-            e.preventDefault();
-            toggleTheme();
         });
-    }
-
-    if (themeToggleMobile) {
-        themeToggleMobile.addEventListener('click', function (e) {
-            e.preventDefault();
-            toggleTheme();
-        });
-    }
-
-    let storedTheme = localStorage.getItem('theme') || 'light';
-    document.documentElement.setAttribute('data-bs-theme', storedTheme);
-    updateThemeIcon(storedTheme);
-
-
-    $(function () {
-        $('[data-toggle="tooltip"]').tooltip()
-    })
-
-    //------------------------------------------------------------------------------------------------------------------------
-
-    $('#sidebarMenu a').each(function () {
-        let location = window.location.protocol + '//' + window.location.host + window.location.pathname;
-        let link = this.href;
-
-        console.log(location)
-        console.log(link)
-
-        if (link === location) {
-            console.log(this)
-            $(this).addClass('text-white bg-primary');
-           // $(this).closest('.nav').addClass('menu-open');
-        }
     });
-
 </script>
 
 </body>

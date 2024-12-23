@@ -49,7 +49,7 @@ class TrainingController extends Controller
 
         }
 
-        return view('cabinet.trainings.index', compact('formattedTrainingLists', 'planes', 'builders', 'scopes'));
+        return view('cabinet.training.index', compact('formattedTrainingLists', 'planes', 'builders', 'scopes'));
     }
 
 

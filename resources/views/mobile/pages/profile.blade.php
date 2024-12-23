@@ -41,7 +41,7 @@
 
             <h3 class="profile-username text-center">{{$user->name}}</h3>
             <p class="text-muted text-center">Aviation technician</p>
-            <form action="{{route('user.update',['user' => $user->id])}}" class="createForm" method="POST">
+            <form action="{{route('users.update',['users' => $user->id])}}" class="createForm" method="POST">
                 @method('PUT')
                 @csrf
                 <div class="row">

@@ -4,7 +4,7 @@
 @section('add-menu')
 
     <div class="ml-5">
-        <a href="{{route('technik.create')}}"><img src="{{asset('img/adduser.png')}}" width="30" alt=""></a>
+        <a href="{{route('cabinet.users.create')}}"><img src="{{asset('img/adduser.png')}}" width="30" alt=""></a>
         <span class="ml-2">Add technik</span>
     </div>
 
@@ -13,8 +13,6 @@
 
 
 @section('content')
-
-
 
     <div class="container-fluid pl-3 pr-3 pt-2">
 
@@ -100,11 +98,11 @@
 
                                     <td class="text-center"><span style="display: none">{{$user->created_at}}</span>{{$user->created_at->format('d.m.Y')}}</td>
                                     <td class="text-center">
-                                        <a href="{{route('technik.edit', ['technik' => $user->id]) }}"><img src="{{asset('img/set.png')}}" width="25" alt=""></a>
+                                        <a href="{{route('cabinet.users.edit', ['user' => $user->id]) }}"><img src="{{asset('img/set.png')}}" width="25" alt=""></a>
                                     </td>
                                     <td class="text-center">
                                         <div>
-                                            <form action="{{route('technik.destroy', ['technik' => $user->id])}}" method="post">
+                                            <form action="{{route('cabinet.users.destroy', ['user' => $user->id])}}" method="post">
                                                 @csrf
                                                 @method('DELETE')
 
@@ -134,7 +132,7 @@
 
 @section('scripts')
     <script>
-        let userTable = $('#user-list').DataTable({
+        let userTable = $('#users-list').DataTable({
             "AutoWidth": true,
             "scrollY": "600px",
             "scrollCollapse": true,

@@ -3,7 +3,13 @@
     padding: 0;
     box-sizing: border-box;
 }
-
+.spinner-win {
+    z-index: 9999;
+    position: absolute;
+    top: 45%;
+    left: 50%;
+    text-align: center;
+}
 .firm-border {
     border-top: 5px solid #F8C50E;
 }

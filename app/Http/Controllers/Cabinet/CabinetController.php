@@ -20,7 +20,7 @@ class CabinetController extends Controller
         $team = optional($user->team)->id;
         $mains = Main::all();
         $tasks = Task::all();
-        $workorders = Workorder::with(['customer', 'main', 'user'])->get();
+        $workorders = Workorder::with(['customer', 'main', 'users'])->get();
 
         $userMains = Main::where('user_id', $user->id)->get()->keyBy('workorder_id');
 
@@ -72,7 +72,7 @@ class CabinetController extends Controller
     public function techniks()
     {
         $users = User::all();
-        // $avatar = $user->getMedia('avatar')->first();
+        // $avatar = $users->getMedia('avatar')->first();
 
         return view('cabinet.pages.techniks', compact('users'));
     }
