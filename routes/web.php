@@ -79,6 +79,8 @@ Route::group(['middleware' => ['auth', 'isAdmin'], 'prefix' => 'admin', 'as' =>'
     Route::resource('/roles',  \App\Http\Controllers\Admin\RoleController::class);
     Route::resource('/teams',  \App\Http\Controllers\Admin\TeamController::class);
     Route::resource('/customers',  \App\Http\Controllers\Admin\CustomerController::class);
+    Route::resource('/tasks',  \App\Http\Controllers\Admin\TaskController::class);
+    Route::resource('/general-tasks',  \App\Http\Controllers\Admin\GeneralTaskController::class);
 
 });
 

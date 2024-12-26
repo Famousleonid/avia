@@ -14,6 +14,7 @@
             text-overflow: ellipsis;
             min-width: 80px;
             max-width: 190px;
+            padding-left: 10px;
         }
 
         .table th:nth-child(1), .table td:nth-child(1) {
@@ -100,7 +101,7 @@
 
             <div class="table-wrapper me-3 p-2 pt-0">
 
-                <table id="cmmTable" class="display table table-sm table-hover table-striped align-middle">
+                <table id="cmmTable" class="display table table-sm table-hover table-striped align-middle table-bordered">
                     <thead class="bg-gradient">
                     <tr>
                         <th class="text-primary sortable bg-gradient " data-direction="asc">{{__('Number')}}<i class="bi bi-chevron-expand ms-1"></i></th>

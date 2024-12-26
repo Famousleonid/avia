@@ -9,6 +9,6 @@ class Material extends Model
 {
     use HasFactory;
 
-    protected $fillable = ['Code', 'Material', 'Specification', 'VER'];
+    protected $fillable = ['code', 'material', 'specification', 'ver', 'description'];
 
 }

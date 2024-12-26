@@ -16,7 +16,9 @@ return new class extends Migration {
             $table->string('material')->nullable();
             $table->string('specification')->nullable();
             $table->string('ver')->nullable();
-
+            $table->string('description')->nullable();
+            $table->timestamps();
+            $table->index('code');
         });
 
         $csvFile = public_path('data/materials.csv');

@@ -3,106 +3,233 @@
 @section('content')
     <style>
         .table-wrapper {
-            height: calc(100vh - 120px);
+            height: calc(100vh - 170px);
             overflow-y: auto;
             overflow-x: hidden;
         }
 
-        .text-truncate {
+        .table th, .table td {
             white-space: nowrap;
             overflow: hidden;
             text-overflow: ellipsis;
+            padding-left: 10px;
+
+        }
+        .table thead th {
+            position: sticky;
+            height: 50px;
+            top: 0;
+            vertical-align: middle;
+            border-top: 1px;
+            z-index: 1020;
+        }
+
+        .table th.sortable {
+            cursor: pointer;
+        }
+
+        .clearable-input {
+            position: relative;
+            width: 400px;
+        }
+
+        .clearable-input .form-control {
+            padding-right: 2.5rem;
+        }
+
+        .clearable-input .btn-clear {
+            position: absolute;
+            right: 0.5rem;
+            top: 50%;
+            transform: translateY(-50%);
+            background: none;
+            border: none;
+            cursor: pointer;
         }
     </style>
 
-    <div class="container">
-        <div class="card shadow  ">
-            <div class="card-header">
 
-                <div class="d-flex justify-content-between">
-                    <h3>{{__('Manage CMMs')}}</h3>
-                    <a href="{{ route('manuals.create') }}" class="btn btn-primary ">{{ __('Add CMM') }}</a>
-                </div>
 
+    <div class="card shadow">
+        @include('components.status')
+        <div class="card-header my-1 shadow">
+            <div class="d-flex justify-content-between">
+                <h5 class="text-primary">{{__('General task')}}<span class="ms-2 text-white">{{count($general_tasks)}}</span></h5>
+                <button class="btn btn-outline-primary btn-sm" data-bs-toggle="modal" data-bs-target="#createModal">{{ __('Add general task') }}</button>
             </div>
+        </div>
 
-            <div class="card-body table-wrapper table-responsive">
+        <div class="d-flex my-2">
+            <div class="clearable-input ps-2">
+                <input id="searchInput" type="text" class="form-control w-100" placeholder="Search...">
+                <button class="btn-clear text-secondary" onclick="document.getElementById('searchInput').value = ''; document.getElementById('searchInput').dispatchEvent(new Event('input'))">
+                    <i class="bi bi-x-circle"></i>
+                </button>
+            </div>
+        </div>
 
-                <table id="cmmTable" class="table table-sm table-bordered table-striped fixed-header">
-                    <thead>
+        @if(count($general_tasks))
+
+            <div class="table-wrapper me-3 p-2 pt-0">
+
+                <table id="cmmTable" class="display table table-sm table-hover table-striped table-bordered">
+                    <thead class="bg-gradient">
                     <tr>
-                        <th class="col-1 py-1 ">{{__('Number')}}</th>
-                        <th class="col-2 py-1 ">{{__('Title')}}</th>
-                        <th class="col-3 py-1 ">{{__('Units PN')}}</th>
-                        <th class="col-1 py-1 ">{{__('Unit Image')}}</th>
-                        <th class="col-2 py-1 ">{{__('Revision Date')}}</th>
-                        <th class="col-1 py-1 ">{{__('Library')}}</th>
-                        <th class="col-2 py-1 ">{{__('Action')}}</th>
+                        <th class="text-primary sortable bg-gradient " data-direction="asc">{{__('Name')}}<i class="bi bi-chevron-expand ms-1"></i></th>
+                        <th class="text-primary text-center bg-gradient">{{__('Action')}}</th>
                     </tr>
                     </thead>
                     <tbody>
-                    @foreach($cmms as $cmm)
+                    @foreach($general_tasks as $general_tasks)
                         <tr>
-                            <td class="py-1 ">{{$cmm->number}}</td>
-                            <td class="py-1 text-truncate" title="{{$cmm->title}}">{{$cmm->title}}</td>
-                            <td class="py-1 text-truncate" title="{{$cmm->unit_name}}">{{$cmm->unit_name}}</td>
-                            <td class="py-1 ">
-                                <a href="#" data-bs-toggle="modal" data-bs-target="#imageModal{{$cmm->id}}">
-                                    <img src="{{ asset('img/noimage.png') }}" style="width: 36px; cursor: pointer;" alt="Img">
-                                </a>
-                            </td>
-                            <td class="py-1 ">{{$cmm->revision_date}}</td>
-                            <td class="py-1 ">{{$cmm->lib}}</td>
-                            <td class="py-1 ">
-                                <a href="{{ route('manuals.edit', $cmm->id) }}" class="btn btn-primary btn-sm">
+                            <td class="">{{$general_tasks->name}}</td>
+                            <td class="text-center">
+                                <button class="btn btn-primary btn-sm me-2" data-bs-toggle="modal" data-bs-target="#editModal" onclick="populateEditModal({{ $general_tasks->id }}, '{{ $general_tasks->name }}')">
                                     <i class="bi bi-pencil-square"></i>
-                                </a>
-                                <form action="{{ route('manuals.destroy', $cmm->id) }}" method="POST" style="display:inline;">
-                                    @csrf
-                                    @method('DELETE')
-                                    <button type="submit" class="btn btn-danger btn-sm" onclick="return confirm('Are you sure?');">
-                                        <i class="bi bi-trash"></i>
-                                    </button>
-                                </form>
+                                </button>
+                                <button class="btn btn-danger btn-sm" data-bs-toggle="modal" data-bs-target="#deleteModal" onclick="populateDeleteModal({{ $general_tasks->id }}, '{{ $general_tasks->name }}')">
+                                    <i class="bi bi-trash"></i>
+                                </button>
                             </td>
                         </tr>
                     @endforeach
                     </tbody>
                 </table>
+
+            </div>
+        @else
+            <p>General task not created</p>
+        @endif
+    </div>
+
+    <!-- Create Modal -->
+    <div class="modal fade" id="createModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Add General task</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="createForm" method="POST" action="{{ route('admin.general-tasks.store') }}">
+                        @csrf
+                        <div class="mb-3">
+                            <label for="createName" class="form-label">Name</label>
+                            <input type="text" id="createName" name="name" class="form-control" required>
+                        </div>
+                        <button type="submit" class="btn btn-primary">Save</button>
+                    </form>
+                </div>
             </div>
         </div>
     </div>
 
+    <!-- Edit Modal -->
+    <div class="modal fade" id="editModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Edit General Task</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="editForm" method="POST" action="{{ route('admin.general-tasks.update', ':id') }}">
+                        @csrf
+                        @method('PUT')
+                        <input type="hidden" id="editId" name="id">
+                        <div class="mb-3">
+                            <label for="editName" class="form-label">Name</label>
+                            <input type="text" id="editName" name="name" class="form-control" required>
+                        </div>
+                        <button type="submit" class="btn btn-primary" onclick="showLoadingSpinner()">Update</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Delete Modal -->
+    <div class="modal fade" id="deleteModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 id="deleteModalTitle" class="modal-title">Delete General Task</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <p>Are you sure you want to delete this?</p>
+                    <form id="deleteForm" method="POST" action="{{ route('admin.general-tasks.destroy', ':id') }}">
+                        @csrf
+                        @method('DELETE')
+                        <input type="hidden" id="deleteId" name="id">
+                        <button type="submit" class="btn btn-danger" onclick="showLoadingSpinner()">Delete</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
 @endsection
 
 @section('scripts')
-
     <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            const table = document.getElementById('cmmTable');
+            const searchInput = document.getElementById('searchInput');
+            const headers = document.querySelectorAll('.sortable');
 
-        document.addEventListener('DOMContentLoaded', function() {
-            $('#cmmTable').DataTable({
-                fixedHeader: true,
-                searching: true,
-                ordering: true,
-                paging: false,
-                info: false,
-                columnDefs: [
-                    {
-                        targets: [3, 6], // 4 & 7 column
-                        className: 'text-center'
-                    }
-                ],
-                columns: [
-                    { width: "10%" },                                    // "Number"
-                    { width: "20%" },                                    // "Title"
-                    { width: "20%", orderable: false },                  // "Units PN"
-                    { width: "15%", searchable:false, orderable: false}, // "Unit Image"
-                    { width: "15%" },                                    // "Revision Date"
-                    { width: "10%" },                                    // "Library"
-                    { width: "10%" , searchable:false, orderable: false} // "Action"
-                ]
+            // Sorting
+            headers.forEach(header => {
+                header.addEventListener('click', () => {
+                    const columnIndex = Array.from(header.parentNode.children).indexOf(header) + 1;
+                    const direction = header.dataset.direction === 'asc' ? 'desc' : 'asc';
+                    header.dataset.direction = direction;
+
+                    // Icon
+                    headers.forEach(h => {
+                        const icon = h.querySelector('i');
+                        if (icon) icon.className = 'bi bi-chevron-expand';
+                    });
+                    const currentIcon = header.querySelector('i');
+                    if (currentIcon) currentIcon.className = direction === 'asc' ? 'bi bi-arrow-up' : 'bi bi-arrow-down';
+
+                    // Sorting row
+                    const rows = Array.from(table.querySelectorAll('tbody tr'));
+                    rows.sort((a, b) => {
+                        const aText = a.querySelector(`td:nth-child(${columnIndex})`).innerText.trim();
+                        const bText = b.querySelector(`td:nth-child(${columnIndex})`).innerText.trim();
+                        return direction === 'asc' ? aText.localeCompare(bText) : bText.localeCompare(aText);
+                    });
+
+                    // Updating the table
+                    rows.forEach(row => table.querySelector('tbody').appendChild(row));
+                });
+            });
+
+            // Search
+            searchInput.addEventListener('input', () => {
+                const filter = searchInput.value.toLowerCase();
+                showLoadingSpinner();
+                setTimeout(() => {
+                    const rows = table.querySelectorAll('tbody tr');
+                    rows.forEach(row => {
+                        const text = row.innerText.toLowerCase();
+                        row.style.display = text.includes(filter) ? '' : 'none';
+                    });
+                    hideLoadingSpinner();
+                }, 100);
             });
         });
-    </script>
 
+        function populateEditModal(id, name) {
+            document.getElementById('editId').value = id;
+            document.getElementById('editName').value = name;
+            document.getElementById('editForm').action = `{{ route('admin.general-tasks.update', ':id') }}`.replace(':id', id);
+        }
+
+        function populateDeleteModal(id, name) {
+            document.getElementById('deleteId').value = id;
+            document.getElementById('deleteForm').action = `{{ route('admin.general-tasks.destroy', ':id') }}`.replace(':id', id);
+            document.getElementById('deleteModalTitle').innerText = `Delete general task (${name})`;
+        }
+    </script>
 @endsection

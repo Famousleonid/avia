@@ -42,6 +42,7 @@
     </div>
 
     <div class="content col-12 col-lg-10 p-2 bg-body">
+
         @yield('content')
     </div>
 
@@ -61,8 +62,6 @@
 
     window.addEventListener('load', function () {
         hideLoadingSpinner();
-
-
         const themeToggle = document.getElementById('themeToggle');
         const themeToggleMobile = document.getElementById('themeToggleMobile');
 
@@ -95,6 +94,7 @@
                 e.preventDefault();
                 toggleTheme();
             });
+            hideLoadingSpinner();
         }
 
         if (themeToggleMobile) {
@@ -102,6 +102,7 @@
                 e.preventDefault();
                 toggleTheme();
             });
+            hideLoadingSpinner();
         }
 
         let storedTheme = localStorage.getItem('theme') || 'light';

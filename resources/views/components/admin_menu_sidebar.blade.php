@@ -13,7 +13,7 @@
     </li>
     <li class="nav-item">
         <a class="nav-link" href="{{route('admin.users.index')}}">
-            <i class="bi bi-airplane me-2"></i> Techniks
+            <i class="bi bi-person-arms-up me-2"></i> Techniks
         </a>
     </li>
     <li class="nav-item">
@@ -21,19 +21,47 @@
             <i class="bi bi-book-half me-2"></i> Manuals
         </a>
     </li>
-    <li class="nav-item border-bottom">
+    <li class="nav-item ">
         <a href="{{route('admin.materials.index')}}" class="nav-link">
             <i class="bi bi-body-text me-2"></i> Materials
         </a>
     </li>
-    <li class="nav-item">
-        <a href="#" class="nav-link">
-
+    <li class="nav-item ">
+        <a href="{{route('admin.roles.index')}}" class="nav-link">
+            <i class="bi bi-award-fill me-2"></i> Roles
         </a>
     </li>
-    <li class="nav-item">
+    <li class="nav-item ">
+        <a href="{{route('admin.general-tasks.index')}}" class="nav-link">
+            <i class="bi bi-stickies me-2"></i> General Tasks
+        </a>
+    </li>
+    <li class="nav-item ">
+        <a href="{{route('admin.tasks.index')}}" class="nav-link">
+            <i class="bi bi-list-task me-2"></i> Tasks
+        </a>
+    </li>
+    <li class="nav-item ">
+        <a href="{{route('admin.teams.index')}}" class="nav-link" >
+            <i class="bi bi-microsoft-teams me-2"></i> Teams
+        </a>
+    </li>
+    <li class="nav-item border-top">
         <a class="nav-link" href="#" id="{{ $themeToggleId }}">
             <i class="bi bi-moon me-2"></i>&nbsp; Thema
         </a>
     </li>
 </ul>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        const links = document.querySelectorAll('a');
+        links.forEach(link => {
+            link.addEventListener('click', function () {
+                if (this.id !== '{{ $themeToggleId }}') {
+                    showLoadingSpinner();
+                }
+            });
+        });
+    });
+</script>

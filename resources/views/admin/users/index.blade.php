@@ -15,6 +15,7 @@
             text-overflow: ellipsis;
             min-width: 80px;
             max-width: 190px;
+            padding-left: 10px;
         }
 
         .table th:nth-child(1), .table td:nth-child(1) {
@@ -114,7 +115,7 @@
 
         @if(count($users))
             <div class="table-wrapper me3 p-2 pt-0">
-                <table id="userTable" class="display table table-sm table-hover table-striped align-middle">
+                <table id="userTable" class="display table table-sm table-hover table-striped align-middle table-bordered">
                     <thead class="bg-gradient">
                     <tr>
                         <th class="text-primary bg-gradient sortable text-center" data-direction="asc">{{__('NN') }}<i class="bi bi-chevron-expand ms-1"></i></th>

@@ -23,7 +23,16 @@ class MaterialController extends Controller
 
     public function store(Request $request)
     {
-        //
+        $validated = $request->validate([
+            'code' => 'required|string|max:50',
+            'material' => 'required|string|max:255',
+            'specification' => 'nullable|string|max:255',
+            'description' => 'nullable|string',
+        ]);
+
+        Material::create($validated);
+
+        return redirect()->route('admin.materials.index')->with('success', 'Material created successfully.');
     }
 
     public function show($id)
@@ -36,13 +45,26 @@ class MaterialController extends Controller
         //
     }
 
-    public function update(Request $request, $id)
+    public function update(Request $request, Material $material)
     {
-        //
+        $validated = $request->validate([
+            'code' => 'required|string|max:50',
+            'material' => 'required|string|max:255',
+            'specification' => 'nullable|string|max:255',
+            'description' => 'nullable|string',
+        ]);
+
+        $material->update($validated);
+
+        return redirect()->route('admin.materials.index')->with('success', 'Material updated successfully.');
     }
 
-    public function destroy($id)
+    public function destroy(Material $material)
     {
-        //
+        $material->delete();
+
+        return redirect()->route('admin.materials.index')->with('success', 'Material deleted successfully.');
     }
+
+
 }
