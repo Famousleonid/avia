@@ -18,16 +18,8 @@ class UserController extends Controller
     {
 
         $users = User::all();
-        $id = Auth::user()->getAuthIdentifier();
 
-        if (!Auth::check())
-            return redirect()->back()->with('status', 'Not authenticated');
-
-        $user = User::find($id);
-        $avatar = $user->getMedia('avatar')->first();
-
-
-        return View('admin.users.index', compact('users', 'avatar'));
+        return View('admin.users.index', compact('users', ));
 
     }
 

@@ -38,9 +38,9 @@ class User extends Authenticatable implements MustVerifyEmail, hasMedia
         return $this->is_admin == 1;
     }
 
-    public function getRole()
+    public function role()
     {
-        return $this->role_id;
+        return $this->belongsTo(Role::class);
     }
 
     public function workorder()
@@ -60,7 +60,6 @@ class User extends Authenticatable implements MustVerifyEmail, hasMedia
     public function main()
     {
         return $this->hasMany(Main::class);
-
     }
 
     public function trainings()

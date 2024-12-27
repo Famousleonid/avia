@@ -134,18 +134,13 @@
                             <td class="text-center">{{$loop->iteration}}</td>
                             <td @if(!$user->email_verified_at) style="color:red" @endif>{{$user->name}}</td>
                             <td class="">{{$user->email}}</td>
-                            <td class="text-center">{{$user->team->name ?? 'Unknown team' }}</td>
+                            <td class="text-center" style="color: {{ $user->team ? '#ffffff' : '#808080' }};">{{ $user->team->name ?? 'Unknown team' }}</td>
                             <td class="text-center">
                                 <a href="{{ $user->getBigImageUrl('avatar') }}" data-fancybox="gallery">
                                     <img class="rounded-circle" src="{{ $user->getThumbnailUrl('avatar') }}" width="40" height="40" alt="Image"/>
                                 </a>
                             </td>
-                            <td class="text-center">
-                                @if($user->role)<i class="fas fa-lg fa-people-carry text-primary"></i>
-                                @else
-                                    {{__('Unknown role')}}
-                                @endif
-                            </td>
+                            <td class="text-center" style="color: {{ $user->role? '#ffffff' : '#808080' }};">{{ $user->role->name ?? 'Unknown role' }}</td>
                             <td class="text-center"><span style="display: none">{{$user->created_at}}</span>{{$user->created_at->format('d.m.Y')}}</td>
                             <td class="text-center">
                                 <a href="{{ route('admin.users.edit', ['user' => $user->id]) }}" class="btn btn-primary btn-sm">

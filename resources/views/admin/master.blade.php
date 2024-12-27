@@ -42,7 +42,6 @@
     </div>
 
     <div class="content col-12 col-lg-10 p-2 bg-body">
-
         @yield('content')
     </div>
 

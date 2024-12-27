@@ -14,7 +14,7 @@
                 <h4>{{ __('Select Unit') }}</h4>
             </div>
             <div class="card-body">
-                <form method="POST" action="{{ route('training.store') }}">
+                <form method="POST" action="{{ route('cabinet.trainings.store') }}">
                     @csrf
                     <div class="form-group mt-2">
                         <label for="manuals_id">{{ __('Unit PN') }}</label>

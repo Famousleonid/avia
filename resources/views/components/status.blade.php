@@ -2,10 +2,10 @@
     .status {
         position: fixed;
         top: 0;
-        left: 50%;
-        transform: translate(-50%, 0);
-        width: 50%;
-        font-size: 1.2rem;
+        left: 0;
+        /*transform: translate(-40%, 0);*/
+        width: 100%;
+        font-size: 1.1rem;
         z-index: 2050;
         opacity: 1;
         transition: opacity 0.5s ease-out, transform 0.5s ease-out;

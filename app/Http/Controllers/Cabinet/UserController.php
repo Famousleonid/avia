@@ -9,13 +9,11 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
 
-
 class UserController extends Controller
 {
 
     public function index()
     {
-
         $users = User::all();
         $id = Auth::user()->getAuthIdentifier();
 
@@ -23,53 +21,14 @@ class UserController extends Controller
             return redirect()->back()->with('status', 'Not authenticated');
 
         $user = User::find($id);
-        $avatar = $user->getMedia('avatar')->first();
 
+        return View('cabinet.users.index', compact('users', ));
 
-        return View('cabinet.user.index', compact('users', 'avatar'));
-
-    }
-
-    public function create()
-    {
-        return View('cabinet.users.create');
-    }
-
-    public function store(Request $request)
-    {
-        $request->validate([
-            'name' => ['string', 'max:100'],
-            'email' => ['required', 'string', 'email', 'max:155', 'unique:users'],
-            'password' => ['required', 'string', 'min:3'],
-        ]);
-
-        if (isset($request->is_admin))
-            $request->is_admin = 1;
-        else {
-            $request->is_admin = 0;
-        }
-        $request->password = Hash::make($request->password);
-
-        $user = User::create($request->all());
-
-        if ($request->hasFile('avatar')) {
-
-            $user->addMedia($request->file('avatar'))->toMediaCollection('avatars');
-
-            $media = $user->getMedia('avatars')->first();
-            $path = $media->getPath();
-            $url = $media->getUrl();
-        }
-
-
-        return redirect()->route('users.index')->with('success', 'Пользователь добавлен');
     }
 
     public function edit($id)
     {
-
         $user = User::find($id);
-
         $avatar = $user->getMedia('avatar')->first(); // ->getUrl('thumb');
         $teams = Team::all();
 

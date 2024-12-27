@@ -79,13 +79,6 @@
 
     <div class="card shadow">
 
-        <div class="card-header my-1 shadow">
-            <div class="d-flex justify-content-between">
-                <h5 class="text-primary">{{__('Manage CMMs')}}</h5>
-                <a href="{{ route('admin.manuals.create') }}" class="btn btn-primary btn-sm ">{{ __('Add CMM') }}</a>
-            </div>
-        </div>
-
         <div class="d-flex my-2">
             <div class="clearable-input ps-2">
                 <input id="searchInput" type="text" class="form-control w-100" placeholder="Search...">
@@ -109,7 +102,7 @@
                         <th class="text-primary text-center bg-gradient">{{__('Image')}}</th>
                         <th class="text-primary text-center bg-gradient">{{__('Rev.Date')}}</th>
                         <th class="text-primary text-center  sortable bg-gradient" data-direction="asc">{{__('Lib')}} <i class="bi bi-chevron-expand ms-1"></i></th>
-                        <th class="text-primary text-center bg-gradient">{{__('Action')}}</th>
+
                     </tr>
                     </thead>
                     <tbody>
@@ -125,18 +118,6 @@
                             </td>
                             <td class="text-center">{{$cmm->revision_date}}</td>
                             <td class="text-center">{{$cmm->lib}}</td>
-                            <td class="text-center">
-                                <a href="{{ route('admin.manuals.edit', $cmm->id) }}" class="btn btn-primary btn-sm">
-                                    <i class="bi bi-pencil-square"></i>
-                                </a>
-                                <form action="{{ route('admin.manuals.destroy', $cmm->id) }}" method="POST" style="display:inline;">
-                                    @csrf
-                                    @method('DELETE')
-                                    <button type="submit" class="btn btn-danger btn-sm" onclick="return confirm('Are you sure?');">
-                                        <i class="bi bi-trash"></i>
-                                    </button>
-                                </form>
-                            </td>
                         </tr>
                     @endforeach
                     </tbody>

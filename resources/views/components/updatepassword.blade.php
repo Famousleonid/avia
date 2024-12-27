@@ -3,10 +3,8 @@
 
         <div class="modal-content">
             <div class="modal-header">
-                <h5 class="modal-title text-primary">office verification module</h5>
-                <button type="button" class="close" data-dismiss="modal" aria-label="Close">
-                    <span aria-hidden="true">&times;</span>
-                </button>
+                <h5 class="modal-title text-primary">Verification module</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
             <div class="modal-body">
                 <div class="form-group row">
@@ -29,14 +27,10 @@
                 </div>
             </div>
             <div class="modal-footer">
-                <button type="button" class="btn btn-secondary mr-5" data-dismiss="modal">Close</button>
-                <button type="button" class="btn btn-primary" id="btn_confirm_change_pass">Verified</button>
+                <button type="button" class="btn btn-secondary mr-5" data-bs-dismiss="modal" >Close</button>
+                <button type="button" class="btn btn-primary" id="btn_confirm_change_pass" onclick="showLoadingSpinner()">Verified</button>
             </div>
         </div>
     </div>
 </div>
-
-
-
-
 

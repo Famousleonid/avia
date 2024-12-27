@@ -7,6 +7,7 @@ use App\Models\Material;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Log;
 
 class MaterialController extends Controller
 {
@@ -14,7 +15,7 @@ class MaterialController extends Controller
     {
         $materials = Material::all();
 
-        return View('admin.material.index', compact('materials'));
+        return View('cabinet.materials.index', compact('materials'));
 
     }
 
@@ -33,9 +34,18 @@ class MaterialController extends Controller
         //
     }
 
-    public function update(Request $request, $id)
+    public function update(Request $request, Material $material)
     {
-        //
+//        Log::channel('avia')->info('Material ID:', ['id' => $material->id]);
+//        Log::channel('avia')->info('Update Request:', ['data' => $request->all()]);
+
+        $data = $request->validate([
+            'description' => 'nullable|max:250',
+        ]);
+
+        $material->update($data);
+
+        return response()->json(['success' => true, 'message' => 'Description updated successfully!']);
     }
 
     public function destroy($id)

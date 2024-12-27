@@ -49,7 +49,7 @@ class TrainingController extends Controller
 
         }
 
-        return view('cabinet.training.index', compact('formattedTrainingLists', 'planes', 'builders', 'scopes'));
+        return view('cabinet.trainings.index', compact('formattedTrainingLists', 'planes', 'builders', 'scopes'));
     }
 
 
@@ -125,7 +125,7 @@ class TrainingController extends Controller
             'form_type' => 112,
         ]);
 
-        return redirect()->route('training.index')->with('success', 'Unit added for training.');
+        return redirect()->route('cabinet.trainings.index')->with('success', 'Unit added for training.');
     }
     public function createTraining(Request $request)
     {

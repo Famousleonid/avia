@@ -45,8 +45,6 @@ class MediaController extends Controller
         $media = Media::find($mediaId);
         $thumbPath = $media->getPath('thumb');
 
-        Log::channel('avia')->info('showThumb called', compact('mediaId', 'modelId', 'mediaName'));
-
 
         return response()->file($thumbPath);
     }

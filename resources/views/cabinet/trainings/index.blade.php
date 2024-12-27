@@ -80,7 +80,7 @@
                             trainings</label>
                     </div>
                     <div class="align-middle">
-                        <a href="{{ route('training.create') }}"
+                        <a href="{{ route('cabinet.trainings.create') }}"
                            class="btn btn-primary align-middle">
                             {{ __('Add Unit') }}</a>
                     </div>
@@ -206,7 +206,7 @@
                                                             )
                                                         </label>
                                                         @if($training->form_type == '112')
-                                                            <a href="{{ route('training.form112', ['id'=> $training->id, 'showImage' => 'false']) }}"
+                                                            <a href="{{ route('cabinet.trainings.form112', ['id'=> $training->id, 'showImage' => 'false']) }}"
                                                                class="btn
                                                                btn-success mb-1
                                                                formLink "
@@ -216,7 +216,7 @@
                                                                 112
                                                             </a>
                                                         @elseif($training->form_type == '132')
-                                                            <a href="{{ route('training.form132', ['id' => $training->id, 'showImage' => 'false']) }}"
+                                                            <a href="{{ route('cabinet.trainings.form132', ['id' => $training->id, 'showImage' => 'false']) }}"
                                                                class="btn
                                                                btn-info mb-1
                                                                formLink "
@@ -363,7 +363,7 @@
 // Показываем сообщение для подтверждения
                 if (confirm(confirmationMessage + "\nВы уверены, что хотите продолжить создание тренингов?")) {
 // Если пользователь подтвердил, выполняем запрос
-                    fetch('{{ route('training.create') }}', {
+                    fetch('{{ route('cabinet.trainings.create') }}', {
                         method: 'POST',
                         headers: {
                             'Content-Type': 'application/json',

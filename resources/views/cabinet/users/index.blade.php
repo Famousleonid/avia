@@ -1,174 +1,183 @@
-@extends('cabinet.master')
-
-
-@section('add-menu')
-
-    <div class="ml-5">
-        <a href="{{route('cabinet.users.create')}}"><img src="{{asset('img/adduser.png')}}" width="30" alt=""></a>
-        <span class="ml-2">Add technik</span>
-    </div>
-
-@endsection
-
+@extends('admin.master')
 
 
 @section('content')
+    <style>
+        .table-wrapper {
+            height: calc(100vh - 170px);
+            overflow-y: auto;
+            overflow-x: hidden;
+        }
 
-    <div class="container-fluid pl-3 pr-3 pt-2">
+        .table th, .table td {
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            min-width: 80px;
+            max-width: 190px;
+            padding-left: 10px;
+        }
 
-        <div class="card shadow firm-border  mt-2">
+        .table th:nth-child(1), .table td:nth-child(1) {
+            min-width:90px;
+            max-width:100px;
+        }
 
-            <div class="card-header">
-                <h3 class="card-title text-bold">list of techniks ( {{count($users)}} )</h3>
-                <span class="text-danger">&nbsp;&nbsp;&nbsp; RED name </span><span>this is an unconfirmed email</span>
+        .table th:nth-child(2), .table td:nth-child(2) {
+            min-width: 50px;
+            max-width: 100px;
+        }
+
+        .table th:nth-child(3), .table td:nth-child(3) {
+            min-width: 50px;
+            max-width: 100px;
+        }
+
+        .table thead th {
+            position: sticky;
+            height: 50px;
+            top: 0;
+            vertical-align: middle;
+            border-top: 1px;
+            z-index: 1020;
+        }
+
+        @media (max-width: 1200px) {
+            .table th:nth-child(2), .table td:nth-child(2) {
+                display: none;
+            }
+        }
+
+        .table th.sortable {
+            cursor: pointer;
+        }
+
+        .clearable-input {
+            position: relative;
+            width: 400px;
+        }
+
+        .clearable-input .form-control {
+            padding-right: 2.5rem;
+        }
+
+        .clearable-input .btn-clear {
+            position: absolute;
+            right: 0.5rem;
+            top: 50%;
+            transform: translateY(-50%);
+            background: none;
+            border: none;
+            cursor: pointer;
+        }
 
 
-                <div class="card-tools">
-                    <button type="button" class="btn btn-tool" data-card-widget="collapse" data-toggle="tooltip" title="Collapse">
-                        <i class="fas fa-minus"></i></button>
-                </div>
+        .table th.sortable.active {
+            color: white;
+        }
+
+        .table th.sortable.active .bi-chevron-up {
+            color: white !important;
+            display: inline;
+        }
+
+        .table th.sortable.active .bi-chevron-down {
+            color: white;
+            display: inline;
+        }
+
+
+    </style>
+
+    <div class="card shadow ">
+        <div class="card-header my-1 shadow">
+            <div class="d-flex ">
+                <h5 class="text-primary">{{__('Manage Users')}}</h5>&nbsp;{{count($users)}}
             </div>
 
-            <div class="card-body">
-                <div class="box-body table-responsive">
-
-                    @if(count($users))
-
-                        <table id="user-list" class="table-sm table-bordered table-striped table-hover " style="width:100%;">
-
-                            <thead>
-                            <tr>
-                                <th class="text-center text-sm" data-orderable="false">№</th>
-                                <th>Name</th>
-                                <th data-orderable="false">Email</th>
-                                <th style="width: 100px" class="text-center" data-orderable="false">Stamp</th>
-                                <th style="width: 100px" class="text-center" data-orderable="false">Team</th>
-                                <th style="width: 400px" class="text-center" data-orderable="false">Avatar</th>
-                                <th style="width: 100px" data-orderable="false">Phone</th>
-                                <th style="width: 100px" class="text-center" data-orderable="false">Admin</th>
-                                <th style="width: 100px" class="text-center" data-orderable="false">Role</th>
-                                <th style="width: 100px" class="text-center" data-orderable="false">Create Date</th>
-                                <th class="text-center" data-orderable="false">Edit</th>
-                                <th class="text-center" data-orderable="false">Delete</th>
-                            </tr>
-                            </thead>
-                            <tbody>
-                            @foreach ($users as $user)
-                                <tr>
-                                    <td class="text-center">{{$loop->iteration}}</td>
-
-                                    <td @if(!$user->email_verified_at) style="color:red" @endif>{{$user->name}}</td>
-                                    <td>{{$user->email}}</td>
-                                    <td class="text-center">{{$user->stamp}}</td>
-                                    <td class="text-center">{{$user->team->name ?? 'Unknown team' }}</td>
-                                    <td>
-                                        <div class="text-center">
-
-                                            <?php
-                                            $avatar = $user->getMedia('avatar')->first();
-                                            $avatarThumbUrl = $avatar
-                                                ? route('image.show.thumb', [
-                                                    'mediaId' => $avatar->id,
-                                                    'modelId' => $user->id,
-                                                    'mediaName' => 'avatar'
-                                                ])
-                                                : asset('img/noimage.png');
-                                            $avatarBigUrl = $avatar
-                                                ? route('image.show.big', [
-                                                    'mediaId' => $avatar->id,
-                                                    'modelId' => $user->id,
-                                                    'mediaName' => 'avatar'
-                                                ])
-                                                : asset('img/noimage2.png');
-                                            ?>
-                                            <a href="{{ $avatarBigUrl }}" data-fancybox="gallery">
-                                                <img class="rounded-circle" src="{{ $avatarThumbUrl }}" width="50" height="50" alt="User Avatar"/>
-                                            </a>
-
-
-                                        </div>
-                                    </td>
-                                    <td>{{$user->phone}}</td>
-                                    <td class="text-center">
-                                        @if($user->is_admin)<i class="fas fa-lg fa-crown text-primary"></i>@endif
-                                    </td>
-                                    <td class="text-center">
-                                        @if($user->role)<i class="fas fa-lg fa-people-carry text-primary"></i>@endif
-                                    </td>
-
-                                    <td class="text-center"><span style="display: none">{{$user->created_at}}</span>{{$user->created_at->format('d.m.Y')}}</td>
-                                    <td class="text-center">
-                                        <a href="{{route('cabinet.users.edit', ['user' => $user->id]) }}"><img src="{{asset('img/set.png')}}" width="25" alt=""></a>
-                                    </td>
-                                    <td class="text-center">
-                                        <div>
-                                            <form action="{{route('cabinet.users.destroy', ['user' => $user->id])}}" method="post">
-                                                @csrf
-                                                @method('DELETE')
-
-                                                <button class="btn btn-xs btn-danger" type="button" data-toggle="modal" data-target="#confirmDelete" data-title="Delete User" data-message="Are you sure you want to delete technik: {{$user->name}} ?">
-                                                    <i class="fa fa-trash-o"></i>
-                                                </button>
-
-                                            </form>
-                                        </div>
-                                    </td>
-                                </tr>
-                            @endforeach
-
-                            </tbody>
-                        </table>
-                    @else
-                        <p>No user created</p>
-                    @endif
+            <div class="d-flex my-2">
+                <div class="clearable-input ps-2">
+                    <input id="searchUserInput" type="text" class="form-control w-100" placeholder="Search...">
+                    <button class="btn-clear text-secondary" onclick="document.getElementById('searchUserInput').value = '';
+                    document.getElementById('searchUserInput').dispatchEvent(new Event('input'))">
+                        <i class="bi bi-x-circle"></i>
+                    </button>
                 </div>
             </div>
         </div>
+
+        @if(count($users))
+            <div class="table-wrapper me3 p-2 pt-0 ">
+                <table id="userTable" class="display table table-sm table-hover table-striped align-middle table-bordered">
+                    <thead class="bg-gradient">
+                    <tr>
+                        <th class="text-primary bg-gradient sortable">{{__('Name') }}<i class="bi bi-chevron-expand ms-1"></i></th>
+                        <th class="text-primary bg-gradient ">{{__('Email') }}</th>
+                        <th class="text-primary bg-gradient sortable text-center">{{__('Team') }}<i class="bi bi-chevron-expand ms-1"></i></th>
+                        <th class="text-primary bg-gradient text-center">{{__('Avatar') }}</th>
+                        <th class="text-primary bg-gradient text-center">{{__('Role') }}</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    @foreach($users as $user)
+                        <tr>
+                            <td @if(!$user->email_verified_at) style="color:red" @endif>{{$user->name}}</td>
+                            <td class="">{{$user->email}}</td>
+                            <td class="text-center" style="color: {{ $user->team ? '#ffffff' : '#808080' }};">{{ $user->team->name ?? 'Unknown team' }}</td>
+                            <td class="text-center">
+                                <a href="{{ $user->getBigImageUrl('avatar') }}" data-fancybox="gallery">
+                                    <img class="rounded-circle" src="{{ $user->getThumbnailUrl('avatar') }}" width="40" height="40" alt="Image"/>
+                                </a>
+                            </td>
+                            <td class="text-center" style="color: {{ $user->role? '#ffffff' : '#808080' }};">{{ $user->role->name ?? 'Unknown role' }}</td>
+                        </tr>
+                    @endforeach
+                    </tbody>
+                </table>
+                @else
+                    <p>Technik not Created</p>
+                @endif
+            </div>
     </div>
 
-    @include('components.delete')
-
 @endsection
-
 @section('scripts')
+
     <script>
-        let userTable = $('#users-list').DataTable({
-            "AutoWidth": true,
-            "scrollY": "600px",
-            "scrollCollapse": true,
-            "paging": false,
-            "ordering": false,
-            "info": false,
-            "columnDefs": [
-                {"width": "2%", "targets": 0},
-                {"width": "10%", "targets": 1},
-                {"width": "15%", "targets": 2},
-                {"width": "5%", "targets": 3}, // -- stamp
-                {"width": "15%", "targets": 4},
-                {"width": "10%", "targets": 5}, //-- avatar
-                {"width": "8%", "targets": 6},
-                {"width": "5%", "targets": 7},
-                {"width": "5%", "targets": 8},
-                {"width": "5%", "targets": 9},
-                {"width": "5%", "targets": 10},
-                {"width": "5%", "targets": 11},
-            ],
+        document.addEventListener('DOMContentLoaded', function () {
+
+            // Sorting
+            const table = document.getElementById('userTable');
+            const headers = document.querySelectorAll('.sortable');
+            headers.forEach(header => {
+                header.addEventListener('click', () => {
+                    const columnIndex = Array.from(header.parentNode.children).indexOf(header);
+                    const rows = Array.from(table.querySelectorAll('tbody tr'));
+                    const direction = header.dataset.direction === 'asc' ? 'desc' : 'asc';
+                    header.dataset.direction = direction;
+                    headers.forEach(h => h.classList.remove('active'));
+                    header.classList.add('active');
+                    rows.sort((a, b) => {
+                        const aText = a.cells[columnIndex]?.innerText.trim() || '';
+                        const bText = b.cells[columnIndex]?.innerText.trim() || '';
+                        return direction === 'asc' ? aText.localeCompare(bText) : bText.localeCompare(aText);
+                    });
+                    rows.forEach(row => table.querySelector('tbody').appendChild(row));
+                });
+            });
+
+            // Search
+            const searchInput = document.getElementById('searchUserInput');
+            searchInput.addEventListener('input', () => {
+                const filter = searchInput.value.toLowerCase();
+                const rows = table.querySelectorAll('tbody tr');
+                rows.forEach(row => {
+                    const text = row.innerText.toLowerCase();
+                    row.style.display = text.includes(filter) ? '' : 'none';
+                });
+            });
+
         });
-        // delete form confirm
-
-        $('#confirmDelete').on('show.bs.modal', function (e) {
-
-            let message = $(e.relatedTarget).attr('data-message');
-            $(this).find('.modal-body p').text(message);
-            $title = $(e.relatedTarget).attr('data-title');
-            $(this).find('.modal-title').text($title);
-            let form = $(e.relatedTarget).closest('form');
-            $(this).find('.modal-footer #buttonConfirm').data('form', form);
-        });
-
-        $('#confirmDelete').find('.modal-footer #buttonConfirm').on('click', function () {
-            $(this).data('form').submit();
-        });
-
     </script>
 @endsection
+

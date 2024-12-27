@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Cabinet\ManualController;
 use App\Http\Controllers\Cabinet\MaterialController;
 use App\Http\Controllers\Cabinet\UserController;
 use App\Http\Controllers\Cabinet\MainController;
@@ -37,8 +38,8 @@ Route::group(['middleware' => ['auth'], 'prefix' => 'cabinet', 'as' =>'cabinet.'
 
     Route::get('/', [CabinetController::class, 'index'])->name('index');
     Route::get('/profile', [CabinetController::class, 'profile'])->name('profile');
-    Route::get('trainings/form112/{id}', [TrainingController::class, 'showForm112'])->name('training.form112');
-    Route::get('trainings/form132/{id}', [TrainingController::class, 'showForm132'])->name('training.form132');
+    Route::get('trainings/form112/{id}', [TrainingController::class, 'showForm112'])->name('trainings.form112');
+    Route::get('trainings/form132/{id}', [TrainingController::class, 'showForm132'])->name('trainings.form132');
 
     Route::resource('/trainings', TrainingController::class);
     Route::resource('/mains', MainController::class);
@@ -48,7 +49,7 @@ Route::group(['middleware' => ['auth'], 'prefix' => 'cabinet', 'as' =>'cabinet.'
     Route::resource('/customers', CustomerController::class);
     Route::resource('/users', UserController::class);
     Route::resource('/materials', MaterialController::class);
-    Route::resource('/manuals',\App\Http\Controllers\Cabinet\ManualController::class);
+    Route::resource('/manuals',ManualController::class);
 
     Route::post('profile/change_password/user/{id}/', [UserController::class, 'changePassword'])->name('profile.changePassword');
     Route::get('/progress', [ProgressController::class, 'index'])->name('progress.index');
