@@ -21,6 +21,11 @@
             <i class="bi bi-book-half me-2"></i> Manuals
         </a>
     </li>
+    <li class="nav-item">
+        <a class="nav-link press-spinner" href="{{route('admin.units.index')}}">
+            <i class="bi bi-book-half me-2"></i> Units
+        </a>
+    </li>
     <li class="nav-item press-spinner">
         <a href="{{route('admin.materials.index')}}" class="nav-link">
             <i class="bi bi-body-text me-2"></i> Materials

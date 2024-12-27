@@ -83,6 +83,10 @@ Route::group(['middleware' => ['auth', 'isAdmin'], 'prefix' => 'admin', 'as' =>'
     Route::resource('/tasks',  \App\Http\Controllers\Admin\TaskController::class);
     Route::resource('/general-tasks',  \App\Http\Controllers\Admin\GeneralTaskController::class);
 
+    Route::resource('/units',\App\Http\Controllers\Admin\UnitController::class);
+//    Route::get('units/{manualId}', [\App\Http\Controllers\Admin\UnitController::class,'getUnitsByManual'])->name('admin.units.byManual');
+
+
 });
 
 
