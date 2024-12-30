@@ -27,13 +27,13 @@
 
     </style>
 
-    <div class="container pl-3 pr-3 mt-2">
-        <div class="card firm-border p-2 bg-white shadow">
+    <div class="container pl-3 pr-3 mt-5">
+        <div class="card  p-2 shadow bg-gradient">
 
-            <form id="createForm" class="createForm" role="form" method="post" action="{{route('admin-workorders.store')}}" enctype="multipart/form-data">
+            <form id="createForm" class="createForm" role="form" method="post" action="{{route('admin.workorders.store')}}" enctype="multipart/form-data">
                 @csrf
 
-                <input type="text" hidden name="user_id" value="{{$user->id}}">
+                <input type="text" hidden name="user_id" value="{{auth()->user()->id}}">
 
                 <div class="tab-content">
 
@@ -42,9 +42,10 @@
 
                             <div class="card-header row">
 
-                                <span class="text-info text-bold" style="font-size: 1.2rem">Create workorder&nbsp;&nbsp;</span>
-                                <span class="text-info text-bold" style="font-size: 1.2rem">for user: &nbsp;&nbsp;</span>
-                                <span class="text-indigo text-bold" style="font-size: 1.2rem">{{$user->name}} &nbsp;&nbsp; email: {{$user->email}} </span>
+                                <p class="text-bold" >Create workorder for user: ( &nbsp;&nbsp;
+                                    <span class="text-info" style="font-size: 1.2rem">{{auth()->user()->name}}</span>
+                                    <span >&nbsp;&nbsp; ) email: {{auth()->user()->email}}</span>
+                                </p>
 
 
                             </div>
@@ -59,19 +60,15 @@
 
 
                                 <div class="form-group col-lg-3 mb-1">
-                                    <label for="unit_id">Unit <span style="color:red; font-size: x-small">(required)</span><a id="new_unit_create" href="{{route('unit.create')}}" class="pl-2"><img src="{{asset('img/plus.png')}}" width="22px" alt="" data-toggle="tooltip" data-placement="top" title="Add new unit"></a></label>
+                                    <label for="unit_id">Unit <span style="color:red; font-size: x-small">(required)</span><a id="new_unit_create" href="{{route('admin.units.create')}}" class="pl-2"><img src="{{asset('img/plus.png')}}" width="22px" alt="" data-toggle="tooltip" data-placement="top" title="Add new unit"></a></label>
                                     <select name="unit_id" id="unit_id" class="form-control">
                                         <option disabled selected value=""> -- select an option --</option>
                                         @foreach ($units as $unit)
-                                            <option value="{{$unit->id}}" data-lib="{{$unit->lib}}" data-description="{{$unit->description}}">{{$unit->partnumber}}</option>
+                                            <option value="{{$unit->id}}" data-lib="{{$unit->lib}}" data-description="{{$unit->description}}">{{$unit->part_number}}</option>
                                         @endforeach
                                     </select>
                                 </div>
 
-                                <div class="form-group col-lg-1 mb-1">
-                                    <label for="lib">Library</label>
-                                    <input type="text" name="manual" id="lib" maxlength="15" value="" class="form-control @error('lib') is-invalid @enderror" placeholder="">
-                                </div>
 
                                 <div class="form-group col-lg-3 mb-1">
                                     <label for="customer_id">Customer <span style="color:red; font-size: x-small">(required)</span></label>
@@ -101,17 +98,6 @@
                                 </div>
 
 
-                                <div class=" col-12 border mb-1 mt-3 border-info rounded">
-                                    <div class="card-header p-1">
-                                        <h3 class="card-title text-info">Note</h3>
-                                    </div>
-                                    <div class="row">
-                                            <textarea name="notes"
-                                                      rows="7"
-                                                      style="width: 100%; resize:none; padding: 10px; ">
-                                            </textarea>
-                                    </div>
-                                </div>
                             </div>
 
                             <div class="form-group container-fluid ">
@@ -120,7 +106,7 @@
                                         <button id="ntSaveFormsSubmit" type="submit" class="btn btn-primary btn-block ntSaveFormsSubmit">Save</button>
                                     </div>
                                     <div class="col-lg-3 mb-1 ml-auto">
-                                        <a href="{{ route('admin-workorders.index') }}" class="btn btn-secondary btn-block">Cancel</a>
+                                        <a href="{{ route('admin.workorders.index') }}" class="btn btn-secondary btn-block">Cancel</a>
                                     </div>
                                 </div>
                             </div>
@@ -201,11 +187,11 @@
                 showLoadingSpinner()
             }
         });
-        $(document).ready(function () {
-            $('#unit_id').select2({
-                placeholder: 'Select an unit',
-                theme: "classic",
-            });
-        });
+        // $(document).ready(function () {
+        //     $('#unit_id').select2({
+        //         placeholder: 'Select an unit',
+        //         theme: "classic",
+        //     });
+        // });
     </script>
 @endsection

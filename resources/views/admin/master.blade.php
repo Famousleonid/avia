@@ -41,7 +41,7 @@
         @include('components.sidebar')
     </div>
 
-    <div class="content col-12 col-lg-10 p-2 bg-body">
+    <div class="content col-12 col-lg-10 bg-body pt-2 ">
         @yield('content')
     </div>
 
