@@ -48,8 +48,6 @@
         }
     </style>
 
-
-
     <div class="card shadow">
         @include('components.status')
         <div class="card-header my-1 shadow">

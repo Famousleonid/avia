@@ -2,7 +2,7 @@
 
 <ul class="nav flex-column" data-accordion="false">
     <li class="nav-item">
-        <a class="nav-link" href="#">
+        <a class="nav-link" href="{{route('admin.workorders.index')}}">
             <i class="bi bi-file-earmark-word fs-6 me-2 "></i> Workorder
         </a>
     </li>

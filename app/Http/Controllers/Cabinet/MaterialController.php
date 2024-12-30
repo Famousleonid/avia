@@ -24,23 +24,24 @@ class MaterialController extends Controller
         //
     }
 
-    public function show($id)
+
+
+    public function edit($id)
     {
         //
     }
-
-    public function edit($id)
+    public function show($id)
     {
         //
     }
 
     public function update(Request $request, Material $material)
     {
-//        Log::channel('avia')->info('Material ID:', ['id' => $material->id]);
-//        Log::channel('avia')->info('Update Request:', ['data' => $request->all()]);
+     //  Log::channel('avia')->info('Material ID:', ['id' => $material->id]);
+     //  Log::channel('avia')->info('Update Request:', ['data' => $request->all()]);
 
         $data = $request->validate([
-            'description' => 'nullable|max:250',
+            'description' => 'max:150',
         ]);
 
         $material->update($data);
@@ -52,4 +53,6 @@ class MaterialController extends Controller
     {
         //
     }
+
+
 }

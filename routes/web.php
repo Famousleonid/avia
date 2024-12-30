@@ -54,7 +54,7 @@ Route::group(['middleware' => ['auth'], 'prefix' => 'cabinet', 'as' =>'cabinet.'
     Route::post('profile/change_password/user/{id}/', [UserController::class, 'changePassword'])->name('profile.changePassword');
     Route::get('/progress', [ProgressController::class, 'index'])->name('progress.index');
     Route::post('/progress/technik', [ProgressController::class, 'technik'])->name('progress.technik');
-
+    Route::get('/materials-search', [MaterialController::class, 'search'])->name('materials.search');
 });
 
 // ----------------------- Media route -----------------------------------------------------------------
@@ -82,6 +82,9 @@ Route::group(['middleware' => ['auth', 'isAdmin'], 'prefix' => 'admin', 'as' =>'
     Route::resource('/customers',  \App\Http\Controllers\Admin\CustomerController::class);
     Route::resource('/tasks',  \App\Http\Controllers\Admin\TaskController::class);
     Route::resource('/general-tasks',  \App\Http\Controllers\Admin\GeneralTaskController::class);
+    Route::resource('/workorders',  \App\Http\Controllers\Admin\WorkorderController::class);
+    Route::resource('/units',  \App\Http\Controllers\Admin\UnitController::class);
+
 
     Route::resource('/units',\App\Http\Controllers\Admin\UnitController::class);
 //    Route::get('units/{manualId}', [\App\Http\Controllers\Admin\UnitController::class,'getUnitsByManual'])->name('admin.units.byManual');

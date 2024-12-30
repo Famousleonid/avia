@@ -2,227 +2,164 @@
 
 @section('content')
     <style>
-        .table-wrapper {
-            height: calc(100vh - 140px);
-            overflow-y: auto;
-            overflow-x: hidden;
-        }
-        .table th, .table td {
+        table#show-materials th {
+            text-align: left;
             white-space: nowrap;
             overflow: hidden;
             text-overflow: ellipsis;
-            padding-left: 10px;
-        }
-        .table th:nth-child(1), .table td:nth-child(1) {
-            min-width: 50px;
-            max-width: 70px;
-        }
-        .table th:nth-child(2), .table td:nth-child(2) {
-            min-width: 50px;
-            max-width: 80px;
-        }
-        .table th:nth-child(3), .table td:nth-child(3) {
-            min-width: 50px;
-            max-width: 150px;
-        }
-        .table th:nth-child(5), .table td:nth-child(5) {
-            min-width: 50px;
-            max-width: 70px;
-        }
-        .table thead th {
-            position: sticky;
-            height: 50px;
-            top: -2px;
-            vertical-align: middle;
-            border-top: 1px;
-            z-index: 1020;
-        }
-
-        @media (max-width: 1200px) {
-            .table th:nth-child(5), .table td:nth-child(5),
-            .table th:nth-child(2), .table td:nth-child(2) {
-                display: none;
-            }
-        }
-        .table th.sortable {
-            cursor: pointer;
-        }
-        .clearable-input {
-            position: relative;
-            width: 400px;
-        }
-        .clearable-input .form-control {
-            padding-right: 2.5rem;
-        }
-        .clearable-input .btn-clear {
-            position: absolute;
-            right: 0.5rem;
-            top: 50%;
-            transform: translateY(-50%);
-            background: none;
-            border: none;
-            cursor: pointer;
         }
         .editable {
             cursor: pointer;
             border: 1px dashed transparent;
+            text-align: left;
+            padding: 0 10px;
         }
         .editable:hover {
             border-color: #007bff;
         }
-        .editing {
+        .hidden-tbody {
+            visibility: hidden;
+        }
+
+        table#show-materials td,
+        table#show-materials th {
+            padding: 0 10px;
+            text-align: left;
+        }
+
+        /* Light theme styles */
+        html[data-bs-theme="light"] table#show-materials tbody tr:nth-child(odd) {
             background-color: #f8f9fa;
+        }
+
+        html[data-bs-theme="light"] table#show-materials tbody tr:hover {
+            background-color: #e9ecef;
+        }
+
+        /* Dark theme styles */
+        html[data-bs-theme="dark"] table#show-materials tbody tr:nth-child(odd) {
+            background-color: #1a1a1a;
+        }
+
+        html[data-bs-theme="dark"] table#show-materials tbody tr:hover {
+            background-color: #505151;
         }
     </style>
 
-    <div class="card shadow">
-
-        <div class="card-header my-1 shadow">
-            <div class="d-flex justify-content-between">
-                <h5 class="text-primary">{{__('Materials')}} <span class="ms-1 text-white">{{count($materials)}}</span></h5>
-            </div>
-        </div>
-
-        <div class="d-flex my-2">
-            <div class="clearable-input ps-2">
-                <input id="searchInput" type="text" class="form-control w-100" placeholder="Search...">
-                <button class="btn-clear text-secondary" onclick="document.getElementById('searchInput').value = ''; document.getElementById('searchInput').dispatchEvent(new Event('input'))">
-                    <i class="bi bi-x-circle"></i>
-                </button>
-            </div>
-        </div>
-
-        @if(count($materials))
-
-            <div class="table-wrapper me-3 p-2 pt-0">
-
-                <table id="cmmTable" class="display table table-sm table-hover table-striped table-bordered">
-                    <thead class="bg-gradient">
-                    <tr>
-                        <th class="text-primary sortable bg-gradient " data-direction="asc">{{__('Code')}}<i class="bi bi-chevron-expand ms-1"></i></th>
-                        <th class="text-primary  sortable bg-gradient">{{__('Material')}}<i class="bi bi-chevron-expand ms-1"></i></th>
-                        <th class="text-primary  sortable bg-gradient">{{__('Specification')}}<i class="bi bi-chevron-expand ms-1"></i></th>
-                        <th class="text-primary  sortable bg-gradient">{{__('Description')}}<i class="bi bi-chevron-expand ms-1"></i></th>
-                    </tr>
-                    </thead>
-                    <tbody>
-                    @foreach($materials as $material)
+    <section class="container-fluid mt-2">
+        <div class="card p-2 shadow">
+            <div class="card-body p-0">
+                <h4 class="ml-3">All materials: <span class="text-primary" id="orders_count">{{ count($materials) }}</span></h4>
+                @if(count($materials))
+                    <table data-page-length="35" id="show-materials" class="display table-sm table-bordered table-striped table-hover theme-sensitive w-100">
+                        <thead class="bg-gradient">
                         <tr>
-                            <td class="">{{$material->code}}</td>
-                            <td class="">{{$material->material}}</td>
-                            <td class="" data-bs-toggle="tooltip" data-bs-placement="top" title="{{$material->specification}}">{{$material->specification}}</td>
-                            <td class="editable" data-id="{{$material->id}}" data-bs-toggle="tooltip" data-bs-placement="top" title="{{$material->description}}" data-field="description">{{$material->description}}</td>
+                            <th class="text-primary bg-gradient" data-sort="true">CML Code</th>
+                            <th class="text-primary bg-gradient" data-orderable="false">Material</th>
+                            <th class="text-primary bg-gradient">Specification</th>
+                            <th class="text-primary bg-gradient">Description</th>
                         </tr>
-                    @endforeach
-                    </tbody>
-                </table>
-
+                        </thead>
+                        <tbody class="hidden-tbody">
+                        @foreach ($materials as $material)
+                            <tr>
+                                <td>{{ $material->code }}</td>
+                                <td>{{ $material->material }}</td>
+                                <td>{{ $material->specification }}</td>
+                                <td class="editable" data-id="{{ $material->id }}" data-bs-toggle="tooltip" data-bs-placement="top" title="{{ $material->description }}" data-field="description">{{ $material->description }}</td>
+                            </tr>
+                        @endforeach
+                        </tbody>
+                    </table>
+                @else
+                    <p>Materials not created</p>
+                @endif
             </div>
-        @else
-            <p>Materials not created</p>
-        @endif
-    </div>
-
+        </div>
+    </section>
 @endsection
 
 @section('scripts')
     <script>
         document.addEventListener('DOMContentLoaded', function () {
-            const table = document.getElementById('cmmTable');
-            const searchInput = document.getElementById('searchInput');
-            const headers = document.querySelectorAll('.sortable');
+            const table = $('#show-materials');
+            const tbody = document.querySelector('#show-materials tbody');
 
-            // Sorting
-            headers.forEach(header => {
-                header.addEventListener('click', () => {
-                    const columnIndex = Array.from(header.parentNode.children).indexOf(header) + 1;
-                    const direction = header.dataset.direction === 'asc' ? 'desc' : 'asc';
-                    header.dataset.direction = direction;
-
-                    // Icon
-                    headers.forEach(h => {
-                        const icon = h.querySelector('i');
-                        if (icon) icon.className = 'bi bi-chevron-expand';
-                    });
-                    const currentIcon = header.querySelector('i');
-                    if (currentIcon) currentIcon.className = direction === 'asc' ? 'bi bi-arrow-up' : 'bi bi-arrow-down';
-
-                    // Sorting row
-                    const rows = Array.from(table.querySelectorAll('tbody tr'));
-                    rows.sort((a, b) => {
-                        const aText = a.querySelector(`td:nth-child(${columnIndex})`).innerText.trim();
-                        const bText = b.querySelector(`td:nth-child(${columnIndex})`).innerText.trim();
-                        return direction === 'asc' ? aText.localeCompare(bText) : bText.localeCompare(aText);
-                    });
-
-                    // Updating the table
-                    rows.forEach(row => table.querySelector('tbody').appendChild(row));
-                });
+            table.DataTable({
+                autoWidth: true,
+                scrollY: "650px",
+                scrollCollapse: true,
+                paging: false,
+                info: false,
+                order: [[0, 'asc']],
+                columnDefs: [
+                    { targets: 0, width: "20%" },
+                    { targets: 1, visible: false },
+                    { targets: 2, width: "40%" },
+                    { targets: 3, width: "40%" }
+                ],
+                initComplete: function () {
+                    tbody.classList.remove('hidden-tbody');
+                },
+                responsive: true
             });
 
-            // Search
-            searchInput.addEventListener('input', () => {
-                const filter = searchInput.value.toLowerCase();
-                const rows = table.querySelectorAll('tbody tr');
-
-                rows.forEach(row => {
-                    const text = row.innerText.toLowerCase();
-                    row.style.display = text.includes(filter) ? '' : 'none';
-                });
+            window.addEventListener('resize', function () {
+                if (window.innerWidth < 1200) {
+                    table.DataTable().column(1).visible(false);
+                } else {
+                    table.DataTable().column(1).visible(true);
+                }
             });
 
-            // Edit description
-            document.querySelectorAll('.editable').forEach(cell => {
-                cell.addEventListener('click', function () {
-                    if (this.classList.contains('editing')) return;
+            //----------------- Editable Description ----------------------------------
 
-                    const originalText = this.innerText.trim();
-                    const input = document.createElement('input');
-                    input.type = 'text';
-                    input.value = originalText;
-                    input.className = 'form-control';
+            function attachEditableHandlers() {
+                document.querySelectorAll('.editable').forEach(cell => {
+                    cell.addEventListener('click', function () {
+                        if (this.classList.contains('editing')) return;
 
-                    this.innerHTML = '';
-                    this.appendChild(input);
-                    this.classList.add('editing');
+                        const originalText = this.innerText.trim();
+                        const input = document.createElement('input');
+                        input.type = 'text';
+                        input.value = originalText;
+                        input.className = 'form-control';
 
-                    input.focus();
+                        this.innerHTML = '';
+                        this.appendChild(input);
+                        this.classList.add('editing');
 
-                    input.addEventListener('blur', () => {
-                        const newText = input.value.trim();
-                        this.innerText = newText || originalText;
-                        this.classList.remove('editing');
+                        input.focus();
 
-                        if (newText !== originalText) {
-                            const id = this.dataset.id;
-                            const field = this.dataset.field;
+                        input.addEventListener('blur', () => {
+                            const newText = input.value.trim();
+                            this.classList.remove('editing');
 
-                            // Send the updated value to the server
-                            fetch(`/cabinet/materials/${id}`, {
-                                method: 'PUT',
-                                headers: {
-                                    'Content-Type': 'application/json',
-                                    'X-CSRF-TOKEN': '{{ csrf_token() }}'
-                                },
-                                body: JSON.stringify({ description: newText })
-                            })
-                                .then(response => {
-                                    if (!response.ok) {
-                                        throw new Error('Failed to update description');
-                                    }
-                                    return response.json();
-                                })
-                                .then(data => {
-                                    console.log('Update successful:', data);
-                                })
-                                .catch(error => {
-                                    console.error('Error updating description:', error);
-                                    this.innerText = originalText; // Revert to original text on error
-                                });
-                        }
+                            if (newText === '') {
+                                this.innerHTML = '&nbsp;';
+                            } else {
+                                this.innerText = newText;
+                            }
+
+                            if (newText !== originalText) {
+                                const id = this.dataset.id;
+                                fetch(`/cabinet/materials/${id}`, {
+                                    method: 'PUT',
+                                    headers: {
+                                        'Content-Type': 'application/json',
+                                        'X-CSRF-TOKEN': '{{ csrf_token() }}'
+                                    },
+                                    body: JSON.stringify({ description: newText })
+                                }).catch(() => this.innerText = originalText);
+                            }
+                        });
                     });
                 });
-            });
+            }
+
+            attachEditableHandlers();
+
+            //----------------- End Editable Description ----------------------------------
         });
     </script>
 @endsection
