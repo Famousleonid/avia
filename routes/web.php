@@ -32,6 +32,7 @@ Route::get('/clear', function () {
 Route::get('/', [FrontController::class, 'index'])->name('home');
 Route::get('/mobile', [MobileController::class,'index'])->name('mobile.index');;
 
+
 // ---------------------- User Auth route ------------------------------------------------------------------------
 
 Route::group(['middleware' => ['auth'], 'prefix' => 'cabinet', 'as' =>'cabinet.'], function () {
@@ -89,6 +90,7 @@ Route::group(['middleware' => ['auth', 'isAdmin'], 'prefix' => 'admin', 'as' =>'
     Route::resource('/units',\App\Http\Controllers\Admin\UnitController::class);
 //    Route::get('units/{manualId}', [\App\Http\Controllers\Admin\UnitController::class,'getUnitsByManual'])->name('admin.units.byManual');
 
+    Route::post('/units/update/{manualId}', [\App\Http\Controllers\Admin\UnitController::class, 'update'])->name('admin.units.update');
 
 });
 
