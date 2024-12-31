@@ -5,12 +5,10 @@ use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
+use App\Models\Manual;
 
-return new class extends Migration
-{
-    /**
-     * Run the migrations.
-     */
+return new class extends Migration {
+
     public function up(): void
     {
         Schema::create('manuals', function (Blueprint $table) {
@@ -30,11 +28,11 @@ return new class extends Migration
 
         });
 
-        $csvFile = public_path('data/manual.csv');
+        $csvFile = public_path('data/manuals/manual.csv');
         $file = fopen($csvFile, 'r');
-        $headers = fgetcsv($file, 0,';');
-        $i=0;
-        while (($row = fgetcsv($file,0,';')) !== false) {
+        $headers = fgetcsv($file, 0, ';');
+        $i = 0;
+        while (($row = fgetcsv($file, 0, ';')) !== false) {
 
             $rawDate = trim($row[3]);
 
@@ -44,7 +42,7 @@ return new class extends Migration
                 $revisionDate = null;
             }
 
-            DB::table('manuals')->insert([
+            $manual = Manual::create([
                 'number' => $row[0],
                 'title' => $row[1],
                 'lib' => $row[2],
@@ -53,14 +51,18 @@ return new class extends Migration
                 'unit_name_training' => $row[5],
                 'training_hours' => $row[6],
             ]);
-        }
-        fclose($file);
 
+
+            $imagePath = public_path("data/manuals/img/{$row[0]}.png");
+            if (file_exists($imagePath)) {
+                $manual->copyMedia($imagePath)->toMediaCollection('manuals');
+
+            }
+        }
+
+        fclose($file);
     }
 
-    /**
-     * Reverse the migrations.
-     */
     public function down(): void
     {
         Schema::dropIfExists('manuals');

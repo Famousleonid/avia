@@ -81,7 +81,7 @@
 
                     <div class="table-wrapper me-3 p-2 pt-0">
 
-                        <table id="show-workorder" class="display table-sm table-bordered table-striped table-hover " style="width:100%;">
+                        <table id="show-workorder" class="display table-sm table-bordered table-striped table-hover w-100">
 
                             <thead>
                             <tr>
@@ -125,12 +125,8 @@
                                         <form action="{{route('admin.workorders.destroy', ['workorder' => $workorder->id])}}" method="post">
                                             @csrf
                                             @method('DELETE')
-                                            <button class="btn btn-xs btn-danger" type="button" data-toggle="modal"
-                                                    data-target="#confirmDelete" data-title="Delete workorder {{$workorder->number}}"
-                                                    data-message="Are you sure you want to delete this workorder?"
-                                                    title="Contact the Administrator"
-                                                    @if (!Auth()->user()->is_admin) disabled @endif
-                                            <i class="glyphicon glyphicon-trash"></i> Delete
+                                            <button class="btn btn-danger btn-sm" data-bs-toggle="modal" data-bs-target="#deleteModal" data-title="Delete workorder {{$workorder->number}}">
+                                                <i class="bi bi-trash"></i>
                                             </button>
                                         </form>
                                     </td>
