@@ -11,7 +11,7 @@ use Spatie\MediaLibrary\InteractsWithMedia;
 
 class Manual extends Model implements  hasMedia
 {
-    use HasFactory, softDeletes, InteractsWithMedia;
+    use softDeletes, InteractsWithMedia;
 
     protected $fillable = [
         'number',
@@ -48,13 +48,13 @@ class Manual extends Model implements  hasMedia
     }
 
     // Отношение с моделью Training
-    public function trainings()
+    public function training()
     {
         return $this->hasMany(Training::class, 'manuals_id');
     }
 
     // Отношение с моделью Unit
-    public function units()
+    public function unit()
     {
         return $this->hasMany(Unit::class,'manuals_id');
     }

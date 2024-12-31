@@ -3,6 +3,11 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Models\Builder;
+use App\Models\Manual;
+use App\Models\Plane;
+use App\Models\Scope;
+use App\Models\Unit;
 use Illuminate\Http\Request;
 
 class UnitController extends Controller
@@ -14,7 +19,7 @@ class UnitController extends Controller
 
     public function index()
     {
-        $units = Unit::all();
+        $units = Unit::with('manual')->get();
 
         return view('admin.units.index', compact('units'));
 

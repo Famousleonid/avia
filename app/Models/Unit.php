@@ -2,19 +2,17 @@
 
 namespace App\Models;
 
-use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
 class Unit extends Model
 {
-    use HasFactory;
 
-    protected $fillable = ['partnumber', 'description', 'lib', 'manufacturer', 'aircraft'];
+    protected $fillable = ['part_number', 'verified', 'manual_id'];
 
 
     public function manual()
     {
-        return $this->hasMany(Manual::class);
+        return $this->belongsTo(Manual::class);
     }
 
 

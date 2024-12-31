@@ -1,114 +1,237 @@
 @extends('admin.master')
 
 @section('content')
+    <style>
+        .table-wrapper {
+            height: calc(100vh - 170px);
+            overflow-y: auto;
+            overflow-x: hidden;
+        }
 
+        .table th, .table td {
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            padding-left: 10px;
 
+        }
+        .table thead th {
+            position: sticky;
+            height: 50px;
+            top: 0;
+            vertical-align: middle;
+            border-top: 1px;
+            z-index: 1020;
+        }
 
-    <div class="container pl-3 pr-3 pt-2">
+        .table th.sortable {
+            cursor: pointer;
+        }
 
-        <div class="card shadow firm-border bg-white mt-2">
+        .clearable-input {
+            position: relative;
+            width: 400px;
+        }
 
-            <div class="card-header row">
-                <div class="col-3">
-                    <h3 class="card-title text-bold">list of units ( {{count($units)}} )</h3>
-                </div>
-                <div class="col-4">
-                    <a id="admin_new_unit_create" href={{route('unit.create')}} class=""><img src="{{asset('img/plus.png')}}" width="40px" alt="" data-toggle="tooltip" data-placement="top" title="Add new unit"></a>
-                </div>
-                <div class="card-tools">
-                    <button type="button" class="btn btn-tool" data-card-widget="collapse" data-toggle="tooltip" title="Collapse">
-                        <i class="fas fa-minus"></i></button>
-                </div>
+        .clearable-input .form-control {
+            padding-right: 2.5rem;
+        }
+
+        .clearable-input .btn-clear {
+            position: absolute;
+            right: 0.5rem;
+            top: 50%;
+            transform: translateY(-50%);
+            background: none;
+            border: none;
+            cursor: pointer;
+        }
+    </style>
+
+    <div class="card shadow">
+        @include('components.status')
+        <div class="card-header my-1 shadow">
+            <div class="d-flex justify-content-between">
+                <h5 class="text-primary">{{__('Units')}}<span class="ms-2 text-white">{{count($units)}}</span></h5>
+                <button class="btn btn-outline-primary btn-sm" data-bs-toggle="modal" data-bs-target="#createModal">{{ __('Add unit') }}</button>
             </div>
+        </div>
 
-            <div class="card-body">
-                <div class="box-body table-responsive">
+        <div class="d-flex my-2">
+            <div class="clearable-input ps-2">
+                <input id="searchInput" type="text" class="form-control w-100" placeholder="Search...">
+                <button class="btn-clear text-secondary" onclick="document.getElementById('searchInput').value = ''; document.getElementById('searchInput').dispatchEvent(new Event('input'))">
+                    <i class="bi bi-x-circle"></i>
+                </button>
+            </div>
+        </div>
 
-                    @if(count($units))
+        @if(count($units))
 
-                        <table id="unit-list" class="table-sm table-bordered table-striped table-hover " style="width:100%;">
+            <div class="table-wrapper me-3 p-2 pt-0">
 
-                            <thead>
-                            <tr>
-                                <th class="text-center" data-orderable="false">№</th>
-                                <th>PartNumber</th>
-                                <th>Description</th>
-                                <th>lib</th>
-                                <th>Aircraft</th>
-                                <th>Manufacturer</th>
-                                <th class="text-center" data-orderable="false">Edit</th>
-                                <th class="text-center" data-orderable="false">Delete</th>
-                            </tr>
-                            </thead>
-                            <tbody>
-                            @foreach ($units as $unit)
-                                <tr>
-                                    <td class="text-center">{{$loop->iteration}}</td>
-                                    <td class="">{{$unit->partnumber}}</td>
-                                    <td>{{$unit->description}}</td>
-                                    <td>{{$unit->lib}}</td>
-                                    <td>{{$unit->aircraft}}</td>
-                                    <td>{{$unit->manufacturer}}</td>
-                                    <td class="text-center">
-                                        <a href="{{route('unit.edit', ['unit' => $unit->id]) }}"><img src="{{asset('img/set.png')}}" width="30" alt=""></a>
-                                    </td>
+                <table id="cmmTable" class="display table table-sm table-hover table-striped table-bordered">
+                    <thead class="bg-gradient">
+                    <tr>
+                        <th class="text-primary sortable bg-gradient " data-direction="asc">{{__('Part number')}}<i class="bi bi-chevron-expand ms-1"></i></th>
+                        <th class="text-primary text-center bg-gradient">{{__('Verification')}}</th>
+                        <th class="text-primary text-center bg-gradient">{{__('Manual')}}</th>
+                        <th class="text-primary text-center bg-gradient">{{__('Action')}}</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    @foreach($units as $unit)
+                        <tr>
+                            <td class="">{{$unit->part_number}}</td>
+                            <td class="">{{$unit->verified}}</td>
+                            <td class="">{{ $unit->manual ? $unit->manual->number : 'No Manual Assigned' }}</td>
+                            <td class="text-center">
+                                <button class="btn btn-primary btn-sm me-2" data-bs-toggle="modal" data-bs-target="#editModal" onclick="populateEditModal({{ $unit->id }}, '{{ $unit->name }}')">
+                                    <i class="bi bi-pencil-square"></i>
+                                </button>
+                                <button class="btn btn-danger btn-sm" data-bs-toggle="modal" data-bs-target="#deleteModal" onclick="populateDeleteModal({{ $unit->id }}, '{{ $unit->name }}')">
+                                    <i class="bi bi-trash"></i>
+                                </button>
+                            </td>
+                        </tr>
+                    @endforeach
+                    </tbody>
+                </table>
 
-                                    <td class="text-center">
-                                        <div>
-                                            <form action="{{route('unit.destroy', ['unit' => $unit->id])}}" method="post">
-                                                @csrf
-                                                @method('DELETE')
-                                                <button class="btn btn-xs btn-danger" type="button" data-toggle="modal"
-                                                        data-target="#confirmDelete"
-                                                        data-title="Delete Unit"
-                                                        data-message="Are you sure you want to delete unit p/n: {{$unit->partnumber}} ?">
-                                                    <i class="fa fa-trash-o"></i>
-                                                </button>
-                                            </form>
-                                        </div>
-                                    </td>
+            </div>
+        @else
+            <p>Unit not created</p>
+        @endif
+    </div>
 
-                                </tr>
-                            @endforeach
-
-                            </tbody>
-                        </table>
-                    @else
-                        <p>No component created</p>
-                    @endif
+    <!-- Create Modal -->
+    <div class="modal fade" id="createModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Add Unit</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="createForm" method="POST" action="{{ route('admin.units.store') }}">
+                        @csrf
+                        <div class="mb-3">
+                            <label for="createName" class="form-label">Name</label>
+                            <input type="text" id="createName" name="name" class="form-control" required>
+                        </div>
+                        <button type="submit" class="btn btn-primary" onclick="showLoadingSpinner()">Save</button>
+                    </form>
                 </div>
             </div>
         </div>
     </div>
 
-    @include('components.delete')
+    <!-- Edit Modal -->
+    <div class="modal fade" id="editModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Edit Unit</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="editForm" method="POST" action="{{ route('admin.units.update', ':id') }}">
+                        @csrf
+                        @method('PUT')
+                        <input type="hidden" id="editId" name="id">
+                        <div class="mb-3">
+                            <label for="editName" class="form-label">Name</label>
+                            <input type="text" id="editName" name="name" class="form-control" required>
+                        </div>
+                        <button type="submit" class="btn btn-primary" onclick="showLoadingSpinner()">Update</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
 
+    <!-- Delete Modal -->
+    <div class="modal fade" id="deleteModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 id="deleteModalTitle" class="modal-title">Delete Unit</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <p>Are you sure you want to delete this material?</p>
+                    <form id="deleteForm" method="POST" action="{{ route('admin.units.destroy', ':id') }}">
+                        @csrf
+                        @method('DELETE')
+                        <input type="hidden" id="deleteId" name="id">
+                        <button type="submit" class="btn btn-danger" onclick="showLoadingSpinner()">Delete</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
 @endsection
 
 @section('scripts')
     <script>
-        let userTable = $('#unit-list').DataTable({
-            "AutoWidth": true,
-            "scrollY": "600px",
-            "scrollCollapse": true,
-            "paging": false,
-            "ordering": true,
-            "info": false,
-        });
-        // delete form confirm
+        document.addEventListener('DOMContentLoaded', function () {
+            const table = document.getElementById('cmmTable');
+            const searchInput = document.getElementById('searchInput');
+            const headers = document.querySelectorAll('.sortable');
 
-        $('#confirmDelete').on('show.bs.modal', function (e) {
+            // Sorting
+            headers.forEach(header => {
+                header.addEventListener('click', () => {
+                    const columnIndex = Array.from(header.parentNode.children).indexOf(header) + 1;
+                    const direction = header.dataset.direction === 'asc' ? 'desc' : 'asc';
+                    header.dataset.direction = direction;
 
-            $message = $(e.relatedTarget).attr('data-message');
-            $(this).find('.modal-body p').text($message);
-            $title = $(e.relatedTarget).attr('data-title');
-            $(this).find('.modal-title').text($title);
-            let form = $(e.relatedTarget).closest('form');
-            $(this).find('.modal-footer #confirm').data('form', form);
-        });
-        $('#confirmDelete').find('.modal-footer #confirm').on('click', function () {
-            $(this).data('form').submit();
+                    // Icon
+                    headers.forEach(h => {
+                        const icon = h.querySelector('i');
+                        if (icon) icon.className = 'bi bi-chevron-expand';
+                    });
+                    const currentIcon = header.querySelector('i');
+                    if (currentIcon) currentIcon.className = direction === 'asc' ? 'bi bi-arrow-up' : 'bi bi-arrow-down';
+
+                    // Sorting row
+                    const rows = Array.from(table.querySelectorAll('tbody tr'));
+                    rows.sort((a, b) => {
+                        const aText = a.querySelector(`td:nth-child(${columnIndex})`).innerText.trim();
+                        const bText = b.querySelector(`td:nth-child(${columnIndex})`).innerText.trim();
+                        return direction === 'asc' ? aText.localeCompare(bText) : bText.localeCompare(aText);
+                    });
+
+                    // Updating the table
+                    rows.forEach(row => table.querySelector('tbody').appendChild(row));
+                });
+            });
+
+            // Search
+            searchInput.addEventListener('input', () => {
+                const filter = searchInput.value.toLowerCase();
+                showLoadingSpinner();
+                setTimeout(() => {
+                    const rows = table.querySelectorAll('tbody tr');
+                    rows.forEach(row => {
+                        const text = row.innerText.toLowerCase();
+                        row.style.display = text.includes(filter) ? '' : 'none';
+                    });
+                    hideLoadingSpinner();
+                }, 100);
+            });
         });
 
+        function populateEditModal(id, name) {
+            document.getElementById('editId').value = id;
+            document.getElementById('editName').value = name;
+            document.getElementById('editForm').action = `{{ route('admin.units.update', ':id') }}`.replace(':id', id);
+        }
+
+        function populateDeleteModal(id, name) {
+            document.getElementById('deleteId').value = id;
+            document.getElementById('deleteForm').action = `{{ route('admin.units.destroy', ':id') }}`.replace(':id', id);
+            document.getElementById('deleteModalTitle').innerText = `Delete unit (${name})`;
+        }
     </script>
 @endsection
