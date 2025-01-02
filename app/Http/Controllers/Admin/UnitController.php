@@ -41,8 +41,6 @@ class UnitController extends Controller
                 'groupedUnits' => collect() // Пустая коллекция
             ]);
         }
-        // Если юниты есть, продолжаем обработку
-        $manualIdsInUnits = $units->pluck('manuals_id')->toArray();
 
         // Если юниты есть, продолжаем обработку
         $manualIdsInUnits = $units->pluck('manuals_id')->toArray();
