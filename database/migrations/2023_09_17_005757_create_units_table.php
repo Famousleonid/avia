@@ -18,7 +18,7 @@ return new class extends Migration
             $table->id();
             $table->string('part_number')->unique();
             $table->boolean('verified')->default(false);
-            $table->foreignId('manuals_id')->nullable()->constrained()->onDelete('set null');
+            $table->foreignId('manual_id')->nullable()->constrained()->onDelete('set null');
             $table->timestamps();
         });
 
@@ -38,7 +38,7 @@ return new class extends Migration
             DB::table('units')->insert([
                 'part_number' => $row[2],
                 'verified' => $row[3],
-                'manuals_id' => $row[4],
+                'manual_id' => $row[4],
             ]);
         }
         fclose($file);

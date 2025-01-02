@@ -3,7 +3,7 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
-//<<<<<<< HEAD
+
 use App\Models\Builder;
 use App\Models\Manual;
 use App\Models\Plane;
@@ -41,11 +41,12 @@ class UnitController extends Controller
                 'groupedUnits' => collect() // Пустая коллекция
             ]);
         }
-        // Если юниты есть, продолжаем обработку
-        $manualIdsInUnits = $units->pluck('manuals_id')->toArray();
+
+
+
 
         // Если юниты есть, продолжаем обработку
-//        $manualIdsInUnits = $units->pluck('manuals_id')->toArray();
+        $manualIdsInUnits = $units->pluck('manuals_id')->toArray();
         $groupedUnits = $units->groupBy(function ($unit) {
             return $unit->manuals ? $unit->manuals->number : 'No CMM';
         });
@@ -57,7 +58,8 @@ class UnitController extends Controller
         $builders = Builder::pluck('name', 'id');
         $scopes = Scope::pluck('scope', 'id');
 
-        // Передаем данные в представление
+
+
         return view('admin.units.index', compact('groupedUnits', 'restManuals', 'manuals', 'planes', 'builders', 'scopes'));
     }
 
