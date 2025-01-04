@@ -87,10 +87,9 @@ Route::group(['middleware' => ['auth', 'isAdmin'], 'prefix' => 'admin', 'as' =>'
     Route::resource('/units',  \App\Http\Controllers\Admin\UnitController::class);
 
 
-    Route::resource('/units',\App\Http\Controllers\Admin\UnitController::class);
-//    Route::get('units/{manualId}', [\App\Http\Controllers\Admin\UnitController::class,'getUnitsByManual'])->name('admin.units.byManual');
 
-    Route::post('/units/update/{manualId}', [\App\Http\Controllers\Admin\UnitController::class, 'update'])->name('admin.units.update');
+    Route::post('/admin/units/update/{manualId}', [\App\Http\Controllers\Admin\UnitController::class, 'updateUnits'])->name('admin.units.update');
+    Route::post('/units/update/{manualId}', [\App\Http\Controllers\Admin\UnitController::class, 'updateUnits'])->name('units.update');
 
 });
 

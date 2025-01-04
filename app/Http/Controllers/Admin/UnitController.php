@@ -3,7 +3,6 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
-
 use App\Models\Builder;
 use App\Models\Manual;
 use App\Models\Plane;
@@ -15,11 +14,6 @@ use Illuminate\Support\Facades\DB;
 
 class UnitController extends Controller
 {
-    public function __construct()
-    {
-        $this->middleware('auth');
-    }
-
     /**
      * Display a listing of the resource.
      */
@@ -42,11 +36,8 @@ class UnitController extends Controller
             ]);
         }
 
-
-
-
         // Если юниты есть, продолжаем обработку
-        $manualIdsInUnits = $units->pluck('manuals_id')->toArray();
+        $manualIdsInUnits = $units->pluck('manual_id')->toArray();
         $groupedUnits = $units->groupBy(function ($unit) {
             return $unit->manuals ? $unit->manuals->number : 'No CMM';
         });
@@ -58,8 +49,7 @@ class UnitController extends Controller
         $builders = Builder::pluck('name', 'id');
         $scopes = Scope::pluck('scope', 'id');
 
-
-
+        // Передаем данные в представление
         return view('admin.units.index', compact('groupedUnits', 'restManuals', 'manuals', 'planes', 'builders', 'scopes'));
     }
 
@@ -74,7 +64,7 @@ class UnitController extends Controller
         $builders = Builder::all(); // Получить все объекты MFR
         $scopes = Scope::all(); // Получить все объекты Scope
 
-        return view('admin.units.create', compact('manuals', 'planes', 'builders',
+        return view('admin.units.create', compact('manuals','planes', 'builders',
             'scopes'));
     }
 
@@ -92,7 +82,7 @@ class UnitController extends Controller
         DB::transaction(function () use ($request) {
             foreach ($request->part_numbers as $partNumber) {
                 Unit::create([
-                    'manuals_id' => $request->cmm_id,
+                    'manual_id' => $request->cmm_id,
                     'part_number' => $partNumber,
                     'verified' => 1, // Устанавливаем verified в 1
                 ]);
@@ -101,7 +91,6 @@ class UnitController extends Controller
 
         return response()->json(['success' => true]);
     }
-
 //    public function storeWorkorder(Request $request)
 //    {
 //        // Валидация данных
@@ -113,7 +102,7 @@ class UnitController extends Controller
 //        try {
 //            // Сохранение нового юнита
 //            $unit = Unit::create([
-//                'manuals_id' => $request->manual_id,
+//                'manual_id' => $request->manual_id,
 //                'part_number' => $request->part_number,
 //                'verified' => false,
 //            ]);
@@ -125,18 +114,18 @@ class UnitController extends Controller
 //        }
 //    }
 
-    public function toggleVerified(Request $request, Unit $unit)
-    {
-        try {
-            $unit->verified = $request->input('verified');
-            $unit->save();
-
-            return response()->json(['success' => true]);
-        } catch (\Exception $e) {
-            \Log::error('Error toggling verified status: ' . $e->getMessage());
-            return response()->json(['success' => false, 'error' => 'An error occurred while updating verified status.'], 500);
-        }
-    }
+//    public function toggleVerified(Request $request, Unit $unit)
+//    {
+//        try {
+//            $unit->verified = $request->input('verified');
+//            $unit->save();
+//
+//            return response()->json(['success' => true]);
+//        } catch (\Exception $e) {
+//            \Log::error('Error toggling verified status: ' . $e->getMessage());
+//            return response()->json(['success' => false, 'error' => 'An error occurred while updating verified status.'], 500);
+//        }
+//    }
 
 
     /**
@@ -145,7 +134,7 @@ class UnitController extends Controller
     public function show(string $manualId)
     {
         // Убедитесь, что вы правильно получаете юниты
-        $units = Unit::where('manuals_id', $manualId)->get();
+        $units = Unit::where('manual_id', $manualId)->get();
 
         // Возвращаем данные в формате JSON
         return response()->json(['units' => $units]);
@@ -160,7 +149,7 @@ class UnitController extends Controller
         $manual = Manual::findOrFail($manualsId);
 
         // Получаем все units, связанные с данным manuals_id
-        $units = Unit::where('manuals_id', $manualsId)->get();
+        $units = Unit::where('manual_id', $manualsId)->get();
 
         if ($units->isEmpty()) {
             return redirect()->back()->with('error', 'No units found for the selected manual.');
@@ -169,58 +158,33 @@ class UnitController extends Controller
         return view('admin.units.edit', compact('manual', 'units'));
     }
 
-
-
-    public function update(Request $request, $manualId)
+    public function getUnitsByManual($manualId)
     {
-        \Log::info('Request received for update:', [
-            'manual_id' => $manualId,
-            'units' => $request->input('units')
+        $units = Unit::where('manuals_id', $manualId)->get();
+
+        return response()->json([
+            'units' => $units,
         ]);
-
-        try {
-            $manual = Manual::findOrFail($manualId);
-
-            // Извлекаем входящие данные
-            $units = $request->input('units', []);
-
-            if (!is_array($units)) {
-                return response()->json([
-                    'success' => false,
-                    'error' => 'Invalid units data format.'
-                ], 400);
-            }
-
-            $existingPartNumbers = $manual->units()->pluck('part_number')->toArray();
-
-            foreach ($units as $unitData) {
-                if (!isset($unitData['part_number']) || !isset($unitData['verified'])) {
-                    continue; // Пропускаем некорректные записи
-                }
-
-                Unit::updateOrCreate(
-                    ['manuals_id' => $manualId, 'part_number' => $unitData['part_number']],
-                    ['verified' => $unitData['verified']]
-                );
-            }
-
-            $incomingPartNumbers = array_column($units, 'part_number');
-            Unit::where('manuals_id', $manualId)
-                ->whereNotIn('part_number', $incomingPartNumbers)
-                ->delete();
-
-            return response()->json([
-                'success' => true,
-                'updated_units' => $manual->units()->get()
-            ]);
-        } catch (\Exception $e) {
-            \Log::error('Error updating units:', ['message' => $e->getMessage()]);
-            return response()->json([
-                'success' => false,
-                'error' => 'An error occurred while updating units.'
-            ], 500);
-        }
     }
+
+    public function update($manualId, Request $request)
+    {
+//        dd($request, $manualId);
+        $partNumbers = $request->input('part_numbers');
+
+        // Логика для добавления и удаления part_number из базы данных
+        foreach ($partNumbers as $partNumber) {
+            // Добавление или обновление логики для part_number
+            Unit::updateOrCreate(
+                ['manual_id' => $manualId, 'part_number' => $partNumber],
+                ['manual_id' => $manualId, 'part_number' => $partNumber]
+            );
+        }
+
+        // Вернуть JSON ответ
+        return response()->json(['success' => true]);
+    }
+
 
 
     /**
@@ -228,7 +192,81 @@ class UnitController extends Controller
      */
 
 
+    public function updateUnits(Request $request, $manualId)
+    {
+        \Log::info('Request received:', [
+            'manual_id' => $manualId,
+            'part_numbers' => $request->input('part_numbers'),
+        ]);
 
+        try {
+            $manual = Manual::findOrFail($manualId);
+
+            if (!$request->has('part_numbers') || !is_array($request->input('part_numbers'))) {
+                \Log::error('Invalid part_numbers format');
+                return response()->json(['success' => false, 'error' => 'Invalid part_numbers format'], 400);
+            }
+
+            $newPartNumbersArray = array_map(function ($unit) {
+                return $unit['part_number'];
+            }, $request->input('part_numbers'));
+
+            $existingPartNumbers = $manual->units()->pluck('part_number')->toArray();
+
+            \Log::info('Existing part numbers:', $existingPartNumbers);
+            \Log::info('New part numbers:', $newPartNumbersArray);
+
+            Unit::where('manual_id', $manualId)
+                ->whereNotIn('part_number', $newPartNumbersArray)
+                ->delete();
+
+            foreach ($request->input('part_numbers') as $unit) {
+                Unit::updateOrCreate(
+                    ['manual_id' => $manualId, 'part_number' => $unit['part_number']],
+                    ['verified' => $unit['verified']]
+                );
+            }
+
+            return response()->json(['success' => true]);
+        } catch (\Exception $e) {
+            \Log::error('Error updating units:', [
+                'error_message' => $e->getMessage(),
+                'manual_id' => $manualId,
+                'request_data' => $request->all(),
+            ]);
+            return response()->json(['success' => false, 'error' => 'An error occurred while updating units'], 500);
+        }
+    }
+
+
+
+//        $manual = Manual::findOrFail($manualId);
+//
+//        // Получить существующие part_numbers
+//        $existingPartNumbers = $manual->units()->pluck('part_number')->toArray();
+//
+//        // Новые part_numbers из запроса
+//        $newPartNumbers = $request->input('part_numbers');
+//
+//        // Удаляем те, которых нет в новых данных
+//        $manual->units()->whereNotIn('part_number', $newPartNumbers)->delete();
+//
+//        // Добавляем новые part_numbers, которых не было
+//        foreach ($newPartNumbers as $partNumber) {
+//            if (!in_array($partNumber, $existingPartNumbers)) {
+//                $manual->units()->create([
+//                    'part_number' => $partNumber
+//                ]);
+//            }
+//        }
+//
+//        return response()->json(['success' => true]);
+
+
+
+    /**
+     * Remove the specified resource from storage.
+     */
     public function destroy(string $manualId)
     {
         // Получаем мануал по полю 'number'
@@ -237,7 +275,7 @@ class UnitController extends Controller
         // Если мануал найден, удаляем связанные юниты
         if ($manual) {
             // Удаляем все юниты, связанные с выбранным мануалом
-            Unit::where('manuals_id', $manual->id)->delete();
+            Unit::where('manual_id', $manual->id)->delete();
 
             // Перенаправляем на индекс с сообщением об успешном удалении
             return redirect()->route('admin.units.index')->with('success', 'Все юниты успешно удалены.');
@@ -246,4 +284,10 @@ class UnitController extends Controller
         // Если мануал не найден, возвращаем ошибку
         return redirect()->route('admin.units.index')->with('error', 'Мануал не найден.');
     }
+
+//        $unit = Unit::findOrFail($id);
+//        $unit->delete();
+//        return redirect()->route('admin.units.index')->with('success', 'Unit has been deleted');
+
+
 }

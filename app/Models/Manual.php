@@ -54,9 +54,9 @@ class Manual extends Model implements  hasMedia
     }
 
     // Отношение с моделью Unit
-    public function unit()
+    public function units()
     {
-        return $this->hasMany(Unit::class,'manuals_id');
+        return $this->hasMany(Unit::class,'manual_id');
     }
     public function registerAllMediaConversions(): void
     {

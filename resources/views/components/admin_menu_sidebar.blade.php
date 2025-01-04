@@ -23,7 +23,7 @@
     </li>
     <li class="nav-item">
         <a class="nav-link press-spinner" href="{{route('admin.units.index')}}">
-            <i class="bi bi-book-half me-2"></i> Units
+            <i class="bi bi-unity me-2"></i> Units
         </a>
     </li>
     <li class="nav-item press-spinner">
@@ -51,11 +51,7 @@
             <i class="bi bi-microsoft-teams me-2"></i> Teams
         </a>
     </li>
-    <li class="nav-item press-spinner">
-        <a href="{{route('admin.units.index')}}" class="nav-link" >
-            <i class="bi bi-unity me-2"></i> Units
-        </a>
-    </li>
+
     <li class="nav-item border-top">
         <a class="nav-link" href="#" id="{{ $themeToggleId }}">
             <i class="bi bi-moon me-2"></i>&nbsp; Thema
