@@ -184,15 +184,15 @@
                                         <i class="bi bi-pencil-square"></i>
                                     </button>
 
-                                    <form action="{{ route('admin.units.destroy', $manualNumber) }}" method="post"
-                                          style="display: inline-block">
-                                        @csrf
-                                        @method('DELETE')
-                                        <button class="btn btn-outline-danger btn-sm" type="submit"
-                                                onclick="return confirm('Are you sure you want to delete all units in this group?');">
-                                            <i class="bi bi-trash"></i>
-                                        </button>
-                                    </form>
+{{--                                    <form action="{{ route('admin.units.destroy', $manualNumber) }}" method="post"--}}
+{{--                                          style="display: inline-block">--}}
+{{--                                        @csrf--}}
+{{--                                        @method('DELETE')--}}
+{{--                                        <button class="btn btn-outline-danger btn-sm" type="submit"--}}
+{{--                                                onclick="return confirm('Are you sure you want to delete all units in this group?');">--}}
+{{--                                            <i class="bi bi-trash"></i>--}}
+{{--                                        </button>--}}
+{{--                                    </form>--}}
 
                                 </div>
                                 <br>
