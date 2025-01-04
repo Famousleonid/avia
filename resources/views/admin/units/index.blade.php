@@ -270,13 +270,11 @@
 
                     <!-- Выпадающий список для выбора CMM -->
                     <div class="mb-3">
-                        <label for="cmmSelect" class="form-label">Select CMM</label>
-                        <select class="form-select" id="cmmSelect">
-
+                        <label for="cmmSelect" class="form-label">CMM</label>
+                        <select class="form-select" id="cmmSelect" name="cmmSelect">
+                            <option value="">{{ __('Select CMM') }}</option>
                             @foreach($manuals as $manual)
-                                <option value="{{ $manual->id }}">{{ $manual->title }}
-                                    ({{ $manual->number }})
-                                </option>
+                                <option value="{{ $manual->id }}">{{ $manual->title }} ({{ $manual->number }})</option>
                             @endforeach
                         </select>
                     </div>
@@ -288,7 +286,7 @@
                             <input type="text" class="form-control"
                                    placeholder="Enter PN" style="width: 200px;"
                                    name="pn[]">
-                            <button class="btn btn-outline-secondary" type="button"
+                            <button class="btn btn-outline-primary" type="button"
                                     id="addPnField">Add PN
                             </button>
                         </div>
@@ -334,12 +332,11 @@
                 </div>
             </div>
         </div>
-
-
     </div>
 
 
     <script>
+
 
         document.addEventListener('DOMContentLoaded', function () {
 
@@ -415,6 +412,16 @@
                 }
             });
 
+
+
+        // $(document).ready(function () {
+        //     $('#cmmSelect').select2({
+        //         placeholder: 'Search for a CMM',
+        //         allowClear: true,
+        //         width: '100%',
+        //         minimumResultsForSearch: 1 // Включает поиск даже при небольшом количестве элементов
+        //     });
+        // });
 
             document.getElementById('createUnitBtn').addEventListener('click', function () {
                 const cmmId = document.getElementById('cmmSelect').value;

@@ -38,10 +38,15 @@
 
                             <div class="col-xs-12 col-sm-12 col-md-12 mt-2">
                                 <div class="form-group">
-                                    <strong>{{__('Image:')}}</strong>
+                                    <label>{{__('Image:')}}</label>
+                                    <div class="d-flex">
+                                        <img class="me-1" src="{{ $cmm->getThumbnailUrl('manuals') }}" width="40" height="40" alt="Image"/>
+
                                     <input type="file" name="img" class="form-control" placeholder="Image">
+                                    </div>
                                     {{--                                    <input type="file" name="img" class="form-control" placeholder="изображение">--}}
                                     <small>{{__('Leave blank if you do not want to change the image.')}}</small>
+
                                 </div>
                             </div>
 
@@ -116,10 +121,10 @@
 
                     </div>
 
-                    <button type="submit" class="btn btn-primary text-center ">
+                    <button type="submit" class="btn btn-outline-primary text-center ">
                         {{ __('UpDate') }}
                     </button>
-                    <a href="{{ route('admin.manuals.index') }}" class="btn btn-secondary">
+                    <a href="{{ route('admin.manuals.index') }}" class="btn btn-outline-secondary">
                         {{ __('Cancel') }}
                     </a>
                 </form>

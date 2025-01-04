@@ -127,13 +127,14 @@
                             <td class="text-center">{{$cmm->revision_date}}</td>
                             <td class="text-center">{{$cmm->lib}}</td>
                             <td class="text-center">
-                                <a href="{{ route('admin.manuals.edit', ['manual' => $cmm->id]) }}" class="btn btn-primary btn-sm">
+                                <a href="{{ route('admin.manuals.edit', ['manual' => $cmm->id]) }}" class="btn btn-outline-primary btn-sm">
                                     <i class="bi bi-pencil-square"></i>
                                 </a>
                                 <form id="deleteForm_{{$cmm->id}}" action="{{ route('admin.manuals.destroy', ['manual' => $cmm->id]) }}" method="POST" style="display:inline;">
                                     @csrf
                                     @method('DELETE')
-                                    <button class="btn btn-sm btn-danger" type="button" name="btn_delete" data-bs-toggle="modal" data-bs-target="#useConfirmDelete" data-title="Delete Confirmation row {{$cmm->number}}">
+                                    <button class="btn btn-sm btn-outline-danger" type="button" name="btn_delete" data-bs-toggle="modal"
+                                            data-bs-target="#useConfirmDelete" data-title="Delete Confirmation row {{$cmm->number}}">
                                         <i class="bi bi-trash"></i>
                                     </button>
                                 </form>

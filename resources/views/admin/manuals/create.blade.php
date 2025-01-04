@@ -105,8 +105,8 @@
                     </div>
 
                     <div class="text-end">
-                        <button type="submit" class="btn btn-primary mt-3 ">{{ __('Add CMM') }}</button>
-                        <a href="{{ route('admin.manuals.index') }}" class="btn btn-secondary mt-3">{{ __('Cancel') }} </a>
+                        <button type="submit" class="btn btn-outline-primary mt-3 ">{{ __('Add CMM') }}</button>
+                        <a href="{{ route('admin.manuals.index') }}" class="btn btn-outline-secondary mt-3">{{ __('Cancel') }} </a>
                     </div>
 
                 </form>
