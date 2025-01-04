@@ -117,7 +117,7 @@
                         ms-1"></i></th>
                         <th class="text-primary text-center bg-gradient text-center">{{__('CMM Unit ')}}</th>
                         <th class="text-primary text-center bg-gradient text-center">{{__('Image')}}</th>
-                        <th class="text-primary text-center bg-gradient text-center">{{__('Action')}}</th>
+                        <th class="text-primary text-center bg-gradient text-center">{{__('Edit')}}</th>
                     </tr>
                     </thead>
                     <tbody>
