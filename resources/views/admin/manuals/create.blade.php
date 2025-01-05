@@ -95,6 +95,16 @@
                                 <button type="button" class="btn btn-link" data-bs-toggle="modal"
                                         data-bs-target="#addScopeModal">{{ __('Add Scope') }}</button>
                             </div>
+                            <div class="mt-1">
+                                <label for="units">{{ __('Units') }}</label>
+                                <div id="unitInputs">
+                                    <div class="input-group mb-2 unit-field">
+                                        <input type="text" class="form-control" placeholder="Enter Unit Part Number" name="units[]" required>
+                                        <button class="btn btn-outline-primary" type="button" id="addUnitField">+ Add Unit</button>
+                                    </div>
+                                </div>
+                            </div>
+
                             <div>
                                 <label for="lib">{{ __('Library Number') }}</label>
                                 <input id='lib' type="text" class="form-control" name="lib" required>
@@ -239,6 +249,28 @@
         handleFormSubmission('addMFRForm', '{{ route('admin.builders.store') }}', 'builders_id', 'id', 'name',
             'addMFRModal');
         handleFormSubmission('addScopeForm', '{{ route('admin.scopes.store') }}', 'scopes_id', 'id', 'scope', 'addScopeModal');
+
+
+
+        document.addEventListener('DOMContentLoaded', function () {
+            document.getElementById('addUnitField').addEventListener('click', function () {
+                const newUnitField = document.createElement('div');
+                newUnitField.className = 'input-group mb-2 unit-field';
+                newUnitField.innerHTML = `
+            <input type="text" class="form-control" placeholder="Enter Unit Part Number" name="units[]" required>
+            <button class="btn btn-outline-danger removeUnitField" type="button">Remove</button>
+        `;
+                document.getElementById('unitInputs').appendChild(newUnitField);
+            });
+
+            document.getElementById('unitInputs').addEventListener('click', function (event) {
+                if (event.target.classList.contains('removeUnitField')) {
+                    event.target.parentElement.remove();
+                }
+            });
+        });
+
+
 
     </script>
 @endsection
