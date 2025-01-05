@@ -1,8 +1,6 @@
-@extends('admin.master')
+@extends('resources.views.admin.master')
 
 @section('content')
-
-
 
     <div class="container pl-3 pr-3 pt-2">
 
@@ -13,10 +11,13 @@
                     <h3 class="card-title text-bold">list of units ( {{count($units)}} )</h3>
                 </div>
                 <div class="col-4">
-                    <a id="admin_new_unit_create" href={{route('unit.create')}} class=""><img src="{{asset('img/plus.png')}}" width="40px" alt="" data-toggle="tooltip" data-placement="top" title="Add new unit"></a>
+                    <a id="admin_new_unit_create" href={{route('unit.create')}} class=""><img
+                                src="{{asset('img/plus.png')}}" width="40px" alt="" data-toggle="tooltip"
+                                data-placement="top" title="Add new unit"></a>
                 </div>
                 <div class="card-tools">
-                    <button type="button" class="btn btn-tool" data-card-widget="collapse" data-toggle="tooltip" title="Collapse">
+                    <button type="button" class="btn btn-tool" data-card-widget="collapse" data-toggle="tooltip"
+                            title="Collapse">
                         <i class="fas fa-minus"></i></button>
                 </div>
             </div>
@@ -26,7 +27,8 @@
 
                     @if(count($units))
 
-                        <table id="unit-list" class="table-sm table-bordered table-striped table-hover " style="width:100%;">
+                        <table id="unit-list" class="table-sm table-bordered table-striped table-hover "
+                               style="width:100%;">
 
                             <thead>
                             <tr>
@@ -50,12 +52,14 @@
                                     <td>{{$unit->aircraft}}</td>
                                     <td>{{$unit->manufacturer}}</td>
                                     <td class="text-center">
-                                        <a href="{{route('unit.edit', ['unit' => $unit->id]) }}"><img src="{{asset('img/set.png')}}" width="30" alt=""></a>
+                                        <a href="{{route('unit.edit', ['unit' => $unit->id]) }}"><img
+                                                    src="{{asset('img/set.png')}}" width="30" alt=""></a>
                                     </td>
 
                                     <td class="text-center">
                                         <div>
-                                            <form action="{{route('unit.destroy', ['unit' => $unit->id])}}" method="post">
+                                            <form action="{{route('unit.destroy', ['unit' => $unit->id])}}"
+                                                  method="post">
                                                 @csrf
                                                 @method('DELETE')
                                                 <button class="btn btn-xs btn-danger" type="button" data-toggle="modal"
@@ -81,7 +85,7 @@
         </div>
     </div>
 
-    @include('components.delete')
+    @include('resources.views.components.delete')
 
 @endsection
 

@@ -128,7 +128,7 @@
     <div class="modal fade" id="addAirCraftModal" tabindex="-1" aria-labelledby="addAirCraftModalLabel"
          aria-hidden="true">
         <div class="modal-dialog">
-            <div class="modal-content">
+            <div class="modal-content bg-gradient">
                 <div class="modal-header">
                     <h5 class="modal-title" id="addAirCraftModalLabel">{{ __('Add AirCraft') }}</h5>
                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Закрыть"></button>
@@ -142,8 +142,8 @@
                         </div>
                     </div>
                     <div class="modal-footer">
-                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Закрыть"></button>
-                        <button type="submit" class="btn btn-primary">{{ __('Save') }}</button>
+{{--                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Закрыть"></button>--}}
+                        <button type="submit" class="btn btn-outline-primary">{{ __('Save') }}</button>
                     </div>
                 </form>
             </div>
@@ -153,7 +153,7 @@
     <!-- Модальное окно для добавления MFR -->
     <div class="modal fade" id="addMFRModal" tabindex="-1" aria-labelledby="addMFRModalLabel" aria-hidden="true">
         <div class="modal-dialog">
-            <div class="modal-content">
+            <div class="modal-content bg-gradient">
                 <div class="modal-header">
                     <h5 class="modal-title" id="addMFRModalLabel">{{ __('Add MFR') }}</h5>
                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
@@ -167,8 +167,8 @@
                         </div>
                     </div>
                     <div class="modal-footer">
-                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-                        <button type="submit" class="btn btn-primary">{{ __('Save') }}</button>
+{{--                       <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>--}}
+                        <button type="submit" class="btn btn-outline-primary">{{ __('Save') }}</button>
                     </div>
                 </form>
             </div>
@@ -178,7 +178,7 @@
     <!-- Модальное окно для добавления Scope -->
     <div class="modal fade" id="addScopeModal" tabindex="-1" aria-labelledby="addScopeModalLabel" aria-hidden="true">
         <div class="modal-dialog">
-            <div class="modal-content">
+            <div class="modal-content bg-gradient">
                 <div class="modal-header">
                     <h5 class="modal-title" id="addScopeModalLabel">{{ __('Add Scope') }}</h5>
                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
@@ -192,8 +192,8 @@
                         </div>
                     </div>
                     <div class="modal-footer">
-                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-                        <button type="submit" class="btn btn-primary">{{ __('Save') }}</button>
+{{--                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>--}}
+                        <button type="submit" class="btn btn-outline-primary">{{ __('Save') }}</button>
                     </div>
                 </form>
             </div>
