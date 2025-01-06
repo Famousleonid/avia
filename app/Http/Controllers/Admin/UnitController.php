@@ -21,6 +21,7 @@ class UnitController extends Controller
     {
         // Получаем все units и связанные с ними manuals
         $units = Unit::with('manuals')->get();
+        $units_all = $units;
 
         // Проверка загруженных данных
         if ($units->isEmpty()) {
@@ -50,23 +51,22 @@ class UnitController extends Controller
         $scopes = Scope::pluck('scope', 'id');
 
         // Передаем данные в представление
-        return view('admin.units.index', compact('groupedUnits', 'restManuals', 'manuals', 'planes', 'builders', 'scopes'));
+        return view('admin.units.index', compact('groupedUnits', 'restManuals', 'manuals', 'planes', 'builders', 'scopes','units_all'));
     }
 
 
     /**
      * Show the forms for creating a new resource.
      */
-    public function create()
-    {
-        $manuals = Manual::all();
-        $planes = Plane::all(); // Получить все объекты AirCraft
-        $builders = Builder::all(); // Получить все объекты MFR
-        $scopes = Scope::all(); // Получить все объекты Scope
-
-        return view('admin.units.create', compact('manuals','planes', 'builders',
-            'scopes'));
-    }
+//    public function create()
+//    {
+//        $manuals = Manual::all();
+//        $planes = Plane::all(); // Получить все объекты AirCraft
+//        $builders = Builder::all(); // Получить все объекты MFR
+//        $scopes = Scope::all(); // Получить все объекты Scope
+//
+//        return view('admin.units.create', compact('manuals','planes', 'builders', 'scopes'));
+//    }
 
     /**
      * Store a newly created resource in storage.
@@ -88,6 +88,9 @@ class UnitController extends Controller
                 ]);
             }
         });
+
+        session()->flash('success', 'Unit successfully created.');
+
 
         return response()->json(['success' => true]);
     }

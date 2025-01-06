@@ -37,8 +37,8 @@
         </a>
     </li>
     <li class="nav-item press-spinner">
-        <a href="{{route('admin.general-tasks.index')}}" class="nav-link">
-            <i class="bi bi-stickies me-2"></i> General Tasks
+        <a href="{{route('admin.teams.index')}}" class="nav-link" >
+            <i class="bi bi-microsoft-teams me-2"></i> Teams
         </a>
     </li>
     <li class="nav-item press-spinner">
@@ -47,16 +47,16 @@
         </a>
     </li>
     <li class="nav-item press-spinner">
-        <a href="{{route('admin.teams.index')}}" class="nav-link" >
-            <i class="bi bi-microsoft-teams me-2"></i> Teams
+        <a href="{{route('admin.general-tasks.index')}}" class="nav-link">
+            <i class="bi bi-stickies me-2"></i> General Tasks
         </a>
     </li>
-
     <li class="nav-item border-top">
         <a class="nav-link" href="#" id="{{ $themeToggleId }}">
             <i class="bi bi-moon me-2"></i>&nbsp; Thema
         </a>
     </li>
+
 </ul>
 
 <script>

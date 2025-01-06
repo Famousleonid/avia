@@ -54,7 +54,7 @@
         @include('components.status')
         <div class="card-header my-1 shadow">
             <div class="d-flex justify-content-between">
-                <h5 class="text-primary">{{__('General task')}}<span class="ms-2 text-white">{{count($general_tasks)}}</span></h5>
+                <h5 class="text-primary">{{__('General task')}}( <span class="text-success">{{$general_tasks->count()}} </span>)</h5>
                 <button class="btn btn-outline-primary btn-sm" data-bs-toggle="modal" data-bs-target="#createModal">{{ __('Add general task') }}</button>
             </div>
         </div>

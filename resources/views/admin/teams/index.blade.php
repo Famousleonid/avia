@@ -54,7 +54,7 @@
         @include('components.status')
         <div class="card-header my-1 shadow">
             <div class="d-flex justify-content-between">
-                <h5 class="text-primary">{{__('Teams')}}<span class="ms-2 text-white">{{count($teams)}}</span></h5>
+                <h5 class="text-primary">{{__('Teams')}}( <span class="text-success">{{$teams->count()}} </span>)</h5>
                 <button class="btn btn-outline-primary btn-sm" data-bs-toggle="modal" data-bs-target="#createModal">{{ __('Add team') }}</button>
             </div>
         </div>

@@ -19,8 +19,8 @@
         }
 
         .table th:nth-child(1), .table td:nth-child(1) {
-            min-width: 40px;
-            max-width: 50px;
+            min-width: 50px;
+            max-width: 150px;
         }
 
         .table th:nth-child(2), .table td:nth-child(2) {
@@ -43,10 +43,10 @@
         }
 
         @media (max-width: 1200px) {
-            .table th:nth-child(1), .table td:nth-child(1),
-            .table th:nth-child(3), .table td:nth-child(3),
-            .table th:nth-child(7), .table td:nth-child(7),
-            .table th:nth-child(8), .table td:nth-child(8) {
+            .table th:nth-child(2), .table td:nth-child(2),
+            .table th:nth-child(4), .table td:nth-child(4),
+            .table th:nth-child(6), .table td:nth-child(6),
+            .table th:nth-child(7), .table td:nth-child(7) {
                 display: none;
             }
         }
@@ -96,7 +96,7 @@
 
         <div class="card-header my-1 shadow">
             <div class="d-flex justify-content-between">
-                <h5 class="text-primary">{{__('Manage Users')}}</h5>
+                <h5 class="text-primary">{{__('Manage Users')}}( <span class="text-success">{{$users->count()}} </span>)</h5>
                 <a href="{{ route('admin.users.create') }}" class="btn btn-outline-primary btn-sm ">{{ __('Add User') }}</a>
             </div>
 
@@ -118,12 +118,12 @@
                 <table id="userTable" class="display table table-sm table-hover table-striped align-middle table-bordered">
                     <thead class="bg-gradient">
                     <tr>
-                        <th class="text-primary bg-gradient sortable text-center" data-direction="asc">{{__('NN') }}<i class="bi bi-chevron-expand ms-1"></i></th>
                         <th class="text-primary bg-gradient sortable">{{__('Name') }}<i class="bi bi-chevron-expand ms-1"></i></th>
                         <th class="text-primary bg-gradient ">{{__('Email') }}</th>
                         <th class="text-primary bg-gradient sortable text-center">{{__('Team') }}<i class="bi bi-chevron-expand ms-1"></i></th>
                         <th class="text-primary bg-gradient text-center">{{__('Avatar') }}</th>
                         <th class="text-primary bg-gradient text-center">{{__('Role') }}</th>
+                        <th class="text-primary bg-gradient text-center">{{__('Stamp') }}</th>
                         <th class="text-primary bg-gradient text-center">{{__('Create Date')}}</th>
                         <th class="text-primary bg-gradient text-center">{{__('Action') }}</th>
                     </tr>
@@ -131,7 +131,6 @@
                     <tbody>
                     @foreach($users as $user)
                         <tr>
-                            <td class="text-center">{{$loop->iteration}}</td>
                             <td @if(!$user->email_verified_at) style="color:red" @endif>{{$user->name}}</td>
                             <td class="">{{$user->email}}</td>
                             <td class="text-center" style="color: {{ $user->team ? '#ffffff' : '#808080' }};">{{ $user->team->name ?? 'Unknown team' }}</td>
@@ -141,6 +140,7 @@
                                 </a>
                             </td>
                             <td class="text-center" style="color: {{ $user->role? '#ffffff' : '#808080' }};">{{ $user->role->name ?? 'Unknown role' }}</td>
+                            <td class="text-center" style="color: {{ $user->role? '#ffffff' : '#808080' }};">{{ $user->stamp }}</td>
                             <td class="text-center"><span style="display: none">{{$user->created_at}}</span>{{$user->created_at->format('d.m.Y')}}</td>
                             <td class="text-center">
                                 <a href="{{ route('admin.users.edit', ['user' => $user->id]) }}" class="btn btn-primary btn-sm">

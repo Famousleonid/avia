@@ -48,9 +48,9 @@
         }
 
         @media (max-width: 1200px) {
+            .table th:nth-child(1), .table td:nth-child(1),
             .table th:nth-child(5), .table td:nth-child(5),
-            .table th:nth-child(2), .table td:nth-child(2),
-            .table th:nth-child(3), .table td:nth-child(3) {
+            .manage-header {
                 display: none;
             }
         }
@@ -83,7 +83,7 @@
 
         <div class="card-header my-1 shadow">
             <div class="d-flex justify-content-between">
-                <h5 class="text-primary">{{__('Manage Units')}}</h5>
+                <h5 class="text-primary manage-header">{{__('Manage Units')}}( <span class="text-success">{{$units_all->count()}} </span>)</h5>
 
                 <div class="d-flex my-2">
                     <div class="clearable-input ps-2">
@@ -110,11 +110,8 @@
                 <table id="unitTable" class="display table table-sm table-hover table-striped align-middle table-bordered">
                     <thead class="bg-gradient">
                     <tr>
-                        <th class="text-primary sortable bg-gradient text-center" data-direction="asc">{{__('NN')}}<i class="bi bi-chevron-expand
-                        ms-1"></i></th>
                         <th class="text-primary  sortable bg-gradient text-center">{{__('Units Description')}}<i class="bi bi-chevron-expand ms-1"></i></th>
-                        <th class="text-primary  sortable bg-gradient text-center">{{__('Units PN')}}<i class="bi bi-chevron-expand
-                        ms-1"></i></th>
+                        <th class="text-primary  sortable bg-gradient text-center">{{__('Units PN')}}<i class="bi bi-chevron-expand ms-1"></i></th>
                         <th class="text-primary text-center bg-gradient text-center">{{__('CMM Unit ')}}</th>
                         <th class="text-primary text-center bg-gradient text-center">{{__('Image')}}</th>
                         <th class="text-primary text-center bg-gradient text-center">{{__('Edit')}}</th>
@@ -123,7 +120,7 @@
                     <tbody>
                     @foreach($groupedUnits as $manualNumber => $units)
                         <tr>
-                            <td class="text-center">{{$loop->iteration}}</td>
+
                             <td class="p-3">
                                 @if ($units->isNotEmpty() && $units->first()->manuals)
                                     {{ $units->first()->manuals->title }}

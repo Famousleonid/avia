@@ -40,7 +40,7 @@
         .table thead th {
             position: sticky;
             height: 50px;
-            top: 0;
+            top: -1px;
             vertical-align: middle;
             border-top: 1px;
             z-index: 1020;
@@ -82,7 +82,7 @@
 
         <div class="card-header my-1 shadow">
             <div class="d-flex justify-content-between">
-                <h5 class="text-primary">{{__('Manage CMMs')}}</h5>
+                <h5 class="text-primary">{{__('Manage CMMs')}}( <span class="text-success">{{$cmms->count()}} </span>)</h5>
                 <a href="{{ route('admin.manuals.create') }}" class="btn btn-outline-primary btn-sm ">{{ __('Add CMM') }}</a>
             </div>
         </div>

@@ -54,7 +54,7 @@
         @include('components.status')
         <div class="card-header my-1 shadow">
             <div class="d-flex justify-content-between">
-                <h5 class="text-primary">{{__('Customers')}}<span class="ms-2 text-white">{{count($customers)}}</span></h5>
+                <h5 class="text-primary">{{__('Customers')}}( <span class="text-success">{{$customers->count()}} </span>)</h5>
                 <button class="btn btn-outline-primary btn-sm" data-bs-toggle="modal" data-bs-target="#createModal">{{ __('Add customer') }}</button>
             </div>
         </div>

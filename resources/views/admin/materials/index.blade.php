@@ -81,7 +81,7 @@
 
         <div class="card-header my-1 shadow">
             <div class="d-flex justify-content-between">
-                <h5 class="text-primary">{{__('Materials')}} <span class="ms-1 text-white">{{count($materials)}}</span></h5>
+                <h5 class="text-primary">{{__('Materials')}}( <span class="text-success">{{$materials->count()}} </span>)</h5>
                 <button class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#createModal">{{ __('Add materials') }}</button>
             </div>
         </div>

@@ -5,7 +5,9 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\Customer;
 use App\Models\Instruction;
+use App\Models\Manual;
 use App\Models\Unit;
+use App\Models\User;
 use App\Models\Workorder;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -17,6 +19,7 @@ class WorkorderController extends Controller
     {
         $workorders = Workorder::all();
 
+
         return view('admin.workorders.index', compact('workorders'));
     }
 
@@ -26,8 +29,11 @@ class WorkorderController extends Controller
         $customers = Customer::all();
         $units = Unit::all();
         $instructions = Instruction::all();
+        $manuals = Manual::all();
+        $users = User::all();
+        $currentUser = Auth::user();
 
-        return view('admin.workorders.create', compact( 'customers', 'units', 'instructions'));
+        return view('admin.workorders.create', compact( 'customers', 'units', 'instructions','users','currentUser','manuals'));
     }
 
     public function store(Request $request)

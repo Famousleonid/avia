@@ -42,6 +42,7 @@
     </div>
 
     <div class="content col-12 col-lg-10 bg-body pt-2 ">
+        @include('components.status')
         @yield('content')
     </div>
 
