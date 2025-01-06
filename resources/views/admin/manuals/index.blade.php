@@ -83,19 +83,21 @@
         <div class="card-header my-1 shadow">
             <div class="d-flex justify-content-between">
                 <h5 class="text-primary">{{__('Manage CMMs')}}</h5>
-                <a href="{{ route('admin.manuals.create') }}" class="btn btn-outline-primary btn-sm ">{{ __('Add CMM') }}</a>
+                <div class="d-flex my-2">
+                    <div class="clearable-input ps-2">
+                        <input id="searchInput" type="text" class="form-control w-100" placeholder="Search...">
+                        <button class="btn-clear text-secondary" onclick="document.getElementById('searchInput').value = '';
+                    document.getElementById('searchInput').dispatchEvent(new Event('input'))">
+                            <i class="bi bi-x-circle"></i>
+                        </button>
+                    </div>
+                </div>
+                <a href="{{ route('admin.manuals.create') }}" class="btn btn-outline-primary" style="height: 40px">{{ __('Add CMM') }}</a>
+
             </div>
         </div>
 
-        <div class="d-flex my-2">
-            <div class="clearable-input ps-2">
-                <input id="searchInput" type="text" class="form-control w-100" placeholder="Search...">
-                <button class="btn-clear text-secondary" onclick="document.getElementById('searchInput').value = '';
-                    document.getElementById('searchInput').dispatchEvent(new Event('input'))">
-                    <i class="bi bi-x-circle"></i>
-                </button>
-            </div>
-        </div>
+
 
         @if(count($cmms))
 
