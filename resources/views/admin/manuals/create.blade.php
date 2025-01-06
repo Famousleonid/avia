@@ -3,7 +3,7 @@
 @section('content')
     <style>
         .container {
-            max-width: 750px;
+            max-width: 900px;
         }
     </style>
 
@@ -19,7 +19,7 @@
                     @csrf
 
                     <div class="form-group d-flex">
-                        <div class="mt-2 m-3  p-2">
+                        <div class="mt-2 m-3  p-3">
                             <div>
                                 <label for="wo">{{ __('Number CMM') }}</label>
                                 <input id='wo' type="text" class="form-control" name="number" required>
@@ -59,7 +59,7 @@
                                        required>
                             </div>
                         </div>
-                        <div style="width: 320px" class="m-3 p-2 ">
+                        <div style="width: 250px" class="m-3 p-2 ">
                             <div class="form-group ">
                                 <label for="planes_id">{{ __('AirCraft Type')  }}</label>
                                 <select id="planes_id" name="planes_id" class="form-control" required>
@@ -95,21 +95,27 @@
                                 <button type="button" class="btn btn-link" data-bs-toggle="modal"
                                         data-bs-target="#addScopeModal">{{ __('Add Scope') }}</button>
                             </div>
-                            <div class="mt-1">
-                                <label for="units">{{ __('Units') }}</label>
-                                <div id="unitInputs">
-                                    <div class="input-group mb-2 unit-field">
-                                        <input type="text" class="form-control" placeholder="Enter Unit Part Number" name="units[]" required>
-                                        <button class="btn btn-outline-primary" type="button" id="addUnitField">+ Add Unit</button>
-                                    </div>
-                                </div>
-                            </div>
+
 
                             <div>
                                 <label for="lib">{{ __('Library Number') }}</label>
                                 <input id='lib' type="text" class="form-control" name="lib" required>
                             </div>
 
+                        </div>
+                        <div style="width: 250px" class="m-3 p-1 ">
+                            <div class="mt-1">
+                                <label for="units">{{ __('Units') }}</label>
+                                <div id="unitInputs" class="">
+                                    <div class="input-group mb-2 unit-field">
+                                        <input type="text" class="form-control" placeholder="Enter Unit PN" style="width: 120px"
+                                               name="units[]"
+                                               required>
+                                        <button class="btn btn-outline-primary" type="button" style="width: 90px" id="addUnitField">Add
+                                            Unit</button>
+                                    </div>
+                                </div>
+                            </div>
                         </div>
 
                     </div>
