@@ -258,7 +258,7 @@
     <!-- Модальное окно add Unit -->
     <div class="modal fade" id="addUnitModal" tabindex="-1" aria-labelledby="addUnitLabel" aria-hidden="true">
         <div class="modal-dialog">
-            <div class="modal-content">
+            <div class="modal-content bg-gradient">
                 <div class="modal-header">
                     <h5 class="modal-title" id="addUnitLabel">Add Unit</h5>
                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Закрыть"></button>
@@ -306,7 +306,7 @@
 
         <div class="modal fade" id="editUnitModal" tabindex="-1" role="dialog" aria-labelledby="editUnitModalLabel" aria-hidden="true">
             <div class="modal-dialog" role="document">
-                <div class="modal-content">
+                <div class="modal-content bg-gradient">
                     <div class="modal-header justify-content-between">
                         <h5 class="modal-title" id="editUnitModalLabel">Edit Unit</h5>
                         <button type="button" class="btn btn-outline-primary" id="addUnitButton">{{ __('Add PN') }}</button>
@@ -411,14 +411,7 @@
 
 
 
-        // $(document).ready(function () {
-        //     $('#cmmSelect').select2({
-        //         placeholder: 'Search for a CMM',
-        //         allowClear: true,
-        //         width: '100%',
-        //         minimumResultsForSearch: 1 // Включает поиск даже при небольшом количестве элементов
-        //     });
-        // });
+
 
             document.getElementById('createUnitBtn').addEventListener('click', function () {
                 const cmmId = document.getElementById('cmmSelect').value;
@@ -475,7 +468,7 @@
                 console.log('Manual Image:', manualImage);
 
                 // Установка данных в модальное окно
-                // document.getElementById('editUnitModalLabel').innerText = `${manualTitle}`;
+
                 document.getElementById('editUnitModalLabel').innerText = manualTitle;
                 document.getElementById('editUnitModalNumber').innerText = `CMM: ${manualNumber}`;
 
@@ -556,7 +549,7 @@
 
             // Создаем кнопку для удаления
             const deleteButton = document.createElement('button');
-            deleteButton.className = 'btn btn-danger btn-sm ms-1';
+            deleteButton.className = 'btn btn-outline-danger btn-sm ms-1';
             deleteButton.innerText = 'Del';
             deleteButton.onclick = function () {
                 listItem.remove();

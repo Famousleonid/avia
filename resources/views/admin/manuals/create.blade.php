@@ -95,6 +95,16 @@
                                 <button type="button" class="btn btn-link" data-bs-toggle="modal"
                                         data-bs-target="#addScopeModal">{{ __('Add Scope') }}</button>
                             </div>
+                            <div class="mt-1">
+                                <label for="units">{{ __('Units') }}</label>
+                                <div id="unitInputs">
+                                    <div class="input-group mb-2 unit-field">
+                                        <input type="text" class="form-control" placeholder="Enter Unit Part Number" name="units[]" required>
+                                        <button class="btn btn-outline-primary" type="button" id="addUnitField">+ Add Unit</button>
+                                    </div>
+                                </div>
+                            </div>
+
                             <div>
                                 <label for="lib">{{ __('Library Number') }}</label>
                                 <input id='lib' type="text" class="form-control" name="lib" required>
@@ -118,7 +128,7 @@
     <div class="modal fade" id="addAirCraftModal" tabindex="-1" aria-labelledby="addAirCraftModalLabel"
          aria-hidden="true">
         <div class="modal-dialog">
-            <div class="modal-content">
+            <div class="modal-content bg-gradient">
                 <div class="modal-header">
                     <h5 class="modal-title" id="addAirCraftModalLabel">{{ __('Add AirCraft') }}</h5>
                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Закрыть"></button>
@@ -132,8 +142,8 @@
                         </div>
                     </div>
                     <div class="modal-footer">
-                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Закрыть"></button>
-                        <button type="submit" class="btn btn-primary">{{ __('Save') }}</button>
+{{--                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Закрыть"></button>--}}
+                        <button type="submit" class="btn btn-outline-primary">{{ __('Save') }}</button>
                     </div>
                 </form>
             </div>
@@ -143,7 +153,7 @@
     <!-- Модальное окно для добавления MFR -->
     <div class="modal fade" id="addMFRModal" tabindex="-1" aria-labelledby="addMFRModalLabel" aria-hidden="true">
         <div class="modal-dialog">
-            <div class="modal-content">
+            <div class="modal-content bg-gradient">
                 <div class="modal-header">
                     <h5 class="modal-title" id="addMFRModalLabel">{{ __('Add MFR') }}</h5>
                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
@@ -157,8 +167,8 @@
                         </div>
                     </div>
                     <div class="modal-footer">
-                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-                        <button type="submit" class="btn btn-primary">{{ __('Save') }}</button>
+{{--                       <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>--}}
+                        <button type="submit" class="btn btn-outline-primary">{{ __('Save') }}</button>
                     </div>
                 </form>
             </div>
@@ -168,7 +178,7 @@
     <!-- Модальное окно для добавления Scope -->
     <div class="modal fade" id="addScopeModal" tabindex="-1" aria-labelledby="addScopeModalLabel" aria-hidden="true">
         <div class="modal-dialog">
-            <div class="modal-content">
+            <div class="modal-content bg-gradient">
                 <div class="modal-header">
                     <h5 class="modal-title" id="addScopeModalLabel">{{ __('Add Scope') }}</h5>
                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
@@ -182,8 +192,8 @@
                         </div>
                     </div>
                     <div class="modal-footer">
-                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-                        <button type="submit" class="btn btn-primary">{{ __('Save') }}</button>
+{{--                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>--}}
+                        <button type="submit" class="btn btn-outline-primary">{{ __('Save') }}</button>
                     </div>
                 </form>
             </div>
@@ -239,6 +249,28 @@
         handleFormSubmission('addMFRForm', '{{ route('admin.builders.store') }}', 'builders_id', 'id', 'name',
             'addMFRModal');
         handleFormSubmission('addScopeForm', '{{ route('admin.scopes.store') }}', 'scopes_id', 'id', 'scope', 'addScopeModal');
+
+
+
+        document.addEventListener('DOMContentLoaded', function () {
+            document.getElementById('addUnitField').addEventListener('click', function () {
+                const newUnitField = document.createElement('div');
+                newUnitField.className = 'input-group mb-2 unit-field';
+                newUnitField.innerHTML = `
+            <input type="text" class="form-control" placeholder="Enter Unit Part Number" name="units[]" required>
+            <button class="btn btn-outline-danger removeUnitField" type="button">Remove</button>
+        `;
+                document.getElementById('unitInputs').appendChild(newUnitField);
+            });
+
+            document.getElementById('unitInputs').addEventListener('click', function (event) {
+                if (event.target.classList.contains('removeUnitField')) {
+                    event.target.parentElement.remove();
+                }
+            });
+        });
+
+
 
     </script>
 @endsection
