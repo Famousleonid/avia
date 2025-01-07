@@ -98,7 +98,7 @@
                                 <th class="text-center text-primary bg-gradient ">Technik</th>
                                 <th class="text-center text-primary bg-gradient ">Place</th>
                                 <th class="text-center text-primary bg-gradient " data-orderable="false">Edit</th>
-                                <th class="text-center text-primary bg-gradient ">create Date</th>
+                                <th class="text-center text-primary bg-gradient ">Open Date</th>
                                 <th class="text-center text-primary bg-gradient " data-orderable="false">Delete</th>
                             </tr>
                             </thead>
@@ -135,7 +135,11 @@
                                     <td class="text-center">
                                         <a href="{{route('admin.workorders.edit', ['workorder' => $workorder->id])}}"><img src="{{asset('img/set.png')}}" width="30px" alt=""></a>
                                     </td>
-                                    <td class="text-center"><span style="display: none">{{$workorder->created_at->format('Ymd')}}</span>{{$workorder->created_at->format('d.m.Y')}}</td>
+{{--                                    <td class="text-center"><span style="display: none">{{$workorder->created_at->format('Ymd')}}</span>{{$workorder->created_at->format('d.m.Y')}}</td>--}}
+                                    <td class="text-center"><span style="display: none">{{$workorder->open_at->format('Ymd')
+                                    }}</span>{{$workorder->open_at->format('d.m.Y')}}</td>
+
+{{--                                    <td class="text-center">{{$workorder->open_at}}</td>--}}
                                     <td class="text-center">
                                         <form action="{{route('admin.workorders.destroy', ['workorder' => $workorder->id])}}" method="post">
                                             @csrf

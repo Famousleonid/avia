@@ -28,7 +28,7 @@ class WorkorderController extends Controller
     public function create()
     {
         $customers = Customer::all();
-        $units = Unit::all();
+        $units = Unit::with('manuals')->get();
         $instructions = Instruction::all();
         $manuals = Manual::all();
         $users = User::all();

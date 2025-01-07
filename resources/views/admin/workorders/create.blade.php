@@ -105,7 +105,13 @@
                                     <select name="unit_id" id="unit_id" class="form-control">
                                         <option disabled selected value="">---</option>
                                         @foreach ($units as $unit)
-                                            <option value="{{$unit->id}}" data-lib="{{$unit->lib}}" data-description="{{$unit->description}}">{{$unit->part_number}}</option>
+                                            <option
+                                                value="{{$unit->id}}"
+{{--                                                data-lib="{{$unit->manuals->lib}}"--}}
+{{--                                                data-description="{{$unit->manuals->title}}"--}}
+                                                data-title="{{ $unit->manuals->title }}">
+                                                {{$unit->part_number}}
+                                            </option>
                                         @endforeach
                                     </select>
                                 </div>
@@ -138,21 +144,21 @@
 
                                 <div class="form-group col-lg-9 mt-2">
                                     <label for="unit_description">Description</label>
-                                    <input type="text" name="description" id="wo_description" maxlength="30" value="" class="form-control @error('description') is-invalid @enderror" placeholder="">
+                                    <input type="text" name="description" id="wo_description"  value="" class="form-control @error('description') is-invalid @enderror" placeholder="">
                                 </div>
 
                                 <div class="form-group col-lg-3 mt-2">
-                                    <label for="unit_description">Amdt</label>
+                                    <label for="unit_amdt">Amdt</label>
                                     <input type="text" name="amdt" id="wo_amdt" maxlength="30" value="" class="form-control @error('amdt') is-invalid @enderror" placeholder="">
                                 </div>
 
                                 <div class="form-group col-lg-3 mt-2">
-                                    <label for="unit_description">Place</label>
-                                    <input type="text" name="place" id="wo_place" maxlength="30" value="" class="form-control @error('place') is-invalid @enderror" placeholder="">
+                                    <label for="unit_place">Place</label>
+                                    <input type="text" name="place" id="wo_place" maxlength="30" value=""  class="form-control @error ('place') is-invalid @enderror" placeholder="">
                                 </div>
 
                                 <div class="form-group col-lg-3 mt-2">
-                                    <label for="unit_description">Open date</label>
+                                    <label for="unit_open_at">Open date</label>
                                     <input type="date" name="open_at" id="open_at" maxlength="30" value="" class="form-control @error('open_at') is-invalid @enderror" placeholder="date opened">
                                 </div>
 
@@ -233,13 +239,32 @@
 
 
     <script>
+
         window.addEventListener('load', function () {
 
-            var selection = document.getElementById("unit_id");
-            selection.onchange = function (event) {
-                document.getElementById("lib").value = event.target.options[event.target.selectedIndex].dataset.lib;
-                document.getElementById("unit_description").value = event.target.options[event.target.selectedIndex].dataset.description;
+            const unitSelect = document.getElementById('unit_id');
+            const descriptionInput = document.getElementById('wo_description');
+
+            unitSelect.onchange = function (event) {
+                // Получаем выбранный элемент
+                const selectedOption = this.options[this.selectedIndex];
+                console.log(selectedOption);
+                const title = selectedOption.getAttribute('data-title');
+
+                console.log('description:', title);
+
+                // Устанавливаем значение в поле описания
+                descriptionInput.value = title || ''
             };
+
+
+
+
+            // var selection = document.getElementById("unit_id");
+            // selection.onchange = function (event) {
+            //     document.getElementById("lib").value = event.target.options[event.target.selectedIndex].dataset.lib;
+            //     document.getElementById("unit_description").value = event.target.options[event.target.selectedIndex].dataset.description;
+            // };
 
             function check1() {
                 let aa = $('#number_id').val();
@@ -328,6 +353,9 @@
 
 
         });
+
+
+
 
     </script>
 @endsection
