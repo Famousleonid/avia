@@ -11,7 +11,7 @@ return new class extends Migration {
     {
         Schema::create('components', function (Blueprint $table) {
             $table->id();
-            $table->string('purt_number')->nullable();
+            $table->string('part_number')->nullable();
             $table->string('name');
             $table->timestamps();
         });

@@ -88,8 +88,10 @@
                                 <th class="text-center text-primary bg-gradient ">Number</th>
                                 <th class="text-center text-primary bg-gradient ">Approve</th>
                                 <th class="text-center text-primary bg-gradient ">Unit</th>
+                                <th class="text-center text-primary bg-gradient ">Description</th>
+
                                 <th class="text-center text-primary bg-gradient ">Serial number</th>
-                                <th class="text-center text-primary bg-gradient ">Amdt</th>
+                                <th class="text-center text-primary bg-gradient ">WO TDR</th>
                                 <th class="text-center text-primary bg-gradient ">Manual</th>
                                 <th class="text-center text-primary bg-gradient ">Customer</th>
                                 <th class="text-center text-primary bg-gradient ">Instruction</th>
@@ -103,19 +105,32 @@
                             <tbody>
                             @foreach ($workorders as $workorder)
                                 <tr>
-                                    <td>{{$workorder->number}}</td>
-                                    @if($workorder->approve)
+                                    <td class="text-center">{{$workorder->number}}</td>
+                                    @if($workorder->approve_at)
+
                                         <td class="text-center"><img src="{{asset('img/ok.png')}}" width="30px" alt=""></td>
                                     @else
                                         <td class="text-center"><img src="{{asset('img/icon_no.png')}}" width="15px" alt=""></td>
                                     @endif
-                                    <td class="">{{$workorder->unit->partnumber}}</td>
-                                    <td class="text-center">{{$workorder->serial_number}}</td>
-                                    <td class="text-center">{{$workorder->amdt}}</td>
-                                    <td class="text-center">{{$workorder->unit_id}}</td>
-                                    <td class="">{{$workorder->customer->name}}</td>
-                                    <td class="">{{$workorder->instruction->name}}</td>
-                                    <td class="">{{$workorder->user->name}}</td>
+                                    <td class="text-center">{{$workorder->unit->part_number}}</td>
+                                    <td class="text-center">{{$workorder->unit->manuals->title}}</td>
+
+                                    <td class="text-center">{{$workorder->serial_number}}
+                                        @if($workorder->amdt>0)
+                                            Amdt {{$workorder->amdt}}
+                                        @endif
+                                    </td>
+                                    <td class="text-center">
+                                        <button class="tdr-unit-btn btn btn-outline-primary btn-sm ">
+{{--                                          <i class="bi bi-card-list"> </i>--}}
+                                            <i class="bi bi-journal-richtext"></i>
+                                        </button>
+                                    </td>
+
+                                    <td class="text-center">{{$workorder->unit->manuals->number}}</td>
+                                    <td class="text-center">{{$workorder->customer->name}}</td>
+                                    <td class="text-center">{{$workorder->instruction->name}}</td>
+                                    <td class="text-center">{{$workorder->user->name}}</td>
                                     <td class="">{{$workorder->place}}</td>
                                     <td class="text-center">
                                         <a href="{{route('admin.workorders.edit', ['workorder' => $workorder->id])}}"><img src="{{asset('img/set.png')}}" width="30px" alt=""></a>
@@ -125,7 +140,8 @@
                                         <form action="{{route('admin.workorders.destroy', ['workorder' => $workorder->id])}}" method="post">
                                             @csrf
                                             @method('DELETE')
-                                            <button class="btn btn-danger btn-sm" data-bs-toggle="modal" data-bs-target="#deleteModal" data-title="Delete workorder {{$workorder->number}}">
+                                            <button class="btn btn-outline-danger btn-sm" data-bs-toggle="modal" data-bs-target="#deleteModal"
+                                                    data-title="Delete workorder {{$workorder->number}}">
                                                 <i class="bi bi-trash"></i>
                                             </button>
                                         </form>

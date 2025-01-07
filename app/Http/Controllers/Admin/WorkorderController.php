@@ -18,9 +18,10 @@ class WorkorderController extends Controller
     public function index()
     {
         $workorders = Workorder::all();
+        $manuals = Manual::all();
+        $units =Unit::with('manuals')->get();
 
-
-        return view('admin.workorders.index', compact('workorders'));
+        return view('admin.workorders.index', compact('workorders','units','manuals'));
     }
 
 
