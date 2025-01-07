@@ -58,6 +58,11 @@ class Manual extends Model implements  hasMedia
     {
         return $this->hasMany(Unit::class,'manual_id');
     }
+    public function components()
+    {
+        return $this->hasMany(Component::class, 'manual_id');
+    }
+
     public function registerAllMediaConversions(): void
     {
         $this->addMediaConversion('thumb')

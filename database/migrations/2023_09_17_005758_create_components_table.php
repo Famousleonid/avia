@@ -13,17 +13,19 @@ return new class extends Migration {
             $table->id();
             $table->string('part_number')->nullable();
             $table->string('name');
+            $table->string('ipl_num');
+            $table->foreignId('manual_id')->nullable()->constrained()->onDelete('set null');
             $table->timestamps();
         });
 
-        $dataComponent = [
-            ['name' => 'Pin'],
-            ['name' => 'Bracket'],
-            ['name' => 'Axle'],
-            ['name' => 'Main Fitting'],
-            ['name' => 'Pintle Pin'],
-        ];
-        Component::insert($dataComponent);
+//        $dataComponent = [
+//            ['name' => 'Pin'],
+//            ['name' => 'Bracket'],
+//            ['name' => 'Axle'],
+//            ['name' => 'Main Fitting'],
+//            ['name' => 'Pintle Pin'],
+//        ];
+//        Component::insert($dataComponent);
     }
 
     public function down()

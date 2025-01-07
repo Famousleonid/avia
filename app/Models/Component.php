@@ -9,10 +9,21 @@ class Component extends Model
 {
     use HasFactory;
 
-    protected $fillable = ['purtnumber', 'name'];
+    protected $fillable = ['part_number', 'name','ipl_num','manual_id'];
+
+
+    public function manuals()
+    {
+        return $this->belongsTo(Manual::class,'manual_id');
+    }
+
+
 
     /*  public function component_main()
       {
           return $this->hasMany(Component_main::class);
       }*/
+
+
+
 }
