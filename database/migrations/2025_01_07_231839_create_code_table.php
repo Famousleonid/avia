@@ -23,7 +23,7 @@ return new class extends Migration
         $file = fopen($csvFile, 'r');
         $headers = fgetcsv($file);
         while (($row = fgetcsv($file)) !== false) {
-            DB::table('unit_tdr')->insert([
+            DB::table('code')->insert([
                 'name' => $row[0],
                 'code' => $row[1],
             ]);
