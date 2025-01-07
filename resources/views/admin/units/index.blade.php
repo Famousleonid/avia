@@ -94,7 +94,7 @@
                         </button>
                     </div>
                 </div>
-                <button class="btn btn-outline-primary mb-1"
+                <button class="btn btn-outline-primary mb-1" style="height: 40px"
                         data-bs-toggle="modal"
                         data-bs-target="#addUnitModal">{{__('Add Unit')}}
                 </button>
@@ -110,11 +110,17 @@
                 <table id="unitTable" class="display table table-sm table-hover table-striped align-middle table-bordered">
                     <thead class="bg-gradient">
                     <tr>
-                        <th class="text-primary  sortable bg-gradient text-center">{{__('Units Description')}}<i class="bi bi-chevron-expand ms-1"></i></th>
-                        <th class="text-primary  sortable bg-gradient text-center">{{__('Units PN')}}<i class="bi bi-chevron-expand ms-1"></i></th>
-                        <th class="text-primary text-center bg-gradient text-center">{{__('CMM Unit ')}}</th>
-                        <th class="text-primary text-center bg-gradient text-center">{{__('Image')}}</th>
-                        <th class="text-primary text-center bg-gradient text-center">{{__('Edit')}}</th>
+                        <th class="text-primary  sortable bg-gradient text-center" >{{__('Units
+                        Description')}}<i
+                                class="bi bi-chevron-expand ms-1"></i></th>
+                        <th class="text-primary  sortable bg-gradient text-center" style="width: 220px">{{__('Units
+                        PN')
+                        }}<i class="bi
+                        bi-chevron-expand ms-1"></i></th>
+                        <th class="text-primary text-center bg-gradient text-center" style="width: 120px">{{__('CMM
+                        Unit ')}}</th>
+                        <th class="text-primary text-center bg-gradient text-center" style="width: 120px">{{__('Image')}}</th>
+                        <th class="text-primary text-center bg-gradient text-center" style="width: 120px">{{__('Edit')}}</th>
                     </tr>
                     </thead>
                     <tbody>
