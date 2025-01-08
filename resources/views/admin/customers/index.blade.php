@@ -84,10 +84,12 @@
                         <tr>
                             <td class="">{{$customer->name}}</td>
                             <td class="text-center">
-                                <button class="btn btn-primary btn-sm me-2" data-bs-toggle="modal" data-bs-target="#editModal" onclick="populateEditModal({{ $customer->id }}, '{{ $customer->name }}')">
+                                <button class="btn btn-outline-primary btn-sm me-2" data-bs-toggle="modal" data-bs-target="#editModal"
+                                        onclick="populateEditModal({{ $customer->id }}, '{{ $customer->name }}')">
                                     <i class="bi bi-pencil-square"></i>
                                 </button>
-                                <button class="btn btn-danger btn-sm" data-bs-toggle="modal" data-bs-target="#deleteModal" onclick="populateDeleteModal({{ $customer->id }}, '{{ $customer->name }}')">
+                                <button class="btn btn-outline-danger btn-sm" data-bs-toggle="modal" data-bs-target="#deleteModal"
+                                        onclick="populateDeleteModal({{ $customer->id }}, '{{ $customer->name }}')">
                                     <i class="bi bi-trash"></i>
                                 </button>
                             </td>
@@ -117,7 +119,7 @@
                             <label for="createName" class="form-label">Name</label>
                             <input type="text" id="createName" name="name" class="form-control" required>
                         </div>
-                        <button type="submit" class="btn btn-primary">Save</button>
+                        <button type="submit" class="btn btn-outline-primary">Save</button>
                     </form>
                 </div>
             </div>
@@ -141,7 +143,7 @@
                             <label for="editName" class="form-label">Name</label>
                             <input type="text" id="editName" name="name" class="form-control" required>
                         </div>
-                        <button type="submit" class="btn btn-primary" onclick="showLoadingSpinner()">Update</button>
+                        <button type="submit" class="btn btn-outline-primary" onclick="showLoadingSpinner()">Update</button>
                     </form>
                 </div>
             </div>
@@ -162,7 +164,7 @@
                         @csrf
                         @method('DELETE')
                         <input type="hidden" id="deleteId" name="id">
-                        <button type="submit" class="btn btn-danger" onclick="showLoadingSpinner()">Delete</button>
+                        <button type="submit" class="btn btn-outline-danger" onclick="showLoadingSpinner()">Delete</button>
                     </form>
                 </div>
             </div>

@@ -14,19 +14,17 @@ return new class extends Migration
      */
     public function up()
     {
-        Schema::create('code', function (Blueprint $table) {
+        Schema::create('inspect_std', function (Blueprint $table) {
             $table->id();
             $table->string('name');
-            $table->string('code');
         });
 
-        $csvFile = public_path('data/code.csv');
+        $csvFile = public_path('data/inspect_std.csv');
         $file = fopen($csvFile, 'r');
         $headers = fgetcsv($file);
         while (($row = fgetcsv($file)) !== false) {
-            DB::table('code')->insert([
+            DB::table('inspect_std')->insert([
                 'name' => $row[0],
-                'code' => $row[1],
             ]);
         }
         fclose($file);
@@ -39,6 +37,6 @@ return new class extends Migration
      */
     public function down()
     {
-        Schema::dropIfExists('code');
+        Schema::dropIfExists('inspect_std');
     }
 };
