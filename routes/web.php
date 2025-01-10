@@ -84,12 +84,12 @@ Route::group(['middleware' => ['auth', 'isAdmin'], 'prefix' => 'admin', 'as' =>'
     Route::resource('/tasks',  \App\Http\Controllers\Admin\TaskController::class);
     Route::resource('/general-tasks',  \App\Http\Controllers\Admin\GeneralTaskController::class);
     Route::resource('/workorders',  \App\Http\Controllers\Admin\WorkorderController::class);
+
     Route::resource('/units',  \App\Http\Controllers\Admin\UnitController::class);
-
-
-
     Route::post('/admin/units/update/{manualId}', [\App\Http\Controllers\Admin\UnitController::class, 'updateUnits'])->name('admin.units.update');
     Route::post('/units/update/{manualId}', [\App\Http\Controllers\Admin\UnitController::class, 'updateUnits'])->name('units.update');
+
+    Route::resource('/tdrs',\App\Http\Controllers\Admin\TdrController::class);
 
 });
 
