@@ -16,7 +16,10 @@ class Component extends Model
     {
         return $this->belongsTo(Manual::class,'manual_id');
     }
-
+    public function tdr_component()
+    {
+        return $this->hasMany(TdrComponent::class);
+    }
 
 
     /*  public function component_main()

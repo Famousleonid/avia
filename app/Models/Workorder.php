@@ -29,6 +29,10 @@ class Workorder extends Model implements HasMedia
 
     }
 
+    public function tdr_components()
+    {
+        return $this->hasMany(TdrComponent::class);
+    }
 
     public function user()
     {
