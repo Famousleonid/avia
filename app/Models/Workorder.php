@@ -16,8 +16,11 @@ class Workorder extends Model implements HasMedia
     use LogsActivity;
     use SoftDeletes;
 
-    protected $fillable = ['number', 'user_id', 'unit_id', 'instruction_id','open_at', 'customer_id', 'approve', 'approve_at',
-'description', 'manual', 'serial_number', 'place', 'created_at'];
+    protected $fillable = ['number', 'user_id', 'unit_id', 'instruction_id',
+        'external_damage','received_disassembly','nameplate_missing','disassembly_upon_arrival',
+        'preliminary_test_false','part_missing','extra_parts',
+        'open_at', 'customer_id', 'approve', 'approve_at',
+        'description', 'manual', 'serial_number', 'place', 'created_at'];
     protected $dates = ['approve_at','deleted_at','open_at'];
 
     public function getActivitylogOptions(): LogOptions
@@ -29,10 +32,7 @@ class Workorder extends Model implements HasMedia
 
     }
 
-    public function tdr_components()
-    {
-        return $this->hasMany(TdrComponent::class);
-    }
+
 
     public function user()
     {

@@ -93,10 +93,30 @@
 
         @if(count($orders))
             <div class="table-wrapper me-3 p-2 pt-0">
+                <table id="tdrTable" class="display table table-sm table-hover table-striped align-middle table-bordered">
+                    <thead class="bg-gradient">
+                        <tr>
+                            <th class="text-center text-primary bg-gradient ">Number</th>
+                            <th class="text-center text-primary bg-gradient ">Unit</th>
+                            <th class="text-center text-primary bg-gradient ">Description</th>
+                            <th class="text-center text-primary bg-gradient ">Serial number</th>
+                            <th class="text-center text-primary bg-gradient ">Customer</th>
+                            <th class="text-center text-primary bg-gradient ">Technik</th>
+                            <th class="text-center text-primary bg-gradient ">Action</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                    @foreach($orders as $order)
+                        <tr>
 
+                        </tr>
+                    @endforeach
+                    </tbody>
+
+                </table>
             </div>
-
-
+        @else
+            <p>Work Orders TDR not created</p>
         @endif
     </div>
 
