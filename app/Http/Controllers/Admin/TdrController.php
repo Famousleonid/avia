@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Models\Workorder;
 use Illuminate\Http\Request;
 
 class TdrController extends Controller
@@ -10,11 +11,13 @@ class TdrController extends Controller
     /**
      * Display a listing of the resource.
      *
-     * @return \Illuminate\Http\Response
+     * @return
      */
     public function index()
     {
-        //
+        $orders=Workorder::all();
+
+        return view('admin.tdrs.index', compact('orders'));
     }
 
     /**

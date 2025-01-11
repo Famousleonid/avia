@@ -103,12 +103,12 @@
                             </div>
 
                         </div>
-                        <div style="width: 250px" class="m-3 p-1 ">
+                        <div style="width: 300px" class="m-3 p-1 ">
                             <div class="mt-1">
                                 <label for="units">{{ __('Units') }}</label>
                                 <div id="unitInputs" class="">
                                     <div class="input-group mb-2 unit-field">
-                                        <input type="text" class="form-control" placeholder="Enter Unit PN" style="width: 120px"
+                                        <input type="text" class="form-control" placeholder="Enter Unit PN" style="width: 140px"
                                                name="units[]"
                                                required>
                                         <button class="btn btn-outline-primary" type="button" style="width: 90px" id="addUnitField">Add

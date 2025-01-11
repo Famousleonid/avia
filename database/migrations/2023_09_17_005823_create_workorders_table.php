@@ -27,6 +27,15 @@ return new class extends Migration {
             $table->foreignId('customer_id')->constrained();
             $table->foreignId('user_id')->constrained();
 
+            $table->boolean('external_damage')->default(false);
+            $table->boolean('received_disassembly')->default(false);
+            $table->boolean('nameplate_missing')->default(false);
+            $table->boolean('preliminary_test_false')->default(false);
+            $table->boolean('part_missing')->default(false);
+            $table->boolean('extra_parts')->default(false);
+            $table->boolean('disassembly_upon arrival')->default(false);
+
+
             $table->timestamps();
             $table->softDeletes();
         });
