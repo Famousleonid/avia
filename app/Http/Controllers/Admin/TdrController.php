@@ -3,8 +3,18 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Models\Builder;
+use App\Models\Customer;
+use App\Models\Manual;
+use App\Models\Plane;
+use App\Models\Tdr;
+use App\Models\Unit;
 use App\Models\Workorder;
+use Illuminate\Contracts\Foundation\Application;
+use Illuminate\Contracts\View\Factory;
+use Illuminate\Contracts\View\View;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 
 class TdrController extends Controller
 {
@@ -16,8 +26,10 @@ class TdrController extends Controller
     public function index()
     {
         $orders=Workorder::all();
-
-        return view('admin.tdrs.index', compact('orders'));
+        $manuals = Manual::all();
+        $units =Unit::with('manuals')->get();
+        $tdrs=Tdr::all();
+        return view('admin.tdrs.index', compact('orders','units','manuals','tdrs'));
     }
 
     /**
@@ -27,7 +39,7 @@ class TdrController extends Controller
      */
     public function create()
     {
-        //
+       //
     }
 
     /**
@@ -45,22 +57,36 @@ class TdrController extends Controller
      * Display the specified resource.
      *
      * @param  int  $id
-     * @return \Illuminate\Http\Response
+     * @return Application|Factory|View
      */
     public function show($id)
     {
-        //
+        $current_wo = Workorder::findOrFail($id);
+        $units = Unit::all();
+        $user = Auth::user();
+        $customers = Customer::all();
+        $manuals = Manual::all();
+        $planes = Plane::all();
+        $builders = Builder::all();
+        return view('admin.tdrs.show', compact(  'current_wo','units','user','customers','manuals','builders','planes'));
     }
 
     /**
      * Show the form for editing the specified resource.
      *
      * @param  int  $id
-     * @return \Illuminate\Http\Response
+     * @return Application|Factory|View
      */
     public function edit($id)
     {
-        //
+        $current_wo = Workorder::findOrFail($id);
+        $units = Unit::all();
+        $user = Auth::user();
+        $customers = Customer::all();
+        $manuals = Manual::all();
+        $planes = Plane::all();
+        $builders = Builder::all();
+        return view('admin.tdrs.edit', compact(  'current_wo','units','user','customers','manuals','builders','planes'));
     }
 
     /**

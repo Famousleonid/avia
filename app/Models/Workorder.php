@@ -31,7 +31,10 @@ class Workorder extends Model implements HasMedia
             ->logOnlyDirty();
 
     }
-
+    public function tdrs()
+    {
+        return $this->belongsTo(Tdr::class,'workorder_id');
+    }
 
 
     public function user()

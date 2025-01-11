@@ -108,7 +108,41 @@
                     <tbody>
                     @foreach($orders as $order)
                         <tr>
+                            <td class="text-center">{{$order->number}}</td>
+                            <td class="text-center">{{$order->unit->part_number}}</td>
+                            <td class="text-center">{{$order->unit->manuals->title}}</td>
 
+                            <td class="text-center">{{$order->serial_number}}
+                                @if($order->amdt>0)
+                                    Amdt {{$order->amdt}}
+                                @endif
+                            </td>
+                            <td class="text-center">{{$order->customer->name}}</td>
+                            <td class="text-center">{{$order->user->name}}</td>
+                            <td class="text-center">
+                                @if(count($tdrs))
+                                    @foreach($tdrs as $tdr)
+                                        @if($order->id != $tdr->workorder_id  )
+                                            <a href="{{ route('admin.tdrs.show', ['order' => $order->id]) }}" class="btn btn-outline-primary
+                                            btn-sm">
+                                                <i class="bi bi-patch-plus"></i>
+                                            </a>
+                                        @else
+{{--                                            {{'WO TDR Created'}}--}}
+                                            <a href="{{ route('admin.tdrs.edit', ['order' => $order->id]) }}" class="btn btn-outline-primary
+                                            btn-sm">
+                                                <i class="bi bi-pencil-square"></i>
+                                            </a>
+                                        @endif
+                                    @endforeach
+                                @else
+{{--                                {{$order->id}}--}}
+                                    <a href="{{ route('admin.tdrs.show', ['tdr' => $order->id]) }}" class="btn btn-outline-primary
+                                            btn-sm">
+                                        <i class="bi bi-patch-plus"></i>
+                                    </a>
+                                @endif
+                            </td>
                         </tr>
                     @endforeach
                     </tbody>
@@ -116,7 +150,7 @@
                 </table>
             </div>
         @else
-            <p>Work Orders TDR not created</p>
+            <H4 CLASS="text-center">{{__('WORK ORDER TEAR DOWN REPORTS NOT CREATED')}}</H4>
         @endif
     </div>
 
