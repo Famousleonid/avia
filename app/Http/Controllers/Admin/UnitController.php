@@ -170,23 +170,23 @@ class UnitController extends Controller
         ]);
     }
 
-    public function update($manualId, Request $request)
-    {
-//        dd($request, $manualId);
-        $partNumbers = $request->input('part_numbers');
-
-        // Логика для добавления и удаления part_number из базы данных
-        foreach ($partNumbers as $partNumber) {
-            // Добавление или обновление логики для part_number
-            Unit::updateOrCreate(
-                ['manual_id' => $manualId, 'part_number' => $partNumber],
-                ['manual_id' => $manualId, 'part_number' => $partNumber]
-            );
-        }
-
-        // Вернуть JSON ответ
-        return response()->json(['success' => true]);
-    }
+//    public function update($manualId, Request $request)
+//    {
+//       dd($request, $manualId);
+//        $partNumbers = $request->input('part_numbers');
+//
+//        // Логика для добавления и удаления part_number из базы данных
+//        foreach ($partNumbers as $partNumber) {
+//            // Добавление или обновление логики для part_number
+//            Unit::updateOrCreate(
+//                ['manual_id' => $manualId, 'part_number' => $partNumber],
+//                ['manual_id' => $manualId, 'part_number' => $partNumber]
+//            );
+//        }
+//
+//        // Вернуть JSON ответ
+//        return response()->json(['success' => true]);
+//    }
 
 
 

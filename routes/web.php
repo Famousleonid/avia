@@ -85,7 +85,7 @@ Route::group(['middleware' => ['auth', 'isAdmin'], 'prefix' => 'admin', 'as' =>'
     Route::resource('/general-tasks',  \App\Http\Controllers\Admin\GeneralTaskController::class);
     Route::resource('/workorders',  \App\Http\Controllers\Admin\WorkorderController::class);
 
-    Route::resource('/units',  \App\Http\Controllers\Admin\UnitController::class);
+    Route::resource('/units',  \App\Http\Controllers\Admin\UnitController::class)->except('update');
 
     Route::post('/units/update/{manualId}', [\App\Http\Controllers\Admin\UnitController::class, 'updateUnits'])->name('units.updateUnits');
 
