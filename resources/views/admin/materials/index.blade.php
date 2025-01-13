@@ -117,10 +117,12 @@
                             <td class="">{{$material->specification}}</td>
                             <td class="">{{$material->description}}</td>
                             <td class="text-center">
-                                <button class="btn btn-primary btn-sm me-2" data-bs-toggle="modal" data-bs-target="#editModal" onclick="populateEditModal({{ $material->id }}, '{{ $material->code }}', '{{ $material->material }}', '{{ $material->specification }}', '{{ $material->description }}')">
+                                <button class="btn btn-outline-primary btn-sm me-2" data-bs-toggle="modal"
+                                        data-bs-target="#editModal" onclick="populateEditModal({{ $material->id }}, '{{ $material->code }}', '{{ $material->material }}', '{{ $material->specification }}', '{{ $material->description }}')">
                                     <i class="bi bi-pencil-square"></i>
                                 </button>
-                                <button class="btn btn-danger btn-sm" data-bs-toggle="modal" data-bs-target="#deleteModal" onclick="populateDeleteModal({{ $material->id }}, '{{ $material->code }}')">
+                                <button class="btn btn-outline-danger btn-sm" data-bs-toggle="modal" data-bs-target="#deleteModal"
+                                        onclick="populateDeleteModal({{ $material->id }}, '{{ $material->code }}')">
                                     <i class="bi bi-trash"></i>
                                 </button>
                             </td>

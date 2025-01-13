@@ -143,13 +143,15 @@
                             <td class="text-center" style="color: {{ $user->role? '#ffffff' : '#808080' }};">{{ $user->stamp }}</td>
                             <td class="text-center"><span style="display: none">{{$user->created_at}}</span>{{$user->created_at->format('d.m.Y')}}</td>
                             <td class="text-center">
-                                <a href="{{ route('admin.users.edit', ['user' => $user->id]) }}" class="btn btn-primary btn-sm">
+                                <a href="{{ route('admin.users.edit', ['user' => $user->id]) }}" class="btn btn-outline-primary
+                                btn-sm">
                                     <i class="bi bi-pencil-square"></i>
                                 </a>
                                 <form id="deleteForm_{{$user->id}}" action="{{ route('admin.users.destroy', ['user' => $user->id]) }}" method="POST" style="display:inline;">
                                     @csrf
                                     @method('DELETE')
-                                    <button class="btn btn-sm btn-danger" type="button" name="btn_delete" data-bs-toggle="modal" data-bs-target="#useConfirmDelete" data-title="Delete Confirmation row {{$user->name}}">
+                                    <button class="btn btn-sm btn-outline-danger" type="button" name="btn_delete"
+                                            data-bs-toggle="modal" data-bs-target="#useConfirmDelete" data-title="Delete Confirmation row {{$user->name}}">
                                         <i class="bi bi-trash"></i>
                                     </button>
                                 </form>

@@ -84,10 +84,12 @@
                         <tr>
                             <td class="">{{$task->name}}</td>
                             <td class="text-center">
-                                <button class="btn btn-primary btn-sm me-2" data-bs-toggle="modal" data-bs-target="#editModal" onclick="populateEditModal({{ $task->id }}, '{{ $task->name }}')">
+                                <button class="btn btn-outline-primary btn-sm me-2" data-bs-toggle="modal"
+                                        data-bs-target="#editModal" onclick="populateEditModal({{ $task->id }}, '{{ $task->name }}')">
                                     <i class="bi bi-pencil-square"></i>
                                 </button>
-                                <button class="btn btn-danger btn-sm" data-bs-toggle="modal" data-bs-target="#deleteModal" onclick="populateDeleteModal({{ $task->id }}, '{{ $task->name }}')">
+                                <button class="btn btn-outline-danger btn-sm" data-bs-toggle="modal" data-bs-target="#deleteModal"
+                                        onclick="populateDeleteModal({{ $task->id }}, '{{ $task->name }}')">
                                     <i class="bi bi-trash"></i>
                                 </button>
                             </td>

@@ -82,6 +82,30 @@ class WorkorderController extends Controller
         return view('admin.workorders.edit', compact('user', 'customers', 'units', 'instructions', 'current_wo'));
 
     }
+    public function updateInspect(Request $request, $id)
+    {
+
+        try {
+            $workOrder = WorkOrder::findOrFail($id);
+
+            $workOrder->part_missing = $request->has('part_missing');
+            $workOrder->external_damage = $request->has('external_damage');
+            $workOrder->received_disassembly = $request->has('received_disassembly');
+            $workOrder->disassembly_upon_arrival = $request->has('disassembly_upon_arrival');
+            $workOrder->nameplate_missing = $request->has('nameplate_missing');
+            $workOrder->preliminary_test_false = $request->has('preliminary_test_false');
+            $workOrder->extra_parts = $request->has('extra_parts');
+
+            $workOrder->save();
+
+            return response()->json(['success' => true], 200);
+
+        } catch (\Exception $e) {
+            \Log::error('Update Inspect Error: ' . $e->getMessage());
+            return response()->json(['success' => false, 'error' => $e->getMessage()], 500);
+        }
+    }
+
 
     public function update(Request $request, $id)
     {
