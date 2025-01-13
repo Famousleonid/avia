@@ -12,8 +12,10 @@ return new class extends Migration {
         Schema::create('components', function (Blueprint $table) {
             $table->id();
             $table->string('part_number')->nullable();
+            $table->string('assy_part_number')->nullable();
             $table->string('name');
             $table->string('ipl_num');
+
             $table->foreignId('manual_id')->nullable()->constrained()->onDelete('set null');
             $table->timestamps();
         });

@@ -9,7 +9,7 @@ class Component extends Model
 {
     use HasFactory;
 
-    protected $fillable = ['part_number', 'name','ipl_num','manual_id'];
+    protected $fillable = ['part_number', 'assy_part_number','name','ipl_num','manual_id'];
 
 
     public function manuals()
