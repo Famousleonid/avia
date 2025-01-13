@@ -150,7 +150,7 @@
                 </table>
             </div>
         @else
-            <H4 CLASS="text-center">{{__('WORK ORDER TEAR DOWN REPORTS NOT CREATED')}}</H4>
+            <H5 CLASS="text-center">{{__('WORK ORDER TEAR DOWN REPORTS NOT CREATED')}}</H5>
         @endif
     </div>
 

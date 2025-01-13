@@ -161,7 +161,8 @@
                         </table>
                     </div>
                 @else
-                    <p class="ms-2">Workorders not created</p>
+                <H5 CLASS="text-center">{{__('WORK ORDERS S NOT CREATED')}}</H5>
+{{--                    <p class="ms-2">Workorders not created</p>--}}
                 @endif
 
 
