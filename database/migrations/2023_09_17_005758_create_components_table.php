@@ -15,6 +15,7 @@ return new class extends Migration {
             $table->string('assy_part_number')->nullable();
             $table->string('name');
             $table->string('ipl_num');
+            $table->string('assy_ipl_num');
 
             $table->foreignId('manual_id')->nullable()->constrained()->onDelete('set null');
             $table->timestamps();

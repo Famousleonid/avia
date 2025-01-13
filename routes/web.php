@@ -83,15 +83,17 @@ Route::group(['middleware' => ['auth', 'isAdmin'], 'prefix' => 'admin', 'as' =>'
     Route::resource('/customers',  \App\Http\Controllers\Admin\CustomerController::class);
     Route::resource('/tasks',  \App\Http\Controllers\Admin\TaskController::class);
     Route::resource('/general-tasks',  \App\Http\Controllers\Admin\GeneralTaskController::class);
+
     Route::resource('/workorders',  \App\Http\Controllers\Admin\WorkorderController::class);
+    Route::post('workorders/{workorder}/inspection', [\App\Http\Controllers\Admin\WorkorderController::class, 'updateInspect'])->name('workorders.inspection');
 
     Route::resource('/units',  \App\Http\Controllers\Admin\UnitController::class);
-
     Route::post('/units/{manualId}', [\App\Http\Controllers\Admin\UnitController::class, 'update'])->name('units.update');
 
     Route::resource('/tdrs',\App\Http\Controllers\Admin\TdrController::class);
 
-    Route::post('workorders/{workorder}/inspection', [\App\Http\Controllers\Admin\WorkorderController::class, 'updateInspect'])->name('workorders.inspection');
+
+    Route::resource('/components', \App\Http\Controllers\Admin\ComponentController::class);
 
 
 });
