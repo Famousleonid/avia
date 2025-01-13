@@ -8,10 +8,9 @@
     </style>
 
     <div class="card bg-gradient">
-        <div class="card-header m-1 me-1 shadow">
+        <div class="card-header  m-1 shadow">
             <h5 class="text-primary ps-4">{{__('Work Order')}} <span class="text-success ps-3">{{$current_wo->number}}
                 </span></h5>
-
             <div class="d-flex justify-content-between">
                 <div>
                     <div class="d-flex ">
@@ -27,6 +26,10 @@
                         <div style="width: 150px">{{$current_wo->serial_number}}</div>
                     </div>
                     <div class="d-flex ">
+                        <div class="text-end pe-3" style="width: 150px">{{'Instruction: '}}</div>
+                        <div style="width: 150px">{{$current_wo->instruction->name}}</div>
+                    </div>
+                    <div class="d-flex ">
                         <div class="text-end pe-3" style="width: 150px">{{'CMM: '}}</div>
                         <div style="width: 150px">{{$current_wo->unit->manuals->number}}</div>
                     </div>
@@ -34,10 +37,12 @@
                         <div class="text-end pe-3" style="width: 150px">{{'MFR: '}}</div>
                         <div style="width: 150px">{{$current_wo->unit->manuals->builder->name}}</div>
                     </div>
+
                     <div class="d-flex ">
                         <div class="text-end pe-3" style="width: 150px">{{'Lib: '}}</div>
                         <div style="width: 150px">{{$current_wo->unit->manuals->lib}}</div>
                     </div>
+
                 </div>
                 <div class=" ps-1 pt-1 pb-1">
 {{--                    <h5 class="border-bottom pb\-2 ps-3 ">WO Inspection</h5>--}}
@@ -47,7 +52,8 @@
                         <div class="mt-1 ">
                             <button class="btn btn-outline-primary mb-3 " style="height: 40px; width: 280px"
                                                    data-bs-toggle="modal"
-                                                   data-bs-target="#addWoInspectModal"><h5>{{__('WO Inspection')}}</h5>
+                                                   data-bs-target="#addWoInspectModal">
+                                        <h5>{{__('WO Inspection')}}</h5>
                             </button>
                             <div class="d-flex ps-2  pt-2">
                                 <div style="width: 250px">{{'Parts Missing  '}}</div>
@@ -139,9 +145,10 @@
                 </div>
 
             </div>
-
-
         </div>
+
+
+
     </div>
 
     <!-- Модальное окно WO Inspection  -->
@@ -192,7 +199,7 @@
                                     <label class="form-check-label" for="extra_parts">Extra Parts</label>
                                     <input class="form-check-input" type="checkbox" name="extra_parts" id="extra_parts" {{ $current_wo->extra_parts ? 'checked' : '' }}>
                                 </div>
-                                <div class="modal-footer mt-2" style="height: 60px">
+                                <div class="modal-footer mt-3" style="height: 60px">
                                     <button type="submit" class="btn btn-outline-primary">{{ __('Save') }}</button>
                                 </div>
                             </form>
