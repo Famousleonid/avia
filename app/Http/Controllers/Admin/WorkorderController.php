@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Customer;
 use App\Models\Instruction;
 use App\Models\Manual;
+use App\Models\Tdr;
 use App\Models\Unit;
 use App\Models\User;
 use App\Models\Workorder;
@@ -20,8 +21,9 @@ class WorkorderController extends Controller
         $workorders = Workorder::all();
         $manuals = Manual::all();
         $units =Unit::with('manuals')->get();
+        $tdrs=Tdr::all();
 
-        return view('admin.workorders.index', compact('workorders','units','manuals'));
+        return view('admin.workorders.index', compact('workorders','tdrs','units','manuals'));
     }
 
 
