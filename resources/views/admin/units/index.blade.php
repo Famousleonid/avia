@@ -590,7 +590,7 @@
             console.log("Part Numbers to send:", JSON.stringify(partNumbers));
             console.log("Manual ID:", manualId);
 
-            fetch(`/admin/units/update/${manualId}`, {
+            fetch(`/admin/units/${manualId}`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',

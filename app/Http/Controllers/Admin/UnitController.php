@@ -170,8 +170,52 @@ class UnitController extends Controller
         ]);
     }
 
-//    public function update($manualId, Request $request)
-//    {
+    public function update($manualId, Request $request)
+    {
+        {
+            \Log::info('Request received:', [
+                'manual_id' => $manualId,
+                'part_numbers' => $request->input('part_numbers'),
+            ]);
+
+            try {
+                $manual = Manual::findOrFail($manualId);
+
+                if (!$request->has('part_numbers') || !is_array($request->input('part_numbers'))) {
+                    \Log::error('Invalid part_numbers format');
+                    return response()->json(['success' => false, 'error' => 'Invalid part_numbers format'], 400);
+                }
+
+                $newPartNumbersArray = array_map(function ($unit) {
+                    return $unit['part_number'];
+                }, $request->input('part_numbers'));
+
+                $existingPartNumbers = $manual->units()->pluck('part_number')->toArray();
+
+                \Log::info('Existing part numbers:', $existingPartNumbers);
+                \Log::info('New part numbers:', $newPartNumbersArray);
+
+                Unit::where('manual_id', $manualId)
+                    ->whereNotIn('part_number', $newPartNumbersArray)
+                    ->delete();
+
+                foreach ($request->input('part_numbers') as $unit) {
+                    Unit::updateOrCreate(
+                        ['manual_id' => $manualId, 'part_number' => $unit['part_number']],
+                        ['verified' => $unit['verified']]
+                    );
+                }
+
+                return response()->json(['success' => true]);
+            } catch (\Exception $e) {
+                \Log::error('Error updating units:', [
+                    'error_message' => $e->getMessage(),
+                    'manual_id' => $manualId,
+                    'request_data' => $request->all(),
+                ]);
+                return response()->json(['success' => false, 'error' => 'An error occurred while updating units'], 500);
+            }
+        }
 //       dd($request, $manualId);
 //        $partNumbers = $request->input('part_numbers');
 //
@@ -186,7 +230,7 @@ class UnitController extends Controller
 //
 //        // Вернуть JSON ответ
 //        return response()->json(['success' => true]);
-//    }
+    }
 
 
 
@@ -195,75 +239,53 @@ class UnitController extends Controller
      */
 
 
-    public function updateUnits(Request $request, $manualId)
-    {
-        \Log::info('Request received:', [
-            'manual_id' => $manualId,
-            'part_numbers' => $request->input('part_numbers'),
-        ]);
-
-        try {
-            $manual = Manual::findOrFail($manualId);
-
-            if (!$request->has('part_numbers') || !is_array($request->input('part_numbers'))) {
-                \Log::error('Invalid part_numbers format');
-                return response()->json(['success' => false, 'error' => 'Invalid part_numbers format'], 400);
-            }
-
-            $newPartNumbersArray = array_map(function ($unit) {
-                return $unit['part_number'];
-            }, $request->input('part_numbers'));
-
-            $existingPartNumbers = $manual->units()->pluck('part_number')->toArray();
-
-            \Log::info('Existing part numbers:', $existingPartNumbers);
-            \Log::info('New part numbers:', $newPartNumbersArray);
-
-            Unit::where('manual_id', $manualId)
-                ->whereNotIn('part_number', $newPartNumbersArray)
-                ->delete();
-
-            foreach ($request->input('part_numbers') as $unit) {
-                Unit::updateOrCreate(
-                    ['manual_id' => $manualId, 'part_number' => $unit['part_number']],
-                    ['verified' => $unit['verified']]
-                );
-            }
-
-            return response()->json(['success' => true]);
-        } catch (\Exception $e) {
-            \Log::error('Error updating units:', [
-                'error_message' => $e->getMessage(),
-                'manual_id' => $manualId,
-                'request_data' => $request->all(),
-            ]);
-            return response()->json(['success' => false, 'error' => 'An error occurred while updating units'], 500);
-        }
-    }
-
-
-
-//        $manual = Manual::findOrFail($manualId);
+//    public function updateUnits(Request $request, $manualId)
+//    {
+//        \Log::info('Request received:', [
+//            'manual_id' => $manualId,
+//            'part_numbers' => $request->input('part_numbers'),
+//        ]);
 //
-//        // Получить существующие part_numbers
-//        $existingPartNumbers = $manual->units()->pluck('part_number')->toArray();
+//        try {
+//            $manual = Manual::findOrFail($manualId);
 //
-//        // Новые part_numbers из запроса
-//        $newPartNumbers = $request->input('part_numbers');
-//
-//        // Удаляем те, которых нет в новых данных
-//        $manual->units()->whereNotIn('part_number', $newPartNumbers)->delete();
-//
-//        // Добавляем новые part_numbers, которых не было
-//        foreach ($newPartNumbers as $partNumber) {
-//            if (!in_array($partNumber, $existingPartNumbers)) {
-//                $manual->units()->create([
-//                    'part_number' => $partNumber
-//                ]);
+//            if (!$request->has('part_numbers') || !is_array($request->input('part_numbers'))) {
+//                \Log::error('Invalid part_numbers format');
+//                return response()->json(['success' => false, 'error' => 'Invalid part_numbers format'], 400);
 //            }
-//        }
 //
-//        return response()->json(['success' => true]);
+//            $newPartNumbersArray = array_map(function ($unit) {
+//                return $unit['part_number'];
+//            }, $request->input('part_numbers'));
+//
+//            $existingPartNumbers = $manual->units()->pluck('part_number')->toArray();
+//
+//            \Log::info('Existing part numbers:', $existingPartNumbers);
+//            \Log::info('New part numbers:', $newPartNumbersArray);
+//
+//            Unit::where('manual_id', $manualId)
+//                ->whereNotIn('part_number', $newPartNumbersArray)
+//                ->delete();
+//
+//            foreach ($request->input('part_numbers') as $unit) {
+//                Unit::updateOrCreate(
+//                    ['manual_id' => $manualId, 'part_number' => $unit['part_number']],
+//                    ['verified' => $unit['verified']]
+//                );
+//            }
+//
+//            return response()->json(['success' => true]);
+//        } catch (\Exception $e) {
+//            \Log::error('Error updating units:', [
+//                'error_message' => $e->getMessage(),
+//                'manual_id' => $manualId,
+//                'request_data' => $request->all(),
+//            ]);
+//            return response()->json(['success' => false, 'error' => 'An error occurred while updating units'], 500);
+//        }
+//    }
+
+
 
 
 
@@ -288,9 +310,6 @@ class UnitController extends Controller
         return redirect()->route('admin.units.index')->with('error', 'Мануал не найден.');
     }
 
-//        $unit = Unit::findOrFail($id);
-//        $unit->delete();
-//        return redirect()->route('admin.units.index')->with('success', 'Unit has been deleted');
 
 
 }
