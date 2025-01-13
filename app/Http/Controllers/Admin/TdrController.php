@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\Builder;
+use App\Models\Component;
 use App\Models\Customer;
 use App\Models\Instruction;
 use App\Models\Manual;
@@ -70,7 +71,11 @@ class TdrController extends Controller
         $planes = Plane::all();
         $builders = Builder::all();
         $instruction = Instruction::all();
-        return view('admin.tdrs.show', compact(  'current_wo','units','user','customers','manuals','builders','planes','instruction'));
+        $components = Component::with('manuals')->get();
+        $tdrs = Tdr::with('current_wo')->get(); // --- ? ---
+
+        return view('admin.tdrs.show', compact(  'current_wo','tdrs','units','components','user','customers','manuals','builders',
+            'planes','instruction'));
     }
 
     /**
@@ -88,6 +93,7 @@ class TdrController extends Controller
         $manuals = Manual::all();
         $planes = Plane::all();
         $builders = Builder::all();
+
         return view('admin.tdrs.edit', compact(  'current_wo','units','user','customers','manuals','builders','planes'));
     }
 
