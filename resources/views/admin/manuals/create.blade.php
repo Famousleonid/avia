@@ -217,6 +217,7 @@
                 this.submitted = true;
 
                 let formData = new FormData(this);
+
                 fetch(route, {
                     method: 'POST',
                     body: formData,

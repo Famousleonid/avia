@@ -88,17 +88,18 @@
                 <div class="d-flex my-2">
                     <div class="clearable-input ps-2">
                         <input id="searchInput" type="text" class="form-control w-100" placeholder="Search...">
-{{--                        <button class="btn-clear text-secondary" onclick="document.getElementById('searchInput').value = '';--}}
-{{--                        document.getElementById('searchInput').dispatchEvent(new Event('input'))">--}}
-{{--                            <i class="bi bi-x-circle"></i>--}}
-{{--                        </button>--}}
+                        <button class="btn-clear text-secondary" onclick="document.getElementById('searchInput').value = ''; document.getElementById('searchInput').dispatchEvent(new Event('input'))">
+                            <i class="bi bi-x-circle"></i>
+                        </button>
                     </div>
                 </div>
-{{--                <button class="btn btn-outline-primary mb-1" style="height: 40px"--}}
-{{--                        data-bs-toggle="modal"--}}
-{{--                        data-bs-target="#addUnitModal">{{__('Add Component')}}--}}
-{{--                </button>--}}
-            </div>
+
+                <div>
+                    <button class="btn btn-outline-primary btn-sm" data-bs-toggle="modal" data-bs-target="#createModal">{{ __('Add
+                    Component') }}</button>
+
+
+                </div>
         </div>
 
         @if(count($components))
@@ -106,16 +107,33 @@
                 <table id="componentTable" class="display table table-sm table-hover table-striped align-middle table-bordered">
                 <thead class="bg-gradient">
                 <tr>
-                    <th class="text-center text-primary bg-gradient ">Unit</th>
-                    <th class="text-center text-primary bg-gradient ">Description</th>
-                    <th class="text-center text-primary bg-gradient ">Part number</th>
-                    <th class="text-center text-primary bg-gradient ">Manual</th>
-                    <th class="text-center text-primary bg-gradient ">IPL Number</th>
-                    <th class="text-center text-primary bg-gradient ">Action</th>
+                    <th class="text-center  sortable">{{__('Manual')}} <i class="bi bi-chevron-expand ms-1"></i></th>
+                    <th class="text-center  sortable">{{__('IPL Number')}} <i class="bi bi-chevron-expand ms-1"></i></th>
+                    <th class="text-center sortable ">{{__('Component')}} <i class="bi bi-chevron-expand ms-1"></i></th>
+{{--                    <th class="text-center text-primary bg-gradient ">Description</th>--}}
+                    <th class="text-center  sortable">{{__('Part number')}} <i class="bi bi-chevron-expand ms-1"></i></th>
+                    <th class=" text-center " style="width: 120px">{{__('Image')}}</th>
+
+                    <th class="text-center ">Action</th>
                 </tr>
                 </thead>
                     <tbody>
+                        @foreach($components as $component)
+                            <tr>
+                                <td class="text-center">{{$component->manuals->number}}</td>
+                                <td class="text-center">{{$component->ipl_num}}</td>
+                                <td class="text-center">{{$component->name}}</td>
+                                <td class="text-center">{{$component->part_number}}</td>
+                                <td class="text-center">
+{{--                                    <a href="{{ $component->getBigImageUrl('component') }}" data-fancybox="gallery">--}}
+{{--                                        <img class="rounded-circle" src="{{ $component->getThumbnailUrl('component') }}" width="40"--}}
+{{--                                             height="40" alt="Image"/>--}}
+{{--                                    </a>--}}
+                                </td>
 
+
+                            </tr>
+                        @endforeach
                     </tbody>
                 </table>
             </div>
@@ -126,9 +144,88 @@
         @endif
 
     </div>
-    <script>
+        <!-- Create Modal -->
+        <div class="modal fade" id="createModal" tabindex="-1" aria-hidden="true">
+            <div class="modal-dialog ">
+                <div class="modal-content bg-gradient" style="width: 650px">
+                    <div class="modal-header">
+                        <h5 class="modal-title">Add Component</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+                    <div class="modal-body">
+                        <form id="createForm" method="POST" action="{{ route('admin.components.store') }}">
+                            @csrf
+                            <div class="mb-3">
+                                <!-- Выпадающий список для выбора CMM -->
+                                <div class="mb-3">
+                                    <label for="manual_id" class="form-label">CMM</label>
+                                    <select class="form-select" id="manual_id" name="manual_id">
+                                        <option value="">{{ __('Select CMM') }}</option>
+                                        @foreach($manuals as $manual)
+                                            <option value="{{ $manual->id }}">{{ $manual->number }} ({{ $manual->title }})</option>
+                                        @endforeach
+                                    </select>
+                                </div>
+                                <div class="">
+                                    <label for="name">{{ __('Name') }}</label>
+                                    <input id='name' type="text" class="form-control" name="name" required>
+                                </div>
+                                <div class="d-flex">
+                                    <div class="m-3">
+                                        <div class="">
+                                            <label for="ipl_num">{{ __('IPL Number') }}</label>
+                                            <input id='ipl_num' type="text" class="form-control" name="ipl_num" required>
+                                        </div>
+                                        <div class="col-xs-12 col-sm-12 col-md-12 mt-2">
+                                            <div class="form-group">
+                                                <strong>{{__('Image:')}}</strong>
+                                                <input type="file" name="img" class="form-control" placeholder="Image">
+                                            </div>
+                                        </div>
+                                        <div class="mt-2">
+                                            <label for="part_number">{{ __('Part Number') }}</label>
+                                            <input id='part_number' type="text" class="form-control"
+                                                   name="part_number" required>
+                                        </div>
+
+                                    </div>
+
+                                    <div class="m-3">
+                                        <div class="">
+                                            <label for="assy_ipl_num">{{ __('Assembly IPL Number') }}</label>
+                                            <input id='assy_ipl_num' type="text" class="form-control" name="assy_ipl_num" >
+                                        </div>
+                                        <div class="col-xs-12 col-sm-12 col-md-12 mt-2">
+                                            <div class="form-group">
+                                                <strong>{{__(' Assy Image:')}}</strong>
+                                                <input type="file" name="assy_img" class="form-control" placeholder="Image">
+                                            </div>
+                                        </div>
+                                        <div class="mt-2">
+                                            <label for="assy_part_number">{{ __(' Assembly Part Number') }}</label>
+                                            <input id='assy_part_number' type="text" class="form-control"
+                                                   name="assy_part_number" >
+                                        </div>
+                                    </div>
+                                </div>
+
+
+
+                            </div>
+                            <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+                                <button type="submit" class="btn btn-outline-primary " onclick="showLoadingSpinner()">Save</button>
+                            </div>
+
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <script>
+
         // Sorting
-        const table = document.getElementById('unitTable');
+        const table = document.getElementById('componentTable');
         const headers = document.querySelectorAll('.sortable');
         headers.forEach(header => {
             header.addEventListener('click', () => {
