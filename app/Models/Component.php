@@ -4,14 +4,18 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\SoftDeletes;
 use Spatie\MediaLibrary\HasMedia;
-//use Spatie\MediaLibrary\InteractsWithMedia;
+use Spatie\MediaLibrary\InteractsWithMedia;
 
 
 
-class Component extends Model
+
+
+class Component extends Model implements  hasMedia
 {
 //    use HasFactory;
+    use  InteractsWithMedia;
 
     protected $fillable = [
         'part_number',
@@ -19,7 +23,9 @@ class Component extends Model
         'name',
         'ipl_num',
         'assy_ipl_num',
-        'manual_id'
+        'manual_id',
+        'img',
+        'assy_img',
     ];
 
 
@@ -35,20 +41,27 @@ class Component extends Model
           return $this->hasMany(Component_main::class);
       }*/
 
+    public function registerAllMediaConversions(): void
+    {
+        $this->addMediaConversion('thumb')
+            ->width(100)
+            ->height(100)
+            ->nonOptimized();
 
-//    public function getThumbnailUrl($collection)
-//    {
-//        $media = $this->getMedia($collection)->first();
-//        return $media
-//            ? route('image.show.thumb', ['mediaId' => $media->id, 'modelId' => $this->id, 'mediaName' => $collection])
-//            : asset('img/noimage.png');
-//    }
-//    public function getBigImageUrl($collection)
-//    {
-//        $media = $this->getMedia($collection)->first();
-//        return $media
-//            ? route('image.show.big', ['mediaId' => $media->id, 'modelId' => $this->id, 'mediaName' => $collection])
-//            : asset('img/noimage.png');
-//    }
+    }
+    public function getThumbnailUrl($collection)
+    {
+        $media = $this->getMedia($collection)->first();
+        return $media
+            ? route('image.show.thumb', ['mediaId' => $media->id, 'modelId' => $this->id, 'mediaName' => $collection])
+            : asset('img/noimage.png');
+    }
+    public function getBigImageUrl($collection)
+    {
+        $media = $this->getMedia($collection)->first();
+        return $media
+            ? route('image.show.big', ['mediaId' => $media->id, 'modelId' => $this->id, 'mediaName' => $collection])
+            : asset('img/noimage.png');
+    }
 
 }

@@ -125,10 +125,14 @@
                                 <td class="text-center">{{$component->name}}</td>
                                 <td class="text-center">{{$component->part_number}}</td>
                                 <td class="text-center">
-{{--                                    <a href="{{ $component->getBigImageUrl('component') }}" data-fancybox="gallery">--}}
-{{--                                        <img class="rounded-circle" src="{{ $component->getThumbnailUrl('component') }}" width="40"--}}
-{{--                                             height="40" alt="Image"/>--}}
-{{--                                    </a>--}}
+                                    <a href="{{ $component->getBigImageUrl('component') }}" data-fancybox="gallery">
+                                        <img class="rounded-circle" src="{{ $component->getThumbnailUrl('component') }}" width="40"
+                                             height="40" alt="IMG"/>
+                                    </a>
+                                    <a href="{{ $component->getBigImageUrl('assy_component') }}" data-fancybox="gallery">
+                                        <img class="rounded-circle" src="{{ $component->getThumbnailUrl('assy_component') }}" width="40"
+                                             height="40" alt="IMG"/>
+                                    </a>
                                 </td>
 
 
@@ -153,7 +157,8 @@
                         <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                     </div>
                     <div class="modal-body">
-                        <form id="createForm" method="POST" action="{{ route('admin.components.store') }}">
+                        <form id="createForm" method="POST" action="{{ route('admin.components.store') }}" enctype="multipart/form-data">
+
                             @csrf
                             <div class="mb-3">
                                 <!-- Выпадающий список для выбора CMM -->
