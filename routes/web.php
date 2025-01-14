@@ -84,15 +84,15 @@ Route::group(['middleware' => ['auth', 'isAdmin'], 'prefix' => 'admin', 'as' =>'
     Route::resource('/tasks',  \App\Http\Controllers\Admin\TaskController::class);
     Route::resource('/general-tasks',  \App\Http\Controllers\Admin\GeneralTaskController::class);
     Route::resource('/workorders',  \App\Http\Controllers\Admin\WorkorderController::class);
-    Route::resource('/units',  \App\Http\Controllers\Admin\UnitController::class);
+    Route::resource('/units',  \App\Http\Controllers\Admin\UnitController::class)->except('update');
 
     Route::get('/workorders/approve/{id}/', [\App\Http\Controllers\Admin\WorkorderController::class, 'approve'])->name('workorders.approve');
+    Route::post('workorders/{workorder}/inspection', [\App\Http\Controllers\Admin\WorkorderController::class, 'updateInspect'])->name('workorders.inspection');
 
-    Route::post('/admin/units/update/{manualId}', [\App\Http\Controllers\Admin\UnitController::class, 'updateUnits'])->name('admin.units.update');
-    Route::post('/units/update/{manualId}', [\App\Http\Controllers\Admin\UnitController::class, 'updateUnits'])->name('units.update');
+    Route::post('/units/{manualId}', [\App\Http\Controllers\Admin\UnitController::class, 'update'])->name('units.update');
 
     Route::resource('/tdrs',\App\Http\Controllers\Admin\TdrController::class);
-
+    Route::resource('/components', \App\Http\Controllers\Admin\ComponentController::class);
 });
 
 

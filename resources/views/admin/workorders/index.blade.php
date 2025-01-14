@@ -130,10 +130,10 @@
                                     @endif
                                 </td>
                                 <td class="text-center">
-                                    <button class="tdr-unit-btn btn btn-outline-primary btn-sm ">
-                                        {{--                                          <i class="bi bi-card-list"> </i>--}}
+                                    <a href="{{ route('admin.tdrs.show', ['tdr' => $workorder->id]) }}"
+                                       class="btn btn-outline-primary btn-sm">
                                         <i class="bi bi-journal-richtext"></i>
-                                    </button>
+                                    </a>
                                 </td>
 
                                 <td class="text-center">{{$workorder->unit->manuals->number}}</td>
