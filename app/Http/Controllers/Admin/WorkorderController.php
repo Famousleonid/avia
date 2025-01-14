@@ -6,7 +6,6 @@ use App\Http\Controllers\Controller;
 use App\Models\Customer;
 use App\Models\Instruction;
 use App\Models\Manual;
-use App\Models\Tdr;
 use App\Models\Unit;
 use App\Models\User;
 use App\Models\Workorder;
@@ -20,10 +19,9 @@ class WorkorderController extends Controller
     {
         $workorders = Workorder::all();
         $manuals = Manual::all();
-        $units =Unit::with('manuals')->get();
-        $tdrs=Tdr::all();
+        $units = Unit::with('manuals')->get();
 
-        return view('admin.workorders.index', compact('workorders','tdrs','units','manuals'));
+        return view('admin.workorders.index', compact('workorders', 'units', 'manuals'));
     }
 
 
@@ -36,7 +34,7 @@ class WorkorderController extends Controller
         $users = User::all();
         $currentUser = Auth::user();
 
-        return view('admin.workorders.create', compact( 'customers', 'units', 'instructions','users','currentUser','manuals'));
+        return view('admin.workorders.create', compact('customers', 'units', 'instructions', 'users', 'currentUser', 'manuals'));
     }
 
     public function store(Request $request)
@@ -56,7 +54,6 @@ class WorkorderController extends Controller
                 ->route('admin.workorders.create')
                 ->with('error', 'Workorder number is already exists.');
         }
-
 
 
         Workorder::create($request->all());
@@ -84,30 +81,6 @@ class WorkorderController extends Controller
         return view('admin.workorders.edit', compact('user', 'customers', 'units', 'instructions', 'current_wo'));
 
     }
-    public function updateInspect(Request $request, $id)
-    {
-
-        try {
-            $workOrder = WorkOrder::findOrFail($id);
-
-            $workOrder->part_missing = $request->has('part_missing');
-            $workOrder->external_damage = $request->has('external_damage');
-            $workOrder->received_disassembly = $request->has('received_disassembly');
-            $workOrder->disassembly_upon_arrival = $request->has('disassembly_upon_arrival');
-            $workOrder->nameplate_missing = $request->has('nameplate_missing');
-            $workOrder->preliminary_test_false = $request->has('preliminary_test_false');
-            $workOrder->extra_parts = $request->has('extra_parts');
-
-            $workOrder->save();
-
-            return response()->json(['success' => true], 200);
-
-        } catch (\Exception $e) {
-            \Log::error('Update Inspect Error: ' . $e->getMessage());
-            return response()->json(['success' => false, 'error' => $e->getMessage()], 500);
-        }
-    }
-
 
     public function update(Request $request, $id)
     {
@@ -134,4 +107,23 @@ class WorkorderController extends Controller
         return redirect()->route('admin-workorders.index')->with('success', 'Workorder was edited successfully');
     }
 
+    public function approve($id)
+    {
+
+        $current = Workorder::find($id);
+
+        if ($current->approve_at == NULL) {
+            $current->approve_at = 1;
+            $current->approve_at = now();
+            $current->approve_name = auth()->user()->name;
+            $current->save();
+        } else {
+            $current->approve_at = 0;
+            $current->approve_at = NULL;
+            $current->approve_name = NULL;
+            $current->save();
+        }
+        return redirect()->back();
+
+    }
 }

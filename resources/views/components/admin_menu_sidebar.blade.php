@@ -26,11 +26,11 @@
             <i class="bi bi-unity me-2"></i> Units
         </a>
     </li>
-    <li class="nav-item">
-        <a class="nav-link press-spinner" href="{{route('admin.components.index')}}">
-            <i class="bi bi-gear me-2"></i> Components
-        </a>
-    </li>
+{{--    <li class="nav-item">--}}
+{{--        <a class="nav-link press-spinner" href="{{route('admin.components.index')}}">--}}
+{{--            <i class="bi bi-gear me-2"></i> Components--}}
+{{--        </a>--}}
+{{--    </li>--}}
     <li class="nav-item">
         <a class="nav-link press-spinner" href="{{route('admin.tdrs.index')}}">
             <i class="bi bi-journal-richtext me-2"></i> WO Tear Down Report
