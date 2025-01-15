@@ -102,6 +102,10 @@
 
                 <div>
 
+
+{{--                    <button class="btn btn-outline-primary btn-sm" data-bs-toggle="modal" data-bs-target="#createModal">{{ __('Add--}}
+{{--                    Component') }}</button>--}}
+
                     <a href="{{ route('admin.components.create') }}" class="btn btn-outline-primary " style="height: 40px">
                         {{__('Add Component')}}
                     </a>
@@ -142,14 +146,7 @@
                                              height="40" alt="IMG"/>
                                     </a>
                                 </td>
-                                <td class="text-center">
-                                    <a href="{{ route('admin.components.edit',
-                                    ['component' => $component->id]) }}" class="btn
-                                    btn-outline-primary btn-sm">
-                                        <i class="bi bi-pencil-square"></i>
-                                    </a>
 
-                                </td>
 
                             </tr>
                         @endforeach
@@ -163,7 +160,98 @@
         @endif
 
     </div>
+        <!-- Create Modal -->
+        <div class="modal fade" id="createModal" tabindex="-1" aria-hidden="true">
+            <div class="modal-dialog ">
+                <div class="modal-content bg-gradient" style="width: 650px">
+                    <div class="modal-header">
+                        <h5 class="modal-title">Add Component</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+                    <div class="modal-body">
+                        <form id="createForm" method="POST" action="{{ route('admin.components.store') }}" enctype="multipart/form-data">
 
+                            @csrf
+                            <div class="mb-3">
+                                <!-- Выпадающий список для выбора CMM -->
+                                <div class="mb-3">
+                                    <label for="manual_id" class="form-label">CMM</label>
+                                    <select name="manual_id" id="manual_id" class="form-control">
+                                        <option disabled selected value="">---</option>
+                                        @foreach($manuals as $manual)
+                                            <option value="{{ $manual->id }}"
+                                            data-title="{{$manual->title}}">
+                                                {{$manual->number}} ( {{ $manual->title }} )
+                                            </option>
+                                        @endforeach
+
+                                    </select>
+
+
+
+
+{{--                                    <select class="form-select" id="manual_id" name="manual_id">--}}
+{{--                                        <option value="">{{ __('Select CMM') }}</option>--}}
+{{--                                        @foreach($manuals as $manual)--}}
+{{--                                            <option value="{{ $manual->id }}">{{ $manual->number }} ({{ $manual->title }})</option>--}}
+{{--                                        @endforeach--}}
+{{--                                    </select>--}}
+                                </div>
+                                <div class="">
+                                    <label for="name">{{ __('Name') }}</label>
+                                    <input id='name' type="text" class="form-control" name="name" required>
+                                </div>
+                                <div class="d-flex">
+                                    <div class="m-3">
+                                        <div class="">
+                                            <label for="ipl_num">{{ __('IPL Number') }}</label>
+                                            <input id='ipl_num' type="text" class="form-control" name="ipl_num" required>
+                                        </div>
+                                        <div class="col-xs-12 col-sm-12 col-md-12 mt-2">
+                                            <div class="form-group">
+                                                <strong>{{__('Image:')}}</strong>
+                                                <input type="file" name="img" class="form-control" placeholder="Image">
+                                            </div>
+                                        </div>
+                                        <div class="mt-2">
+                                            <label for="part_number">{{ __('Part Number') }}</label>
+                                            <input id='part_number' type="text" class="form-control"
+                                                   name="part_number" required>
+                                        </div>
+
+                                    </div>
+
+                                    <div class="m-3">
+                                        <div class="">
+                                            <label for="assy_ipl_num">{{ __('Assembly IPL Number') }}</label>
+                                            <input id='assy_ipl_num' type="text" class="form-control" name="assy_ipl_num" >
+                                        </div>
+                                        <div class="col-xs-12 col-sm-12 col-md-12 mt-2">
+                                            <div class="form-group">
+                                                <strong>{{__(' Assy Image:')}}</strong>
+                                                <input type="file" name="assy_img" class="form-control" placeholder="Image">
+                                            </div>
+                                        </div>
+                                        <div class="mt-2">
+                                            <label for="assy_part_number">{{ __(' Assembly Part Number') }}</label>
+                                            <input id='assy_part_number' type="text" class="form-control"
+                                                   name="assy_part_number" >
+                                        </div>
+                                    </div>
+                                </div>
+
+
+
+                            </div>
+                            <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+                                <button type="submit" class="btn btn-outline-primary " onclick="showLoadingSpinner()">Save</button>
+                            </div>
+
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
 
         <script>
 
@@ -197,7 +285,28 @@
         });
 
 
+        $(document).ready(function () {
+            $('#manual_id').select2({
+                placeholder: 'cmm',
+                theme: 'bootstrap-5',
+                allowClear: true
+            });
+        });
+        $(function() {
+            applyTheme();
+        });
 
+        function applyTheme() {
+            const isDark = document.documentElement.getAttribute('data-bs-theme');
+            const selectContainer = $('.select2-container');
+            if (isDark === 'dark') {
+                selectContainer.addClass('select2-dark').removeClass('select2-light');
+                $('.select2-container .select2-dropdown').addClass('select2-dark').removeClass('select2-light');
+            } else {
+                selectContainer.addClass('select2-light').removeClass('select2-dark');
+                $('.select2-container .select2-dropdown').addClass('select2-light').removeClass('select2-dark');
+            }
+        }
 
 
     </script>

@@ -27,11 +27,14 @@ class ComponentController extends Controller
     /**
      * Show the form for creating a new resource.
      *
-     * @return \Illuminate\Http\Response
+     * @return Application|Factory|View
      */
     public function create()
     {
-        //
+        $components = Component::all();
+        $manuals = Manual::all();
+        return view('admin.components.create', compact('components','manuals'));
+
     }
 
     /**
@@ -42,25 +45,25 @@ class ComponentController extends Controller
      */
     public function store(Request $request)
     {
-//        dd($request);
+//dd($request);
 
         $validated = $request->validate([
 
             'name' => 'required|string|max:250',
             'manual_id' => 'required|exists:manuals,id',
             'part_number' =>'required|string|max:50',
-            'assy_part_number' =>'string|max:50',
-            'ipl_num' =>'string|max:50',
-            'assy_ipl_num' =>'string|max:50',
+            'ipl_num' =>'string|max:10',
 
         ]);
+;
+        $validated['assy_part_number'] = $request->assy_part_number;
+        $validated['assy_ipl_num'] = $request->assy_ipl_num;
 
+//dd($validated);
         $component = Component::create($validated);
 
-//dd($request->hasFile('img'));
 
         if ($request->hasFile('img')) {
-//dd($component);
             $component->addMedia($request->file('img'))->toMediaCollection('component');
         }
         if ($request->hasFile('assy_img')) {
@@ -87,11 +90,14 @@ class ComponentController extends Controller
      * Show the form for editing the specified resource.
      *
      * @param  int  $id
-     * @return \Illuminate\Http\Response
+     * @return Application|Factory|View
      */
     public function edit($id)
     {
-        //
+        $current_components = Component::find($id);
+        $manuals = Manual::all();
+        return view('admin.components.edit', compact('current_components','manuals'));
+
     }
 
     /**
