@@ -55,7 +55,7 @@ class ComponentController extends Controller
             'ipl_num' =>'string|max:10',
 
         ]);
-;
+
         $validated['assy_part_number'] = $request->assy_part_number;
         $validated['assy_ipl_num'] = $request->assy_ipl_num;
 
@@ -94,9 +94,10 @@ class ComponentController extends Controller
      */
     public function edit($id)
     {
-        $current_components = Component::find($id);
+        $current_component = Component::find($id);
         $manuals = Manual::all();
-        return view('admin.components.edit', compact('current_components','manuals'));
+
+        return view('admin.components.edit', compact('current_component','manuals'));
 
     }
 
@@ -105,11 +106,51 @@ class ComponentController extends Controller
      *
      * @param  \Illuminate\Http\Request  $request
      * @param  int  $id
-     * @return \Illuminate\Http\Response
+     * @return \Illuminate\Http\RedirectResponse
      */
     public function update(Request $request, $id)
     {
-        //
+
+
+        $component = Component::findOrFail($id);
+
+
+//        dd( $request->all());
+
+        $validated = $request->validate([
+
+            'name' => 'required',
+            'manual_id' => 'required|exists:manuals,id',
+            'part_number' =>'required',
+            'ipl_num' =>'required',
+
+        ]);
+
+
+        $validated['assy_part_number'] = $request->assy_part_number;
+        $validated['assy_ipl_num'] = $request->assy_ipl_num;
+
+//        dd($validated);
+
+        if ($request->hasFile('img')) {
+            if ($component->getMedia('component')->isNotEmpty()) {
+                $component->getMedia('component')->first()->delete();
+            }
+
+            $component->addMedia($request->file('img'))->toMediaCollection('component');
+        }
+        if ($request->hasFile('assy_img')) {
+            if ($component->getMedia('assy_component')->isNotEmpty()) {
+                $component->getMedia('assy_component')->first()->delete();
+            }
+
+            $component->addMedia($request->file('assy_img'))->toMediaCollection
+            ('assy_component');
+        }
+        $component->update($validated);
+
+        return redirect()->route('admin.components.index')->with('success', 'Manual updated successfully');
+
     }
 
     /**

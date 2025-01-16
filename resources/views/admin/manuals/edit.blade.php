@@ -14,8 +14,9 @@
             </div>
 
             <div class="card-body">
-                <form method="POST" action="{{ route('admin.manuals.update', [ 'manual' => $cmm->id] ) }}" enctype="multipart/form-data"
-                      id="editCMMForm">
+                <form method="POST"
+                      action="{{ route('admin.manuals.update', [ 'manual' => $cmm->id] ) }}"
+                      enctype="multipart/form-data"   id="editCMMForm">
                     @csrf
                     @method('PUT')
 
@@ -40,8 +41,10 @@
                                 <div class="form-group">
                                     <label>{{__('Image:')}}</label>
                                     <div class="d-flex">
-                                        <img class="me-1" src="{{ $cmm->getThumbnailUrl('manuals') }}" width="40" height="40" alt="Image"/>
+                                        <a href="{{ $cmm->getBigImageUrl('manuals') }}" data-fancybox="gallery">
 
+                                        <img class="me-1" src="{{ $cmm->getThumbnailUrl('manuals') }}" width="40" height="40" alt="Image"/>
+                                        </a>
                                     <input type="file" name="img" class="form-control" placeholder="Image">
                                     </div>
                                     {{--                                    <input type="file" name="img" class="form-control" placeholder="изображение">--}}
