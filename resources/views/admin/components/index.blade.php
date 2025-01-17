@@ -119,8 +119,8 @@
                     <th class="text-center sortable ">{{__('Component')}} <i class="bi bi-chevron-expand ms-1"></i></th>
 {{--                    <th class="text-center text-primary bg-gradient ">Description</th>--}}
                     <th class="text-center  sortable">{{__('Part number')}} <i class="bi bi-chevron-expand ms-1"></i></th>
-                    <th class=" text-center " style="width: 120px">{{__('Image - Assy Image')}}</th>
-
+                    <th class=" text-center " style="width: 120px">{{__('Image ')}}</th>
+                    <th class=" text-center " style="width: 120px">{{__('Assy')}}</th>
                     <th class="text-center ">Action</th>
                 </tr>
                 </thead>
@@ -131,12 +131,14 @@
                                 <td class="text-center">{{$component->ipl_num}}</td>
                                 <td class="text-center">{{$component->name}}</td>
                                 <td class="text-center">{{$component->part_number}}</td>
-                                <td class="text-center">
+                                <td class="text-center" style="width: 120px;">
                                     <a href="{{ $component->getBigImageUrl('component') }}" data-fancybox="gallery">
                                         <img class="rounded-circle" src="{{ $component->getThumbnailUrl('component') }}" width="40"
                                              height="40" alt="IMG"/>
                                     </a>
-                                    <i class="bi bi-dash-lg"></i>
+
+                                </td>
+                                <td class="text-center" style="width: 120px;">
                                     <a href="{{ $component->getBigImageUrl('assy_component') }}" data-fancybox="gallery">
                                         <img class="rounded-circle" src="{{ $component->getThumbnailUrl('assy_component') }}" width="40"
                                              height="40" alt="IMG"/>

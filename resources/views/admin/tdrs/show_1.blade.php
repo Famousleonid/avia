@@ -48,34 +48,34 @@
     {{--        @endif--}}
 
 
-    {{--    <script>--}}
-    {{--        document.getElementById('updateWorkOrderForm').addEventListener('submit', function (e) {--}}
-    {{--            e.preventDefault();--}}
-    {{--            const formData = new FormData(this);--}}
+{{--    <script>--}}
+{{--        document.getElementById('updateWorkOrderForm').addEventListener('submit', function (e) {--}}
+{{--            e.preventDefault();--}}
+{{--            const formData = new FormData(this);--}}
 
-    {{--            fetch('{{ route('admin.workorders.inspection', $current_wo->id) }}', {--}}
-    {{--                method: 'POST',--}}
-    {{--                headers: {--}}
-    {{--                    'X-CSRF-TOKEN': '{{ csrf_token() }}'--}}
-    {{--                },--}}
-    {{--                body: formData--}}
-    {{--            })--}}
+{{--            fetch('{{ route('admin.workorders.inspection', $current_wo->id) }}', {--}}
+{{--                method: 'POST',--}}
+{{--                headers: {--}}
+{{--                    'X-CSRF-TOKEN': '{{ csrf_token() }}'--}}
+{{--                },--}}
+{{--                body: formData--}}
+{{--            })--}}
 
-    {{--        .then(response => response.json())--}}
-    {{--                .then(data => {--}}
-    {{--                    if (data.success) {--}}
-    {{--                        alert('Work Order updated successfully!');--}}
-    {{--                        location.reload();--}}
-    {{--                    } else {--}}
-    {{--                        alert('Failed to update Work Order.');--}}
-    {{--                    }--}}
-    {{--                })--}}
-    {{--                .catch(error => {--}}
-    {{--                    console.error('Error:', error);--}}
-    {{--                    alert('An error occurred.');--}}
-    {{--                });--}}
-    {{--        });--}}
+{{--        .then(response => response.json())--}}
+{{--                .then(data => {--}}
+{{--                    if (data.success) {--}}
+{{--                        alert('Work Order updated successfully!');--}}
+{{--                        location.reload();--}}
+{{--                    } else {--}}
+{{--                        alert('Failed to update Work Order.');--}}
+{{--                    }--}}
+{{--                })--}}
+{{--                .catch(error => {--}}
+{{--                    console.error('Error:', error);--}}
+{{--                    alert('An error occurred.');--}}
+{{--                });--}}
+{{--        });--}}
 
-    {{--    </script>--}}
+{{--    </script>--}}
 
 @endsection
