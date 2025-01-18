@@ -41,7 +41,20 @@ class TdrController extends Controller
      */
     public function create()
     {
-       //
+        $current_wo = Workorder::findOrFail($id);
+        $units = Unit::all();
+        $user = Auth::user();
+        $customers = Customer::all();
+        $manuals = Manual::all();
+        $planes = Plane::all();
+        $builders = Builder::all();
+        $instruction = Instruction::all();
+        $components = Component::with('manuals')->get();
+        $tdrs = Tdr::with('current_wo')->get(); // --- ? ---
+
+        return view('admin.tdrs.create', compact(  'current_wo','tdrs','units','components','user','customers',
+            'manuals','builders',
+            'planes','instruction'));
     }
 
     /**

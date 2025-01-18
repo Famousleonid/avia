@@ -50,10 +50,12 @@
                         </div>
 
                     </div>
-                    <div>
+                    <div class="m-2">
+
+                        <a href="{{ $current_wo->unit->manuals->getBigImageUrl('manuals') }}" data-fancybox="gallery">
                         <img class="" src="{{ $current_wo->unit->manuals->getBigImageUrl('manuals')}}"
                              width="200" height="200" alt="Image"/>
-
+                        </a>
                     </div>
                     <div class=" ps-1 ">
 
@@ -158,6 +160,8 @@
                                     {{__('Add Component')}}
                                 </a>
 
+{{--                                <button class="btn btn-outline-primary btn-sm" style="height: 40px" data-bs-toggle="modal"--}}
+{{--                                        data-bs-target="#createModal">{{ __('Add Component') }}</button>--}}
                             </div>
 
                         </div>
@@ -165,12 +169,16 @@
                 </div>
 
             </div> <! --- Header end --- ->
+
+            <! --- Body --- ->
+
             {{--        @if(count($tdrs))--}}
 
             <div class="container">
 
                 <div class="table-wrapper me-3 p-2">
-                    <table id="componentTable" class="display table table-sm table-hover table-striped align-middle table-bordered">
+                    <table id="tdrTable" class="display table table-sm table-hover table-striped align-middle
+                    table-bordered">
                         <thead class="bg-gradient">
                         <tr>
                             <th class="text-center  sortable">{{__('IPL Number')}} <i class="bi bi-chevron-expand ms-1"></i></th>
@@ -210,39 +218,39 @@
             {{--                <H5 CLASS="text-center">{{__('WorkOrder NOT complete')}}</H5>--}}
             {{--        @endif--}}
 
-
-
-
         </div>
+
+
     @else
 
         <!-- Manual data Not COMPLETE  -->
+        <div>
+            <H5 CLASS=" m-3">{{__('MANUAL ')}} {{$current_wo->unit->manuals->number}} {{__('NOT COMPLETE')}}</H5>
+            <div class="d-flex border " style="width: 500px">
+                <div class="m-3">
+                    <img class="" src="{{ $current_wo->unit->manuals->getBigImageUrl('manuals') }}"
+                         width="200"  alt="Image"/>
 
-        <H5 CLASS=" m-3">{{__('MANUAL ')}} {{$current_wo->unit->manuals->number}} {{__('NOT COMPLETE')}}</H5>
-        <div class="d-flex border " style="width: 500px">
-            <div class="m-3">
-                <img class="" src="{{ $current_wo->unit->manuals->getBigImageUrl('manuals') }}"
-                     width="200"  alt="Image"/>
-
-            </div>
-            <div CLASS="text-center m-3 " style="width: 250px">
-                <p><strong>{{ __('CMM:') }}</strong> {{ $current_wo->unit->manuals->number }}</p>
-                <p><strong>{{ __('Description:') }}</strong>
-                    {{ $current_wo->unit->manuals->title }} </p>
-                <p><strong>{{ __('Revision Date:')}}</strong> {{ $current_wo->unit->manuals->revision_date }}</p>
-                <p><strong>{{ __('AirCraft Type:')}}</strong>
-                    {{ $planes[$current_wo->unit->manuals->planes_id] ?? 'N/A' }}</p>
-                <p><strong>{{ __('MFR:') }}</strong> {{$builders[$current_wo->unit->manuals->builders_id] ?? 'N/A' }}</p>
-                <p><strong>{{ __('Scope:') }}</strong> {{$scopes[$current_wo->unit->manuals->scopes_id] ?? 'N/A' }}</p>
-                <p><strong>{{ __('Library:') }}</strong> {{$current_wo->unit->manuals->lib }}</p>
+                </div>
+                <div CLASS="text-center m-3 " style="width: 250px">
+                    <p><strong>{{ __('CMM:') }}</strong> {{ $current_wo->unit->manuals->number }}</p>
+                    <p><strong>{{ __('Description:') }}</strong>
+                        {{ $current_wo->unit->manuals->title }} </p>
+                    <p><strong>{{ __('Revision Date:')}}</strong> {{ $current_wo->unit->manuals->revision_date }}</p>
+                    <p><strong>{{ __('AirCraft Type:')}}</strong>
+                        {{ $planes[$current_wo->unit->manuals->planes_id] ?? 'N/A' }}</p>
+                    <p><strong>{{ __('MFR:') }}</strong> {{$builders[$current_wo->unit->manuals->builders_id] ?? 'N/A' }}</p>
+                    <p><strong>{{ __('Scope:') }}</strong> {{$scopes[$current_wo->unit->manuals->scopes_id] ?? 'N/A' }}</p>
+                    <p><strong>{{ __('Library:') }}</strong> {{$current_wo->unit->manuals->lib }}</p>
+                </div>
             </div>
         </div>
+
     @endif
 
 
 
     <!-- Модальное окно WO Inspection  -->
-
     <div class="modal fade" id="addWoInspectModal" tabindex="-1" aria-labelledby="addUnitLabel" aria-hidden="true">
         <div class="modal-dialog">
             <div class="modal-content bg-gradient">
@@ -301,6 +309,9 @@
             </div>
         </div>
     </div>
+
+
+
 
 
 
