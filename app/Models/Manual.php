@@ -75,7 +75,7 @@ class Manual extends Model implements  hasMedia
     {
         $media = $this->getMedia($collection)->first();
         return $media
-            ? route('image.show.thumb', ['mediaId' => $media->id, 'modelId' => $this->id, 'mediaName' => 'manual'])
+            ? route('image.show.thumb', ['mediaId' => $media->id, 'modelId' => $this->id, 'mediaName' => $collection])
             : asset('img/noimage.png');
     }
 
@@ -83,7 +83,7 @@ class Manual extends Model implements  hasMedia
     {
         $media = $this->getMedia($collection)->first();
         return $media
-            ? route('image.show.big', ['mediaId' => $media->id, 'modelId' => $this->id, 'mediaName' => 'manual'])
+            ? route('image.show.big', ['mediaId' => $media->id, 'modelId' => $this->id, 'mediaName' => '$collection'])
             : asset('img/noimage.png');
     }
 }

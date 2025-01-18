@@ -13,7 +13,7 @@
             text-decoration: none;
             border-radius: 4px;
             background-color: #fff;
-            background-image: linear-gradient(top, #fff 0%, #eee 50%);
+            background-image: linear-gradient(to top, #fff 0%, #eee 50%);
         }
 
         .select2-container--classic .select2-selection--single .select2-selection__arrow {
@@ -28,9 +28,9 @@
     </style>
 
     <div class="container pl-3 pr-3 mt-2">
-        <div class="card firm-border p-2 bg-white shadow">
+        <div class="card firm-border p-2 ">
 
-            <form id="createForm" class="createForm" role="form" method="POST" action="{{route('admin-workorders.update', ['admin_workorder' => $current_wo->id]) }}" enctype="multipart/form-data">
+            <form id="createForm" class="createForm" role="form" method="POST" action="{{route('admin.workorders.update', ['workorder' => $current_wo->id]) }}" enctype="multipart/form-data">
 
                 @csrf
                 @method('PUT')
@@ -52,7 +52,7 @@
 
 
                                 <div class="form-group col-lg-3 mb-1">
-                                    <label for="unit_id">Unit <a id="new_unit_create" href="{{route('unit.create')}}" class="pl-2"><img src="{{asset('img/plus.png')}}" width="22px" alt="" data-toggle="tooltip" data-placement="top" title="Add new unit"></a></label>
+                                    <label for="unit_id">Unit <a id="new_unit_create" href="{{route('admin.units.create')}}" class="pl-2"><img src="{{asset('img/plus.png')}}" width="22px" alt="" data-toggle="tooltip" data-placement="top" title="Add new unit"></a></label>
                                     <select name="unit_id" id="unit_id" class="form-control">
                                         <option hidden selected value="{{$current_wo->unit_id}}">{{$current_wo->unit->partnumber}}</option>
                                         @foreach ($units as $unit)
@@ -114,7 +114,7 @@
                                         <button id="ntSaveFormsSubmit" type="submit" class="btn btn-primary btn-block ntSaveFormsSubmit">Save</button>
                                     </div>
                                     <div class="col-lg-3 mb-1 ml-auto">
-                                        <a href="{{ route('admin-workorders.index') }}" class="btn btn-secondary btn-block">Cancel</a>
+                                        <a href="{{ route('admin.workorders.index') }}" class="btn btn-secondary btn-block">Cancel</a>
                                     </div>
                                 </div>
                             </div>

@@ -89,7 +89,7 @@ Route::group(['middleware' => ['auth', 'isAdmin'], 'prefix' => 'admin', 'as' =>'
     Route::get('/workorders/approve/{id}/', [\App\Http\Controllers\Admin\WorkorderController::class, 'approve'])->name('workorders.approve');
     Route::post('workorders/{workorder}/inspection', [\App\Http\Controllers\Admin\WorkorderController::class, 'updateInspect'])->name('workorders.inspection');
 
-    Route::post('/units/{manualId}', [\App\Http\Controllers\Admin\UnitController::class, 'update'])->name('units.update');
+ //   Route::post('/units/{manualId}', [\App\Http\Controllers\Admin\UnitController::class, 'update'])->name('units.update');
 
     Route::resource('/tdrs',\App\Http\Controllers\Admin\TdrController::class);
     Route::resource('/components', \App\Http\Controllers\Admin\ComponentController::class);

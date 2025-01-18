@@ -57,6 +57,7 @@
             top: 50% !important;
             transform: translateY(-50%) !important;
             z-index: 1;
+
         }
 
 
@@ -250,10 +251,6 @@
                 const selectedOption = this.options[this.selectedIndex];
                 console.log(selectedOption);
                 const title = selectedOption.getAttribute('data-title');
-
-                console.log('description:', title);
-
-                // Устанавливаем значение в поле описания
                 descriptionInput.value = title || ''
             };
 
