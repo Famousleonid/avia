@@ -83,7 +83,7 @@
 
                 <div class="table-wrapper me-3 p-2 pt-0">
 
-                    <table id="show-workorder" class="display table-sm table-bordered table-striped table-hover w-100">
+                    <table id="show-workorder" class="display table-sm table-bordered table-striped table-hover w-100 " style="background: linear-gradient(to bottom, #131313, #2E2E2E);">
 
                         <thead>
                         <tr>

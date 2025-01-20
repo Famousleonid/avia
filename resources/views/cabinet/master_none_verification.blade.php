@@ -10,12 +10,12 @@
     <link rel="stylesheet" href="{{asset('assets/Bootstrap 5/bootstrap.min.css')}}">
     <link href="{{asset('assets/Bootstrap 5/bootstrap-icons.css')}}" rel="stylesheet">
     <link rel="stylesheet" href="{{asset('assets/jquery/jquery.fancybox.min.css')}}">
-    <link href="{{asset('assets/dataTables/datatables.css')}}" rel="stylesheet">
-    <link href="{{asset('assets/select2/css/select2.min.css')}}" rel="stylesheet"/>
-    <link rel="stylesheet" href="{{asset('css/custom_bootstrap.css')}}">
-    <link rel="stylesheet" href="{{asset('css/main.css')}}">
 
     <style>
+        body {
+            background-color: #bec3c6;
+        }
+
         .sidebar-main {
             min-width: 120px;
             max-width: 240px;
@@ -26,25 +26,15 @@
             color: #B9BEC7;
             box-shadow: 0 0 15px 0 var(--shadow-top-color);
         }
-        .user-panel {
-            background-color: #343A40;
-            color: var(--sidebar-color);
-        }
-        .sidebar .nav-link {
-            color: var(--nav-link-color);
-            display: flex;
-            align-items: center;
-        }
-        .sidebar .nav-link:hover {
-            color: var(--nav-link-hover-color);
-        }
-        .sidebar .nav-link.active {
-            color: var(--nav-link-active-color);
-            background-color: var(--nav-link-active-bg);
-        }
+
         .colored-svg {
             color: #0DDDFD;
             fill: #fff;
+        }
+        @media (max-width: 899px) {
+            #sidebarMenu {
+                display: none;
+            }
         }
     </style>
 
@@ -67,18 +57,10 @@
                 </div>
             </div>
 
-            <ul class="nav flex-column" data-accordion="false">
-                <li class="nav-item">
-                    <a href="{{route('materials.index')}}" class="nav-link" onclick="showLoadingSpinner()">
-                        <i class="bi bi-body-text me-2"></i> Materials
-                    </a>
-                </li>
-            </ul>
-
         </div>
     </nav>
 
-    <div class="col-12 col-md-10">
+    <div class="col-10  offset-1 col-md-8">
         <div class="row justify-content-center mt-4 mb-4">
             <div class="col-md-8">
                 <div class="card shadow">

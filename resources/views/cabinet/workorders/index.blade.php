@@ -1,7 +1,21 @@
-@extends('cabinet.master')
+@extends('admin.master')
 
 @section('links')
     <style>
+        .table-wrapper {
+            height: calc(100vh - 170px);
+            overflow-y: auto;
+            overflow-x: hidden;
+        }
+
+        .table th, .table td {
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            padding-left: 10px;
+
+        }
+
         input[type="checkbox"] {
             width: 80px;
             height: 40px;
@@ -45,16 +59,16 @@
 
 
 
-    <section class="container pl-3 pr-3 mt-2">
+    <section class="container-fluid p-0 m-0 g-0">
 
-        <div class="card firm-border p-2 bg-white shadow">
+        <div class="card shadow">
 
-            <div class="card-header row align-items-center p-2">
+            <div class="row align-items-center py-2 border-bottom">
                 <div class="col-4">
-                    <h3 class="card-title text-bold">List of workorders ( <span style="color: blue">{{count($workorders)}}</span> pieces ) </h3>
+                    <h5 class="card-title text-bold ps-2">List of workorders ( <span class="text-primary">{{count($workorders)}}</span> ) </h5>
                 </div>
                 <div class="col-4">
-                    <a id="admin_new_firm_create" href={{route('cabinet.workorders.create')}} class=""><img src="{{asset('img/plus.png')}}" width="50px" alt="" data-toggle="tooltip" data-placement="top" title="Add new workorder"></a>
+                    <a id="admin_new_firm_create" href={{route('cabinet.workorders.create')}} class=""><img src="{{asset('img/plus.png')}}" width="30px" alt="" data-toggle="tooltip" data-placement="top" title="Add new workorder"></a>
                 </div>
 
                 <div class="card-tools ml-auto pr-2">
@@ -65,80 +79,87 @@
             </div>
 
 
-            <div class="card-body p-0 pt-2">
+            @if(count($workorders))
 
-                <div class="box-body ">
-                    @if(count($workorders))
+                <div class="table-wrapper me-3 p-2 pt-0">
 
-                        <table id="show-workorder" class="display table-sm table-bordered table-striped table-hover " style="width:100%;">
+                    <table id="show-workorder" class="display table-sm table-bordered table-striped table-hover w-100" style="background: linear-gradient(to bottom, #131313, #2E2E2E);">
 
-                            <thead>
+                        <thead>
+                        <tr>
+                            <th class="text-center text-primary bg-gradient ">Number</th>
+                            <th class="text-center text-primary bg-gradient ">Approve</th>
+                            <th class="text-center text-primary bg-gradient ">Unit</th>
+                            <th class="text-center text-primary bg-gradient ">Description</th>
+                            <th class="text-center text-primary bg-gradient ">Serial number</th>
+                            <th class="text-center text-primary bg-gradient ">WO TDR</th>
+                            <th class="text-center text-primary bg-gradient ">Manual</th>
+                            <th class="text-center text-primary bg-gradient ">Customer</th>
+                            <th class="text-center text-primary bg-gradient ">Instruction</th>
+                            <th class="text-center text-primary bg-gradient ">Technik</th>
+                            <th class="text-center text-primary bg-gradient ">Place</th>
+                            <th class="text-center text-primary bg-gradient " data-orderable="false">Edit</th>
+                            <th class="text-center text-primary bg-gradient ">Open Date</th>
+                        </tr>
+                        </thead>
+                        <tbody>
+                        @foreach ($workorders as $workorder)
                             <tr>
-                                <th hidden>Id</th>
-                                <th class="text-center">Number</th>
-                                <th class="text-center">Approve</th>
-                                <th>Customer</th>
-                                <th>Unit</th>
-                                <th class="text-center">Manual</th>
-                                <th>Instruction</th>
-                                <th>Technik</th>
-                                <th class="text-center" data-orderable="false">Edit</th>
-                                <th class="text-center">create Date</th>
-                                <th class="text-center" data-orderable="false">Delete</th>
-                            </tr>
-                            </thead>
-                            <tbody>
-                            @foreach ($workorders as $workorder)
-                                <tr>
-                                    <td hidden>{{$workorder->id}}</td>
-                                    <td>{{$workorder->number}}</td>
-
-                                    @if($workorder->approve)
-                                        <td class="text-center"><img src="{{asset('img/ok.png')}}" width="30px" alt=""></td>
-                                    @else
-                                        <td class="text-center"><img src="{{asset('img/icon_no.png')}}" width="15px" alt=""></td>
+                                <td class="text-center">
+                                    <a class="text-decoration-none" href="">
+                                        <span style="font-size: 16px; color: #0DDDFD;  " id="" class="text-bold">w&nbsp; {{$workorder->number}}</span>
+                                    </a>
+                                </td>
+                                <td class="text-center">
+                                    <a class="change_approve" href="{{route("cabinet.workorders.approve", ['id' => $workorder->id])}}" onclick="showLoadingSpinner()">
+                                        @if($workorder->approve_at)
+                                            <img data-toggle="tooltip" title="@if($workorder->approve_at) {{$workorder->approve_at->format('d.m.Y')}}&nbsp; {{$workorder->approve_name}} @endif" src="{{asset('img/ok.png')}}" width="20px" alt="">
+                                        @else
+                                            <img src="{{asset('img/icon_no.png')}}" width="12px" alt="">
+                                        @endif
+                                    </a>
+                                </td>
+                                <td class="text-center">{{$workorder->unit->part_number}}</td>
+                                <td class="text-center">{{$workorder->unit->manuals->title}}</td>
+                                <td class="text-center">{{$workorder->serial_number}}
+                                    @if($workorder->amdt>0)
+                                        Amdt {{$workorder->amdt}}
                                     @endif
+                                </td>
+                                <td class="text-center">
+                                    <a href=""
+                                       class="btn btn-outline-primary btn-sm">
+                                        <i class="bi bi-journal-richtext"></i>
+                                    </a>
+                                </td>
+                                <td class="text-center">{{$workorder->unit->manuals->number}}</td>
+                                <td class="text-center">{{$workorder->customer->name}}</td>
+                                <td class="text-center">{{$workorder->instruction->name}}</td>
+                                <td class="text-center">{{$workorder->user->name}}</td>
+                                <td class="">{{$workorder->place}}</td>
+                                <td class="text-center">
+                                    <a href="{{route('cabinet.workorders.edit', ['workorder' => $workorder->id])}}"><img src="{{asset('img/set.png')}}" width="30px" alt=""></a>
+                                </td>
+                                @if($workorder->open_at)
+                                    <td class="text-center"><span style="display: none">{{$workorder->open_at->format('Ymd')}}</span>{{$workorder->open_at->format('d.m.Y')}}</td>
+                                @else
+                                    <td class="text-center"><span style="display: none">{{$workorder->open_at}}</span>{{$workorder->open_at}}</td>
+                                @endif
+                            </tr>
 
-                                    <td class="">{{$workorder->customer->name}}</td>
-                                    <td class="">{{$workorder->unit->partnumber}}</td>
-                                    <td class="text-center">{{$workorder->manual}}</td>
-                                    <td class="">{{$workorder->instruction->name}}</td>
-                                    <td class="">{{$workorder->user->name}}</td>
+                        @endforeach
 
-                                    <td class="text-center">
-                                        <a href="{{route('workorder.edit', ['workorder' => $workorder->id])}}"><img src="{{asset('img/set.png')}}" width="30px" alt=""></a>
-                                    </td>
-                                    <td class="text-center"><span style="display: none">{{$workorder->created_at->format('Ymd')}}</span>{{$workorder->created_at->format('d.m.Y')}}</td>
-                                    <td class="text-center">
-                                        <form action="{{route('workorder.destroy', ['workorder' => $workorder->id])}}" method="post">
-                                            @csrf
-                                            @method('DELETE')
-                                            <button class="btn btn-xs btn-danger" type="button" data-toggle="modal"
-                                                    data-target="#confirmDelete" data-title="Delete workorder {{$workorder->number}}"
-                                                    data-message="Are you sure you want to delete this workorder?"
-                                                    title="Contact the Administrator"
-                                                    @if (!Auth()->user()->is_admin) disabled @endif
-                                            <i class="glyphicon glyphicon-trash"></i> Delete
-                                            </button>
-                                        </form>
-                                    </td>
-                                </tr>
-
-                            @endforeach
-
-                            </tbody>
-                        </table>
-                    @else
-                        <p>Workorders not created</p>
-                    @endif
+                        </tbody>
+                    </table>
                 </div>
-            </div>
+            @else
+                <p class="ms-2">Workorders not created</p>
+            @endif
+
+
         </div>
 
     </section>
-
-    @include('components.delete');
-
 
 @endsection
 
@@ -147,43 +168,8 @@
 
     <script>
 
-        let mainTable = $('#show-workorder').DataTable({
-            "AutoWidth": false,
-            "scrollY": "550px",
-            "scrollX": false,
-            "scrollCollapse": true,
-            "paging": false,
-            "ordering": true,
-            "info": false,
-            "order": [[1, 'desc']],
-            "bAutoWidth": false,
-
-            columnDefs: [
-
-                {"width": "70px", "targets": [2]},
-
-            ],
-        });
-
-
         document.addEventListener('DOMContentLoaded', function () {
 
-            // delete form confirm
-            $('#confirmDelete').on('show.bs.modal', function (e) {
-
-                let message = $(e.relatedTarget).attr('data-message');
-                $(this).find('.modal-body p').text(message);
-                let title = $(e.relatedTarget).attr('data-title');
-                $(this).find('.modal-title').text(title);
-
-                let form = $(e.relatedTarget).closest('form');
-
-                $(this).find('.modal-footer #buttonConfirm').data('form', form);
-            });
-
-            $('#confirmDelete').find('.modal-footer #buttonConfirm').on('click', function () {
-                $(this).data('form').submit();
-            });
 
 
         });

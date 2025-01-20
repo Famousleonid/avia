@@ -3,21 +3,31 @@
 <head>
     <meta charset="utf-8">
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
-    {{--    <link rel="icon" href="{{asset('img/favicon_old.png')}}" type="image/png">--}}
+    <link rel="icon" href="{{asset('img/favicon.webp')}}" type="image/png">
     <title>Personal page</title>
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="csrf-token" content="{{ csrf_token() }}"/>
     <link rel="stylesheet" href="{{asset('assets/Bootstrap 5/bootstrap.min.css')}}">
     <link href="{{asset('assets/Bootstrap 5/bootstrap-icons.css')}}" rel="stylesheet">
     <link rel="stylesheet" href="{{asset('assets/jquery/jquery.fancybox.min.css')}}">
-    <link href="{{asset('assets/dataTables/datatables.css')}}" rel="stylesheet">
+{{--    <link href="{{asset('assets/dataTables/datatables.css')}}" rel="stylesheet">--}}
     <link href="{{asset('assets/select2/css/select2.min.css')}}" rel="stylesheet"/>
     <link rel="stylesheet" href="{{asset('css/custom_bootstrap.css')}}">
     <link rel="stylesheet" href="{{asset('css/main.css')}}">
 
+    <script>
+        (function () {
+            const savedTheme = localStorage.getItem('theme') || 'light';
+            document.documentElement.setAttribute('data-bs-theme', savedTheme);
+        })();
+    </script>
+
     @yield('link')
 
     <style>
+        .content {
+            overflow: hidden;
+        }
 
         .container-checkbox {
             display: block;
@@ -86,12 +96,7 @@
             overflow: hidden;
         }
     </style>
-    <script>
-        (function () {
-            const savedTheme = localStorage.getItem('theme') || 'light';
-            document.documentElement.setAttribute('data-bs-theme', savedTheme);
-        })();
-    </script>
+
 </head>
 
 <body class="p-0 m-0 g-0">
@@ -125,7 +130,9 @@
 @yield('scripts')
 
 <script>
+
     document.addEventListener('DOMContentLoaded', function () {
+        hideLoadingSpinner();
 
         const themeToggle = document.getElementById('themeToggle');
         const themeToggleMobile = document.getElementById('themeToggleMobile');
@@ -176,21 +183,6 @@
             $('[data-toggle="tooltip"]').tooltip()
         })
 
-        // ------------------------------------------------------------
-
-        $('.nav-sidebar a').each(function () {
-            let location = window.location.protocol + '//' + window.location.host + window.location.pathname;
-
-            let link = this.href;
-
-            if (link === location) {
-                $(this).addClass('active');
-                $(this).closest('.has-treeview').addClass('menu-open');
-            }
-        });
-
-
-      hideLoadingSpinner();
         //------------------------------------------------------------------------------------------------------------------------
 
         $('#sidebarMenu a').each(function () {

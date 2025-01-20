@@ -2,8 +2,8 @@
 
 <ul class="nav flex-column" data-accordion="false">
     <li class="nav-item">
-        <a class="nav-link press-spinner" href="{{route('cabinet.index')}}" >
-            <i class="bi bi-house fs-5 me-2"></i> Main
+        <a class="nav-link press-spinner" href="{{route('cabinet.workorders.index')}}" >
+            <i class="bi bi-file-earmark-word fs-6 me-2 "></i> Workorder
         </a>
     </li>
     <li class="nav-item">
@@ -21,11 +21,7 @@
             <i class="bi bi-book-half me-2"></i> Manuals
         </a>
     </li>
-    <li class="nav-item">
-        <a class="nav-link press-spinner" href="#" >
-            <i class="bi bi-file-earmark-word fs-6 me-2 "></i> Workorder
-        </a>
-    </li>
+
     <li class="nav-item press-spinner">
         <a class="nav-link" href="{{route('cabinet.profile')}}" >
             <i class="bi bi-person-bounding-box me-2"></i> Profile

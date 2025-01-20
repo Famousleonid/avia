@@ -38,10 +38,6 @@ Route::get('/mobile', [MobileController::class,'index'])->name('mobile.index');;
 Route::group(['middleware' => ['auth'], 'prefix' => 'cabinet', 'as' =>'cabinet.'], function () {
 
     Route::get('/', [CabinetController::class, 'index'])->name('index');
-    Route::get('/profile', [CabinetController::class, 'profile'])->name('profile');
-    Route::get('trainings/form112/{id}', [TrainingController::class, 'showForm112'])->name('trainings.form112');
-    Route::get('trainings/form132/{id}', [TrainingController::class, 'showForm132'])->name('trainings.form132');
-
     Route::resource('/trainings', TrainingController::class);
     Route::resource('/mains', MainController::class);
     Route::resource('/users', UserController::class);
@@ -52,10 +48,12 @@ Route::group(['middleware' => ['auth'], 'prefix' => 'cabinet', 'as' =>'cabinet.'
     Route::resource('/materials', MaterialController::class);
     Route::resource('/manuals',ManualController::class);
 
+    Route::get('trainings/form112/{id}', [TrainingController::class, 'showForm112'])->name('trainings.form112');
+    Route::get('trainings/form132/{id}', [TrainingController::class, 'showForm132'])->name('trainings.form132');
+    Route::get('/profile', [CabinetController::class, 'profile'])->name('profile');
     Route::post('profile/change_password/user/{id}/', [UserController::class, 'changePassword'])->name('profile.changePassword');
-    Route::get('/progress', [ProgressController::class, 'index'])->name('progress.index');
-    Route::post('/progress/technik', [ProgressController::class, 'technik'])->name('progress.technik');
-    Route::get('/materials-search', [MaterialController::class, 'search'])->name('materials.search');
+    Route::get('/progress', [CabinetController::class, 'progress'])->name('progress.index');
+    Route::get('/workorders/approve/{id}/', [WorkorderController::class, 'approve'])->name('workorders.approve');
 });
 
 // ----------------------- Media route -----------------------------------------------------------------
