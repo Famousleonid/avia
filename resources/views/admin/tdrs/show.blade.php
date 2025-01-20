@@ -155,12 +155,13 @@
                     <div>
                         <div class="d-flex ">
                             <div style="width: 600px">
-                                <a href="" class="btn btn-outline-primary "
-                                   style="height: 40px">
-                                    {{__('Add Component')}}
+                                <a href="{{ route('admin.tdrs.create', ['workorder_id' => $current_wo->id]) }}"
+                                   class="btn btn-outline-primary" style="height: 40px">
+                                    {{__('Add Unit Inspection')}}
                                 </a>
 
-{{--                                <button class="btn btn-outline-primary btn-sm" style="height: 40px" data-bs-toggle="modal"--}}
+
+                                {{--                                <button class="btn btn-outline-primary btn-sm" style="height: 40px" data-bs-toggle="modal"--}}
 {{--                                        data-bs-target="#createModal">{{ __('Add Component') }}</button>--}}
                             </div>
 
@@ -180,6 +181,7 @@
                     <table id="tdrTable" class="display table table-sm table-hover table-striped align-middle
                     table-bordered">
                         <thead class="bg-gradient">
+
                         <tr>
                             <th class="text-center  sortable">{{__('IPL Number')}} <i class="bi bi-chevron-expand ms-1"></i></th>
                             <th class="text-center  sortable">{{__('Part

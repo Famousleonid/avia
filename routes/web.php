@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Admin\TdrController;
 use App\Http\Controllers\Cabinet\ManualController;
 use App\Http\Controllers\Cabinet\MaterialController;
 use App\Http\Controllers\Cabinet\UserController;
@@ -89,10 +90,17 @@ Route::group(['middleware' => ['auth', 'isAdmin'], 'prefix' => 'admin', 'as' =>'
     Route::get('/workorders/approve/{id}/', [\App\Http\Controllers\Admin\WorkorderController::class, 'approve'])->name('workorders.approve');
     Route::post('workorders/{workorder}/inspection', [\App\Http\Controllers\Admin\WorkorderController::class, 'updateInspect'])->name('workorders.inspection');
 
- //   Route::post('/units/{manualId}', [\App\Http\Controllers\Admin\UnitController::class, 'update'])->name('units.update');
+    Route::post('/units/{manualId}', [\App\Http\Controllers\Admin\UnitController::class, 'update'])->name('units.update');
 
-    Route::resource('/tdrs',\App\Http\Controllers\Admin\TdrController::class);
+
+    Route::get('/tdrs/create/{workorder_id}', [\App\Http\Controllers\Admin\TdrController::class, 'create'])->name('tdrs.create');
+    Route::resource('/tdrs',\App\Http\Controllers\Admin\TdrController::class)->except('create');
+
+
+
+
     Route::resource('/components', \App\Http\Controllers\Admin\ComponentController::class);
+
 });
 
 

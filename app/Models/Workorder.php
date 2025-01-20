@@ -33,7 +33,7 @@ class Workorder extends Model implements HasMedia
     }
     public function tdrs()
     {
-        return $this->belongsTo(Tdr::class,'workorder_id');
+        return $this->hasMany(Tdr::class,'workorder_id');
     }
 
 

@@ -12,9 +12,5 @@ class Code extends Model
         'name',
         'code',
     ];
-    public function tdr_component()
-    {
-        return $this->hasMany(TdrComponent::class, 'codes_id');
-    }
 
 }

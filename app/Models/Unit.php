@@ -15,11 +15,16 @@ class Unit extends Model
         'manual_id',
     ];
 
+
+
     public function manuals()
     {
         return $this->belongsTo(Manual::class,'manual_id');
     }
 
-
+    public function workorder()
+    {
+        return $this->hasMany(Workorder::class);
+    }
 
 }

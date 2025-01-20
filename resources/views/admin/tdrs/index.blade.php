@@ -120,28 +120,34 @@
                             <td class="text-center">{{$order->customer->name}}</td>
                             <td class="text-center">{{$order->user->name}}</td>
                             <td class="text-center">
-                                @if(count($tdrs))
-                                    @foreach($tdrs as $tdr)
-                                        @if($order->id != $tdr->workorder_id  )
-                                            <a href="{{ route('admin.tdrs.show', ['order' => $order->id]) }}" class="btn btn-outline-primary
+                                <a href="{{ route('admin.tdrs.show', ['tdr' => $order->id]) }}" class="btn
+                                            btn-outline-primary
                                             btn-sm">
-                                                <i class="bi bi-patch-plus"></i>
-                                            </a>
-                                        @else
+                                    <i class="bi bi-pencil-square"></i>
+                                </a>
+{{--                                @if(count($tdrs))--}}
+{{--                                    @foreach($tdrs as $tdr)--}}
+{{--                                        @if($order->id != $tdr->workorder_id  )--}}
+{{--                                            <a href="{{ route('admin.tdrs.show', ['order' => $order->id]) }}" class="btn btn-outline-primary--}}
+{{--                                            btn-sm">--}}
+{{--                                                <i class="bi bi-patch-plus"></i>--}}
+{{--                                            </a>--}}
+{{--                                        @else--}}
 {{--                                            {{'WO TDR Created'}}--}}
-                                            <a href="{{ route('admin.tdrs.edit', ['order' => $order->id]) }}" class="btn btn-outline-primary
-                                            btn-sm">
-                                                <i class="bi bi-pencil-square"></i>
-                                            </a>
-                                        @endif
-                                    @endforeach
-                                @else
+{{--                                            <a href="{{ route('admin.tdrs.show', ['tdr' => $order->id]) }}" class="btn--}}
+{{--                                            btn-outline-primary--}}
+{{--                                            btn-sm">--}}
+{{--                                                <i class="bi bi-pencil-square"></i>--}}
+{{--                                            </a>--}}
+{{--                                        @endif--}}
+{{--                                    @endforeach--}}
+{{--                                @else--}}
 {{--                                {{$order->id}}--}}
-                                    <a href="{{ route('admin.tdrs.show', ['tdr' => $order->id]) }}" class="btn btn-outline-primary
-                                            btn-sm">
-                                        <i class="bi bi-patch-plus"></i>
-                                    </a>
-                                @endif
+{{--                                    <a href="{{ route('admin.tdrs.show', ['tdr' => $order->id]) }}" class="btn btn-outline-primary--}}
+{{--                                            btn-sm">--}}
+{{--                                        <i class="bi bi-patch-plus"></i>--}}
+{{--                                    </a>--}}
+{{--                                @endif--}}
                             </td>
                         </tr>
                     @endforeach
