@@ -10,6 +10,7 @@ use App\Models\Unit;
 use App\Models\User;
 use App\Models\Workorder;
 use Illuminate\Http\Request;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Auth;
 
 class WorkorderController extends Controller
@@ -41,12 +42,11 @@ class WorkorderController extends Controller
     {
 
         $request->validate([
-            'number' => 'required ',
+            'number' => 'required|unique:workorders,number',
             'unit_id' => 'required',
             'customer_id' => 'required',
             'instruction_id' => 'required',
         ]);
-
 
         $number = Workorder::where('number', $request['number'])->first();
         if ($number) {
@@ -55,6 +55,15 @@ class WorkorderController extends Controller
                 ->with('error', 'Workorder number is already exists.');
         }
 
+        $request->merge([
+            'part_missing' => $request->has('part_missing') ? 1 : 0,
+            'external_damage' => $request->has('external_damage') ? 1 : 0,
+            'received_disassembly' => $request->has('received_disassembly') ? 1 : 0,
+            'disassembly_upon_arrival' => $request->has('disassembly_upon_arrival') ? 1 : 0,
+            'nameplate_missing' => $request->has('nameplate_missing') ? 1 : 0,
+            'preliminary_test_false' => $request->has('preliminary_test_false') ? 1 : 0,
+            'extra_parts' => $request->has('extra_parts') ? 1 : 0,
+        ]);
 
         Workorder::create($request->all());
 
@@ -66,19 +75,22 @@ class WorkorderController extends Controller
 
         Workorder::destroy($id);
 
-        return redirect()->route('admin-workorders.index')->with('success', 'Workorder deleted');
+        return redirect()->route('admin.workorders.index')->with('success', 'Workorder deleted');
     }
 
     public function edit($id)
     {
-
         $current_wo = Workorder::find($id);
         $customers = Customer::all();
         $units = Unit::all();
         $instructions = Instruction::all();
-        $user = Auth::user();
+        $manuals = Manual::all();
+        $users = User::all();
+        $open_at = Carbon::parse($current_wo->open_at)->format('Y-m-d');
 
-        return view('admin.workorders.edit', compact('user', 'customers', 'units', 'instructions', 'current_wo'));
+
+
+        return view('admin.workorders.edit', compact('users', 'customers', 'units', 'instructions', 'current_wo', 'manuals','open_at'));
 
     }
 
@@ -92,19 +104,19 @@ class WorkorderController extends Controller
 
         $wo = Workorder::find($id);
 
-        $wo->update(
-            [
-                'unit_id' => $request->unit_id,
-                'customer_id' => $request->customer_id,
-                'instruction_id' => $request->instruction_id,
-                'serial_number' => $request->serial_number,
-                'manual' => $request->manual,
-                'description' => $request->description,
-                'notes' => $request->notes
-            ]);
+        $request->merge([
+            'part_missing' => $request->has('part_missing') ? 1 : 0,
+            'external_damage' => $request->has('external_damage') ? 1 : 0,
+            'received_disassembly' => $request->has('received_disassembly') ? 1 : 0,
+            'disassembly_upon_arrival' => $request->has('disassembly_upon_arrival') ? 1 : 0,
+            'nameplate_missing' => $request->has('nameplate_missing') ? 1 : 0,
+            'preliminary_test_false' => $request->has('preliminary_test_false') ? 1 : 0,
+            'extra_parts' => $request->has('extra_parts') ? 1 : 0,
+        ]);
 
+        $wo->update($request->all());
 
-        return redirect()->route('admin-workorders.index')->with('success', 'Workorder was edited successfully');
+        return redirect()->route('admin.workorders.index')->with('success', 'Workorder was edited successfully');
     }
 
     public function approve($id)
@@ -147,7 +159,6 @@ class WorkorderController extends Controller
             return response()->json(['success' => true], 200);
 
         } catch (\Exception $e) {
-            \Log::error('Update Inspect Error: ' . $e->getMessage());
             return response()->json(['success' => false, 'error' => $e->getMessage()], 500);
         }
     }

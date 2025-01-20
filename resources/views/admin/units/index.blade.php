@@ -584,9 +584,6 @@
                 };
             });
 
-
-            // const manualId = document.querySelector('.edit-unit-btn').getAttribute('data-manuals-id');
-
             console.log("Part Numbers to send:", JSON.stringify(partNumbers));
             console.log("Manual ID:", manualId);
 

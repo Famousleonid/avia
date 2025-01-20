@@ -4,12 +4,9 @@
 
     <style>
 
-
         /* ----------------------------------- Select 2 Dark Theme -------------------------------------*/
 
-
-
-        html[data-bs-theme="dark"]  .select2-selection--single {
+        html[data-bs-theme="dark"] .select2-selection--single {
             background-color: #121212 !important;
             color: gray !important;
             height: 38px !important;
@@ -23,7 +20,7 @@
             line-height: 2.2 !important;
         }
 
-        html[data-bs-theme="dark"] .select2-search--dropdown .select2-search__field  {
+        html[data-bs-theme="dark"] .select2-search--dropdown .select2-search__field {
             background-color: #343A40 !important;
         }
 
@@ -51,6 +48,7 @@
             color: #000000;
 
         }
+
         .select2-container .select2-selection__clear {
             position: absolute !important;
             right: 10px !important;
@@ -58,6 +56,18 @@
             transform: translateY(-50%) !important;
             z-index: 1;
 
+        }
+
+        /* -------------------------------------------------------------------------------------------*/
+
+        .checkbox-wo {
+            font-size: 1rem;
+        }
+
+        .checkbox-wo input[type="checkbox"] {
+            width: 20px;
+            height: 20px;
+            margin-right: 1px;
         }
 
 
@@ -77,113 +87,131 @@
                         <div class="col-md-12">
 
                             <div class="card-header row">
-
                                 <p class="text-bold">Create workorder for user: ( &nbsp;&nbsp;
                                     <span class="text-info" style="font-size: 1.2rem">{{auth()->user()->name}}</span>
                                     <span>&nbsp;&nbsp; ) email: {{auth()->user()->email}}</span>
                                 </p>
-
-
                             </div>
 
                             <div class="card-body row" id="create_div_inputs">
 
-                                <div class="form-group col-lg-3 mb-1">
-                                    <label for="number_id">Workorder № <span style="color:red; font-size: x-small">(required)</span></label>
-                                    <input type="text" name="number" id="number_id" value="{{ old('number') }}" class="form-control  @error('number') is-invalid @enderror" placeholder="Enter workorder number ">
+                                <div class="col-lg-9 row">
+
+                                    <div class="row ">
+                                        <div class="form-group col-lg-4 mb-1">
+                                            <label for="number_id">Workorder № <span style="color:red; font-size: x-small">(required)</span></label>
+                                            <input type="text" name="number" id="number_id" value="{{ old('number') }}" class="form-control  @error('number') is-invalid @enderror" placeholder="Enter workorder number ">
+                                        </div>
+
+                                        <div class="form-group col-lg-4 mb-1">
+                                            <label for="unit_id">Unit
+                                                <span style="color:red; font-size: x-small">(required)</span>
+                                                <a id="new_unit_create" class="ms-3" data-bs-toggle="modal" data-bs-target="#addUnitModal">
+                                                    <img class="mb-1" src="{{asset('img/plus.png')}}" width="20px" alt="" data-toggle="tooltip" data-placement="top" title="Add new unit">
+                                                </a>
+                                            </label>
+                                            <select name="unit_id" id="unit_id" class="form-control">
+                                                <option disabled selected value="">---</option>
+                                                @foreach ($units as $unit)
+                                                    <option
+                                                        value="{{$unit->id}}"
+                                                        data-title="{{ $unit->manuals->title }}">
+                                                        {{$unit->part_number}}
+                                                    </option>
+                                                @endforeach
+                                            </select>
+                                        </div>
+                                        <div class="form-group col-lg-4 mb-1">
+                                            <label for="customer_id">Customer <span style="color:red; font-size: x-small">(required)</span></label>
+                                            <select name="customer_id" id="customer_id" class="form-select">
+                                                <option disabled selected value>---</option>
+                                                @foreach ($customers as $customer)
+                                                    <option value="{{$customer->id}}">{{$customer->name}}</option>
+                                                @endforeach
+                                            </select>
+                                        </div>
+                                    </div>
+
+                                    <div class="row ">
+                                        <div class="form-group col-lg-4 mb-1">
+                                            <label for="instruction_id">Instruction <span style="color:red; font-size: x-small">(required)</span></label>
+                                            <select name="instruction_id" id="instruction_id" class="form-select">
+                                                <option disabled selected value>---</option>
+                                                @foreach ($instructions as $instruction)
+                                                    <option value="{{$instruction->id}}">{{$instruction->name}}</option>
+                                                @endforeach
+                                            </select>
+                                        </div>
+
+                                        <div class="form-group col-lg-4 mt-2">
+                                            <label for="number_id">Serial number</label>
+                                            <input type="text" name="serial_number" id="serial_number" class="form-control @error('serial_number') is-invalid @enderror" placeholder="s/n">
+                                        </div>
+
+                                        <div class="form-group col-lg-4 mt-2">
+                                            <label for="unit_description">Description</label>
+                                            <input type="text" name="description" id="wo_description" value="" class="form-control @error('description') is-invalid @enderror" placeholder="">
+                                        </div>
+                                    </div>
+
+                                    <div class="row ">
+                                        <div class="form-group col-lg-4 mt-2">
+                                            <label for="unit_amdt">Amdt</label>
+                                            <input type="text" name="amdt" id="wo_amdt" maxlength="30" value="" class="form-control @error('amdt') is-invalid @enderror" placeholder="">
+                                        </div>
+
+                                        <div class="form-group col-lg-4 mt-2">
+                                            <label for="unit_place">Place</label>
+                                            <input type="text" name="place" id="wo_place" maxlength="30" value="" class="form-control @error ('place') is-invalid @enderror" placeholder="">
+                                        </div>
+
+                                        <div class="form-group col-lg-4 mt-2">
+                                            <label for="unit_open_at">Open date</label>
+                                            <input type="date" name="open_at" id="open_at" maxlength="30" value="" class="form-control @error('open_at') is-invalid @enderror" placeholder="date opened">
+                                        </div>
+                                    </div>
+                                    <div class="row ">
+
+                                        <div class="form-group col-lg-4 offset-4 mt-2">
+                                            <label for="instruction_id">Technik</label>
+                                            <select name="user_id" id="user_id" class="form-select">
+                                                <option disabled selected value style="color: gray;"> -- select an option --</option>
+                                                @foreach ($users as $user)
+                                                    <option value="{{ $user->id }}"
+                                                            @if(isset($currentUser) && $user->id == $currentUser->id) selected @endif>
+                                                        {{ $user->name }}
+                                                    </option>
+                                                @endforeach
+                                            </select>
+                                        </div>
+
+                                    </div>
+
                                 </div>
 
+                                <div class="col-lg-3 row">
 
-                                <div class="form-group col-lg-3 mb-1">
+                                    <label class="checkbox-wo mb-2"><input type="checkbox" name="part_missing">___ Parts Missing</label><br>
+                                    <label class="checkbox-wo mb-2"><input type="checkbox" name="external_damage">___ External Damage</label><br>
+                                    <label class="checkbox-wo mb-2"><input type="checkbox" name="received_disassembly">___ Received Disassembly</label><br>
+                                    <label class="checkbox-wo mb-2"><input type="checkbox" name="disassembly_upon_arrival">___ Disassembly Upon Arrival</label><br>
+                                    <label class="checkbox-wo mb-2"><input type="checkbox" name="nameplate_missing">___ Name Plate Missing</label><br>
+                                    <label class="checkbox-wo mb-2"><input type="checkbox" name="preliminary_test_false">___ Preliminary Test</label><br>
+                                    <label class="checkbox-wo mb-2"><input type="checkbox" name="extra_parts">___ Extra Parts</label><br>
 
-                                    <label for="unit_id">Unit
-                                        <span style="color:red; font-size: x-small">(required)</span>
-                                        <a  id="new_unit_create"  class="ms-3" data-bs-toggle="modal" data-bs-target="#addUnitModal">
-                                            <img class="" src="{{asset('img/plus.png')}}" width="20px" alt="" data-toggle="tooltip" data-placement="top" title="Add new unit">
-                                        </a>
-                                    </label>
 
-                                    <select name="unit_id" id="unit_id" class="form-control">
-                                        <option disabled selected value="">---</option>
-                                        @foreach ($units as $unit)
-                                            <option
-                                                value="{{$unit->id}}"
-{{--                                                data-lib="{{$unit->manuals->lib}}"--}}
-{{--                                                data-description="{{$unit->manuals->title}}"--}}
-                                                data-title="{{ $unit->manuals->title }}">
-                                                {{$unit->part_number}}
-                                            </option>
-                                        @endforeach
-                                    </select>
                                 </div>
 
-
-                                <div class="form-group col-lg-3 mb-1">
-                                    <label for="customer_id">Customer <span style="color:red; font-size: x-small">(required)</span></label>
-                                    <select name="customer_id" id="customer_id" class="form-select">
-                                        <option disabled selected value>---</option>
-                                        @foreach ($customers as $customer)
-                                            <option value="{{$customer->id}}">{{$customer->name}}</option>
-                                        @endforeach
-                                    </select>
-                                </div>
-
-                                <div class="form-group col-lg-2 mb-1">
-                                    <label for="instruction_id">Instruction <span style="color:red; font-size: x-small">(required)</span></label>
-                                    <select name="instruction_id" id="instruction_id" class="form-select">
-                                        <option disabled selected value >---</option>
-                                        @foreach ($instructions as $instruction)
-                                            <option value="{{$instruction->id}}">{{$instruction->name}}</option>
-                                        @endforeach
-                                    </select>
-                                </div>
-
-                                <div class="form-group col-lg-3 mt-2">
-                                    <label for="number_id">Serial number</label>
-                                    <input type="text" name="serial_number" id="serial_number" class="form-control @error('serial_number') is-invalid @enderror" placeholder="s/n">
-                                </div>
-
-                                <div class="form-group col-lg-9 mt-2">
-                                    <label for="unit_description">Description</label>
-                                    <input type="text" name="description" id="wo_description"  value="" class="form-control @error('description') is-invalid @enderror" placeholder="">
-                                </div>
-
-                                <div class="form-group col-lg-3 mt-2">
-                                    <label for="unit_amdt">Amdt</label>
-                                    <input type="text" name="amdt" id="wo_amdt" maxlength="30" value="" class="form-control @error('amdt') is-invalid @enderror" placeholder="">
-                                </div>
-
-                                <div class="form-group col-lg-3 mt-2">
-                                    <label for="unit_place">Place</label>
-                                    <input type="text" name="place" id="wo_place" maxlength="30" value=""  class="form-control @error ('place') is-invalid @enderror" placeholder="">
-                                </div>
-
-                                <div class="form-group col-lg-3 mt-2">
-                                    <label for="unit_open_at">Open date</label>
-                                    <input type="date" name="open_at" id="open_at" maxlength="30" value="" class="form-control @error('open_at') is-invalid @enderror" placeholder="date opened">
-                                </div>
-
-                                <div class="form-group col-lg-3 mt-2">
-                                    <label for="instruction_id">Technik</label>
-                                    <select name="user_id" id="user_id" class="form-select">
-                                        <option disabled selected value style="color: gray;"> -- select an option --</option>
-                                        @foreach ($users as $user)
-                                            <option value="{{ $user->id }}"
-                                                    @if(isset($currentUser) && $user->id == $currentUser->id) selected @endif>
-                                                {{ $user->name }}
-                                            </option>
-                                        @endforeach
-                                    </select>
-                                </div>
                             </div>
+
 
                             <div class="form-group container-fluid ">
                                 <div class="card-body row ">
-                                    <div class="col col-lg-6 mb-1">
-                                        <button id="ntSaveFormsSubmit" type="submit" class="btn btn-outline-primary btn-block ntSaveFormsSubmit">Save</button>
+                                    <div class="col col-lg-1  mb-1">
+                                        <button id="ntSaveFormsSubmit" type="submit" class="btn btn-outline-primary btn-block ntSaveFormsSubmit"> Save </button>
                                     </div>
-                                    <div class="col col-lg-6 mb-1 ml-auto">
-                                        <a href="{{ route('admin.workorders.index') }}" class="btn btn-outline-secondary btn-block">Cancel</a>
+                                    <div class="col col-lg-1 offset-6 mb-1 ">
+                                        <a href="{{ route('admin.workorders.index') }}" class="btn btn-outline-secondary btn-block"> Cancel </a>
                                     </div>
                                 </div>
                             </div>
@@ -225,7 +253,7 @@
                     </div>
                 </div>
                 <div class="modal-footer">
-                    <button type="button" class="btn btn-outline-secondary"  data-bs-dismiss="modal">Close
+                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Close
                     </button>
                     <button type="button" id="createUnitBtn" class="btn btn-outline-primary"> Add Unit
                     </button>
@@ -253,8 +281,6 @@
                 const title = selectedOption.getAttribute('data-title');
                 descriptionInput.value = title || ''
             };
-
-
 
 
             // var selection = document.getElementById("unit_id");
@@ -330,7 +356,7 @@
                     allowClear: true
                 });
             });
-            $(function() {
+            $(function () {
                 applyTheme();
             });
 
@@ -350,8 +376,6 @@
 
 
         });
-
-
 
 
     </script>

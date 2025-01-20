@@ -144,18 +144,17 @@
                                 <td class="text-center">
                                     <a href="{{route('admin.workorders.edit', ['workorder' => $workorder->id])}}"><img src="{{asset('img/set.png')}}" width="30px" alt=""></a>
                                 </td>
-                                {{--                                    <td class="text-center"><span style="display: none">{{$workorder->created_at->format('Ymd')}}</span>{{$workorder->created_at->format('d.m.Y')}}</td>--}}
                                 @if($workorder->open_at)
                                     <td class="text-center"><span style="display: none">{{$workorder->open_at->format('Ymd')}}</span>{{$workorder->open_at->format('d.m.Y')}}</td>
                                 @else
                                     <td class="text-center"><span style="display: none">{{$workorder->open_at}}</span>{{$workorder->open_at}}</td>
                                 @endif
                                 <td class="text-center">
-                                    <form action="{{route('admin.workorders.destroy', ['workorder' => $workorder->id])}}" method="post">
+                                    <form id="deleteForm_{{$workorder->id}}" action="{{ route('admin.workorders.destroy', ['workorder' => $workorder->id]) }}" method="POST" style="display:inline;">
                                         @csrf
                                         @method('DELETE')
-                                        <button class="btn btn-outline-danger btn-sm" data-bs-toggle="modal" data-bs-target="#deleteModal"
-                                                data-title="Delete workorder {{$workorder->number}}">
+                                        <button class="btn btn-sm btn-outline-danger" type="button" name="btn_delete"
+                                                data-bs-toggle="modal" data-bs-target="#useConfirmDelete" data-title="Delete Confirmation WO {{$workorder->number}}">
                                             <i class="bi bi-trash"></i>
                                         </button>
                                     </form>
@@ -186,44 +185,25 @@
 
     <script>
 
-        // let mainTable = $('#show-workorder').DataTable({
-        //     "AutoWidth": false,
-        //     "scrollY": "550px",
-        //     "scrollX": false,
-        //     "scrollCollapse": true,
-        //     "paging": false,
-        //     "ordering": true,
-        //     "info": false,
-        //     "order": [[1, 'desc']],
-        //     "bAutoWidth": false,
-        //
-        //     columnDefs: [
-        //
-        //         {"width": "70px", "targets": [2]},
-        //
-        //     ],
-        // });
-
-
         document.addEventListener('DOMContentLoaded', function () {
 
-            // delete form confirm
-            $('#confirmDelete').on('show.bs.modal', function (e) {
-
-                let message = $(e.relatedTarget).attr('data-message');
-                $(this).find('.modal-body p').text(message);
-                let title = $(e.relatedTarget).attr('data-title');
-                $(this).find('.modal-title').text(title);
-
-                let form = $(e.relatedTarget).closest('form');
-
-                $(this).find('.modal-footer #buttonConfirm').data('form', form);
+            // --------------- Delete modal -----------------------------------------------------------------------------------
+            const modal = document.getElementById('useConfirmDelete');
+            const confirmDeleteBtn = document.getElementById('confirmDeleteBtn');
+            let deleteForm = null;
+            modal.addEventListener('show.bs.modal', function (event) {
+                const button = event.relatedTarget;
+                deleteForm = button.closest('form');
+                const title = button.getAttribute('data-title');
+                const modalTitle = modal.querySelector('#confirmDeleteLabel');
+                modalTitle.textContent = title || 'Delete Confirmation';
             });
-
-            $('#confirmDelete').find('.modal-footer #buttonConfirm').on('click', function () {
-                $(this).data('form').submit();
+            confirmDeleteBtn.addEventListener('click', function () {
+                if (deleteForm) {
+                    deleteForm.submit();
+                }
             });
-
+            // --------------- End Delete modal -----------------------------------------------------------------------------------
 
         });
 
