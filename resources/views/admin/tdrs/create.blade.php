@@ -65,13 +65,15 @@
     <div class="container mt-3">
         <div class="card bg-gradient">
             <div class="card-header">
-                <h4 class="text-primary">{{__('Add Component')}}</h4>
+                <h4 class="text-primary">{{__('Add Unit Inspection')}}</h4>
             </div>
         </div>
         <div class="card-body" id="create_div_inputs">
-            <form id="createForm" class="createForm" role="form" method="POST" action="{{route('admin.tdrs.store')
-                }}" enctype="multipart/form-data" id="createComponentForm">
+            <form id="createForm" class="createForm" role="form" method="POST" action="{{route('admin.tdrs.store')}}"
+                  enctype="multipart/form-data" id="createComponentForm">
                 @csrf
+
+                <input type="hidden" name="workorder_id" value="{{ $current_wo->id }}">
 
                 <div class="">
                     <div class=" form-group mb-3">

@@ -90,6 +90,12 @@ Route::group(['middleware' => ['auth', 'isAdmin'], 'prefix' => 'admin', 'as' =>'
     Route::post('/units/{manualId}', [\App\Http\Controllers\Admin\UnitController::class, 'update'])->name('units.update');
 
     Route::resource('/tdrs',\App\Http\Controllers\Admin\TdrController::class);
+
+
+    Route::get('/tdrs/inspection/{workorder_id}',
+        [\App\Http\Controllers\Admin\TdrController::class, 'inspection'])
+        ->name('tdrs.inspection');
+
     Route::resource('/components', \App\Http\Controllers\Admin\ComponentController::class);
 });
 

@@ -155,9 +155,12 @@
                     <div>
                         <div class="d-flex ">
                             <div style="width: 600px">
-                                <a href="" class="btn btn-outline-primary "
+                                <a href="{{route('admin.tdrs.inspection',
+                                ['workorder_id' => $current_wo->id])}}"
+                                   class="btn
+                                btn-outline-primary "
                                    style="height: 40px">
-                                    {{__('Add Component')}}
+                                    {{__('Add Unit Inspection')}}
                                 </a>
 
 {{--                                <button class="btn btn-outline-primary btn-sm" style="height: 40px" data-bs-toggle="modal"--}}

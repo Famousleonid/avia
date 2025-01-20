@@ -4,10 +4,13 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\Builder;
+use App\Models\Code;
 use App\Models\Component;
+use App\Models\Condition;
 use App\Models\Customer;
 use App\Models\Instruction;
 use App\Models\Manual;
+use App\Models\Necessary;
 use App\Models\Plane;
 use App\Models\Tdr;
 use App\Models\Unit;
@@ -34,38 +37,72 @@ class TdrController extends Controller
         return view('admin.tdrs.index', compact('orders','units','manuals','tdrs'));
     }
 
+    public function create()
+    {
+        //
+    }
+
     /**
      * Show the form for creating a new resource.
      *
-     * @return \Illuminate\Http\Response
+     * @return Application|Factory|View
      */
-    public function create()
+    public function inspection($workorder_id)
     {
-        $current_wo = Workorder::findOrFail($id);
+
+        // Находим текущий рабочий заказ по переданному ID
+        $current_wo = Workorder::findOrFail($workorder_id);
+
+        // Получаем manual_id из связанного unit
+        $manual_id = $current_wo->unit->manual_id;  // предполагаем, что в workorder есть связь с unit
+
+        // Извлекаем компоненты, которые связаны с этим manual_id
+        $components = Component::where('manual_id', $manual_id)->get();
+
+        // Извлекаем все manuals для отображения (если нужно отфильтровать, можно это сделать)
+        $manuals = Manual::all();  // или можно отфильтровать только тот, который связан с unit
+
+        // Дополнительные данные для формы
         $units = Unit::all();
+
         $user = Auth::user();
         $customers = Customer::all();
-        $manuals = Manual::all();
+
         $planes = Plane::all();
         $builders = Builder::all();
         $instruction = Instruction::all();
-        $components = Component::with('manuals')->get();
-        $tdrs = Tdr::with('current_wo')->get(); // --- ? ---
 
-        return view('admin.tdrs.create', compact(  'current_wo','tdrs','units','components','user','customers',
-            'manuals','builders',
-            'planes','instruction'));
+        $codes = Code::all();
+        $necessaries = Necessary::all();
+        $conditions = Condition::all();
+
+
+        // Отправляем данные в представление
+        return view('admin.tdrs.inspection', compact(
+            'current_wo', 'manual_id',
+            'manuals', 'components', 'units', 'user', 'customers',
+            'planes', 'builders', 'instruction',
+            'codes','necessaries','conditions',
+        ));
     }
+
 
     /**
      * Store a newly created resource in storage.
      *
      * @param  \Illuminate\Http\Request  $request
-     * @return \Illuminate\Http\Response
+     * @return \Illuminate\Http\RedirectResponse
      */
     public function store(Request $request)
     {
-        //
+//        dd($request->all());
+
+        $current_wo = $request->workorder_id;
+
+
+
+        return redirect()->route('admin.tdrs.show', ['tdr' => $current_wo]);
+
     }
 
     /**
@@ -85,6 +122,7 @@ class TdrController extends Controller
         $builders = Builder::all();
         $instruction = Instruction::all();
         $components = Component::with('manuals')->get();
+
         $tdrs = Tdr::with('current_wo')->get(); // --- ? ---
 
         return view('admin.tdrs.show', compact(  'current_wo','tdrs','units','components','user','customers','manuals','builders',

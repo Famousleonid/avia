@@ -120,6 +120,7 @@
                             <td class="text-center">{{$order->customer->name}}</td>
                             <td class="text-center">{{$order->user->name}}</td>
                             <td class="text-center">
+
                                 @if(count($tdrs))
                                     @foreach($tdrs as $tdr)
                                         @if($order->id != $tdr->workorder_id  )
