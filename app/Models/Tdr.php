@@ -13,13 +13,13 @@ class Tdr extends Model
         'component_id',
         'serial_number',
         'assy_serial_number',
-        'code_id',
+        'codes_id',
         'conditions_id',
         'necessaries_id',
         'use_tdr',
         'use_process_forms',
         'use_log_card',
-        'use_extra_process_forms',
+        'use_extra_forms',
     ];
     public function workorder()
     {

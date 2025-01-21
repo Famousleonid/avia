@@ -12,5 +12,4 @@ class Code extends Model
         'name',
         'code',
     ];
-
 }

@@ -14,6 +14,8 @@ use App\Models\Necessary;
 use App\Models\Plane;
 use App\Models\Tdr;
 use App\Models\Unit;
+use App\Models\Wo_Code;
+use App\Models\WoCode;
 use App\Models\Workorder;
 use Illuminate\Contracts\Foundation\Application;
 use Illuminate\Contracts\View\Factory;
@@ -72,17 +74,17 @@ class TdrController extends Controller
         $builders = Builder::all();
         $instruction = Instruction::all();
 
-        $codes = Code::all();
+
         $necessaries = Necessary::all();
         $conditions = Condition::all();
-
+        $codes = Code::all();
 
         // Отправляем данные в представление
         return view('admin.tdrs.inspection', compact(
             'current_wo', 'manual_id',
             'manuals', 'components', 'units', 'user', 'customers',
             'planes', 'builders', 'instruction',
-            'codes','necessaries','conditions',
+            'necessaries','conditions','codes',
         ));
     }
 
@@ -95,7 +97,43 @@ class TdrController extends Controller
      */
     public function store(Request $request)
     {
-//        dd($request->all());
+//        dd($request->all()); // Посмотреть все переданные данные
+        // Валидация данных
+        $validated = $request->validate([
+            'component_id' => 'nullable|exists:components,id',
+            'serial_number' => 'nullable|string',
+            'assy_serial_number' => 'nullable|string',
+            'conditions_id' => 'nullable|exists:conditions,id',
+            'necessaries_id' => 'nullable|exists:necessaries,id',
+            'codes_id' => 'nullable|exists:codes,id', // Валидация для
+            // codes_id
+        ]);
+//dd($validated);
+        // Установка значений по умолчанию для флагов
+        $use_tdr = $request->has('use_tdr');
+        $use_process_forms = $request->has('use_process_forms');
+        $use_log_card = $request->has('use_log_card');
+        $use_extra_forms = $request->has('use_extra_forms');
+
+
+
+
+        // Сохранение в таблице tdrs
+        Tdr::create([
+            'workorder_id' => $request->workorder_id, // Получаем workorder_id из формы
+            'component_id' => $validated['component_id'],
+            'serial_number' => $validated['serial_number'],
+            'assy_serial_number' => $validated['assy_serial_number'],
+            'codes_id' => $validated['codes_id'],  // Обработка передачи
+            // codes_id
+            'conditions_id' => $validated['conditions_id'],
+            'necessaries_id' => $validated['necessaries_id'],
+            'use_tdr' => $use_tdr,
+            'use_process_forms' => $use_process_forms,
+            'use_log_card' => $use_log_card,
+            'use_extra_forms' => $use_extra_forms,
+        ]);
+
 
         $current_wo = $request->workorder_id;
 

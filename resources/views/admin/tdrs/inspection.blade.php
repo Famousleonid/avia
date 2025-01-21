@@ -81,14 +81,13 @@
 
 
                 <div class="">
-
                     <div class="d-flex">
                         <div class=" form-group m-2">
                             <label for="component_id"
                                    class="form-label">Component</label>
                             <select name="component_id" id="component_id"
                                     class="form-control" style="width: 230px">
-                                <option disabled selected value="">---</option>
+                                <option  selected value="">---</option>
                                 @foreach($components as $component)
                                     <option
                                         value="{{ $component->id }}"
@@ -102,39 +101,45 @@
                             </select>
 
                         </div>
-                        <div class="m-2">
-                            <div class="">
-                                <label class="pb-1" for="serial_number">{{ __
-                                ('Serial
-                                 Number')
-                                }}</label>
-                                <input id='serial_number' type="text"
-                                       class="form-control m-1"
-                                       name="serial_number"
-                                       required>
+
+                        <div class="d-flex">
+                            <div class="m-2">
+                                <div class="">
+                                    <label class="pb-1" for="serial_number">{{ __
+                                                        ('Serial
+                                                         Number')
+                                                        }}</label>
+                                    <input id='serial_number' type="text"
+                                           class="form-control m-1"
+                                           name="serial_number"
+                                    >
+                                </div>
                             </div>
-                        </div>
-                        <div class="m-2">
-                            <div class="">
-                                <label class="pb-1" for="assy_serial_number">{{
-                                __('Assy
-                                Serial Number')
-                                }}</label>
-                                <input id='assy_serial_number' type="text"
-                                       class="form-control m-1"
-                                       name="assy_serial_number"
-                                       >
+                            <div class="m-2">
+                                <div class="">
+                                    <label class="pb-1" for="assy_serial_number">{{
+                                                        __('Assy
+                                                        Serial Number')
+                                                        }}</label>
+                                    <input id='assy_serial_number' type="text"
+                                           class="form-control m-1"
+                                           name="assy_serial_number"
+                                    >
+                                </div>
                             </div>
                         </div>
 
+                    </div>
+                        <button type="button" class="btn btn-link" data-bs-toggle="modal"
+                                data-bs-target="#addComponentModal">{{ __('Add Component') }}
+                        </button>
 
-                </div>
                     <div class=" form-group m-2">
                         <label for="conditions_id"
                                class="form-label pe-2">Condition</label>
                         <select name="conditions_id" id="conditions_id"
-                                class="form-control" style="width: 494px">
-                            <option disabled selected value="">---</option>
+                                class="form-control" style="width: 575px">
+                            <option  selected value="">---</option>
                             @foreach($conditions as $condition)
                                 <option
                                     value="{{ $condition->id }}"
@@ -147,6 +152,76 @@
                         </select>
 
 
+                    </div>
+                    <div class="d-flex">
+
+                        <div class=" form-group m-2">
+                            <label for="codes_id"
+                                   class="form-label pe-2">Code</label>
+                            <select name="codes_id" id="codes_id"
+                                    class="form-control" style="width: 278px">
+                                <option  selected value="">---</option>
+                                @foreach($codes as $code)
+                                    <option
+                                        value="{{ $code->id }}"
+                                        data-title="{{$code->name}}">
+                                        {{$code->name}}
+
+                                    </option>
+                                @endforeach
+
+                            </select>
+
+
+                        </div>
+                        <div class=" form-group m-2">
+                            <label for="necessaries_id"
+                                   class="form-label pe-2">Necessary</label>
+                            <select name="necessaries_id" id="necessaries_id"
+                                    class="form-control" style="width: 278px">
+                                <option  selected value="">---</option>
+                                @foreach($necessaries as $necessary)
+                                    <option
+                                        value="{{ $necessary->id }}"
+                                        data-title="{{$necessary->name}}">
+                                        {{$necessary->name}}
+
+                                    </option>
+                                @endforeach
+
+                            </select>
+
+
+                        </div>
+
+
+
+                    </div>
+
+                    <div class="d-flex justify-content-between mt-3">
+                        <div class="form-check ">
+                            <label class="form-check-label" for="use_tdr">Use TDR</label>
+                            <input class="form-check-input" type="checkbox" name="use_tdr" id="use_tdr">
+                        </div>
+                        <div class="form-check ">
+                            <label class="form-check-label"
+                                   for="use_process_forms">Use Process Form</label>
+                            <input class="form-check-input" type="checkbox"
+                                   name="use_process_forms"
+                                   id="use_process_forms">
+                        </div>
+                        <div class="form-check ">
+                            <label class="form-check-label" for="use_log_card">Use Log Card</label>
+                            <input class="form-check-input" type="checkbox" name="use_log_card" id="use_log_card">
+                        </div>
+                        <div class="form-check ">
+                            <label class="form-check-label"
+                                   for="use_extra_forms">Use Extra
+                                Process Form</label>
+                            <input class="form-check-input" type="checkbox"
+                                   name="use_extra_forms"
+                                   id="use_extra_forms">
+                        </div>
                     </div>
 
 
@@ -162,6 +237,74 @@
 
         </div>
     </div>
+
+    <!-- Modal - Add component -->
+    <div class="modal fade" id="addComponentModal" tabindex="-1" aria-labelledby="addComponentModalLabel"
+         aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content bg-gradient">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="addComponentModalLabel">{{ __('Add Component') }}</h5>
+                    <h5 class="" id="">{{$component->manuals->id}}</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Закрыть"></button>
+                </div>
+                <form action="" method="POST" id="addComponentForm">
+                    @csrf
+                    <div class="modal-body">
+                        <div class="form-group">
+                            <label for="name">{{ __('Name') }}</label>
+                            <input id='name' type="text" class="form-control" name="name" required>
+                        </div>
+                        <div class="d-flex">
+
+                            <div class="d-flex">
+                                <div class="m-3">
+                                    <div class="">
+                                        <label for="ipl_num">{{ __('IPL Number') }}</label>
+                                        <input id='ipl_num' type="text" class="form-control" name="ipl_num" required>
+                                    </div>
+                                    <div class="col-xs-12 col-sm-12 col-md-12 mt-2">
+                                        <div class="form-group">
+                                            <strong>{{__('Image:')}}</strong>
+                                            <input type="file" name="img" class="form-control" placeholder="Image">
+                                        </div>
+                                    </div>
+                                    <div class="mt-2">
+                                        <label for="part_number">{{ __('Part Number') }}</label>
+                                        <input id='part_number' type="text" class="form-control"
+                                               name="part_number" required>
+                                    </div>
+
+                                </div>
+
+                                <div class="m-3">
+                                    <div class="">
+                                        <label for="assy_ipl_num">{{ __('Assembly IPL Number') }}</label>
+                                        <input id='assy_ipl_num' type="text" class="form-control" name="assy_ipl_num" >
+                                    </div>
+                                    <div class="col-xs-12 col-sm-12 col-md-12 mt-2">
+                                        <div class="form-group">
+                                            <strong>{{__(' Assy Image:')}}</strong>
+                                            <input type="file" name="assy_img" class="form-control" placeholder="Image">
+                                        </div>
+                                    </div>
+                                    <div class="mt-2">
+                                        <label for="assy_part_number">{{ __(' Assembly Part Number') }}</label>
+                                        <input id='assy_part_number' type="text" class="form-control"
+                                               name="assy_part_number" >
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+
+
 
     <script>
 
