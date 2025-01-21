@@ -1,37 +1,85 @@
-@extends('cabinet.master')
+@extends('admin.master')
 
 @section('content')
 
     <style>
-        .div_error {
-            border: 1px solid red;
+
+        /* ----------------------------------- Select 2 Dark Theme -------------------------------------*/
+
+        html[data-bs-theme="dark"] .select2-selection--single {
+            background-color: #121212 !important;
+            color: gray !important;
+            height: 38px !important;
+            border: 1px solid #495057 !important;
+            align-items: center !important;
+            border-radius: 8px;
         }
 
-        .select2-container .select2-selection--single {
-            height: 38px;
-            color: #444;
-            text-decoration: none;
-            border-radius: 4px;
-            background-color: #fff;
-            background-image: linear-gradient(top, #fff 0%, #eee 50%);
+        html[data-bs-theme="dark"] .select2-container .select2-selection__rendered {
+            color: #999999;
+            line-height: 2.2 !important;
         }
 
-        .select2-container--classic .select2-selection--single .select2-selection__arrow {
-            height: 35px;
-            border-left: none;
+        html[data-bs-theme="dark"] .select2-search--dropdown .select2-search__field {
+            background-color: #343A40 !important;
         }
 
-        .select2-container--classic .select2-selection--single .select2-selection__rendered {
-            line-height: 35px;
+        html[data-bs-theme="dark"] .select2-container--default .select2-selection--single .select2-selection__rendered {
+            padding-right: 25px;
         }
+
+        html[data-bs-theme="dark"] .select2-container .select2-dropdown {
+            max-height: 40vh !important;
+            overflow-y: auto !important;
+            border: 1px solid #ccc !important;
+            border-radius: 8px;
+            color: white;
+            background-color: #121212 !important;
+        }
+
+        html[data-bs-theme="light"] .select2-container .select2-dropdown {
+            max-height: 40vh !important;
+            overflow-y: auto !important;
+
+        }
+
+        html[data-bs-theme="dark"] .select2-container .select2-results__option:hover {
+            background-color: #6ea8fe;
+            color: #000000;
+
+        }
+
+        .select2-container .select2-selection__clear {
+            position: absolute !important;
+            right: 10px !important;
+            top: 50% !important;
+            transform: translateY(-50%) !important;
+            z-index: 1;
+
+        }
+
+        /* -------------------------------------------------------------------------------------------*/
+
+        .checkbox-wo {
+            font-size: 1rem;
+        }
+
+        .checkbox-wo input[type="checkbox"] {
+            width: 20px;
+            height: 20px;
+            margin-right: 1px;
+        }
+
 
     </style>
 
-    <div class="container pl-3 pr-3 mt-2">
-        <div class="card firm-border p-2 bg-white shadow">
+    <div class="container pl-3 pr-3 mt-5">
+        <div class="card  p-2 shadow bg-gradient">
 
-            <form id="createForm" class="createForm" role="form" method="post" action="{{route('workorder.store')}}" enctype="multipart/form-data">
+            <form id="createForm" class="createForm" role="form" method="post" action="{{route('cabinet.workorders.store')}}" enctype="multipart/form-data">
                 @csrf
+
+                <input type="text" hidden name="user_id" value="{{auth()->user()->id}}">
 
                 <div class="tab-content">
 
@@ -39,98 +87,178 @@
                         <div class="col-md-12">
 
                             <div class="card-header row">
-
-                                <span class="text-info text-bold" style="font-size: 1.2rem">Create workorder&nbsp;&nbsp;</span>
-                                <span class="text-info text-bold" style="font-size: 1.2rem">for user: &nbsp;&nbsp;</span>
-                                <span class="text-indigo text-bold" style="font-size: 1.2rem">{{$current_user->name}}</span>
-
-
+                                <p class="text-bold">Create workorder for user: ( &nbsp;&nbsp;
+                                    <span class="text-info" style="font-size: 1.2rem">{{auth()->user()->name}}</span>
+                                    <span>&nbsp;&nbsp; ) email: {{auth()->user()->email}}</span>
+                                </p>
                             </div>
 
                             <div class="card-body row" id="create_div_inputs">
 
-                                <div class="form-group col-lg-3 mb-1">
-                                    <label for="number_id">Workorder № <span style="color:red; font-size: x-small">(required)</span></label>
+                                <div class="col-lg-9 row">
 
-                                    <input type="number" name="number" id="number_id" class="form-control @error('number') is-invalid @enderror" placeholder="Enter workorder number ">
+                                    <div class="row ">
+                                        <div class="form-group col-lg-4 mb-1">
+                                            <label for="number_id">Workorder № <span style="color:red; font-size: x-small">(required)</span></label>
+                                            <input type="text" name="number" id="number_id" value="{{ old('number') }}" class="form-control  @error('number') is-invalid @enderror" placeholder="Enter workorder number ">
+                                        </div>
+
+                                        <div class="form-group col-lg-4 mb-1">
+                                            <label for="unit_id">Unit
+                                                <span style="color:red; font-size: x-small">(required)</span>
+                                                <a id="new_unit_create" class="ms-3" data-bs-toggle="modal" data-bs-target="#addUnitModal">
+                                                    <img class="mb-1" src="{{asset('img/plus.png')}}" width="20px" alt="" data-toggle="tooltip" data-placement="top" title="Add new unit">
+                                                </a>
+                                            </label>
+                                            <select name="unit_id" id="unit_id" class="form-control">
+                                                <option disabled selected value="">---</option>
+                                                @foreach ($units as $unit)
+                                                    <option
+                                                        value="{{$unit->id}}"
+                                                        data-title="{{ $unit->manuals->title }}">
+                                                        {{$unit->part_number}}
+                                                    </option>
+                                                @endforeach
+                                            </select>
+                                        </div>
+                                        <div class="form-group col-lg-4 mb-1">
+                                            <label for="customer_id">Customer <span style="color:red; font-size: x-small">(required)</span></label>
+                                            <select name="customer_id" id="customer_id" class="form-select">
+                                                <option disabled selected value>---</option>
+                                                @foreach ($customers as $customer)
+                                                    <option value="{{$customer->id}}">{{$customer->name}}</option>
+                                                @endforeach
+                                            </select>
+                                        </div>
+                                    </div>
+
+                                    <div class="row ">
+                                        <div class="form-group col-lg-4 mb-1">
+                                            <label for="instruction_id">Instruction <span style="color:red; font-size: x-small">(required)</span></label>
+                                            <select name="instruction_id" id="instruction_id" class="form-select">
+                                                <option disabled selected value>---</option>
+                                                @foreach ($instructions as $instruction)
+                                                    <option value="{{$instruction->id}}">{{$instruction->name}}</option>
+                                                @endforeach
+                                            </select>
+                                        </div>
+
+                                        <div class="form-group col-lg-4 mt-2">
+                                            <label for="number_id">Serial number</label>
+                                            <input type="text" name="serial_number" id="serial_number" class="form-control @error('serial_number') is-invalid @enderror" placeholder="s/n">
+                                        </div>
+
+                                        <div class="form-group col-lg-4 mt-2">
+                                            <label for="unit_description">Description</label>
+                                            <input type="text" name="description" id="wo_description" value="" class="form-control @error('description') is-invalid @enderror" placeholder="">
+                                        </div>
+                                    </div>
+
+                                    <div class="row ">
+                                        <div class="form-group col-lg-4 mt-2">
+                                            <label for="unit_amdt">Amdt</label>
+                                            <input type="text" name="amdt" id="wo_amdt" maxlength="30" value="" class="form-control @error('amdt') is-invalid @enderror" placeholder="">
+                                        </div>
+
+                                        <div class="form-group col-lg-4 mt-2">
+                                            <label for="unit_place">Place</label>
+                                            <input type="text" name="place" id="wo_place" maxlength="30" value="" class="form-control @error ('place') is-invalid @enderror" placeholder="">
+                                        </div>
+
+                                        <div class="form-group col-lg-4 mt-2">
+                                            <label for="unit_open_at">Open date</label>
+                                            <input type="date" name="open_at" id="open_at" maxlength="30" value="" class="form-control @error('open_at') is-invalid @enderror" placeholder="date opened">
+                                        </div>
+                                    </div>
+                                    <div class="row ">
+
+                                        <div class="form-group col-lg-4 offset-4 mt-2">
+                                            <label for="instruction_id">Technik</label>
+                                            <select name="user_id" id="user_id" class="form-select">
+                                                <option disabled selected value style="color: gray;"> -- select an option --</option>
+                                                @foreach ($users as $user)
+                                                    <option value="{{ $user->id }}"
+                                                            @if(isset($currentUser) && $user->id == $currentUser->id) selected @endif>
+                                                        {{ $user->name }}
+                                                    </option>
+                                                @endforeach
+                                            </select>
+                                        </div>
+
+                                    </div>
+
                                 </div>
 
+                                <div class="col-lg-3 row">
 
-                                <div id="div_select_unit" class="form-group col-lg-3 mb-1">
-                                    <label for="unit_id">Unit <span style="color:red; font-size: x-small">(required)</span><a id="new_unit_create" href="{{route('unit.create')}}" class="pl-2"><img src="{{asset('img/plus.png')}}" width="22px" alt="" data-toggle="tooltip" data-placement="top" title="Add new unit"></a></label>
-                                    <select name="unit_id" id="unit_id" class="form-control">
-                                        <option disabled selected value=""> -- select an option --</option>
-                                        @foreach ($units as $unit)
-                                            <option value="{{$unit->id}}" data-lib="{{$unit->lib}}" data-description="{{$unit->description}}">{{$unit->partnumber}}</option>
-                                        @endforeach
-                                    </select>
-                                </div>
+                                    <label class="checkbox-wo mb-2"><input type="checkbox" name="part_missing">___ Parts Missing</label><br>
+                                    <label class="checkbox-wo mb-2"><input type="checkbox" name="external_damage">___ External Damage</label><br>
+                                    <label class="checkbox-wo mb-2"><input type="checkbox" name="received_disassembly">___ Received Disassembly</label><br>
+                                    <label class="checkbox-wo mb-2"><input type="checkbox" name="disassembly_upon_arrival">___ Disassembly Upon Arrival</label><br>
+                                    <label class="checkbox-wo mb-2"><input type="checkbox" name="nameplate_missing">___ Name Plate Missing</label><br>
+                                    <label class="checkbox-wo mb-2"><input type="checkbox" name="preliminary_test_false">___ Preliminary Test</label><br>
+                                    <label class="checkbox-wo mb-2"><input type="checkbox" name="extra_parts">___ Extra Parts</label><br>
 
-                                <div class="form-group col-lg-1 mb-1">
-                                    <label for="lib">Library</label>
-                                    <input type="text" name="manual" id="lib" maxlength="15" value="" class="form-control @error('lib') is-invalid @enderror" placeholder="">
-                                </div>
 
-                                <div class="form-group col-lg-3 mb-1">
-                                    <label for="customer_id">Customer <span style="color:red; font-size: x-small">(required)</span></label>
-                                    <select name="customer_id" id="customer_id" class="form-control">
-                                        <option disabled selected value> -- select an option --</option>
-                                        @foreach ($customers as $customer)
-                                            <option value="{{$customer->id}}">{{$customer->name}}</option>
-                                        @endforeach
-                                    </select>
-                                </div>
-                                <div class="form-group col-lg-2 mb-1">
-                                    <label for="instruction_id">Instruction <span style="color:red; font-size: x-small">(required)</span></label>
-                                    <select name="instruction_id" id="instruction_id" class="form-control">
-                                        <option disabled selected value> -- select an option --</option>
-                                        @foreach ($instructions as $instruction)
-                                            <option value="{{$instruction->id}}">{{$instruction->name}}</option>
-                                        @endforeach
-                                    </select>
-                                </div>
-                                <div class="form-group col-lg-3 mt-2">
-                                    <label for="serial_number">Serial number</label>
-                                    <input type="text" name="serial_number" id="serial_number" class="form-control @error('serial_number') is-invalid @enderror" placeholder="S/N">
-                                </div>
-                                <div class="form-group col-lg-3 mt-2">
-                                    <label for="user_id">Technik</label>
-                                    <select name="user_id" id="user_id" class="form-control">
-                                        <option selected value="{{$current_user->id}}"> {{$current_user->name}}</option>
-                                        @foreach ($users as $user)
-                                            <option value="{{$user->id}}">{{$user->name}}</option>
-                                        @endforeach
-                                    </select>
-                                </div>
-                                <div class="form-group col-lg-3 mt-2">
-                                    <label for="place">Place</label>
-                                    <input type="text" name="place" id="place" class="form-control @error('place') is-invalid @enderror" placeholder="A1-D2-C3">
-                                </div>
-                                <div class="form-group col-lg-3 mt-2">
-                                    <label for="date_created_at">Date of creation</label>
-                                    <input type="date" name="created_at" id="date_created_at" value="{{ date('Y-m-d') }}" class="form-control @error('created_at') is-invalid @enderror">
-                                </div>
-                                <div class="form-group col-lg-12 mt-2">
-                                    <label for="unit_description">Description</label>
-                                    <input type="text" name="description" id="unit_description" maxlength="30" value="" class="form-control @error('description') is-invalid @enderror" placeholder="">
                                 </div>
 
                             </div>
+
 
                             <div class="form-group container-fluid ">
                                 <div class="card-body row ">
-                                    <div class="col-lg-3 mb-1">
-                                        <button id="ntSaveFormsSubmit" type="submit" class="btn btn-primary btn-block ntSaveFormsSubmit">Save</button>
+                                    <div class="col col-lg-1  mb-1">
+                                        <button id="ntSaveFormsSubmit" type="submit" class="btn btn-outline-primary btn-block ntSaveFormsSubmit"> Save </button>
                                     </div>
-                                    <div class="col-lg-3 mb-1 ml-auto">
-                                        <a href="{{ route('cabinet.index')}}" class="btn btn-secondary btn-block">Cancel</a>
+                                    <div class="col col-lg-1 offset-6 mb-1 ">
+                                        <a href="{{ route('cabinet.workorders.index') }}" class="btn btn-outline-secondary btn-block"> Cancel </a>
                                     </div>
                                 </div>
                             </div>
+
                         </div>
                     </div>
                 </div>
             </form>
+        </div>
+    </div>
+
+
+
+
+    <!-- Модальное окно add Unit -->
+    <div class="modal fade" id="addUnitModal" tabindex="-1" aria-labelledby="addUnitLabel" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="addUnitLabel">Add Unit</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Закрыть"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label for="cmmSelect" class="form-label">CMM</label>
+                        <select class="form-select" id="cmmSelect" name="cmmSelect">
+                            <option value="">{{ __('Select CMM') }}</option>
+                            @foreach($manuals as $manual)
+                                <option value="{{ $manual->id }}"> ({{ $manual->number }})</option>
+                            @endforeach
+                        </select>
+                    </div>
+                    <div id="pnInputs">
+                        <div class="input-group mb-2 pn-field">
+                            <input type="text" class="form-control"
+                                   placeholder="Enter PN" style="width: 200px;"
+                                   name="pn[]">
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Close
+                    </button>
+                    <button type="button" id="createUnitBtn" class="btn btn-outline-primary"> Add Unit
+                    </button>
+                </div>
+            </div>
         </div>
     </div>
 
@@ -141,74 +269,106 @@
 
     <script>
 
-        let selection = document.getElementById("unit_id");
-        selection.onchange = function (event) {
-            document.getElementById("lib").value = event.target.options[event.target.selectedIndex].dataset.lib;
-            document.getElementById("unit_description").value = event.target.options[event.target.selectedIndex].dataset.description;
-        };
+        window.addEventListener('load', function () {
 
-        function check1() {
-            if ($('#number_id').val() == "") {
-                $(('#number_id')).addClass('is-invalid');
-                setTimeout("$(('#number_id')).removeClass('is-invalid')", 3000);
-                return false;
-            } else {
-                return true
+            const unitSelect = document.getElementById('unit_id');
+            const descriptionInput = document.getElementById('wo_description');
+
+            unitSelect.onchange = function (event) {
+                const selectedOption = this.options[this.selectedIndex];
+                console.log(selectedOption);
+                const title = selectedOption.getAttribute('data-title');
+                descriptionInput.value = title || ''
+            };
+
+            function check1() {
+                let aa = $('#number_id').val();
+                if ($('#number_id').val() == null) {
+                    $(('#number_id')).addClass('is-invalid');
+                    setTimeout("$(('#number_id')).removeClass('is-invalid')", 3000);
+                    return false;
+                } else {
+                    return true
+                }
             }
-        }
 
-        function check2() {
-            if ($('#unit_id').val() == null) {
-                $(('#div_select_unit')).addClass('div_error');
-                setTimeout("$(('#div_select_unit')).removeClass('div_error')", 3500);
-                return false;
-            } else {
-                return true;
+            function check2() {
+                let aa = $('#unit_id').val()
+                if ($('#unit_id').val() == null) {
+                    $(('#unit_id')).addClass('is-invalid');
+                    setTimeout("$(('#unit_id')).removeClass('is-invalid')", 3500);
+                    return false;
+                } else {
+                    return true;
+                }
             }
-        }
 
-        function check3() {
-            if ($('#customer_id').val() == null) {
-                $(('#customer_id')).addClass('is-invalid');
-                setTimeout("$(('#customer_id')).removeClass('is-invalid')", 4500);
-                return false;
-            } else {
-                return true
+            function check3() {
+                if ($('#customer_id').val() == null) {
+                    $(('#customer_id')).addClass('is-invalid');
+                    setTimeout("$(('#customer_id')).removeClass('is-invalid')", 4500);
+                    return false;
+                } else {
+                    return true
+                }
             }
-        }
 
-        function check4() {
-            if ($('#instruction_id').val() == null) {
-                $(('#instruction_id')).addClass('is-invalid');
-                setTimeout("$(('#instruction_id')).removeClass('is-invalid')", 4500);
-                return false;
-            } else {
-                return true
+            function check4() {
+                if ($('#instruction_id').val() == null) {
+                    $(('#instruction_id')).addClass('is-invalid');
+                    setTimeout("$(('#instruction_id')).removeClass('is-invalid')", 4500);
+                    return false;
+                } else {
+                    return true
+                }
             }
-        }
 
-        document.getElementById("ntSaveFormsSubmit").addEventListener("click", function (event) {
-            let form = document.getElementById("createForm");
+            document.getElementById("ntSaveFormsSubmit").addEventListener("click", function (event) {
+                let form = document.getElementById("createForm");
+                check1();
+                check2();
+                check3();
+                check4();
 
-            check1();
-            check2();
-            check3();
-            check4();
+                if (!(check1() && check2() && check3() && check4())) {
+                    event.preventDefault();
 
-            if (!(check1() && check2() && check3() && check4())) {
-                event.preventDefault();
-
-            } else {
-                form.submit();
-                showLoadingSpinner()
-            }
-        });
-
-        $(document).ready(function () {
-            $('#unit_id').select2({
-                placeholder: 'Select an unit',
-                theme: "classic",
+                } else {
+                    form.submit();
+                    showLoadingSpinner()
+                }
             });
+
+            // --------------------------------- Select 2 --------------------------------------------------------
+
+            $(document).ready(function () {
+                $('#unit_id').select2({
+                    placeholder: '---',
+                    theme: 'bootstrap-5',
+                    allowClear: true
+                });
+            });
+            $(function () {
+                applyTheme();
+            });
+
+            function applyTheme() {
+                const isDark = document.documentElement.getAttribute('data-bs-theme');
+                const selectContainer = $('.select2-container');
+                if (isDark === 'dark') {
+                    selectContainer.addClass('select2-dark').removeClass('select2-light');
+                    $('.select2-container .select2-dropdown').addClass('select2-dark').removeClass('select2-light');
+                } else {
+                    selectContainer.addClass('select2-light').removeClass('select2-dark');
+                    $('.select2-container .select2-dropdown').addClass('select2-light').removeClass('select2-dark');
+                }
+            }
+
+            // -----------------------------------------------------------------------------------------------------
+
+
         });
+
+
     </script>
 @endsection

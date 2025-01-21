@@ -31,13 +31,13 @@
 <footer class="footer row text-white g-0">
     <div class="col-2"></div>
     <div class="col-4 text-center copyright-info">
-        <strong>Copyright &copy; 2024 &nbsp; <a href="https://aviatechnic.ca"  class="text-primary">Aviatechnik</a></strong>
+        <strong>Copyright &copy; 2025 &nbsp; <a href="https://aviatechnic.ca"  class="text-primary">Aviatechnik</a></strong>
     </div>
     <div class="col-3 text-center reserved-info" >
         <strong>All rights reserved.</strong>
     </div>
     <div class="col-1"></div>
     <div class="col-2 text-end version-info pe-4" >
-        <b>Version</b> 1.1.0
+        <b>Version</b> 1.2.0
     </div>
 </footer>
