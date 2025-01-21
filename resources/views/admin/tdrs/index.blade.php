@@ -130,7 +130,8 @@
                                             </a>
                                         @else
 {{--                                            {{'WO TDR Created'}}--}}
-                                            <a href="{{ route('admin.tdrs.edit', ['order' => $order->id]) }}" class="btn btn-outline-primary
+                                            <a href="{{ route('admin.tdrs.show', ['tdr' => $order->id]) }}" class="btn
+                                            btn-outline-primary
                                             btn-sm">
                                                 <i class="bi bi-pencil-square"></i>
                                             </a>

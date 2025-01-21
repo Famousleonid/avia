@@ -123,9 +123,11 @@ class TdrController extends Controller
         $instruction = Instruction::all();
         $components = Component::with('manuals')->get();
 
-        $tdrs = Tdr::with('current_wo')->get(); // --- ? ---
+        $tdrs =Tdr::where('current_wo');
+//        $tdrs = Tdr::with('current_wo')->get(); // --- ? ---
 
-        return view('admin.tdrs.show', compact(  'current_wo','tdrs','units','components','user','customers','manuals','builders',
+        return view('admin.tdrs.show', compact(  'current_wo','tdrs','units','components','user','customers',
+        'manuals','builders',
             'planes','instruction'));
     }
 

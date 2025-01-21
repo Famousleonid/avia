@@ -123,7 +123,7 @@
                                 <input id='assy_serial_number' type="text"
                                        class="form-control m-1"
                                        name="assy_serial_number"
-                                       required>
+                                       >
                             </div>
                         </div>
 
