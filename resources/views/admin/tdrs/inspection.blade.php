@@ -155,6 +155,7 @@
 
 
                     </div>
+
                     <div class="d-flex">
 
                         <div class=" form-group m-2">
@@ -234,6 +235,7 @@
                     <a href="{{ route('admin.tdrs.show',
                     ['tdr'=>$current_wo->id]) }}"
                        class="btn btn-outline-secondary mt-3">{{ __('Cancel') }} </a>
+                </div>
                 </div>
             </form>
         </div>
