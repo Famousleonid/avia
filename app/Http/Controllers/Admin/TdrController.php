@@ -79,6 +79,8 @@ class TdrController extends Controller
         $conditions = Condition::all();
         $codes = Code::all();
 
+
+
         // Отправляем данные в представление
         return view('admin.tdrs.inspection', compact(
             'current_wo', 'manual_id',
@@ -155,18 +157,31 @@ class TdrController extends Controller
         $units = Unit::all();
         $user = Auth::user();
         $customers = Customer::all();
-        $manuals = Manual::all();
+
+        // Получаем manual_id из связанного unit
+        $manual_id = $current_wo->unit->manual_id;  // предполагаем, что в workorder есть связь с unit
+
+        // Извлекаем компоненты, которые связаны с этим manual_id
+        $components = Component::where('manual_id', $manual_id)->get();
+
+        // Извлекаем все manuals для отображения (если нужно отфильтровать, можно это сделать)
+        $manuals = Manual::all();  // или можно отфильтровать только тот, который связан с unit
+
+
         $planes = Plane::all();
         $builders = Builder::all();
         $instruction = Instruction::all();
-        $components = Component::with('manuals')->get();
 
-        $tdrs =Tdr::where('current_wo');
+        $necessaries = Necessary::all();
+        $conditions = Condition::all();
+        $codes = Code::all();
+
+        $tdrs =Tdr::where('workorder_id',$current_wo->id)->get();
 //        $tdrs = Tdr::with('current_wo')->get(); // --- ? ---
 
         return view('admin.tdrs.show', compact(  'current_wo','tdrs','units','components','user','customers',
-        'manuals','builders',
-            'planes','instruction'));
+        'manuals','builders','planes','instruction',
+        'necessaries','conditions','codes',));
     }
 
     /**

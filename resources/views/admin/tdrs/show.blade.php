@@ -3,7 +3,7 @@
 @section('content')
     <style>
         /*.container {*/
-        /*    max-width: 900px;*/
+        /*    max-width: 1100px;*/
         /*}*/
     </style>
 
@@ -177,43 +177,141 @@
 
             {{--        @if(count($tdrs))--}}
 
-            <div class="container">
+            <div class="">
+{{$current_wo->id}} - {{count($tdrs)}}
 
-                <div class="table-wrapper me-3 p-2">
-                    <table id="tdrTable" class="display table table-sm table-hover table-striped align-middle
+                <div class="d-flex justify-content-between">
+                    <div style="width: 300px">
+                        <div class="table-wrapper me3 p-2">
+                            <table id="tdr_inspect_Table" class="display table table-sm
+                    table-hover table-striped align-middle
+                    table-bordered bg-gradient">
+                                <thead>
+                                <tr>
+                                    <th class="text-center">{{__('Teardown
+                                    Inspection')}}</th>
+                                </tr>
+                                </thead>
+                                <tbody>
+                                @foreach($tdrs as $tdr)
+                                    @if($tdr->use_tdr == true and $tdr->use_process_forms != true)
+                                            <tr>
+                                                <td
+                                                    class="text-center">
+                                                    @foreach($conditions as $condition)
+                                                        @if($condition->id == $tdr->conditions_id)
+                                                            {{$condition ->name}}
+                                                        @endif
+                                                    @endforeach
+
+                                                    @foreach($components as $component)
+                                                        @if($component->id == $tdr->component_id)
+                                                            {{$component -> name}} ({{$component -> ipl_num}})
+                                                        @endif
+                                                    @endforeach
+
+                                                </td>
+                                            </tr>
+
+                                    @endif
+                                @endforeach
+
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <div>
+                        <div class="table-wrapper me-3 p-2">
+                            <table id="tdr_process_Table" class="display table table-sm
+                    table-hover table-striped align-middle
                     table-bordered">
-                        <thead class="bg-gradient">
-                        <tr>
-                            <th class="text-center  sortable">{{__('IPL Number')}} <i class="bi bi-chevron-expand ms-1"></i></th>
-                            <th class="text-center  sortable">{{__('Part
-                                Dscription')}} <i class="bi bi-chevron-expand ms-1"></i></th>
-                            <th class="text-center sortable ">{{__('Part number')}} <i class="bi bi-chevron-expand ms-1"></i></th>
-                            <th class="text-center  sortable">{{__('Serial number')}} <i class="bi bi-chevron-expand ms-1"></i></th>
-                            <th class=" text-center " style="width:
-                                120px">{{__('Condition ')}}</th>
-                            <th class=" text-center " style="width:
-                                120px">{{__('Necessary')}}</th>
-                            <th class=" text-center " style="width:
+                                <thead class="bg-gradient">
+                                <tr>
+                                    <th class="text-center  sortable">{{__('IPL Number')}} <i class="bi bi-chevron-expand ms-1"></i></th>
+                                    <th class="text-center  sortable">{{__('Part
+                                Description')}} <i class="bi bi-chevron-expand ms-1"></i></th>
+                                    <th class="text-center sortable ">{{__('Part number')}} <i class="bi bi-chevron-expand ms-1"></i></th>
+                                    <th class="text-center  sortable">{{__('Serial number')}} <i class="bi bi-chevron-expand ms-1"></i></th>
+                                    <th class=" text-center " style="width:
+                                300px">{{__('Condition ')}}</th>
+                                    <th class=" text-center " style="width:
+                                200px">{{__('Necessary')}}</th>
+                                    <th class=" text-center " style="width:
                                 120px">{{__('Code')}}</th>
-                            <th class=" text-center " style="width:
-                                120px">{{__('Use TDR')}}</th>
-                            <th class=" text-center " style="width:
-                                120px">{{__('Use Processes')}}</th>
-                            <th class="text-center ">Action</th>
-                        </tr>
-                        </thead>
-                        <tbody>
-                        @foreach($tdrs as $tdr)
-                            <tr>
-                                <td
-                                    class="text-center">{{$tdr->component->part_number}}</td>
-                            </tr>
+{{--                                    <th class=" text-center " style="width:--}}
+{{--                                120px">{{__('Use TDR')}}</th>--}}
+{{--                                    <th class=" text-center " style="width:--}}
+{{--                                120px">{{__('Use Processes')}}</th>--}}
+                                    <th class="text-center ">Action</th>
+                                </tr>
+                                </thead>
+                                <tbody>
+                                @foreach($tdrs as $tdr)
+                                    @if($tdr->use_tdr == true and $tdr->use_process_forms == true)
+
+                                            <tr>
+                                                <td  class="text-center"> <!-- IPL Number -->
+                                                    @foreach($components as $component)
+                                                        @if($component->id == $tdr->component_id)
+                                                            {{$component -> ipl_num}}
+                                                        @endif
+                                                    @endforeach
+                                                </td>
+                                                <td class="text-center"><!--  Part Description -->
+                                                    @foreach($components as $component)
+                                                        @if($component->id == $tdr->component_id)
+                                                            {{$component -> name}}
+                                                        @endif
+                                                    @endforeach
+                                                </td>
+                                                <td class="text-center"><!--  Part Number -->
+                                                    @foreach($components as $component)
+                                                        @if($component->id == $tdr->component_id)
+                                                            {{$component ->part_number}}
+                                                        @endif
+                                                    @endforeach
+                                                </td>
+                                                <td class="text-center"> <!--  Serial Number -->
+                                                    {{$tdr->serial_number}}
+                                                </td>
+                                                <td class="text-center"><!--  Condition -->
+                                                    @foreach($conditions as $condition)
+                                                        @if($condition->id == $tdr->conditions_id)
+                                                            {{$condition ->name}}
+                                                        @endif
+                                                    @endforeach
+                                                </td>
+                                                <td class="text-center"><!--  Necessary -->
+                                                    @foreach($necessaries as $necessary)
+                                                        @if($necessary->id == $tdr->necessaries_id)
+                                                            {{$necessary ->name}}
+                                                        @endif
+                                                    @endforeach
+                                                </td>
+                                                <td class="text-center"><!--  Code -->
+                                                    @foreach($codes as $code)
+                                                        @if($code->id == $tdr->codes_id)
+                                                            {{$code ->name}}
+                                                        @endif
+                                                    @endforeach
+                                                </td>
+                                            </tr>
+
+                                    @endif
 
 
-                        @endforeach
-                        </tbody>
-                    </table>
+
+
+                                @endforeach
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
                 </div>
+
+
+
 
             </div>
 

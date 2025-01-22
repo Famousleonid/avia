@@ -75,6 +75,51 @@ class ComponentController extends Controller
 
     }
 
+
+    public function storeFromInspection(Request $request)
+    {
+
+        try {
+            // Валидация данных
+            $validated = $request->validate([
+                'name' => 'required|string|max:250',
+                'manual_id' => 'required|exists:manuals,id',
+                'part_number' => 'required|string|max:50',
+                'ipl_num' => 'nullable|string|max:10',
+                'img' => 'nullable|image|mimes:jpeg,png,jpg,gif,svg|max:2048',
+                'assy_img' => 'nullable|image|mimes:jpeg,png,jpg,gif,svg|max:2048',
+            ]);
+
+            // Создание нового компонента
+            $component = Component::create($validated);
+
+            // Добавление изображений, если они есть
+            if ($request->hasFile('img')) {
+                $component->addMedia($request->file('img'))->toMediaCollection('component');
+            }
+
+            if ($request->hasFile('assy_img')) {
+                $component->addMedia($request->file('assy_img'))->toMediaCollection('assy_component');
+            }
+
+            // Возвращаем успешный ответ с данными компонента
+            return response()->json([
+                'success' => true,
+                'component' => $component
+            ]);
+        } catch (\Exception $e) {
+            // Логирование ошибки
+            \Log::error('Error creating component: ' . $e->getMessage());
+
+            // Возвращаем ошибку на фронт
+            return response()->json([
+                'success' => false,
+                'message' => 'Error occurred while adding the component. Please try again.'
+            ], 500);
+        }
+    }
+
+
     /**
      * Display the specified resource.
      *

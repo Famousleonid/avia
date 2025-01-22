@@ -73,7 +73,7 @@
 
         <div class="card-body" id="create_div_inputs">
             <form id="createForm" class="createForm" role="form" method="POST" action="{{route('admin.tdrs.store')}}"
-                  enctype="multipart/form-data" id="createComponentForm">
+                  enctype="multipart/form-data" >
                 @csrf
 
                 <input type="hidden" name="workorder_id" value="{{
@@ -83,11 +83,13 @@
                 <div class="">
                     <div class="d-flex">
                         <div class=" form-group m-2">
-                            <label for="component_id"
-                                   class="form-label">Component</label>
-                            <select name="component_id" id="component_id"
-                                    class="form-control" style="width: 230px">
-                                <option  selected value="">---</option>
+                            <label for="component_id" class="form-label">Component</label>
+                            <select name="component_id" id="component_id" class="form-control" style="width: 230px">
+                                @if (isset($selectedComponent))
+                                    <option value="{{ $selectedComponent->id }}" selected>{{ $selectedComponent->part_number }} ({{ $selectedComponent->name }})</option>
+                                @else
+                                    <option selected value="">---</option>
+                                @endif
                                 @foreach($components as $component)
                                     <option
                                         value="{{ $component->id }}"
@@ -210,24 +212,25 @@
                                    name="use_process_forms"
                                    id="use_process_forms">
                         </div>
-                        <div class="form-check ">
-                            <label class="form-check-label" for="use_log_card">Use Log Card</label>
-                            <input class="form-check-input" type="checkbox" name="use_log_card" id="use_log_card">
-                        </div>
-                        <div class="form-check ">
-                            <label class="form-check-label"
-                                   for="use_extra_forms">Use Extra
-                                Process Form</label>
-                            <input class="form-check-input" type="checkbox"
-                                   name="use_extra_forms"
-                                   id="use_extra_forms">
-                        </div>
+{{--                        <div class="form-check ">--}}
+{{--                            <label class="form-check-label" for="use_log_card">Use Log Card</label>--}}
+{{--                            <input class="form-check-input" type="checkbox" name="use_log_card" id="use_log_card">--}}
+{{--                        </div>--}}
+{{--                        <div class="form-check ">--}}
+{{--                            <label class="form-check-label"--}}
+{{--                                   for="use_extra_forms">Use Extra--}}
+{{--                                Process Form</label>--}}
+{{--                            <input class="form-check-input" type="checkbox"--}}
+{{--                                   name="use_extra_forms"--}}
+{{--                                   id="use_extra_forms">--}}
+{{--                        </div>--}}
                     </div>
 
 
                 <div class="text-end">
                     <button type="submit" class="btn btn-outline-primary
                         mt-3 ">{{ __('Save') }}</button>
+
                     <a href="{{ route('admin.tdrs.show',
                     ['tdr'=>$current_wo->id]) }}"
                        class="btn btn-outline-secondary mt-3">{{ __('Cancel') }} </a>
@@ -245,12 +248,13 @@
             <div class="modal-content bg-gradient">
                 <div class="modal-header">
                     <h5 class="modal-title" id="addComponentModalLabel">{{ __('Add Component') }}</h5>
-                    <h5 class="" id="">{{$component->manuals->id}}</h5>
                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Закрыть"></button>
                 </div>
-                <form action="" method="POST" id="addComponentForm">
+                <form action="{{ route('admin.components.storeFromInspection') }}" method="POST" id="addComponentForm">
                     @csrf
+
                     <div class="modal-body">
+                        <input type="hidden" name="manual_id" value="{{$current_wo->unit->manual_id}}">
                         <div class="form-group">
                             <label for="name">{{ __('Name') }}</label>
                             <input id='name' type="text" class="form-control" name="name" required>
@@ -296,7 +300,7 @@
                                 </div>
                             </div>
                         </div>
-
+                        <button type="submit" class="btn btn-primary">Save Component</button>
                     </div>
                 </form>
             </div>
@@ -310,7 +314,36 @@
 
         window.addEventListener('load', function () {
 
+            // Обработка отправки формы для добавления компонента
+            $('#addComponentForm').submit(function(e) {
+                e.preventDefault();  // предотвращаем стандартную отправку формы
 
+                var formData = new FormData(this);  // собираем данные из формы
+
+                $.ajax({
+                    url: $(this).attr('action'),  // URL маршрута
+                    type: 'POST',  // метод отправки данных
+                    data: formData,  // данные из формы
+                    processData: false,  // не обрабатывать данные как обычную строку
+                    contentType: false,  // не устанавливать заголовок типа контента
+                    success: function(response) {
+                        // Проверяем, успешен ли ответ
+                        if (response.success) {
+                            // Закрываем модальное окно
+                            $('#addComponentModal').modal('hide');
+
+                            // Добавляем новый компонент в select
+                            $('#component_id').append(new Option(response.component.part_number + ' (' + response.component.name + ')', response.component.id))
+                                .val(response.component.id)  // устанавливаем выбранное значение
+                                .trigger('change');  // обновляем select2
+                        }
+                    },
+                    error: function(response) {
+                        // Если что-то пошло не так, выводим сообщение об ошибке
+                        alert('Error occurred while adding the component');
+                    }
+                });
+            });
             // --------------------------------- Select 2 --------------------------------------------------------
 
             $(document).ready(function () {
