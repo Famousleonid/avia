@@ -251,7 +251,7 @@
 {{--                                   name="use_extra_forms"--}}
 {{--                                   id="use_extra_forms">--}}
 {{--                        </div>--}}
-                    </div>
+{{--                    </div>--}}
 
 
                 <div class="text-end">
@@ -262,7 +262,7 @@
                     ['tdr'=>$current_wo->id]) }}"
                        class="btn btn-outline-secondary mt-3">{{ __('Cancel') }} </a>
                 </div>
-                </div>
+        </div>
             </form>
         </div>
 
