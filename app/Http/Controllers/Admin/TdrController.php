@@ -192,15 +192,28 @@ class TdrController extends Controller
      */
     public function edit($id)
     {
-        $current_wo = Workorder::findOrFail($id);
-        $units = Unit::all();
-        $user = Auth::user();
-        $customers = Customer::all();
-        $manuals = Manual::all();
-        $planes = Plane::all();
-        $builders = Builder::all();
+//        $current_wo = Workorder::findOrFail($id);
+//        $units = Unit::all();
+//        $user = Auth::user();
+//        $customers = Customer::all();
+//        $manuals = Manual::all();
+//        $planes = Plane::all();
+//        $builders = Builder::all();
+//
+//        return view('admin.tdrs.edit', compact(  'current_wo','units','user','customers','manuals','builders','planes'));
 
-        return view('admin.tdrs.edit', compact(  'current_wo','units','user','customers','manuals','builders','planes'));
+            $current_tdr = Tdr::findOrFail($id);
+            $workorder = Workorder::where('id',$current_tdr);
+            $units = Unit::all();
+            $necessaries = Necessary::all();
+            $conditions = Condition::all();
+            $codes = Code::all();
+
+//            $current_wo = $current_tdr->workorder->id;
+
+
+        return view('admin.tdrs.edit', compact(  'current_tdr','workorder','units','necessaries','conditions','codes'));
+
     }
 
     /**

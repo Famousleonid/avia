@@ -296,6 +296,15 @@
                                                         @endif
                                                     @endforeach
                                                 </td>
+
+                                                <td class="text-center">
+                                                    <a href="{{ route('admin.tdrs.edit',['tdr' => $tdr->id]) }}"
+                                                       class="btn btn-outline-primary btn-sm">
+                                                        <i class="bi bi-pencil-square"></i>
+                                                    </a>
+
+                                                </td>
+
                                             </tr>
 
                                     @endif
