@@ -65,7 +65,7 @@
     <div class="container mt-3">
         <div class="card bg-gradient">
             <div class="card-header">
-                <h4 class="text-primary">{{__('Add Unit Inspection')}}</h4>
+                <h4 class="text-primary">{{__('Add Inspection')}}</h4>
                 <h4 class="text-primary"> {{__('Work Order')}}
                     {{$current_wo->number}}</h4>
 
@@ -80,132 +80,165 @@
 
 
                 <div class="">
-                    <div class="d-flex">
-                        <div class=" form-group m-2">
-                            <label for="component_id" class="form-label">Component</label>
-                            <select name="component_id" id="component_id" class="form-control" style="width: 230px">
-                                @if (isset($selectedComponent))
-                                    <option value="{{ $selectedComponent->id }}" selected>
-                                        {{ $selectedComponent->part_number }} ({{ $selectedComponent->name }})
-                                    </option>
-                                @else
-                                    <option selected value="">---</option>
-                                @endif
-                                @foreach($components as $component)
-                                    <option
-                                        value="{{ $component->id }}"
-                                        data-title="{{$component->name}}">
-                                        {{$component->part_number}} ( {{ $component->name }} )
 
-                                    </option>
-                                @endforeach
+                    <div class="form-check">
+                        <input class="form-check-input" type="radio" name="RadioInspection" id="Component">
+                        <label class="form-check-label" for="Component">
+                            Add Component Inspection
+                        </label>
+                    </div>
+                    <div class="form-check">
+                        <input class="form-check-input" type="radio" name="RadioInspection" id="Unit">
+                        <label class="form-check-label" for="Unit">
+                            Add Unit Inspection
+                        </label>
+                    </div>
 
-                            </select>
 
-                        </div>
 
-                        <div class="d-flex">
-                            <div class="m-2">
-                                <div class="">
-                                    <label class="pb-1" for="serial_number">{{ __('Serial Number')}}</label>
-                                    <input id='serial_number' type="text"
-                                           class="form-control m-1"
-                                           name="serial_number"
-                                    >
+                        <!-- Группа элементов для Component Inspection -->
+                        <div id="componentGroup" style="display:none;">
+{{--                            <p>Here are the fields for component inspection...</p>--}}
+
+                            <div class="">
+                                <div class=" form-group m-2 d-flex">
+                                    <label for="component_id" class="form-label">Component</label>
+                                    <select name="component_id" id="component_id" class="form-control" style="width: 300px">
+                                        @if (isset($selectedComponent))
+                                            <option value="{{ $selectedComponent->id }}" selected>
+                                                {{ $selectedComponent->part_number }} ({{ $selectedComponent->name }})
+                                            </option>
+                                        @else
+                                            <option selected value="">---</option>
+                                        @endif
+                                        @foreach($components as $component)
+                                            <option
+                                                value="{{ $component->id }}"
+                                                data-title="{{$component->name}}">
+                                                {{$component->part_number}} ( {{ $component->name }} )
+
+                                            </option>
+                                        @endforeach
+
+                                    </select>
+                                    <button type="button" class="btn btn-link" data-bs-toggle="modal"
+                                            data-bs-target="#addComponentModal">{{ __('Add Component') }}
+                                    </button>
                                 </div>
-                            </div>
-                            <div class="m-2">
-                                <div class="">
-                                    <label class="pb-1" for="assy_serial_number">{{__('Assy Serial Number')}}</label>
-                                    <input id='assy_serial_number' type="text"
-                                           class="form-control m-1" name="assy_serial_number"
-                                    >
+                                <div class="d-flex">
+                                    <div class="m-2">
+                                        <div class="">
+                                            <label class="pb-1" for="serial_number">{{ __('Serial Number')}}</label>
+                                            <input id='serial_number' type="text"
+                                                   class="form-control m-1"
+                                                   name="serial_number"
+                                            >
+                                        </div>
+                                    </div>
+                                    <div class="m-2">
+                                        <div class="">
+                                            <label class="pb-1" for="assy_serial_number">{{__('Assy Serial Number')}}</label>
+                                            <input id='assy_serial_number' type="text"
+                                                   class="form-control m-1" name="assy_serial_number"
+                                            >
+                                        </div>
+                                    </div>
                                 </div>
+
+                                <div class=" form-group m-2">
+                                    <label for="codes_id"
+                                           class="form-label pe-2">Code</label>
+                                    <select name="codes_id" id="codes_id"
+                                            class="form-control" style="width: 278px">
+                                        <option  selected value="">---</option>
+                                        @foreach($codes as $code)
+                                            <option
+                                                value="{{ $code->id }}"
+                                                data-title="{{$code->name}}">
+                                                {{$code->name}}
+
+                                            </option>
+                                        @endforeach
+
+                                    </select>
+
+
+                                </div>
+                                <div class=" form-group m-2">
+                                    <label for="necessaries_id"
+                                           class="form-label pe-2">Necessary</label>
+                                    <select name="necessaries_id" id="necessaries_id"
+                                            class="form-control" style="width: 278px">
+                                        <option  selected value="">---</option>
+                                        @foreach($necessaries as $necessary)
+                                            <option
+                                                value="{{ $necessary->id }}"
+                                                data-title="{{$necessary->name}}">
+                                                {{$necessary->name}}
+
+                                            </option>
+                                        @endforeach
+
+                                    </select>
+
+
+                                </div>
+
+                        </div></div>
+
+                        <!-- Группа элементов для Unit Inspection -->
+                        <div id="unitGroup" style="display:none;">
+
+                            <p>Here are the fields for unit inspection...</p>
+
+                            <div class=" form-group m-2">
+                                <label for="conditions_id"
+                                       class="form-label pe-2">Condition</label>
+                                <select name="conditions_id" id="conditions_id"
+                                        class="form-control" style="width: 575px">
+                                    <option  selected value="">---</option>
+                                    @foreach($unit_conditions as $unit_condition)
+                                        <option
+                                            value="{{ $unit_condition->id }}"
+                                            data-title="{{$unit_condition->name}}">
+                                            {{$unit_condition->name}}
+
+                                        </option>
+                                    @endforeach
+
+                                </select>
+
+
                             </div>
+
+
+
                         </div>
 
-                    </div>
-                        <button type="button" class="btn btn-link" data-bs-toggle="modal"
-                                data-bs-target="#addComponentModal">{{ __('Add Component') }}
-                        </button>
-
-                    <div class=" form-group m-2">
-                        <label for="conditions_id"
-                               class="form-label pe-2">Condition</label>
-                        <select name="conditions_id" id="conditions_id"
-                                class="form-control" style="width: 575px">
-                            <option  selected value="">---</option>
-                            @foreach($conditions as $condition)
-                                <option
-                                    value="{{ $condition->id }}"
-                                    data-title="{{$condition->name}}">
-                                    {{$condition->name}}
-
-                                </option>
-                            @endforeach
-
-                        </select>
 
 
-                    </div>
+
 
                     <div class="d-flex">
 
-                        <div class=" form-group m-2">
-                            <label for="codes_id"
-                                   class="form-label pe-2">Code</label>
-                            <select name="codes_id" id="codes_id"
-                                    class="form-control" style="width: 278px">
-                                <option  selected value="">---</option>
-                                @foreach($codes as $code)
-                                    <option
-                                        value="{{ $code->id }}"
-                                        data-title="{{$code->name}}">
-                                        {{$code->name}}
 
-                                    </option>
-                                @endforeach
-
-                            </select>
-
-
-                        </div>
-                        <div class=" form-group m-2">
-                            <label for="necessaries_id"
-                                   class="form-label pe-2">Necessary</label>
-                            <select name="necessaries_id" id="necessaries_id"
-                                    class="form-control" style="width: 278px">
-                                <option  selected value="">---</option>
-                                @foreach($necessaries as $necessary)
-                                    <option
-                                        value="{{ $necessary->id }}"
-                                        data-title="{{$necessary->name}}">
-                                        {{$necessary->name}}
-
-                                    </option>
-                                @endforeach
-
-                            </select>
-
-
-                        </div>
 
 
 
                     </div>
 
-                    <div class="d-flex justify-content-between mt-3">
-                        <div class="form-check ">
-                            <label class="form-check-label" for="use_tdr">Use TDR</label>
-                            <input class="form-check-input" type="checkbox" name="use_tdr" id="use_tdr">
-                        </div>
-                        <div class="form-check ">
-                            <label class="form-check-label"
-                                   for="use_process_forms">Use Process Form</label>
-                            <input class="form-check-input" type="checkbox"
-                                   name="use_process_forms"
-                                   id="use_process_forms">
-                        </div>
+{{--                    <div class="d-flex justify-content-between mt-3">--}}
+{{--                        <div class="form-check ">--}}
+{{--                            <label class="form-check-label" for="use_tdr">Use TDR</label>--}}
+{{--                            <input class="form-check-input" type="checkbox" name="use_tdr" id="use_tdr">--}}
+{{--                        </div>--}}
+{{--                        <div class="form-check ">--}}
+{{--                            <label class="form-check-label"--}}
+{{--                                   for="use_process_forms">Use Process Form</label>--}}
+{{--                            <input class="form-check-input" type="checkbox"--}}
+{{--                                   name="use_process_forms"--}}
+{{--                                   id="use_process_forms">--}}
+{{--                        </div>--}}
 {{--                        <div class="form-check ">--}}
 {{--                            <label class="form-check-label" for="use_log_card">Use Log Card</label>--}}
 {{--                            <input class="form-check-input" type="checkbox" name="use_log_card" id="use_log_card">--}}
@@ -306,6 +339,40 @@
 
 
     <script>
+
+
+        // Функция для отображения нужной группы
+        function showSelectedGroup() {
+            var selectedOption = document.querySelector('input[name="RadioInspection"]:checked');
+
+            // Если радиокнопка не выбрана, скрываем обе группы
+            if (!selectedOption) {
+                document.getElementById('componentGroup').style.display = 'none';
+                document.getElementById('unitGroup').style.display = 'none';
+                return;
+            }
+
+            // Скрываем обе группы
+            document.getElementById('componentGroup').style.display = 'none';
+            document.getElementById('unitGroup').style.display = 'none';
+
+            // Отображаем нужную группу в зависимости от выбранной радиокнопки
+            if (selectedOption.id === 'Component') {
+                document.getElementById('componentGroup').style.display = 'block';
+            } else if (selectedOption.id === 'Unit') {
+                document.getElementById('unitGroup').style.display = 'block';
+            }
+        }
+
+        // Слушаем изменения выбора радиокнопок
+        document.querySelectorAll('input[name="RadioInspection"]').forEach(function (radio) {
+            radio.addEventListener('change', showSelectedGroup);
+        });
+
+        // Вызов функции при загрузке страницы, чтобы скрыть обе группы (так как нет выбранной радиокнопки)
+        window.onload = function() {
+            showSelectedGroup();
+        }
 
         window.addEventListener('load', function () {
 

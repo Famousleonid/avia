@@ -9,6 +9,6 @@ class Condition extends Model
 {
     use HasFactory;
     protected $fillable = [
-        'name',
+        'name','unit',
     ];
 }

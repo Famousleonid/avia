@@ -178,7 +178,7 @@
             {{--        @if(count($tdrs))--}}
 
             <div class="">
-{{$current_wo->id}} - {{count($tdrs)}}
+WorkOrder ID :{{$current_wo->id}}. Count TDR Records: {{count($tdrs)}}
 
                 <div class="d-flex justify-content-between">
                     <div style="width: 300px">
@@ -188,8 +188,8 @@
                     table-bordered bg-gradient">
                                 <thead>
                                 <tr>
-                                    <th class="text-center">{{__('Teardown
-                                    Inspection')}}</th>
+                                    <th class="text-center">{{__('Teardown Inspection')}}</th>
+                                    <th class="text-center">{{__('Action ')}}</th>
                                 </tr>
                                 </thead>
                                 <tbody>
@@ -198,9 +198,9 @@
                                             <tr>
                                                 <td
                                                     class="text-center">
-                                                    @foreach($conditions as $condition)
-                                                        @if($condition->id == $tdr->conditions_id)
-                                                            {{$condition ->name}}
+                                                    @foreach($unit_conditions as $unit_condition)
+                                                        @if($unit_condition->id == $tdr->unit_conditions_id)
+                                                            {{$unit_condition ->name}}
                                                         @endif
                                                     @endforeach
 
@@ -209,6 +209,12 @@
                                                             {{$component -> name}} ({{$component -> ipl_num}})
                                                         @endif
                                                     @endforeach
+                                                </td>
+                                                <td class="text-center">
+                                                    <a href="{{ route('admin.tdrs.edit',['tdr' => $tdr->id]) }}"
+                                                       class="btn btn-outline-primary btn-sm">
+                                                        <i class="bi bi-pencil-square"></i>
+                                                    </a>
 
                                                 </td>
                                             </tr>

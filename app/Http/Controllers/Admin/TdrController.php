@@ -78,7 +78,8 @@ class TdrController extends Controller
         $necessaries = Necessary::all();
         $conditions = Condition::all();
         $codes = Code::all();
-
+        $unit_conditions = Condition::where('unit',true)->get();
+        $component_conditions = Condition::where('unit',false)->get();
 
 
         // Отправляем данные в представление
@@ -86,7 +87,7 @@ class TdrController extends Controller
             'current_wo', 'manual_id',
             'manuals', 'components', 'units', 'user', 'customers',
             'planes', 'builders', 'instruction',
-            'necessaries','conditions','codes',
+            'necessaries','conditions','codes','unit_conditions','component_conditions'
         ));
     }
 
@@ -173,15 +174,18 @@ class TdrController extends Controller
         $instruction = Instruction::all();
 
         $necessaries = Necessary::all();
-        $conditions = Condition::all();
+        $unit_conditions = Condition::where('unit',true)->get();
+        $component_conditions = Condition::where('unit',false)->get();
+
         $codes = Code::all();
 
         $tdrs =Tdr::where('workorder_id',$current_wo->id)->get();
 //        $tdrs = Tdr::with('current_wo')->get(); // --- ? ---
 
-        return view('admin.tdrs.show', compact(  'current_wo','tdrs','units','components','user','customers',
+        return view('admin.tdrs.show', compact(  'current_wo','tdrs','units',
+            'components','user','customers',
         'manuals','builders','planes','instruction',
-        'necessaries','conditions','codes',));
+        'necessaries','unit_conditions','component_conditions','codes',));
     }
 
     /**
