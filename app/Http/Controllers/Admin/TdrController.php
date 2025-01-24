@@ -119,13 +119,11 @@ class TdrController extends Controller
         $use_extra_forms = $request->has('use_extra_forms');
 
 
-
-
         // Сохранение в таблице tdrs
         Tdr::create([
             'workorder_id' => $request->workorder_id, // Получаем workorder_id из формы
             'component_id' => $validated['component_id'],
-            'serial_number' => $validated['serial_number'],
+            'serial_number' => $validated['serial_number'] ?? 'NSN',
             'assy_serial_number' => $validated['assy_serial_number'],
             'codes_id' => $validated['codes_id'],  // Обработка передачи
             // codes_id
