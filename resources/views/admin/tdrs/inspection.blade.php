@@ -97,12 +97,13 @@
 
 
                         <!-- Группа элементов для Component Inspection -->
+
                         <div id="componentGroup" style="display:none;">
 {{--                            <p>Here are the fields for component inspection...</p>--}}
 
                             <div class="">
-                                <div class=" form-group m-2 d-flex">
-                                    <label for="component_id" class="form-label">Component</label>
+                                <div class=" form-group  d-flex">
+                                    <label for="component_id" class="form-label me-2">Component</label>
                                     <select name="component_id" id="component_id" class="form-control" style="width: 300px">
                                         @if (isset($selectedComponent))
                                             <option value="{{ $selectedComponent->id }}" selected>
@@ -125,66 +126,73 @@
                                             data-bs-target="#addComponentModal">{{ __('Add Component') }}
                                     </button>
                                 </div>
-                                <div class="d-flex">
-                                    <div class="m-2">
+                                <div class="d-flex justify-content-center ms-2 me-2" >
+
+
+                                    <div class="m-2" id="sns">
                                         <div class="">
                                             <label class="pb-1" for="serial_number">{{ __('Serial Number')}}</label>
                                             <input id='serial_number' type="text"
-                                                   class="form-control m-1"
+                                                   class="form-control "
                                                    name="serial_number"
                                             >
+                                        </div>\
+                                        <div class="m-2" id="sns">
+                                            <div class="">
+                                                <label class="pb-1" for="assy_serial_number">{{__('Assy Serial Number')}}</label>
+                                                <input id='assy_serial_number' type="text"
+                                                       class="form-control " name="assy_serial_number"
+                                                >
+                                            </div>
                                         </div>
                                     </div>
-                                    <div class="m-2">
-                                        <div class="">
-                                            <label class="pb-1" for="assy_serial_number">{{__('Assy Serial Number')}}</label>
-                                            <input id='assy_serial_number' type="text"
-                                                   class="form-control m-1" name="assy_serial_number"
-                                            >
-                                        </div>
+
+                                </div>
+                                <div class="d-flex">
+                                    <div class=" form-group m-2">
+                                        <label for="codes_id"
+                                               class="form-label pe-2">Code Inspection</label>
+                                        <select name="codes_id" id="codes_id"
+                                                class="form-control" style="width: 278px">
+                                            <option  selected value="">---</option>
+                                            @foreach($codes as $code)
+                                                <option
+                                                    value="{{ $code->id }}"
+                                                    data-title="{{$code->name}}">
+                                                    {{$code->name}}
+
+                                                </option>
+                                            @endforeach
+                                        </select>
+                                    </div>
+
+                                    <div class=" form-group m-2" id="necessary">
+                                        <label for="necessaries_id"
+                                               class="form-label pe-2">Necessary to Do</label>
+                                        <select name="necessaries_id" id="necessaries_id"
+                                                class="form-control" style="width: 278px">
+                                            <option  selected value="">---</option>
+                                            @foreach($necessaries as $necessary)
+                                                <option
+                                                    value="{{ $necessary->id }}"
+                                                    data-title="{{$necessary->name}}">
+                                                    {{$necessary->name}}
+
+                                                </option>
+                                            @endforeach
+
+                                        </select>
+
+
                                     </div>
                                 </div>
 
-                                <div class=" form-group m-2">
-                                    <label for="codes_id"
-                                           class="form-label pe-2">Code</label>
-                                    <select name="codes_id" id="codes_id"
-                                            class="form-control" style="width: 278px">
-                                        <option  selected value="">---</option>
-                                        @foreach($codes as $code)
-                                            <option
-                                                value="{{ $code->id }}"
-                                                data-title="{{$code->name}}">
-                                                {{$code->name}}
 
-                                            </option>
-                                        @endforeach
+                                <input type="hidden" name="use_tdr" value=true>
+                                <input type="hidden" name="use_process_forms" value=true>
 
-                                    </select>
-
-
-                                </div>
-                                <div class=" form-group m-2">
-                                    <label for="necessaries_id"
-                                           class="form-label pe-2">Necessary</label>
-                                    <select name="necessaries_id" id="necessaries_id"
-                                            class="form-control" style="width: 278px">
-                                        <option  selected value="">---</option>
-                                        @foreach($necessaries as $necessary)
-                                            <option
-                                                value="{{ $necessary->id }}"
-                                                data-title="{{$necessary->name}}">
-                                                {{$necessary->name}}
-
-                                            </option>
-                                        @endforeach
-
-                                    </select>
-
-
-                                </div>
-
-                        </div></div>
+                            </div>
+                        </div>
 
                         <!-- Группа элементов для Unit Inspection -->
                         <div id="unitGroup" style="display:none;">
@@ -211,7 +219,7 @@
 
                             </div>
 
-
+                            <input type="hidden" name="use_tdr" value=true>
 
                         </div>
 
@@ -339,6 +347,31 @@
 
 
     <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            var codesSelect = document.getElementById('codes_id');
+            var necessaryDiv = document.getElementById('necessary');
+            var snsDiv = document.getElementById('sns'); // Блок с серийным номером
+            var serialNumberField = document.getElementById('serial_number'); // Серийный номер
+            var assySerialNumberField = document.getElementById('assy_serial_number'); // Ассемблированный серийный номер
+
+            codesSelect.addEventListener('change', function() {
+                if (this.value === '7') {
+                    necessaryDiv.style.display = 'none'; // Скрываем поле "Необходимо сделать"
+                    snsDiv.style.display = 'none'; // Скрываем весь блок sns
+                } else {
+                    necessaryDiv.style.display = 'block'; // Показываем поле "Необходимо сделать"
+                    snsDiv.style.display = 'flex'; // Показываем блок sns с серийным номером
+                }
+            });
+
+            // Проверяем значение при загрузке страницы
+            if (codesSelect.value === '7') {
+                necessaryDiv.style.display = 'none';
+                snsDiv.style.display = 'none'; // Скрываем весь блок при загрузке
+            } else {
+                snsDiv.style.display = 'flex'; // Убедитесь, что блок показывается в другом случае
+            }
+        });
 
 
         // Функция для отображения нужной группы

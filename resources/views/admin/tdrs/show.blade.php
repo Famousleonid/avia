@@ -198,9 +198,9 @@ WorkOrder ID :{{$current_wo->id}}. Count TDR Records: {{count($tdrs)}}
                                             <tr>
                                                 <td
                                                     class="text-center">
-                                                    @foreach($unit_conditions as $unit_condition)
-                                                        @if($unit_condition->id == $tdr->unit_conditions_id)
-                                                            {{$unit_condition ->name}}
+                                                    @foreach($conditions as $condition)
+                                                        @if($condition->id == $tdr->conditions_id)
+                                                            {{$condition ->name}}
                                                         @endif
                                                     @endforeach
 

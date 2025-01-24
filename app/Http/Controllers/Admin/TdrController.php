@@ -176,6 +176,7 @@ class TdrController extends Controller
         $necessaries = Necessary::all();
         $unit_conditions = Condition::where('unit',true)->get();
         $component_conditions = Condition::where('unit',false)->get();
+        $conditions =Condition::all();
 
         $codes = Code::all();
 
@@ -185,7 +186,7 @@ class TdrController extends Controller
         return view('admin.tdrs.show', compact(  'current_wo','tdrs','units',
             'components','user','customers',
         'manuals','builders','planes','instruction',
-        'necessaries','unit_conditions','component_conditions','codes',));
+        'necessaries','unit_conditions','component_conditions','codes','conditions',));
     }
 
     /**
