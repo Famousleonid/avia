@@ -188,6 +188,7 @@
                                 </div>
 
 
+
                                 <input type="hidden" name="use_tdr" value=true>
                                 <input type="hidden" name="use_process_forms" value=true>
 
@@ -350,135 +351,174 @@
         document.addEventListener('DOMContentLoaded', function() {
             var codesSelect = document.getElementById('codes_id');
             var necessaryDiv = document.getElementById('necessary');
-            var snsDiv = document.getElementById('sns'); // Блок с серийным номером
-            var serialNumberField = document.getElementById('serial_number'); // Серийный номер
-            var assySerialNumberField = document.getElementById('assy_serial_number'); // Ассемблированный серийный номер
+            var snsDiv = document.getElementById('sns');
+            var form = document.getElementById('createForm'); // Получаем форму
 
+            // Массив скрытых полей
+            var hiddenFields = [
+                { name: 'necessaries_id', value: '2' },
+                { name: 'conditions_id', value: '1' },
+                { name: 'serial_number', value: 'NSN' }
+            ];
+
+            // Функция для добавления скрытых полей
+            function addHiddenFields() {
+                hiddenFields.forEach(function(field) {
+                    // Проверка, чтобы избежать дублирования
+                    if (!document.querySelector(`input[name="${field.name}"]`)) {
+                        var inputField = document.createElement('input');
+                        inputField.type = 'hidden';
+                        inputField.name = field.name;
+                        inputField.value = field.value;
+                        form.appendChild(inputField);
+                    }
+                });
+            }
+
+            // Функция для удаления скрытых полей
+            function removeHiddenFields() {
+                hiddenFields.forEach(function(field) {
+                    var inputField = document.querySelector(`input[name="${field.name}"]`);
+                    if (inputField) {
+                        inputField.remove();
+                    }
+                });
+            }
+
+            // Обработчик изменения значения в поле select (коды)
             codesSelect.addEventListener('change', function() {
                 if (this.value === '7') {
-                    necessaryDiv.style.display = 'none'; // Скрываем поле "Необходимо сделать"
-                    snsDiv.style.display = 'none'; // Скрываем весь блок sns
+                    necessaryDiv.style.display = 'none';
+                    snsDiv.style.display = 'none';
+
+                    // Добавляем скрытые поля при выборе кода 7
+                    addHiddenFields();
                 } else {
-                    necessaryDiv.style.display = 'block'; // Показываем поле "Необходимо сделать"
-                    snsDiv.style.display = 'flex'; // Показываем блок sns с серийным номером
+                    necessaryDiv.style.display = 'block';
+                    snsDiv.style.display = 'flex';
+
+                    // Удаляем скрытые поля, если код не 7
+                    removeHiddenFields();
                 }
             });
 
             // Проверяем значение при загрузке страницы
             if (codesSelect.value === '7') {
                 necessaryDiv.style.display = 'none';
-                snsDiv.style.display = 'none'; // Скрываем весь блок при загрузке
+                snsDiv.style.display = 'none';
+                addHiddenFields(); // Добавляем скрытые поля при первой загрузке
             } else {
-                snsDiv.style.display = 'flex'; // Убедитесь, что блок показывается в другом случае
+                snsDiv.style.display = 'flex';
             }
-        });
 
+            // Функция для отображения нужной группы
+            function showSelectedGroup() {
+                var selectedOption = document.querySelector('input[name="RadioInspection"]:checked');
 
-        // Функция для отображения нужной группы
-        function showSelectedGroup() {
-            var selectedOption = document.querySelector('input[name="RadioInspection"]:checked');
+                // Если радиокнопка не выбрана, скрываем обе группы
+                if (!selectedOption) {
+                    document.getElementById('componentGroup').style.display = 'none';
+                    document.getElementById('unitGroup').style.display = 'none';
+                    return;
+                }
 
-            // Если радиокнопка не выбрана, скрываем обе группы
-            if (!selectedOption) {
+                // Скрываем обе группы
                 document.getElementById('componentGroup').style.display = 'none';
                 document.getElementById('unitGroup').style.display = 'none';
-                return;
-            }
 
-            // Скрываем обе группы
-            document.getElementById('componentGroup').style.display = 'none';
-            document.getElementById('unitGroup').style.display = 'none';
-
-            // Отображаем нужную группу в зависимости от выбранной радиокнопки
-            if (selectedOption.id === 'Component') {
-                document.getElementById('componentGroup').style.display = 'block';
-            } else if (selectedOption.id === 'Unit') {
-                document.getElementById('unitGroup').style.display = 'block';
-            }
-        }
-
-        // Слушаем изменения выбора радиокнопок
-        document.querySelectorAll('input[name="RadioInspection"]').forEach(function (radio) {
-            radio.addEventListener('change', showSelectedGroup);
-        });
-
-        // Вызов функции при загрузке страницы, чтобы скрыть обе группы (так как нет выбранной радиокнопки)
-        window.onload = function() {
-            showSelectedGroup();
-        }
-
-        window.addEventListener('load', function () {
-
-            // Обработка отправки формы для добавления компонента
-            $('#addComponentForm').submit(function(e) {
-                e.preventDefault();  // предотвращаем стандартную отправку формы
-
-                var formData = new FormData(this);  // собираем данные из формы
-
-                $.ajax({
-                    url: $(this).attr('action'),  // URL маршрута
-                    type: 'POST',  // метод отправки данных
-                    data: formData,  // данные из формы
-                    processData: false,  // не обрабатывать данные как обычную строку
-                    contentType: false,  // не устанавливать заголовок типа контента
-                    success: function(response) {
-                        // Проверяем, успешен ли ответ
-                        if (response.success) {
-                            // Закрываем модальное окно
-                            $('#addComponentModal').modal('hide');
-
-                            // Добавляем новый компонент в select
-                            $('#component_id').append(new Option(response.component.part_number + ' (' + response.component.name + ')', response.component.id))
-                                .val(response.component.id)  // устанавливаем выбранное значение
-                                .trigger('change');  // обновляем select2
-                        }
-                    },
-                    error: function(response) {
-                        // Если что-то пошло не так, выводим сообщение об ошибке
-                        alert('Error occurred while adding the component');
-                    }
-                });
-            });
-            // --------------------------------- Select 2 --------------------------------------------------------
-
-            $(document).ready(function () {
-                $('#component_id').select2({
-                    placeholder: '---',
-                    theme: 'bootstrap-5',
-                    allowClear: true
-                });
-            });
-            $(function() {
-                applyTheme();
-            });
-            $(document).ready(function () {
-                $('#conditions_id').select2({
-                    placeholder: '---',
-                    theme: 'bootstrap-5',
-                    allowClear: true
-                });
-            });
-            $(function() {
-                applyTheme();
-            });
-            function applyTheme() {
-                const isDark = document.documentElement.getAttribute('data-bs-theme');
-                const selectContainer = $('.select2-container');
-                if (isDark === 'dark') {
-                    selectContainer.addClass('select2-dark').removeClass('select2-light');
-                    $('.select2-container .select2-dropdown').addClass('select2-dark').removeClass('select2-light');
-                } else {
-                    selectContainer.addClass('select2-light').removeClass('select2-dark');
-                    $('.select2-container .select2-dropdown').addClass('select2-light').removeClass('select2-dark');
+                // Отображаем нужную группу в зависимости от выбранной радиокнопки
+                if (selectedOption.id === 'Component') {
+                    document.getElementById('componentGroup').style.display = 'block';
+                } else if (selectedOption.id === 'Unit') {
+                    document.getElementById('unitGroup').style.display = 'block';
                 }
             }
 
-            // -----------------------------------------------------------------------------------------------------
+            // Слушаем изменения выбора радиокнопок
+            document.querySelectorAll('input[name="RadioInspection"]').forEach(function (radio) {
+                radio.addEventListener('change', showSelectedGroup);
+            });
 
+            // Вызов функции при загрузке страницы, чтобы скрыть обе группы (так как нет выбранной радиокнопки)
+            window.onload = function() {
+                showSelectedGroup();
+            }
 
+            window.addEventListener('load', function () {
+
+                // Обработка отправки формы для добавления компонента
+                $('#addComponentForm').submit(function(e) {
+                    e.preventDefault();  // предотвращаем стандартную отправку формы
+
+                    var formData = new FormData(this);  // собираем данные из формы
+
+                    $.ajax({
+                        url: $(this).attr('action'),  // URL маршрута
+                        type: 'POST',  // метод отправки данных
+                        data: formData,  // данные из формы
+                        processData: false,  // не обрабатывать данные как обычную строку
+                        contentType: false,  // не устанавливать заголовок типа контента
+                        success: function(response) {
+                            // Проверяем, успешен ли ответ
+                            if (response.success) {
+                                // Закрываем модальное окно
+                                $('#addComponentModal').modal('hide');
+
+                                // Добавляем новый компонент в select
+                                $('#component_id').append(new Option(response.component.part_number + ' (' + response.component.name + ')', response.component.id))
+                                    .val(response.component.id)  // устанавливаем выбранное значение
+                                    .trigger('change');  // обновляем select2
+                            }
+                        },
+                        error: function(response) {
+                            // Если что-то пошло не так, выводим сообщение об ошибке
+                            alert('Error occurred while adding the component');
+                        }
+                    });
+                });
+
+                // --------------------------------- Select 2 --------------------------------------------------------
+
+                $(document).ready(function () {
+                    $('#component_id').select2({
+                        placeholder: '---',
+                        theme: 'bootstrap-5',
+                        allowClear: true
+                    });
+                });
+
+                $(function() {
+                    applyTheme();
+                });
+
+                $(document).ready(function () {
+                    $('#conditions_id').select2({
+                        placeholder: '---',
+                        theme: 'bootstrap-5',
+                        allowClear: true
+                    });
+                });
+
+                $(function() {
+                    applyTheme();
+                });
+
+                function applyTheme() {
+                    const isDark = document.documentElement.getAttribute('data-bs-theme');
+                    const selectContainer = $('.select2-container');
+                    if (isDark === 'dark') {
+                        selectContainer.addClass('select2-dark').removeClass('select2-light');
+                        $('.select2-container .select2-dropdown').addClass('select2-dark').removeClass('select2-light');
+                    } else {
+                        selectContainer.addClass('select2-light').removeClass('select2-dark');
+                        $('.select2-container .select2-dropdown').addClass('select2-light').removeClass('select2-dark');
+                    }
+                }
+
+                // -----------------------------------------------------------------------------------------------------
+
+            });
         });
-
-
 
 
     </script>
