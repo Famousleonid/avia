@@ -118,6 +118,8 @@ class TdrController extends Controller
         $use_log_card = $request->has('use_log_card');
         $use_extra_forms = $request->has('use_extra_forms');
 
+//dd($request->all(), $validated,$use_tdr,$request->has('use_tdr'),$use_process_forms,$request->has('use_process_forms'));
+
 
         // Сохранение в таблице tdrs
         Tdr::create([

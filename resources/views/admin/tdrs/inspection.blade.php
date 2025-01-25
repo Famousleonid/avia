@@ -127,17 +127,18 @@
                                     </button>
                                 </div>
 
-                                <div class="d-flex justify-content-center ms-2 me-2" id="sns" >
+                                <div class="  ms-2 me-2"  >
 
-                                    <div class="m-2">
+                                    <div class="form-group ms-4 d-flex justify-content-between "  id="sns-group" style="display: block;">
+                                       <div></div>
                                         <div class="">
-                                            <label class="pb-1" for="serial_number">{{ __('Serial Number')}}</label>
+                                            <label class="" for="serial_number">{{ __('Serial Number')}}</label>
                                             <input id='serial_number' type="text"
                                                    class="form-control "name="serial_number" >
-                                        </div>\
-                                        <div class="m-2" >
+                                        </div>
+                                        <div class="" >
                                             <div class="">
-                                                <label class="pb-1" for="assy_serial_number">{{__('Assy Serial Number')}}</label>
+                                                <label class="" for="assy_serial_number">{{__('Assy Serial Number')}}</label>
                                                 <input id='assy_serial_number' type="text"
                                                        class="form-control " name="assy_serial_number" >
                                             </div>
@@ -184,8 +185,6 @@
 
 
 
-{{--                                <input type="hidden" name="use_tdr" value=true>--}}
-{{--                                <input type="hidden" name="use_process_forms" value=true>--}}
 
                             </div>
                         </div>
@@ -214,7 +213,7 @@
 
                             </div>
 
-                            <input type="hidden" name="use_tdr" value=true>
+{{--                            <input type="hidden" name="use_tdr" value=true>--}}
 
                         </div>
 
@@ -345,9 +344,12 @@
         document.addEventListener('DOMContentLoaded', function () {
             var codesSelect = document.getElementById('codes_id');
             var necessaryDiv = document.getElementById('necessary');
-            var snsDiv = document.getElementById('sns');
+            var snsDiv = document.getElementById('sns-group');
             var form = document.getElementById('createForm'); // Получаем форму
             var necessariesSelect = document.getElementById('necessaries_id'); // Поле для выбора necessaries
+
+            var snsDiv = document.getElementById('sns-group');
+            var necessariesSelect = document.getElementById('necessaries_id');
 
             // Массив скрытых полей
             var hiddenFields = [];
@@ -355,29 +357,45 @@
             // Пример данных для necessaries в зависимости от выбранного кода
             var necessariesData = {
                 'Missing': {
-                    necessaries_id: 'Order New',
+                    // necessaries_id: 'Order New',
                     hiddenFields: [
-                        { name: 'usr_tdr', value: 'false' },
-                        { name: 'usr_process_forms', value: 'false' }
+                        { name: 'conditions_id', value: '1' },
+                        { name: 'necessaries_id', value: '2' },
+                        { name: 'use_tdr', value: 'false' },
+                        { name: 'use_process_forms', value: 'false' }
+                    ]
+                },
+                'Life': {
+                    // necessaries_id: 'Order New',
+                    Life_hiddenFields: [
+                        { name: 'necessaries_id', value: '2' },
+                        { name: 'conditions_id', value: '35' },
+                        { name: 'use_tdr', value: 'true' },
+                        { name: 'use_process_forms', value: 'true' }
                     ]
                 },
                 'Damage': {
                     'Repair': [
-                        { name: 'usr_tdr', value: 'true' },
-                        { name: 'usr_process_forms', value: 'true' }
+                        { name: 'conditions_id', value: '3' },
+                        { name: 'use_tdr', value: 'true' },
+                        { name: 'use_process_forms', value: 'true' }
                     ],
                     'Order New': [
                         { name: 'conditions_id', value: '3' },
-                        { name: 'usr_tdr', value: 'true' },
-                        { name: 'usr_process_forms', value: 'false' }
+                        { name: 'use_tdr', value: 'true' },
+                        { name: 'use_process_forms', value: 'false' }
                     ],
-                    'Inspection': [
-                        { name: 'usr_tdr', value: 'false' },
-                        { name: 'usr_process_forms', value: 'true' }
+                    'Safran Inspection': [
+                        { name: 'use_tdr', value: 'true' },
+                        { name: 'use_process_forms', value: 'true' }
+                    ],
+                    'Etch Inspection': [
+                        { name: 'use_tdr', value: 'true' },
+                        { name: 'use_process_forms', value: 'true' }
                     ],
                     'EC': [
-                        { name: 'usr_tdr', value: 'true' },
-                        { name: 'usr_process_forms', value: 'true' }
+                        { name: 'use_tdr', value: 'true' },
+                        { name: 'use_process_forms', value: 'true' }
                     ]
                 }
             };
@@ -419,6 +437,9 @@
                 } else if (codeName === 'Damage' && necessariesData['Damage'][necessariesValue]) {
                     // Для кода 'Damage' и выбранного значения в necessaries
                     data = necessariesData['Damage'][necessariesValue];
+                } else if (codeName === 'Life' ) {
+                    // Для кода 'Life' и выбранного значения в necessaries
+                    data = necessariesData['Life'].Life_hiddenFields;
                 } else {
                     data = [];
                 }
@@ -427,57 +448,88 @@
                 addHiddenFields(data);
             }
 
-            // Функция для скрытия/показа div sns в зависимости от selectedCode и necessariesValue
-            function toggleSnsDiv(codeName, necessariesValue) {
-                // Скрыть snsDiv по умолчанию
-                snsDiv.style.display = 'none';
 
-                // Если necessaries не равно 'Order New' и codename не равно 'Missing', показываем snsDiv
-                if (necessariesValue !== 'Order New' && codeName !== 'Missing') {
-                    snsDiv.style.display = 'flex';  // Показываем snsDiv
+            // Функция для скрытия/показа div sns в зависимости от selectedCode и necessariesValue
+            function toggleSnsDiv(necessariesName) {
+                 console.log('Toggle snsDiv called with:', necessariesName); // Проверяем вызов функции
+
+                if (necessariesName === 'Order New' || necessariesName === null) {
+                    snsDiv.style.visibility = 'hidden';
+                    // snsDiv.style.display = 'none'; // Скрываем snsDiv
+                    console.log('snsDiv is now hidden');
+                } else {
+                    snsDiv.style.visibility = 'visible';
+                    // snsDiv.style.display = 'block'; // Показываем snsDiv
+                    console.log('snsDiv is now visible');
                 }
             }
 
+
+
             // Функция для скрытия/показа div necessary в зависимости от selectedCode
             function toggleNecessaryDiv(codeName) {
-                if (codeName === 'Missing') {
+
+                if (codeName === 'Missing' || codeName === 'Life') {
                     necessaryDiv.style.display = 'none';  // Скрываем necessaryDiv, если код = 'Missing'
                 } else {
                     necessaryDiv.style.display = 'block'; // Показываем necessaryDiv в остальных случаях
                 }
             }
-
-            // Обработчик изменения значения в поле select (коды)
             codesSelect.addEventListener('change', function () {
-                var selectedCode = this.options[this.selectedIndex].text;
-                var selectedNecessaries = necessariesSelect.value;
+                var selectedCode = this.options[this.selectedIndex].value; // Получаем id
+                var selectedCodeName = this.options[this.selectedIndex].getAttribute('data-title'); // Получаем name
+                var selectedNecessariesName = necessariesSelect.options[necessariesSelect.selectedIndex].getAttribute('data-title');
 
-                // Обновляем скрытые поля в зависимости от выбранного значения
-                updateHiddenFields(selectedCode, selectedNecessaries);
-
-                // Управляем видимостью necessaryDiv в зависимости от выбранного значения
-                toggleNecessaryDiv(selectedCode);
-
-                // Управляем видимостью snsDiv в зависимости от выбранного значения
-                toggleSnsDiv(selectedCode, selectedNecessaries);
+                updateHiddenFields(selectedCodeName, selectedNecessariesName);
+                toggleNecessaryDiv(selectedCodeName);
+                toggleSnsDiv(selectedNecessariesName);
             });
-
-            // Обработчик изменения в поле select (necessaries)
             necessariesSelect.addEventListener('change', function () {
-                var selectedCode = codesSelect.options[codesSelect.selectedIndex].text;
-                var selectedNecessaries = this.value;
+                var selectedNecessaries = this.value; // Получаем id
+                var selectedNecessariesName = this.options[this.selectedIndex].getAttribute('data-title'); // Получаем name
+                var selectedCodeName = codesSelect.options[codesSelect.selectedIndex].getAttribute('data-title');
 
-                // Обновляем скрытые поля в зависимости от выбранного necessaries
-                updateHiddenFields(selectedCode, selectedNecessaries);
-
-                // Управляем видимостью snsDiv в зависимости от выбранного значения
-                toggleSnsDiv(selectedCode, selectedNecessaries);
+                updateHiddenFields(selectedCodeName, selectedNecessariesName);
+                toggleSnsDiv(selectedNecessariesName);
             });
+
+            // // Обработчик изменения значения в поле select (коды)
+            // codesSelect.addEventListener('change', function () {
+            //     var selectedCode = this.options[this.selectedIndex].text;
+            //     var selectedNecessaries = necessariesSelect.value;
+            //
+            //     // Обновляем скрытые поля в зависимости от выбранного значения
+            //     updateHiddenFields(selectedCode, selectedNecessaries);
+            //
+            //     // Управляем видимостью necessaryDiv в зависимости от выбранного значения
+            //     toggleNecessaryDiv(selectedCode);
+            //
+            //     // Управляем видимостью snsDiv в зависимости от выбранного значения
+            //     toggleSnsDiv(selectedCode, selectedNecessaries);
+            // });
+            //
+            // // Обработчик изменения в поле select (necessaries)
+            // necessariesSelect.addEventListener('change', function () {
+            //     var selectedCode = codesSelect.options[codesSelect.selectedIndex].text;
+            //     var selectedNecessaries = this.value;
+            //
+            //     // Обновляем скрытые поля в зависимости от выбранного necessaries
+            //     updateHiddenFields(selectedCode, selectedNecessaries);
+            //
+            //     // Управляем видимостью snsDiv в зависимости от выбранного значения
+            //     toggleSnsDiv( selectedNecessaries);
+            // });
 
             // Проверяем значение при загрузке страницы
-            var selectedCode = codesSelect.options[codesSelect.selectedIndex].text;
-            var selectedNecessaries = necessariesSelect.value;
-            updateHiddenFields(selectedCode, selectedNecessaries); // Добавляем скрытые поля при первой загрузке
+            var selectedCodeName = codesSelect.options[codesSelect.selectedIndex].getAttribute('data-title');
+            var selectedNecessariesName = necessariesSelect.options[necessariesSelect.selectedIndex].getAttribute('data-title');
+
+            updateHiddenFields(selectedCodeName, selectedNecessariesName);
+            toggleNecessaryDiv(selectedCodeName);
+            toggleSnsDiv(selectedNecessariesName);
+            // var selectedCode = codesSelect.options[codesSelect.selectedIndex].text;
+            // var selectedNecessaries = necessariesSelect.value;
+            // updateHiddenFields(selectedCode, selectedNecessaries); // Добавляем скрытые поля при первой загрузке
 
             // Функция для отображения нужной группы
             function showSelectedGroup() {
