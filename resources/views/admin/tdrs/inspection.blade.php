@@ -323,6 +323,7 @@
 
 
     <script>
+
         document.addEventListener('DOMContentLoaded', function () {
             var codesSelect = document.getElementById('codes_id');
             var necessaryDiv = document.getElementById('necessary');
