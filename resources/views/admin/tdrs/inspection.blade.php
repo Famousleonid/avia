@@ -339,7 +339,7 @@
             // Получаем ссылку на элемент select
             var selectCondition = document.getElementById('c_conditions_id');
 
-/// Функция для обновления значения condition_id
+            /// Функция для обновления значения condition_id
             function updateConditionsId() {
                 var conditionsId = selectCondition.value;
                 console.log(conditionsId);  // Выводим новое значение в консоль для проверки
@@ -380,6 +380,24 @@
                         { name: 'use_process_forms', value: 'true' }
                     ]
                 },
+                'Incorrect Part': {
+                    // necessaries_id: 'Order New',
+                    ipFields: [
+                        { name: 'necessaries_id', value: '2' },
+                        { name: 'conditions_id', value: '40' },
+                        { name: 'use_tdr', value: 'true' },
+                        { name: 'use_process_forms', value: 'true' }
+                    ]
+                },
+                'Kit': {
+                    // necessaries_id: 'Order New',
+                    kFields: [
+                        { name: 'necessaries_id', value: '2' },
+                        { name: 'conditions_id', value: '39' },
+                        { name: 'use_tdr', value: 'true' },
+                        { name: 'use_process_forms', value: 'true' }
+                    ]
+                },
                 'Corroded': {
                     'Repair': [
                         {name: 'use_tdr', value: 'true'},
@@ -403,13 +421,7 @@
                         {name: 'use_process_forms', value: 'true'}
                     ]
                 },
-                'Kit': {
-                    kitFields: [
-                        { name: 'necessaries_id', value: '2' },
-                        {name: 'use_tdr', value: 'true'},
-                        {name: 'use_process_forms', value: 'true'},
-                    ]
-                },
+
                 'Damage': {
                     'Repair': [
                         {name: 'use_tdr', value: 'true'},
@@ -479,8 +491,12 @@
                 } else if (codeName === 'Life' ) {
                     // Для кода 'Life' и выбранного значения в necessaries
                     data = necessariesData['Life'].LifeFields;
-                } else if (selectedCodeName === 'Kit') {
-                    data = necessariesData['Kit'].kitFields;
+                } else if (codeName === 'Incorrect Part' ) {
+                    // Для кода 'Incorrect Part' и выбранного значения в necessaries
+                    data = necessariesData['Incorrect Part'].ipFields;
+                } else if (codeName === 'Kit' ) {
+                    // Для кода 'Kit' и выбранного значения в necessaries
+                    data = necessariesData['Kit'].kFields;
                 } else {
                     data = [];
                 }
@@ -509,7 +525,8 @@
             // Функция для скрытия/показа div necessary в зависимости от selectedCode
             function toggleNecessaryDiv(codeName) {
 
-                if (codeName === 'Missing' || codeName === 'Life'  || codeName === 'Service Bulletin' || codeName === 'Incorrect Part') {
+                if (codeName === 'Missing' || codeName === 'Life'  || codeName === 'Service Bulletin' || codeName ===
+                    'Incorrect Part' || codeName === 'Kit') {
                     necessaryDiv.style.display = 'none';  // Скрываем necessaryDiv, если код = 'Missing'
                 } else {
                     necessaryDiv.style.display = 'block'; // Показываем necessaryDiv в остальных случаях
@@ -518,7 +535,8 @@
 
             // Функция для скрытия/показа div conditions в зависимости от selectedCode
             function toggleConditionsDiv(codeName) {
-                if (codeName === 'Missing' || codeName === 'Life' || codeName === 'Service Bulletin' || codeName === 'Incorrect Part') {
+                if (codeName === 'Missing' || codeName === 'Life' || codeName === 'Service Bulletin' || codeName === 'Incorrect Part'
+                    || codeName === 'Kit') {
                     conditionsDiv.style.display = 'none';  // Скрываем necessaryDiv, если код = 'Missing'
                 } else {
                     conditionsDiv.style.display = 'block'; // Показываем necessaryDiv в остальных случаях
