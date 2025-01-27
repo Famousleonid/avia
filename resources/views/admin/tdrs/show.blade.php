@@ -240,7 +240,7 @@
                                 Description')}} <i class="bi bi-chevron-expand ms-1"></i></th>
                                     <th class="text-center sortable ">{{__('Part number')}} <i class="bi bi-chevron-expand ms-1"></i></th>
                                     <th class="text-center  sortable">{{__('Serial number')}} <i class="bi bi-chevron-expand ms-1"></i></th>
-{{--                                    <th class=" text-center " style="width: 300px">{{__('Condition ')}}</th>--}}
+                                    <th class=" text-center " style="width: 300px">{{__('Condition ')}}</th>
                                     <th class=" text-center " style="width: 200px">{{__('Necessary')}}</th>
                                     <th class=" text-center " style="width: 120px">{{__('Code')}}</th>
 {{--                                    <th class=" text-center " style="width:--}}
@@ -279,13 +279,13 @@
                                                 <td class="text-center"> <!--  Serial Number -->
                                                     {{$tdr->serial_number}}
                                                 </td>
-{{--                                                <td class="text-center"><!--  Condition -->--}}
-{{--                                                    @foreach($conditions as $condition)--}}
-{{--                                                        @if($condition->id == $tdr->conditions_id)--}}
-{{--                                                            {{$condition ->name}}--}}
-{{--                                                        @endif--}}
-{{--                                                    @endforeach--}}
-{{--                                                </td>--}}
+                                                <td class="text-center"><!--  Condition -->
+                                                    @foreach($conditions as $condition)
+                                                        @if($condition->id == $tdr->conditions_id)
+                                                            {{$condition ->name}}
+                                                        @endif
+                                                    @endforeach
+                                                </td>
                                                 <td class="text-center"><!--  Necessary -->
                                                     @foreach($necessaries as $necessary)
                                                         @if($necessary->id == $tdr->necessaries_id)
