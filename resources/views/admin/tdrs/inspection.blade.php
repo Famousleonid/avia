@@ -115,6 +115,7 @@
                                         @foreach($components as $component)
                                             <option
                                                 value="{{ $component->id }}"
+                                                data-has_assy_part_number="{{ $component->assy_part_number ? 'true' : 'false' }}"
                                                 data-title="{{$component->name}}">
                                                 {{$component->part_number}} ( {{ $component->name }} )
 
@@ -137,7 +138,7 @@
                                                    class="form-control "name="serial_number" >
                                         </div>
                                         <div class="" >
-                                            <div class="">
+                                            <div class="" id="assy_serial_number_container" >
                                                 <label class="" for="assy_serial_number">{{__('Assy Serial Number')}}</label>
                                                 <input id='assy_serial_number' type="text"
                                                        class="form-control " name="assy_serial_number" >
@@ -666,7 +667,34 @@
 
             // -----------------------------------------------------------------------------------------------------
 
+            // Функция для отображения/скрытия div assy_serial_number
+            function toggleAssySerialNumberField(selectedComponentId) {
+                const selectedOption = $('#component_id option[value="' + selectedComponentId + '"]');
+                const hasAssyPartNumber = selectedOption.data('has_assy_part_number');
 
+                // Показываем или скрываем div в зависимости от наличия assy_part_number
+                if (hasAssyPartNumber) {
+                    $('#assy_serial_number_container').show();
+                } else {
+                    $('#assy_serial_number_container').hide();
+                }
+            }
+
+            // Обработчик события изменения выбора компонента
+            $('#component_id').on('change', function () {
+                const selectedComponentId = $(this).val();
+                console.log("Selected Component ID:", selectedComponentId);
+
+                // Вызываем функцию для отображения/скрытия assy_serial_number
+                toggleAssySerialNumberField(selectedComponentId);
+            });
+
+            // При загрузке страницы, проверяем выбранный компонент
+            const defaultSelectedId = $('#component_id').val();
+            if (defaultSelectedId) {
+                console.log("Initial Selected Component ID:", defaultSelectedId);
+                toggleAssySerialNumberField(defaultSelectedId);
+            }
         });
 
 
