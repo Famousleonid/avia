@@ -313,6 +313,10 @@
 
             var necessariesSelect = document.getElementById('necessaries_id');
 
+            codesSelect.addEventListener('change', function() {
+                necessariesSelect.value = ""; // Сбрасываем значение necessaries_id при изменении codes_id
+            });
+
 // Массив скрытых полей
             var hiddenFields = [];
 
@@ -380,15 +384,18 @@
                 },
                 'Corroded': {
                     'Repair': [
+                        { name: 'conditions_id', value: '5' },
                         {name: 'use_tdr', value: 'true'},
                         {name: 'use_process_forms', value: 'true'}
                     ],
                     'Order New': [
+                        { name: 'conditions_id', value: '5' },
                         { name: 'necessaries_id', value: '2' },
                         {name: 'use_tdr', value: 'true'},
                         {name: 'use_process_forms', value: 'true'}
                     ],
                     'Safran Inspection': [
+
                         {name: 'use_tdr', value: 'true'},
                         {name: 'use_process_forms', value: 'true'}
                     ],
@@ -492,12 +499,14 @@
 
                 if (necessariesName === 'Order New' || necessariesName === null) {
                     snsDiv.style.visibility = 'hidden';
+                    conditionsDiv.style.display = 'none';
                     // snsDiv.style.display = 'none'; // Скрываем snsDiv
                     console.log('snsDiv is now hidden');
                 } else {
                     snsDiv.style.visibility = 'visible';
                     // snsDiv.style.display = 'block'; // Показываем snsDiv
                     console.log('snsDiv is now visible');
+                    conditionsDiv.style.display = 'block';
                 }
             }
 
@@ -522,6 +531,15 @@
                     conditionsDiv.style.display = 'block'; // Показываем necessaryDiv в остальных случаях
                 }
             }
+            function toggleConditionsDivExtra(codeName, necessariesName){
+                if (codeName === 'Corroded' && necessariesName === 'Repair') {
+                    conditionsDiv.style.display = 'none';
+                    console.log(codeName, necessariesName)
+                } else {
+                    conditionsDiv.style.visibility = 'block'; // Показываем necessaryDiv в остальных случаях
+                }
+            }
+
 
             codesSelect.addEventListener('change', function () {
                 // var selectedCode = this.options[this.selectedIndex].value; // Получаем id
@@ -532,6 +550,7 @@
                 toggleNecessaryDiv(selectedCodeName);
                 toggleSnsDiv(selectedNecessariesName);
                 toggleConditionsDiv(selectedCodeName);
+                toggleConditionsDivExtra(selectedCodeName, selectedNecessariesName);
             });
             necessariesSelect.addEventListener('change', function () {
                 // var selectedNecessaries = this.value; // Получаем id
@@ -540,6 +559,7 @@
 
                 updateHiddenFields(selectedCodeName, selectedNecessariesName);
                 toggleSnsDiv(selectedNecessariesName);
+                toggleConditionsDivExtra(selectedCodeName, selectedNecessariesName);
             });
 
 
