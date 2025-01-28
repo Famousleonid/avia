@@ -163,7 +163,6 @@
                                             @endforeach
                                         </select>
                                     </div>
-
                                     <div class=" form-group m-2" id="necessary">
                                         <label for="necessaries_id" class="form-label pe-2">Necessary to Do</label>
                                         <select name="necessaries_id" id="necessaries_id" class="form-control"
@@ -181,11 +180,12 @@
                                         </select>
 
                                     </div>
+
                                 </div>
                                 <div class="form-group m-2" id="conditions">
                                     <label for="c_conditions_id" class="form-label pe-2">Conditions</label>
                                     <select name="conditions_id" id="c_conditions_id" class="form-control"
-                                            style="width: 350px">
+                                            style="width: 278px">
                                         <option value="" disabled selected>---</option> <!-- Пустое значение по умолчанию -->
                                         @foreach($component_conditions as $component_condition)
                                             <option value="{{ $component_condition->id }}" data-title="{{ $component_condition->name }}">
@@ -195,6 +195,7 @@
                                     </select>
 
                                 </div>
+
                             </div>
                         </div>
 
@@ -368,7 +369,7 @@
                     // necessaries_id: 'Order New',
                     ipFields: [
                         { name: 'necessaries_id', value: '2' },
-                        { name: 'conditions_id', value: '40' },
+                        { name: 'conditions_id', value: '39' },
                         { name: 'use_tdr', value: 'true' },
                         { name: 'use_process_forms', value: 'false' }
                     ]
@@ -377,9 +378,27 @@
                     // necessaries_id: 'Order New',
                     kFields: [
                         { name: 'necessaries_id', value: '2' },
-                        { name: 'conditions_id', value: '39' },
+                        { name: 'conditions_id', value: '38' },
                         { name: 'use_tdr', value: 'false' },
                         { name: 'use_process_forms', value: 'false' }
+                    ]
+                },
+                'Worn': {
+                    // necessaries_id: 'Order New',
+                    wFields: [
+                        { name: 'necessaries_id', value: '2' },
+                        { name: 'conditions_id', value: '6' },
+                        { name: 'use_tdr', value: 'true' },
+
+                    ]
+                },
+                'Cracked': {
+                    // necessaries_id: 'Order New',
+                    crackFields: [
+                        { name: 'necessaries_id', value: '2' },
+                        { name: 'conditions_id', value: '3' },
+                        { name: 'use_tdr', value: 'true' },
+
                     ]
                 },
                 'Corroded': {
@@ -416,7 +435,8 @@
                     ],
                     'Order New': [
                         {name: 'conditions_id', value: '3'},
-                        {name: 'use_tdr', value: 'true'},
+                        { name: 'necessaries_id', value: '2' },
+                        {name: 'use_tdr', value: 'false'},
                         {name: 'use_process_forms', value: 'false'}
                     ],
                     'Safran Inspection': [
@@ -484,6 +504,12 @@
                 } else if (codeName === 'Kit' ) {
                     // Для кода 'Kit' и выбранного значения в necessaries
                     data = necessariesData['Kit'].kFields;
+                } else if (codeName === 'Worn' ) {
+                    // Для кода 'Kit' и выбранного значения в necessaries
+                    data = necessariesData['Worn'].wFields;
+                } else if (codeName === 'Cracked' ) {
+                    // Для кода 'Kit' и выбранного значения в necessaries
+                    data = necessariesData['Cracked'].crackFields;
                 } else {
                     data = [];
                 }
@@ -515,7 +541,7 @@
             function toggleNecessaryDiv(codeName) {
 
                 if (codeName === 'Missing' || codeName === 'Life'  || codeName === 'Service Bulletin' || codeName ===
-                    'Incorrect Part' || codeName === 'Kit') {
+                    'Incorrect Part' || codeName === 'Kit' || codeName === 'Worn') {
                     necessaryDiv.style.display = 'none';  // Скрываем necessaryDiv, если код = 'Missing'
                 } else {
                     necessaryDiv.style.display = 'block'; // Показываем necessaryDiv в остальных случаях
@@ -525,7 +551,7 @@
             // Функция для скрытия/показа div conditions в зависимости от selectedCode
             function toggleConditionsDiv(codeName) {
                 if (codeName === 'Missing' || codeName === 'Life' || codeName === 'Service Bulletin' || codeName === 'Incorrect Part'
-                    || codeName === 'Kit') {
+                    || codeName === 'Kit' || codeName === 'Worn') {
                     conditionsDiv.style.display = 'none';  // Скрываем necessaryDiv, если код = 'Missing'
                 } else {
                     conditionsDiv.style.display = 'block'; // Показываем necessaryDiv в остальных случаях

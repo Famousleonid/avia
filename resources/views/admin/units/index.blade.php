@@ -151,9 +151,7 @@
                             </td>
                             <td class="text-center">
                                 @if ($units->isNotEmpty() && $units->first()->manuals)
-
-                                    <a href="#"
-                                       data-bs-toggle="modal"
+                                    <a href="#" data-bs-toggle="modal"
                                        data-bs-target="#cmmModal{{$units->first()->manuals->id }}">
                                         {{ $manualNumber }}
                                     </a>

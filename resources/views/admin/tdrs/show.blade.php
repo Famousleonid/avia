@@ -15,141 +15,165 @@
                 <div class="d-flex justify-content-between">
                     <div>
                         <h5 class="text-primary  ps-4">{{__('Work Order')}}
-                            <span
-                                class="text-success
-                            ps-3 ">{{$current_wo->number}}
-                </span></h5>
+{{--                            <span class="text-success ps-3 ">{{$current_wo->number}} </span>--}}
+                            <a class="text-success-emphasis  ps-4" href="#" data-bs-toggle="modal"
+                               data-bs-target = #infoModal{{$current_wo->number}}>{{$current_wo->number}}
+                            </a>
+                        </h5>
 
-                        <div class="d-flex pt-2">
-                            <div style="width: 150px">{{'Component Name: '}}</div>
-                            <div style="width: 150px">{{$current_wo->description}}</div>
-                        </div>
-                        <div class="d-flex ">
-                            <div class="text-end pe-3" style="width: 150px">{{'Part Number: '}}</div>
-                            <div style="width: 150px">{{$current_wo->unit->part_number}}</div>
-                        </div>
-                        <div class="d-flex ">
-                            <div class="text-end pe-3" style="width: 150px">{{'Serial Number: '}}</div>
-                            <div style="width: 150px">{{$current_wo->serial_number}}</div>
-                        </div>
-                        <div class="d-flex ">
-                            <div class="text-end pe-3" style="width: 150px">{{'Instruction: '}}</div>
-                            <div style="width: 150px">{{$current_wo->instruction->name}}</div>
-                        </div>
-                        <div class="d-flex ">
-                            <div class="text-end pe-3" style="width: 150px">{{'CMM: '}}</div>
-                            <div style="width: 150px">{{$current_wo->unit->manuals->number}}</div>
-                        </div>
-                        <div class="d-flex ">
-                            <div class="text-end pe-3" style="width: 150px">{{'MFR: '}}</div>
-                            <div style="width: 150px">{{$current_wo->unit->manuals->builder->name}}</div>
+
+                        <div class="modal fade" id="infoModal{{$current_wo->number}}" tabindex="-1"
+                             role="dialog" aria-labelledby="infoModalLabel{{$current_wo->number}}" aria-hidden="true">
+                            <div class="modal-dialog modal-dialog-centered" role="document">
+                                <div class="modal-content bg-gradient">
+                                    <div class="modal-header">
+                                        <div>
+                                            <h5 class="modal-title" >{{__('Work order W')}}{{$current_wo->number}}</h5>
+                                        </div>
+                                        <button type="button" class="btn-close pb-2"  data-bs-dismiss="modal" aria-label="Close"> </button>
+                                    </div>
+                                    <div class="modal-body">
+                                        <div class="d-flex">
+                                            <div>
+                                                <div class="m-2">
+                                                    <a href="{{ $current_wo->unit->manuals->getBigImageUrl('manuals') }}" data-fancybox="gallery">
+                                                        <img class="" src="{{ $current_wo->unit->manuals->getBigImageUrl('manuals')}}"
+                                                             width="150" height="150" alt="Image"/>
+                                                    </a>
+                                                </div>
+                                            </div>
+                                            <div>
+                                                <div class="d-flex pt-2">
+                                                    <div style="width: 150px">{{'Component Name: '}}</div>
+                                                    <div style="width: 150px">{{$current_wo->description}}</div>
+                                                </div>
+                                                <div class="d-flex ">
+                                                    <div class="text-end pe-3" style="width: 150px">{{'Part Number: '}}</div>
+                                                    <div style="width: 150px">{{$current_wo->unit->part_number}}</div>
+                                                </div>
+                                                <div class="d-flex ">
+                                                    <div class="text-end pe-3" style="width: 150px">{{'Serial Number: '}}</div>
+                                                    <div style="width: 150px">{{$current_wo->serial_number}}</div>
+                                                </div>
+                                                <div class="d-flex ">
+                                                    <div class="text-end pe-3" style="width: 150px">{{'Instruction: '}}</div>
+                                                    <div style="width: 150px">{{$current_wo->instruction->name}}</div>
+                                                </div>
+                                                <div class="d-flex ">
+                                                    <div class="text-end pe-3" style="width: 150px">{{'CMM: '}}</div>
+                                                    <div style="width: 150px">{{$current_wo->unit->manuals->number}}</div>
+                                                </div>
+                                                <div class="d-flex ">
+                                                    <div class="text-end pe-3" style="width: 150px">{{'MFR: '}}</div>
+                                                    <div style="width: 150px">{{$current_wo->unit->manuals->builder->name}}</div>
+                                                </div>
+
+                                                <div class="d-flex ">
+                                                    <div class="text-end pe-3" style="width: 150px">{{'Lib: '}}</div>
+                                                    <div style="width: 150px">{{$current_wo->unit->manuals->lib}}</div>
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                    </div>
+                                </div>
+                            </div>
                         </div>
 
-                        <div class="d-flex ">
-                            <div class="text-end pe-3" style="width: 150px">{{'Lib: '}}</div>
-                            <div style="width: 150px">{{$current_wo->unit->manuals->lib}}</div>
-                        </div>
+
 
                     </div>
-                    <div class="m-2">
 
-                        <a href="{{ $current_wo->unit->manuals->getBigImageUrl('manuals') }}" data-fancybox="gallery">
-                        <img class="" src="{{ $current_wo->unit->manuals->getBigImageUrl('manuals')}}"
-                             width="200" height="200" alt="Image"/>
-                        </a>
-                    </div>
                     <div class=" ps-1 ">
+{{--                        <div class="d-flex justify-content-between ">--}}
+{{--                            <div class=" ">--}}
+{{--                                <button class="btn btn-outline-primary  "--}}
+{{--                                        style="height: 40px; width: 280px"--}}
+{{--                                        data-bs-toggle="modal"--}}
+{{--                                        data-bs-target="#addWoInspectModal">--}}
+{{--                                    <h5>{{__('WO Inspection')}}</h5>--}}
+{{--                                </button>--}}
+{{--                                <div class="d-flex ps-2  pt-1">--}}
+{{--                                    <div style="width: 250px">{{'Parts Missing  '}}</div>--}}
+{{--                                    <div style="width: 50px">--}}
+{{--                                        @if($current_wo->part_missing)--}}
+{{--                                            <i class="bi bi-check-square"></i>--}}
+{{--                                        @else--}}
+{{--                                            <i class="bi bi-square"></i>--}}
+{{--                                        @endif--}}
+{{--                                    </div>--}}
+{{--                                </div>--}}
+{{--                                <div class="d-flex ps-2">--}}
+{{--                                    <div style="width: 250px">{{'External Damage  '}}</div>--}}
+{{--                                    <div style="width: 50px">--}}
+{{--                                        @if($current_wo->external_damage)--}}
+{{--                                            <i class="bi bi-check-square"></i>--}}
+{{--                                        @else--}}
+{{--                                            <i class="bi bi-square"></i>--}}
+{{--                                        @endif--}}
+{{--                                    </div>--}}
+{{--                                </div>--}}
+{{--                                <div class="d-flex ps-2">--}}
+{{--                                    <div style="width: 250px">{{'Received Disassembly  '}}</div>--}}
+{{--                                    <div style="width: 50px">--}}
+{{--                                        @if($current_wo->received_disassembly)--}}
+{{--                                            <i class="bi bi-check-square"></i>--}}
+{{--                                        @else--}}
+{{--                                            <i class="bi bi-square"></i>--}}
+{{--                                        @endif--}}
+{{--                                    </div>--}}
 
-                        <div class="d-flex justify-content-between ">
-
-                            <div class=" ">
-                                <button class="btn btn-outline-primary  "
-                                        style="height: 40px; width: 280px"
-                                        data-bs-toggle="modal"
-                                        data-bs-target="#addWoInspectModal">
-                                    <h5>{{__('WO Inspection')}}</h5>
-                                </button>
-                                <div class="d-flex ps-2  pt-1">
-                                    <div style="width: 250px">{{'Parts Missing  '}}</div>
-                                    <div style="width: 50px">
-                                        @if($current_wo->part_missing)
-                                            <i class="bi bi-check-square"></i>
-                                        @else
-                                            <i class="bi bi-square"></i>
-                                        @endif
-                                    </div>
-                                </div>
-                                <div class="d-flex ps-2">
-                                    <div style="width: 250px">{{'External Damage  '}}</div>
-                                    <div style="width: 50px">
-                                        @if($current_wo->external_damage)
-                                            <i class="bi bi-check-square"></i>
-                                        @else
-                                            <i class="bi bi-square"></i>
-                                        @endif
-                                    </div>
-                                </div>
-                                <div class="d-flex ps-2">
-                                    <div style="width: 250px">{{'Received Disassembly  '}}</div>
-                                    <div style="width: 50px">
-                                        @if($current_wo->received_disassembly)
-                                            <i class="bi bi-check-square"></i>
-                                        @else
-                                            <i class="bi bi-square"></i>
-                                        @endif
-                                    </div>
-
-                                </div>
-                                <div class="d-flex  ps-2">
-                                    <div style="width: 250px">{{'Disassembly Upon Arrival  '}}</div>
-                                    <div style="width: 50px">
-                                        @if($current_wo->disassembly_upon_arrival)
-                                            <i class="bi bi-check-square"></i>
-                                        @else
-                                            <i class="bi bi-square"></i>
-                                        @endif
-                                    </div>
-                                </div>
-                                <div class="d-flex ps-2 ">
-                                    <div style="width: 250px">{{'Name Plate Missing  '}}</div>
-                                    <div style="width: 50px">
-                                        @if($current_wo->nameplate_missing)
-                                            <i class="bi bi-check-square"></i>
-                                        @else
-                                            <i class="bi bi-square"></i>
-                                        @endif
-                                    </div>
-                                </div>
-                                <div class="d-flex ps-2">
-                                    <div style="width: 250px">{{'Preliminary Test - False  '}}</div>
-                                    <div style="width: 50px">
-                                        @if($current_wo->preliminary_test_false)
-                                            <i class="bi bi-check-square"></i>
-                                        @else
-                                            <i class="bi bi-square"></i>
-                                        @endif
-                                    </div>
-                                </div>
-                                <div class="d-flex ps-2">
-                                    <div style="width: 250px">{{'Extra Parts  '}}</div>
-                                    <div style="width: 50px">
-                                        @if($current_wo->extra_parts)
-                                            <i class="bi bi-check-square"></i>
-                                        @else
-                                            <i class="bi bi-square"></i>
-                                        @endif
-                                    </div>
-                                </div>
-                            </div>
-                            <div class="">
+{{--                                </div>--}}
+{{--                                <div class="d-flex  ps-2">--}}
+{{--                                    <div style="width: 250px">{{'Disassembly Upon Arrival  '}}</div>--}}
+{{--                                    <div style="width: 50px">--}}
+{{--                                        @if($current_wo->disassembly_upon_arrival)--}}
+{{--                                            <i class="bi bi-check-square"></i>--}}
+{{--                                        @else--}}
+{{--                                            <i class="bi bi-square"></i>--}}
+{{--                                        @endif--}}
+{{--                                    </div>--}}
+{{--                                </div>--}}
+{{--                                <div class="d-flex ps-2 ">--}}
+{{--                                    <div style="width: 250px">{{'Name Plate Missing  '}}</div>--}}
+{{--                                    <div style="width: 50px">--}}
+{{--                                        @if($current_wo->nameplate_missing)--}}
+{{--                                            <i class="bi bi-check-square"></i>--}}
+{{--                                        @else--}}
+{{--                                            <i class="bi bi-square"></i>--}}
+{{--                                        @endif--}}
+{{--                                    </div>--}}
+{{--                                </div>--}}
+{{--                                <div class="d-flex ps-2">--}}
+{{--                                    <div style="width: 250px">{{'Preliminary Test - False  '}}</div>--}}
+{{--                                    <div style="width: 50px">--}}
+{{--                                        @if($current_wo->preliminary_test_false)--}}
+{{--                                            <i class="bi bi-check-square"></i>--}}
+{{--                                        @else--}}
+{{--                                            <i class="bi bi-square"></i>--}}
+{{--                                        @endif--}}
+{{--                                    </div>--}}
+{{--                                </div>--}}
+{{--                                <div class="d-flex ps-2">--}}
+{{--                                    <div style="width: 250px">{{'Extra Parts  '}}</div>--}}
+{{--                                    <div style="width: 50px">--}}
+{{--                                        @if($current_wo->extra_parts)--}}
+{{--                                            <i class="bi bi-check-square"></i>--}}
+{{--                                        @else--}}
+{{--                                            <i class="bi bi-square"></i>--}}
+{{--                                        @endif--}}
+{{--                                    </div>--}}
+{{--                                </div>--}}
+{{--                            </div>--}}
+{{--                            <div class="">--}}
 
 
 
 
 
 
-                            </div>
-                        </div>
+{{--                            </div>--}}
+{{--                        </div>--}}
 
                     </div>
 
@@ -181,16 +205,16 @@
             <div class="">
                 WorkOrder ID :{{$current_wo->id}}. Count TDR Records: {{count($tdrs)}}
 
-                <div class="d-flex justify-content-between">
-                    <div style="width: 300px">
+                <div class="d-flex justify-content-center">
+                    <div class="me-3" style="width: 500px">
                         <div class="table-wrapper me3 p-2">
                             <table id="tdr_inspect_Table" class="display table table-sm
                     table-hover table-striped align-middle
                     table-bordered bg-gradient">
                                 <thead>
                                 <tr>
-                                    <th class="text-center">{{__('Teardown Inspection')}}</th>
-                                    <th class="text-center">{{__('Action ')}}</th>
+                                    <th class="text-center" style="width: 400px;">{{__('Teardown Inspection')}}</th>
+                                    <th class="text-center" style="width: 150px;">{{__('Action ')}}</th>
                                 </tr>
                                 </thead>
                                 <tbody>
@@ -240,7 +264,7 @@
                                 Description')}} <i class="bi bi-chevron-expand ms-1"></i></th>
                                     <th class="text-center sortable ">{{__('Part number')}} <i class="bi bi-chevron-expand ms-1"></i></th>
                                     <th class="text-center  sortable">{{__('Serial number')}} <i class="bi bi-chevron-expand ms-1"></i></th>
-                                    <th class=" text-center " style="width: 300px">{{__('Condition ')}}</th>
+{{--                                    <th class=" text-center " style="width: 300px">{{__('Condition ')}}</th>--}}
                                     <th class=" text-center " style="width: 200px">{{__('Necessary')}}</th>
                                     <th class=" text-center " style="width: 120px">{{__('Code')}}</th>
 {{--                                    <th class=" text-center " style="width:--}}
@@ -279,13 +303,13 @@
                                                 <td class="text-center"> <!--  Serial Number -->
                                                     {{$tdr->serial_number}}
                                                 </td>
-                                                <td class="text-center"><!--  Condition -->
-                                                    @foreach($conditions as $condition)
-                                                        @if($condition->id == $tdr->conditions_id)
-                                                            {{$condition ->name}}
-                                                        @endif
-                                                    @endforeach
-                                                </td>
+{{--                                                <td class="text-center"><!--  Condition -->--}}
+{{--                                                    @foreach($conditions as $condition)--}}
+{{--                                                        @if($condition->id == $tdr->conditions_id)--}}
+{{--                                                            {{$condition ->name}}--}}
+{{--                                                        @endif--}}
+{{--                                                    @endforeach--}}
+{{--                                                </td>--}}
                                                 <td class="text-center"><!--  Necessary -->
                                                     @foreach($necessaries as $necessary)
                                                         @if($necessary->id == $tdr->necessaries_id)
