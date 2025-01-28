@@ -135,7 +135,7 @@
                                         <div class="">
                                             <label class="" for="serial_number">{{ __('Serial Number')}}</label>
                                             <input id='serial_number' type="text"
-                                                   class="form-control "name="serial_number" >
+                                                   class="form-control " name="serial_number" >
                                         </div>
                                         <div class="" >
                                             <div class="" id="assy_serial_number_container" >
@@ -534,7 +534,7 @@
                 toggleConditionsDiv(selectedCodeName);
             });
             necessariesSelect.addEventListener('change', function () {
-                var selectedNecessaries = this.value; // Получаем id
+                // var selectedNecessaries = this.value; // Получаем id
                 var selectedNecessariesName = this.options[this.selectedIndex].getAttribute('data-title'); // Получаем name
                 var selectedCodeName = codesSelect.options[codesSelect.selectedIndex].getAttribute('data-title');
 
