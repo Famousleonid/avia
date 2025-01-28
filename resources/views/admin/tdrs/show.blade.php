@@ -28,7 +28,7 @@
                                 <div class="modal-content bg-gradient">
                                     <div class="modal-header">
                                         <div>
-                                            <h5 class="modal-title" >{{__('Work order W')}}{{$current_wo->number}}</h5>
+                                            <h4 class="modal-title" >{{__('Work order ')}}{{$current_wo->number}}</h4>
                                         </div>
                                         <button type="button" class="btn-close pb-2"  data-bs-dismiss="modal" aria-label="Close"> </button>
                                     </div>
@@ -180,11 +180,8 @@
                     <div>
                         <div class="d-flex ">
                             <div style="width: 600px">
-                                <a href="{{route('admin.tdrs.inspection',
-                                ['workorder_id' => $current_wo->id])}}"
-                                   class="btn
-                                btn-outline-primary "
-                                   style="height: 40px">
+                                <a href="{{route('admin.tdrs.inspection',['workorder_id' => $current_wo->id])}}"
+                                   class="btn  btn-outline-primary " style="height: 40px" onclick="showLoadingSpinner()">
                                     {{__('Add Unit Inspection')}}
                                 </a>
 
