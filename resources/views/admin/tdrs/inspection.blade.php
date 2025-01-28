@@ -201,49 +201,27 @@
                         <!-- Группа элементов для Unit Inspection -->
                         <div id="unitGroup" style="display:none;">
 
-                            <p>Here are the fields for unit inspection...</p>
+{{--                            <p>Here are the fields for unit inspection...</p>--}}
 
-                            <div class=" form-group m-2">
-                                <label for="conditions_id"
-                                       class="form-label pe-2">Condition</label>
-                                <label for="u_conditions_id"></label>
-                                <select name="conditions_id" id="u_conditions_id" class="form-control" style="width:
-                                575px">
-                                    <option  selected value="">---</option>
+                            <div class="form-group m-2">
+                                <label for="u_conditions_id" class="form-label pe-2">Condition</label>
+                                <select name="conditions_id" id="u_conditions_id" class="form-control" style="width:575px">
+                                    <option selected value="">---</option>
                                     @foreach($unit_conditions as $unit_condition)
-                                        <option
-                                            value="{{ $unit_condition->id }}"
-                                            data-title="{{$unit_condition->name}}">
+                                        <option value="{{ $unit_condition->id }}" data-title="{{$unit_condition->name}}">
                                             {{$unit_condition->name}}
-
                                         </option>
                                     @endforeach
-
                                 </select>
-
-
+                                <input type="hidden" name="use_tdr" value="true">
                             </div>
-
-                        </div>
-
-
-
-
-
-                        <div class="d-flex">
-
-
-
 
 
                         </div>
 
                         <div class="text-end">
-                            <button type="submit" class="btn btn-outline-primary
-                        mt-3 ">{{ __('Save') }}</button>
-
-                            <a href="{{ route('admin.tdrs.show',
-                    ['tdr'=>$current_wo->id]) }}"
+                            <button type="submit" class="btn btn-outline-primary mt-3 ">{{ __('Save') }}</button>
+                            <a href="{{ route('admin.tdrs.show', ['tdr'=>$current_wo->id]) }}"
                                class="btn btn-outline-secondary mt-3">{{ __('Cancel') }} </a>
                         </div>
                     </div>
@@ -324,6 +302,8 @@
 
     <script>
 
+
+
         document.addEventListener('DOMContentLoaded', function () {
             var codesSelect = document.getElementById('codes_id');
             var necessaryDiv = document.getElementById('necessary');
@@ -332,7 +312,6 @@
             var form = document.getElementById('createForm'); // Получаем форму
 
             var necessariesSelect = document.getElementById('necessaries_id');
-
 
 // Массив скрытых полей
             var hiddenFields = [];
