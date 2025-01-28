@@ -361,7 +361,7 @@
                         { name: 'necessaries_id', value: '2' },
                         { name: 'conditions_id', value: '35' },
                         { name: 'use_tdr', value: 'true' },
-                        { name: 'use_process_forms', value: 'true' }
+                        { name: 'use_process_forms', value: 'false' }
                     ]
                 },
                 'Incorrect Part': {
@@ -370,7 +370,7 @@
                         { name: 'necessaries_id', value: '2' },
                         { name: 'conditions_id', value: '40' },
                         { name: 'use_tdr', value: 'true' },
-                        { name: 'use_process_forms', value: 'true' }
+                        { name: 'use_process_forms', value: 'false' }
                     ]
                 },
                 'Kit': {
@@ -378,8 +378,8 @@
                     kFields: [
                         { name: 'necessaries_id', value: '2' },
                         { name: 'conditions_id', value: '39' },
-                        { name: 'use_tdr', value: 'true' },
-                        { name: 'use_process_forms', value: 'true' }
+                        { name: 'use_tdr', value: 'false' },
+                        { name: 'use_process_forms', value: 'false' }
                     ]
                 },
                 'Corroded': {
