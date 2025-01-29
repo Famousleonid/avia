@@ -21,11 +21,10 @@
                             </a>
                         </h5>
 
-
                         <div class="modal fade" id="infoModal{{$current_wo->number}}" tabindex="-1"
                              role="dialog" aria-labelledby="infoModalLabel{{$current_wo->number}}" aria-hidden="true">
                             <div class="modal-dialog modal-dialog-centered" role="document">
-                                <div class="modal-content bg-gradient">
+                                <div class="modal-content bg-gradient" style="width: 800px">
                                     <div class="modal-header">
                                         <div>
                                             <h4 class="modal-title" >{{__('Work order ')}}{{$current_wo->number}}</h4>
@@ -67,13 +66,83 @@
                                                     <div class="text-end pe-3" style="width: 150px">{{'MFR: '}}</div>
                                                     <div style="width: 150px">{{$current_wo->unit->manuals->builder->name}}</div>
                                                 </div>
-
                                                 <div class="d-flex ">
                                                     <div class="text-end pe-3" style="width: 150px">{{'Lib: '}}</div>
                                                     <div style="width: 150px">{{$current_wo->unit->manuals->lib}}</div>
                                                 </div>
                                             </div>
-
+                                            <div>
+                                                <div class="d-flex ps-2">
+                                                    <div style="width: 200px">{{'Parts Missing  '}}</div>
+                                                    <div style="width: 30px">
+                                                        @if($current_wo->part_missing)
+                                                            <i class="bi bi-check-square"></i>
+                                                        @else
+                                                            <i class="bi bi-square"></i>
+                                                        @endif
+                                                    </div>
+                                                </div>
+                                                <div class="d-flex ps-2">
+                                                    <div style="width: 200px">{{'External Damage  '}}</div>
+                                                    <div style="width: 30px">
+                                                        @if($current_wo->external_damage)
+                                                            <i class="bi bi-check-square"></i>
+                                                        @else
+                                                            <i class="bi bi-square"></i>
+                                                        @endif
+                                                    </div>
+                                                </div>
+                                                <div class="d-flex ps-2">
+                                                    <div style="width: 200px">{{'Received Disassembly  '}}</div>
+                                                    <div style="width: 30px">
+                                                        @if($current_wo->received_disassembly)
+                                                            <i class="bi bi-check-square"></i>
+                                                        @else
+                                                            <i class="bi bi-square"></i>
+                                                        @endif
+                                                    </div>
+                                                </div>
+                                                <div class="d-flex  ps-2">
+                                                    <div style="width: 200px">{{'Disassembly Upon Arrival  '}}</div>
+                                                    <div style="width: 30px">
+                                                        @if($current_wo->disassembly_upon_arrival)
+                                                            <i class="bi bi-check-square"></i>
+                                                        @else
+                                                            <i class="bi bi-square"></i>
+                                                        @endif
+                                                    </div>
+                                                </div>
+                                                <div class="d-flex ps-2 ">
+                                                    <div style="width: 200px">{{'Name Plate Missing  '}}</div>
+                                                    <div style="width: 30px">
+                                                        @if($current_wo->nameplate_missing)
+                                                            <i class="bi bi-check-square"></i>
+                                                        @else
+                                                            <i class="bi bi-square"></i>
+                                                        @endif
+                                                    </div>
+                                                </div>
+                                                <div class="d-flex ps-2">
+                                                    <div style="width: 200px">{{'Preliminary Test - False  '}}</div>
+                                                    <div style="width: 30px">
+                                                        @if($current_wo->preliminary_test_false)
+                                                            <i class="bi bi-check-square"></i>
+                                                        @else
+                                                            <i class="bi bi-square"></i>
+                                                        @endif
+                                                    </div>
+                                                </div>
+                                                <div class="d-flex ps-2">
+                                                    <div style="width: 200px">{{'Extra Parts  '}}</div>
+                                                    <div style="width: 30px">
+                                                        @if($current_wo->extra_parts)
+                                                            <i class="bi bi-check-square"></i>
+                                                        @else
+                                                            <i class="bi bi-square"></i>
+                                                        @endif
+                                                    </div>
+                                                </div>
+                                            </div>
                                         </div>
 
                                     </div>
@@ -86,95 +155,7 @@
                     </div>
 
                     <div class=" ps-1 ">
-{{--                        <div class="d-flex justify-content-between ">--}}
-{{--                            <div class=" ">--}}
-{{--                                <button class="btn btn-outline-primary  "--}}
-{{--                                        style="height: 40px; width: 280px"--}}
-{{--                                        data-bs-toggle="modal"--}}
-{{--                                        data-bs-target="#addWoInspectModal">--}}
-{{--                                    <h5>{{__('WO Inspection')}}</h5>--}}
-{{--                                </button>--}}
-{{--                                <div class="d-flex ps-2  pt-1">--}}
-{{--                                    <div style="width: 250px">{{'Parts Missing  '}}</div>--}}
-{{--                                    <div style="width: 50px">--}}
-{{--                                        @if($current_wo->part_missing)--}}
-{{--                                            <i class="bi bi-check-square"></i>--}}
-{{--                                        @else--}}
-{{--                                            <i class="bi bi-square"></i>--}}
-{{--                                        @endif--}}
-{{--                                    </div>--}}
-{{--                                </div>--}}
-{{--                                <div class="d-flex ps-2">--}}
-{{--                                    <div style="width: 250px">{{'External Damage  '}}</div>--}}
-{{--                                    <div style="width: 50px">--}}
-{{--                                        @if($current_wo->external_damage)--}}
-{{--                                            <i class="bi bi-check-square"></i>--}}
-{{--                                        @else--}}
-{{--                                            <i class="bi bi-square"></i>--}}
-{{--                                        @endif--}}
-{{--                                    </div>--}}
-{{--                                </div>--}}
-{{--                                <div class="d-flex ps-2">--}}
-{{--                                    <div style="width: 250px">{{'Received Disassembly  '}}</div>--}}
-{{--                                    <div style="width: 50px">--}}
-{{--                                        @if($current_wo->received_disassembly)--}}
-{{--                                            <i class="bi bi-check-square"></i>--}}
-{{--                                        @else--}}
-{{--                                            <i class="bi bi-square"></i>--}}
-{{--                                        @endif--}}
-{{--                                    </div>--}}
 
-{{--                                </div>--}}
-{{--                                <div class="d-flex  ps-2">--}}
-{{--                                    <div style="width: 250px">{{'Disassembly Upon Arrival  '}}</div>--}}
-{{--                                    <div style="width: 50px">--}}
-{{--                                        @if($current_wo->disassembly_upon_arrival)--}}
-{{--                                            <i class="bi bi-check-square"></i>--}}
-{{--                                        @else--}}
-{{--                                            <i class="bi bi-square"></i>--}}
-{{--                                        @endif--}}
-{{--                                    </div>--}}
-{{--                                </div>--}}
-{{--                                <div class="d-flex ps-2 ">--}}
-{{--                                    <div style="width: 250px">{{'Name Plate Missing  '}}</div>--}}
-{{--                                    <div style="width: 50px">--}}
-{{--                                        @if($current_wo->nameplate_missing)--}}
-{{--                                            <i class="bi bi-check-square"></i>--}}
-{{--                                        @else--}}
-{{--                                            <i class="bi bi-square"></i>--}}
-{{--                                        @endif--}}
-{{--                                    </div>--}}
-{{--                                </div>--}}
-{{--                                <div class="d-flex ps-2">--}}
-{{--                                    <div style="width: 250px">{{'Preliminary Test - False  '}}</div>--}}
-{{--                                    <div style="width: 50px">--}}
-{{--                                        @if($current_wo->preliminary_test_false)--}}
-{{--                                            <i class="bi bi-check-square"></i>--}}
-{{--                                        @else--}}
-{{--                                            <i class="bi bi-square"></i>--}}
-{{--                                        @endif--}}
-{{--                                    </div>--}}
-{{--                                </div>--}}
-{{--                                <div class="d-flex ps-2">--}}
-{{--                                    <div style="width: 250px">{{'Extra Parts  '}}</div>--}}
-{{--                                    <div style="width: 50px">--}}
-{{--                                        @if($current_wo->extra_parts)--}}
-{{--                                            <i class="bi bi-check-square"></i>--}}
-{{--                                        @else--}}
-{{--                                            <i class="bi bi-square"></i>--}}
-{{--                                        @endif--}}
-{{--                                    </div>--}}
-{{--                                </div>--}}
-{{--                            </div>--}}
-{{--                            <div class="">--}}
-
-
-
-
-
-
-{{--                            </div>--}}
-{{--                        </div>--}}
 
                     </div>
 
@@ -187,11 +168,12 @@
                                 </a>
                             </div>
                             <div>
-{{--                                  --}}
-{{--                                        <button class="btn btn-outline-primary btn-sm" style="height: 40px"--}}
-{{--                                                data-bs-toggle="modal"data-bs-target="#createModal">--}}
-{{--                                            {{ __('Missing Part') }}</button>--}}
-{{--                                   --}}
+                                  @if($current_wo->part_missing)
+                                    <button class="btn btn-outline-primary btn-sm" style="height: 40px"
+                                            data-bs-toggle="modal"data-bs-target="#createModal">
+                                        {{ __('Missing Part') }}</button>
+                                  @endif
+
 
                             </div>
                         </div>

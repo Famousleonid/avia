@@ -319,7 +319,6 @@
 
             // Получаем ссылку на элемент select
             var selectCondition = document.getElementById('c_conditions_id');
-            var selectConditionU = document.getElementById('u_conditions_id');
 
             /// Функция для обновления значения condition_id
             function updateConditionsId() {
@@ -335,9 +334,7 @@
 
                 // Добавляем скрытые поля в форму
                 addHiddenFields(skits.kFields);
-
             }
-
 
             // Слушаем изменение значения в select для условий
             selectCondition.addEventListener('change', updateConditionsId);

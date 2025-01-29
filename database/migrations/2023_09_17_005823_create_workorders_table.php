@@ -32,6 +32,8 @@ return new class extends Migration {
             $table->boolean('nameplate_missing')->default(false);
             $table->boolean('preliminary_test_false')->default(false);
             $table->boolean('part_missing')->default(false);
+            $table->boolean('new_parts')->default(false);
+
             $table->boolean('extra_parts')->default(false);
             $table->boolean('disassembly_upon_arrival')->default(false);
 

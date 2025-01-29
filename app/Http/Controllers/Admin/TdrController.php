@@ -137,6 +137,14 @@ class TdrController extends Controller
             'use_extra_forms' => $use_extra_forms,
         ]);
 
+        // Если codes_id равно 7, обновляем поле part_missing в workorders
+        if ($validated['codes_id'] == 7) {
+            $workorder = Workorder::find($request->workorder_id);
+            if ($workorder) {
+                $workorder->part_missing = true;
+                $workorder->save();
+            }
+        }
 
         $current_wo = $request->workorder_id;
 
