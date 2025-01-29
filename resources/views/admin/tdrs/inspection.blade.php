@@ -214,7 +214,7 @@
                                         </option>
                                     @endforeach
                                 </select>
-                                <input type="hidden" name="use_tdr" value="true">
+{{--                                <input type="hidden" name="use_tdr" value="true">--}}
                             </div>
 
 
@@ -323,6 +323,7 @@
 
             // Получаем ссылку на элемент select
             var selectCondition = document.getElementById('c_conditions_id');
+            var selectConditionU = document.getElementById('u_conditions_id');
 
             /// Функция для обновления значения condition_id
             function updateConditionsId() {
@@ -352,8 +353,7 @@
                     hiddenFields: [
                         { name: 'conditions_id', value: '1' },
                         { name: 'necessaries_id', value: '2' },
-                        { name: 'use_tdr', value: 'false' },
-                        { name: 'use_process_forms', value: 'false' }
+                        // { name: 'use_tdr', value: 'false' },
                     ]
                 },
                 'Life': {
@@ -361,8 +361,7 @@
                     LifeFields: [
                         { name: 'necessaries_id', value: '2' },
                         { name: 'conditions_id', value: '35' },
-                        { name: 'use_tdr', value: 'true' },
-                        { name: 'use_process_forms', value: 'false' }
+                        // { name: 'use_tdr', value: 'false' },
                     ]
                 },
                 'Incorrect Part': {
@@ -371,7 +370,6 @@
                         { name: 'necessaries_id', value: '2' },
                         { name: 'conditions_id', value: '39' },
                         { name: 'use_tdr', value: 'true' },
-                        { name: 'use_process_forms', value: 'false' }
                     ]
                 },
                 'Kit': {

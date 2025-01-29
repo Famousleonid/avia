@@ -73,6 +73,7 @@
                                                     <div style="width: 150px">{{$current_wo->unit->manuals->lib}}</div>
                                                 </div>
                                             </div>
+
                                         </div>
 
                                     </div>
@@ -179,16 +180,20 @@
 
                     <div>
                         <div class="d-flex ">
-                            <div style="width: 600px">
+                            <div >
                                 <a href="{{route('admin.tdrs.inspection',['workorder_id' => $current_wo->id])}}"
                                    class="btn  btn-outline-primary " style="height: 40px" onclick="showLoadingSpinner()">
                                     {{__('Add Unit Inspection')}}
                                 </a>
-
-{{--                                <button class="btn btn-outline-primary btn-sm" style="height: 40px" data-bs-toggle="modal"--}}
-{{--                                        data-bs-target="#createModal">{{ __('Add Component') }}</button>--}}
                             </div>
+                            <div>
+{{--                                  --}}
+{{--                                        <button class="btn btn-outline-primary btn-sm" style="height: 40px"--}}
+{{--                                                data-bs-toggle="modal"data-bs-target="#createModal">--}}
+{{--                                            {{ __('Missing Part') }}</button>--}}
+{{--                                   --}}
 
+                            </div>
                         </div>
                     </div>
                 </div>
