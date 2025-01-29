@@ -201,8 +201,7 @@
 
                         <!-- Группа элементов для Unit Inspection -->
                         <div id="unitGroup" style="display:none;">
-
-{{--                            <p>Here are the fields for unit inspection...</p>--}}
+                            <input type="hidden" name="use_tdr" value="true"> <!-- Этот инпут будет использоваться только в unitGroup -->
 
                             <div class="form-group m-2">
                                 <label for="u_conditions_id" class="form-label pe-2">Condition</label>
@@ -214,10 +213,7 @@
                                         </option>
                                     @endforeach
                                 </select>
-{{--                                <input type="hidden" name="use_tdr" value="true">--}}
                             </div>
-
-
                         </div>
 
                         <div class="text-end">
@@ -618,11 +614,31 @@
                 // Отображаем нужную группу в зависимости от выбранной радиокнопки
                 if (selectedOption.id === 'Component') {
                     document.getElementById('componentGroup').style.display = 'block';
+                    removeUseTdrInput();
                 } else if (selectedOption.id === 'Unit') {
                     document.getElementById('unitGroup').style.display = 'block';
+                    addUseTdrInput();
+                }
+            }
+        // Функция для добавления скрытого инпута use_tdr
+            function addUseTdrInput() {
+                var hiddenInput = document.querySelector('input[name="use_tdr"]');
+                if (!hiddenInput) {
+                    var inputField = document.createElement('input');
+                    inputField.type = 'hidden';
+                    inputField.name = 'use_tdr';
+                    inputField.value = 'true';
+                    document.getElementById('unitGroup').appendChild(inputField); // Добавляем инпут в unitGroup
                 }
             }
 
+            // Функция для удаления скрытого инпута use_tdr
+            function removeUseTdrInput() {
+                var hiddenInput = document.querySelector('input[name="use_tdr"]');
+                if (hiddenInput) {
+                    hiddenInput.remove(); // Удаляем инпут из unitGroup
+                }
+            }
             // Слушаем изменения выбора радиокнопок
             document.querySelectorAll('input[name="RadioInspection"]').forEach(function (radio) {
                 radio.addEventListener('change', function () {
