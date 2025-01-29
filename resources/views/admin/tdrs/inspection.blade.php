@@ -163,6 +163,10 @@
                                             @endforeach
                                         </select>
                                     </div>
+                                    <div class="form-group m-2" id="qty" style="display: none">
+                                        <label class="" for="qty">{{__('QTY')}}</label>
+                                        <input id="qty" type="number" class="form-control" name="qty" value="1">
+                                    </div>
                                     <div class=" form-group m-2" id="necessary">
                                         <label for="necessaries_id" class="form-label pe-2">Necessary to Do</label>
                                         <select name="necessaries_id" id="necessaries_id" class="form-control"
@@ -208,9 +212,11 @@
                                 <select name="conditions_id" id="u_conditions_id" class="form-control" style="width:575px">
                                     <option selected value="">---</option>
                                     @foreach($unit_conditions as $unit_condition)
-                                        <option value="{{ $unit_condition->id }}" data-title="{{$unit_condition->name}}">
-                                            {{$unit_condition->name}}
-                                        </option>
+                                        @if($unit_condition->name != 'PARTS MISSING UPON ARRIVAL AS INDICATED ON PARTS LIST')
+                                            <option value="{{ $unit_condition->id }}" data-title="{{$unit_condition->name}}">
+                                                {{$unit_condition->name}}
+                                            </option>
+                                        @endif
                                     @endforeach
                                 </select>
                             </div>
@@ -299,7 +305,18 @@
 
     <script>
 
+        // Ожидаем изменения в поле "codes_id"
+        document.getElementById('codes_id').addEventListener('change', function() {
+            // Получаем выбранное значение из выпадающего списка
+            var selectedCode = this.options[this.selectedIndex].text;
 
+            // Если выбранный код "Missing", показываем инпут "qty", иначе скрываем его
+            if (selectedCode === "Missing") {
+                document.getElementById('qty').style.display = 'block';
+            } else {
+                document.getElementById('qty').style.display = 'none';
+            }
+        });
 
         document.addEventListener('DOMContentLoaded', function () {
             var codesSelect = document.getElementById('codes_id');
@@ -402,7 +419,7 @@
                         { name: 'conditions_id', value: '5' },
                         { name: 'necessaries_id', value: '2' },
                         {name: 'use_tdr', value: 'true'},
-                        {name: 'use_process_forms', value: 'true'}
+                        // {name: 'use_process_forms', value: 'true'}
                     ],
                     'Safran Inspection': [
 
@@ -427,8 +444,8 @@
                     'Order New': [
                         {name: 'conditions_id', value: '3'},
                         { name: 'necessaries_id', value: '2' },
-                        {name: 'use_tdr', value: 'false'},
-                        {name: 'use_process_forms', value: 'false'}
+                        {name: 'use_tdr', value: 'true'},
+                        // {name: 'use_process_forms', value: 'false'}
                     ],
                     'Safran Inspection': [
                         {name: 'use_tdr', value: 'true'},

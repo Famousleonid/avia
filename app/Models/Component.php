@@ -63,5 +63,9 @@ class Component extends Model implements  hasMedia
             ? route('image.show.big', ['mediaId' => $media->id, 'modelId' => $this->id, 'mediaName' => $collection])
             : asset('img/noimage.png');
     }
+    public function component()
+    {
+        return $this->hasMany(Component::class);
+    }
 
 }

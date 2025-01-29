@@ -27,6 +27,8 @@ return new class extends Migration
             $table->foreignId('conditions_id')->nullable()->constrained()->onDelete('set null');
             $table->foreignId('necessaries_id')->nullable()->constrained()->onDelete('set null');
 
+            $table->unsignedInteger('qty')->default(1);
+
             $table->boolean('use_tdr')->default(false);
             $table->boolean('use_process_forms')->default(false);
             $table->boolean('use_log_card')->default(false);

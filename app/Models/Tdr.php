@@ -16,6 +16,7 @@ class Tdr extends Model
         'codes_id',
         'conditions_id',
         'necessaries_id',
+        'qty',
         'use_tdr',
         'use_process_forms',
         'use_log_card',
@@ -24,5 +25,9 @@ class Tdr extends Model
     public function workorder()
     {
         return $this->belongsTo(Workorder::class, 'workorder_id');
+    }
+    public function component()
+    {
+        return $this->belongsTo(Component::class);
     }
 }

@@ -22,6 +22,7 @@ use Illuminate\Contracts\View\Factory;
 use Illuminate\Contracts\View\View;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 
 class TdrController extends Controller
 {
@@ -137,11 +138,35 @@ class TdrController extends Controller
             'use_extra_forms' => $use_extra_forms,
         ]);
 
-        // Если codes_id равно 7, обновляем поле part_missing в workorders
-        if ($validated['codes_id'] == 7) {
+        $missingCondition = Condition::where('name','PARTS MISSING UPON ARRIVAL AS INDICATED ON PARTS LIST')->first();
+        $code = Code::where('name', 'Missing')->first();
+        $necessary = Necessary::where('name', 'Order New')->first();
+
+// Если codes_id равно $code->id, обновляем поле part_missing в workorders
+        if ($validated['codes_id'] == $code->id) {
             $workorder = Workorder::find($request->workorder_id);
-            if ($workorder) {
+
+            // Проверяем, если part_missing равно false, то меняем на true
+            if ($workorder->part_missing == false) {  // Используем строгое сравнение с false
+
                 $workorder->part_missing = true;
+                $workorder->save();
+
+            // Создаем запись в таблице tdrs, если part_missing обновлен на true
+                Tdr::create([
+                    'workorder_id' => $request->workorder_id,
+                    'conditions_id' => $missingCondition->id, // Используем ID из найденного condition
+                    'use_tdr' => true,
+                ]);
+            }
+        }
+
+// Второе условие: если codes_id не равно $code->id и necessaries_id равно $necessary->id
+        if ($validated['codes_id'] != $code->id && $validated['necessaries_id'] == $necessary->id) {
+            $workorder = Workorder::find($request->workorder_id);
+
+            if (!$workorder->new_parts === false) {
+                $workorder->new_parts = true;
                 $workorder->save();
             }
         }
@@ -176,6 +201,16 @@ class TdrController extends Controller
         // Извлекаем все manuals для отображения (если нужно отфильтровать, можно это сделать)
         $manuals = Manual::all();  // или можно отфильтровать только тот, который связан с unit
 
+        // Извлекаем компоненты, которые связаны с этим manual_id
+        $components = Component::where('manual_id', $manual_id)->get();
+
+        // Загружаем TDR с жадной загрузкой компонента и фильтруем по нужным условиям
+        $missingParts = Tdr::where('workorder_id', $current_wo->id)
+            ->where('codes_id', 7)
+            ->with('component')  // Используем связь, а не коллекцию компонентов
+            ->get();
+
+//        dd($missingParts);
 
         $planes = Plane::all();
         $builders = Builder::all();
@@ -189,12 +224,11 @@ class TdrController extends Controller
         $codes = Code::all();
 
         $tdrs =Tdr::where('workorder_id',$current_wo->id)->get();
-//        $tdrs = Tdr::with('current_wo')->get(); // --- ? ---
 
         return view('admin.tdrs.show', compact(  'current_wo','tdrs','units',
             'components','user','customers',
         'manuals','builders','planes','instruction',
-        'necessaries','unit_conditions','component_conditions','codes','conditions',));
+        'necessaries','unit_conditions','component_conditions','codes','conditions','missingParts',));
     }
 
     /**

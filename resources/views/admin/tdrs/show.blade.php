@@ -12,15 +12,13 @@
         <div class="card bg-gradient">
             <div class="card-header  m-1 shadow">
 
-                <div class="d-flex justify-content-between">
-                    <div>
+                <div class="d-flex ">
+                    <div style="width: 300px;">
                         <h5 class="text-primary  ps-4">{{__('Work Order')}}
-{{--                            <span class="text-success ps-3 ">{{$current_wo->number}} </span>--}}
                             <a class="text-success-emphasis  ps-4" href="#" data-bs-toggle="modal"
                                data-bs-target = #infoModal{{$current_wo->number}}>{{$current_wo->number}}
                             </a>
                         </h5>
-
                         <div class="modal fade" id="infoModal{{$current_wo->number}}" tabindex="-1"
                              role="dialog" aria-labelledby="infoModalLabel{{$current_wo->number}}" aria-hidden="true">
                             <div class="modal-dialog modal-dialog-centered" role="document">
@@ -149,35 +147,136 @@
                                 </div>
                             </div>
                         </div>
-
-
-
                     </div>
-
-                    <div class=" ps-1 ">
-
-
-                    </div>
-
-                    <div>
-                        <div class="d-flex ">
-                            <div >
-                                <a href="{{route('admin.tdrs.inspection',['workorder_id' => $current_wo->id])}}"
-                                   class="btn  btn-outline-primary " style="height: 40px" onclick="showLoadingSpinner()">
-                                    {{__('Add Unit Inspection')}}
-                                </a>
-                            </div>
-                            <div>
-                                  @if($current_wo->part_missing)
-                                    <button class="btn btn-outline-primary btn-sm" style="height: 40px"
-                                            data-bs-toggle="modal"data-bs-target="#createModal">
-                                        {{ __('Missing Part') }}</button>
-                                  @endif
-
-
-                            </div>
+                    <div class="ps-2" style="width: 300px;">
+                        <div >
+                            <a href="{{route('admin.tdrs.inspection',['workorder_id' => $current_wo->id])}}"
+                               class="btn  btn-outline-primary " style="height: 40px" onclick="showLoadingSpinner()">
+                                {{__('Add Unit Inspection')}}
+                            </a>
                         </div>
                     </div>
+
+                    <div class="ms-3" >
+                        <div class="d-flex ">
+                            <div>
+                                  @if($current_wo->part_missing )
+                                    <button class="btn btn-outline-primary btn-sm" style="height: 40px"
+                                            data-bs-toggle="modal"
+                                            data-bs-target="#missingModal{{$current_wo->number}}">
+                                        {{ __('Missing Part') }}</button>
+                                  @endif
+                            </div>
+
+                            <div>
+
+                                @if($current_wo->new_parts)
+                                    <button class="btn btn-outline-primary btn-sm" style="height: 40px" href="#"
+                                            data-bs-toggle="modal" data-bs-target="#orderModal{{$current_wo->number}}">
+                                        {{ __('Ordered Parts') }}</button>
+
+                                @endif
+                            </div>
+                        </div>
+                        <div class="modal fade" id="missingModal{{$current_wo->number}}" tabindex="-1"
+                             role="dialog" aria-labelledby="missingModalLabel{{$current_wo->number}}" aria-hidden="true">
+                            <div class="modal-dialog modal-dialog-centered" role="document">
+                                <div class="modal-content bg-gradient" style="width: 1000px">
+                                    <div class="modal-header">
+                                        <div>
+                                            <div class="d-flex justify-content-between" style="width: 600px">
+                                                <h4 class="modal-title">{{__('Work order ')}}{{$current_wo->number}}</h4>
+                                                <button type="button" class="btn-close pb-2" data-bs-dismiss="modal" aria-label="Close"></button>
+                                            </div>
+
+                                           <div class="d-flex justify-content-between">
+                                               <h4 class="modal-title">{{__('Parts Missing ')}}</h4>
+
+                                               <div >
+                                                   <a href="{{route('admin.tdrs.inspection',['workorder_id' => $current_wo->id])}}"
+                                                      class="btn  btn-outline-primary " style="height: 40px" onclick="showLoadingSpinner()">
+                                                       {{__('Add Unit Inspection')}}
+                                                   </a>
+                                               </div>
+                                           </div>
+
+                                        </div>
+
+                                    </div>
+                                    <div class="table-wrapper">
+                                        <table class="display table table-cm table-hover table-striped align-middle table-bordered">
+                                            <thead class="bg-gradient">
+                                            <tr>
+                                                <th class="text-primary bg-gradient ">{{__('IPL')
+                                                }}<i class= ms-1"></i></th>
+                                                <th class="text-primary bg-gradient ">{{__('Part
+                                                Description')
+                                                }}<i class= ms-1"></i></th>
+                                                <th class="text-primary bg-gradient ">{{__('Part
+                                                Number')
+                                                }}<i class= ms-1"></i></th>
+                                                <th class="text-primary  bg-gradient ">{{__('QTY')
+                                                }}<i class=  ms-1"></i></th>
+                                                <th class="text-primary  bg-gradient " >{{__('Delete')
+                                                }}<i class=  ms-1"></i></th>
+
+                                            </tr>
+                                            </thead>
+                                            <tbody>
+                                                @foreach($missingParts as $part)
+                                                    <tr>
+                                                        <td class="p-3"> {{$part->component->ipl_num}} </td>
+                                                        <td class="p-3"> {{$part->component->name}} </td>
+                                                        <td class="p-3"> {{$part->component->part_number}} </td>
+                                                        <td class="p-3"> {{$part->qty}} </td>
+
+                                                    </tr>
+                                                @endforeach
+                                            </tbody>
+                                        </table>
+                                    </div>
+
+                                </div>
+                            </div>
+                        </div>
+                        <div class="modal fade" id="orderModal{{$current_wo->number}}" tabindex="-1"
+                             role="dialog" aria-labelledby="orderModalLabel{{$current_wo->number}}" aria-hidden="true">
+                            <div class="modal-dialog modal-dialog-centered" role="document">
+                                <div class="modal-content bg-gradient" style="width: 800px">
+                                    <div class="modal-header">
+                                        <div>
+                                            <h4 class="modal-title">{{__('Work order ')}}{{$current_wo->number}}</h4>
+                                            <h4 class="modal-title">{{__('Ordered Parts  ')}}</h4>
+                                        </div>
+                                        <button type="button" class="btn-close pb-2" data-bs-dismiss="modal" aria-label="Close"></button>
+                                    </div>
+                                    <div class="table-wrapper">
+                                        <table class="display table table-cm table-hover table-striped align-middle table-bordered">
+                                            <thead class="bg-gradient">
+                                            <tr>
+                                                <th class="text-primary sortable bg-gradient " data-direction="asc">{{__('IPL')
+                                                }}<i class="bi bi-chevron-expand ms-1"></i></th>
+                                                <th class="text-primary sortable bg-gradient " data-direction="asc">{{__('Part
+                                                Description') }}<i class="bi bi-chevron-expand ms-1"></i></th>
+                                                <th class="text-primary sortable bg-gradient " data-direction="asc">{{__('Part
+                                                Number')}}<i class="bi bi-chevron-expand ms-1"></i></th>
+                                                <th class="text-primary  bg-gradient " data-direction="asc">{{__('QTY')
+                                                }}<i class="bi  ms-1"></i></th>
+                                                <th class="text-primary  bg-gradient " >{{__('Conditions')
+                                                }}<i class="bi  ms-1"></i></th>
+                                                <th class="text-primary  bg-gradient " >{{__('Delete')
+                                                }}<i class="bi  ms-1"></i></th>
+                                            </tr>
+                                            </thead>
+                                        </table>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                    </div>
+
+
                 </div>
 
             </div> <! --- Header end --- ->
