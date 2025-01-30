@@ -167,6 +167,7 @@
                                         <label class="" for="qty">{{__('QTY')}}</label>
                                         <input id="qty" type="number" class="form-control" name="qty" value="1">
                                     </div>
+
                                     <div class=" form-group m-2" id="necessary">
                                         <label for="necessaries_id" class="form-label pe-2">Necessary to Do</label>
                                         <select name="necessaries_id" id="necessaries_id" class="form-control"

@@ -119,7 +119,9 @@ class TdrController extends Controller
         $use_log_card = $request->has('use_log_card');
         $use_extra_forms = $request->has('use_extra_forms');
 
-//dd($request->all(), $validated,$use_tdr,$request->has('use_tdr'),$use_process_forms,$request->has('use_process_forms'));
+         $qty_c = $request->has('qty');
+
+//dd($request);
 
 
         // Сохранение в таблице tdrs
@@ -132,6 +134,7 @@ class TdrController extends Controller
             // codes_id
             'conditions_id' => $validated['conditions_id'],
             'necessaries_id' => $validated['necessaries_id'],
+            'qty'=> $qty_c,
             'use_tdr' => $use_tdr,
             'use_process_forms' => $use_process_forms,
             'use_log_card' => $use_log_card,
