@@ -159,7 +159,7 @@
 
                     <div class="ms-3" >
                         <div class="d-flex ">
-                            <div>
+                            <div class="me-2">
                                   @if($current_wo->part_missing )
                                     <button class="btn btn-outline-primary btn-sm" style="height: 40px"
                                             data-bs-toggle="modal"
@@ -167,8 +167,7 @@
                                         {{ __('Missing Part') }}</button>
                                   @endif
                             </div>
-
-                            <div>
+                            <div class="me-2">
 
                                 @if($current_wo->new_parts)
                                     <button class="btn btn-outline-primary btn-sm" style="height: 40px" href="#"
@@ -243,8 +242,8 @@
                         <div class="modal fade" id="orderModal{{$current_wo->number}}" tabindex="-1"
                              role="dialog" aria-labelledby="orderModalLabel{{$current_wo->number}}" aria-hidden="true">
                             <div class="modal-dialog modal-dialog-centered" role="document">
-                                <div class="modal-content bg-gradient" style="width: 800px">
-                                    <div class="modal-header">
+                                <div class="modal-content bg-gradient" style="width: 1000px">
+                                    <div class="modal-header" style="width: 700px">
                                         <div>
                                             <h4 class="modal-title">{{__('Work order ')}}{{$current_wo->number}}</h4>
                                             <h4 class="modal-title">{{__('Ordered Parts  ')}}</h4>
@@ -255,12 +254,12 @@
                                         <table class="display table table-cm table-hover table-striped align-middle table-bordered">
                                             <thead class="bg-gradient">
                                             <tr>
-                                                <th class="text-primary sortable bg-gradient " data-direction="asc">{{__('IPL')
-                                                }}<i class="bi bi-chevron-expand ms-1"></i></th>
-                                                <th class="text-primary sortable bg-gradient " data-direction="asc">{{__('Part
-                                                Description') }}<i class="bi bi-chevron-expand ms-1"></i></th>
-                                                <th class="text-primary sortable bg-gradient " data-direction="asc">{{__('Part
-                                                Number')}}<i class="bi bi-chevron-expand ms-1"></i></th>
+                                                <th class="text-primary  bg-gradient " data-direction="asc">{{__('IPL')
+                                                }}<i class="  ms-1"></i></th>
+                                                <th class="text-primary  bg-gradient " data-direction="asc">{{__('Part
+                                                Description') }}<i class="  ms-1"></i></th>
+                                                <th class="text-primary  bg-gradient " style="width: 250px;" data-direction="asc">{{__('Part
+                                                Number')}}<i class="  ms-1"></i></th>
                                                 <th class="text-primary  bg-gradient " data-direction="asc">{{__('QTY')
                                                 }}<i class="bi  ms-1"></i></th>
                                                 <th class="text-primary  bg-gradient " >{{__('Conditions')
@@ -269,6 +268,26 @@
                                                 }}<i class="bi  ms-1"></i></th>
                                             </tr>
                                             </thead>
+                                            <tbody>
+                                            @foreach($ordersParts as $part)
+                                                <tr>
+                                                    <td class="p-3" style="width: 150px"> {{$part->component->ipl_num}} </td>
+                                                    <td class="p-3" style="width: 250px"> {{$part->component->name}} </td>
+                                                    <td class="p-3" style="width: 250px;"> {{$part->component->part_number}} </td>
+                                                    <td class="p-3"> {{$part->qty}} </td>
+                                                    <td class="p-3"> {{$part->codes->name}} </td>
+                                                    <td class="p-3">
+                                                        <!-- Кнопка удаления -->
+                                                        <form action="{{ route('admin.tdrs.destroy', $part->id) }}" method="POST"
+                                                              onsubmit="return confirm('Вы уверены, что хотите удалить эту деталь?');">
+                                                            @csrf
+                                                            @method('DELETE')
+                                                            <button type="submit" class="btn btn-danger btn-sm">{{__('Delete')}}</button>
+                                                        </form>
+                                                    </td>
+                                                </tr>
+                                            @endforeach
+                                            </tbody>
                                         </table>
                                     </div>
                                 </div>

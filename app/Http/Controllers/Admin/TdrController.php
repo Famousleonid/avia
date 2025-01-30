@@ -152,7 +152,6 @@ class TdrController extends Controller
 
             // Проверяем, если part_missing равно false, то меняем на true
             if ($workorder->part_missing == false) {  // Используем строгое сравнение с false
-
                 $workorder->part_missing = true;
                 $workorder->save();
 
@@ -164,12 +163,11 @@ class TdrController extends Controller
                 ]);
             }
         }
-
-// Второе условие: если codes_id не равно $code->id и necessaries_id равно $necessary->id
+            // Второе условие: если codes_id не равно $code->id и necessaries_id равно $necessary->id
         if ($validated['codes_id'] != $code->id && $validated['necessaries_id'] == $necessary->id) {
             $workorder = Workorder::find($request->workorder_id);
 
-            if (!$workorder->new_parts === false) {
+            if ($workorder->new_parts == false) {
                 $workorder->new_parts = true;
                 $workorder->save();
             }
@@ -206,14 +204,24 @@ class TdrController extends Controller
 
         // Извлекаем компоненты, которые связаны с этим manual_id
         $components = Component::where('manual_id', $manual_id)->get();
+        $code = Code::where('name', 'Missing')->first();
+        $necessary = Necessary::where('name', 'Order New')->first();
 
         // Загружаем TDR с жадной загрузкой компонента и фильтруем по нужным условиям
         $missingParts = Tdr::where('workorder_id', $current_wo->id)
-            ->where('codes_id', 7)
+            ->where('codes_id', $code->id)
             ->with('component')  // Используем связь, а не коллекцию компонентов
             ->get();
 
-//        dd($missingParts);
+
+        $ordersParts = Tdr::where('workorder_id', $current_wo->id)
+            ->where('codes_id', '!=', $code->id)  // Заменили '!' на правильное условие "не равно"
+            ->where('necessaries_id', $necessary->id)
+            ->with('codes')
+            ->with('component')  // Используем связь, а не коллекцию компонентов
+            ->get();
+
+
 
         $planes = Plane::all();
         $builders = Builder::all();
@@ -231,7 +239,8 @@ class TdrController extends Controller
         return view('admin.tdrs.show', compact('current_wo', 'tdrs', 'units',
             'components', 'user', 'customers',
             'manuals', 'builders', 'planes', 'instruction',
-            'necessaries', 'unit_conditions', 'component_conditions', 'codes', 'conditions', 'missingParts',));
+            'necessaries', 'unit_conditions', 'component_conditions',
+            'codes', 'conditions', 'missingParts','ordersParts'));
     }
 
     /**

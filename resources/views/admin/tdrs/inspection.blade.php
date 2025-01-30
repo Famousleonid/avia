@@ -446,7 +446,6 @@
                         {name: 'conditions_id', value: '3'},
                         { name: 'necessaries_id', value: '2' },
                         {name: 'use_tdr', value: 'true'},
-                        // {name: 'use_process_forms', value: 'false'}
                     ],
                     'Safran Inspection': [
                         {name: 'use_tdr', value: 'true'},

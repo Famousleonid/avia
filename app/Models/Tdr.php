@@ -30,4 +30,12 @@ class Tdr extends Model
     {
         return $this->belongsTo(Component::class);
     }
+    public function condition()
+    {
+        return $this->belongsTo(Condition::class);
+    }
+    public function codes()
+    {
+        return $this->belongsTo(Code::class);
+    }
 }

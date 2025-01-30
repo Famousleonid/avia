@@ -11,4 +11,9 @@ class Condition extends Model
     protected $fillable = [
         'name','unit',
     ];
+
+    public function tdr()
+    {
+        return $this->hasMany(Tdr::class);
+    }
 }

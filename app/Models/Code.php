@@ -12,4 +12,8 @@ class Code extends Model
         'name',
         'code',
     ];
+    public function tdr()
+    {
+        return $this->hasMany(Tdr::class);
+    }
 }
