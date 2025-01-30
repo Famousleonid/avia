@@ -151,7 +151,7 @@
                                 <div class="d-flex">
                                     <div class=" form-group m-2">
                                         <label for="codes_id" class="form-label pe-2">Code Inspection</label>
-                                        <select name="codes_id" id="codes_id" class="form-control" style="width: 278px">
+                                        <select name="codes_id" id="codes_id" class="form-control" style="width: 230px">
                                             <option  selected value="">---</option>
                                             @foreach($codes as $code)
                                                 <option
@@ -171,7 +171,7 @@
                                     <div class=" form-group m-2" id="necessary">
                                         <label for="necessaries_id" class="form-label pe-2">Necessary to Do</label>
                                         <select name="necessaries_id" id="necessaries_id" class="form-control"
-                                                style="width: 278px">
+                                                style="width: 230px">
                                             <option  selected value="">---</option>
                                             @foreach($necessaries as $necessary)
                                                 <option
@@ -313,6 +313,18 @@
 
             // Если выбранный код "Missing", показываем инпут "qty", иначе скрываем его
             if (selectedCode === "Missing") {
+                document.getElementById('qty').style.display = 'block';
+            } else {
+                document.getElementById('qty').style.display = 'none';
+            }
+        });
+        // Ожидаем изменения в поле "necessaries_id"
+        document.getElementById('necessaries_id').addEventListener('change', function() {
+            // Получаем выбранное значение из выпадающего списка
+            var selectedCodeNec = this.options[this.selectedIndex].text;
+
+            // Если выбранный код "Missing", показываем инпут "qty", иначе скрываем его
+            if (selectedCodeNec === "Order New") {
                 document.getElementById('qty').style.display = 'block';
             } else {
                 document.getElementById('qty').style.display = 'none';

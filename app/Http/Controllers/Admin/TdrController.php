@@ -122,7 +122,7 @@ class TdrController extends Controller
 
         $qty = (int)$validated['qty'] ?? 1; // Приведение к целому числу
 
-//dd($request->all());
+//dd($request->all(), $qty);
 
 
         // Сохранение в таблице tdrs
@@ -146,7 +146,7 @@ class TdrController extends Controller
         $code = Code::where('name', 'Missing')->first();
         $necessary = Necessary::where('name', 'Order New')->first();
 
-// Если codes_id равно $code->id, обновляем поле part_missing в workorders
+        // Если codes_id равно $code->id, обновляем поле part_missing в workorders
         if ($validated['codes_id'] == $code->id) {
             $workorder = Workorder::find($request->workorder_id);
 
@@ -305,6 +305,32 @@ class TdrController extends Controller
         // Найти код с именем 'Missing'
         $code = Code::where('name', 'Missing')->first();
         Log::info('Найден код с именем "Missing": ' . ($code ? 'Да' : 'Нет'));
+
+        // Найти necessary с именем 'Missing'
+        $necessary = Necessary::where('name', 'Order New')->first();
+        Log::info('Найден necessary с именем "Order New": ' . ($code ? 'Да' : 'Нет'));
+
+        if ($necessary) {
+            // Проверить, если это последняя запись с necessaries_id = $necessary->id
+            $remainingPartsWithNecessary = Tdr::where('workorder_id', $workorderId)
+                ->where('necessaries_id', $necessary->id)
+                ->count();
+            Log::info('Оставшиеся записи с кодом Order New для workorder_id ' . $workorderId . ': ' .
+                $remainingPartsWithNecessary);
+            if ($remainingPartsWithNecessary == 0) {
+                // Обновляем поле part_missing в workorder
+                $workorder = Workorder::find($workorderId);
+                if ($workorder && $workorder->new_parts == true) {
+                    // Меняем на false, если part_missing равно true
+                    $workorder->new_parts = false;
+                    $workorder->save();
+                    Log::info('Поле new_parts для workorder_id ' . $workorderId . ' обновлено на false');
+                } else {
+                    Log::info('Поле new_parts для workorder_id ' . $workorderId . ' уже false или workorder не найден.');
+                }
+
+            }
+        }
 
         if ($code) {
             // Проверить, если это последняя запись с codes_id = $code->id
