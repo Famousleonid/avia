@@ -23,6 +23,7 @@ use Illuminate\Contracts\View\View;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 
 class TdrController extends Controller
 {
@@ -33,11 +34,11 @@ class TdrController extends Controller
      */
     public function index()
     {
-        $orders=Workorder::all();
+        $orders = Workorder::all();
         $manuals = Manual::all();
-        $units =Unit::with('manuals')->get();
-        $tdrs=Tdr::all();
-        return view('admin.tdrs.index', compact('orders','units','manuals','tdrs'));
+        $units = Unit::with('manuals')->get();
+        $tdrs = Tdr::all();
+        return view('admin.tdrs.index', compact('orders', 'units', 'manuals', 'tdrs'));
     }
 
     public function create()
@@ -79,8 +80,8 @@ class TdrController extends Controller
         $necessaries = Necessary::all();
         $conditions = Condition::all();
         $codes = Code::all();
-        $unit_conditions = Condition::where('unit',true)->get();
-        $component_conditions = Condition::where('unit',false)->get();
+        $unit_conditions = Condition::where('unit', true)->get();
+        $component_conditions = Condition::where('unit', false)->get();
 
 
         // Отправляем данные в представление
@@ -88,7 +89,7 @@ class TdrController extends Controller
             'current_wo', 'manual_id',
             'manuals', 'components', 'units', 'user', 'customers',
             'planes', 'builders', 'instruction',
-            'necessaries','conditions','codes','unit_conditions','component_conditions'
+            'necessaries', 'conditions', 'codes', 'unit_conditions', 'component_conditions'
         ));
     }
 
@@ -96,7 +97,7 @@ class TdrController extends Controller
     /**
      * Store a newly created resource in storage.
      *
-     * @param  \Illuminate\Http\Request  $request
+     * @param \Illuminate\Http\Request $request
      * @return \Illuminate\Http\RedirectResponse
      */
     public function store(Request $request)
@@ -109,8 +110,8 @@ class TdrController extends Controller
             'assy_serial_number' => 'nullable|string',
             'conditions_id' => 'nullable|exists:conditions,id',
             'necessaries_id' => 'nullable|exists:necessaries,id',
-            'codes_id' => 'nullable|exists:codes,id', // Валидация для
-            // codes_id
+            'codes_id' => 'nullable|exists:codes,id', // Валидация для  codes_id
+            'qty' => 'nullable|integer',
         ]);
 //dd($validated);
         // Установка значений по умолчанию для флагов
@@ -119,9 +120,9 @@ class TdrController extends Controller
         $use_log_card = $request->has('use_log_card');
         $use_extra_forms = $request->has('use_extra_forms');
 
-         $qty_c = $request->has('qty');
+        $qty = (int)$validated['qty'] ?? 1; // Приведение к целому числу
 
-//dd($request);
+//dd($request->all());
 
 
         // Сохранение в таблице tdrs
@@ -134,14 +135,14 @@ class TdrController extends Controller
             // codes_id
             'conditions_id' => $validated['conditions_id'],
             'necessaries_id' => $validated['necessaries_id'],
-            'qty'=> $qty_c,
+            'qty' => $qty,
             'use_tdr' => $use_tdr,
             'use_process_forms' => $use_process_forms,
             'use_log_card' => $use_log_card,
             'use_extra_forms' => $use_extra_forms,
         ]);
 
-        $missingCondition = Condition::where('name','PARTS MISSING UPON ARRIVAL AS INDICATED ON PARTS LIST')->first();
+        $missingCondition = Condition::where('name', 'PARTS MISSING UPON ARRIVAL AS INDICATED ON PARTS LIST')->first();
         $code = Code::where('name', 'Missing')->first();
         $necessary = Necessary::where('name', 'Order New')->first();
 
@@ -155,7 +156,7 @@ class TdrController extends Controller
                 $workorder->part_missing = true;
                 $workorder->save();
 
-            // Создаем запись в таблице tdrs, если part_missing обновлен на true
+                // Создаем запись в таблице tdrs, если part_missing обновлен на true
                 Tdr::create([
                     'workorder_id' => $request->workorder_id,
                     'conditions_id' => $missingCondition->id, // Используем ID из найденного condition
@@ -177,7 +178,6 @@ class TdrController extends Controller
         $current_wo = $request->workorder_id;
 
 
-
         return redirect()->route('admin.tdrs.show', ['tdr' => $current_wo]);
 
     }
@@ -185,7 +185,7 @@ class TdrController extends Controller
     /**
      * Display the specified resource.
      *
-     * @param  int  $id
+     * @param int $id
      * @return Application|Factory|View
      */
     public function show($id)
@@ -220,57 +220,48 @@ class TdrController extends Controller
         $instruction = Instruction::all();
 
         $necessaries = Necessary::all();
-        $unit_conditions = Condition::where('unit',true)->get();
-        $component_conditions = Condition::where('unit',false)->get();
-        $conditions =Condition::all();
+        $unit_conditions = Condition::where('unit', true)->get();
+        $component_conditions = Condition::where('unit', false)->get();
+        $conditions = Condition::all();
 
         $codes = Code::all();
 
-        $tdrs =Tdr::where('workorder_id',$current_wo->id)->get();
+        $tdrs = Tdr::where('workorder_id', $current_wo->id)->get();
 
-        return view('admin.tdrs.show', compact(  'current_wo','tdrs','units',
-            'components','user','customers',
-        'manuals','builders','planes','instruction',
-        'necessaries','unit_conditions','component_conditions','codes','conditions','missingParts',));
+        return view('admin.tdrs.show', compact('current_wo', 'tdrs', 'units',
+            'components', 'user', 'customers',
+            'manuals', 'builders', 'planes', 'instruction',
+            'necessaries', 'unit_conditions', 'component_conditions', 'codes', 'conditions', 'missingParts',));
     }
 
     /**
      * Show the form for editing the specified resource.
      *
-     * @param  int  $id
+     * @param int $id
      * @return Application|Factory|View
      */
     public function edit($id)
     {
-//        $current_wo = Workorder::findOrFail($id);
-//        $units = Unit::all();
-//        $user = Auth::user();
-//        $customers = Customer::all();
-//        $manuals = Manual::all();
-//        $planes = Plane::all();
-//        $builders = Builder::all();
-//
-//        return view('admin.tdrs.edit', compact(  'current_wo','units','user','customers','manuals','builders','planes'));
 
-            $current_tdr = Tdr::findOrFail($id);
-            $workorder = Workorder::where('id',$current_tdr);
-            $units = Unit::all();
-            $necessaries = Necessary::all();
-            $conditions = Condition::all();
-            $codes = Code::all();
+        $current_tdr = Tdr::findOrFail($id);
+        $workorder = Workorder::where('id', $current_tdr);
+        $units = Unit::all();
+        $necessaries = Necessary::all();
+        $conditions = Condition::all();
+        $codes = Code::all();
 
 //            $current_wo = $current_tdr->workorder->id;
 
 
-        return view('admin.tdrs.edit', compact(  'current_tdr','workorder','units','necessaries','conditions','codes'));
+        return view('admin.tdrs.edit', compact('current_tdr', 'workorder', 'units', 'necessaries', 'conditions', 'codes'));
 
     }
 
     /**
      * Update the specified resource in storage.
      *
-     * @param  \Illuminate\Http\Request  $request
-     * @param  int  $id
+     * @param \Illuminate\Http\Request $request
+     * @param int $id
      * @return \Illuminate\Http\Response
      */
     public function update(Request $request, $id)
@@ -281,11 +272,79 @@ class TdrController extends Controller
     /**
      * Remove the specified resource from storage.
      *
-     * @param  int  $id
-     * @return \Illuminate\Http\Response
+     * @param int $id
+     * @return \Illuminate\Http\RedirectResponse
      */
     public function destroy($id)
     {
-        //
+        // Логируем начало метода
+        Log::info('Начало удаления записи TDR с ID: ' . $id);
+
+        // Найти запись Tdr по ID
+        $tdr = Tdr::findOrFail($id);
+
+        // Запомнить workorder_id для дальнейшего использования
+        $workorderId = $tdr->workorder_id;
+
+        // Логируем workorder_id
+        Log::info('Workorder ID: ' . $workorderId);
+
+        // Удалить запись Tdr
+        $tdr->delete();
+        Log::info('Запись Tdr с ID: ' . $id . ' была удалена.');
+
+        // Найти код с именем 'Missing'
+        $code = Code::where('name', 'Missing')->first();
+        Log::info('Найден код с именем "Missing": ' . ($code ? 'Да' : 'Нет'));
+
+        if ($code) {
+            // Проверить, если это последняя запись с codes_id = $code->id
+            $remainingPartsWithCodes7 = Tdr::where('workorder_id', $workorderId)
+                ->where('codes_id', $code->id)
+                ->count();
+
+            Log::info('Оставшиеся записи с кодом Missing для workorder_id ' . $workorderId . ': ' . $remainingPartsWithCodes7);
+
+            // Если это была последняя запись с таким кодом, обновляем поле part_missing в workorder
+            if ($remainingPartsWithCodes7 == 0) {
+                // Обновляем поле part_missing в workorder
+                $workorder = Workorder::find($workorderId);
+
+                if ($workorder && $workorder->part_missing == true) {
+                    // Меняем на false, если part_missing равно true
+                    $workorder->part_missing = false;
+                    $workorder->save();
+                    Log::info('Поле part_missing для workorder_id ' . $workorderId . ' обновлено на false');
+                } else {
+                    Log::info('Поле part_missing для workorder_id ' . $workorderId . ' уже false или workorder не найден.');
+                }
+
+                // Найти условие с именем 'PARTS MISSING UPON ARRIVAL AS INDICATED ON PARTS LIST'
+                $missingCondition = Condition::where('name', 'PARTS MISSING UPON ARRIVAL AS INDICATED ON PARTS LIST')->first();
+                Log::info('Найдено условие с именем "PARTS MISSING UPON ARRIVAL AS INDICATED ON PARTS LIST": ' . ($missingCondition ? 'Да' : 'Нет'));
+
+                if ($missingCondition) {
+                    // Проверка на наличие записи с этим conditions_id в таблице tdrs для данного workorder_id
+                    $conditionRecord = Tdr::where('workorder_id', $workorderId)
+                        ->where('conditions_id', $missingCondition->id)
+                        ->first();
+
+                    Log::info('Найдено ли условие в tdrs с conditions_id ' . $missingCondition->id . ' для workorder_id ' . $workorderId . ': ' . ($conditionRecord ? 'Да' : 'Нет'));
+
+                    if ($conditionRecord) {
+                        // Удалить найденную запись
+                        $conditionRecord->delete();
+                        Log::info('Запись с conditions_id ' . $missingCondition->id . ' для workorder_id ' . $workorderId . ' была удалена.');
+                    } else {
+                        Log::warning('Запись с conditions_id ' . $missingCondition->id . ' для workorder_id ' . $workorderId . ' не найдена.');
+                    }
+                }
+            }
+        }
+
+        // Перенаправить с сообщением об успехе
+        return redirect()->route('admin.tdrs.show', ['tdr' => $workorderId])->with('success', 'Запись успешно удалена.');
     }
+
+
 }

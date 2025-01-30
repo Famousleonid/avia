@@ -189,16 +189,16 @@
                                                 <button type="button" class="btn-close pb-2" data-bs-dismiss="modal" aria-label="Close"></button>
                                             </div>
 
-                                           <div class="d-flex justify-content-between">
-                                               <h4 class="modal-title">{{__('Parts Missing ')}}</h4>
+                                            <div class="d-flex justify-content-between">
+                                                <h4 class="modal-title">{{__('Parts Missing ')}}</h4>
 
-                                               <div >
-                                                   <a href="{{route('admin.tdrs.inspection',['workorder_id' => $current_wo->id])}}"
-                                                      class="btn  btn-outline-primary " style="height: 40px" onclick="showLoadingSpinner()">
-                                                       {{__('Add Unit Inspection')}}
-                                                   </a>
-                                               </div>
-                                           </div>
+                                                <div>
+                                                    <a href="{{route('admin.tdrs.inspection',['workorder_id' => $current_wo->id])}}"
+                                                       class="btn btn-outline-primary " style="height: 40px" onclick="showLoadingSpinner()">
+                                                        {{__('Add Unit Inspection')}}
+                                                    </a>
+                                                </div>
+                                            </div>
 
                                         </div>
 
@@ -207,31 +207,31 @@
                                         <table class="display table table-cm table-hover table-striped align-middle table-bordered">
                                             <thead class="bg-gradient">
                                             <tr>
-                                                <th class="text-primary bg-gradient ">{{__('IPL')
-                                                }}<i class= ms-1"></i></th>
-                                                <th class="text-primary bg-gradient ">{{__('Part
-                                                Description')
-                                                }}<i class= ms-1"></i></th>
-                                                <th class="text-primary bg-gradient ">{{__('Part
-                                                Number')
-                                                }}<i class= ms-1"></i></th>
-                                                <th class="text-primary  bg-gradient ">{{__('QTY')
-                                                }}<i class=  ms-1"></i></th>
-                                                <th class="text-primary  bg-gradient " >{{__('Delete')
-                                                }}<i class=  ms-1"></i></th>
-
+                                                <th class="text-primary bg-gradient">{{__('IPL')}}<i class="ms-1"></i></th>
+                                                <th class="text-primary bg-gradient">{{__('Part Description')}}<i class="ms-1"></i></th>
+                                                <th class="text-primary bg-gradient">{{__('Part Number')}}<i class="ms-1"></i></th>
+                                                <th class="text-primary bg-gradient">{{__('QTY')}}<i class="ms-1"></i></th>
+                                                <th class="text-primary bg-gradient">{{__('Delete')}}<i class="ms-1"></i></th>
                                             </tr>
                                             </thead>
                                             <tbody>
-                                                @foreach($missingParts as $part)
-                                                    <tr>
-                                                        <td class="p-3"> {{$part->component->ipl_num}} </td>
-                                                        <td class="p-3"> {{$part->component->name}} </td>
-                                                        <td class="p-3"> {{$part->component->part_number}} </td>
-                                                        <td class="p-3"> {{$part->qty}} </td>
-
-                                                    </tr>
-                                                @endforeach
+                                            @foreach($missingParts as $part)
+                                                <tr>
+                                                    <td class="p-3"> {{$part->component->ipl_num}} </td>
+                                                    <td class="p-3"> {{$part->component->name}} </td>
+                                                    <td class="p-3"> {{$part->component->part_number}} </td>
+                                                    <td class="p-3"> {{$part->qty}} </td>
+                                                    <td class="p-3">
+                                                        <!-- Кнопка удаления -->
+                                                        <form action="{{ route('admin.tdrs.destroy', $part->id) }}" method="POST"
+                                                              onsubmit="return confirm('Вы уверены, что хотите удалить эту деталь?');">
+                                                            @csrf
+                                                            @method('DELETE')
+                                                            <button type="submit" class="btn btn-danger btn-sm">{{__('Delete')}}</button>
+                                                        </form>
+                                                    </td>
+                                                </tr>
+                                            @endforeach
                                             </tbody>
                                         </table>
                                     </div>
@@ -239,6 +239,7 @@
                                 </div>
                             </div>
                         </div>
+
                         <div class="modal fade" id="orderModal{{$current_wo->number}}" tabindex="-1"
                              role="dialog" aria-labelledby="orderModalLabel{{$current_wo->number}}" aria-hidden="true">
                             <div class="modal-dialog modal-dialog-centered" role="document">
