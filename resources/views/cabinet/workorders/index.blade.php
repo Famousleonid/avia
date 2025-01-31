@@ -3,9 +3,22 @@
 @section('links')
     <style>
         .table-wrapper {
-            height: calc(100vh - 170px);
-            overflow-y: auto;
+            /*height: calc(100vh - 170px);*/
+            /*overflow-y: auto;*/
             overflow-x: hidden;
+            /*display: table; !* Устанавливает div как контейнер для таблицы *!*/
+            /*width: 100%; !* Устанавливаем ширину на 100% *!*/
+            /*height: auto; !* Высота будет зависеть от содержимого *!*/
+            /*overflow: hidden; !* Не нужно скрывать контент *!*/
+            /*padding: 0; !* Убираем лишние отступы *!*/
+
+            display: flex;
+            flex-direction: column;
+            width: 100%;
+            height: auto; /* Высота автоматически подстраивается */
+            overflow-y: auto; /* Добавление вертикальной прокрутки */
+            max-height: calc(100vh - 170px);
+
         }
 
         .table th, .table td {
@@ -52,6 +65,14 @@
             left: 40px;
         }
 
+
+        @media (prefers-color-scheme: dark) {
+            .bg-body {
+                --bs-bg-opacity: 1;
+                background-color: #212529 !important;
+            }
+        }
+
     </style>
 @endsection
 
@@ -61,7 +82,7 @@
 
     <section class="container-fluid p-0 m-0 g-0">
 
-        <div class="card shadow">
+        <div class="card shadow bg-body">
 
             <div class="row align-items-center py-2 border-bottom">
                 <div class="col-4">
@@ -81,7 +102,7 @@
 
             @if(count($workorders))
 
-                <div class="table-wrapper me-3 p-2 pt-0">
+                <div class="table-wrapper pe-3  bg-body">
 
                     <table id="show-workorder" class="display table-sm table-bordered table-striped table-hover w-100" style="background: linear-gradient(to bottom, #131313, #2E2E2E);">
 
