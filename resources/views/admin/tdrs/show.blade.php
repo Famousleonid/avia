@@ -156,10 +156,7 @@
                             </a>
                         </div>
                         <div>
-                            <button class="btn btn-outline-primary" data-bs-toggle="modal"
-                                    data-bs-target="">
-                                {{__('TDR Forms')}}
-                            </button>
+
                         </div>
                     </div>
 
@@ -174,7 +171,6 @@
                                   @endif
                             </div>
                             <div class="me-2">
-
                                 @if($current_wo->new_parts)
                                     <button class="btn btn-outline-primary btn-sm" style="height: 40px" href="#"
                                             data-bs-toggle="modal" data-bs-target="#orderModal{{$current_wo->number}}">
@@ -182,7 +178,19 @@
 
                                 @endif
                             </div>
+                            <div class="" style=" height: 40px; width: 250px">
+                                <a href="{{ route('admin.tdrs.tdrForm', ['id'=> $current_wo->id]) }}"
+                                   class="btn btn-outline-warning mb-1 formLink "
+                                   target="_blank"
+                                   id="#" style=" height: 40px">
+
+                                    <i class="bi bi-file-earmark-excel"> TDR Form</i>
+                                </a>
+
+                            </div>
                         </div>
+
+                        <!--  Missing Modal -->
                         <div class="modal fade" id="missingModal{{$current_wo->number}}" tabindex="-1"
                              role="dialog" aria-labelledby="missingModalLabel{{$current_wo->number}}" aria-hidden="true">
                             <div class="modal-dialog modal-dialog-centered" role="document">
@@ -245,6 +253,7 @@
                             </div>
                         </div>
 
+                        <!--  Ordered Modal -->
                         <div class="modal fade" id="orderModal{{$current_wo->number}}" tabindex="-1"
                              role="dialog" aria-labelledby="orderModalLabel{{$current_wo->number}}" aria-hidden="true">
                             <div class="modal-dialog modal-dialog-centered" role="document">
@@ -295,6 +304,25 @@
                                             @endforeach
                                             </tbody>
                                         </table>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <!--  Forms Modal -->
+                        <div class="modal fade" id="formsModal{{$current_wo->number}}" tabindex="-1" role="dialog"
+                             aria-labelledby="formsModallabel{{$current_wo->number}}" aria-hidden="true">
+                            <div class="modal-dialog modal-dialog-centered" role="document">
+                                <div class="modal-content bg-gradient">
+                                    <div class="modal-header">
+                                        <div>
+                                            <h4 class="modal-title">{{__('Work order ')}}{{$current_wo->number}}</h4>
+                                            <h4 class="modal-title">{{__('Forms  ')}}</h4>
+                                        </div>
+                                        <button type="button" class="btn-close pb-2" data-bs-dismiss="modal" aria-label="Close"></button>
+                                    </div>
+                                    <div class="modal-body">
+
+
                                     </div>
                                 </div>
                             </div>
@@ -363,9 +391,7 @@
 
                     <div>
                         <div class="table-wrapper me-3 p-2">
-                            <table id="tdr_process_Table" class="display table table-sm
-                    table-hover table-striped align-middle
-                    table-bordered">
+                            <table id="tdr_process_Table" class="display table table-sm table-hover table-striped align-middle table-bordered">
                                 <thead class="bg-gradient">
                                 <tr>
                                     <th class="text-center  sortable">{{__('IPL Number')}} <i class="bi bi-chevron-expand ms-1"></i></th>

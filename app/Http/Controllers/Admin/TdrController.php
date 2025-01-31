@@ -277,7 +277,13 @@ class TdrController extends Controller
     {
         //
     }
+    public function tdrForm(Request $request, $id)
+    {
+        $current_wo = Workorder::findOrFail($id);
 
+
+        return view('admin.tdrs.tdrForm', compact('current_wo'));
+    }
     /**
      * Remove the specified resource from storage.
      *
@@ -302,13 +308,11 @@ class TdrController extends Controller
         $tdr->delete();
         Log::info('Запись Tdr с ID: ' . $id . ' была удалена.');
 
-        // Найти код с именем 'Missing'
-        $code = Code::where('name', 'Missing')->first();
-        Log::info('Найден код с именем "Missing": ' . ($code ? 'Да' : 'Нет'));
+
 
         // Найти necessary с именем 'Missing'
         $necessary = Necessary::where('name', 'Order New')->first();
-        Log::info('Найден necessary с именем "Order New": ' . ($code ? 'Да' : 'Нет'));
+        Log::info('Найден necessary с именем "Order New": ' . ($necessary ? 'Да' : 'Нет'));
 
         if ($necessary) {
             // Проверить, если это последняя запись с necessaries_id = $necessary->id
@@ -331,6 +335,10 @@ class TdrController extends Controller
 
             }
         }
+
+            // Найти код с именем 'Missing'
+        $code = Code::where('name', 'Missing')->first();
+        Log::info('Найден код с именем "Missing": ' . ($code ? 'Да' : 'Нет'));
 
         if ($code) {
             // Проверить, если это последняя запись с codes_id = $code->id
