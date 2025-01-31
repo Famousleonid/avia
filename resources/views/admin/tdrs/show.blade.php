@@ -148,12 +148,18 @@
                             </div>
                         </div>
                     </div>
-                    <div class="ps-2" style="width: 300px;">
-                        <div >
+                    <div class="ps-2 d-flex" style="width: 300px;">
+                        <div class="me-2" >
                             <a href="{{route('admin.tdrs.inspection',['workorder_id' => $current_wo->id])}}"
                                class="btn  btn-outline-primary " style="height: 40px" onclick="showLoadingSpinner()">
                                 {{__('Add Unit Inspection')}}
                             </a>
+                        </div>
+                        <div>
+                            <button class="btn btn-outline-primary" data-bs-toggle="modal"
+                                    data-bs-target="">
+                                {{__('TDR Forms')}}
+                            </button>
                         </div>
                     </div>
 
