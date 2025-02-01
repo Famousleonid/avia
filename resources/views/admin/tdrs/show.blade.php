@@ -368,7 +368,13 @@
 
                                                     @foreach($components as $component)
                                                         @if($component->id == $tdr->component_id)
-                                                            {{$component -> name}} ({{$component -> ipl_num}})
+                                                            {{$component -> name}}
+                                                            @if ($tdr->qty == 1)
+                                                                ({{$component -> ipl_num}})
+                                                            @else
+                                                                 ({{$component -> ipl_num}}, {{$tdr->qty}} pcs)
+                                                            @endif
+
                                                         @endif
                                                     @endforeach
                                                 </td>
