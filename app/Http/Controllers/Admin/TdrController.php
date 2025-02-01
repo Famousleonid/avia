@@ -279,11 +279,88 @@ class TdrController extends Controller
     }
     public function tdrForm(Request $request, $id)
     {
+        // Загрузка Workorder по ID
         $current_wo = Workorder::findOrFail($id);
 
+        // Получаем данные о manual_id, связанном с этим Workorder
+        $manual_id = $current_wo->unit->manual_id;
 
-        return view('admin.tdrs.tdrForm', compact('current_wo'));
+        // Извлекаем компоненты, связанные с manual_id
+        $components = Component::where('manual_id', $manual_id)->get();
+
+        // Загружаем необходимые данные для всех записей
+        $necessaries = Necessary::all();
+        $conditions = Condition::all();
+        $codes = Code::all();
+
+        // Жадная загрузка данных для tdrs, включая все связи с компонентами, состояниями, необходимостями и кодами
+        $current_wo->load('tdrs.component', 'tdrs.conditions', 'tdrs.necessaries', 'tdrs.codes');
+
+        // Массивы для хранения разных типов строк
+        $nullComponentConditions = []; // Для строк, где component_id == null
+        $groupedByConditions = []; // Для строк, где component_id !== null и necessaries_id == 2
+        $necessaryComponents = []; // Для строк, где component_id !== null и necessaries_id !== 2
+
+        foreach ($current_wo->tdrs as $tdr) {
+            // Пропускаем строки с codes_id == 7
+            if ($tdr->codes_id == 7) {
+                continue;
+            }
+
+            // Строки с component_id == null
+            if ($tdr->component_id === null) {
+                $conditions = $tdr->conditions; // Получаем данные о состоянии
+                if ($conditions) {
+                    // Добавляем состояние в массив
+                    $nullComponentConditions[] = $conditions->name;
+                }
+            } elseif ($tdr->component_id !== null && $tdr->necessaries_id == 2) {
+                // Группируем компоненты по состояниям, если necessaries_id == 2 ('Order New')
+                $component = $tdr->component; // Получаем связанные данные о компоненте
+                $conditions = $tdr->conditions; // Получаем связанные данные о состоянии
+                if ($component && $conditions) {
+                    // Добавляем компонент в соответствующую группу для состояния
+                    $groupedByConditions[$conditions->name][] = sprintf(
+                        "<b>%s</b> (%s%s)", // Номер компонента и его имя
+                        $component->name, // Имя компонента
+                        $component->ipl_num, // Номер компонента
+                        $tdr->qty == 1 ? '' : ', ' . $tdr->qty . 'pcs' // Если qty == 1, то пустая строка, иначе добавляем qty и "pcs"
+                    );
+                }
+            } elseif ($tdr->component_id !== null && $tdr->necessaries_id !== 2) {
+                // Для всех остальных компонентов, где necessaries_id != 2
+                $component = $tdr->component; // Получаем данные о компоненте
+                $necessaries = $tdr->necessaries; // Получаем данные о необходимости
+                $codes = $tdr->codes; // Получаем данные о кодах
+                if ($component && $necessaries && $codes) {
+                    // Строим строку в нужном формате
+                    $necessaryComponents[] = sprintf(
+                        "(%s) <b>%s</b> is Necessary: %s - %s", // Формат вывода
+                        $component->ipl_num, // Номер компонента
+                        $component->name, // Имя компонента
+                        $necessaries->name, // Название необходимости
+                        $codes->name // Название кода
+                    );
+                }
+            }
+        }
+
+        // Объединяем все строки в правильном порядке
+        $tdrInspections = array_merge(
+            $nullComponentConditions,        // Все строки с component_id == null
+            array_map(function ($conditionName, $components) {
+                return $conditionName . ": " . implode(', ', $components);
+            }, array_keys($groupedByConditions), $groupedByConditions), // Группировка компонентов по состояниям
+            $necessaryComponents            // Все компоненты, где necessaries_id != 2
+        );
+
+        // Возвращаем данные в представление
+        return view('admin.tdrs.tdrForm', compact('current_wo', 'components', 'necessaries', 'conditions', 'codes', 'tdrInspections'));
     }
+
+
+
+
     /**
      * Remove the specified resource from storage.
      *
