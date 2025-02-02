@@ -296,14 +296,17 @@ class TdrController extends Controller
         // Жадная загрузка данных для tdrs, включая все связи с компонентами, состояниями, необходимостями и кодами
         $current_wo->load('tdrs.component', 'tdrs.conditions', 'tdrs.necessaries', 'tdrs.codes');
 
+        $necessary = Necessary::where('name', 'Order New')->first();
+        $code = Code::where('name', 'Missing')->first();
+
         // Массивы для хранения разных типов строк
         $nullComponentConditions = []; // Для строк, где component_id == null
-        $groupedByConditions = []; // Для строк, где component_id !== null и necessaries_id == 2
-        $necessaryComponents = []; // Для строк, где component_id !== null и necessaries_id !== 2
+        $groupedByConditions = []; // Для строк, где component_id !== null и necessaries_id == Order New
+        $necessaryComponents = []; // Для строк, где component_id !== null и necessaries_id !== Order New
 
         foreach ($current_wo->tdrs as $tdr) {
-            // Пропускаем строки с codes_id == 7
-            if ($tdr->codes_id == 7) {
+            // Пропускаем строки с codes_id == Missing
+            if ($tdr->codes_id == $code->id) {
                 continue;
             }
 
@@ -314,7 +317,7 @@ class TdrController extends Controller
                     // Добавляем состояние в массив
                     $nullComponentConditions[] = $conditions->name;
                 }
-            } elseif ($tdr->component_id !== null && $tdr->necessaries_id == 2) {
+            } elseif ($tdr->component_id !== null && $tdr->necessaries_id == $necessary->id) {
                 // Группируем компоненты по состояниям, если necessaries_id == 2 ('Order New')
                 $component = $tdr->component; // Получаем связанные данные о компоненте
                 $conditions = $tdr->conditions; // Получаем связанные данные о состоянии
@@ -327,8 +330,8 @@ class TdrController extends Controller
                         $tdr->qty == 1 ? '' : ', ' . $tdr->qty . 'pcs' // Если qty == 1, то пустая строка, иначе добавляем qty и "pcs"
                     );
                 }
-            } elseif ($tdr->component_id !== null && $tdr->necessaries_id !== 2) {
-                // Для всех остальных компонентов, где necessaries_id != 2
+            } elseif ($tdr->component_id !== null && $tdr->necessaries_id !== $necessary->id) {
+                // Для всех остальных компонентов, где necessaries_id != Order New
                 $component = $tdr->component; // Получаем данные о компоненте
                 $necessaries = $tdr->necessaries; // Получаем данные о необходимости
                 $codes = $tdr->codes; // Получаем данные о кодах
@@ -344,6 +347,7 @@ class TdrController extends Controller
                 }
             }
         }
+
 
         // Объединяем все строки в правильном порядке
         $tdrInspections = array_merge(

@@ -179,13 +179,16 @@
                                 @endif
                             </div>
                             <div class="" style=" height: 40px; width: 250px">
-                                <a href="{{ route('admin.tdrs.tdrForm', ['id'=> $current_wo->id]) }}"
-                                   class="btn btn-outline-warning mb-1 formLink "
-                                   target="_blank"
-                                   id="#" style=" height: 40px">
+                                @if(count($tdrs))
+                                    <a href="{{ route('admin.tdrs.tdrForm', ['id'=> $current_wo->id]) }}"
+                                       class="btn btn-outline-warning mb-1 formLink "
+                                       target="_blank"
+                                       id="#" style=" height: 40px">
 
-                                    <i class="bi bi-file-earmark-excel"> TDR Form</i>
-                                </a>
+                                        <i class="bi bi-file-earmark-excel"> TDR Form</i>
+                                    </a>
+                                @endif
+
 
                             </div>
                         </div>
