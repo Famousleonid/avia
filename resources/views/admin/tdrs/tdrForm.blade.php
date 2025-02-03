@@ -14,8 +14,9 @@
         }
 
         .container-fluid {
-            max-width: 920px;
-            height: 100%;
+            max-width: 960px;
+
+            height: 99%;
             padding: 5px;
             margin-left: 10px;
             margin-right: 10px;
@@ -30,9 +31,9 @@
 
             /* Убедитесь, что вся страница помещается на один лист */
             html, body {
-                height: 85%;
+                height: 86%;
                 width: 98%;
-                margin-left: 5px;
+                margin-left: 3px;
                 padding: 0;
             }
 
@@ -82,7 +83,7 @@
             border-right: 1px solid black;
         }
         .border-lll-b-r {
-            border-left: 10px  solid lightgrey;
+            border-left: 8px  solid lightgrey;
             border-bottom: 1px solid black;
             border-right: 1px solid black;
         }
@@ -93,7 +94,7 @@
         .border-l-b-rrr {
             border-left: 1px solid black;
             border-bottom: 1px solid black;
-            border-right: 6px solid black;
+            border-right: 5px solid black;
         }
         .border-l-b {
             border-left: 1px solid black;
@@ -189,6 +190,23 @@
             font-size: 0.4rem; /* или любое другое подходящее значение */
         }
 
+        .details-row {
+            display: flex;
+            align-items: center; /* Выравнивание элементов по вертикали */
+            height: 36px; /* Фиксированная высота строки */
+        }
+        .details-cell {
+            flex-grow: 1; /* Позволяет колонкам растягиваться и занимать доступное пространство */
+            display: flex;
+            justify-content: center; /* Центрирование содержимого по горизонтали */
+            align-items: center; /* Центрирование содержимого по вертикали */
+            border: 1px solid black; /* Границы для наглядности */
+        }
+        .check-icon {
+            width: 24px; /* Меньший размер изображения */
+            height: auto;
+            margin: 0 5px; /* Отступы вокруг изображения */
+        }
     </style>
 </head>
 
@@ -208,28 +226,36 @@
                  style="width: 180px; margin: 6px 10px 0;">
         </div>
         <div class="col-8">
-            <h5 class="pt-3   text-black text-"><strong>WORK ORDER TEAR DOWN REPORT</strong></h5>
+            <h5 class="pt-1   text-black text-"><strong>WORK ORDER TEAR DOWN REPORT</strong></h5>
         </div>
 
     </div>
 
     <div class="row" style="height: 30px">
-        <div class="col-6">
+        <div class="col-5 pt-1">
             <p class="fs-6 text-end " >COMPONENT DESCRPTION:</p>
         </div>
-        <div class="col-4 border-all" style="height: 32px"></div>
+        <div class="col-5 border-all pt-1" style="height: 32px">
+            <h5 class="">
+            <strong> {{$current_wo->description}}</strong>
+            </h5>
+        </div>
         <div class="col-2 border-t-r-b" style="height: 32px" >
-            <h6 class="text-center pt-1">
+            <h5 class="pt-1">
                <strong> W{{$current_wo->number}}</strong>
-            </h6>
+            </h5>
         </div>
     </div>
 
     <div class="row" style="height: 32px">
-        <div class="col-6" style="height: 32px">
+        <div class="col-5 pt-1" style="height: 32px">
             <p class="fs-6 text-end ">COMPONENT PART NO.:</p>
         </div>
-        <div class="col-4 border-l-b-r"  ></div>
+        <div class="col-5 pt-1 border-l-b-r" style="height: 32px" >
+            <h5 class="">
+            <strong> {{$current_wo->unit->part_number}}</strong>
+            </h5>
+        </div>
     </div>
 
         <div class="row mt-2 mb-1" >
@@ -260,12 +286,11 @@
             </div>
         </div>
     <div class="row " >
-        <div class="col-5">
+        <div class="col-6">
             <div class="row " >
                 <div class="col-1 border-l-b" style="height: 36px">
-                    <p class="fs-9 text-center " style="margin-left: -10px">
-                        REQ'S DETAIL ?
-                    </p>
+                    <img class="pt-1 ps-1" src="{{ asset('img/icons/reqs.png') }}" alt="reqs" style="height: 24px; margin-left:
+                            -10px" >
                 </div>
                 <div class="col-10 border-ll-bb">
                     <p class="fs-8" style="margin-left: -10px">CUSTOMER SNAG CONFIRMED ?</p>
@@ -273,25 +298,24 @@
                 <div class="col-1 border-bb"></div>
             </div>
         </div>
-        <div class="col-7">
+        <div class="col-6">
             <div class="row">
                 <div class="col-11 border-bb" style="height: 36px">
                     <p class="fs-5"  style="text-transform: uppercase;"><strong>{{$current_wo->instruction->name}}</strong></p>
                 </div>
                 <div class="col-1 border-ll-bb-rr">
                     <img src="{{ asset('img/icons/check.svg') }}" alt="Check"
-                         style="width: 32px; margin-left: -10px">
+                         style="width: 32px; margin-left: -12px">
                 </div>
             </div>
         </div>
     </div>
     <div class="row " >
-        <div class="col-5">
+        <div class="col-6">
             <div class="row " >
                 <div class="col-1 border-l-b align-items-center justify-content-center" style="height: 36px">
-                    <p class="fs-9 text-center " style="margin-left: -8px">
-                        REQ'S DETAIL ?
-                    </p>
+                     <img class="pt-1 ps-1" src="{{ asset('img/icons/reqs.png') }}" alt="reqs" style="height: 24px; margin-left:
+                            -10px" >
                 </div>
                 <div class="col-10 border-ll-bb">
                     <p class="fs-8" style="margin-left: -10px">CUSTOMER SNAG <strong>NOT</strong> CONFIRMED ?</p>
@@ -299,11 +323,10 @@
                 <div class="col-1 border-bb"></div>
             </div>
         </div>
-        <div class="col-7">
+        <div class="col-6">
             <div class="row">
-                <div class="col-11 border-bb" style="height: 36px">
-                    <p class="fs-5"  style="text-transform: uppercase;"><strong></strong></p>
-                </div>
+                <div class="col-1 border-bb"></div>
+                <div class="col-10 border-bb" style="height: 36px"></div>
                 <div class="col-1 border-ll-bb-rr"> {{count($tdrInspections)}}</div>
             </div>
         </div>
@@ -318,41 +341,48 @@
 
     @for ($i = 0; $i < $totalRows; $i++)
         <div class="row">
-            <div class="col-5"> <!-- первый столбец -->
+            <div class="col-6"> <!-- первый столбец -->
                 <div class="row">
                     <div class="col-1 border-l-b-r" style="height: 36px">
-                        <p class="fs-9 text-center" style="margin-left: -8px">
-                            REQ'S DETAIL ?
-                        </p>
+                        <img class="pt-1 ps-1" src="{{ asset('img/icons/reqs.png') }}" alt="reqs" style="height: 24px;
+                        margin-left:
+                            -10px" >
                     </div>
                     <div class="col-10 border-b" style="height: 36px">
                         <p class="fs-75">
                             <!-- Заполняем значением из первого столбца, если оно есть -->
-                            {!! isset($firstColumn[$i]) ? $firstColumn[$i] : '' !!}
+{{--                            {!! isset($firstColumn[$i]) ? $firstColumn[$i] : '' !!}--}}
+                            {!! $firstColumn[$i] ?? '' !!}
                         </p>
                     </div>
-                    <div class="col-1 border-l-b-r">
+                    <div class="col-1 border-l-b">
                         @if(isset($firstColumn[$i]) && $firstColumn[$i] !== '')
                             <img src="{{ asset('img/icons/check.svg') }}" alt="Check"
-                                 style="width: 32px; margin-left: -16px">
+                                 style="width: 32px; margin-left: -14px">
                         @endif
                     </div>
 
                 </div>
             </div>
-            <div class="col-7"> <!-- второй столбец -->
+            <div class="col-6"> <!-- второй столбец -->
                 <div class="row">
-                    <div class="col-1 border-lll-b-r" style="height: 36px">
-                        <p class="fs-9 text-center" style="margin-left: -8px">
-                            REQ'S DETAIL ?
-                        </p>
+                    <div class="d-flex  col-1 border-b-r" style="height: 36px ">
+                        <img src="{{ asset('img/icons/reqs_bb.png') }}" alt="reqs" style="height: 36px; margin-left:
+                            -16px" >
+                        <img class="pt-1 ps-1" src="{{ asset('img/icons/reqs.png') }}" alt="reqs" style="height: 24px;" >
+
                     </div>
-                    <div class="col-10 border-b">
+                    <div class="col-10 border-b" style="height: 36px">
+                        <p class="fs-75">
                         <!-- Заполняем значением из второго столбца, если оно есть -->
                         {{ $secondColumn[$i] ?? '' }}
+                        </p>
                     </div>
-                    <div class="col-1 border-l-b-r">
-
+                    <div class="col-1 border-l-b-r" style="height: 36px">
+                        @if(isset($secondColumn[$i]) && $secondColumn[$i] !== '')
+                            <img src="{{ asset('img/icons/check.svg') }}" alt="Check"
+                                 style="width: 32px; margin-left: -16px">
+                        @endif
                     </div>
                 </div>
             </div>

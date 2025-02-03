@@ -296,14 +296,17 @@ class TdrController extends Controller
         // Жадная загрузка данных для tdrs, включая все связи с компонентами, состояниями, необходимостями и кодами
         $current_wo->load('tdrs.component', 'tdrs.conditions', 'tdrs.necessaries', 'tdrs.codes');
 
+        $necessary = Necessary::where('name', 'Order New')->first();
+        $code = Code::where('name', 'Missing')->first();
+
         // Массивы для хранения разных типов строк
         $nullComponentConditions = []; // Для строк, где component_id == null
-        $groupedByConditions = []; // Для строк, где component_id !== null и necessaries_id == 2
-        $necessaryComponents = []; // Для строк, где component_id !== null и necessaries_id !== 2
+        $groupedByConditions = []; // Для строк, где component_id !== null и necessaries_id == Order New
+        $necessaryComponents = []; // Для строк, где component_id !== null и necessaries_id !== Order New
 
         foreach ($current_wo->tdrs as $tdr) {
-            // Пропускаем строки с codes_id == 7
-            if ($tdr->codes_id == 7) {
+            // Пропускаем строки с codes_id == Missing
+            if ($tdr->codes_id == $code->id) {
                 continue;
             }
 
@@ -314,21 +317,43 @@ class TdrController extends Controller
                     // Добавляем состояние в массив
                     $nullComponentConditions[] = $conditions->name;
                 }
-            } elseif ($tdr->component_id !== null && $tdr->necessaries_id == 2) {
+            } elseif ($tdr->component_id !== null && $tdr->necessaries_id == $necessary->id) {
                 // Группируем компоненты по состояниям, если necessaries_id == 2 ('Order New')
                 $component = $tdr->component; // Получаем связанные данные о компоненте
                 $conditions = $tdr->conditions; // Получаем связанные данные о состоянии
                 if ($component && $conditions) {
-                    // Добавляем компонент в соответствующую группу для состояния
-                    $groupedByConditions[$conditions->name][] = sprintf(
+                    // Формируем строку для компонента
+                    $componentString = sprintf(
                         "<b>%s</b> (%s%s)", // Номер компонента и его имя
                         $component->name, // Имя компонента
                         $component->ipl_num, // Номер компонента
                         $tdr->qty == 1 ? '' : ', ' . $tdr->qty . 'pcs' // Если qty == 1, то пустая строка, иначе добавляем qty и "pcs"
                     );
+
+                    // Инициализируем массив для состояния, если он еще не существует
+                    if (!isset($groupedByConditions[$conditions->name])) {
+                        $groupedByConditions[$conditions->name] = [];
+                    }
+
+                    // Получаем последнюю строку в группе
+                    $lastKey = count($groupedByConditions[$conditions->name]) - 1;
+                    $lastString = $lastKey >= 0 ? $groupedByConditions[$conditions->name][$lastKey] : '';
+
+                    // Проверяем длину строки
+                    if (strlen($lastString . ', ' . $componentString) <= 180) {
+                        // Если длина не превышает 120 символов, добавляем к последней строке
+                        if ($lastKey >= 0) {
+                            $groupedByConditions[$conditions->name][$lastKey] .= ', ' . $componentString;
+                        } else {
+                            $groupedByConditions[$conditions->name][] = $conditions->name . ' : ' . $componentString;
+                        }
+                    } else {
+                        // Если длина превышает 120 символов, создаем новую строку
+                        $groupedByConditions[$conditions->name][] = $conditions->name . ' : ' . $componentString;
+                    }
                 }
-            } elseif ($tdr->component_id !== null && $tdr->necessaries_id !== 2) {
-                // Для всех остальных компонентов, где necessaries_id != 2
+            } elseif ($tdr->component_id !== null && $tdr->necessaries_id !== $necessary->id) {
+                // Для всех остальных компонентов, где necessaries_id != Order New
                 $component = $tdr->component; // Получаем данные о компоненте
                 $necessaries = $tdr->necessaries; // Получаем данные о необходимости
                 $codes = $tdr->codes; // Получаем данные о кодах
@@ -345,14 +370,30 @@ class TdrController extends Controller
             }
         }
 
-        // Объединяем все строки в правильном порядке
-        $tdrInspections = array_merge(
-            $nullComponentConditions,        // Все строки с component_id == null
-            array_map(function ($conditionName, $components) {
-                return $conditionName . ": " . implode(', ', $components);
-            }, array_keys($groupedByConditions), $groupedByConditions), // Группировка компонентов по состояниям
-            $necessaryComponents            // Все компоненты, где necessaries_id != 2
-        );
+// Объединяем все строки в правильном порядке
+        $tdrInspections = [];
+
+// Добавляем строки с component_id == null
+        if (!empty($nullComponentConditions)) {
+            $tdrInspections = array_merge($tdrInspections, $nullComponentConditions);
+        }
+
+// Добавляем группированные строки по состояниям
+        foreach ($groupedByConditions as $conditionName => $components) {
+            foreach ($components as $componentLine) {
+                $tdrInspections[] = $componentLine;
+            }
+        }
+
+// Добавляем строки с necessaries_id != Order New
+        if (!empty($necessaryComponents)) {
+            $tdrInspections = array_merge($tdrInspections, $necessaryComponents);
+        }
+
+//// Выводим результат
+//        foreach ($tdrInspections as $inspection) {
+//            echo $inspection . "\n";
+//        }
 
         // Возвращаем данные в представление
         return view('admin.tdrs.tdrForm', compact('current_wo', 'components', 'necessaries', 'conditions', 'codes', 'tdrInspections'));
