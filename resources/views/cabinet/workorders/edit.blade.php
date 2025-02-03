@@ -155,7 +155,7 @@
 
                                         <div class="form-group col-lg-4 mt-2">
                                             <label for="unit_place">Place</label>
-                                            <input type="text" name="place" id="wo_place" maxlength="30" value={{old('place', $current_wo->place)}} class="form-control @error ('place') is-invalid @enderror" >
+                                            <input type="text" name="place" id="wo_place" maxlength="30" value="{{old('place', $current_wo->place)}}" class="form-control @error ('place') is-invalid @enderror">
                                         </div>
 
                                         <div class="form-group col-lg-4 mt-2">
@@ -190,7 +190,7 @@
                                 <div class="col-lg-3 row">
 
                                     <div class="form-group">
-                                        <label class="checkbox-wo mb-2"><input type="checkbox" name="part_missing" {{ $current_wo->part_missing ? 'checked' : '' }}>___ Parts Missing</label><br>
+                                        <label class="checkbox-wo mb-2"><input type="checkbox" name="part_missing" {{ $current_wo->part_missing ? 'checked' : '' }} disabled>___ Parts Missing</label><br>
                                     </div>
                                     <div class="form-group">
                                         <label class="checkbox-wo mb-2"><input type="checkbox" name="external_damage" {{ $current_wo->external_damage ? 'checked' : '' }}>___ External damage</label><br>

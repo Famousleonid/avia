@@ -155,7 +155,7 @@
 
                                         <div class="form-group col-lg-4 mt-2">
                                             <label for="unit_place">Place</label>
-                                            <input type="text" name="place" id="wo_place" maxlength="30" value={{old('place', $current_wo->place)}} class="form-control @error ('place') is-invalid @enderror" >
+                                            <input type="text" name="place" id="wo_place" maxlength="30" value="{{old('place', $current_wo->place)}}" class="form-control @error ('place') is-invalid @enderror">
                                         </div>
 
                                         <div class="form-group col-lg-4 mt-2">
