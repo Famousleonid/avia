@@ -15,6 +15,7 @@
 
         .container-fluid {
             max-width: 960px;
+
             height: 99%;
             padding: 5px;
             margin-left: 10px;
