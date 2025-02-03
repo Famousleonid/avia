@@ -369,6 +369,9 @@
                                                         @endif
                                                     @endforeach
 
+
+
+
                                                     @foreach($components as $component)
                                                         @if($component->id == $tdr->component_id)
                                                             {{$component -> name}}
