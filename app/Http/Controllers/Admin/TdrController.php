@@ -340,7 +340,7 @@ class TdrController extends Controller
                     $lastString = $lastKey >= 0 ? $groupedByConditions[$conditions->name][$lastKey] : '';
 
                     // Проверяем длину строки
-                    if (strlen($lastString . ', ' . $componentString) <= 120) {
+                    if (strlen($lastString . ', ' . $componentString) <= 180) {
                         // Если длина не превышает 120 символов, добавляем к последней строке
                         if ($lastKey >= 0) {
                             $groupedByConditions[$conditions->name][$lastKey] .= ', ' . $componentString;

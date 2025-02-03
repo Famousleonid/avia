@@ -225,33 +225,35 @@
                  style="width: 180px; margin: 6px 10px 0;">
         </div>
         <div class="col-8">
-            <h5 class="pt-3   text-black text-"><strong>WORK ORDER TEAR DOWN REPORT</strong></h5>
+            <h5 class="pt-1   text-black text-"><strong>WORK ORDER TEAR DOWN REPORT</strong></h5>
         </div>
 
     </div>
 
     <div class="row" style="height: 30px">
-        <div class="col-6 pt-1">
+        <div class="col-5 pt-1">
             <p class="fs-6 text-end " >COMPONENT DESCRPTION:</p>
         </div>
-        <div class="col-4 border-all pt-1" style="height: 32px">
+        <div class="col-5 border-all pt-1" style="height: 32px">
+            <h5 class="">
             <strong> {{$current_wo->description}}</strong>
-
+            </h5>
         </div>
         <div class="col-2 border-t-r-b" style="height: 32px" >
-            <h6 class="text-center pt-1">
+            <h5 class="pt-1">
                <strong> W{{$current_wo->number}}</strong>
-            </h6>
+            </h5>
         </div>
     </div>
 
     <div class="row" style="height: 32px">
-        <div class="col-6 pt-1" style="height: 32px">
+        <div class="col-5 pt-1" style="height: 32px">
             <p class="fs-6 text-end ">COMPONENT PART NO.:</p>
         </div>
-        <div class="col-4 pt-1 border-l-b-r"  >
+        <div class="col-5 pt-1 border-l-b-r" style="height: 32px" >
+            <h5 class="">
             <strong> {{$current_wo->unit->part_number}}</strong>
-
+            </h5>
         </div>
     </div>
 
@@ -352,10 +354,10 @@
                             {!! $firstColumn[$i] ?? '' !!}
                         </p>
                     </div>
-                    <div class="col-1 border-l-b-r">
+                    <div class="col-1 border-l-b">
                         @if(isset($firstColumn[$i]) && $firstColumn[$i] !== '')
                             <img src="{{ asset('img/icons/check.svg') }}" alt="Check"
-                                 style="width: 32px; margin-left: -16px">
+                                 style="width: 32px; margin-left: -14px">
                         @endif
                     </div>
 
@@ -363,9 +365,9 @@
             </div>
             <div class="col-6"> <!-- второй столбец -->
                 <div class="row">
-                    <div class="d-flex  col-1 border-l-b-r" style="height: 36px ">
-                        <img src="{{ asset('img/icons/reqs_bb.png') }}" alt="reqs" style="height: 35px; margin-left:
-                            -12px" >
+                    <div class="d-flex  col-1 border-b-r" style="height: 36px ">
+                        <img src="{{ asset('img/icons/reqs_bb.png') }}" alt="reqs" style="height: 36px; margin-left:
+                            -16px" >
                         <img class="pt-1 ps-1" src="{{ asset('img/icons/reqs.png') }}" alt="reqs" style="height: 24px;" >
 
                     </div>
