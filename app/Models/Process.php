@@ -12,4 +12,8 @@ class Process extends Model
         'process_names_id',
         'process',
     ];
+    public function process()
+    {
+        return $this->belongsTo(Process::class);
+    }
 }

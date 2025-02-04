@@ -9,7 +9,10 @@ class ProcessName extends Model
 {
     use HasFactory;
     protected $fillable = [
-        'name',
-
+        'name','process_sheet_name','form_number'
     ];
+    public function process()
+    {
+        return $this->hasMany(Process::class);
+    }
 }
