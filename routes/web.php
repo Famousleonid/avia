@@ -101,6 +101,9 @@ Route::group(['middleware' => ['auth', 'isAdmin'], 'prefix' => 'admin', 'as' =>'
     Route::post('/components/store_from_inspection', [\App\Http\Controllers\Admin\ComponentController::class, 'storeFromInspection'])
         ->name('components.storeFromInspection');
 
+    Route::resource('/processes', \App\Http\Controllers\Admin\ProcessController::class);
+    Route::resource('/process-names',\App\Http\Controllers\Admin\ProcessNameController::class);
+
 });
 
 
