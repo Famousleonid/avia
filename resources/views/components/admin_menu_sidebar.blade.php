@@ -36,6 +36,11 @@
             <i class="bi bi-journal-richtext me-2"></i> WO Tear Down Report
         </a>
     </li>
+    <li class="nav-item">
+        <a class="nav-link press-spinner" href="{{route('admin.processes.index')}}">
+            <i class="bi bi-bar-chart-steps me-2"></i> Processes
+        </a>
+    </li>
     <li class="nav-item press-spinner">
         <a href="{{route('admin.materials.index')}}" class="nav-link">
             <i class="bi bi-body-text me-2"></i> Materials

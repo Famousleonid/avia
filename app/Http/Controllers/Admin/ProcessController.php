@@ -3,6 +3,12 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Models\Manual;
+use App\Models\Process;
+use App\Models\ProcessName;
+use Illuminate\Contracts\Foundation\Application;
+use Illuminate\Contracts\View\Factory;
+use Illuminate\Contracts\View\View;
 use Illuminate\Http\Request;
 
 class ProcessController extends Controller
@@ -10,21 +16,32 @@ class ProcessController extends Controller
     /**
      * Display a listing of the resource.
      *
-     * @return \Illuminate\Http\Response
+     * @return Application|Factory|View
      */
     public function index()
     {
-        //
+        $manuals = Manual::all();
+        $processNames = ProcessName::all();
+        $processes = Process::all();
+
+
+        return view('admin.processes.index', compact('manuals', 'processNames', 'processes'));
+
     }
 
     /**
      * Show the form for creating a new resource.
      *
-     * @return \Illuminate\Http\Response
+     * @return Application|Factory|View
      */
-    public function create()
+    public function create(Request $request)
     {
-        //
+//        dd($request->all());
+
+        $manual = Manual::findorFail($request);
+        $processName = ProcessName::all();
+
+        return view('admin.processes.create', compact('manual','processName'));
     }
 
     /**
