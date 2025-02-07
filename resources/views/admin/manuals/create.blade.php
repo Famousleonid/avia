@@ -56,7 +56,7 @@
                                 <label for="training_hours">{{ __('Unit First Training') }}</label>
                                 <input id='training_hours' type="text"
                                        class="form-control" name="training_hours"
-                                       required>
+                                       >
                             </div>
                         </div>
                         <div style="width: 250px" class="m-3 p-2 ">

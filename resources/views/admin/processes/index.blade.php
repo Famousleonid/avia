@@ -76,6 +76,29 @@
             border: none;
             cursor: pointer;
         }
+        /*!* Стили для дропдауна *!*/
+        /*.process-dropdown {*/
+        /*    appearance: none; !* Убираем стандартный стиль браузера *!*/
+        /*    background-color: transparent;*/
+        /*    border: 1px solid #ccc;*/
+        /*    border-radius: 4px;*/
+        /*    padding: 0.25rem 0.5rem;*/
+        /*    cursor: pointer;*/
+        /*    width: 150px; !* Настройте ширину по необходимости *!*/
+        /*}*/
+
+        /*!* Стиль для плейсхолдера *!*/
+        /*.process-dropdown option[value=""] {*/
+        /*    color: #999; !* Серый цвет для плейсхолдера *!*/
+        /*}*/
+
+        /*!* Стиль для открытого дропдауна *!*/
+        /*.process-dropdown:focus {*/
+        /*    background-color: #fff;*/
+        /*    border-color: #86b7fe;*/
+        /*    box-shadow: 0 0 0 0.25rem rgba(13, 110, 253, 0.25);*/
+        /*}*/
+
     </style>
 
     <div class="card shadow">
@@ -93,9 +116,6 @@
                     </div>
                 </div>
 
-{{--                <a href="{{ route('admin.processes.create') }}" class="btn btn-outline-primary " style="height: 40px">{{--}}
-{{--                __('Add Process')--}}
-{{--                }}</a>--}}
             </div>
         </div>
 
@@ -103,81 +123,81 @@
             <table id="processTable" class="display table table-hover table-striped align-middle table-bordered">
                 <thead class="bg-gradient">
                 <tr>
-                    <th class="text-primary sortable text-center" style="width: 300px">{{__('Manual')}}</th>
+                    <th class="text-primary sortable text-center" >{{__('Manual')}}</th>
                     <th class="text-primary sortable text-center">{{__('Description')}}</th>
-                    <th class="text-primary sortable text-center">{{__('Process')}}</th>
+                    <th class="text-primary sortable text-center">{{__('Processes')}}</th>
                     <th class="text-primary text-center">{{__('Action')}}</th>
                 </tr>
                 </thead>
                 <tbody>
-                    @foreach($manuals as $manual)
-                        <tr>
-                            <td class="text-center" style="width: 300px" >
-                                <a href="#" data-bs-toggle="modal"
-                                   data-bs-target="#cmmModal{{$manual->id}}">
-                                    {{ $manual->number }}
-                                </a>
-                            </td>
-                            <td class="text-center" style="width: 150px">
-                                {{$manual->title}} ( {{$manual->unit_name_training}})
-                            </td>
-                            <td class="text-center" ></td>
-                            <td class="text-center" style="width: 150px">
-                                <a href="{{ route('admin.processes.create',['manual'=>$manual->id]) }}" class="btn
-                                btn-outline-primary btn-sm">
-                                    <i class="bi bi-plus-lg"></i>
+                @foreach($manuals as $manual)
+                    <tr>
+                        <td class="text-center" >
+                            <a href="#" data-bs-toggle="modal"
+                               data-bs-target="#cmmModal{{$manual->id}}">
+                                {{ $manual->number }}
+                            </a>
+                        </td>
+                        <td class="text-center" >
+                            {{ $manual->title }} ({{ $manual->unit_name_training }})
+                        </td>
+                        <td class="text-center">
+                            @if(isset($groupedProcesses[$manual->id]))
+                                <div class="dropdown">
+                                    <select class="form-select form-select-sm process-dropdown" onfocus="this.size=5;" onblur="this.size=1;" onchange="this.size=1; this.blur();">
+                                        <option value="" selected disabled>----</option> <!-- Плейсхолдер -->
+                                        @foreach($groupedProcesses[$manual->id] as $process)
+                                            <option>
+                                                {{ $process['process_name'] }}: {{ $process['process'] }}
+                                            </option>
+                                        @endforeach
+                                    </select>
+                                </div>
+                            @else
+                                <div>Нет процессов</div>
+                            @endif
+                        </td>
+                        <td class="text-center" >
+                            <a href="{{ route('admin.processes.create', ['manual' => $manual->id]) }}" class="btn btn-outline-primary btn-sm">
+                                <i class="bi bi-plus-lg"></i>
+                            </a>
+                        </td>
+                    </tr>
 
-                                </a>
-                            </td>
-                        </tr>
-
-
-
-
-
-
-                        <div class="modal fade" id="cmmModal{{$manual->id }}" tabindex="-1"
-                             role="dialog" aria-labelledby="cmmModalLabel{{$manual->id }}"
-                             aria-hidden="true">
-                            <div class="modal-dialog modal-dialog-centered" role="document">
-                                <div class="modal-content bg-gradient">
-                                    <div class="modal-header">
-                                        <div>
-                                            <h5 class="modal-title"
-                                                id="imageModalLabel{{ $manual->id }}">
-                                                {{ $manual->title }}{{__(': ')}}
-                                            </h5 >
-                                            <h6>{{ $manual->unit_name_training }}</h6>
-                                        </div>
-                                        <button type="button"
-                                                class="btn-close pb-2"
-                                                data-bs-dismiss="modal"
-                                                aria-label="Close"></button>
+                    <!-- Модальное окно -->
+                    <div class="modal fade" id="cmmModal{{$manual->id}}" tabindex="-1"
+                         role="dialog" aria-labelledby="cmmModalLabel{{$manual->id}}"
+                         aria-hidden="true">
+                        <div class="modal-dialog modal-dialog-centered" role="document">
+                            <div class="modal-content bg-gradient">
+                                <div class="modal-header">
+                                    <div>
+                                        <h5 class="modal-title" id="imageModalLabel{{ $manual->id }}">
+                                            {{ $manual->title }}{{__(': ')}}
+                                        </h5>
+                                        <h6>{{ $manual->unit_name_training }}</h6>
                                     </div>
+                                    <button type="button" class="btn-close pb-2" data-bs-dismiss="modal" aria-label="Close"></button>
+                                </div>
 
-                                    <div class="modal-body">
-                                        <div class="d-flex">
-                                            <div class="me-2">
-                                                <img class="" src="{{ $manual->getBigImageUrl('manuals') }}"
-                                                     width="200"  alt="Image"/>
-
-                                            </div>
-                                            <div>
-                                                <p><strong>{{ __('CMM:') }}</strong> {{ $manual->number }}</p>
-                                                <p><strong>{{ __('Description:') }}</strong>
-                                                    {{ $manual->title }} </p>
-                                                <p><strong>{{ __('Revision Date:')}}</strong> {{ $manual->revision_date }}</p>
-                                                <p><strong>{{ __('Library:') }}</strong> {{$manual->lib }}</p>
-                                            </div>
-
+                                <div class="modal-body">
+                                    <div class="d-flex">
+                                        <div class="me-2">
+                                            <img class="" src="{{ $manual->getBigImageUrl('manuals') }}"
+                                                 width="200" alt="Image"/>
                                         </div>
-
+                                        <div>
+                                            <p><strong>{{ __('CMM:') }}</strong> {{ $manual->number }}</p>
+                                            <p><strong>{{ __('Description:') }}</strong> {{ $manual->title }}</p>
+                                            <p><strong>{{ __('Revision Date:') }}</strong> {{ $manual->revision_date }}</p>
+                                            <p><strong>{{ __('Library:') }}</strong> {{ $manual->lib }}</p>
+                                        </div>
                                     </div>
                                 </div>
                             </div>
                         </div>
-
-                    @endforeach
+                    </div>
+                @endforeach
                 </tbody>
             </table>
         </div>
@@ -186,6 +206,31 @@
 
 
     <script>
+
+        document.addEventListener('DOMContentLoaded', function () {
+            const dropdowns = document.querySelectorAll('.process-dropdown');
+
+            dropdowns.forEach(dropdown => {
+                // При открытии дропдауна
+                dropdown.addEventListener('focus', function () {
+                    this.size = this.options.length; // Показываем все элементы
+                    this.options[0].style.display = 'none'; // Скрываем плейсхолдер
+                });
+
+                // При закрытии дропдауна
+                dropdown.addEventListener('blur', function () {
+                    this.size = 1; // Возвращаем к стандартному размеру
+                    this.options[0].style.display = 'block'; // Показываем плейсхолдер
+                });
+
+                // При выборе элемента
+                dropdown.addEventListener('change', function () {
+                    this.size = 1; // Возвращаем к стандартному размеру
+                    this.blur(); // Закрываем дропдаун
+                });
+            });
+        });
+
         document.addEventListener('DOMContentLoaded', function () {
 
             // Sorting

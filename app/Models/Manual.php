@@ -35,6 +35,10 @@ class Manual extends Model implements  hasMedia
         return $this->belongsTo(Plane::class, 'planes_id');
     }
 
+    public function processes()
+    {
+        return $this->belongsToMany(Process::class, 'manual_processes', 'manual_id', 'processes_id');
+    }
     // Отношение с моделью MFR
     public function builder()
     {
