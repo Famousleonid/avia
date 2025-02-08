@@ -329,11 +329,12 @@
     </div>
 
     @php
-        $totalRows = 28; // Фиксированное количество строк
-        $partsCount = count($ordersParts); // Количество данных
+        // Проверяем, определена ли переменная $ordersParts
+        $ordersParts = $ordersParts ?? []; // Если переменная не определена, используем пустой массив
+        $partsCount = count($ordersParts); // Теперь $ordersParts всегда определена
     @endphp
 
-    @for($i = 0; $i < $totalRows; $i++)
+    @for($i = 0; $i < 28; $i++)
         @php
             // Если данные существуют, разделяем ipl_num
             if ($i < $partsCount) {
