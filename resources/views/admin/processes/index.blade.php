@@ -77,27 +77,27 @@
             cursor: pointer;
         }
         /*!* Стили для дропдауна *!*/
-        /*.process-dropdown {*/
-        /*    appearance: none; !* Убираем стандартный стиль браузера *!*/
-        /*    background-color: transparent;*/
-        /*    border: 1px solid #ccc;*/
-        /*    border-radius: 4px;*/
-        /*    padding: 0.25rem 0.5rem;*/
-        /*    cursor: pointer;*/
-        /*    width: 150px; !* Настройте ширину по необходимости *!*/
-        /*}*/
+        .process-dropdown {
+            appearance: none; /* Убираем стандартный стиль браузера */
+            background-color: transparent;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            padding: 0.25rem 0.5rem;
+            cursor: pointer;
+            /*width: 350px; !* Настройте ширину по необходимости *!*/
+        }
 
         /*!* Стиль для плейсхолдера *!*/
         /*.process-dropdown option[value=""] {*/
         /*    color: #999; !* Серый цвет для плейсхолдера *!*/
         /*}*/
 
-        /*!* Стиль для открытого дропдауна *!*/
-        /*.process-dropdown:focus {*/
-        /*    background-color: #fff;*/
-        /*    border-color: #86b7fe;*/
-        /*    box-shadow: 0 0 0 0.25rem rgba(13, 110, 253, 0.25);*/
-        /*}*/
+        /* Стиль для открытого дропдауна */
+        .process-dropdown:focus {
+            /*background-color: #fff;*/
+            border-color: #86b7fe;
+            box-shadow: 0 0 0 0.25rem rgba(13, 110, 253, 0.25);
+        }
 
     </style>
 
@@ -154,7 +154,7 @@
                                     </select>
                                 </div>
                             @else
-                                <div>Нет процессов</div>
+                                <div>No processes</div>
                             @endif
                         </td>
                         <td class="text-center" >

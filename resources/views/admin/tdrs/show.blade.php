@@ -187,6 +187,13 @@
 
                                         <i class="bi bi-file-earmark-excel"> TDR Form</i>
                                     </a>
+                                    <a href="{{ route('admin.tdrs.prlForm', ['id'=> $current_wo->id]) }}"
+                                       class="btn btn-outline-warning mb-1 formLink "
+                                       target="_blank"
+                                       id="#" style=" height: 40px">
+
+                                        <i class="bi bi-file-earmark-excel"> PRL Form</i>
+                                    </a>
                                 @endif
 
 

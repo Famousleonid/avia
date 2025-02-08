@@ -277,6 +277,33 @@ class TdrController extends Controller
     {
         //
     }
+    public function prlForm(Request $request, $id){
+        // Загрузка Workorder по ID
+        $current_wo = Workorder::findOrFail($id);
+
+        // Получаем данные о manual_id, связанном с этим Workorder
+        $manual_id = $current_wo->unit->manual_id;
+
+        // Извлекаем компоненты, связанные с manual_id
+        $components = Component::where('manual_id', $manual_id)->get();
+        $manuals = Manual::all();
+        $builders = Builder::all();
+        $codes = Code::all();
+        $necessaries = Necessary::all();
+
+        $necessary = Necessary::where('name', 'Order New')->first();
+
+        $ordersParts = Tdr::where('workorder_id', $current_wo->id)
+            ->where('necessaries_id', $necessary->id)
+            ->with('codes')
+            ->with('component')  // Используем связь, а не коллекцию компонентов
+            ->get();
+
+//
+
+        return view('admin.tdrs.prlForm', compact('current_wo', 'components','manuals', 'builders', 'codes','necessaries', 'ordersParts'));
+
+    }
     public function tdrForm(Request $request, $id)
     {
         // Загрузка Workorder по ID
@@ -325,9 +352,10 @@ class TdrController extends Controller
                     // Формируем строку для компонента
                     $componentString = sprintf(
                         "<b>%s</b> (%s%s)", // Номер компонента и его имя
-                        $component->name, // Имя компонента
-                        $component->ipl_num, // Номер компонента
-                        $tdr->qty == 1 ? '' : ', ' . $tdr->qty . 'pcs' // Если qty == 1, то пустая строка, иначе добавляем qty и "pcs"
+                        strtoupper($component->name), // Имя компонента
+                        strtoupper($component->ipl_num), // Номер компонента
+                        $tdr->qty == 1 ? '' : ', ' . $tdr->qty . 'pcs' // Если qty == 1, то пустая строка, иначе добавляем qty
+                    // и "pcs"
                     );
 
                     // Инициализируем массив для состояния, если он еще не существует
@@ -360,11 +388,11 @@ class TdrController extends Controller
                 if ($component && $necessaries && $codes) {
                     // Строим строку в нужном формате
                     $necessaryComponents[] = sprintf(
-                        "(%s) <b>%s</b> is Necessary: %s - %s", // Формат вывода
-                        $component->ipl_num, // Номер компонента
-                        $component->name, // Имя компонента
-                        $necessaries->name, // Название необходимости
-                        $codes->name // Название кода
+                        "(%s) <b>%s</b> IS NECESSARY: %s - %s", // Формат вывода
+                        strtoupper($component->ipl_num), // Номер компонента
+                        strtoupper($component->name), // Имя компонента
+                        strtoupper($necessaries->name), // Название необходимости
+                        strtoupper($codes->name) // Название кода
                     );
                 }
             }

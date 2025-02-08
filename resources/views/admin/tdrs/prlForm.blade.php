@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>TDR Form</title>
+    <title>PRL Form</title>
     <link rel="stylesheet" href="{{asset('assets/Bootstrap 5/bootstrap.min.css')}}">
 
     <style>
@@ -14,12 +14,12 @@
         }
 
         .container-fluid {
-            max-width: 960px;
+            max-width: 920px;
 
             height: 99%;
             padding: 5px;
-            margin-left: 10px;
-            margin-right: 10px;
+            margin-left: 30px;
+            margin-right: 5px;
         }
 
         @media print {
@@ -226,163 +226,157 @@
                  style="width: 180px; margin: 6px 10px 0;">
         </div>
         <div class="col-8">
-            <h5 class="pt-1   text-black text-"><strong>WORK ORDER TEAR DOWN REPORT</strong></h5>
+            <h2 class="p-2 mt-3 text-black text-"><strong>PART REPLACEMENT LIST</strong></h2>
         </div>
 
     </div>
-
-    <div class="row" style="height: 30px">
-        <div class="col-5 pt-1">
-            <p class="fs-6 text-end " >COMPONENT DESCRPTION:</p>
+    <div class="row">
+        <div class="col-1 text-end"><h6><strong>P/N:</strong> </h6></div>
+        <div class="col-5 ">
+            <div class="border-b">
+                <h6 class=""><strong> {{$current_wo->unit->part_number}}</strong></h6>
+            </div>
         </div>
-        <div class="col-5 border-all pt-1" style="height: 32px">
-            <h5 class="">
-            <strong> {{$current_wo->description}}</strong>
-            </h5>
-        </div>
-        <div class="col-2 border-t-r-b" style="height: 32px" >
-            <h5 class="pt-1">
-               <strong> W{{$current_wo->number}}</strong>
-            </h5>
-        </div>
-    </div>
-
-    <div class="row" style="height: 32px">
-        <div class="col-5 pt-1" style="height: 32px">
-            <p class="fs-6 text-end ">COMPONENT PART NO.:</p>
-        </div>
-        <div class="col-5 pt-1 border-l-b-r" style="height: 32px" >
-            <h5 class="">
-            <strong> {{$current_wo->unit->part_number}}</strong>
-            </h5>
-        </div>
-    </div>
-
-        <div class="row mt-2 mb-1" >
-            <div class="col-6" style="height: 32px">
-                <div class="row" >
-                    <div class="col-1" style="height: 32px"></div>
-                    <div class="col-10 border-all-b" style="height: 32px">
-                        <p class="fs-7 pt-1">
-                            <strong>TEARDOWN INSPECTION & CONDITION:</strong>
-                        </p>
+        <div class="col-3 ">
+            <div class="row ">
+                <div class="col-5 border-b">
+                    <div class="d-flex ">
+                        <h6 class=" "><strong>MFR: </strong></h6>
+                        @foreach($manuals as $manual)
+                            @if($manual->id == $current_wo->unit->manual_id)
+                                @foreach ($builders as $builder)
+                                    @if($builder->id == $manual->builders_id)
+                                        <h6 class=" ms-2"><strong> {{$builder->name}}</strong></h6>
+                                    @endif
+                                @endforeach
+                            @endif
+                        @endforeach
                     </div>
-                    <div class="col-1"></div>
+
                 </div>
-            </div>
-            <div class="col-6 border-all-b" style="height: 32px">
-                <p class="fs-7 pt-1">
-                    <strong>TEARDOWN INSPECTION & CONDITION:</strong>
-                </p>
+                <div class="col-5 border-b"> </div>
+
             </div>
         </div>
-        <div class="row  border-all-b" style="height: 38px">
-            <div class="col-5">
-                <p class="fs-7 text-end"><strong>ATTENTION PRODUCTION DEPARTMENT:</strong> </p>
-            </div>
-            <div class="col-7">
-                <p class="fs-8  ">MAKE SURE TO ADD INFORMATION FROM WO COWER SHEET TO IDENTIFY PRELIMINARY INSPECTION
-                    DETAILS FOR STRIP REPORT</p>
+        <div class="col-3">
+            <h5 class="p-1 border-all text-center">
+                <strong>{{__('WO No: W')}}{{$current_wo->number}}</strong>
+            </h5>
+        </div>
+    </div>
+    <div class="row mt-3">
+        <div class="col-6 ">
+            <div class="d-flex border-b">
+                    <h6 class="ms-4 me-3"><strong>DESC: </strong></h6>
+                   <div class="">
+                       @foreach($manuals as $manual)
+                           @if($manual->id == $current_wo->unit->manual_id)
+                               <h6 class=""><strong> {{$manual->title}}</strong></h6>
+                           @endif
+                       @endforeach
+                   </div>
+
             </div>
         </div>
-    <div class="row " >
-        <div class="col-6">
-            <div class="row " >
-                <div class="col-1 border-l-b" style="height: 36px">
-                    <img class="pt-1 ps-1" src="{{ asset('img/icons/reqs.png') }}" alt="reqs" style="height: 24px; margin-left:
-                            -10px" >
-                </div>
-                <div class="col-10 border-ll-bb">
-                    <p class="fs-8" style="margin-left: -10px">CUSTOMER SNAG CONFIRMED ?</p>
-                </div>
-                <div class="col-1 border-bb"></div>
-            </div>
-        </div>
-        <div class="col-6">
+        <div class="col-6 ">
             <div class="row">
-                <div class="col-11 border-bb" style="height: 36px">
-                    <p class="fs-5"  style="text-transform: uppercase;"><strong>{{$current_wo->instruction->name}}</strong></p>
+                <div class="col-2 border-b">
+                    <h6 class="" ><strong>CMM: </strong></h6>
                 </div>
-                <div class="col-1 border-ll-bb-rr">
-                    <img src="{{ asset('img/icons/check.svg') }}" alt="Check"
-                         style="width: 32px; margin-left: -12px">
+                <div class="col-3 border-b">
+                    @foreach($manuals as $manual)
+                        @if($manual->id == $current_wo->unit->manual_id)
+                            <h6 class=""><strong> {{$manual->number}}</strong></h6>
+                        @endif
+                    @endforeach
+                </div>
+                <div class="col-6"></div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row mt-4 " style="width: 1020px">
+        <div class="col-5">
+            <div class="row">
+                <div class="col-1 border-l-t-b  align-content-center">
+                    <h6 style="margin-left: -8px">FIG No.</h6>
+                </div>
+                <div class="col-2 border-l-t-b" >
+                    <h6 >ITEM No.</h6></div>
+                <div class="col-9 border-l-t-b align-content-center">DESCRIPTION</div>
+            </div>
+        </div>
+        <div class="col-7" >
+            <div class="row" style="height: 48px">
+                <div class="col-4 border-l-t-b text-center align-content-center">
+                    <h6>PART NUMBER</h6>
+                </div>
+                <div class="col-1 border-l-t-b  align-content-center">
+                    <h6 style="margin-left: -7px">QTY</h6>
+
+                </div>
+                <div class="col-1 border-l-t-b  align-content-center">
+                    <h6 style="margin-left: -10px">CODE</h6>
+                </div>
+                <div class="col-2 border-l-t-b text-center align-content-center">
+                    <h6>PO No.</h6>
+                </div>
+                <div class="col-2 border-all align-content-center">
+                    <h6>Notes</h6>
                 </div>
             </div>
         </div>
     </div>
-    <div class="row " >
-        <div class="col-6">
-            <div class="row " >
-                <div class="col-1 border-l-b align-items-center justify-content-center" style="height: 36px">
-                     <img class="pt-1 ps-1" src="{{ asset('img/icons/reqs.png') }}" alt="reqs" style="height: 24px; margin-left:
-                            -10px" >
-                </div>
-                <div class="col-10 border-ll-bb">
-                    <p class="fs-8" style="margin-left: -10px">CUSTOMER SNAG <strong>NOT</strong> CONFIRMED ?</p>
-                </div>
-                <div class="col-1 border-bb"></div>
-            </div>
-        </div>
-        <div class="col-6">
-            <div class="row">
-                <div class="col-1 border-bb"></div>
-                <div class="col-10 border-bb" style="height: 36px"></div>
-                <div class="col-1 border-ll-bb-rr"> {{count($tdrInspections)}}</div>
-            </div>
-        </div>
-    </div>
+
     @php
-        // Количество строк для каждого столбца
-        $totalRows = 20;
-        // Разделяем значения массива на два столбца
-        $firstColumn = array_slice($tdrInspections, 0, $totalRows);
-        $secondColumn = array_slice($tdrInspections, $totalRows, $totalRows);
+        $totalRows = 28; // Фиксированное количество строк
+        $partsCount = count($ordersParts); // Количество данных
     @endphp
 
-    @for ($i = 0; $i < $totalRows; $i++)
-        <div class="row">
-            <div class="col-6"> <!-- первый столбец -->
-                <div class="row">
-                    <div class="col-1 border-l-b-r" style="height: 36px">
-                        <img class="pt-1 ps-1" src="{{ asset('img/icons/reqs.png') }}" alt="reqs" style="height: 24px;
-                        margin-left:
-                            -10px" >
-                    </div>
-                    <div class="col-10 border-b" style="height: 36px">
-                        <p class="fs-75">
-                            <!-- Заполняем значением из первого столбца, если оно есть -->
-{{--                            {!! isset($firstColumn[$i]) ? $firstColumn[$i] : '' !!}--}}
-                            {!! $firstColumn[$i] ?? '' !!}
-                        </p>
-                    </div>
-                    <div class="col-1 border-l-b">
-                        @if(isset($firstColumn[$i]) && $firstColumn[$i] !== '')
-                            <img src="{{ asset('img/icons/check.svg') }}" alt="Check"
-                                 style="width: 32px; margin-left: -14px">
-                        @endif
-                    </div>
+    @for($i = 0; $i < $totalRows; $i++)
+        @php
+            // Если данные существуют, разделяем ipl_num
+            if ($i < $partsCount) {
+                $ipl_num = $ordersParts[$i]->component->ipl_num ?? '';
+                $ipl_parts = explode('-', $ipl_num); // Разделяем строку по "-"
+                $first_part = $ipl_parts[0] ?? ''; // Первая часть (1)
+                $second_part = $ipl_parts[1] ?? ''; // Вторая часть (330)
+            } else {
+                $first_part = '';
+                $second_part = '';
+            }
+        @endphp
 
+        <div class="row" style="width: 1020px">
+            <div class="col-5">
+                <div class="row" style="height: 36px">
+                    <div class="col-1 border-l-b align-content-center">
+                        <h6>{{ $first_part }}</h6> <!-- Первая часть (1) -->
+                    </div>
+                    <div class="col-2 border-l-b">
+                        <h6>{{ $second_part }}</h6> <!-- Вторая часть (330) -->
+                    </div>
+                    <div class="col-9 border-l-b align-content-center">
+                        {{ $i < $partsCount ? $ordersParts[$i]->component->name : '' }}
+                    </div>
                 </div>
             </div>
-            <div class="col-6"> <!-- второй столбец -->
-                <div class="row">
-                    <div class="d-flex  col-1 border-b-r" style="height: 36px ">
-                        <img src="{{ asset('img/icons/reqs_bb.png') }}" alt="reqs" style="height: 36px; margin-left:
-                            -16px" >
-                        <img class="pt-1 ps-1" src="{{ asset('img/icons/reqs.png') }}" alt="reqs" style="height: 24px;" >
-
+            <div class="col-7">
+                <div class="row" style="height: 36px">
+                    <div class="col-4 border-l-b text-center align-content-center">
+                        <h6>{{ $i < $partsCount ? $ordersParts[$i]->component->part_number : '' }}</h6>
                     </div>
-                    <div class="col-10 border-b" style="height: 36px">
-                        <p class="fs-75">
-                        <!-- Заполняем значением из второго столбца, если оно есть -->
-                        {{ $secondColumn[$i] ?? '' }}
-                        </p>
+                    <div class="col-1 border-l-b align-content-center">
+                        <h6 style="margin-left: -7px">{{ $i < $partsCount ? $ordersParts[$i]->quantity : '' }}</h6>
                     </div>
-                    <div class="col-1 border-l-b-r" style="height: 36px">
-                        @if(isset($secondColumn[$i]) && $secondColumn[$i] !== '')
-                            <img src="{{ asset('img/icons/check.svg') }}" alt="Check"
-                                 style="width: 32px; margin-left: -16px">
-                        @endif
+                    <div class="col-1 border-l-b align-content-center">
+                        <h6 style="margin-left: -10px">{{ $i < $partsCount ? ($ordersParts[$i]->codes->code ?? '') : '' }}</h6>
+                    </div>
+                    <div class="col-2 border-l-b text-center align-content-center">
+                        <h6>{{ $i < $partsCount ? $ordersParts[$i]->po_number : '' }}</h6>
+                    </div>
+                    <div class="col-2 border-l-b-r align-content-center">
+                        <h6>{{ $i < $partsCount ? $ordersParts[$i]->notes : '' }}</h6>
                     </div>
                 </div>
             </div>
@@ -390,10 +384,23 @@
     @endfor
 
 
+
+
+{{-- @foreach($ordersParts as $part)--}}
+{{--        <p>{{$part->component->name}} {{$part->component->ipl_num}} {{$part->component->part_number}}</p>--}}
+
+{{-- @endforeach--}}
+
+
+
+
+
+
+
     <footer >
         <div class="row" style="width: 100%; padding: 5px 0;">
             <div class="col-6 text-start">
-                {{__("Form #003")}}
+                {{__("Form #028")}}
             </div>
             <div class="col-6 text-end pe-4 ">
                 {{__('Rev#0, 15/Dec/2012   ')}}
