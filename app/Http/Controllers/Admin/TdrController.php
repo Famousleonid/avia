@@ -286,12 +286,16 @@ class TdrController extends Controller
 
         // Извлекаем компоненты, связанные с manual_id
         $components = Component::where('manual_id', $manual_id)->get();
-        $manuals = Manual::where('id', $manual_id)->get();;
+
         $builders = Builder::all();
         $codes = Code::all();
         $necessaries = Necessary::all();
 
         $necessary = Necessary::where('name', 'Order New')->first();
+
+        $manuals = Manual::where('id', $manual_id)
+            ->with('builder')
+            ->get();
 
         $ordersParts = Tdr::where('workorder_id', $current_wo->id)
             ->where('necessaries_id', $necessary->id)

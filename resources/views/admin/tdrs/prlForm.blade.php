@@ -271,11 +271,7 @@
                                 <h6 class=" "><strong>MFR: </strong></h6>
                                 @foreach($manuals as $manual)
                                     @if($manual->id == $current_wo->unit->manual_id)
-                                        @foreach ($builders as $builder)
-                                            @if($builder->id == $manual->builders_id)
-                                                <h6 class=" ms-2"><strong> {{$builder->name}}</strong></h6>
-                                            @endif
-                                        @endforeach
+                                        <h6 class=" ms-2"><strong> {{$manual->builder->name}}</strong></h6>
                                     @endif
                                 @endforeach
                             </div>
