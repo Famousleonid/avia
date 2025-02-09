@@ -383,13 +383,21 @@
                     // necessaries_id: 'Order New',
                     LifeFields: [
                         { name: 'necessaries_id', value: '2' },
-                        { name: 'conditions_id', value: '35' },
+                        { name: 'conditions_id', value: '34' },
                         // { name: 'use_tdr', value: 'false' },
                     ]
                 },
                 'Incorrect Part': {
                     // necessaries_id: 'Order New',
                     ipFields: [
+                        { name: 'necessaries_id', value: '2' },
+                        { name: 'conditions_id', value: '38' },
+                        { name: 'use_tdr', value: 'true' },
+                    ]
+                },
+                'Service Bulletin': {
+                    // necessaries_id: 'Order New',
+                    sbFields: [
                         { name: 'necessaries_id', value: '2' },
                         { name: 'conditions_id', value: '39' },
                         { name: 'use_tdr', value: 'true' },
@@ -521,6 +529,9 @@
                 } else if (codeName === 'Incorrect Part' ) {
                     // Для кода 'Incorrect Part' и выбранного значения в necessaries
                     data = necessariesData['Incorrect Part'].ipFields;
+                } else if (codeName === 'Service Bulletin' ) {
+                    // Для кода 'Incorrect Part' и выбранного значения в necessaries
+                    data = necessariesData['Service Bulletin'].sbFields;
                 } else if (codeName === 'Kit' ) {
                     // Для кода 'Kit' и выбранного значения в necessaries
                     data = necessariesData['Kit'].kFields;

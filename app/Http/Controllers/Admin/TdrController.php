@@ -286,7 +286,7 @@ class TdrController extends Controller
 
         // Извлекаем компоненты, связанные с manual_id
         $components = Component::where('manual_id', $manual_id)->get();
-        $manuals = Manual::all();
+        $manuals = Manual::where('id', $manual_id)->get();;
         $builders = Builder::all();
         $codes = Code::all();
         $necessaries = Necessary::all();
