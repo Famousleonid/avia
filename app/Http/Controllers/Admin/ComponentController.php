@@ -90,6 +90,10 @@ class ComponentController extends Controller
                 'assy_img' => 'nullable|image|mimes:jpeg,png,jpg,gif,svg|max:2048',
             ]);
 
+            $validated['assy_ipl_num'] = $request->assy_ipl_num;
+            $validated['assy_part_number'] = $request->assy_part_number;
+
+
             // Создание нового компонента
             $component = Component::create($validated);
 

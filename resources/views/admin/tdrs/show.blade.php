@@ -200,7 +200,7 @@
                                        target="_blank"
                                        id="#" style=" height: 40px">
 {{--                                        PRL--}}
-                                        <i class="bi bi-file-earmark-excel">PRL </i>
+                                        <i class="bi bi-file-earmark-excel"> PRL  </i>
                                     </a>
                                 @endif
 

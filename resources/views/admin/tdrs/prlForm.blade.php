@@ -317,30 +317,30 @@
             <div class="row mt-4 " style="width: 1020px">
                 <div class="col-5">
                     <div class="row">
-                        <div class="col-1 border-l-t-b  align-content-center">
-                            <h6 style="margin-left: -8px">FIG No.</h6>
+                        <div class="col-1 border-l-t-b text-center align-content-center">
+                            <h6 style="margin-left: -8px;margin-top: 5px">FIG No.</h6>
                         </div>
                         <div class="col-2 border-l-t-b" >
-                            <h6 >ITEM No.</h6></div>
-                        <div class="col-9 border-l-t-b align-content-center">DESCRIPTION</div>
+                            <h6 style="margin-top: 5px">ITEM No.</h6></div>
+                        <div class="col-9 border-l-t-b  text-center align-content-center">DESCRIPTION</div>
                     </div>
                 </div>
                 <div class="col-7" >
-                    <div class="row" style="height: 48px">
+                    <div class="row" style="height: 53px">
                         <div class="col-4 border-l-t-b text-center align-content-center">
-                            <h6>PART NUMBER</h6>
+                            <h6 style="margin-top: 10px">PART NUMBER</h6>
                         </div>
                         <div class="col-1 border-l-t-b  align-content-center">
-                            <h6 style="margin-left: -7px">QTY</h6>
+                            <h6 style="margin-left: -7px ;margin-top: 10px">QTY</h6>
                         </div>
                         <div class="col-1 border-l-t-b  align-content-center">
-                            <h6 style="margin-left: -10px">CODE</h6>
+                            <h6 style="margin-left: -10px ;margin-top: 10px">CODE</h6>
                         </div>
                         <div class="col-2 border-l-t-b text-center align-content-center">
-                            <h6>PO No.</h6>
+                            <h6 style="margin-top: 10px">PO No.</h6>
                         </div>
-                        <div class="col-2 border-all align-content-center">
-                            <h6>Notes</h6>
+                        <div class="col-2 border-all text-center align-content-center">
+                            <h6 style="margin-top: 10px">Notes</h6>
                         </div>
                     </div>
                 </div>
@@ -420,8 +420,103 @@
     @else
         <!-- Если данных нет, выводим одну страницу с пустыми строками -->
         <div class="header-page">
-            <!-- Верхняя часть формы -->
-            <!-- (Повторяем тот же код, что и выше) -->
+            <div class="row">
+                <div class="col-4">
+                    <img src="{{ asset('img/icons/AT_logo-rb.svg') }}" alt="Logo"
+                         style="width: 180px; margin: 6px 10px 0;">
+                </div>
+                <div class="col-8">
+                    <h2 class="p-2 mt-3 text-black text-"><strong>PART REPLACEMENT LIST</strong></h2>
+                </div>
+            </div>
+            <div class="row">
+                <div class="col-1 text-end"><h6><strong>P/N:</strong> </h6></div>
+                <div class="col-5 ">
+                    <div class="border-b">
+                        <h6 class=""><strong> {{$current_wo->unit->part_number}}</strong></h6>
+                    </div>
+                </div>
+                <div class="col-3 ">
+                    <div class="row ">
+                        <div class="col-5 border-b">
+                            <div class="d-flex ">
+                                <h6 class=" "><strong>MFR: </strong></h6>
+                                @foreach($manuals as $manual)
+                                    @if($manual->id == $current_wo->unit->manual_id)
+                                        <h6 class=" ms-2"><strong> {{$manual->builder->name}}</strong></h6>
+                                    @endif
+                                @endforeach
+                            </div>
+                        </div>
+                        <div class="col-5 border-b"> </div>
+                    </div>
+                </div>
+                <div class="col-3">
+                    <h5 class="p-1 border-all text-center">
+                        <strong>{{__('WO No: W')}}{{$current_wo->number}}</strong>
+                    </h5>
+                </div>
+            </div>
+            <div class="row mt-3">
+                <div class="col-6 ">
+                    <div class="d-flex border-b">
+                        <h6 class="ms-4 me-3"><strong>DESC: </strong></h6>
+                        <div class="">
+                            @foreach($manuals as $manual)
+                                @if($manual->id == $current_wo->unit->manual_id)
+                                    <h6 class=""><strong> {{$manual->title}}</strong></h6>
+                                @endif
+                            @endforeach
+                        </div>
+                    </div>
+                </div>
+                <div class="col-6 ">
+                    <div class="row">
+                        <div class="col-2 border-b">
+                            <h6 class="" ><strong>CMM: </strong></h6>
+                        </div>
+                        <div class="col-3 border-b">
+                            @foreach($manuals as $manual)
+                                @if($manual->id == $current_wo->unit->manual_id)
+                                    <h6 class=""><strong> {{$manual->number}}</strong></h6>
+                                @endif
+                            @endforeach
+                        </div>
+                        <div class="col-6"></div>
+                    </div>
+                </div>
+            </div>
+            <div class="row mt-4 " style="width: 1020px">
+                <div class="col-5">
+                    <div class="row">
+                        <div class="col-1 border-l-t-b text-center align-content-center">
+                            <h6 style="margin-left: -8px;margin-top: 5px">FIG No.</h6>
+                        </div>
+                        <div class="col-2 border-l-t-b" >
+                            <h6 style="margin-top: 5px">ITEM No.</h6></div>
+                        <div class="col-9 border-l-t-b  text-center align-content-center">DESCRIPTION</div>
+                    </div>
+                </div>
+                <div class="col-7" >
+                    <div class="row" style="height: 53px">
+                        <div class="col-4 border-l-t-b text-center align-content-center">
+                            <h6 style="margin-top: 10px">PART NUMBER</h6>
+                        </div>
+                        <div class="col-1 border-l-t-b  align-content-center">
+                            <h6 style="margin-left: -7px ;margin-top: 10px">QTY</h6>
+                        </div>
+                        <div class="col-1 border-l-t-b  align-content-center">
+                            <h6 style="margin-left: -10px ;margin-top: 10px">CODE</h6>
+                        </div>
+                        <div class="col-2 border-l-t-b text-center align-content-center">
+                            <h6 style="margin-top: 10px">PO No.</h6>
+                        </div>
+                        <div class="col-2 border-all text-center align-content-center">
+                            <h6 style="margin-top: 10px">Notes</h6>
+                        </div>
+                    </div>
+                </div>
+            </div>
         </div>
         <div class="page data-page">
             @for($i = 0; $i < $partsPerPage; $i++)
@@ -461,6 +556,18 @@
                 </div>
             @endfor
 
+        </div>
+        <div class="row mt-2">
+            <div class="col-8"></div>
+            <div class="col-1 border-l-t-b" style="width: 48px; height: 46px">
+                <img src="{{ asset('img/icons/prod_st.png') }}" alt="stamp"
+                     style="width: 42px; margin-left: -8px">
+            </div>
+            <div class="col-1 border-all" style="width: 48px; height: 46px">
+                <img src="{{ asset('img/icons/qual_st.png') }}" alt="stamp"
+                     style="width: 42px; margin-left: -10px; margin-top: 1px">
+            </div>
+            <div class="col-2"></div>
         </div>
     @endif
 

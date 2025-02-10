@@ -105,7 +105,7 @@ Route::group(['middleware' => ['auth', 'isAdmin'], 'prefix' => 'admin', 'as' =>'
     Route::resource('/processes', \App\Http\Controllers\Admin\ProcessController::class);
     Route::get('/get-processes', [\App\Http\Controllers\Admin\ProcessController::class, 'getProcesses'])->name('processes.getProcesses');
     Route::resource('/process-names',\App\Http\Controllers\Admin\ProcessNameController::class);
-
+    Route::resource('/tdr-processes',\App\Http\Controllers\Admin\TdrProcessController::class);
 
 });
 
