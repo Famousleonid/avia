@@ -366,8 +366,6 @@
                                 </div>
                             </div>
                         </div>
-
-
                         <!--  Forms Modal -->
                         <div class="modal fade" id="formsModal{{$current_wo->number}}" tabindex="-1" role="dialog"
                              aria-labelledby="formsModallabel{{$current_wo->number}}" aria-hidden="true">
@@ -387,12 +385,8 @@
                                 </div>
                             </div>
                         </div>
-
                     </div>
-
-
                 </div>
-
             </div> <! --- Header end --- ->
 
             <! --- Body --- ->
@@ -400,19 +394,17 @@
             {{--        @if(count($tdrs))--}}
 
             <div class="">
-                WorkOrder ID :{{$current_wo->id}}. Count TDR Records: {{count($tdrs)}}
-
+{{--                WorkOrder ID :{{$current_wo->id}}. Count TDR Records: {{count($tdrs)}}--}}
                 <div class="d-flex justify-content-center">
-                    <div class="me-3" style="width: 500px">
+
+                    <div class="me-3" style="width: 500px"> <!-  Inspection Unit  ->
                         <div class="table-wrapper me3 p-2">
                             <table id="tdr_inspect_Table" class="display table table-sm
-                    table-hover table-striped align-middle
-                    table-bordered bg-gradient">
+                                        table-hover table-striped align-middle table-bordered bg-gradient">
                                 <thead>
                                 <tr>
                                     <th class=" text-primary text-center " style="width: 400px;">{{__('Teardown Inspection')
                                     }}</th>
-{{--                                    <th class="text-center" style="width: 150px;">{{__('Action ')}}</th>--}}
                                 </tr>
                                 </thead>
                                 <tbody>
@@ -438,18 +430,9 @@
                                                         @endif
                                                     @endforeach
                                                 </td>
-{{--                                                <td class="text-center">--}}
-{{--                                                    <a href="{{ route('admin.tdrs.edit',['tdr' => $tdr->id]) }}"--}}
-{{--                                                       class="btn btn-outline-primary btn-sm">--}}
-{{--                                                        <i class="bi bi-pencil-square"></i>--}}
-{{--                                                    </a>--}}
-
-{{--                                                </td>--}}
                                             </tr>
-
                                     @endif
                                 @endforeach
-
                                 </tbody>
                             </table>
                         </div>
@@ -460,27 +443,19 @@
                             <table id="tdr_process_Table" class="display table table-sm table-hover table-striped align-middle table-bordered">
                                 <thead class="bg-gradient">
                                 <tr>
-                                    <th class="text-center text-primary sortable">{{__('IPL Number')}} <i class="bi bi-chevron-expand ms-1"></i></th>
-                                    <th class="text-center  text-primary sortable">{{__('Part
-                                Description')}} <i class="bi bi-chevron-expand ms-1"></i></th>
-                                    <th class="text-center text-primary sortable ">{{__('Part number')}} <i class="bi bi-chevron-expand
-                                    ms-1"></i></th>
-                                    <th class="text-center  text-primary sortable">{{__('Serial number')}} <i class="bi bi-chevron-expand
-                                    ms-1"></i></th>
-{{--                                    <th class=" text-center " style="width: 300px">{{__('Condition ')}}</th>--}}
+                                    <th class="text-center text-primary sortable">{{__('IPL Number')}} </th>
+                                    <th class="text-center  text-primary sortable">{{__('Part Description')}} </th>
+                                    <th class="text-center text-primary sortable ">{{__('Part number')}} </th>
+                                    <th class="text-center  text-primary sortable">{{__('Serial number')}}</th>
                                     <th class=" text-center text-primary " style="width: 200px">{{__('Necessary')}}</th>
+                                    <th class=" text-center text-primary" >{{__('Processes ')}}</th>
                                     <th class=" text-center text-primary " style="width: 120px">{{__('Code')}}</th>
-{{--                                    <th class=" text-center " style="width:--}}
-{{--                                120px">{{__('Use TDR')}}</th>--}}
-{{--                                    <th class=" text-center " style="width:--}}
-{{--                                120px">{{__('Use Processes')}}</th>--}}
                                     <th class="text-center  text-primary">Action</th>
                                 </tr>
                                 </thead>
                                 <tbody>
                                 @foreach($tdrs as $tdr)
                                     @if($tdr->use_tdr == true and $tdr->use_process_forms == true)
-
                                             <tr>
                                                 <td  class="text-center"> <!-- IPL Number -->
                                                     @foreach($components as $component)
@@ -519,6 +494,12 @@
                                                             {{$necessary ->name}}
                                                         @endif
                                                     @endforeach
+                                                </td>
+                                                <td class="text-center">
+                                                    <a href=""
+                                                       class="btn btn-outline-primary btn-sm">
+                                                    <i class="bi bi-bounding-box"></i>
+                                                    </a>
                                                 </td>
                                                 <td class="text-center"><!--  Code -->
                                                     @foreach($codes as $code)

@@ -519,7 +519,7 @@
             </div>
         </div>
         <div class="page data-page">
-            @for($i = 0; $i < $partsPerPage; $i++)
+            @for($i = 0; $i < $partsPerPage ; $i++)
                 <div class="row" style="width: 1020px">
                     <div class="col-5">
                         <div class="row" style="height: 36px">
@@ -555,20 +555,20 @@
                     </div>
                 </div>
             @endfor
+                <div class="row mt-2">
+                    <div class="col-8"></div>
+                    <div class="col-1 border-l-t-b" style="width: 48px; height: 46px">
+                        <img src="{{ asset('img/icons/prod_st.png') }}" alt="stamp"
+                             style="width: 42px; margin-left: -8px">
+                    </div>
+                    <div class="col-1 border-all" style="width: 48px; height: 46px">
+                        <img src="{{ asset('img/icons/qual_st.png') }}" alt="stamp"
+                             style="width: 42px; margin-left: -10px; margin-top: 1px">
+                    </div>
+                    <div class="col-2"></div>
+                </div>
+        </div>
 
-        </div>
-        <div class="row mt-2">
-            <div class="col-8"></div>
-            <div class="col-1 border-l-t-b" style="width: 48px; height: 46px">
-                <img src="{{ asset('img/icons/prod_st.png') }}" alt="stamp"
-                     style="width: 42px; margin-left: -8px">
-            </div>
-            <div class="col-1 border-all" style="width: 48px; height: 46px">
-                <img src="{{ asset('img/icons/qual_st.png') }}" alt="stamp"
-                     style="width: 42px; margin-left: -10px; margin-top: 1px">
-            </div>
-            <div class="col-2"></div>
-        </div>
     @endif
 
     <footer>
