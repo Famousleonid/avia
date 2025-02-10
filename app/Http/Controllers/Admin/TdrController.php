@@ -206,6 +206,16 @@ class TdrController extends Controller
         $components = Component::where('manual_id', $manual_id)->get();
         $code = Code::where('name', 'Missing')->first();
         $necessary = Necessary::where('name', 'Order New')->first();
+        $missingCondition = Condition::where('name', 'PARTS MISSING UPON ARRIVAL AS INDICATED ON PARTS LIST')->first();
+        $conditions = Condition::all();
+
+        $inspectsUnit = Tdr::where('workorder_id', $current_wo->id)
+            ->where('component_id', null)
+            ->when($missingCondition, function ($query) use ($missingCondition) {
+                return $query->where('conditions_id', '!=', $missingCondition->id);
+            })
+            ->with('conditions')
+            ->get();
 
         // Загружаем TDR с жадной загрузкой компонента и фильтруем по нужным условиям
         $missingParts = Tdr::where('workorder_id', $current_wo->id)
@@ -230,7 +240,7 @@ class TdrController extends Controller
         $necessaries = Necessary::all();
         $unit_conditions = Condition::where('unit', true)->get();
         $component_conditions = Condition::where('unit', false)->get();
-        $conditions = Condition::all();
+
 
         $codes = Code::all();
 
@@ -240,7 +250,7 @@ class TdrController extends Controller
             'components', 'user', 'customers',
             'manuals', 'builders', 'planes', 'instruction',
             'necessaries', 'unit_conditions', 'component_conditions',
-            'codes', 'conditions', 'missingParts','ordersParts'));
+            'codes', 'conditions', 'missingParts','ordersParts','inspectsUnit'));
     }
 
     /**

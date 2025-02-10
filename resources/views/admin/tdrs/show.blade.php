@@ -163,8 +163,16 @@
                     <div class="ms-3" >
                         <div class="d-flex ">
                             <div class="me-2">
+                                @if(count($inspectsUnit)>0)
+                                    <button class="btn btn-outline-info btn-sm" style="height: 40px"
+                                            data-bs-toggle="modal"
+                                            data-bs-target="#inspectModal{{$current_wo->number}}">
+                                        {{ __('Inspect Unit') }}</button>
+                                @endif
+                            </div>
+                            <div class="me-2">
                                   @if($current_wo->part_missing )
-                                    <button class="btn btn-outline-primary btn-sm" style="height: 40px"
+                                    <button class="btn btn-outline-info btn-sm" style="height: 40px"
                                             data-bs-toggle="modal"
                                             data-bs-target="#missingModal{{$current_wo->number}}">
                                         {{ __('Missing Part') }}</button>
@@ -172,7 +180,7 @@
                             </div>
                             <div class="me-2">
                                 @if($current_wo->new_parts)
-                                    <button class="btn btn-outline-primary btn-sm" style="height: 40px" href="#"
+                                    <button class="btn btn-outline-info btn-sm" style="height: 40px" href="#"
                                             data-bs-toggle="modal" data-bs-target="#orderModal{{$current_wo->number}}">
                                         {{ __('Ordered Parts') }}</button>
 
@@ -191,8 +199,8 @@
                                        class="btn btn-outline-warning mb-1 formLink "
                                        target="_blank"
                                        id="#" style=" height: 40px">
-
-                                        <i class="bi bi-file-earmark-excel"> PRL Form</i>
+{{--                                        PRL--}}
+                                        <i class="bi bi-file-earmark-excel">PRL </i>
                                     </a>
                                 @endif
 
@@ -263,6 +271,46 @@
                             </div>
                         </div>
 
+                        <div class="modal fade" id="inspectModal{{$current_wo->number}}" tabindex="-1"  role="dialog"
+                             aria-labelledby="orderModalLabel{{$current_wo->number}}" aria-hidden="true">
+                            <div class="modal-dialog modal-dialog-centered" role="document">
+                                <div class="modal-content bg-gradient">
+                                    <div class="modal-header" >
+                                        <div>
+                                            <h5 class="modal-title">{{__('Work order ')}}{{$current_wo->number}}</h5>
+                                            <h5 class="modal-title">{{__('Inspections  ')}}</h5>
+                                        </div>
+                                        <button type="button" class="btn-close pb-2" data-bs-dismiss="modal" aria-label="Close"></button>
+                                    </div>
+                                    <div class="table-wrapper">
+                                        <table class="display table table-cm table-hover table-striped align-middle table-bordered">
+                                            <thead class="">
+                                            <tr>
+                                                <th class="text-primary text-center">{{__('Teardown Inspection')}}</th>
+                                                <th class="text-primary  bg-gradient " >{{__('Delete')}}</th>
+                                            </tr>
+                                            </thead>
+                                            <tbody>
+                                            @foreach($inspectsUnit as $unit)
+                                                <tr>
+                                                    <td class="p-3"> {{$unit->conditions->name}} </td>
+                                                    <td class="p-3">
+                                                        <!-- Кнопка удаления -->
+                                                        <form action="{{ route('admin.tdrs.destroy', $unit->id) }}" method="POST"
+                                                              onsubmit="return confirm('Вы уверены, что хотите удалить эту деталь?');">
+                                                            @csrf
+                                                            @method('DELETE')
+                                                            <button type="submit" class="btn btn-danger btn-sm">{{__('Delete')}}</button>
+                                                        </form>
+                                                    </td>
+                                                </tr>
+                                            @endforeach
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
                         <!--  Ordered Modal -->
                         <div class="modal fade" id="orderModal{{$current_wo->number}}" tabindex="-1"
                              role="dialog" aria-labelledby="orderModalLabel{{$current_wo->number}}" aria-hidden="true">
@@ -318,6 +366,8 @@
                                 </div>
                             </div>
                         </div>
+
+
                         <!--  Forms Modal -->
                         <div class="modal fade" id="formsModal{{$current_wo->number}}" tabindex="-1" role="dialog"
                              aria-labelledby="formsModallabel{{$current_wo->number}}" aria-hidden="true">
@@ -360,8 +410,9 @@
                     table-bordered bg-gradient">
                                 <thead>
                                 <tr>
-                                    <th class="text-center" style="width: 400px;">{{__('Teardown Inspection')}}</th>
-                                    <th class="text-center" style="width: 150px;">{{__('Action ')}}</th>
+                                    <th class=" text-primary text-center " style="width: 400px;">{{__('Teardown Inspection')
+                                    }}</th>
+{{--                                    <th class="text-center" style="width: 150px;">{{__('Action ')}}</th>--}}
                                 </tr>
                                 </thead>
                                 <tbody>
@@ -375,10 +426,6 @@
                                                             {{$condition ->name}}
                                                         @endif
                                                     @endforeach
-
-
-
-
                                                     @foreach($components as $component)
                                                         @if($component->id == $tdr->component_id)
                                                             {{$component -> name}}
@@ -391,13 +438,13 @@
                                                         @endif
                                                     @endforeach
                                                 </td>
-                                                <td class="text-center">
-                                                    <a href="{{ route('admin.tdrs.edit',['tdr' => $tdr->id]) }}"
-                                                       class="btn btn-outline-primary btn-sm">
-                                                        <i class="bi bi-pencil-square"></i>
-                                                    </a>
+{{--                                                <td class="text-center">--}}
+{{--                                                    <a href="{{ route('admin.tdrs.edit',['tdr' => $tdr->id]) }}"--}}
+{{--                                                       class="btn btn-outline-primary btn-sm">--}}
+{{--                                                        <i class="bi bi-pencil-square"></i>--}}
+{{--                                                    </a>--}}
 
-                                                </td>
+{{--                                                </td>--}}
                                             </tr>
 
                                     @endif
@@ -413,19 +460,21 @@
                             <table id="tdr_process_Table" class="display table table-sm table-hover table-striped align-middle table-bordered">
                                 <thead class="bg-gradient">
                                 <tr>
-                                    <th class="text-center  sortable">{{__('IPL Number')}} <i class="bi bi-chevron-expand ms-1"></i></th>
-                                    <th class="text-center  sortable">{{__('Part
+                                    <th class="text-center text-primary sortable">{{__('IPL Number')}} <i class="bi bi-chevron-expand ms-1"></i></th>
+                                    <th class="text-center  text-primary sortable">{{__('Part
                                 Description')}} <i class="bi bi-chevron-expand ms-1"></i></th>
-                                    <th class="text-center sortable ">{{__('Part number')}} <i class="bi bi-chevron-expand ms-1"></i></th>
-                                    <th class="text-center  sortable">{{__('Serial number')}} <i class="bi bi-chevron-expand ms-1"></i></th>
+                                    <th class="text-center text-primary sortable ">{{__('Part number')}} <i class="bi bi-chevron-expand
+                                    ms-1"></i></th>
+                                    <th class="text-center  text-primary sortable">{{__('Serial number')}} <i class="bi bi-chevron-expand
+                                    ms-1"></i></th>
 {{--                                    <th class=" text-center " style="width: 300px">{{__('Condition ')}}</th>--}}
-                                    <th class=" text-center " style="width: 200px">{{__('Necessary')}}</th>
-                                    <th class=" text-center " style="width: 120px">{{__('Code')}}</th>
+                                    <th class=" text-center text-primary " style="width: 200px">{{__('Necessary')}}</th>
+                                    <th class=" text-center text-primary " style="width: 120px">{{__('Code')}}</th>
 {{--                                    <th class=" text-center " style="width:--}}
 {{--                                120px">{{__('Use TDR')}}</th>--}}
 {{--                                    <th class=" text-center " style="width:--}}
 {{--                                120px">{{__('Use Processes')}}</th>--}}
-                                    <th class="text-center ">Action</th>
+                                    <th class="text-center  text-primary">Action</th>
                                 </tr>
                                 </thead>
                                 <tbody>
@@ -491,19 +540,12 @@
 
                                     @endif
 
-
-
-
                                 @endforeach
                                 </tbody>
                             </table>
                         </div>
                     </div>
                 </div>
-
-
-
-
             </div>
 
             {{--            @else--}}
