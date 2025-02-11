@@ -51,6 +51,7 @@ Route::group(['middleware' => ['auth'], 'prefix' => 'cabinet', 'as' =>'cabinet.'
     Route::post('/trainings/createTraining', [TrainingController::class, 'createTraining'])->name('trainings.createTraining');
     Route::get('trainings/form112/{id}', [TrainingController::class, 'showForm112'])->name('trainings.form112');
     Route::get('trainings/form132/{id}', [TrainingController::class, 'showForm132'])->name('trainings.form132');
+
     Route::get('/profile', [CabinetController::class, 'profile'])->name('profile');
     Route::post('profile/change_password/user/{id}/', [UserController::class, 'changePassword'])->name('profile.changePassword');
     Route::get('/progress', [CabinetController::class, 'progress'])->name('progress.index');
@@ -109,7 +110,6 @@ Route::group(['middleware' => ['auth', 'isAdmin'], 'prefix' => 'admin', 'as' =>'
     Route::resource('/tdr-processes',\App\Http\Controllers\Admin\TdrProcessController::class);
 
     Route::resource('/trainings', \App\Http\Controllers\Admin\TrainingController::class);
-
     Route::get('trainings/form112/{id}', [\App\Http\Controllers\Admin\TrainingController::class, 'showForm112'])->name('trainings.form112');
     Route::get('trainings/form132/{id}', [\App\Http\Controllers\Admin\TrainingController::class, 'showForm132'])->name('trainings.form132');
     Route::post('/trainings/createTraining', [\App\Http\Controllers\Admin\TrainingController::class, 'createTraining'])->name('trainings.createTraining');

@@ -290,16 +290,16 @@
                 }
 
 // Подготовка сообщения для подтверждения
-                let confirmationMessage = "Предоставленные данные для создания тренингов:\n";
+                let confirmationMessage = "Provided data for creating trainings:\n";
                 trainingData.manuals_id.forEach((id, index) => {
                     confirmationMessage += `\nTraining for ${lastTrainingYear + index + 1} years:\n`;
                     confirmationMessage += `Manuals ID: ${id} ${manualsTitle}\n`;
-                    confirmationMessage += `Дата тренировки: ${trainingData.date_training[index]} \n`;
-                    confirmationMessage += `Форма: ${trainingData.form_type[index]} \n`;
+                    confirmationMessage += `Training date: ${trainingData.date_training[index]} \n`;
+                    confirmationMessage += `Form: ${trainingData.form_type[index]} \n`;
                 });
 
 // Показываем сообщение для подтверждения
-                if (confirm(confirmationMessage + "\nВы уверены, что хотите продолжить создание тренингов?")) {
+                if (confirm(confirmationMessage + "\nAre you sure you want to continue creating trainings?")) {
 // Если пользователь подтвердил, выполняем запрос
                     fetch('{{ route('cabinet.trainings.createTraining') }}', {
                         method: 'POST',

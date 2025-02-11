@@ -149,7 +149,7 @@ class TrainingController extends Controller
                 ]);
             }
 
-            return response()->json(['success' => true, 'message' => 'Тренинги успешно созданы.']);
+            return response()->json(['success' => true, 'message' => 'The trainings have been successfully created.']);
         } catch (\Exception $e) {
             return response()->json(['success' => false, 'message' => 'Ошибка: ' . $e->getMessage()], 500);
         }
