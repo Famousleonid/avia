@@ -274,8 +274,15 @@ class TdrController extends Controller
     {
 
         $current_tdr = Tdr::findOrFail($id);
-        $workorder = Workorder::where('id', $current_tdr);
+
+        $manuals = Manual::all();
         $units = Unit::all();
+
+        $workorder = Workorder::where('id', $current_tdr)
+            ->with('unit')
+            ->get();
+
+
         $necessaries = Necessary::all();
         $conditions = Condition::all();
         $codes = Code::all();
@@ -289,7 +296,7 @@ class TdrController extends Controller
 //            $current_wo = $current_tdr->workorder->id;
 
 
-        return view('admin.tdrs.edit', compact('current_tdr', 'workorder', 'units', 'necessaries', 'conditions', 'codes','components'));
+        return view('admin.tdrs.edit', compact('current_tdr', 'workorder', 'units', 'necessaries', 'conditions', 'codes','components','manuals'));
 
     }
 
