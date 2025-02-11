@@ -1,5 +1,4 @@
-
-@extends('cabinet.master')
+@extends('admin.master')
 
 @php use Carbon\Carbon; @endphp
 
@@ -80,7 +79,7 @@
                             trainings</label>
                     </div>
                     <div class="align-middle">
-                        <a href="{{ route('trainings.create') }}"
+                        <a href="{{ route('admin.trainings.create') }}"
                            class="btn btn-primary align-middle">
                             {{ __('Add Unit') }}</a>
                     </div>
@@ -95,26 +94,13 @@
                     <tr>
                         <th data-priority="1" data-visible="true"
                             class="text-center
-                        align-middle">{{ __('Training
-                         (Yes/No)') }}</th>
-                        <th data-priority="2" data-visible="true"
-                            class="text-center align-middle">{{ __('Form
-                        132') }}</th>
-                        <th data-priority="3" data-visible="true" class="text-center
-                        align-middle">{{ __('Unit
-                        PN') }}</th>
-                        <th data-priority="4" data-visible="true" class="text-center
-                        align-middle">{{ __
-                        ('Description') }}</th>
-                        <th data-priority="5" data-visible="true" class="text-center
-                        align-middle">{{ __('First
-                        Training Date') }}</th>
-                        <th data-priority="6" data-visible="true" class="text-center
-                        align-middle">{{ __('Last
-                        Training Date') }}</th>
-                        <th data-priority="7" data-visible="true" class="text-center
-                        align-middle">{{ __
-                        ('Actions') }}</th>
+                        align-middle">{{ __('Training (Yes/No)') }}</th>
+                        <th data-priority="2" data-visible="true" class="text-center align-middle">{{ __('Form 132') }}</th>
+                        <th data-priority="3" data-visible="true" class="text-center align-middle">{{ __('Unit PN') }}</th>
+                        <th data-priority="4" data-visible="true" class="text-center align-middle">{{ __('Description') }}</th>
+                        <th data-priority="5" data-visible="true" class="text-center align-middle">{{ __('First Training Date')}}</th>
+                        <th data-priority="6" data-visible="true" class="text-center align-middle">{{ __('Last Training Date') }}</th>
+                        <th data-priority="7" data-visible="true" class="text-center align-middle">{{ __('Actions') }}</th>
                     </tr>
                     </thead>
                     <tbody>
@@ -129,9 +115,7 @@
                                                disabled
                                            @endif
                                            onchange="handleCheckboxChange(this, '{{ $trainingList['first_training']->manuals_id }}', '{{ $trainingList['first_training']->date_training }}', '{{ $trainingList['first_training']->manual->title ?? 'N/A' }}')">
-                                    <label class="form-check-label justify-content-center"
-                                           for="flexSwitchCheckChecked"></label>
-
+                                    <label class="form-check-label justify-content-center" for="flexSwitchCheckChecked"></label>
                                 </div>
                             </td>
                             <td class="text-center">
@@ -143,17 +127,13 @@
                             </td>
 
                             <td class="text-center">{{
-                            $trainingList['first_training']->manual->unit_name_training ?? 'N/A' }}</td>
+                                $trainingList['first_training']->manual->unit_name_training ?? 'N/A' }}</td>
 
                             <td class="text-center">
-                                <a href="" data-bs-toggle="modal"
-                                   data-bs-target="#cmmModal{{
-                                       $trainingList['first_training']->manual->id }}">
+                                <a href="" data-bs-toggle="modal" data-bs-target="#cmmModal{{$trainingList['first_training']->manual->id }}">
                                     {{ $trainingList['first_training']->manual->title ?? 'N/A' }}
                                 </a>
-
                             </td>
-
                             <td class="text-center">
                                 {{ isset($trainingList['first_training']) ? Carbon::parse($trainingList['first_training']->date_training)->format('m-d-Y') : 'N/A' }}
                             </td>
@@ -164,88 +144,58 @@
                                 @endif>
                                 {{ isset($trainingList['last_training']) ? Carbon::parse($trainingList['last_training']->date_training)->format('m-d-Y') : 'N/A' }}
                             </td>
-
                             <td class="text-center">
                                 <!-- Кнопка для вызова модального окна -->
-                                <button class="btn btn-primary"
-                                        data-bs-toggle="modal"
-                                        data-bs-target="#trainingModal{{
-                                        $trainingList['first_training']->manuals_id }}">
-                                   {{__('View Training')}}
+                                <button class="btn btn-primary" data-bs-toggle="modal"
+                                        data-bs-target="#trainingModal{{$trainingList['first_training']->manuals_id }}">
+                                    {{__('View Training')}}
                                 </button>
 
                                 <!-- Модальное окно -->
-                                <div class="modal fade"
-                                     id="trainingModal{{ $trainingList['first_training']->manuals_id }}"
-                                     tabindex="-1"
-                                     aria-labelledby="trainingModalLabel"
-                                     aria-hidden="true">
+                                <div class="modal fade" id="trainingModal{{ $trainingList['first_training']->manuals_id }}" tabindex="-1"
+                                     aria-labelledby="trainingModalLabel" aria-hidden="true">
                                     <div class="modal-dialog">
                                         <div class="modal-content">
                                             <div class="modal-header justify-content-between">
-                                                <h5 class="modal-title"
-                                                    id="trainingModalLabel">
-                                                    Training
-                                                    for {{ $trainingList['first_training']->manual->title }}
+                                                <h5 class="modal-title" id="trainingModalLabel">
+                                                    Training for {{ $trainingList['first_training']->manual->title }}
                                                 </h5>
                                                 <button type="button" class="btn-close" data-bs-dismiss="modal"
                                                         aria-label="Закрыть"></button>
-{{--                                                <button type="button"--}}
-{{--                                                        class="close"--}}
-{{--                                                        data-dismiss="modal"--}}
-{{--                                                        aria-label="Close">--}}
-{{--                                                    <span aria-hidden="true">&times;</span>--}}
-{{--                                                </button>--}}
                                             </div>
                                             <div class="modal-body">
                                                 @foreach($trainingList['trainings'] as $training)
                                                     <div class="form-group">
-                                                        <label>
-                                                            {{ Carbon::parse($training->date_training)->format('M.d.Y') }}
-                                                            (Form: {{ $training->form_type }}
-                                                            )
+                                                        <label>{{ Carbon::parse($training->date_training)->format('M.d.Y') }}
+                                                            (Form: {{ $training->form_type }} )
                                                         </label>
                                                         @if($training->form_type == '112')
-                                                            <a href="{{ route('trainings.form112', ['id'=> $training->id, 'showImage' => 'false']) }}"
-                                                               class="btn
-                                                               btn-success mb-1
-                                                               formLink "
-                                                               target="_blank"
+                                                            <a href="{{ route('admin.trainings.form112', ['id'=> $training->id, 'showImage' => 'false']) }}"
+                                                               class="btn btn-success mb-1 formLink " target="_blank"
                                                                id="formLink{{ $trainingList['first_training']->manuals_id }}">
-                                                                View/Print Form
-                                                                112
+                                                                View/Print Form  112
                                                             </a>
                                                         @elseif($training->form_type == '132')
-                                                            <a href="{{ route('trainings.form132', ['id' => $training->id, 'showImage' => 'false']) }}"
-                                                               class="btn
-                                                               btn-info mb-1
-                                                               formLink "
-                                                               target="_blank"
+                                                            <a href="{{ route('admin.trainings.form132', ['id' => $training->id, 'showImage' => 'false']) }}"
+                                                               class="btn  btn-info mb-1 formLink "  target="_blank"
                                                                id="formLink{{ $trainingList['first_training']->manuals_id }}">
-                                                                View/Print Form
-                                                                132
+                                                                View/Print Form  132
                                                             </a>
                                                         @endif
-
                                                     </div>
                                                 @endforeach
                                             </div>
                                             <div class="modal-footer">
                                                 {{--                                                @if(Auth::user()->role !== null && Auth::user()->role->name !== 'Technician')--}}
                                                 <div class="form-check ">
-                                                    <input type="checkbox"
-                                                           class="form-check-input"
+                                                    <input type="checkbox" class="form-check-input"
                                                            id="showImage{{ $trainingList['first_training']->manuals_id }}">
                                                     <label
-                                                        class="form-check-label"
-                                                        for="showImage{{ $trainingList['first_training']->manuals_id }}">
+                                                        class="form-check-label" for="showImage{{ $trainingList['first_training']->manuals_id }}">
                                                         {{__('Sign In')}}
                                                     </label>
                                                 </div>
-                                                {{--                                                @endif--}}
-                                                <button type="button"
-                                                        class="btn btn-secondary ms-5"
-                                                        data-bs-dismiss="modal">
+                                                <button type="button"  class="btn btn-secondary ms-5"  data-bs-dismiss="modal">
                                                     Close
                                                 </button>
                                             </div>
@@ -255,10 +205,8 @@
 
                                 {{--    <!-- Модальное окно для просмотра деталей CMM -->--}}
 
-                                <div class="modal fade" id="cmmModal{{
-                            $trainingList['first_training']->manual->id }}" tabindex="-1"
-                                     role="dialog" aria-labelledby="cmmModalLabel{{
-                                  $trainingList['first_training']->manual->id }}"
+                                <div class="modal fade" id="cmmModal{{$trainingList['first_training']->manual->id }}"
+                                     tabindex="-1"  role="dialog" aria-labelledby="cmmModalLabel{{$trainingList['first_training']->manual->id }}"
                                      aria-hidden="true">
                                     <div class="modal-dialog modal-dialog-centered" role="document">
                                         <div class="modal-content">
@@ -268,24 +216,17 @@
                                                         id="imageModalLabel{{ $trainingList['first_training']->manual->id }}">
                                                         {{ $trainingList['first_training']->manual->title }}{{__(': ')}}
                                                     </h5 >
-                                                    <h6>{{
-                                                    $trainingList['first_training']->manual->unit_name_training }}</h6>
+                                                    <h6>{{$trainingList['first_training']->manual->unit_name_training }}</h6>
                                                 </div>
-                                                <button type="button"
-                                                        class="btn-close pb-2"
-                                                        data-bs-dismiss="modal"
-                                                        aria-label="Close"></button>
+                                                <button type="button" class="btn-close pb-2" data-bs-dismiss="modal" aria-label="Close"></button>
                                             </div>
 
                                             <div class="modal-body bg-white">
                                                 <div class="d-flex bg-white">
                                                     <div class="me-2">
-
                                                         @if($trainingList['first_training']->manual->getFirstMediaUrl('manuals'))
-                                                            <img src="{{
-                                                            $trainingList['first_training']->manual->getBigImageUrl('manuals') }}" style="width: 200px;"
-                                                                 alt="{{ $trainingList['first_training']->manual->title }}"
-                                                            >
+                                                            <img src="{{$trainingList['first_training']->manual->getBigImageUrl('manuals') }}"
+                                                                 style="width: 200px;"  alt="{{ $trainingList['first_training']->manual->title }}" >
                                                         @else
                                                             <p>No image available</p>
                                                         @endif
@@ -311,17 +252,13 @@
                                 </div>
                             </td>
 
-
                         </tr>
                     @endforeach
-
                     </tbody>
                 </table>
             </div>
         </div>
     </div>
-
-
 
     <script>
 
@@ -363,7 +300,7 @@
 // Показываем сообщение для подтверждения
                 if (confirm(confirmationMessage + "\nВы уверены, что хотите продолжить создание тренингов?")) {
 // Если пользователь подтвердил, выполняем запрос
-                    fetch('{{ route('trainings.create') }}', {
+                    fetch('{{ route('admin.trainings.createTraining') }}', {
                         method: 'POST',
                         headers: {
                             'Content-Type': 'application/json',

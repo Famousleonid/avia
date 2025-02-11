@@ -12,7 +12,7 @@
         </a>
     </li>
     <li class="nav-item">
-        <a class="nav-link" href="{{route('training.index')}}" onclick="showLoadingSpinner()">
+        <a class="nav-link" href="{{route('trainings.index')}}" onclick="showLoadingSpinner()">
             <i class="bi bi-list-check me-2"></i> Training
         </a>
     </li>

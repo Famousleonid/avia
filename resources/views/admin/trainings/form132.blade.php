@@ -282,27 +282,20 @@
             <div class="row">
                 <div class="col-7 text-center border-l">
                     <div class="row">
-                        <div class="col-4 text-center pt-2
-                        ">
+                        <div class="col-4 text-center pt-2 ">
 
-                            <img src="{{ asset('img/icons/check.svg')
-                            }}" alt="check" class="4"
-                               style="width: 40px">
+                            <img src="{{ asset('img/icons/check.svg')}}" alt="check" class="4" style="width: 40px">
                         </div>
-                        <div class="col-4 text-center  border-l pt-2
-                        "><h3></h3></div>
-                        <div class="col-4 text-center  border-l pt-2
-                        "><h3></h3></div>
+                        <div class="col-4 text-center  border-l pt-2 "><h3></h3></div>
+                        <div class="col-4 text-center  border-l pt-2 "><h3></h3></div>
                     </div>
                 </div>
                 <div class="col-5 border-l">
                     <div class="row">
-                        <div class="col-6 text-center pt-2
-                        "><h3></h3></div>
-                        <div class="col-6 text-center  border-l pt-2
-                        "><img src="{{ asset('img/icons/check.svg')
-                            }}" alt="check" class="4"
-                               style="width: 40px"></div>
+                        <div class="col-6 text-center pt-2 "><h3></h3></div>
+                        <div class="col-6 text-center  border-l pt-2 ">
+                            <img src="{{ asset('img/icons/check.svg')}}" alt="check" class="4" style="width: 40px">
+                        </div>
                     </div>
 
                 </div>
@@ -311,16 +304,14 @@
     </div>
     <div class="row border-l-b-r" style="width: 920px">
         <div class="col-7 ">
-            Trainee reads the available reports and indications (maintenance
-            task)
+            Trainee reads the available reports and indications (maintenance task)
         </div>
         <div class="col-5">
             <div class="row">
                 <div class="col-7 text-center border-l">
                     <div class="row">
-                        <div class="col-4 text-center pt-2
-                        "><img src="{{ asset('img/icons/check.svg')
-                            }}" alt="check" class="4"
+                        <div class="col-4 text-center pt-2 ">
+                            <img src="{{ asset('img/icons/check.svg')}}" alt="check" class="4"
                                style="width: 40px"></div>
                         <div class="col-4 text-center  border-l pt-2
                         "><h3></h3></div>
@@ -333,8 +324,7 @@
                         <div class="col-6 text-center pt-2
                         "><h3></h3></div>
                         <div class="col-6 text-center  border-l pt-2
-                        "><img src="{{ asset('img/icons/check.svg')
-                            }}" alt="check" class="4"
+                        "><img src="{{ asset('img/icons/check.svg')}}" alt="check" class="4"
                                style="width: 40px"></div>
                     </div>
 
@@ -352,8 +342,7 @@
                 <div class="col-7 text-center border-l">
                     <div class="row">
                         <div class="col-4 text-center pt-2
-                        "><img src="{{ asset('img/icons/check.svg')
-                            }}" alt="check" class="4"
+                        "><img src="{{ asset('img/icons/check.svg')}}" alt="check" class="4"
                                style="width: 40px"></div>
                         <div class="col-4 text-center  border-l pt-2
                         "><h3></h3></div>

@@ -351,9 +351,9 @@
         <div class="page data-page">
             @for($i = $page * $partsPerPage; $i < ($page + 1) * $partsPerPage; $i++)
                 @php
-                    // Если данные существуют, разделяем ipl_num
+                    // Если данные существуют, выбираем ipl_num или assy_ipl_num
                     if ($i < $totalParts) {
-                        $ipl_num = $ordersParts[$i]->component->ipl_num ?? '';
+                        $ipl_num = $ordersParts[$i]->component->assy_ipl_num ?? $ordersParts[$i]->component->ipl_num ?? '';
                         $ipl_parts = explode('-', $ipl_num);
                         $first_part = $ipl_parts[0] ?? '';
                         $second_part = $ipl_parts[1] ?? '';
@@ -374,14 +374,20 @@
                                 <h6>{{ $second_part }}</h6>
                             </div>
                             <div class="col-9 border-l-b text-center pt-1 align-content-center">
-                                {{ $i < $totalParts ? $ordersParts[$i]->component->name : '' }}
+                                {{ $i < $totalParts ? ($ordersParts[$i]->component->name ?? '') : '' }}
                             </div>
                         </div>
                     </div>
                     <div class="col-7">
                         <div class="row" style="height: 36px">
                             <div class="col-4 border-l-b text-center pt-2 align-content-center">
-                                <h6>{{ $i < $totalParts ? $ordersParts[$i]->component->part_number : '' }}</h6>
+                                @if($i < $totalParts && isset($ordersParts[$i]->component))
+                                    <h6>
+                                        {{ $ordersParts[$i]->component->assy_part_number ?? $ordersParts[$i]->component->part_number }}
+                                    </h6>
+                                @else
+                                    <h6></h6>
+                                @endif
                             </div>
                             <div class="col-1 border-l-b text-center pt-2 align-content-center">
                                 <h6 style="margin-left: -7px">{{ $i < $totalParts ? $ordersParts[$i]->qty : '' }}</h6>

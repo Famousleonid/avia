@@ -41,6 +41,11 @@
             <i class="bi bi-bar-chart-steps me-2"></i> Processes
         </a>
     </li>
+    <li class="nav-item">
+        <a class="nav-link press-spinner" href="{{route('admin.trainings.index')}}" >
+            <i class="bi bi-list-check me-2"></i> Training
+        </a>
+    </li>
     <li class="nav-item press-spinner">
         <a href="{{route('admin.materials.index')}}" class="nav-link">
             <i class="bi bi-body-text me-2"></i> Materials

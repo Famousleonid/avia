@@ -152,9 +152,18 @@
                         <div class="me-2" >
                             <a href="{{route('admin.tdrs.inspection',['workorder_id' => $current_wo->id])}}"
                                class="btn  btn-outline-primary " style="height: 40px" onclick="showLoadingSpinner()">
-                                {{__('Add Unit Inspection')}}
+                                {{__('Add Inspection')}}
                             </a>
                         </div>
+                        @if(count($processParts))
+                            <div class="me-2" >
+                                <a href="#"
+                                   class="btn  btn-outline-primary " style="height: 40px" onclick="showLoadingSpinner()">
+                                    {{__('Processes')}}
+                                </a>
+                            </div>
+                        @endif
+
                         <div>
 
                         </div>
@@ -255,7 +264,7 @@
                                                     <td class="p-3">
                                                         <!-- Кнопка удаления -->
                                                         <form action="{{ route('admin.tdrs.destroy', $part->id) }}" method="POST"
-                                                              onsubmit="return confirm('Вы уверены, что хотите удалить эту деталь?');">
+                                                              onsubmit="return confirm('Are you sure you want to delete this item?');">
                                                             @csrf
                                                             @method('DELETE')
                                                             <button type="submit" class="btn btn-danger btn-sm">{{__('Delete')}}</button>
@@ -297,7 +306,7 @@
                                                     <td class="p-3">
                                                         <!-- Кнопка удаления -->
                                                         <form action="{{ route('admin.tdrs.destroy', $unit->id) }}" method="POST"
-                                                              onsubmit="return confirm('Вы уверены, что хотите удалить эту деталь?');">
+                                                              onsubmit="return confirm('Are you sure you want to delete this item?');">
                                                             @csrf
                                                             @method('DELETE')
                                                             <button type="submit" class="btn btn-danger btn-sm">{{__('Delete')}}</button>
@@ -352,7 +361,7 @@
                                                     <td class="p-3">
                                                         <!-- Кнопка удаления -->
                                                         <form action="{{ route('admin.tdrs.destroy', $part->id) }}" method="POST"
-                                                              onsubmit="return confirm('Вы уверены, что хотите удалить эту деталь?');">
+                                                              onsubmit="return confirm('Are you sure you want to delete this item?');">
                                                             @csrf
                                                             @method('DELETE')
                                                             <button type="submit" class="btn btn-danger btn-sm">{{__('Delete')}}</button>
@@ -448,7 +457,7 @@
                                     <th class="text-center text-primary sortable ">{{__('Part number')}} </th>
                                     <th class="text-center  text-primary sortable">{{__('Serial number')}}</th>
                                     <th class=" text-center text-primary " style="width: 200px">{{__('Necessary')}}</th>
-                                    <th class=" text-center text-primary" >{{__('Processes ')}}</th>
+{{--                                    <th class=" text-center text-primary" >{{__('Processes ')}}</th>--}}
                                     <th class=" text-center text-primary " style="width: 120px">{{__('Code')}}</th>
                                     <th class="text-center  text-primary">Action</th>
                                 </tr>
@@ -495,12 +504,12 @@
                                                         @endif
                                                     @endforeach
                                                 </td>
-                                                <td class="text-center">
-                                                    <a href=""
-                                                       class="btn btn-outline-primary btn-sm">
-                                                    <i class="bi bi-bounding-box"></i>
-                                                    </a>
-                                                </td>
+{{--                                                <td class="text-center">--}}
+{{--                                                    <a href=""--}}
+{{--                                                       class="btn btn-outline-primary btn-sm">--}}
+{{--                                                    <i class="bi bi-bounding-box"></i>--}}
+{{--                                                    </a>--}}
+{{--                                                </td>--}}
                                                 <td class="text-center"><!--  Code -->
                                                     @foreach($codes as $code)
                                                         @if($code->id == $tdr->codes_id)
@@ -509,11 +518,20 @@
                                                     @endforeach
                                                 </td>
 
-                                                <td class="text-center">
+                                                <td class="d-flex justify-content-center" style="width: 100px">
                                                     <a href="{{ route('admin.tdrs.edit',['tdr' => $tdr->id]) }}"
-                                                       class="btn btn-outline-primary btn-sm">
+                                                       class="btn btn-outline-primary btn-sm me-1">
                                                         <i class="bi bi-pencil-square"></i>
                                                     </a>
+                                                    <form action="{{ route('admin.tdrs.destroy', ['tdr' => $tdr->id]) }}" method="POST"
+                                                          onsubmit="return confirm('Are you sure you want to delete this item?');">
+                                                        @csrf
+                                                        @method('DELETE')
+                                                        <button type="submit" class="btn btn-outline-danger btn-sm">
+                                                            <i class="bi bi-trash"></i>
+{{--                                                            {{__('Delete')}}--}}
+                                                        </button>
+                                                    </form>
 
                                                 </td>
 

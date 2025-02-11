@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Http\Controllers\Cabinet;
+namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\Builder;
@@ -12,10 +12,10 @@ use Illuminate\Http\Request;
 
 class TrainingController extends Controller
 {
-    public function __construct()
-    {
-        $this->middleware('auth');
-    }
+//    public function __construct()
+//    {
+//        $this->middleware('auth');
+//    }
 
     /**
      * Display a listing of the resource.
@@ -49,7 +49,8 @@ class TrainingController extends Controller
 
         }
 
-        return view('cabinet.trainings.index', compact('formattedTrainingLists', 'planes', 'builders', 'scopes'));
+        return view('admin.trainings.index', compact('formattedTrainingLists',
+            'planes', 'builders', 'scopes'));
     }
 
 
@@ -73,7 +74,7 @@ class TrainingController extends Controller
         // Получаем юниты, которые не добавлены для текущего пользователя
         $manuals = Manual::whereNotIn('id', $addedCmmIds)->get();
 
-        return view('cabinet.trainings.create', compact('manuals','planes'));
+        return view('admin.trainings.create', compact('manuals','planes'));
 
     }
 
@@ -125,35 +126,33 @@ class TrainingController extends Controller
             'form_type' => 112,
         ]);
 
-        return redirect()->route('cabinet.trainings.index')->with('success', 'Unit added for trainings.');
+        return redirect()->route('admin.trainings.index')->with('success', 'Unit added for trainings.');
     }
     public function createTraining(Request $request)
     {
 
-        // Валидация входных данных
-        $validatedData = $request->validate([
-            'manuals_id.*' => 'required',
-            'date_training.*' => 'required|date',
-            'form_type.*' => 'required|in:112'
-        ]);
-
-        // Получение ID текущего пользователя
-        $userId = auth()->id();
-
-        // Генерация тренингов
-        $userId = auth()->id();
-
-        // Генерация тренингов
-        foreach ($validatedData['manuals_id'] as $key => $manualId) {
-            Training::create([
-                'user_id' => $userId,
-                'manuals_id' => $manualId,
-                'date_training' => $validatedData['date_training'][$key],
-                'form_type' => $validatedData['form_type'][$key],
+        try {
+            $validatedData = $request->validate([
+                'manuals_id.*' => 'required',
+                'date_training.*' => 'required|date',
+                'form_type.*' => 'required|in:112'
             ]);
-        }
 
-        return response()->json(['success' => true, 'message' => 'Тренинги успешно созданы.']);
+            $userId = auth()->id();
+
+            foreach ($validatedData['manuals_id'] as $key => $manualId) {
+                Training::create([
+                    'user_id' => $userId,
+                    'manuals_id' => $manualId,
+                    'date_training' => $validatedData['date_training'][$key],
+                    'form_type' => $validatedData['form_type'][$key],
+                ]);
+            }
+
+            return response()->json(['success' => true, 'message' => 'Тренинги успешно созданы.']);
+        } catch (\Exception $e) {
+            return response()->json(['success' => false, 'message' => 'Ошибка: ' . $e->getMessage()], 500);
+        }
     }
 
 
@@ -162,7 +161,7 @@ class TrainingController extends Controller
         $showImage = $request->query('showImage', 'false'); // Получаем параметр из запроса
         $training = Training::find($id);
 
-        return view('cabinet.trainings.form112', compact('training', 'showImage'));
+        return view('admin.trainings.form112', compact('training', 'showImage'));
     }
 
     public function showForm132($id, Request $request)
@@ -170,7 +169,7 @@ class TrainingController extends Controller
         $showImage = $request->query('showImage', 'false'); // Получаем параметр из запроса
         $training = Training::find($id);
 
-        return view('cabinet.trainings.form132', compact('training', 'showImage'));
+        return view('admin.trainings.form132', compact('training', 'showImage'));
     }
 
 

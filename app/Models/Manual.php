@@ -52,7 +52,7 @@ class Manual extends Model implements  hasMedia
     }
 
     // Отношение с моделью Training
-    public function training()
+    public function trainings()
     {
         return $this->hasMany(Training::class, 'manuals_id');
     }

@@ -205,9 +205,18 @@ class TdrController extends Controller
         // Извлекаем компоненты, которые связаны с этим manual_id
         $components = Component::where('manual_id', $manual_id)->get();
         $code = Code::where('name', 'Missing')->first();
-        $necessary = Necessary::where('name', 'Order New')->first();
+
         $missingCondition = Condition::where('name', 'PARTS MISSING UPON ARRIVAL AS INDICATED ON PARTS LIST')->first();
         $conditions = Condition::all();
+
+        $necessary = Necessary::where('name', 'Order New')->first();
+        $processParts = Tdr::where('workorder_id', $current_wo->id)
+            ->where('component_id', '!=',null)
+            ->when($necessary, function ($query) use ($necessary) {
+                return $query->where('necessaries_id', '!=', $necessary->id);
+            })
+            ->with('component')
+            ->get();
 
         $inspectsUnit = Tdr::where('workorder_id', $current_wo->id)
             ->where('component_id', null)
@@ -233,6 +242,7 @@ class TdrController extends Controller
 
 
 
+
         $planes = Plane::all();
         $builders = Builder::all();
         $instruction = Instruction::all();
@@ -250,7 +260,8 @@ class TdrController extends Controller
             'components', 'user', 'customers',
             'manuals', 'builders', 'planes', 'instruction',
             'necessaries', 'unit_conditions', 'component_conditions',
-            'codes', 'conditions', 'missingParts','ordersParts','inspectsUnit'));
+            'codes', 'conditions', 'missingParts','ordersParts','inspectsUnit',
+            'processParts'));
     }
 
     /**
@@ -268,11 +279,17 @@ class TdrController extends Controller
         $necessaries = Necessary::all();
         $conditions = Condition::all();
         $codes = Code::all();
+        $components =Tdr::where('id', 'component_id')
+            ->with('codes')
+            ->with('component')
+            ->with('necessaries')
+            ->with('conditions')
+            ->get();
 
 //            $current_wo = $current_tdr->workorder->id;
 
 
-        return view('admin.tdrs.edit', compact('current_tdr', 'workorder', 'units', 'necessaries', 'conditions', 'codes'));
+        return view('admin.tdrs.edit', compact('current_tdr', 'workorder', 'units', 'necessaries', 'conditions', 'codes','components'));
 
     }
 
