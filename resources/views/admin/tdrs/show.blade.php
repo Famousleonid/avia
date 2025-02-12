@@ -457,7 +457,6 @@
                                     <th class="text-center text-primary sortable ">{{__('Part number')}} </th>
                                     <th class="text-center  text-primary sortable">{{__('Serial number')}}</th>
                                     <th class=" text-center text-primary " style="width: 200px">{{__('Necessary')}}</th>
-{{--                                    <th class=" text-center text-primary" >{{__('Processes ')}}</th>--}}
                                     <th class=" text-center text-primary " style="width: 120px">{{__('Code')}}</th>
                                     <th class="text-center  text-primary">Action</th>
                                 </tr>
@@ -504,12 +503,7 @@
                                                         @endif
                                                     @endforeach
                                                 </td>
-{{--                                                <td class="text-center">--}}
-{{--                                                    <a href=""--}}
-{{--                                                       class="btn btn-outline-primary btn-sm">--}}
-{{--                                                    <i class="bi bi-bounding-box"></i>--}}
-{{--                                                    </a>--}}
-{{--                                                </td>--}}
+
                                                 <td class="text-center"><!--  Code -->
                                                     @foreach($codes as $code)
                                                         @if($code->id == $tdr->codes_id)
@@ -546,11 +540,6 @@
                     </div>
                 </div>
             </div>
-
-            {{--            @else--}}
-            {{--                <H5 CLASS="text-center">{{__('WorkOrder NOT complete')}}</H5>--}}
-            {{--        @endif--}}
-
         </div>
 
 

@@ -68,19 +68,13 @@
                 <h4 class="text-primary">{{__('Add Inspection')}}</h4>
                 <h4 class="text-primary"> {{__('Work Order')}}
                     {{$current_wo->number}}</h4>
-
             </div>
-
             <div class="card-body" id="create_div_inputs">
                 <form id="createForm" class="createForm" role="form" method="POST" action="{{route('admin.tdrs.store')}}"
                       enctype="multipart/form-data" >
                     @csrf
-
                     <input type="hidden" name="workorder_id" value="{{$current_wo->id }}">
-
-
                     <div class="">
-
                         <div class="form-check">
                             <input class="form-check-input" type="radio" name="RadioInspection" id="Component">
                             <label class="form-check-label" for="Component">
@@ -93,14 +87,8 @@
                                 Add Unit Inspection
                             </label>
                         </div>
-
-
-
-                        <!-- Группа элементов для Component Inspection -->
-
+            <!-- Группа элементов для Component Inspection -->
                         <div id="componentGroup" style="display:none;">
-                            {{--                            <p>Here are the fields for component inspection...</p>--}}
-
                             <div class="">
                                 <div class=" form-group  d-flex">
                                     <label for="component_id" class="form-label me-2">Component</label>
@@ -121,15 +109,12 @@
 
                                             </option>
                                         @endforeach
-
                                     </select>
                                     <button type="button" class="btn btn-link" data-bs-toggle="modal"
                                             data-bs-target="#addComponentModal">{{ __('Add Component') }}
                                     </button>
                                 </div>
-
                                 <div class="  ms-2 me-2"  >
-
                                     <div class="form-group ms-4 d-flex justify-content-between "  id="sns-group" style="display: block;">
                                         <div></div>
                                         <div class="">
@@ -145,9 +130,7 @@
                                             </div>
                                         </div>
                                     </div>
-
                                 </div>
-
                                 <div class="d-flex">
                                     <div class=" form-group m-2">
                                         <label for="codes_id" class="form-label pe-2">Code Inspection</label>
@@ -178,14 +161,10 @@
                                                     value="{{ $necessary->id }}"
                                                     data-title="{{$necessary->name}}">
                                                     {{$necessary->name}}
-
                                                 </option>
                                             @endforeach
-
                                         </select>
-
                                     </div>
-
                                 </div>
                                 <div class="form-group m-2" id="conditions">
                                     <label for="c_conditions_id" class="form-label pe-2">Conditions</label>
@@ -198,12 +177,9 @@
                                             </option>
                                         @endforeach
                                     </select>
-
                                 </div>
-
                             </div>
                         </div>
-
                         <!-- Группа элементов для Unit Inspection -->
                         <div id="unitGroup" style="display:none;">
                             <input type="hidden" name="use_tdr" value="true"> <!-- Этот инпут будет использоваться только в unitGroup -->

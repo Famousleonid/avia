@@ -1,4 +1,4 @@
-@extends('admin.master')
+@extends('resources.views.admin.master')
 
 @section('content')
     <style>
@@ -81,7 +81,8 @@
     <div class="card shadow">
         <div class="card-header m-1 shadow">
             <div class="d-flex justify-content-between">
-                <h5 class="text-primary">{{__('WORK ORDER TEAR DOWN REPORT')}}( <span class="text-success">{{$orders->count()}} </span>)</h5>
+                <h5 class="text-primary">{{__('WORK ORDER TEAR DOWN REPORT')}}( <span
+                        class="text-success">{{$orders->count()}} </span>)</h5>
 
                 <div class="d-flex my-2">
                     <div class="clearable-input ps-2">
@@ -95,15 +96,15 @@
             <div class="table-wrapper me-3 p-2 pt-0">
                 <table id="tdrTable" class="display table table-sm table-hover table-striped align-middle table-bordered">
                     <thead class="bg-gradient">
-                        <tr>
-                            <th class="text-center text-primary bg-gradient ">Number</th>
-                            <th class="text-center text-primary bg-gradient ">Unit</th>
-                            <th class="text-center text-primary bg-gradient ">Description</th>
-                            <th class="text-center text-primary bg-gradient ">Serial number</th>
-                            <th class="text-center text-primary bg-gradient ">Customer</th>
-                            <th class="text-center text-primary bg-gradient ">Technik</th>
-                            <th class="text-center text-primary bg-gradient ">Action</th>
-                        </tr>
+                    <tr>
+                        <th class="text-center text-primary bg-gradient ">Number</th>
+                        <th class="text-center text-primary bg-gradient ">Unit</th>
+                        <th class="text-center text-primary bg-gradient ">Description</th>
+                        <th class="text-center text-primary bg-gradient ">Serial number</th>
+                        <th class="text-center text-primary bg-gradient ">Customer</th>
+                        <th class="text-center text-primary bg-gradient ">Technik</th>
+                        <th class="text-center text-primary bg-gradient ">Action</th>
+                    </tr>
                     </thead>
                     <tbody>
                     @foreach($orders as $order)
@@ -121,31 +122,31 @@
                             <td class="text-center">{{$order->user->name}}</td>
                             <td class="text-center">
 
-{{--                                @if(count($tdrs))--}}
-{{--                                    @foreach($tdrs as $tdr)--}}
-{{--                                        @if($order->id != $tdr->workorder_id  )--}}
-{{--                                            <a href="{{ route('admin.tdrs--}}
-{{--                                            .show', ['tdr' => $order->id]) }}"--}}
-{{--                                               class="btn btn-outline-primary--}}
-{{--                                            btn-sm">--}}
-{{--                                                <i class="bi bi-patch-plus"></i>--}}
-{{--                                            </a>--}}
-{{--                                        @else--}}
-{{--                                            {{'WO TDR Created'}}--}}
-{{--                                            <a href="{{ route('admin.tdrs.show', ['tdr' => $order->id]) }}" class="btn--}}
-{{--                                            btn-outline-primary--}}
-{{--                                            btn-sm">--}}
-{{--                                                <i class="bi bi-pencil-square"></i>--}}
-{{--                                            </a>--}}
-{{--                                        @endif--}}
-{{--                                    @endforeach--}}
-{{--                                @else--}}
-{{--                                {{$order->id}}--}}
-                                    <a href="{{ route('admin.tdrs.show', ['tdr' => $order->id]) }}" class="btn btn-outline-primary
+                                {{--                                @if(count($tdrs))--}}
+                                {{--                                    @foreach($tdrs as $tdr)--}}
+                                {{--                                        @if($order->id != $tdr->workorder_id  )--}}
+                                {{--                                            <a href="{{ route('admin.tdrs--}}
+                                {{--                                            .show', ['tdr' => $order->id]) }}"--}}
+                                {{--                                               class="btn btn-outline-primary--}}
+                                {{--                                            btn-sm">--}}
+                                {{--                                                <i class="bi bi-patch-plus"></i>--}}
+                                {{--                                            </a>--}}
+                                {{--                                        @else--}}
+                                {{--                                            {{'WO TDR Created'}}--}}
+                                {{--                                            <a href="{{ route('admin.tdrs.show', ['tdr' => $order->id]) }}" class="btn--}}
+                                {{--                                            btn-outline-primary--}}
+                                {{--                                            btn-sm">--}}
+                                {{--                                                <i class="bi bi-pencil-square"></i>--}}
+                                {{--                                            </a>--}}
+                                {{--                                        @endif--}}
+                                {{--                                    @endforeach--}}
+                                {{--                                @else--}}
+                                {{--                                {{$order->id}}--}}
+                                <a href="{{ route('admin.tdrs.show', ['tdr' => $order->id]) }}" class="btn btn-outline-primary
                                             btn-sm">
-                                        <i class="bi bi-patch-plus"></i>
-                                    </a>
-{{--                                @endif--}}
+                                    <i class="bi bi-patch-plus"></i>
+                                </a>
+                                {{--                                @endif--}}
                             </td>
                         </tr>
                     @endforeach
@@ -157,7 +158,6 @@
             <H5 CLASS="text-center">{{__('WORK ORDER TEAR DOWN REPORTS NOT CREATED')}}</H5>
         @endif
     </div>
-
 
 @endsection
 
@@ -216,6 +216,5 @@
 
         });
     </script>
-
 
 @endsection

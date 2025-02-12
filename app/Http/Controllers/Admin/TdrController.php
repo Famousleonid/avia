@@ -210,6 +210,7 @@ class TdrController extends Controller
         $conditions = Condition::all();
 
         $necessary = Necessary::where('name', 'Order New')->first();
+
         $processParts = Tdr::where('workorder_id', $current_wo->id)
             ->where('component_id', '!=',null)
             ->when($necessary, function ($query) use ($necessary) {
@@ -278,9 +279,7 @@ class TdrController extends Controller
         $manuals = Manual::all();
         $units = Unit::all();
 
-        $workorder = Workorder::where('id', $current_tdr)
-            ->with('unit')
-            ->get();
+        $workorder = Workorder::where('id', $current_tdr) ->get();
 
 
         $necessaries = Necessary::all();
@@ -305,11 +304,35 @@ class TdrController extends Controller
      *
      * @param \Illuminate\Http\Request $request
      * @param int $id
-     * @return \Illuminate\Http\Response
+     * @return \Illuminate\Http\RedirectResponse
      */
     public function update(Request $request, $id)
     {
-        //
+        // Находим запись Tdr по ID
+        $tdr = Tdr::findOrFail($id);
+
+        // Валидация входных данных
+        $validated = $request->validate([
+            'serial_number' => 'nullable|string',
+            'assy_serial_number' => 'nullable|string',
+            'codes_id' => 'nullable|exists:codes,id',
+            'necessaries_id' => 'nullable|exists:necessaries,id',
+        ]);
+
+        // Проверяем, если выбран необходимый пункт "Order New"
+        $necessary = Necessary::where('name', 'Order New')->first();
+
+        if ($necessary && $validated['necessaries_id'] == $necessary->id) {
+            $validated['use_process_forms'] = false; // Исправлено присваивание
+        }
+
+        // Обновляем запись Tdr
+        $tdr->update($validated);
+
+        // Перенаправляем на страницу просмотра с сообщением об успехе
+        return redirect()
+            ->route('admin.tdrs.show', ['tdr' => $request->workorder_id])
+            ->with('success', 'TDR for Component updated successfully');
     }
     public function prlForm(Request $request, $id){
         // Загрузка Workorder по ID
