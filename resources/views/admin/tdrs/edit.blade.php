@@ -39,6 +39,7 @@
                       enctype="multipart/form-data">
                     @csrf
                     @method('PUT')
+
                     <input type="hidden" name="workorder_id" value="{{ $current_tdr->workorder->id }}">
                     <input type="hidden" name="use_process_forms" value="{{ $current_tdr->use_process_forms }}">
 
