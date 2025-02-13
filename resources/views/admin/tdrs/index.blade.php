@@ -81,7 +81,9 @@
     <div class="card shadow">
         <div class="card-header m-1 shadow">
             <div class="d-flex justify-content-between">
-                <h5 class="text-primary">{{__('WORK ORDER TEAR DOWN REPORT')}}( <span class="text-success">{{$orders->count()}} </span>)</h5>
+                <h5 class="text-primary">{{__('WORK ORDER TEAR DOWN REPORT')}}
+                    ( <span class="text-success">{{$orders->count()}} </span>)
+                </h5>
 
                 <div class="d-flex my-2">
                     <div class="clearable-input ps-2">

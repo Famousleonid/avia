@@ -186,6 +186,14 @@ class TdrController extends Controller
      * @param int $id
      * @return Application|Factory|View
      */
+    public function processes($id)
+    {
+        $current_wo = Workorder::findOrFail($id);
+
+
+        return view('admin.tdrs.processes', compact('current_wo'));
+    }
+
     public function show($id)
     {
         $current_wo = Workorder::findOrFail($id);

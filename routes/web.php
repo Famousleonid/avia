@@ -94,7 +94,9 @@ Route::group(['middleware' => ['auth', 'isAdmin'], 'prefix' => 'admin', 'as' =>'
     Route::resource('/tdrs',\App\Http\Controllers\Admin\TdrController::class);
 
 
-    Route::get('/tdrs/inspection/{workorder_id}',[\App\Http\Controllers\Admin\TdrController::class, 'inspection'])
+    Route::get('/tdrs/inspection/{workorder_id}',[\App\Http\Controllers\Admin\TdrController::class, 'processes'])
+        ->name('tdrs.processes');
+    Route::get('/tdrs/processes/{workorder_id}',[\App\Http\Controllers\Admin\TdrController::class, 'inspection'])
         ->name('tdrs.inspection');
     Route::get('tdrs/tdrForm/{id}', [\App\Http\Controllers\Admin\TdrController::class, 'tdrForm'])->name('tdrs.tdrForm');
     Route::get('tdrs/prlForm/{id}', [\App\Http\Controllers\Admin\TdrController::class, 'prlForm'])->name('tdrs.prlForm');
