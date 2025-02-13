@@ -333,46 +333,52 @@
                                         </div>
                                         <button type="button" class="btn-close pb-2" data-bs-dismiss="modal" aria-label="Close"></button>
                                     </div>
-                                    <div class="table-wrapper">
-                                        <table class="display table table-cm table-hover table-striped align-middle table-bordered">
-                                            <thead class="bg-gradient">
-                                            <tr>
-                                                <th class="text-primary  bg-gradient " data-direction="asc">{{__('IPL')
-                                                }}<i class="  ms-1"></i></th>
-                                                <th class="text-primary  bg-gradient " data-direction="asc">{{__('Part
-                                                Description') }}<i class="  ms-1"></i></th>
-                                                <th class="text-primary  bg-gradient " style="width: 250px;" data-direction="asc">{{__('Part
-                                                Number')}}<i class="  ms-1"></i></th>
-                                                <th class="text-primary  bg-gradient " data-direction="asc">{{__('QTY')
-                                                }}<i class="bi  ms-1"></i></th>
-                                                <th class="text-primary  bg-gradient " >{{__('Conditions')
-                                                }}<i class="bi  ms-1"></i></th>
-                                                <th class="text-primary  bg-gradient " >{{__('Delete')
-                                                }}<i class="bi  ms-1"></i></th>
-                                            </tr>
-                                            </thead>
-                                            <tbody>
-                                            @foreach($ordersParts as $part)
+                                    @if(count($ordersParts))
+                                        <div class="table-wrapper">
+                                            <table class="display table table-cm table-hover table-striped align-middle table-bordered">
+                                                <thead class="bg-gradient">
                                                 <tr>
-                                                    <td class="p-3" style="width: 150px"> {{$part->component->ipl_num}} </td>
-                                                    <td class="p-3" style="width: 250px"> {{$part->component->name}} </td>
-                                                    <td class="p-3" style="width: 250px;"> {{$part->component->part_number}} </td>
-                                                    <td class="p-3"> {{$part->qty}} </td>
-                                                    <td class="p-3"> {{$part->codes->name}} </td>
-                                                    <td class="p-3">
-                                                        <!-- Кнопка удаления -->
-                                                        <form action="{{ route('admin.tdrs.destroy', $part->id) }}" method="POST"
-                                                              onsubmit="return confirm('Are you sure you want to delete this item?');">
-                                                            @csrf
-                                                            @method('DELETE')
-                                                            <button type="submit" class="btn btn-danger btn-sm">{{__('Delete')}}</button>
-                                                        </form>
-                                                    </td>
+                                                    <th class="text-primary  bg-gradient " data-direction="asc">{{__('IPL')
+                                                }}<i class="  ms-1"></i></th>
+                                                    <th class="text-primary  bg-gradient " data-direction="asc">{{__('Part
+                                                Description') }}<i class="  ms-1"></i></th>
+                                                    <th class="text-primary  bg-gradient " style="width: 250px;" data-direction="asc">{{__('Part
+                                                Number')}}<i class="  ms-1"></i></th>
+                                                    <th class="text-primary  bg-gradient " data-direction="asc">{{__('QTY')
+                                                }}<i class="bi  ms-1"></i></th>
+                                                    <th class="text-primary  bg-gradient " >{{__('Conditions')
+                                                }}<i class="bi  ms-1"></i></th>
+                                                    <th class="text-primary  bg-gradient " >{{__('Delete')
+                                                }}<i class="bi  ms-1"></i></th>
                                                 </tr>
-                                            @endforeach
-                                            </tbody>
-                                        </table>
-                                    </div>
+                                                </thead>
+                                                <tbody>
+                                                @foreach($ordersParts as $part)
+                                                    <tr>
+                                                        <td class="p-3" style="width: 150px"> {{$part->component->ipl_num}} </td>
+                                                        <td class="p-3" style="width: 250px"> {{$part->component->name}} </td>
+                                                        <td class="p-3" style="width: 250px;"> {{$part->component->part_number}} </td>
+                                                        <td class="p-3"> {{$part->qty}} </td>
+                                                        <td class="p-3"> {{$part->codes->name}} </td>
+                                                        <td class="p-3">
+                                                            <!-- Кнопка удаления -->
+                                                            <form action="{{ route('admin.tdrs.destroy', $part->id) }}" method="POST"
+                                                                  onsubmit="return confirm('Are you sure you want to delete this item?');">
+                                                                @csrf
+                                                                @method('DELETE')
+                                                                <button type="submit" class="btn btn-danger btn-sm">{{__('Delete')}}</button>
+                                                            </form>
+                                                        </td>
+                                                    </tr>
+                                                @endforeach
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                    @else
+                                       <h5 class="text-center mt-3 mb-3 text-primary">{{__('No Ordered Parts')}}</h5>
+                                    @endif
+
+
                                 </div>
                             </div>
                         </div>
@@ -407,7 +413,7 @@
 {{--                WorkOrder ID :{{$current_wo->id}}. Count TDR Records: {{count($tdrs)}}--}}
                 <div class="d-flex justify-content-center">
 
-                    <div class="me-3" style="width: 500px"> <!-  Inspection Unit  ->
+                    <div class="me-3" style="width: 450px"> <!-  Inspection Unit  ->
                         <div class="table-wrapper me3 p-2">
                             <table id="tdr_inspect_Table" class="display table table-sm
                                         table-hover table-striped align-middle table-bordered bg-gradient">
@@ -490,13 +496,7 @@
                                                 <td class="text-center"> <!--  Serial Number -->
                                                     {{$tdr->serial_number}}
                                                 </td>
-{{--                                                <td class="text-center"><!--  Condition -->--}}
-{{--                                                    @foreach($conditions as $condition)--}}
-{{--                                                        @if($condition->id == $tdr->conditions_id)--}}
-{{--                                                            {{$condition ->name}}--}}
-{{--                                                        @endif--}}
-{{--                                                    @endforeach--}}
-{{--                                                </td>--}}
+
                                                 <td class="text-center"><!--  Necessary -->
                                                     @foreach($necessaries as $necessary)
                                                         @if($necessary->id == $tdr->necessaries_id)

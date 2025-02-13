@@ -81,11 +81,37 @@
     <div class="card shadow">
         <div class="card-header m-1 shadow">
             <div class="d-flex">
-                <h5 class="text-primary me-5">{{__('Work Order: ')}} {{$current_wo->number}}</h5>
-                <h5>Processes</h5>
+                <div>
+                    <h5 class="text-primary me-5">{{__('Work Order: ')}} {{$current_wo->number}}</h5>
+                    <h5>Processes</h5>
+                </div>
+
             </div>
-
-
         </div>
+        <div>
+            <div class="d-flex justify-content-center">
+                <div class="me-3">
+                    <div class="table-wrapper me-3">
+                        <table class="display table table-sm table-hover align-middle table-bordered bg-gradient">
+                            <thead>
+                            <tr>
+                                <th class="text-primary text-center">IPL</th>
+                                <th class="text-primary text-center">Name</th>
+                            </tr>
+                            </thead>
+                            <tbody>
+                            @foreach($tdrs as $tdr)
+
+                            @endforeach
+                            </tbody>
+                        </table>
+                    </div>
+                </div><!---- Table  --->
+                <div></div>
+                <div></div>
+            </div>
+        </div>
+
+
     </div>
 @endsection

@@ -188,10 +188,26 @@ class TdrController extends Controller
      */
     public function processes($id)
     {
+
         $current_wo = Workorder::findOrFail($id);
+        $manual_id = $current_wo->unit->manual_id;
+        $necessary = Necessary::where('name', 'Order New')->first();
 
+        $manuals = Manual::all();  // или можно отфильтровать только тот, который связан с unit
 
-        return view('admin.tdrs.processes', compact('current_wo'));
+        // Извлекаем компоненты, которые связаны с этим manual_id
+        $components = Component::where('manual_id', $manual_id)->get();
+
+        $tdrs = Tdr::where('workorder_id', $current_wo->id)
+            ->where('component_id', '!=',null)
+            ->when($necessary, function ($query) use ($necessary) {
+                return $query->where('necessaries_id', '!=', $necessary->id);
+            })
+            ->where('use_process_forms', true)
+            ->with('component')
+            ->get();
+
+        return view('admin.tdrs.processes', compact('current_wo', 'tdrs','components', 'manuals'));
     }
 
     public function show($id)
@@ -204,8 +220,8 @@ class TdrController extends Controller
         // Получаем manual_id из связанного unit
         $manual_id = $current_wo->unit->manual_id;  // предполагаем, что в workorder есть связь с unit
 
-        // Извлекаем компоненты, которые связаны с этим manual_id
-        $components = Component::where('manual_id', $manual_id)->get();
+//        // Извлекаем компоненты, которые связаны с этим manual_id
+//        $components = Component::where('manual_id', $manual_id)->get();
 
         // Извлекаем все manuals для отображения (если нужно отфильтровать, можно это сделать)
         $manuals = Manual::all();  // или можно отфильтровать только тот, который связан с unit
