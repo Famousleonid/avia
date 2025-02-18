@@ -101,8 +101,35 @@
                             </thead>
                             <tbody>
                             @foreach($tdrs as $tdr)
-                                @if($tdr->user_process_forms == true)
-                                    {{$tdr->component->ipl_num}}
+
+                                @if($tdr->use_process_forms == true)
+
+                                    <tr>
+                                        <td class="text-center">
+                                            <a href="#" data-bs-toggle="modal"
+                                               data-bs-target="#componentModal{{$tdr->component->id }}">
+                                                {{$tdr->component->ipl_num}}
+                                            </a>
+
+                                        </td>
+                                        <td class="text-center"> {{$tdr->component->name}}</td>
+
+                                    </tr>
+
+                                   <div class="modal fade" id="componentModal{{$tdr->component->id }}" tabindex="-1"
+                                        role="dialog" aria-labelledby="componentModalLabel{{$tdr->component->id }}"
+                                        aria-hidden="true">
+                                       <div class="modal-dialog modal-dialog-centered" role="document">
+                                           <div class="modal-content bg-gradient">
+                                               <div class="modal-header">
+                                                   <div>
+                                                       <h5 class="modal-title"></h5>
+                                                   </div>
+                                               </div>
+                                           </div>
+                                       </div>
+                                   </div>
+
                                 @endif
                             @endforeach
                             </tbody>
