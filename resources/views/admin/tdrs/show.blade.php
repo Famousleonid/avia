@@ -646,8 +646,7 @@
 
             fetch('{{ route('admin.workorders.inspection', $current_wo->id) }}', {
                 method: 'POST',
-                headers: {
-                    'X-CSRF-TOKEN': '{{ csrf_token() }}'
+                headers: {'X-CSRF-TOKEN': '{{ csrf_token() }}'
                 },
                 body: formData
             })

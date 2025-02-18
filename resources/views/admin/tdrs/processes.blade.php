@@ -102,7 +102,7 @@
                             <tbody>
                             @foreach($tdrs as $tdr)
 
-                                @if($tdr->use_process_forms == true)
+                                @if($tdr->use_process_forms )
 
                                     <tr>
                                         <td class="text-center">
@@ -123,7 +123,30 @@
                                            <div class="modal-content bg-gradient">
                                                <div class="modal-header">
                                                    <div>
-                                                       <h5 class="modal-title"></h5>
+                                                       <h5 class="modal-title">{{__('Work Order: ')}} {{$current_wo->number}}</h5>
+                                                   </div>
+                                               </div>
+                                               <div class="modal-body">
+                                                   <div class="d-flex">
+                                                       <div class="me-2">
+                                                           <img class=""
+                                                                src="{{ $tdr->component->getBigImageUrl('component')}}"
+                                                                width="200"  alt="Image"/>
+                                                       </div>
+                                                       <div>
+                                                           <p><strong>{{ __('Component PN: ') }}</strong>{{
+                                                           $tdr->component->part_number }}</p>
+                                                           <p><strong>{{ __('Component Name: ') }}</strong>{{
+                                                           $tdr->component->name }}</p>
+                                                           <p><strong>{{ __('Component IPL: ') }}</strong>{{
+                                                           $tdr->component->ipl_num }}</p>
+                                                           <p><strong>{{ __('Component SN: ') }}</strong>{{
+                                                           $tdr->serial_number }}</p>
+                                                           @if($tdr->assy_serial_number)
+                                                               <p><strong>{{ __('Component Assy SN: ') }}</strong>{{
+                                                           $tdr->assy_serial_number }}</p>
+                                                           @endif
+                                                       </div>
                                                    </div>
                                                </div>
                                            </div>
