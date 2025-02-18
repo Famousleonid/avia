@@ -101,7 +101,9 @@
                             </thead>
                             <tbody>
                             @foreach($tdrs as $tdr)
-
+                                @if($tdr->user_process_forms == true)
+                                    {{$tdr->component->ipl_num}}
+                                @endif
                             @endforeach
                             </tbody>
                         </table>

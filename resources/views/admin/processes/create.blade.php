@@ -3,7 +3,7 @@
 @section('content')
     <style>
         .container {
-            max-width: 850px;
+            max-width: 860px;
         }
     </style>
 
@@ -34,6 +34,7 @@
                                     <button type="button" class="btn btn-link" data-bs-toggle="modal"
                                             data-bs-target="#addProcessNameModal">{{ __('Add Process Name') }}</button>
                                 </div>
+                                <div class=" me-3"><h6 class="ms-3 p-4"> {{__( '        ')}}</h6></div>
                                 <div>
                                     <h6 class="p-1" style="width: 350px">{{ __('Existing Processes') }}</h6>
                                     <div id="ex_process-list" class="flex-grow-1 ps-2 border">
@@ -48,6 +49,7 @@
                                     <input id="process" style="width: 350px" type="text" class="form-control mt-2" name="process"
                                            placeholder="Enter a New process">
                                 </div>
+                                <div class=" me-2"><h6 class="p-4"> {{__( ' Or ')}}</h6></div>
                                 <div>
 
                                     <div>
@@ -67,7 +69,7 @@
 
                     <div class="text-end m-3">
                         <button type="submit" class="btn btn-outline-primary mt-3 ">{{ __('Save') }}</button>
-                        <a href="{{ route('admin.processes.index') }}" class="btn btn-outline-secondary mt-3">{{ __('Cancel') }}
+                        <a href="{{ route('admin.processes.index') }}" class="btn btn-outline-secondary mt-3">{{ __('Back') }}
                         </a>
                     </div>
                 </form>
@@ -94,8 +96,9 @@
                             <button type="button" class="btn btn-outline-primary " id="saveProcessName">
                                 {{ __('Save') }}
                             </button>
+
                             <button type="button" class="btn btn-outline-secondary " data-bs-dismiss="modal">
-                                {{ __('Close') }}
+                                {{ __('Cansel') }}
                             </button>
 
                         </div>
