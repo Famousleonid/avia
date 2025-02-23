@@ -6,6 +6,7 @@
             height: calc(100vh - 180px);
             overflow-y: auto;
             overflow-x: hidden;
+            width: 850px;
         }
 
         .table th, .table td {
@@ -13,7 +14,7 @@
             overflow: hidden;
             text-overflow: ellipsis;
             min-width: 80px;
-            max-width: 190px;
+            max-width: 550px;
             padding-left: 10px;
         }
 
@@ -29,12 +30,13 @@
 
         .table th:nth-child(3), .table td:nth-child(3) {
             min-width: 50px;
-            max-width: 250px;
+            max-width: 550px;
         }
 
-        .table th:nth-child(6), .table td:nth-child(6) {
-            min-width: 50px;
-            max-width: 70px;
+        .table th:nth-child(4), .table td:nth-child(4) {
+            min-width: 100px;
+            max-width: 180px;
+
         }
 
         .table thead th {
@@ -80,12 +82,13 @@
 
     <div class="card shadow">
         <div class="card-header m-1 shadow">
-            <div class="d-flex">
+            <div class="d-flex justify-content-between">
                 <div>
                     <h5 class="text-primary me-5">{{__('Work Order: ')}} {{$current_wo->number}}</h5>
                     <h5>Processes</h5>
                 </div>
-
+                <a href="{{ route('admin.tdrs.show', ['tdr'=>$current_wo->id]) }}"
+                   class="btn btn-outline-secondary mt-3" style="height: 40px">{{ __('Back to Work Order') }} </a>
             </div>
         </div>
         <div>
@@ -97,13 +100,14 @@
                             <tr>
                                 <th class="text-primary text-center">IPL</th>
                                 <th class="text-primary text-center">Name</th>
+                                <th class="text-primary text-center" style="width: 450px">Processes</th>
+                                <th class="text-primary text-center">Action</th>
                             </tr>
                             </thead>
                             <tbody>
+
                             @foreach($tdrs as $tdr)
-
                                 @if($tdr->use_process_forms )
-
                                     <tr>
                                         <td class="text-center">
                                             <a href="#" data-bs-toggle="modal"
@@ -112,7 +116,38 @@
                                             </a>
 
                                         </td>
-                                        <td class="text-center"> {{$tdr->component->name}}</td>
+                                        <td class="text-center" > {{$tdr->component->name}}</td>
+                                        <td class="ms-1">
+{{--                                            {{$tdr->id}}--}}
+                                            @foreach($tdrProcesses as $processes)
+                                                @if($processes->tdrs_id == $tdr->id)
+                                                    @php
+                                                        // Декодируем JSON-поле processes
+                                                        $processData = json_decode($processes->processes, true);
+                                                        // Получаем имя процесса из связанной модели ProcessName
+                                                        $processName = $processes->processName->name;
+                                                    @endphp
+
+                                                    @foreach($processData as $process)
+                                                        {{ $processName }} : {{ $process }}<br>
+                                                    @endforeach
+                                                @endif
+                                            @endforeach
+
+                                        </td>
+                                        <td class="text-center">
+                                            <div style="width: 100px">
+                                                <a href="{{ route('admin.tdr-processes.createProcesses',['tdrId'=>$tdr->id])}}"
+                                                   class="btn btn-outline-success btn-sm"> {{__('Add')}}
+                                                    {{--                                                <i class="bi bi-plus-circle"></i>--}}
+                                                </a>
+                                                <a href="{{ route('admin.tdr-processes.processes',['tdrId'=>$tdr->id])}}"
+                                                   class="btn btn-outline-primary btn-sm"> {{__('Processes')}}
+                                                    {{--                                                <i class="bi bi-pencil-square"></i>--}}
+                                                </a>
+                                            </div>
+
+                                        </td>
 
                                     </tr>
 
@@ -159,7 +194,9 @@
                         </table>
                     </div>
                 </div><!---- Table  --->
-                <div></div>
+                <div>
+
+                </div>
                 <div></div>
             </div>
         </div>

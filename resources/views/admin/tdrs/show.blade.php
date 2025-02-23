@@ -157,8 +157,7 @@
                         </div>
                         @if(count($processParts))
                             <div class="me-2" >
-                                <a href="{{route('admin.tdrs.processes',['workorder_id' =>
-                                $current_wo->id])}}"
+                                <a href="{{route('admin.tdrs.processes',['workorder_id' => $current_wo->id])}}"
                                    class="btn  btn-outline-primary " style="height: 40px" onclick="showLoadingSpinner()">
                                     {{__('Processes')}}
                                 </a>

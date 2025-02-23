@@ -94,9 +94,9 @@ Route::group(['middleware' => ['auth', 'isAdmin'], 'prefix' => 'admin', 'as' =>'
     Route::resource('/tdrs',\App\Http\Controllers\Admin\TdrController::class);
 
 
-    Route::get('/tdrs/inspection/{workorder_id}',[\App\Http\Controllers\Admin\TdrController::class, 'processes'])
+    Route::get('/tdrs/processes/{workorder_id}',[\App\Http\Controllers\Admin\TdrController::class, 'processes'])
         ->name('tdrs.processes');
-    Route::get('/tdrs/processes/{workorder_id}',[\App\Http\Controllers\Admin\TdrController::class, 'inspection'])
+    Route::get('/tdrs/inspection/{workorder_id}',[\App\Http\Controllers\Admin\TdrController::class, 'inspection'])
         ->name('tdrs.inspection');
     Route::get('tdrs/tdrForm/{id}', [\App\Http\Controllers\Admin\TdrController::class, 'tdrForm'])->name('tdrs.tdrForm');
     Route::get('tdrs/prlForm/{id}', [\App\Http\Controllers\Admin\TdrController::class, 'prlForm'])->name('tdrs.prlForm');
@@ -109,7 +109,17 @@ Route::group(['middleware' => ['auth', 'isAdmin'], 'prefix' => 'admin', 'as' =>'
     Route::resource('/processes', \App\Http\Controllers\Admin\ProcessController::class);
     Route::get('/get-processes', [\App\Http\Controllers\Admin\ProcessController::class, 'getProcesses'])->name('processes.getProcesses');
     Route::resource('/process-names',\App\Http\Controllers\Admin\ProcessNameController::class);
+
     Route::resource('/tdr-processes',\App\Http\Controllers\Admin\TdrProcessController::class);
+    // Уникальный путь для createProcesses
+    Route::get('/tdr/{tdrId}/create-processes', [\App\Http\Controllers\Admin\TdrProcessController::class, 'createProcesses'])
+        ->name('tdr-processes.createProcesses');
+    Route::get('/tdr/{tdrId}/processes', [\App\Http\Controllers\Admin\TdrProcessController::class, 'processes'])
+        ->name('tdr-processes.processes');
+
+    Route::get('/get-process/{processNameId}', [\App\Http\Controllers\Admin\TdrProcessController::class, 'getProcess'])
+        ->name('tdr-processes.get-process');
+
 
     Route::resource('/trainings', \App\Http\Controllers\Admin\TrainingController::class);
     Route::get('trainings/form112/{id}', [\App\Http\Controllers\Admin\TrainingController::class, 'showForm112'])->name('trainings.form112');

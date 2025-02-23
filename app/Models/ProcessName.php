@@ -11,8 +11,8 @@ class ProcessName extends Model
     protected $fillable = [
         'name','process_sheet_name','form_number'
     ];
-    public function process()
+    public function processes()
     {
-        return $this->hasMany(Process::class);
+        return $this->hasMany(Process::class, 'process_name_id');
     }
 }

@@ -15,9 +15,18 @@ class Process extends Model
         return $this->belongsTo(ProcessName::class, 'process_names_id');
     }
 
+    public function manualProcesses()
+    {
+        return $this->hasMany(ManualProcess::class, 'processes_id');
+    }
     // Связь с Manual через промежуточную таблицу manual_processes
     public function manuals()
     {
         return $this->belongsToMany(Manual::class, 'manual_processes', 'processes_id', 'manual_id');
+    }
+
+    public function tdrs()
+    {
+        return $this->belongsToMany(Tdr::class);
     }
 }

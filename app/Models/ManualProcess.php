@@ -13,4 +13,9 @@ class ManualProcess extends Model
         'manual_id',
         'processes_id',
     ];
+
+    public function process()
+    {
+        return $this->belongsTo(Process::class, 'processes_id');
+    }
 }

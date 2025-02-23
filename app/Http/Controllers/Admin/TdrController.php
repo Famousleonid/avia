@@ -13,6 +13,7 @@ use App\Models\Manual;
 use App\Models\Necessary;
 use App\Models\Plane;
 use App\Models\Tdr;
+use App\Models\TdrProcess;
 use App\Models\Unit;
 use App\Models\Wo_Code;
 use App\Models\WoCode;
@@ -198,6 +199,8 @@ class TdrController extends Controller
         // Извлекаем компоненты, которые связаны с этим manual_id
         $components = Component::where('manual_id', $manual_id)->get();
 
+        $tdrProcesses = TdrProcess::all();
+
         $tdrs = Tdr::where('workorder_id', $current_wo->id)
             ->where('component_id', '!=',null)
             ->when($necessary, function ($query) use ($necessary) {
@@ -207,7 +210,12 @@ class TdrController extends Controller
             ->with('component')
             ->get();
 
-        return view('admin.tdrs.processes', compact('current_wo', 'tdrs','components', 'manuals'));
+
+
+        return view('admin.tdrs.processes', compact('current_wo',
+            'tdrs','components',
+            'manuals','tdrProcesses'
+        ));
     }
 
     public function show($id)
