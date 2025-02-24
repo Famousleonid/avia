@@ -128,8 +128,11 @@
                                                         $processName = $processes->processName->name;
                                                     @endphp
 
-                                                    @foreach($processData as $process)
-                                                        {{ $processName }} : {{ $process }}<br>
+                                                    @foreach($processData as $processId)
+                                                        {{ $processName }} :
+                                                        @if(isset($proces[$processId]))
+                                                            {{ $proces[$processId]->process }}<br>
+                                                        @endif
                                                     @endforeach
                                                 @endif
                                             @endforeach

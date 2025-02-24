@@ -123,7 +123,7 @@ class TdrProcessController extends Controller
             TdrProcess::create([
                 'tdrs_id' => $tdrId,
                 'process_names_id' => $data['process_names_id'],
-                'processes' => json_encode($data['processes']), // Сохраняем JSON-массив
+                'processes' => json_encode($data['processes']), // Сохраняем массив ID процессов
                 'date_start' => now(), // Пример даты начала
                 'date_finish' => now()->addDays(7), // Пример даты завершения
             ]);
@@ -134,7 +134,6 @@ class TdrProcessController extends Controller
             'message' => 'Processes saved successfully!',
             'redirect' => route('admin.tdrs.processes', ['workorder_id' => $tdr->workorder->id])
         ], 200);
-
     }
 
 
@@ -162,10 +161,10 @@ class TdrProcessController extends Controller
         $current_wo = Workorder::find($workorder_id);
 
         $tdrProcesses = TdrProcess::all();
-
+        $proces = Process::all();
 
         return view('admin.tdr-processes.processes',compact('current_tdr',
-            'current_wo','tdrProcesses'
+            'current_wo','tdrProcesses','proces'
         ));
     }
 
@@ -177,7 +176,8 @@ class TdrProcessController extends Controller
      */
     public function edit($id)
     {
-        //
+        dd($id);
+
     }
 
     /**
@@ -230,9 +230,9 @@ class TdrProcessController extends Controller
                 ->with('success', 'Process deleted successfully.');
         }
 
-        // Удаляем значение из массива
+        // Удаляем значение из массива (приводим типы к int для сравнения)
         $processData = array_filter($processData, function ($process) use ($processToRemove) {
-            return $process !== $processToRemove;
+            return (int)$process !== (int)$processToRemove;
         });
 
         // Обновляем поле processes

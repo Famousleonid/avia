@@ -12,6 +12,7 @@ use App\Models\Instruction;
 use App\Models\Manual;
 use App\Models\Necessary;
 use App\Models\Plane;
+use App\Models\Process;
 use App\Models\Tdr;
 use App\Models\TdrProcess;
 use App\Models\Unit;
@@ -201,6 +202,8 @@ class TdrController extends Controller
 
         $tdrProcesses = TdrProcess::all();
 
+        $proces = Process::all()->keyBy('id');
+
         $tdrs = Tdr::where('workorder_id', $current_wo->id)
             ->where('component_id', '!=',null)
             ->when($necessary, function ($query) use ($necessary) {
@@ -214,7 +217,7 @@ class TdrController extends Controller
 
         return view('admin.tdrs.processes', compact('current_wo',
             'tdrs','components',
-            'manuals','tdrProcesses'
+            'manuals','tdrProcesses','proces'
         ));
     }
 

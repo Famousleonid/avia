@@ -96,9 +96,18 @@
                                     @foreach($processData as $process)
                                         <tr>
                                             <td class="text-center">{{ $processName }}</td>
-                                            <td class="text-center">{{ $process }}</td>
+                                            <td class="ps-2">
+
+                                                @foreach($proces as $proc)
+                                                    @if($proc->id ==$process  )
+                                                        {{$proc->process}}
+                                                    @endif
+                                                @endforeach
+
+                                            </td>
                                             <td class="text-center">
-                                                <a href="#" class="btn btn-sm btn-outline-primary">{{__('Edit')}}</a>
+                                                <a href="{{ route('admin.tdr-processes.edit', ['tdr_process' =>
+                                                $processes->id]) }}" class="btn btn-sm btn-outline-primary">{{__('Edit')}}</a>
                                                 <form id="deleteForm_{{ $processes->id }}" action="{{ route('admin.tdr-processes.destroy', ['tdr_process' => $processes->id]) }}" method="POST" style="display:inline;">
                                                     @csrf
                                                     <input type="hidden" name="tdrId" value="{{ $current_tdr->id }}">

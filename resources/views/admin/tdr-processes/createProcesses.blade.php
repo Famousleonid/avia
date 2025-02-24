@@ -161,18 +161,18 @@
                 const processName = processNameSelect.options[processNameSelect.selectedIndex].text;
 
                 const checkboxes = row.querySelectorAll('.process-options input[type="checkbox"]:checked');
-                const selectedProcesses = [];
+                const selectedProcessIds = [];
 
                 checkboxes.forEach(checkbox => {
-                    const processLabel = checkbox.nextElementSibling.textContent;
-                    selectedProcesses.push(processLabel);
+                    const processId = checkbox.value; // Получаем ID процесса
+                    selectedProcessIds.push(parseInt(processId)); // Сохраняем ID
                     hasCheckedCheckbox = true; // Хотя бы один чекбокс отмечен
                 });
 
-                if (selectedProcesses.length > 0) {
+                if (selectedProcessIds.length > 0) {
                     processesData.push({
                         process_names_id: processNameId,
-                        processes: selectedProcesses
+                        processes: selectedProcessIds // Сохраняем массив ID процессов
                     });
                 }
             });
