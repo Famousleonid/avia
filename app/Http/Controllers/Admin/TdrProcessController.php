@@ -125,7 +125,7 @@ class TdrProcessController extends Controller
                 'process_names_id' => $data['process_names_id'],
                 'processes' => json_encode($data['processes']), // Сохраняем массив ID процессов
                 'date_start' => now(), // Пример даты начала
-                'date_finish' => now()->addDays(7), // Пример даты завершения
+                'date_finish' => now()->addDays(1), // Пример даты завершения
             ]);
         }
 

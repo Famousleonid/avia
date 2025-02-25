@@ -85,7 +85,7 @@
             <div class="d-flex justify-content-between">
                 <div>
                     <h5 class="text-primary me-5">{{__('Work Order: ')}} {{$current_wo->number}}</h5>
-                    <h5>{{__('Component Processes')}}</h5>
+                    <h5>{{__('All Components Processes')}}</h5>
                 </div>
                 <a href="{{ route('admin.tdrs.show', ['tdr'=>$current_wo->id]) }}"
                    class="btn btn-outline-secondary mt-3" style="height: 40px">{{ __('Back to Work Order') }} </a>
