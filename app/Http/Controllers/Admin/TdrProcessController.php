@@ -172,12 +172,39 @@ class TdrProcessController extends Controller
      * Show the form for editing the specified resource.
      *
      * @param  int  $id
-     * @return \Illuminate\Http\Response
+     * @return Application|Factory|View
      */
     public function edit($id)
     {
-        dd($id);
+        // Находим запись TdrProcess по ID
+        $current_tdr_processes = TdrProcess::findOrFail($id);
 
+        $tdr_id = $current_tdr_processes->tdrs_id;
+
+        $current_tdr = Tdr::find($tdr_id);
+
+        // Получаем workorder_id из текущей записи Tdr
+        $workorder_id = $current_tdr->workorder_id;
+
+        // Находим связанный Workorder
+        $current_wo = Workorder::find($workorder_id);
+
+        // Получаем имена процессов
+        $processNames = ProcessName::all();
+
+        // Получаем процессы, связанные с manual_id
+        $manual_id = $current_wo->unit->manual_id ?? null;
+        $processes = Process::whereHas('manualProcesses', function ($query) use ($manual_id) {
+            $query->where('manual_id', $manual_id);
+        })->get();
+
+        return view('admin.tdr-processes.edit', compact(
+            'current_tdr',
+            'current_wo',
+            'current_tdr_processes',
+            'processNames',
+            'processes'
+        ));
     }
 
     /**
@@ -185,12 +212,50 @@ class TdrProcessController extends Controller
      *
      * @param  \Illuminate\Http\Request  $request
      * @param  int  $id
-     * @return \Illuminate\Http\Response
+     * @return \Illuminate\Http\RedirectResponse
      */
     public function update(Request $request, $id)
     {
-        //
+        // Находим запись TdrProcess по ID
+        $current_tdr_processes = TdrProcess::findOrFail($id);
+
+        // Валидация данных
+        $validated = $request->validate([
+            'tdrs_id' => 'required|integer|exists:tdrs,id',
+            'processes' => 'required|array',
+            'processes.*.process_names_id' => 'required|integer|exists:process_names,id',
+            'processes.*.process' => 'required|array',
+            'processes.*.process.*' => 'integer|exists:processes,id',
+        ]);
+
+        // Извлекаем данные из запроса
+        $processData = $validated['processes'][0]; // Берём первый элемент массива
+
+        // Преобразуем все элементы массива process в целые числа
+        $processesArray = array_map('intval', $processData['process']);
+
+        // Формируем данные для обновления
+        $dataToUpdate = [
+            'tdrs_id' => $validated['tdrs_id'],
+            'process_names_id' => $processData['process_names_id'],
+            'processes' => json_encode($processesArray), // Преобразуем массив в JSON
+        ];
+
+        // Обновляем запись
+        \Log::info('Before update:', $current_tdr_processes->toArray());
+        $current_tdr_processes->update($dataToUpdate);
+        \Log::info('After update:', $current_tdr_processes->fresh()->toArray());
+
+        // Получаем workorder_id для редиректа
+        $current_tdr = Tdr::find($validated['tdrs_id']);
+        $workorder_id = $current_tdr->workorder_id;
+
+        // Редирект с сообщением об успехе
+        return redirect()
+            ->route('admin.tdrs.processes', ['workorder_id' => $workorder_id])
+            ->with('success', 'TDR for Component updated successfully');
     }
+
 
     /**
      * Remove the specified resource from storage.
