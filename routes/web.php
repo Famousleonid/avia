@@ -101,6 +101,9 @@ Route::group(['middleware' => ['auth', 'isAdmin'], 'prefix' => 'admin', 'as' =>'
     Route::get('tdrs/tdrForm/{id}', [\App\Http\Controllers\Admin\TdrController::class, 'tdrForm'])->name('tdrs.tdrForm');
     Route::get('tdrs/prlForm/{id}', [\App\Http\Controllers\Admin\TdrController::class, 'prlForm'])->name('tdrs.prlForm');
 
+    Route::get('tdrs/ndtForm/{id}', [\App\Http\Controllers\Admin\TdrController::class, 'ndtForm'])->name('tdrs.ndtForm');
+
+
     Route::resource('/components', \App\Http\Controllers\Admin\ComponentController::class);
 
     Route::post('/components/store_from_inspection', [\App\Http\Controllers\Admin\ComponentController::class, 'storeFromInspection'])

@@ -10,9 +10,11 @@ use App\Models\Condition;
 use App\Models\Customer;
 use App\Models\Instruction;
 use App\Models\Manual;
+use App\Models\ManualProcess;
 use App\Models\Necessary;
 use App\Models\Plane;
 use App\Models\Process;
+use App\Models\ProcessName;
 use App\Models\Tdr;
 use App\Models\TdrProcess;
 use App\Models\Unit;
@@ -400,6 +402,46 @@ class TdrController extends Controller
         return view('admin.tdrs.prlForm', compact('current_wo', 'components','manuals', 'builders', 'codes','necessaries', 'ordersParts'));
 
     }
+
+    public function ndtForm(Request $request, $id)
+    {
+        // Загрузка Workorder по ID
+        $current_wo = Workorder::findOrFail($id);
+
+        // Получаем данные о manual_id, связанном с этим Workorder
+        $manual_id = $current_wo->unit->manual_id;
+
+        // Извлекаем компоненты, связанные с manual_id
+        $components = Component::where('manual_id', $manual_id)->get();
+
+        $tdrs = Tdr::where('workorder_id',$current_wo->id)->get();;
+
+        $manuals = Manual::where('id', $manual_id)->get();
+
+        $ndt1_name_id = ProcessName::where('name','NDT-1')->first()->id;
+        $ndt4_name_id = ProcessName::where('name','NDT-4')->first()->id;
+
+//        $process_names = ProcessName::all();
+        // Получаем processes_id из таблицы manual_processes для данного manual_id
+        $manualProcesses = ManualProcess::where('manual_id', $manual_id)->pluck('processes_id');
+
+        $ndt_processes = Process::whereIn('id', $manualProcesses)
+            ->where(function ($query) use ($ndt1_name_id, $ndt4_name_id) {
+                $query->where('process_names_id', $ndt1_name_id)
+                    ->orWhere('process_names_id', $ndt4_name_id);
+            })
+            ->get();
+
+
+//        dd($manual_id, $ndt1_name_id,$ndt4_name_id, $ndt_processes, $manualProcesses);
+
+
+        return view('admin.tdrs.ndtForm', compact('current_wo', 'components',
+            'tdrs','manuals','ndt_processes','ndt1_name_id','ndt4_name_id'
+        ));
+
+    }
+
     public function tdrForm(Request $request, $id)
     {
         // Загрузка Workorder по ID

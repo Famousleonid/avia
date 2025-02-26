@@ -14,7 +14,7 @@
             overflow: hidden;
             text-overflow: ellipsis;
             min-width: 80px;
-            max-width: 550px;
+            max-width: 500px;
             padding-left: 10px;
         }
 
@@ -30,12 +30,12 @@
 
         .table th:nth-child(3), .table td:nth-child(3) {
             min-width: 50px;
-            max-width: 550px;
+            max-width: 500px;
         }
 
         .table th:nth-child(4), .table td:nth-child(4) {
             min-width: 100px;
-            max-width: 180px;
+            max-width: 200px;
 
         }
 
@@ -86,6 +86,15 @@
                 <div>
                     <h5 class="text-primary me-5">{{__('Work Order: ')}} {{$current_wo->number}}</h5>
                     <h5>{{__('All Components Processes')}}</h5>
+
+                    <a href="{{ route('admin.tdrs.ndtForm', ['id'=> $current_wo->id]) }}"
+                       class="btn btn-outline-warning mb-1 formLink "
+                       target="_blank"
+                       id="#" style=" height: 40px">
+
+                        <i class="bi bi-file-earmark-excel"> NDT Form</i>
+                    </a>
+
                 </div>
                 <a href="{{ route('admin.tdrs.show', ['tdr'=>$current_wo->id]) }}"
                    class="btn btn-outline-secondary mt-3" style="height: 40px">{{ __('Back to Work Order') }} </a>
@@ -100,7 +109,7 @@
                             <tr>
                                 <th class="text-primary text-center">IPL</th>
                                 <th class="text-primary text-center">Name</th>
-                                <th class="text-primary text-center" style="width: 450px">Processes</th>
+                                <th class="text-primary text-center" style="width: 400px">Processes</th>
                                 <th class="text-primary text-center">Action</th>
                             </tr>
                             </thead>

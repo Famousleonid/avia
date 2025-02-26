@@ -3,7 +3,7 @@
 @section('content')
     <style>
         .container {
-            max-width: 850px;
+            max-width: 900px;
         }
 
         /* Стили для Select2 (темная и светлая темы) */
@@ -79,7 +79,7 @@
                             <thead>
                             <tr>
                                 <th class="text-primary text-center">Process Name</th>
-                                <th class="text-primary text-center">Process</th>
+                                <th class="text-primary text-center" style="width: 450px;">Process</th>
                                 <th class="text-primary text-center">Action</th>
                             </tr>
                             </thead>
