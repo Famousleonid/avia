@@ -420,15 +420,20 @@ class TdrController extends Controller
 
         $ndt1_name_id = ProcessName::where('name','NDT-1')->first()->id;
         $ndt4_name_id = ProcessName::where('name','NDT-4')->first()->id;
+        $ndt6_name_id = ProcessName::where('name','Eddy Current Test')->first()->id;
+        $ndt5_name_id = ProcessName::where('name','BNI')->first()->id;
+
 
 //        $process_names = ProcessName::all();
         // Получаем processes_id из таблицы manual_processes для данного manual_id
         $manualProcesses = ManualProcess::where('manual_id', $manual_id)->pluck('processes_id');
 
         $ndt_processes = Process::whereIn('id', $manualProcesses)
-            ->where(function ($query) use ($ndt1_name_id, $ndt4_name_id) {
+            ->where(function ($query) use ($ndt1_name_id, $ndt4_name_id, $ndt5_name_id, $ndt6_name_id) {
                 $query->where('process_names_id', $ndt1_name_id)
-                    ->orWhere('process_names_id', $ndt4_name_id);
+                    ->orWhere('process_names_id', $ndt4_name_id)
+                    ->orWhere('process_names_id', $ndt5_name_id)
+                    ->orWhere('process_names_id', $ndt6_name_id);
             })
             ->get();
 
@@ -437,7 +442,7 @@ class TdrController extends Controller
 
 
         return view('admin.tdrs.ndtForm', compact('current_wo', 'components',
-            'tdrs','manuals','ndt_processes','ndt1_name_id','ndt4_name_id'
+            'tdrs','manuals','ndt_processes','ndt1_name_id','ndt4_name_id','ndt5_name_id','ndt6_name_id'
         ));
 
     }

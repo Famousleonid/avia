@@ -81,7 +81,7 @@
                     <input type="hidden" name="tdrs_id" value="{{ $current_tdr->id }}">
 
                     <!-- Контейнер для строк с процессами -->
-                    <div id="processes-container">
+                    <div id="processes-container" data-manual-id="{{ $manual_id }}">
                         <!-- Начальная строка -->
                         <div class="process-row mb-3">
                             <div class="row">
@@ -142,8 +142,6 @@
 
             container.appendChild(newRow);
 
-            // Инициализация Select2 для нового элемента
-            // $(newRow).find('.select2-process').select2();
         });
 
         // Обработка отправки формы
@@ -214,30 +212,33 @@
             if (event.target.classList.contains('select2-process')) {
                 const processNameId = event.target.value;
                 const processOptionsContainer = event.target.closest('.process-row').querySelector('.process-options');
+                const manualId = document.getElementById('processes-container').dataset.manualId; // Получаем manual_id
 
-                // Очистка контейнера
+                // Очистка контейнера для чекбоксов
                 processOptionsContainer.innerHTML = '';
 
-                // Загрузка чекбоксов для выбранного имени процесса
+                // Если имя процесса выбрано, загружаем связанные процессы
                 if (processNameId) {
-                    fetch(`/admin/get-process/${processNameId}`)
+                    console.log(`/admin/get-process/${processNameId}?manual_id=${manualId}`);
+                    fetch(`/admin/get-process/${processNameId}?manual_id=${manualId}`)
                         .then(response => response.json())
                         .then(data => {
                             data.forEach(process => {
                                 const checkbox = document.createElement('div');
                                 checkbox.classList.add('form-check');
                                 checkbox.innerHTML = `
-                                    <input type="checkbox" name="processes[${processNameId}][process][]" value="${process.id}" class="form-check-input">
-                                    <label class="form-check-label">${process.process}</label>
-                                `;
+                            <input type="checkbox" name="processes[${processNameId}][process][]" value="${process.id}" class="form-check-input">
+                            <label class="form-check-label">${process.process}</label>
+                        `;
                                 processOptionsContainer.appendChild(checkbox);
                             });
                         })
                         .catch(error => {
-                            console.error('Error fetching processes:', error);
+                            console.error('Ошибка при получении процессов:', error);
                         });
                 }
             }
         });
+
     </script>
 @endsection

@@ -192,8 +192,9 @@
 
         .details-row {
             display: flex;
+            justify-content: center;
             align-items: center; /* Выравнивание элементов по вертикали */
-            height: 32px; /* Фиксированная высота строки */
+            /*height: 40px; !* Фиксированная высота строки *!*/
         }
         .details-cell {
             flex-grow: 1; /* Позволяет колонкам растягиваться и занимать доступное пространство */
@@ -270,13 +271,11 @@
 
                     <div class="col-1">#1</div>
                     <div class="col-11 border-b">
-                        @forelse($ndt_processes as $process)
+                        @foreach($ndt_processes as $process)
                             @if($process->process_names_id == $ndt1_name_id)
                                 {{$process->process}}
                             @endif
-                        @empty
-                            <p>No processes found for NDT-1.</p>
-                        @endforelse
+                        @endforeach
                     </div>
                 </div>
                 <div class="text-start"><strong>LIQUID/FLUID PENETRANT AS PER:</strong></div>
@@ -284,13 +283,11 @@
                 <div class="row " style="height: 26px">
                     <div class="col-1">#4</div>
                     <div class="col-11 border-b">
-                        @forelse($ndt_processes as $process)
+                        @foreach($ndt_processes as $process)
                             @if($process->process_names_id == $ndt4_name_id)
                                 {{$process->process}}
                             @endif
-                        @empty
-                            <p>No processes found for NDT-1.</p>
-                        @endforelse
+                        @endforeach
                     </div>
                 </div>
                 <div class="text-start"><strong>ULTRASOUND AS PER:</strong></div>
@@ -303,11 +300,23 @@
             <div class="col-3 mt-3">
                 <div class="row mt-2" style="height: 26px">
                     <div class="col-2">#2</div>
-                    <div class="col-10 border-b"></div>
+                    <div class="col-10 border-b">
+{{--                        @foreach($ndt_processes as $process)--}}
+{{--                            @if($process->process_names_id == $ndt2_name_id)--}}
+{{--                                {{$process->process}}--}}
+{{--                            @endif--}}
+{{--                        @endforeach--}}
+                    </div>
                 </div>
                 <div class="row mt-4" style="height: 26px">
                     <div class="col-2">#5</div>
-                    <div class="col-10 border-b"></div>
+                    <div class="col-10 border-b">
+                        @foreach($ndt_processes as $process)
+                            @if($process->process_names_id == $ndt5_name_id)
+                                {{$process->process}}
+                            @endif
+                        @endforeach
+                    </div>
                 </div>
                 <div class="text-end mt-4"><strong>CMM No:</strong></div>
 
@@ -315,12 +324,24 @@
             <div class="col-4 mt-3">
                 <div class="row mt-2" style="height: 26px">
                     <div class="col-2 text-end">#3</div>
-                    <div class="col-10 border-b"></div>
+                    <div class="col-10 border-b">
+{{--                        @foreach($ndt_processes as $process)--}}
+{{--                            @if($process->process_names_id == $ndt3_name_id)--}}
+{{--                                {{$process->process}}--}}
+{{--                            @endif--}}
+{{--                        @endforeach--}}
+                    </div>
                 </div>
                 <div class="text-start"><strong>EDDY CURRENT AS PER:</strong></div>
                 <div class="row " style="height: 26px">
                     <div class="col-2 text-end">#6</div>
-                    <div class="col-10 border-b"></div>
+                    <div class="col-10 border-b">
+                        @foreach($ndt_processes as $process)
+                            @if($process->process_names_id == $ndt6_name_id)
+                                {{$process->process}}
+                            @endif
+                        @endforeach
+                    </div>
                 </div>
                 <div class="row border-all mt-2" style="height: 56px">
                     @foreach($manuals as $manual)
@@ -333,7 +354,18 @@
             </div>
         </div>
     </div>
+    <div class="page data-page">
+        <div class="row mt-2 ">
+            <div class="col-1 border-l-t-b  details-row text-center">ITEM No.</div>
+            <div class="col-3 border-l-t-b details-row text-center">Part No</div>
+            <div class="col-4 border-l-t-b details-row text-center">DESCRIPTION</div>
+            <div class="col-1 border-l-t-b details-row text-center">PROCESS No.</div>
+            <div class="col-1 border-l-t-b details-row  text-center">QTY</div>
+            <div class="col-1 border-l-t-b details-row  text-center">ACCEPT</div>
+            <div class="col-1 border-all details-row  text-center">REJECT</div>
+        </div>
 
+    </div>
 </div>
 </body>
 </html>

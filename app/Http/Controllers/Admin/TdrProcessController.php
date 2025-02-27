@@ -65,7 +65,7 @@ class TdrProcessController extends Controller
         $processNames = ProcessName::all();
 
         // Получаем процессы, связанные с manual_id
-        $processes = Process::whereHas('manualProcesses', function ($query) use ($manual_id) {
+        $processes = Process::whereHas('manuals', function ($query) use ($manual_id) {
             $query->where('manual_id', $manual_id);
         })->get();
 
@@ -78,18 +78,29 @@ class TdrProcessController extends Controller
             'current_wo',
             'processNames',
             'processes',
-            'tdrProcesses'
+            'tdrProcesses',
+            'manual_id'
         ));
     }
 
-    public function getProcess($processNameId)
+    public function getProcess($processNameId, Request $request)
     {
-        // Получаем процессы по process_names_id
-        $processes = Process::where('process_names_id', $processNameId)->get();
+        // Получаем manual_id из запроса
+        $manualId = $request->query('manual_id');
 
-        // Возвращаем данные в формате JSON
+        // Фильтруем процессы по processNameId и manual_id
+        $processes = Process::where('process_names_id', $processNameId)
+            ->whereHas('manuals', function ($query) use ($manualId) {
+                $query->where('manual_id', $manualId);
+            })
+            ->get();
+
+        // Log or inspect the response data for debugging
+        \Log::info($processes); // Log data to inspect it
+
         return response()->json($processes);
     }
+
 
     /**
      * Store a newly created resource in storage.
