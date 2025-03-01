@@ -14,9 +14,8 @@
         }
 
         .container-fluid {
-            max-width: 960px;
-
-            height: 99%;
+            max-width: 920px;
+            height: 98%;
             padding: 5px;
             margin-left: 10px;
             margin-right: 10px;
@@ -26,14 +25,14 @@
             /* Задаем размер страницы Letter (8.5 x 11 дюймов) */
             @page {
                 size: letter;
-                margin: 2mm;
+                margin: 1mm;
             }
 
             /* Убедитесь, что вся страница помещается на один лист */
             html, body {
-                height: 86%;
+                height: 99%;
                 width: 98%;
-                margin-left: 3px;
+                margin-left: 2px;
                 padding: 0;
             }
 
@@ -183,6 +182,9 @@
         .fs-75 {
             font-size: 0.8rem; /* или любое другое подходящее значение */
         }
+        .fs-85 {
+            font-size: 0.85rem; /* или любое другое подходящее значение */
+        }
         .fs-8 {
             font-size: 0.7rem; /* или любое другое подходящее значение */
         }
@@ -194,7 +196,7 @@
             display: flex;
             justify-content: center;
             align-items: center; /* Выравнивание элементов по вертикали */
-            /*height: 40px; !* Фиксированная высота строки *!*/
+            /*height: 32px; !* Фиксированная высота строки *!*/
         }
         .details-cell {
             flex-grow: 1; /* Позволяет колонкам растягиваться и занимать доступное пространство */
@@ -354,18 +356,86 @@
             </div>
         </div>
     </div>
-    <div class="page data-page">
+    <div class="page table-header">
         <div class="row mt-2 ">
-            <div class="col-1 border-l-t-b  details-row text-center">ITEM No.</div>
-            <div class="col-3 border-l-t-b details-row text-center">Part No</div>
-            <div class="col-4 border-l-t-b details-row text-center">DESCRIPTION</div>
-            <div class="col-1 border-l-t-b details-row text-center">PROCESS No.</div>
-            <div class="col-1 border-l-t-b details-row  text-center">QTY</div>
-            <div class="col-1 border-l-t-b details-row  text-center">ACCEPT</div>
-            <div class="col-1 border-all details-row  text-center">REJECT</div>
+            <div class="col-1 border-l-t-b pt-2 details-row text-center"><h6 class="fs-7">ITEM No.</h6></div>
+            <div class="col-3 border-l-t-b details-row text-center"><h6  class="fs-7">Part No</h6> </div>
+            <div class="col-3 border-l-t-b details-row text-center"><h6  class="fs-7">DESCRIPTION</h6></div>
+            <div class="col-2 border-l-t-b pt-2 details-row text-center"><h6  class="fs-75">PROCESS No.</h6> </div>
+            <div class="col-1 border-l-t-b details-row  text-center"><h6  class="fs-7">QTY</h6> </div>
+            <div class="col-1 border-l-t-b details-row  text-center"><h6  class="fs-7">ACCEPT</h6> </div>
+            <div class="col-1 border-all details-row  text-center"><h6  class="fs-7">REJECT</h6> </div>
         </div>
-
     </div>
+    <div class="page data-page">
+        @php
+            $totalRows = 17; // Общее количество строк
+            $dataRows = count($ndt_components); // Количество строк с данными
+            $emptyRows = $totalRows - $dataRows; // Количество пустых строк
+        @endphp
+
+        @foreach($ndt_components as $component)
+            <div class="row fs-85">
+                <div class="col-1 border-l-b details-row text-center" style="height: 32px">
+                    {{ $component->tdr->component->ipl_num }}
+                </div>
+                <div class="col-3 border-l-b details-row text-center" style="height: 32px">
+                    {{ $component->tdr->component->part_number }}
+                </div>
+                <div class="col-3 border-l-b details-row text-center" style="height: 32px">
+                    {{ $component->tdr->component->name }}
+                </div>
+                <div class="col-2 border-l-b details-row text-center" style="height: 32px">
+                    {{ substr($component->processName->name, -1) }}
+                </div>
+                <div class="col-1 border-l-b details-row text-center" style="height: 32px">
+                    {{ $component->tdr->qty }}
+                </div>
+                <div class="col-1 border-l-b details-row text-center" style="height: 32px">
+                    <!-- Пустая ячейка -->
+                </div>
+                <div class="col-1 border-l-b-r details-row text-center" style="height: 32px">
+                    <!-- Пустая ячейка -->
+                </div>
+            </div>
+        @endforeach
+
+        @for ($i = 0; $i < $emptyRows; $i++)
+            <div class="row fs-85">
+                <div class="col-1 border-l-b details-row text-center" style="height: 32px">
+                    <!-- Пустая ячейка -->
+                </div>
+                <div class="col-3 border-l-b details-row text-center" style="height: 32px">
+                    <!-- Пустая ячейка -->
+                </div>
+                <div class="col-3 border-l-b details-row text-center" style="height: 32px">
+                    <!-- Пустая ячейка -->
+                </div>
+                <div class="col-2 border-l-b details-row text-center" style="height: 32px">
+                    <!-- Пустая ячейка -->
+                </div>
+                <div class="col-1 border-l-b details-row text-center" style="height: 32px">
+                    <!-- Пустая ячейка -->
+                </div>
+                <div class="col-1 border-l-b details-row text-center" style="height: 32px">
+                    <!-- Пустая ячейка -->
+                </div>
+                <div class="col-1 border-l-b-r details-row text-center" style="height: 32px">
+                    <!-- Пустая ячейка -->
+                </div>
+            </div>
+        @endfor
+    </div>
+    <footer>
+        <div class="row fs-85" style="width: 100%; padding: 5px 0;">
+            <div class="col-6 text-start">
+                   {{__('Form #')}} {{$form_number}}
+            </div>
+            <div class="col-6 text-end pe-4 ">
+                {{__('Rev#0, 15/Dec/2012   ')}}
+            </div>
+        </div>
+    </footer>
 </div>
 </body>
 </html>

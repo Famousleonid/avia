@@ -414,7 +414,7 @@ class TdrController extends Controller
         // Извлекаем компоненты, связанные с manual_id
         $components = Component::where('manual_id', $manual_id)->get();
 
-        $tdrs = Tdr::where('workorder_id',$current_wo->id)->get();;
+        $tdrs = Tdr::where('workorder_id',$current_wo->id)->pluck('component_id');;
 
         $manuals = Manual::where('id', $manual_id)->get();
 
@@ -422,12 +422,13 @@ class TdrController extends Controller
         $ndt4_name_id = ProcessName::where('name','NDT-4')->first()->id;
         $ndt6_name_id = ProcessName::where('name','Eddy Current Test')->first()->id;
         $ndt5_name_id = ProcessName::where('name','BNI')->first()->id;
+        $tdr = Tdr::all();
 
-
-//        $process_names = ProcessName::all();
+       $processNames = ProcessName::all();
         // Получаем processes_id из таблицы manual_processes для данного manual_id
         $manualProcesses = ManualProcess::where('manual_id', $manual_id)->pluck('processes_id');
 
+        $form_number = ProcessName::where('process_sheet_name','NDT')->first()->form_number;
         $ndt_processes = Process::whereIn('id', $manualProcesses)
             ->where(function ($query) use ($ndt1_name_id, $ndt4_name_id, $ndt5_name_id, $ndt6_name_id) {
                 $query->where('process_names_id', $ndt1_name_id)
@@ -436,13 +437,23 @@ class TdrController extends Controller
                     ->orWhere('process_names_id', $ndt6_name_id);
             })
             ->get();
-
+        $ndt_components = TdrProcess::whereIn('tdrs_id',$tdrs)
+        ->where(function ($query) use ($ndt1_name_id, $ndt4_name_id, $ndt5_name_id, $ndt6_name_id) {
+            $query->where('process_names_id', $ndt1_name_id)
+                ->orWhere('process_names_id', $ndt4_name_id)
+                ->orWhere('process_names_id', $ndt5_name_id)
+                ->orWhere('process_names_id', $ndt6_name_id);
+        })
+            ->with('tdr')
+            ->with('processName')
+            ->get();
 
 //        dd($manual_id, $ndt1_name_id,$ndt4_name_id, $ndt_processes, $manualProcesses);
 
 
         return view('admin.tdrs.ndtForm', compact('current_wo', 'components',
-            'tdrs','manuals','ndt_processes','ndt1_name_id','ndt4_name_id','ndt5_name_id','ndt6_name_id'
+            'tdrs','manuals','ndt_processes','ndt1_name_id','ndt4_name_id','ndt5_name_id','ndt6_name_id',
+            'ndt_components','form_number'
         ));
 
     }

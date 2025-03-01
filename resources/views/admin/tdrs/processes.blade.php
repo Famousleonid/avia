@@ -94,7 +94,10 @@
 
                         <i class="bi bi-file-earmark-excel"> NDT Form</i>
                     </a>
-
+                    <button class="btn btn-outline-warning" data-bs-toggle="modal"
+                            data-bs-target="#formsModal">
+                        {{__('Forms')}}
+                    </button>
                 </div>
                 <a href="{{ route('admin.tdrs.show', ['tdr'=>$current_wo->id]) }}"
                    class="btn btn-outline-secondary mt-3" style="height: 40px">{{ __('Back to Work Order') }} </a>
@@ -207,7 +210,82 @@
                     </div>
                 </div><!---- Table  --->
                 <div>
+                    <!-- Modal -->
+                    <div class="modal fade" id="formsModal" tabindex="-1" aria-labelledby="formsModalLabel" aria-hidden="true">
+                        <div class="modal-dialog modal-lg">
+                            <div class="modal-content bg-gradient">
+                                <div class="modal-header">
+                                    <h5 class="modal-title" id="formsModalLabel">{{ __('Forms for Work Order: ') }} {{ $current_wo->number }}</h5>
+                                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                                </div>
+                                <div class="modal-body">
+                                    <div class="table-responsive">
+                                        <table class="table table-sm table-hover align-middle table-bordered">
+                                            <thead>
+                                            <tr>
+                                                <th class="text-primary text-center">IPL</th>
+                                                <th class="text-primary text-center">Component Name</th>
+                                                <th class="text-primary text-center">Processes</th>
+                                                <th class="text-primary text-center">Actions</th>
+                                            </tr>
+                                            </thead>
+                                            <tbody>
+                                            @foreach($tdrs as $tdr)
+                                                @if($tdr->use_process_forms)
+                                                    <tr>
+                                                        <td class="text-center">{{ $tdr->component->ipl_num }}</td>
+                                                        <td class="text-center">{{ $tdr->component->name }}</td>
+                                                        <td>
+                                                            @foreach($tdrProcesses as $processes)
+                                                                @if($processes->tdrs_id == $tdr->id)
+                                                                    @php
+                                                                        $processData = json_decode($processes->processes, true);
+                                                                        $processName = $processes->processName->name;
+                                                                    @endphp
 
+                                                                    @foreach($processData as $processId)
+                                                                        {{ $processName }} :
+                                                                        @if(isset($proces[$processId]))
+                                                                            {{ $proces[$processId]->process }}<br>
+                                                                        @endif
+                                                                    @endforeach
+                                                                @endif
+                                                            @endforeach
+                                                        </td>
+                                                        <td class="text-center">
+                                                            @foreach($tdrProcesses as $processes)
+                                                                @if($processes->tdrs_id == $tdr->id)
+                                                                    @php
+                                                                        $processData = json_decode($processes->processes, true);
+                                                                        $processName = $processes->processName->name;
+                                                                    @endphp
+
+                                                                    @foreach($processData as $processId)
+                                                                        @if(isset($proces[$processId]))
+{{--                                                                            {{ route('admin.tdr-processes.showForm', ['tdrId' => $tdr->id, 'processId' => $processId]) }}--}}
+                                                                            <a href="#"
+                                                                               class="btn btn-outline-primary btn-sm mb-1"
+                                                                               target="_blank">
+                                                                                {{ $processName }} Form
+                                                                            </a><br>
+                                                                        @endif
+                                                                    @endforeach
+                                                                @endif
+                                                            @endforeach
+                                                        </td>
+                                                    </tr>
+                                                @endif
+                                            @endforeach
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </div>
+                                <div class="modal-footer">
+                                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">{{ __('Close') }}</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
                 </div>
                 <div></div>
             </div>
