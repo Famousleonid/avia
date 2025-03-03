@@ -211,6 +211,7 @@
                 </div><!---- Table  --->
                 <div>
                     <!-- Modal Forms -->
+                    <!-- Modal Forms -->
                     <div class="modal fade" id="formsModal" tabindex="-1" role="dialog" aria-labelledby="formsModalLabel" aria-hidden="true">
                         <div class="modal-dialog modal-dialog-centered modal-lg" role="document">
                             <div class="modal-content bg-gradient">
@@ -220,10 +221,10 @@
                                 </div>
                                 <div class="modal-body">
                                     @php
-                                        // Группировка процессов по типу для всех компонентов
+                                        // Группировка процессов по типу для всех компонентов.
+                                        // Будем определять тип по имени процесса (например, "Machining" или "NDT")
                                         $globalGroupedProcesses = [];
                                         foreach($tdrProcesses as $process) {
-                                            // Получаем имя процесса, например: "Machining (place 1)" или "NDT-1"
                                             $processName = $process->processName->name;
                                             $baseType = '';
                                             if(strpos($processName, 'Machining') !== false) {
@@ -231,16 +232,12 @@
                                             } elseif(strpos($processName, 'NDT') !== false) {
                                                 $baseType = 'NDT';
                                             }
-                                            // Если тип определён и ещё не добавлен в массив, запоминаем его
+                                            // Если тип определён и ещё не добавлен в массив, сохраняем его
                                             if($baseType && !isset($globalGroupedProcesses[$baseType])) {
-                                                // Декодируем JSON-поле processes и берём первый processId
-                                                $processIds = json_decode($process->processes, true);
-                                                if(!empty($processIds)) {
-                                                    $globalGroupedProcesses[$baseType] = [
-                                                        'tdrId'     => $process->tdrs_id,
-                                                        'processId' => $processIds[0]
-                                                    ];
-                                                }
+                                                $globalGroupedProcesses[$baseType] = [
+                                                    'tdrId'           => $process->tdrs_id,
+                                                    'process_name_id' => $process->process_names_id
+                                                ];
                                             }
                                         }
                                     @endphp
@@ -249,9 +246,9 @@
                                         @foreach($globalGroupedProcesses as $type => $data)
                                             <div class="col-md-4 mb-3">
                                                 <a href="{{ route('admin.tdr-processes.processesForm', [
-                                'id' => $current_wo->id,
-                                'tdrId'     => $data['tdrId'],
-                                'processId' => $data['processId']
+                                'id'      => $current_wo->id,
+//                                'tdrId'          => $data['tdrId'],
+                                'process_name_id'=> $data['process_name_id']
                             ]) }}" target="_blank" class="btn btn-outline-primary btn-block">
                                                     {{ $type }}
                                                 </a>
