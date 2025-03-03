@@ -211,7 +211,6 @@
                 </div><!---- Table  --->
                 <div>
                     <!-- Modal Forms -->
-                    <!-- Modal Forms -->
                     <div class="modal fade" id="formsModal" tabindex="-1" role="dialog" aria-labelledby="formsModalLabel" aria-hidden="true">
                         <div class="modal-dialog modal-dialog-centered modal-lg" role="document">
                             <div class="modal-content bg-gradient">
@@ -221,18 +220,18 @@
                                 </div>
                                 <div class="modal-body">
                                     @php
-                                        // Группировка процессов по типу для всех компонентов.
-                                        // Будем определять тип по имени процесса (например, "Machining" или "NDT")
+                                        /*
+                                         * Формируем группировку процессов по типу для всех компонентов.
+                                         * Предполагается, что модель processName имеет свойство process_type, в котором хранится тип процесса
+                                         * (например, "NDT", "MACHINING", "HEAT TREATMENT" и т.д.).
+                                         * Если такого свойства нет, можно применить преобразование, например, анализ значения process_sheet_name.
+                                         */
                                         $globalGroupedProcesses = [];
                                         foreach($tdrProcesses as $process) {
-                                            $processName = $process->processName->name;
-                                            $baseType = '';
-                                            if(strpos($processName, 'Machining') !== false) {
-                                                $baseType = 'Machining';
-                                            } elseif(strpos($processName, 'NDT') !== false) {
-                                                $baseType = 'NDT';
-                                            }
-                                            // Если тип определён и ещё не добавлен в массив, сохраняем его
+                                            // Используем process_type, если оно есть, иначе можно взять, например, process_sheet_name
+                                            $baseType = $process->processName->process_type ?? $process->processName->process_sheet_name;
+
+                                            // Если базовый тип определён и для него ещё не выбрана запись, сохраняем данные:
                                             if($baseType && !isset($globalGroupedProcesses[$baseType])) {
                                                 $globalGroupedProcesses[$baseType] = [
                                                     'tdrId'           => $process->tdrs_id,
@@ -246,15 +245,15 @@
                                         @foreach($globalGroupedProcesses as $type => $data)
                                             <div class="col-md-4 mb-3">
                                                 <a href="{{ route('admin.tdr-processes.processesForm', [
-                                'id'      => $current_wo->id,
-//                                'tdrId'          => $data['tdrId'],
-                                'process_name_id'=> $data['process_name_id']
-                            ]) }}" target="_blank" class="btn btn-outline-primary btn-block">
+                'id'               => $current_wo->id,
+                'process_name_id'  => $data['process_name_id']
+            ]) }}" target="_blank" class="btn btn-outline-primary btn-block">
                                                     {{ $type }}
                                                 </a>
                                             </div>
                                         @endforeach
                                     </div>
+
                                 </div>
                             </div>
                         </div>
