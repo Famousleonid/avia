@@ -210,82 +210,59 @@
                     </div>
                 </div><!---- Table  --->
                 <div>
-                    <!-- Modal -->
-                    <div class="modal fade" id="formsModal" tabindex="-1" aria-labelledby="formsModalLabel" aria-hidden="true">
-                        <div class="modal-dialog modal-lg">
+                    <!-- Modal Forms -->
+                    <div class="modal fade" id="formsModal" tabindex="-1" role="dialog" aria-labelledby="formsModalLabel" aria-hidden="true">
+                        <div class="modal-dialog modal-dialog-centered modal-lg" role="document">
                             <div class="modal-content bg-gradient">
                                 <div class="modal-header">
-                                    <h5 class="modal-title" id="formsModalLabel">{{ __('Forms for Work Order: ') }} {{ $current_wo->number }}</h5>
-                                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                                    <h5 class="modal-title" id="formsModalLabel">{{ __('Forms Processes') }}</h5>
+                                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="{{ __('Close') }}"></button>
                                 </div>
                                 <div class="modal-body">
-                                    <div class="table-responsive">
-                                        <table class="table table-sm table-hover align-middle table-bordered">
-                                            <thead>
-                                            <tr>
-                                                <th class="text-primary text-center">IPL</th>
-                                                <th class="text-primary text-center">Component Name</th>
-                                                <th class="text-primary text-center">Processes</th>
-                                                <th class="text-primary text-center">Actions</th>
-                                            </tr>
-                                            </thead>
-                                            <tbody>
-                                            @foreach($tdrs as $tdr)
-                                                @if($tdr->use_process_forms)
-                                                    <tr>
-                                                        <td class="text-center">{{ $tdr->component->ipl_num }}</td>
-                                                        <td class="text-center">{{ $tdr->component->name }}</td>
-                                                        <td>
-                                                            @foreach($tdrProcesses as $processes)
-                                                                @if($processes->tdrs_id == $tdr->id)
-                                                                    @php
-                                                                        $processData = json_decode($processes->processes, true);
-                                                                        $processName = $processes->processName->name;
-                                                                    @endphp
+                                    @php
+                                        // Группировка процессов по типу для всех компонентов
+                                        $globalGroupedProcesses = [];
+                                        foreach($tdrProcesses as $process) {
+                                            // Получаем имя процесса, например: "Machining (place 1)" или "NDT-1"
+                                            $processName = $process->processName->name;
+                                            $baseType = '';
+                                            if(strpos($processName, 'Machining') !== false) {
+                                                $baseType = 'Machining';
+                                            } elseif(strpos($processName, 'NDT') !== false) {
+                                                $baseType = 'NDT';
+                                            }
+                                            // Если тип определён и ещё не добавлен в массив, запоминаем его
+                                            if($baseType && !isset($globalGroupedProcesses[$baseType])) {
+                                                // Декодируем JSON-поле processes и берём первый processId
+                                                $processIds = json_decode($process->processes, true);
+                                                if(!empty($processIds)) {
+                                                    $globalGroupedProcesses[$baseType] = [
+                                                        'tdrId'     => $process->tdrs_id,
+                                                        'processId' => $processIds[0]
+                                                    ];
+                                                }
+                                            }
+                                        }
+                                    @endphp
 
-                                                                    @foreach($processData as $processId)
-                                                                        {{ $processName }} :
-                                                                        @if(isset($proces[$processId]))
-                                                                            {{ $proces[$processId]->process }}<br>
-                                                                        @endif
-                                                                    @endforeach
-                                                                @endif
-                                                            @endforeach
-                                                        </td>
-                                                        <td class="text-center">
-                                                            @foreach($tdrProcesses as $processes)
-                                                                @if($processes->tdrs_id == $tdr->id)
-                                                                    @php
-                                                                        $processData = json_decode($processes->processes, true);
-                                                                        $processName = $processes->processName->name;
-                                                                    @endphp
-
-                                                                    @foreach($processData as $processId)
-                                                                        @if(isset($proces[$processId]))
-{{--                                                                            {{ route('admin.tdr-processes.showForm', ['tdrId' => $tdr->id, 'processId' => $processId]) }}--}}
-                                                                            <a href="#"
-                                                                               class="btn btn-outline-primary btn-sm mb-1"
-                                                                               target="_blank">
-                                                                                {{ $processName }} Form
-                                                                            </a><br>
-                                                                        @endif
-                                                                    @endforeach
-                                                                @endif
-                                                            @endforeach
-                                                        </td>
-                                                    </tr>
-                                                @endif
-                                            @endforeach
-                                            </tbody>
-                                        </table>
+                                    <div class="row">
+                                        @foreach($globalGroupedProcesses as $type => $data)
+                                            <div class="col-md-4 mb-3">
+                                                <a href="{{ route('admin.tdr-processes.processesForm', [
+                                'id' => $current_wo->id,
+                                'tdrId'     => $data['tdrId'],
+                                'processId' => $data['processId']
+                            ]) }}" target="_blank" class="btn btn-outline-primary btn-block">
+                                                    {{ $type }}
+                                                </a>
+                                            </div>
+                                        @endforeach
                                     </div>
-                                </div>
-                                <div class="modal-footer">
-                                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">{{ __('Close') }}</button>
                                 </div>
                             </div>
                         </div>
                     </div>
+
                 </div>
                 <div></div>
             </div>

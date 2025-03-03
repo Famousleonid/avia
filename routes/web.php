@@ -114,8 +114,12 @@ Route::group(['middleware' => ['auth', 'isAdmin'], 'prefix' => 'admin', 'as' =>'
     Route::resource('/process-names',\App\Http\Controllers\Admin\ProcessNameController::class);
 
     Route::resource('/tdr-processes',\App\Http\Controllers\Admin\TdrProcessController::class);
+
+    Route::get('tdr-processes/processesForm/{id}', [\App\Http\Controllers\Admin\TdrProcessController::class, 'processesForm'])
+        ->name('tdr-processes.processesForm');
+
     // Уникальный путь для createProcesses
-    Route::get('/tdr/{tdrId}/create-processes', [\App\Http\Controllers\Admin\TdrProcessController::class, 'createProcesses'])
+        Route::get('/tdr/{tdrId}/create-processes', [\App\Http\Controllers\Admin\TdrProcessController::class, 'createProcesses'])
         ->name('tdr-processes.createProcesses');
     Route::get('/tdr/{tdrId}/processes', [\App\Http\Controllers\Admin\TdrProcessController::class, 'processes'])
         ->name('tdr-processes.processes');

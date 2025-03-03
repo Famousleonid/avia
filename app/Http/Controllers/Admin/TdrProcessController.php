@@ -147,7 +147,10 @@ class TdrProcessController extends Controller
         ], 200);
     }
 
-
+    public function processesForm(Request $request, $id)
+    {
+dd($request,$id);
+    }
 
     /**
      * Display the specified resource.

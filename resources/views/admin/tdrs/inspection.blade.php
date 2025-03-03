@@ -680,17 +680,20 @@
                     processData: false,  // не обрабатывать данные как обычную строку
                     contentType: false,  // не устанавливать заголовок типа контента
                     success: function(response) {
-                        // Проверяем, успешен ли ответ
                         if (response.success) {
-                            // Закрываем модальное окно
                             $('#addComponentModal').modal('hide');
-
-                            // Добавляем новый компонент в select
-                            $('#component_id').append(new Option(response.component.part_number + ' (' + response.component.name + ')', response.component.id))
-                                .val(response.component.id)  // устанавливаем выбранное значение
-                                .trigger('change');  // обновляем select2
+                            // Создаем новый option и устанавливаем data‑атрибут
+                            var newOption = new Option(
+                                response.component.part_number + ' (' + response.component.name + ')',
+                                response.component.id
+                            );
+                            $(newOption).attr('data-has_assy_part_number', response.component.assy_part_number ? 'true' : 'false');
+                            $('#component_id').append(newOption)
+                                .val(response.component.id)
+                                .trigger('change');
                         }
                     },
+
                     error: function(response) {
                         // Если что-то пошло не так, выводим сообщение об ошибке
                         alert('Error occurred while adding the component');
@@ -698,45 +701,7 @@
                 });
             });
 
-            // --------------------------------- Select 2 --------------------------------------------------------
 
-            $(document).ready(function () {
-                $('#component_id').select2({
-                    placeholder: '---',
-                    theme: 'bootstrap-5',
-                    allowClear: true
-                });
-            });
-
-            $(function() {
-                applyTheme();
-            });
-
-            $(document).ready(function () {
-                $('#conditions_id').select2({
-                    placeholder: '---',
-                    theme: 'bootstrap-5',
-                    allowClear: true
-                });
-            });
-
-            $(function() {
-                applyTheme();
-            });
-
-            function applyTheme() {
-                const isDark = document.documentElement.getAttribute('data-bs-theme');
-                const selectContainer = $('.select2-container');
-                if (isDark === 'dark') {
-                    selectContainer.addClass('select2-dark').removeClass('select2-light');
-                    $('.select2-container .select2-dropdown').addClass('select2-dark').removeClass('select2-light');
-                } else {
-                    selectContainer.addClass('select2-light').removeClass('select2-dark');
-                    $('.select2-container .select2-dropdown').addClass('select2-light').removeClass('select2-dark');
-                }
-            }
-
-            // -----------------------------------------------------------------------------------------------------
 
             // Функция для отображения/скрытия div assy_serial_number
             function toggleAssySerialNumberField(selectedComponentId) {
@@ -768,7 +733,45 @@
             }
         });
 
+        // --------------------------------- Select 2 --------------------------------------------------------
 
+        $(document).ready(function () {
+            $('#component_id').select2({
+                placeholder: '---',
+                theme: 'bootstrap-5',
+                allowClear: true
+            });
+        });
+
+        $(function() {
+            applyTheme();
+        });
+
+        $(document).ready(function () {
+            $('#conditions_id').select2({
+                placeholder: '---',
+                theme: 'bootstrap-5',
+                allowClear: true
+            });
+        });
+
+        $(function() {
+            applyTheme();
+        });
+
+        function applyTheme() {
+            const isDark = document.documentElement.getAttribute('data-bs-theme');
+            const selectContainer = $('.select2-container');
+            if (isDark === 'dark') {
+                selectContainer.addClass('select2-dark').removeClass('select2-light');
+                $('.select2-container .select2-dropdown').addClass('select2-dark').removeClass('select2-light');
+            } else {
+                selectContainer.addClass('select2-light').removeClass('select2-dark');
+                $('.select2-container .select2-dropdown').addClass('select2-light').removeClass('select2-dark');
+            }
+        }
+
+        // -----------------------------------------------------------------------------------------------------
     </script>
 
 @endsection
