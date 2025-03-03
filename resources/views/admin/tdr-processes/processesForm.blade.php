@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{{$process_name->process_sheet_name}} Form</title>
+    <title>{{$process_name->process_sheet_name}}</title>
     <link rel="stylesheet" href="{{asset('assets/Bootstrap 5/bootstrap.min.css')}}">
 
     <style>
@@ -222,12 +222,12 @@
 <div class="container-fluid">
     <div class="header-page">
         <div class="row">
-            <div class="col-4">
+            <div class="col-3">
                 <img src="{{ asset('img/icons/AT_logo-rb.svg') }}" alt="Logo"
                      style="width: 180px; margin: 6px 10px 0;">
             </div>
-            <div class="col-8">
-                <h2 class="p-2 mt-3 text-black text-"><strong>{{$process_name->process_sheet_name}} PROCESS SHEET</strong></h2>
+            <div class="col-9">
+                <h2 class=" mt-3 text-black text-"><strong>{{$process_name->process_sheet_name}} PROCESS SHEET</strong></h2>
             </div>
         </div>
         <div class="row">
@@ -466,16 +466,16 @@
                 @foreach($processData as $process)
 
                     <div class="row fs-85">
-                        <div class="col-1 border-l-b details-row text-center"  style="height: 36px">
+                        <div class="col-1 border-l-b details-row text-center"  style="min-height: 36px">
                             {{ $component->tdr->component->ipl_num }}
                         </div>
-                        <div class="col-2 border-l-b details-row text-center" style="height: 36px">
+                        <div class="col-2 border-l-b details-row text-center" style="min-height: 36px">
                             {{ $component->tdr->component->part_number }}
                         </div>
-                        <div class="col-2 border-l-b details-row text-center" style="height: 36px" >
+                        <div class="col-2 border-l-b details-row text-center" style="min-height: 36px" >
                             {{ $component->tdr->component->name }}
                         </div>
-                        <div class="col-4 border-l-b details-row text-center"  style="height: 36px">
+                        <div class="col-4 border-l-b details-row text-center process-cell"  style="min-height: 36px">
                             @foreach($process_components as $component_process)
                                 @if($component_process->id == $process)
                                     {{$component_process->process}}
@@ -483,10 +483,10 @@
                             @endforeach
 
                         </div>
-                        <div class="col-1 border-l-b details-row text-center" style="height: 36px" >
+                        <div class="col-1 border-l-b details-row text-center" style="min-height: 36px" >
                             {{ $component->tdr->qty }}
                         </div>
-                        <div class="col-2 border-l-b-r details-row text-center"  style="height: 36px">
+                        <div class="col-2 border-l-b-r details-row text-center"  style="min-height: 36px">
                             @foreach($manuals as $manual)
                                 @if($manual->id == $current_wo->unit->manual_id)
                                     <h6 class="text-center mt-3"> {{$manual->number}}</h6>
@@ -540,5 +540,32 @@
         </div>
     </footer>
 </div>
+<script>
+    document.addEventListener("DOMContentLoaded", function() {
+        // Находим все ячейки с текстом, где может быть несколько строк
+        var processCells = document.querySelectorAll('.process-cell');
+        var totalExtraLines = 0;
+
+        processCells.forEach(function(cell) {
+            var cellHeight = cell.offsetHeight;
+            // Если высота ячейки превышает 36px, считаем дополнительные линии
+            if(cellHeight > 36) {
+                // Дополнительные линии: (cellHeight - 36) / 18
+                var extraLines = Math.round((cellHeight - 36) / 18);
+                totalExtraLines += extraLines;
+            }
+        });
+
+        // Каждые 2 дополнительные линии соответствуют одной пустой строке (36px)
+        var emptyRowsToRemove = Math.floor(totalExtraLines / 2);
+
+        // Удаляем пустые строки
+        var emptyRows = document.querySelectorAll('.empty-row');
+        for (var i = 0; i < emptyRowsToRemove && i < emptyRows.length; i++) {
+            emptyRows[i].remove();
+        }
+    });
+
+</script>
 </body>
 </html>
