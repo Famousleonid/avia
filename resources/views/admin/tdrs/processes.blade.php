@@ -211,10 +211,11 @@
                 </div><!---- Table  --->
                 <div>
                     <!-- Modal Forms -->
-                    <div class="modal fade" id="formsModal" tabindex="-1" role="dialog" aria-labelledby="formsModalLabel" aria-hidden="true">
-                        <div class="modal-dialog modal-dialog-centered modal-lg" role="document">
-                            <div class="modal-content bg-gradient">
-                                <div class="modal-header">
+                    <div class="modal fade" id="formsModal" tabindex="-1" role="dialog" aria-labelledby="formsModalLabel"
+                         aria-hidden="true" >
+                        <div class="modal-dialog modal-dialog-centered modal-lg" role="document" style="width: 450px">
+                            <div class="modal-content ">
+                                <div class="modal-header bg-gradient">
                                     <h5 class="modal-title" id="formsModalLabel">{{ __('Forms Processes') }}</h5>
                                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="{{ __('Close') }}"></button>
                                 </div>
@@ -241,13 +242,13 @@
                                         }
                                     @endphp
 
-                                    <div class="row">
+                                    <div class="row ">
                                         @foreach($globalGroupedProcesses as $type => $data)
-                                            <div class="col-md-4 mb-3">
+                                            <div class=" mb-3 text-center">
                                                 <a href="{{ route('admin.tdr-processes.processesForm', [
-                'id'               => $current_wo->id,
-                'process_name_id'  => $data['process_name_id']
-            ]) }}" target="_blank" class="btn btn-outline-primary btn-block">
+                                                               'id' => $current_wo->id,
+                                                 'process_name_id'  => $data['process_name_id']
+                                                         ]) }}" target="_blank" class="btn btn-outline-primary btn-block">
                                                     {{ $type }}
                                                 </a>
                                             </div>
