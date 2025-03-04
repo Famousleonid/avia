@@ -458,6 +458,21 @@ class TdrController extends Controller
 
     }
 
+    public function specProcessForm(Request $request, $id)
+    {
+        // Загрузка Workorder по ID
+        $current_wo = Workorder::findOrFail($id);
+
+        // Получаем данные о manual_id, связанном с этим Workorder
+        $manual_id = $current_wo->unit->manual_id;
+
+        // Извлекаем компоненты, связанные с manual_id
+        $components = Component::where('manual_id', $manual_id)->get();
+
+        $tdrs = Tdr::where('workorder_id',$current_wo->id)->pluck('component_id');;
+
+        return view('admin.tdrs.specProcessForm',compact('current_wo'));
+    }
     public function tdrForm(Request $request, $id)
     {
         // Загрузка Workorder по ID

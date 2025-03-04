@@ -88,14 +88,21 @@
                     <h5>{{__('All Components Processes')}}</h5>
 
                     <a href="{{ route('admin.tdrs.ndtForm', ['id'=> $current_wo->id]) }}"
-                       class="btn btn-outline-warning mb-1 formLink "
+                       class="btn btn-outline-warning formLink "
                        target="_blank"
-                       id="#" style=" height: 40px">
+                       id="#" style=" height: 36px">
 
-                        <i class="bi bi-file-earmark-excel"> NDT Form</i>
+                        <i class="bi bi-file-earmark-excel"> NDT (Cat #1)</i>
+                    </a>
+                    <a href="{{ route('admin.tdrs.specProcessForm', ['id'=> $current_wo->id]) }}"
+                       class="btn btn-outline-warning  formLink "
+                       target="_blank"
+                       id="#" style=" height: 36px">
+
+                        <i class="bi bi-file-earmark-excel"> Special Process Form</i>
                     </a>
                     <button class="btn btn-outline-warning" data-bs-toggle="modal"
-                            data-bs-target="#formsModal">
+                            data-bs-target="#formsModal" style=" height: 36px">
                         {{__('Forms')}}
                     </button>
                 </div>

@@ -151,15 +151,17 @@
                     <div class="ps-2 d-flex" style="width: 300px;">
                         <div class="me-2" >
                             <a href="{{route('admin.tdrs.inspection',['workorder_id' => $current_wo->id])}}"
-                               class="btn  btn-outline-primary " style="height: 40px" onclick="showLoadingSpinner()">
+                               class="btn  btn-outline-primary " style="height: 60px;align-content: center"
+                               onclick="showLoadingSpinner()">
                                 {{__('Add Inspection')}}
                             </a>
                         </div>
                         @if(count($processParts))
                             <div class="me-2" >
                                 <a href="{{route('admin.tdrs.processes',['workorder_id' => $current_wo->id])}}"
-                                   class="btn  btn-outline-primary " style="height: 40px" onclick="showLoadingSpinner()">
-                                    {{__('Processes')}}
+                                   class="btn  btn-outline-primary " style="height: 60px;width: 150px" onclick="showLoadingSpinner
+                                   ()">
+                                    {{__('WO Component Processes')}}
                                 </a>
                             </div>
                         @endif

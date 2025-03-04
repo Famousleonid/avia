@@ -100,6 +100,7 @@ Route::group(['middleware' => ['auth', 'isAdmin'], 'prefix' => 'admin', 'as' =>'
         ->name('tdrs.inspection');
     Route::get('tdrs/tdrForm/{id}', [\App\Http\Controllers\Admin\TdrController::class, 'tdrForm'])->name('tdrs.tdrForm');
     Route::get('tdrs/prlForm/{id}', [\App\Http\Controllers\Admin\TdrController::class, 'prlForm'])->name('tdrs.prlForm');
+    Route::get('tdrs/specProcessForm/{id}', [\App\Http\Controllers\Admin\TdrController::class, 'specProcessForm'])->name('tdrs.specProcessForm');
 
     Route::get('tdrs/ndtForm/{id}', [\App\Http\Controllers\Admin\TdrController::class, 'ndtForm'])->name('tdrs.ndtForm');
 

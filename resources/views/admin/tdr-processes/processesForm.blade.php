@@ -545,7 +545,7 @@
             </div>
         </div>
     </footer>
-</div>
+
 <script>
     document.addEventListener("DOMContentLoaded", function() {
         // Выбираем ячейки с текстом из строк данных (исключая заголовки)
@@ -570,9 +570,12 @@
         for (var i = 0; i < emptyRowsToRemove && i < emptyRows.length; i++) {
             emptyRows[i].remove();
         }
+        console.log("Всего дополнительных строк:", totalExtraLines);
+        console.log("Пустых строк для удаления:", emptyRowsToRemove);
+
     });
 
 </script>
-
+</div>
 </body>
 </html>
