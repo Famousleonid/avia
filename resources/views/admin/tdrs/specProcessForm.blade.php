@@ -93,6 +93,9 @@
             border-bottom: 1px solid black;
             border-right: 1px solid black;
         }
+        .border-r {
+            border-right: 1px solid black;
+        }
         .border-l-b-rrr {
             border-left: 1px solid black;
             border-bottom: 1px solid black;
@@ -139,6 +142,10 @@
         }
         .border-t {
             border-top: 1px solid black;
+
+        }
+        .border-tt-gr {
+            border-top: 3px solid gray;
 
         }
         .border-r-b {
@@ -236,40 +243,6 @@
             <h5 class="pt-1  text-black text-center"><strong>Special Process Form</strong></h5>
         </div>
     </div>
-{{--    <div class="row mt-3">--}}
-{{--        <div class="col-1"></div>--}}
-{{--        <div class="col-2"></div>--}}
-{{--        <div class="col-2"></div>--}}
-{{--        <div class="col-2 border-b text-center"> <strong> W{{$current_wo->number}}</strong></div>--}}
-{{--        <div class="col-4"></div>--}}
-{{--    </div>--}}
-{{--    <div class="row mt-3">--}}
-{{--        <div class="col-2 ps-3 ">--}}
-{{--            <div class="row" style="height: 32px">--}}
-{{--                <div class="col-8 pt-1 text-end">--}}
-{{--                    <h6><strong>Cat #1  </strong></h6>--}}
-{{--                </div>--}}
-{{--                <div class="col-2 text-end">--}}
-{{--                    <img src="{{ asset('img/icons/icons8-right-arrow.gif') }}" alt="arrow"--}}
-{{--                                        style="width: 32px;">--}}
-{{--                </div>--}}
-{{--            </div>--}}
-{{--        </div>--}}
-{{--        <div class="col-2">--}}
-{{--            <div class="row" style="height: 32px">--}}
-{{--                <div class="col-1 border-l-t-b" ></div>--}}
-{{--                <div class="col-10 border-l-t-b fs-8 " style="color: gray; font-style: italic">RO No.</div>--}}
-{{--                <div class="col-1 border-all"></div>--}}
-{{--            </div>--}}
-{{--        </div>--}}
-{{--        <div class="col-2">--}}
-{{--            <div class="row" style="height: 32px">--}}
-{{--                <div class="col-1 " ></div>--}}
-{{--                <div class="col-10 border-l-t-b fs-8 " style="color: gray; font-style: italic">RO No.</div>--}}
-{{--                <div class="col-1 border-all"></div>--}}
-{{--            </div>--}}
-{{--        </div>--}}
-{{--    </div>--}}
     <div>
         <div class="row">
             <div class="col-6">
@@ -315,8 +288,101 @@
             <div class="border-l-b-r" style="width: 40px;height: 15px"></div>
         </div>
 
+    </div>
+    <div class="d-flex mb-1">
+        <div class="" style="width: 120px"></div>
 
+        <div class="border-b fs-7" style="width: 300px"><strong>Cat #2 (not included in NDT & Cad Cat #1)</strong>
         </div>
+
+    </div>
+    <div class="row g-0">
+        <div class="col-2 border-l-t-b" >
+            <div  style="height: 23px">Description</div>
+        </div>
+        <div class="col-10" >
+            <div class="row g-0">
+                <div class="col border-l-t-b" style="height: 25px"></div>
+                <div class="col border-l-t-b" style="height: 25px"></div>
+                <div class="col border-l-t-b" style="height: 25px"></div>
+                <div class="col border-l-t-b" style="height: 25px"></div>
+                <div class="col border-l-t-b" style="height: 25px"></div>
+                <div class="col border-all" style="height: 25px"></div>
+            </div>
+        </div>
+    </div>
+    <div class="row g-0">
+        <div class="col-2 border-l-b" >
+            <div  style="height: 24px">Part No.</div>
+        </div>
+        <div class="col-10" >
+            <div class="row g-0">
+                <div class="col border-l-b" style="height: 25px"></div>
+                <div class="col border-l-b" style="height: 25px"></div>
+                <div class="col border-l-b" style="height: 25px"></div>
+                <div class="col border-l-b" style="height: 25px"></div>
+                <div class="col border-l-b" style="height: 25px"></div>
+                <div class="col border-l-b-r" style="height: 25px"></div>
+            </div>
+        </div>
+    </div>
+    <div class="row g-0">
+        <div class="col-2 border-l-b " >
+            <div  style="height: 24px">Serial No.</div>
+        </div>
+        <div class="col-10" >
+            <div class="row g-0">
+                <div class="col border-l-b" style="height: 25px"></div>
+                <div class="col border-l-b" style="height: 25px"></div>
+                <div class="col border-l-b" style="height: 25px"></div>
+                <div class="col border-l-b" style="height: 25px"></div>
+                <div class="col border-l-b" style="height: 25px"></div>
+                <div class="col border-l-b-r" style="height: 25px"></div>
+            </div>
+        </div>
+    </div>
+    <div class="row g-0 border-tt-gr">
+        <div class="col-2   " >
+            <div class="fs-8 text-end" style="height: 24px"><strong>Steps sequence</strong> </div>
+        </div>
+        <div class="col-10" >
+            <div class="row g-0">
+                <div class="col fs-8 text-center" style="height: 25px"><strong>RO No.</strong></div>
+                <div class="col fs-8 text-center" style="height: 25px"><strong>RO No.</strong></div>
+                <div class="col fs-8 text-center" style="height: 25px"><strong>RO No.</strong></div>
+                <div class="col fs-8 text-center" style="height: 25px"><strong>RO No.</strong></div>
+                <div class="col fs-8 text-center" style="height: 25px"><strong>RO No.</strong></div>
+                <div class="col fs-8 text-center" style="height: 25px"><strong>RO No.</strong></div>
+            </div>
+        </div>
+    </div>
+    <div class="row g-0">
+        <div class="col-2 border-l-t-b " >
+            <div  style="height: 23px"></div>
+        </div>
+        <div class="col-10" >
+            <div class="row g-0" style="text-align:center">
+                <div class="col border-l-t-b" style="height: 25px">
+                    <div class="border-r" style="height: 25px;width: 25px"></div>
+                </div>
+                <div class="col border-l-t-b" style="height: 25px">
+                    <div class="border-r" style="height: 25px;width: 25px"></div>
+                </div>
+                <div class="col border-l-t-b" style="height: 25px">
+                    <div class="border-r" style="height: 25px;width: 25px"></div>
+                </div>
+                <div class="col border-l-t-b" style="height: 25px">
+                    <div class="border-r " style="height: 25px;width: 25px;"></div>
+                </div>
+                <div class="col border-l-t-b" style="height: 25px">
+                    <div class="border-r" style="height: 25px;width: 25px"></div>
+                </div>
+                <div class="col border-all" style="height: 25px">
+                    <div class="border-r" style="height: 25px;width: 25px"></div>
+                </div>
+            </div>
+        </div>
+    </div>
 
     </div>
 
