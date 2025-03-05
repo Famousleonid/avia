@@ -14,7 +14,7 @@
         }
 
         .container-fluid {
-            max-width: 960px;
+            max-width: 980px;
             height: auto;
             /*transform: scale(0.8);*/
             transform-origin: top left;
@@ -136,6 +136,10 @@
             border-top: 1px solid black;
             border-right: 1px solid black;
             border-bottom: 1px solid black;
+        }
+        .border-t {
+            border-top: 1px solid black;
+
         }
         .border-r-b {
 
@@ -268,32 +272,58 @@
 {{--    </div>--}}
     <div>
         <div class="row">
-            <div class="col-md-5">
-            <div class="d-flex">
-                <div style="width: 100px"></div>
-                <div class="fs9 pt-2" style="width: 32px">qty</div>
-                <div style="width: 120px">MPI</div> <div style="width: 32px">FPI</div> <div class="fs9 pt-2" style="width:
-                32px">qty</div>
+            <div class="col-6">
+                <div class="d-flex" style="width: 415px">
+                    <div style="width: 90px"></div>
+                    <div class="fs-8 pt-3" style="width: 20px">qty</div>
+                    <div class="fs-8 pt-2" style="width: 115px;height: 20px">MPI</div>
+                    <div class="fs-8 pt-2" style="width: 20px">FPI</div>
+                    <div class="fs-8 pt-3" style="width: 20px">qty</div>
+                    <div class=" text-center fs-8" style="width: 20px;height: 20px"></div>
+                    <div class="fs-8 pt-2 text-end" style="width: 95px">CAD</div>
+                    <div class="fs-8 pt-3 text-center" style="width: 30px">qty</div>
+                </div>
             </div>
-            </div>
-            <div class="col-2 border-b text-center"> <strong> W{{$current_wo->number}}</strong></div>
+            <div class="col-2 pt-2 border-b text-center"> <strong> W{{$current_wo->number}}</strong></div>
             <div class="col-md-5"></div>
         </div>
-        <div class="d-flex" style="width: 120px">
+        <div class="d-flex" style="width: 960px">
             <div class="text-end">
-                <h6 class="pt-1" style="width: 60px;"><strong>Cat #1</strong></h6>
+                <h6 class="pt-1 fs-8" style="width: 60px;"><strong>Cat #1</strong></h6>
             </div>
-            <div >
-                <img src="{{ asset('img/icons/icons8-right-arrow.gif')}}" alt="arrow" style="width: 32px;">
+            <div class=" fs-8" >
+                <img src="{{ asset('img/icons/icons8-right-arrow.gif')}}" alt="arrow"
+                     style="width: 24px;height: 20px">
             </div>
-            <div class="border-all" style="width: 32px;"></div>
+            <div class="border-l-t-b text-center pt-1 fs-8" style="width: 25px;height: 25px">N/A</div>
+            <div class="border-l-t-b ps-2 fs-8 " style="width: 130px;height: 25px; color: grey; font-style: italic" >RO
+                No.</div>
+            <div class="border-all text-center pt-1 fs-8" style="width: 25px;height: 25px">N/A</div>
+            <div class=" text-center fs-8" style="width: 20px;height: 20px"></div>
+            <div class="border-l-t-b ps-2 fs-8 " style="width: 100px;height: 25px; color: grey; font-style: italic" >RO
+                No.</div>
+            <div class="border-all text-center pt-1 fs-8" style="width: 25px;height: 25px">N/A</div>
+            <div class=" text-center fs-8" style="width: 305px;height: 20px"></div>
+            <div class=" text-end pt-2 fs-75" style="width: 75px;height: 20px">Technician</div>
+            <div class="border-b " style="width: 120px"></div>
+            <div class="border-l-t-r" style="width: 40px;height: 25px"></div>
+
         </div>
+        <div class="d-flex">
+            <div class="text-end fs-8 pe-4" style="width: 880px">Name</div>
+            <div class=" " style="width: 29px"></div>
+            <div class="border-l-b-r" style="width: 40px;height: 15px"></div>
+        </div>
+
+
+        </div>
+
     </div>
 
 
 
     <footer >
-        <div class="row" style="width: 100%; padding: 5px 0;">
+        <div class="row" style="width: 100%; padding: 5px 5px;">
             <div class="col-6 text-start">
                 {{__("Form #012")}}
             </div>
