@@ -45,4 +45,17 @@ class Tdr extends Model
     {
         return $this->belongsTo(Code::class, 'codes_id');
     }
+    public function tdrProcesses()
+    {
+        return $this->hasMany(TdrProcess::class, 'tdrs_id');
+    }
+    public function processName()
+    {
+        return $this->belongsTo(ProcessName::class, 'process_names_id');
+    }
+
+    public function process()
+    {
+        return $this->belongsTo(Process::class, 'process_id'); // Предполагаем, что process_id связывает с Process
+    }
 }

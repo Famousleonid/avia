@@ -23,6 +23,9 @@
             margin-right: 10px;
         }
 
+        .container-grid{
+            display: grid;
+        }
         @media print {
             /* Задаем размер страницы Letter (8.5 x 11 дюймов) */
             @page {
@@ -302,6 +305,7 @@
         </div>
         <div class="col-10" >
             <div class="row g-0">
+
                 <div class="col border-l-t-b" style="height: 25px"></div>
                 <div class="col border-l-t-b" style="height: 25px"></div>
                 <div class="col border-l-t-b" style="height: 25px"></div>
@@ -383,6 +387,17 @@
             </div>
         </div>
     </div>
+    <h1>Workorder: {{ $current_wo->id }}</h1>
+
+    @foreach ($processes as $process)
+        <div>
+            <strong>TDR ID:</strong> {{ $process['tdrs_id'] }}<br>
+            <strong>Process Name ID:</strong> {{ $process['process_name_id'] }}<br>
+            <strong>Process:</strong> {{ $process['process'] }}<br>
+            <strong>Line Number:</strong> {{ $process['number_line'] }}<br>
+            <hr>
+        </div>
+    @endforeach
 
     </div>
 
