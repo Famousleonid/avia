@@ -463,10 +463,17 @@ class TdrController extends Controller
         // Загрузка Workorder по ID
         $current_wo = Workorder::findOrFail($id);
 
+        // Получаем данные о manual_id, связанном с этим Workorder
+        $manual_id = $current_wo->unit->manual_id;
+
+        // Извлекаем компоненты, связанные с manual_id
+        $components = Component::where('manual_id', $manual_id)->get();
+
         // Получаем Tdr, где use_process_form = true, с предварительной загрузкой TdrProcess
         $tdrs = Tdr::where('workorder_id', $current_wo->id)
             ->where('use_process_forms', true)
             ->with('tdrProcesses') // Предварительная загрузка TdrProcess
+            ->with('component')
             ->get();
 
         // Создаем коллекцию для результата
@@ -474,15 +481,14 @@ class TdrController extends Controller
 
         // Обрабатываем каждый Tdr
         foreach ($tdrs as $tdr) {
-            // Группируем TdrProcess по tdrs_id (хотя здесь они уже сгруппированы по Tdr)
+            // Получаем связанные процессы
             $groupedProcesses = $tdr->tdrProcesses;
 
-            // Добавляем номер строки (number_line) для каждого процесса
+            // Обрабатываем каждый процесс
             $groupedProcesses->each(function ($process, $index) use (&$result, $tdr) {
                 $result->push([
                     'tdrs_id' => $tdr->id,
-                    'process_name_id' => $process->process_name_id,
-                    'process' => $process->process,
+                    'process_name_id' => $process->process_names_id,
                     'number_line' => $index + 1, // Номер строки
                 ]);
             });
@@ -492,7 +498,7 @@ class TdrController extends Controller
         return view('admin.tdrs.specProcessForm', [
             'current_wo' => $current_wo,
             'processes' => $result, // Передаем итоговую коллекцию
-        ]);
+        ], compact('tdrs'));
     }
 
 

@@ -271,14 +271,14 @@
                 <img src="{{ asset('img/icons/icons8-right-arrow.gif')}}" alt="arrow"
                      style="width: 24px;height: 20px">
             </div>
-            <div class="border-l-t-b text-center pt-1 fs-8" style="width: 25px;height: 25px"></div>
+            <div class="border-l-t-b text-center pt-1 fs-8" style="width: 25px;height: 25px">N/A</div>
             <div class="border-l-t-b ps-2 fs-8 " style="width: 130px;height: 25px; color: grey; font-style: italic" >RO
                 No.</div>
-            <div class="border-all text-center pt-1 fs-8" style="width: 25px;height: 25px"></div>
+            <div class="border-all text-center pt-1 fs-8" style="width: 25px;height: 25px">N/A</div>
             <div class=" text-center fs-8" style="width: 20px;height: 20px"></div>
             <div class="border-l-t-b ps-2 fs-8 " style="width: 100px;height: 25px; color: grey; font-style: italic" >RO
                 No.</div>
-            <div class="border-all text-center pt-1 fs-8" style="width: 25px;height: 25px"></div>
+            <div class="border-all text-center pt-1 fs-8" style="width: 25px;height: 25px">N/A</div>
             <div class=" text-center fs-8" style="width: 305px;height: 20px"></div>
             <div class=" text-end pt-2 fs-75" style="width: 75px;height: 20px">Technician</div>
             <div class="border-b " style="width: 120px"></div>
@@ -294,10 +294,11 @@
     </div>
     <div class="d-flex mb-1">
         <div class="" style="width: 120px"></div>
+
         <div class="border-b fs-7" style="width: 300px"><strong>Cat #2 (not included in NDT & Cad Cat #1)</strong>
         </div>
-    </div>
 
+    </div>
     <div class="row g-0">
         <div class="col-2 border-l-t-b" >
             <div  style="height: 23px">Description</div>
