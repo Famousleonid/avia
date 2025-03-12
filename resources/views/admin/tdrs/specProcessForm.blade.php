@@ -122,6 +122,13 @@
             border-top: 1px solid black;
             border-bottom: 1px solid black;
         }
+        .border-l-t {
+            border-left: 1px solid black;
+            border-top: 1px solid black;
+        }
+        .border-l {
+            border-left: 1px solid black;
+        }
         .border-ll-bb {
             border-left: 2px solid black;
             border-bottom: 2px solid black;
@@ -298,43 +305,19 @@
         </div>
     </div>
 
-    <!-- "Description" -->
-    <div class="row g-0">
-        <div class="col-2 border-l-t-b">
-            <div style="height: 23px">Description</div>
-        </div>
-        <!-- Основная часть таблицы -->
-        <div class="col-10">
-            <div class="row g-0 fs-8">
-                <!-- Переменная для отслеживания индекса компонента -->
-                @php $componentIndex = 0; @endphp
-                    <!-- Цикл по столбцам -->
-                @for($i = 0; $i < 6; $i++)
-                    <div @if($i == 5) class="col border-all" @else class="col border-l-t-b" @endif
-                    style="height: 25px">
-                        <!-- Если есть компонент для текущего столбца, выводим его -->
-                        @if($componentIndex < count($tdr_ws))
-                            {{ $tdr_ws[$componentIndex]->component->name }}
-                            @php $componentIndex++; @endphp
-                        @endif
-                    </div>
-                @endfor
-            </div>
-        </div>
-    </div>
 
-    <div class="row g-0">
+    <div class="row g-0 fs-7">
         <!-- Заголовок "Description" -->
-        <div class="col-2 border-l-t-b">
-            <div style="height: 23px">Description</div>
+        <div class="col-2 border-l-t-b ps-1">
+            <div style="height: 23px"><strong>Description</strong> </div>
         </div>
         <!-- Основная часть таблицы -->
         <div class="col-10">
             <!-- Строка для имен компонентов -->
-            <div class="row g-0 fs-8">
+            <div class="row g-0 ">
                 @php $componentIndex = 0; @endphp
                 @for($i = 0; $i < 6; $i++)
-                    <div @if($i == 5) class="col border-all" @else class="col border-l-t-b" @endif
+                    <div @if($i == 5) class="col border-all text-center" @else class="col border-l-t-b text-center" @endif
                     style="height: 25px">
                         @if($componentIndex < count($tdr_ws))
                             {{ $tdr_ws[$componentIndex]->component->name }}
@@ -347,17 +330,17 @@
     </div>
 
     <!-- Строка для Part No. -->
-    <div class="row g-0">
-        <!-- Пустая колонка для выравнивания с "Description" -->
-        <div class="col-2 border-l-t-b">
-            <div style="height: 25px">Part No.</div>
+    <div class="row g-0 fs-7">
+
+        <div class="col-2 border-l-b ps-1">
+            <div style="height: 23px"><strong> Part No.</strong></div>
         </div>
         <!-- Данные Part No. -->
         <div class="col-10">
-            <div class="row g-0 fs-8">
+            <div class="row g-0 ">
                 @php $componentIndex = 0; @endphp
                 @for($i = 0; $i < 6; $i++)
-                    <div @if($i == 5) class="col border-all" @else class="col border-l-t-b" @endif
+                    <div @if($i == 5) class="col border-l-b-r text-center" @else class="col border-l-b text-center" @endif
                     style="height: 25px">
                         @if($componentIndex < count($tdr_ws))
                             {{ $tdr_ws[$componentIndex]->component->part_number }}
@@ -370,22 +353,83 @@
     </div>
 
     <!-- Строка для Serial No. -->
-    <div class="row g-0">
-        <!-- Пустая колонка для выравнивания с "Description" -->
-        <div class="col-2 border-l-t-b">
-            <div style="height: 25px">Serial No.</div>
+    <div class="row g-0 fs-7">
+
+        <div class="col-2 border-l-b ps-1">
+            <div style="height: 23px"><strong> Serial No</strong>.</div>
         </div>
         <!-- Данные Serial No. -->
         <div class="col-10">
-            <div class="row g-0 fs-8">
+            <div class="row g-0 ">
                 @php $componentIndex = 0; @endphp
                 @for($i = 0; $i < 6; $i++)
-                    <div @if($i == 5) class="col border-all" @else class="col border-l-t-b" @endif
+                    <div @if($i == 5) class="col border-l-b-r text-center" @else class="col border-l-b text-center" @endif
                     style="height: 25px">
                         @if($componentIndex < count($tdr_ws))
                             {{ $tdr_ws[$componentIndex]->serial_number }}
                             @php $componentIndex++; @endphp
                         @endif
+                    </div>
+                @endfor
+            </div>
+        </div>
+    </div>
+        <div class="row g-0 border-tt-gr">
+            <div class="col-2 " >
+                <div class="fs-8 text-end" style="height: 24px"><strong>Steps sequence</strong> </div>
+            </div>
+            <div class="col-10" >
+                <div class="row g-0">
+                    @for($i = 0; $i < 6; $i++)
+                    <div class="col fs-8 text-center" style="height: 25px"><strong>RO No.</strong></div>
+                    @endfor
+                </div>
+            </div>
+        </div>
+
+    <div class="row g-0 fs-7">
+        <div class="col-2 border-l-t ps-1">
+            <div style="height: 23px"><strong></strong></div>
+        </div>
+        <div class="col-10">
+            <div class="row g-0 ">
+                @php $componentIndex = 0; @endphp
+                @for($i = 0; $i < 6; $i++)
+                    <div @if($i == 5) class="col border-all text-center" @else class="col border-l-t-b text-center" @endif
+                    style="height: 25px">
+                        <div class="border-r" style="height: 25px;width: 25px"></div>
+                    </div>
+                @endfor
+            </div>
+        </div>
+    </div>
+    <div class="row g-0 fs-7">
+        <div class="col-2 border-l ps-1">
+            <div style="height: 23px"><strong>N.D.T.</strong></div>
+        </div>
+        <div class="col-10">
+            <div class="row g-0 ">
+                @php $componentIndex = 0; @endphp
+                @for($i = 0; $i < 6; $i++)
+                    <div @if($i == 5) class="col border-l-b-r text-center" @else class="col border-l-b text-center" @endif
+                    style="height: 25px">
+                        <div class="border-r" style="height: 25px;width: 25px"></div>
+                    </div>
+                @endfor
+            </div>
+        </div>
+    </div>
+    <div class="row g-0 fs-7">
+        <div class="col-2 border-l-b ps-1">
+            <div style="height: 23px"><strong></strong></div>
+        </div>
+        <div class="col-10">
+            <div class="row g-0 ">
+                @php $componentIndex = 0; @endphp
+                @for($i = 0; $i < 6; $i++)
+                    <div @if($i == 5) class="col border-l-b-r text-center" @else class="col border-l-b text-center" @endif
+                    style="height: 25px">
+                        <div class="border-r" style="height: 25px;width: 25px"></div>
                     </div>
                 @endfor
             </div>
