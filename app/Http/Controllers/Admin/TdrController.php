@@ -466,6 +466,10 @@ class TdrController extends Controller
         // Получаем данные о manual_id, связанном с этим Workorder
         $manual_id = $current_wo->unit->manual_id;
 
+        $tdr_ws = Tdr::where('workorder_id', $current_wo->id)
+            ->where('use_process_forms', true)
+            ->with('component')
+            ->get();
         // Извлекаем компоненты, связанные с manual_id
         $components = Component::where('manual_id', $manual_id)->get();
 
@@ -498,7 +502,7 @@ class TdrController extends Controller
         return view('admin.tdrs.specProcessForm', [
             'current_wo' => $current_wo,
             'processes' => $result, // Передаем итоговую коллекцию
-        ], compact('tdrs'));
+        ], compact('tdrs','tdr_ws'));
     }
 
 

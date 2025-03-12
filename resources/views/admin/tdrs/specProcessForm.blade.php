@@ -298,113 +298,191 @@
         </div>
     </div>
 
+    <!-- "Description" -->
     <div class="row g-0">
-        <div class="col-2 border-l-t-b" >
-            <div  style="height: 23px">Description</div>
+        <div class="col-2 border-l-t-b">
+            <div style="height: 23px">Description</div>
         </div>
-        <div class="col-10" >
-            <div class="row g-0">
-
-                <div class="col border-l-t-b" style="height: 25px"></div>
-                <div class="col border-l-t-b" style="height: 25px"></div>
-                <div class="col border-l-t-b" style="height: 25px"></div>
-                <div class="col border-l-t-b" style="height: 25px"></div>
-                <div class="col border-l-t-b" style="height: 25px"></div>
-                <div class="col border-all" style="height: 25px"></div>
+        <!-- Основная часть таблицы -->
+        <div class="col-10">
+            <div class="row g-0 fs-8">
+                <!-- Переменная для отслеживания индекса компонента -->
+                @php $componentIndex = 0; @endphp
+                    <!-- Цикл по столбцам -->
+                @for($i = 0; $i < 6; $i++)
+                    <div @if($i == 5) class="col border-all" @else class="col border-l-t-b" @endif
+                    style="height: 25px">
+                        <!-- Если есть компонент для текущего столбца, выводим его -->
+                        @if($componentIndex < count($tdr_ws))
+                            {{ $tdr_ws[$componentIndex]->component->name }}
+                            @php $componentIndex++; @endphp
+                        @endif
+                    </div>
+                @endfor
             </div>
         </div>
     </div>
+
     <div class="row g-0">
-        <div class="col-2 border-l-b" >
-            <div  style="height: 24px">Part No.</div>
+        <!-- Заголовок "Description" -->
+        <div class="col-2 border-l-t-b">
+            <div style="height: 23px">Description</div>
         </div>
-        <div class="col-10" >
-            <div class="row g-0">
-                <div class="col border-l-b" style="height: 25px"></div>
-                <div class="col border-l-b" style="height: 25px"></div>
-                <div class="col border-l-b" style="height: 25px"></div>
-                <div class="col border-l-b" style="height: 25px"></div>
-                <div class="col border-l-b" style="height: 25px"></div>
-                <div class="col border-l-b-r" style="height: 25px"></div>
+        <!-- Основная часть таблицы -->
+        <div class="col-10">
+            <!-- Строка для имен компонентов -->
+            <div class="row g-0 fs-8">
+                @php $componentIndex = 0; @endphp
+                @for($i = 0; $i < 6; $i++)
+                    <div @if($i == 5) class="col border-all" @else class="col border-l-t-b" @endif
+                    style="height: 25px">
+                        @if($componentIndex < count($tdr_ws))
+                            {{ $tdr_ws[$componentIndex]->component->name }}
+                            @php $componentIndex++; @endphp
+                        @endif
+                    </div>
+                @endfor
             </div>
         </div>
     </div>
+
+    <!-- Строка для Part No. -->
     <div class="row g-0">
-        <div class="col-2 border-l-b " >
-            <div  style="height: 24px">Serial No.</div>
+        <!-- Пустая колонка для выравнивания с "Description" -->
+        <div class="col-2 border-l-t-b">
+            <div style="height: 25px">Part No.</div>
         </div>
-        <div class="col-10" >
-            <div class="row g-0">
-                <div class="col border-l-b" style="height: 25px"></div>
-                <div class="col border-l-b" style="height: 25px"></div>
-                <div class="col border-l-b" style="height: 25px"></div>
-                <div class="col border-l-b" style="height: 25px"></div>
-                <div class="col border-l-b" style="height: 25px"></div>
-                <div class="col border-l-b-r" style="height: 25px"></div>
+        <!-- Данные Part No. -->
+        <div class="col-10">
+            <div class="row g-0 fs-8">
+                @php $componentIndex = 0; @endphp
+                @for($i = 0; $i < 6; $i++)
+                    <div @if($i == 5) class="col border-all" @else class="col border-l-t-b" @endif
+                    style="height: 25px">
+                        @if($componentIndex < count($tdr_ws))
+                            {{ $tdr_ws[$componentIndex]->component->part_number }}
+                            @php $componentIndex++; @endphp
+                        @endif
+                    </div>
+                @endfor
             </div>
         </div>
     </div>
-    <div class="row g-0 border-tt-gr">
-        <div class="col-2   " >
-            <div class="fs-8 text-end" style="height: 24px"><strong>Steps sequence</strong> </div>
-        </div>
-        <div class="col-10" >
-            <div class="row g-0">
-                <div class="col fs-8 text-center" style="height: 25px"><strong>RO No.</strong></div>
-                <div class="col fs-8 text-center" style="height: 25px"><strong>RO No.</strong></div>
-                <div class="col fs-8 text-center" style="height: 25px"><strong>RO No.</strong></div>
-                <div class="col fs-8 text-center" style="height: 25px"><strong>RO No.</strong></div>
-                <div class="col fs-8 text-center" style="height: 25px"><strong>RO No.</strong></div>
-                <div class="col fs-8 text-center" style="height: 25px"><strong>RO No.</strong></div>
-            </div>
-        </div>
-    </div>
+
+    <!-- Строка для Serial No. -->
     <div class="row g-0">
-        <div class="col-2 border-l-t-b " >
-            <div  style="height: 23px"></div>
+        <!-- Пустая колонка для выравнивания с "Description" -->
+        <div class="col-2 border-l-t-b">
+            <div style="height: 25px">Serial No.</div>
         </div>
-        <div class="col-10" >
-            <div class="row g-0" style="text-align:center">
-                <div class="col border-l-t-b" style="height: 25px">
-                    <div class="border-r" style="height: 25px;width: 25px"></div>
-                </div>
-                <div class="col border-l-t-b" style="height: 25px">
-                    <div class="border-r" style="height: 25px;width: 25px"></div>
-                </div>
-                <div class="col border-l-t-b" style="height: 25px">
-                    <div class="border-r" style="height: 25px;width: 25px"></div>
-                </div>
-                <div class="col border-l-t-b" style="height: 25px">
-                    <div class="border-r " style="height: 25px;width: 25px;"></div>
-                </div>
-                <div class="col border-l-t-b" style="height: 25px">
-                    <div class="border-r" style="height: 25px;width: 25px"></div>
-                </div>
-                <div class="col border-all" style="height: 25px">
-                    <div class="border-r" style="height: 25px;width: 25px"></div>
-                </div>
+        <!-- Данные Serial No. -->
+        <div class="col-10">
+            <div class="row g-0 fs-8">
+                @php $componentIndex = 0; @endphp
+                @for($i = 0; $i < 6; $i++)
+                    <div @if($i == 5) class="col border-all" @else class="col border-l-t-b" @endif
+                    style="height: 25px">
+                        @if($componentIndex < count($tdr_ws))
+                            {{ $tdr_ws[$componentIndex]->serial_number }}
+                            @php $componentIndex++; @endphp
+                        @endif
+                    </div>
+                @endfor
             </div>
         </div>
     </div>
-    <h1>Workorder: {{ $current_wo->id }}</h1>
 
-{{--    {{$processes}}--}}
+{{--    <div class="row g-0">--}}
+{{--        <div class="col-2 border-l-b" >--}}
+{{--            <div  style="height: 24px">Part No.</div>--}}
+{{--        </div>--}}
+{{--        <div class="col-10" >--}}
+{{--            <div class="row g-0">--}}
+{{--                <div class="col border-l-b" style="height: 25px"></div>--}}
+{{--                <div class="col border-l-b" style="height: 25px"></div>--}}
+{{--                <div class="col border-l-b" style="height: 25px"></div>--}}
+{{--                <div class="col border-l-b" style="height: 25px"></div>--}}
+{{--                <div class="col border-l-b" style="height: 25px"></div>--}}
+{{--                <div class="col border-l-b-r" style="height: 25px"></div>--}}
+{{--            </div>--}}
+{{--        </div>--}}
+{{--    </div>--}}
+{{--    <div class="row g-0">--}}
+{{--        <div class="col-2 border-l-b " >--}}
+{{--            <div  style="height: 24px">Serial No.</div>--}}
+{{--        </div>--}}
+{{--        <div class="col-10" >--}}
+{{--            <div class="row g-0">--}}
+{{--                <div class="col border-l-b" style="height: 25px"></div>--}}
+{{--                <div class="col border-l-b" style="height: 25px"></div>--}}
+{{--                <div class="col border-l-b" style="height: 25px"></div>--}}
+{{--                <div class="col border-l-b" style="height: 25px"></div>--}}
+{{--                <div class="col border-l-b" style="height: 25px"></div>--}}
+{{--                <div class="col border-l-b-r" style="height: 25px"></div>--}}
+{{--            </div>--}}
+{{--        </div>--}}
+{{--    </div>--}}
+{{--    <div class="row g-0 border-tt-gr">--}}
+{{--        <div class="col-2   " >--}}
+{{--            <div class="fs-8 text-end" style="height: 24px"><strong>Steps sequence</strong> </div>--}}
+{{--        </div>--}}
+{{--        <div class="col-10" >--}}
+{{--            <div class="row g-0">--}}
+{{--                <div class="col fs-8 text-center" style="height: 25px"><strong>RO No.</strong></div>--}}
+{{--                <div class="col fs-8 text-center" style="height: 25px"><strong>RO No.</strong></div>--}}
+{{--                <div class="col fs-8 text-center" style="height: 25px"><strong>RO No.</strong></div>--}}
+{{--                <div class="col fs-8 text-center" style="height: 25px"><strong>RO No.</strong></div>--}}
+{{--                <div class="col fs-8 text-center" style="height: 25px"><strong>RO No.</strong></div>--}}
+{{--                <div class="col fs-8 text-center" style="height: 25px"><strong>RO No.</strong></div>--}}
+{{--            </div>--}}
+{{--        </div>--}}
+{{--    </div>--}}
+{{--    <div class="row g-0">--}}
+{{--        <div class="col-2 border-l-t-b " >--}}
+{{--            <div  style="height: 23px"></div>--}}
+{{--        </div>--}}
+{{--        <div class="col-10" >--}}
+{{--            <div class="row g-0" style="text-align:center">--}}
+{{--                <div class="col border-l-t-b" style="height: 25px">--}}
+{{--                    <div class="border-r" style="height: 25px;width: 25px"></div>--}}
+{{--                </div>--}}
+{{--                <div class="col border-l-t-b" style="height: 25px">--}}
+{{--                    <div class="border-r" style="height: 25px;width: 25px"></div>--}}
+{{--                </div>--}}
+{{--                <div class="col border-l-t-b" style="height: 25px">--}}
+{{--                    <div class="border-r" style="height: 25px;width: 25px"></div>--}}
+{{--                </div>--}}
+{{--                <div class="col border-l-t-b" style="height: 25px">--}}
+{{--                    <div class="border-r " style="height: 25px;width: 25px;"></div>--}}
+{{--                </div>--}}
+{{--                <div class="col border-l-t-b" style="height: 25px">--}}
+{{--                    <div class="border-r" style="height: 25px;width: 25px"></div>--}}
+{{--                </div>--}}
+{{--                <div class="col border-all" style="height: 25px">--}}
+{{--                    <div class="border-r" style="height: 25px;width: 25px"></div>--}}
+{{--                </div>--}}
+{{--            </div>--}}
+{{--        </div>--}}
+{{--    </div>--}}
 
-    @foreach ($processes as $process)
-        <div>
-            @foreach($tdrs as $tdr)
-                @if($process['tdrs_id'] == $tdr->id)
-                        <strong>TDR ID:</strong> {{ $process['tdrs_id'] }}
-                        {{$tdr->component->name}} PN {{$tdr->component->part_number}} SN {{$tdr->serial_number}}<br>
-                @endif
-            @endforeach
 
-            <strong>Process Name ID:</strong> {{ $process['process_name_id'] }}<br>
+
+
+{{--    @foreach ($processes as $process)--}}
+{{--        <div>--}}
+{{--            @foreach($tdr_ws as $tdr)--}}
+{{--                @if($process['tdrs_id'] == $tdr->id)--}}
+{{--                        <strong>TDR ID:</strong> {{ $process['tdrs_id'] }}--}}
+{{--                        {{$tdr->component->name}} PN {{$tdr->component->part_number}} SN {{$tdr->serial_number}}<br>--}}
+{{--                @endif--}}
+{{--            @endforeach--}}
+
+{{--            <strong>Process Name ID:</strong> {{ $process['process_name_id'] }}<br>--}}
 {{--            <strong>Process:</strong> {{ $process['process'] }}<br>--}}
-            <strong>Line Number:</strong> {{ $process['number_line'] }}<br>
-            <hr>
-        </div>
-    @endforeach
+{{--            <strong>Line Number:</strong> {{ $process['number_line'] }}<br>--}}
+{{--            <hr>--}}
+{{--        </div>--}}
+{{--    @endforeach--}}
 
     </div>
 
