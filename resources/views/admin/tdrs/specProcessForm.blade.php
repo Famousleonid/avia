@@ -376,12 +376,12 @@
     </div>
         <div class="row g-0 border-tt-gr">
             <div class="col-2 " >
-                <div class="fs-8 text-end" style="height: 24px"><strong>Steps sequence</strong> </div>
+                <div class="fs-8 text-end" style="height: 18px"><strong>Steps sequence</strong> </div>
             </div>
             <div class="col-10" >
                 <div class="row g-0">
                     @for($i = 0; $i < 6; $i++)
-                    <div class="col fs-8 text-center" style="height: 25px"><strong>RO No.</strong></div>
+                    <div class="col fs-8 text-center" style="height: 20px"><strong>RO No.</strong></div>
                     @endfor
                 </div>
             </div>
@@ -392,28 +392,73 @@
             <div style="height: 23px"><strong></strong></div>
         </div>
         <div class="col-10">
-            <div class="row g-0 ">
+            <div class="row g-0">
                 @php $componentIndex = 0; @endphp
                 @for($i = 0; $i < 6; $i++)
                     <div @if($i == 5) class="col border-all text-center" @else class="col border-l-t-b text-center" @endif
                     style="height: 25px">
-                        <div class="border-r" style="height: 25px;width: 25px"></div>
+                        @if($componentIndex < count($tdr_ws))
+                            @php $currentTdrId = $tdr_ws[$componentIndex]->id; @endphp
+
+                            {{-- Фильтруем ndt_processes для текущего tdrs_id --}}
+                            @php
+                                $r = 0;
+                                $ndtForCurrentTdr = collect($ndt_processes)
+                                    ->where('tdrs_id', $currentTdrId)
+                                    ->values(); // Переиндексируем массив
+                            @endphp
+
+                            {{-- Выводим первое, второе и третье значения number_line --}}
+                            @if(isset($ndtForCurrentTdr[$r]))
+                                <div class="border-r" style="height: 25px; width: 25px">
+                                    {{ $ndtForCurrentTdr[$r]['number_line'] }}
+                                </div>
+                            @else
+
+                            @endif
+                            @php $componentIndex++; @endphp
+                        @else
+                            <div class="border-r" style="height: 25px; width: 25px"></div>
+                        @endif
+
                     </div>
                 @endfor
             </div>
         </div>
+
     </div>
     <div class="row g-0 fs-7">
         <div class="col-2 border-l ps-1">
             <div style="height: 23px"><strong>N.D.T.</strong></div>
         </div>
         <div class="col-10">
-            <div class="row g-0 ">
+            <div class="row g-0">
                 @php $componentIndex = 0; @endphp
                 @for($i = 0; $i < 6; $i++)
                     <div @if($i == 5) class="col border-l-b-r text-center" @else class="col border-l-b text-center" @endif
                     style="height: 25px">
-                        <div class="border-r" style="height: 25px;width: 25px"></div>
+                        @if($componentIndex < count($tdr_ws))
+                            @php $currentTdrId = $tdr_ws[$componentIndex]->id; @endphp
+                            {{-- Фильтруем ndt_processes для текущего tdrs_id --}}
+                            @php
+                                $r = 1;
+                                $ndtForCurrentTdr = collect($ndt_processes)
+                                    ->where('tdrs_id', $currentTdrId)
+                                    ->values(); // Переиндексируем массив
+                            @endphp
+
+                            {{-- Выводим первое, второе и третье значения number_line --}}
+                            @if(isset($ndtForCurrentTdr[$r]))
+                                <div class="border-r" style="height: 25px; width: 25px">
+                                    {{ $ndtForCurrentTdr[$r]['number_line'] }}
+                                </div>
+                            @else
+                                <div class="border-r" style="height: 25px; width: 25px"></div>
+                            @endif
+                            @php $componentIndex++; @endphp
+                        @else
+                            <div class="border-r" style="height: 25px; width: 25px"></div>
+                        @endif
                     </div>
                 @endfor
             </div>
@@ -424,109 +469,107 @@
             <div style="height: 23px"><strong></strong></div>
         </div>
         <div class="col-10">
-            <div class="row g-0 ">
+            <div class="row g-0">
                 @php $componentIndex = 0; @endphp
                 @for($i = 0; $i < 6; $i++)
                     <div @if($i == 5) class="col border-l-b-r text-center" @else class="col border-l-b text-center" @endif
                     style="height: 25px">
-                        <div class="border-r" style="height: 25px;width: 25px"></div>
+                        @if($componentIndex < count($tdr_ws))
+                            @php $currentTdrId = $tdr_ws[$componentIndex]->id; @endphp
+
+                            {{-- Фильтруем ndt_processes для текущего tdrs_id --}}
+                            @php
+                                $r = 2;
+                                $ndtForCurrentTdr = collect($ndt_processes)
+                                    ->where('tdrs_id', $currentTdrId)
+                                    ->values(); // Переиндексируем массив
+                            @endphp
+
+                            {{-- Выводим первое, второе и третье значения number_line --}}
+                            @if(isset($ndtForCurrentTdr[$r]))
+                                <div class="border-r" style="height: 25px; width: 25px">
+                                    {{ $ndtForCurrentTdr[$r]['number_line'] }}
+                                </div>
+                            @else
+                                <div class="border-r" style="height: 25px; width: 25px"></div>
+                            @endif
+                            @php $componentIndex++; @endphp
+                        @else
+                            <div class="border-r" style="height: 25px; width: 25px"></div>
+                        @endif
                     </div>
                 @endfor
             </div>
+
+        </div>
+    </div>
+    @foreach($processNames as $name)
+        <div class="row g-0 fs-7">
+            <div class="col-2 border-l-b ps-1">
+                <div style="height: 23px"><strong>{{ $name->name }}</strong></div>
+            </div>
+            <div class="col-10">
+                <div class="row g-0">
+                    @php $componentIndex = 0; @endphp
+                    @for($i = 0; $i < 6; $i++)
+                        <div @if($i == 5) class="col border-l-b-r text-center" @else class="col border-l-b text-center" @endif
+                        style="height: 25px">
+                            @if($componentIndex < count($tdr_ws))
+                                @php
+                                    $currentTdrId = $tdr_ws[$componentIndex]->id;
+                                    $processForCurrentTdr = $processes
+                                        ->where('process_name_id', $name->id)
+                                        ->where('tdrs_id', $currentTdrId)
+                                        ->values();
+
+                                    // Собираем все number_line через запятую
+                                    $numberLines = $processForCurrentTdr->pluck('number_line')->implode(',');
+                                @endphp
+
+                                {{-- Выводим все number_line через запятую --}}
+                                @if($numberLines)
+                                    <div class="border-r" style="height: 25px; width: 25px">
+                                        {{ $numberLines }}
+                                    </div>
+                                @else
+                                    <div class="border-r" style="height: 25px; width: 25px"></div>
+                                @endif
+
+                                @php $componentIndex++; @endphp
+                            @else
+                                <div class="border-r" style="height: 25px; width: 25px"></div>
+                            @endif
+                        </div>
+                    @endfor
+                </div>
+            </div>
+        </div>
+    @endforeach
+
+    <div class="row g-0 fs-7">
+        <div class="col-2 border-l-b ps-1">
+            <div style="height: 23px"><strong></strong></div>
+        </div>
+        <div class="col-10">
+            <div class="row g-0">
+                @php $componentIndex = 0; @endphp
+                @for($i = 0; $i < 6; $i++)
+                    <div @if($i == 5) class="col border-l-b-r text-center" @else class="col border-l-b text-center" @endif
+                    style="height: 25px">
+
+                        <div class="border-r" style="height: 25px; width: 25px"></div>
+
+                    </div>
+                @endfor
+            </div>
+
         </div>
     </div>
 
-{{--    <div class="row g-0">--}}
-{{--        <div class="col-2 border-l-b" >--}}
-{{--            <div  style="height: 24px">Part No.</div>--}}
-{{--        </div>--}}
-{{--        <div class="col-10" >--}}
-{{--            <div class="row g-0">--}}
-{{--                <div class="col border-l-b" style="height: 25px"></div>--}}
-{{--                <div class="col border-l-b" style="height: 25px"></div>--}}
-{{--                <div class="col border-l-b" style="height: 25px"></div>--}}
-{{--                <div class="col border-l-b" style="height: 25px"></div>--}}
-{{--                <div class="col border-l-b" style="height: 25px"></div>--}}
-{{--                <div class="col border-l-b-r" style="height: 25px"></div>--}}
-{{--            </div>--}}
-{{--        </div>--}}
-{{--    </div>--}}
-{{--    <div class="row g-0">--}}
-{{--        <div class="col-2 border-l-b " >--}}
-{{--            <div  style="height: 24px">Serial No.</div>--}}
-{{--        </div>--}}
-{{--        <div class="col-10" >--}}
-{{--            <div class="row g-0">--}}
-{{--                <div class="col border-l-b" style="height: 25px"></div>--}}
-{{--                <div class="col border-l-b" style="height: 25px"></div>--}}
-{{--                <div class="col border-l-b" style="height: 25px"></div>--}}
-{{--                <div class="col border-l-b" style="height: 25px"></div>--}}
-{{--                <div class="col border-l-b" style="height: 25px"></div>--}}
-{{--                <div class="col border-l-b-r" style="height: 25px"></div>--}}
-{{--            </div>--}}
-{{--        </div>--}}
-{{--    </div>--}}
-{{--    <div class="row g-0 border-tt-gr">--}}
-{{--        <div class="col-2   " >--}}
-{{--            <div class="fs-8 text-end" style="height: 24px"><strong>Steps sequence</strong> </div>--}}
-{{--        </div>--}}
-{{--        <div class="col-10" >--}}
-{{--            <div class="row g-0">--}}
-{{--                <div class="col fs-8 text-center" style="height: 25px"><strong>RO No.</strong></div>--}}
-{{--                <div class="col fs-8 text-center" style="height: 25px"><strong>RO No.</strong></div>--}}
-{{--                <div class="col fs-8 text-center" style="height: 25px"><strong>RO No.</strong></div>--}}
-{{--                <div class="col fs-8 text-center" style="height: 25px"><strong>RO No.</strong></div>--}}
-{{--                <div class="col fs-8 text-center" style="height: 25px"><strong>RO No.</strong></div>--}}
-{{--                <div class="col fs-8 text-center" style="height: 25px"><strong>RO No.</strong></div>--}}
-{{--            </div>--}}
-{{--        </div>--}}
-{{--    </div>--}}
-{{--    <div class="row g-0">--}}
-{{--        <div class="col-2 border-l-t-b " >--}}
-{{--            <div  style="height: 23px"></div>--}}
-{{--        </div>--}}
-{{--        <div class="col-10" >--}}
-{{--            <div class="row g-0" style="text-align:center">--}}
-{{--                <div class="col border-l-t-b" style="height: 25px">--}}
-{{--                    <div class="border-r" style="height: 25px;width: 25px"></div>--}}
-{{--                </div>--}}
-{{--                <div class="col border-l-t-b" style="height: 25px">--}}
-{{--                    <div class="border-r" style="height: 25px;width: 25px"></div>--}}
-{{--                </div>--}}
-{{--                <div class="col border-l-t-b" style="height: 25px">--}}
-{{--                    <div class="border-r" style="height: 25px;width: 25px"></div>--}}
-{{--                </div>--}}
-{{--                <div class="col border-l-t-b" style="height: 25px">--}}
-{{--                    <div class="border-r " style="height: 25px;width: 25px;"></div>--}}
-{{--                </div>--}}
-{{--                <div class="col border-l-t-b" style="height: 25px">--}}
-{{--                    <div class="border-r" style="height: 25px;width: 25px"></div>--}}
-{{--                </div>--}}
-{{--                <div class="col border-all" style="height: 25px">--}}
-{{--                    <div class="border-r" style="height: 25px;width: 25px"></div>--}}
-{{--                </div>--}}
-{{--            </div>--}}
-{{--        </div>--}}
-{{--    </div>--}}
+{{--    {{$ndt_processes}}--}}
+{{--    <br>------------------------------------------ <br>--}}
+{{--{{$processes}}--}}
 
-
-
-
-{{--    @foreach ($processes as $process)--}}
-{{--        <div>--}}
-{{--            @foreach($tdr_ws as $tdr)--}}
-{{--                @if($process['tdrs_id'] == $tdr->id)--}}
-{{--                        <strong>TDR ID:</strong> {{ $process['tdrs_id'] }}--}}
-{{--                        {{$tdr->component->name}} PN {{$tdr->component->part_number}} SN {{$tdr->serial_number}}<br>--}}
-{{--                @endif--}}
-{{--            @endforeach--}}
-
-{{--            <strong>Process Name ID:</strong> {{ $process['process_name_id'] }}<br>--}}
-{{--            <strong>Process:</strong> {{ $process['process'] }}<br>--}}
-{{--            <strong>Line Number:</strong> {{ $process['number_line'] }}<br>--}}
-{{--            <hr>--}}
-{{--        </div>--}}
-{{--    @endforeach--}}
 
     </div>
 

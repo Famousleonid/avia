@@ -473,6 +473,11 @@ class TdrController extends Controller
         // Извлекаем компоненты, связанные с manual_id
         $components = Component::where('manual_id', $manual_id)->get();
 
+        $processNames = ProcessName::where(function ($query) {
+            $query->where('name', 'NOT LIKE', '%NDT%');
+//                ->where('name', 'NOT LIKE', '%Paint%');
+        })->get();
+
         // Получаем Tdr, где use_process_form = true, с предварительной загрузкой TdrProcess
         $tdrs = Tdr::where('workorder_id', $current_wo->id)
             ->where('use_process_forms', true)
@@ -497,12 +502,25 @@ class TdrController extends Controller
                 ]);
             });
         }
+// Получаем все ID процессов, где name содержит 'NDT'
+        $ndtIds = ProcessName::where('name', 'LIKE', '%NDT%')->pluck('id');
 
+// Фильтруем коллекцию processes, оставляя только те записи, где process_name_id есть в $ndtIds
+        $ndt_processes = $result->filter(function ($item) use ($ndtIds) {
+            return $ndtIds->contains($item['process_name_id']);
+        })->map(function ($item) {
+            // Преобразуем каждую запись в нужный формат
+            return [
+                'tdrs_id' => $item['tdrs_id'],
+                'number_line' => $item['number_line'],
+            ];
+        });
         // Передаем данные в представление
         return view('admin.tdrs.specProcessForm', [
             'current_wo' => $current_wo,
-            'processes' => $result, // Передаем итоговую коллекцию
-        ], compact('tdrs','tdr_ws'));
+            'processes' => $result, // Исходная коллекция
+            'ndt_processes' => $ndt_processes, // Отфильтрованная коллекция
+        ], compact('tdrs', 'tdr_ws','processNames'));
     }
 
 
