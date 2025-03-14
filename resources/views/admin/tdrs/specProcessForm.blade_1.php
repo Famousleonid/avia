@@ -243,14 +243,6 @@
 
 </div>
 
-@php
-    $componentsPerPage = 6;
-    // Если $tdr_ws — коллекция, можно воспользоваться chunk:
-    $componentChunks = $tdr_ws->chunk($componentsPerPage);
-@endphp
-
-@foreach($componentChunks as $chunk)
-{{count($chunk)}}
 <div class="container-fluid">
 
     <div class="row">
@@ -325,22 +317,18 @@
         <!-- Основная часть таблицы -->
         <div class="col-10">
             <!-- Строка для имен компонентов -->
-            <div class="row g-0">
-                @foreach($chunk as $index => $component)
-                    @php
-                        $localIndex = $index % 6;
-                    @endphp
-                    <div class="col {{ $localIndex < 5 ? 'border-l-t-b' : 'border-all' }} text-center" style="height: 22px">
-                        {{ $component->component->name }}
+            <div class="row g-0 ">
+                @php $componentIndex = 0; @endphp
+                @for($i = 0; $i < 6; $i++)
+                    <div @if($i == 5) class="col border-all text-center" @else class="col border-l-t-b text-center" @endif
+                    style="height: 22px">
+                        @if($componentIndex < count($tdr_ws))
+                            {{ $tdr_ws[$componentIndex]->component->name }}
+                            @php $componentIndex++; @endphp
+                        @endif
                     </div>
-                @endforeach
-
-            @for($i = count($chunk); $i < $componentsPerPage; $i++)
-                    <div class="col {{ $i < 5 ? 'border-l-t-b' : 'border-all' }} text-center" style="height: 22px">
-                        {{__(' ')}}</div>
                 @endfor
             </div>
-
         </div>
     </div>
 
@@ -353,17 +341,15 @@
         <!-- Данные Part No. -->
         <div class="col-10">
             <div class="row g-0 ">
-                @foreach($chunk as $index => $component)
-                    @php
-                        $localIndex = $index % 6;
-                    @endphp
-                    <div class="col {{ $localIndex < 5 ? 'border-l-b' : 'border-l-b-r'}} text-center" style="height: 22px">
-                        {{ $component->component->part_number }}
+                @php $componentIndex = 0; @endphp
+                @for($i = 0; $i < 6; $i++)
+                    <div @if($i == 5) class="col border-l-b-r text-center" @else class="col border-l-b text-center" @endif
+                    style="height: 22px">
+                        @if($componentIndex < count($tdr_ws))
+                            {{ $tdr_ws[$componentIndex]->component->part_number }}
+                            @php $componentIndex++; @endphp
+                        @endif
                     </div>
-                @endforeach
-                @for($i = count($chunk); $i < $componentsPerPage; $i++)
-                    <div class="col {{ $i < 5 ? 'border-l-b' : 'border-l-b-r'}} text-center" style="height: 22px">
-                        {{__(' ')}}</div>
                 @endfor
             </div>
         </div>
@@ -378,15 +364,15 @@
         <!-- Данные Serial No. -->
         <div class="col-10">
             <div class="row g-0 ">
-                @foreach($chunk as $index => $component)
-                    @php $localIndex = $index % 6; @endphp
-                    <div class="col {{ $localIndex < 5 ? 'border-l-b' : 'border-l-b-r'}} text-center" style="height: 22px">
-                        {{ $component->serial_number }}
+                @php $componentIndex = 0; @endphp
+                @for($i = 0; $i < 6; $i++)
+                    <div @if($i == 5) class="col border-l-b-r text-center" @else class="col border-l-b text-center" @endif
+                    style="height: 22px">
+                        @if($componentIndex < count($tdr_ws))
+                            {{ $tdr_ws[$componentIndex]->serial_number }}
+                            @php $componentIndex++; @endphp
+                        @endif
                     </div>
-                @endforeach
-                @for($i = count($chunk); $i < $componentsPerPage; $i++)
-                    <div class="col {{ $i < 5 ? 'border-l-b' : 'border-l-b-r'}} text-center" style="height: 22px">
-                        {{__(' ')}}</div>
                 @endfor
             </div>
         </div>
@@ -397,11 +383,16 @@
                     <img src="{{ asset('img/icons/arrow_rd.png')}}" alt="arrow"
                          style="height: 10px; margin-right: -15px" class="mt-2 ">
                 </div>
+
             </div>
+
             <div class="col-10" >
+
                 <div class="row g-0">
+
                     @for($i = 0; $i < 6; $i++)
                     <div class="col fs-8 text-center " style="height: 15px">
+
                         <strong>RO No.</strong></div>
                     @endfor
                 </div>
@@ -416,7 +407,8 @@
             <div class="row g-0">
                 @php $componentIndex = 0; @endphp
                 @for($i = 0; $i < 6; $i++)
-                    <div class="col {{ $i < 5 ? 'border-l-t-b' : 'border-all' }} text-center" style="height: 20px">
+                    <div @if($i == 5) class="col border-all text-center" @else class="col border-l-t-b text-center" @endif
+                    style="height: 20px">
                         @if($componentIndex < count($tdr_ws))
                             @php $currentTdrId = $tdr_ws[$componentIndex]->id; @endphp
 
@@ -434,7 +426,6 @@
                                     {{ $ndtForCurrentTdr[$r]['number_line'] }}
                                 </div>
                             @else
-                                <div class="border-r" style="height: 20px; width: 30px"></div>
 
                             @endif
                             @php $componentIndex++; @endphp
@@ -456,8 +447,8 @@
             <div class="row g-0">
                 @php $componentIndex = 0; @endphp
                 @for($i = 0; $i < 6; $i++)
-                    <div class="col {{ $i < 5 ? 'border-l-b' : 'border-l-b-r'}} text-center" style="height: 20px">
-
+                    <div @if($i == 5) class="col border-l-b-r text-center" @else class="col border-l-b text-center" @endif
+                    style="height: 20px">
                         @if($componentIndex < count($tdr_ws))
                             @php $currentTdrId = $tdr_ws[$componentIndex]->id; @endphp
                             {{-- Фильтруем ndt_processes для текущего tdrs_id --}}
@@ -493,8 +484,8 @@
             <div class="row g-0">
                 @php $componentIndex = 0; @endphp
                 @for($i = 0; $i < 6; $i++)
-                    <div class="col {{ $i < 5 ? 'border-l-b' : 'border-l-b-r'}} text-center" style="height: 20px">
-
+                    <div @if($i == 5) class="col border-l-b-r text-center" @else class="col border-l-b text-center" @endif
+                    style="height: 20px">
                         @if($componentIndex < count($tdr_ws))
                             @php $currentTdrId = $tdr_ws[$componentIndex]->id; @endphp
 
@@ -533,8 +524,8 @@
                 <div class="row g-0">
                     @php $componentIndex = 0; @endphp
                     @for($i = 0; $i < 6; $i++)
-                        <div class="col {{ $i < 5 ? 'border-l-b' : 'border-l-b-r'}} text-center" style="height: 20px">
-
+                        <div @if($i == 5) class="col border-l-b-r text-center" @else class="col border-l-b text-center" @endif
+                        style="height: 20px">
                             @if($componentIndex < count($tdr_ws))
                                 @php
                                     $currentTdrId = $tdr_ws[$componentIndex]->id;
@@ -575,7 +566,8 @@
             <div class="row g-0">
                 @php $componentIndex = 0; @endphp
                 @for($i = 0; $i < 6; $i++)
-                    <div class="col {{ $i < 5 ? 'border-l-b' : 'border-l-b-r'}} text-center" style="height: 20px">
+                    <div @if($i == 5) class="col border-l-b-r text-center" @else class="col border-l-b text-center" @endif
+                    style="height: 20px">
 
                         <div class="border-r" style="height: 20px; width: 30px"></div>
 
@@ -606,14 +598,6 @@
         </div>
 
     </footer>
-
-{{-- Добавляем разрыв страницы, если это не последняя группа --}}
-@if(!$loop->last)
-    <div style="page-break-after: always;"></div>
-@endif
-@endforeach
-
-
 
     <!-- Скрипт для печати -->
     <script>
