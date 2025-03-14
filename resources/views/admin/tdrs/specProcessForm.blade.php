@@ -18,14 +18,12 @@
             height: auto;
             /*transform: scale(0.8);*/
             transform-origin: top left;
-            padding: 5px;
+            padding: 3px;
             margin-left: 10px;
             margin-right: 10px;
         }
 
-        .container-grid{
-            display: grid;
-        }
+
         @media print {
             /* Задаем размер страницы Letter (8.5 x 11 дюймов) */
             @page {
@@ -37,7 +35,7 @@
             /* Убедитесь, что вся страница помещается на один лист */
             html, body {
                 height: auto;
-                width: 98%;
+                width: auto;
                 margin-left: 3px;
                 padding: 0;
             }
@@ -56,11 +54,11 @@
             footer {
                 position: fixed;
                 bottom: 0;
-                width: 960px;
+                width: 1060px;
                 text-align: center;
                 font-size: 10px;
                 background-color: #fff;
-                padding: 3px 3px;
+                padding: 2px 2px;
             }
 
             /* Обрезка контента и размещение на одной странице */
@@ -247,7 +245,7 @@
     <div class="row">
         <div class="col-1">
             <img src="{{ asset('img/icons/AT_logo-rb.svg') }}" alt="Logo"
-                 style="width: 180px; margin: 6px 10px 0;">
+                 style="width: 160px; margin: 6px 10px 0;">
         </div>
         <div class="col-11">
             <h5 class="pt-1  text-black text-center"><strong>Special Process Form</strong></h5>
@@ -278,14 +276,14 @@
                 <img src="{{ asset('img/icons/icons8-right-arrow.gif')}}" alt="arrow"
                      style="width: 24px;height: 20px">
             </div>
-            <div class="border-l-t-b text-center pt-1 fs-8" style="width: 25px;height: 25px"></div>
-            <div class="border-l-t-b ps-2 fs-8 " style="width: 130px;height: 25px; color: grey; font-style: italic" >RO
+            <div class="border-l-t-b text-center pt-1 fs-8" style="width: 25px;height: 20px"></div>
+            <div class="border-l-t-b ps-2 fs-8 " style="width: 130px;height: 20px; color: grey; font-style: italic" >RO
                 No.</div>
-            <div class="border-all text-center pt-1 fs-8" style="width: 25px;height: 25px"></div>
+            <div class="border-all text-center pt-1 fs-8" style="width: 25px;height: 20px"></div>
             <div class=" text-center fs-8" style="width: 20px;height: 20px"></div>
-            <div class="border-l-t-b ps-2 fs-8 " style="width: 100px;height: 25px; color: grey; font-style: italic" >RO
+            <div class="border-l-t-b ps-2 fs-8 " style="width: 100px;height: 20px; color: grey; font-style: italic" >RO
                 No.</div>
-            <div class="border-all text-center pt-1 fs-8" style="width: 25px;height: 25px"></div>
+            <div class="border-all text-center pt-1 fs-8" style="width: 25px;height: 20px"></div>
             <div class=" text-center fs-8" style="width: 305px;height: 20px"></div>
             <div class=" text-end pt-2 fs-75" style="width: 75px;height: 20px">Technician</div>
             <div class="border-b " style="width: 120px"></div>
@@ -300,8 +298,10 @@
 
     </div>
     <div class="d-flex mb-1">
-        <div class="" style="width: 120px"></div>
-        <div class="border-b fs-7" style="width: 300px"><strong>Cat #2 (not included in NDT & Cad Cat #1)</strong>
+        <div class="" style="width: 80px"></div>
+        <img src="{{ asset('img/icons/arrow_ld.png')}}" alt="arrow"
+             style="height: 10px;width: 60px" class="mt-2">
+        <div class="border-b fs-7" style="width: 300px; height: 18px"><strong>Cat #2 (not included in NDT & Cad Cat #1)</strong>
         </div>
     </div>
 
@@ -309,7 +309,7 @@
     <div class="row g-0 fs-7">
         <!-- Заголовок "Description" -->
         <div class="col-2 border-l-t-b ps-1">
-            <div style="height: 23px"><strong>Description</strong> </div>
+            <div style="height: 20px"><strong>Description</strong> </div>
         </div>
         <!-- Основная часть таблицы -->
         <div class="col-10">
@@ -318,7 +318,7 @@
                 @php $componentIndex = 0; @endphp
                 @for($i = 0; $i < 6; $i++)
                     <div @if($i == 5) class="col border-all text-center" @else class="col border-l-t-b text-center" @endif
-                    style="height: 25px">
+                    style="height: 22px">
                         @if($componentIndex < count($tdr_ws))
                             {{ $tdr_ws[$componentIndex]->component->name }}
                             @php $componentIndex++; @endphp
@@ -333,7 +333,7 @@
     <div class="row g-0 fs-7">
 
         <div class="col-2 border-l-b ps-1">
-            <div style="height: 23px"><strong> Part No.</strong></div>
+            <div style="height: 20px"><strong> Part No.</strong></div>
         </div>
         <!-- Данные Part No. -->
         <div class="col-10">
@@ -341,7 +341,7 @@
                 @php $componentIndex = 0; @endphp
                 @for($i = 0; $i < 6; $i++)
                     <div @if($i == 5) class="col border-l-b-r text-center" @else class="col border-l-b text-center" @endif
-                    style="height: 25px">
+                    style="height: 22px">
                         @if($componentIndex < count($tdr_ws))
                             {{ $tdr_ws[$componentIndex]->component->part_number }}
                             @php $componentIndex++; @endphp
@@ -356,7 +356,7 @@
     <div class="row g-0 fs-7">
 
         <div class="col-2 border-l-b ps-1">
-            <div style="height: 23px"><strong> Serial No</strong>.</div>
+            <div style="height: 20px"><strong> Serial No</strong>.</div>
         </div>
         <!-- Данные Serial No. -->
         <div class="col-10">
@@ -364,7 +364,7 @@
                 @php $componentIndex = 0; @endphp
                 @for($i = 0; $i < 6; $i++)
                     <div @if($i == 5) class="col border-l-b-r text-center" @else class="col border-l-b text-center" @endif
-                    style="height: 25px">
+                    style="height: 22px">
                         @if($componentIndex < count($tdr_ws))
                             {{ $tdr_ws[$componentIndex]->serial_number }}
                             @php $componentIndex++; @endphp
@@ -376,12 +376,21 @@
     </div>
         <div class="row g-0 border-tt-gr">
             <div class="col-2 " >
-                <div class="fs-8 text-end" style="height: 18px"><strong>Steps sequence</strong> </div>
+                <div class="fs-8 text-end mb-1" style="height: 15px"><strong>Steps sequence</strong>
+                    <img src="{{ asset('img/icons/arrow_rd.png')}}" alt="arrow"
+                         style="height: 10px; margin-right: -15px" class="mt-2 ">
+                </div>
+
             </div>
+
             <div class="col-10" >
+
                 <div class="row g-0">
+
                     @for($i = 0; $i < 6; $i++)
-                    <div class="col fs-8 text-center" style="height: 20px"><strong>RO No.</strong></div>
+                    <div class="col fs-8 text-center " style="height: 15px">
+
+                        <strong>RO No.</strong></div>
                     @endfor
                 </div>
             </div>
@@ -389,14 +398,14 @@
 
     <div class="row g-0 fs-7">
         <div class="col-2 border-l-t ps-1">
-            <div style="height: 23px"><strong></strong></div>
+            <div style="height: 18px"><strong></strong></div>
         </div>
         <div class="col-10">
             <div class="row g-0">
                 @php $componentIndex = 0; @endphp
                 @for($i = 0; $i < 6; $i++)
                     <div @if($i == 5) class="col border-all text-center" @else class="col border-l-t-b text-center" @endif
-                    style="height: 25px">
+                    style="height: 20px">
                         @if($componentIndex < count($tdr_ws))
                             @php $currentTdrId = $tdr_ws[$componentIndex]->id; @endphp
 
@@ -410,7 +419,7 @@
 
                             {{-- Выводим первое, второе и третье значения number_line --}}
                             @if(isset($ndtForCurrentTdr[$r]))
-                                <div class="border-r" style="height: 25px; width: 25px">
+                                <div class="border-r" style="height: 20px; width: 30px">
                                     {{ $ndtForCurrentTdr[$r]['number_line'] }}
                                 </div>
                             @else
@@ -418,7 +427,7 @@
                             @endif
                             @php $componentIndex++; @endphp
                         @else
-                            <div class="border-r" style="height: 25px; width: 25px"></div>
+                            <div class="border-r" style="height: 20px; width: 30px"></div>
                         @endif
 
                     </div>
@@ -429,14 +438,14 @@
     </div>
     <div class="row g-0 fs-7">
         <div class="col-2 border-l ps-1">
-            <div style="height: 23px"><strong>N.D.T.</strong></div>
+            <div style="height: 18px"><strong>N.D.T.</strong></div>
         </div>
         <div class="col-10">
             <div class="row g-0">
                 @php $componentIndex = 0; @endphp
                 @for($i = 0; $i < 6; $i++)
                     <div @if($i == 5) class="col border-l-b-r text-center" @else class="col border-l-b text-center" @endif
-                    style="height: 25px">
+                    style="height: 20px">
                         @if($componentIndex < count($tdr_ws))
                             @php $currentTdrId = $tdr_ws[$componentIndex]->id; @endphp
                             {{-- Фильтруем ndt_processes для текущего tdrs_id --}}
@@ -449,15 +458,15 @@
 
                             {{-- Выводим первое, второе и третье значения number_line --}}
                             @if(isset($ndtForCurrentTdr[$r]))
-                                <div class="border-r" style="height: 25px; width: 25px">
+                                <div class="border-r" style="height: 20px; width: 30px">
                                     {{ $ndtForCurrentTdr[$r]['number_line'] }}
                                 </div>
                             @else
-                                <div class="border-r" style="height: 25px; width: 25px"></div>
+                                <div class="border-r" style="height: 20px; width: 30px"></div>
                             @endif
                             @php $componentIndex++; @endphp
                         @else
-                            <div class="border-r" style="height: 25px; width: 25px"></div>
+                            <div class="border-r" style="height: 20px; width: 30px"></div>
                         @endif
                     </div>
                 @endfor
@@ -466,14 +475,14 @@
     </div>
     <div class="row g-0 fs-7">
         <div class="col-2 border-l-b ps-1">
-            <div style="height: 23px"><strong></strong></div>
+            <div style="height: 18px"><strong></strong></div>
         </div>
         <div class="col-10">
             <div class="row g-0">
                 @php $componentIndex = 0; @endphp
                 @for($i = 0; $i < 6; $i++)
                     <div @if($i == 5) class="col border-l-b-r text-center" @else class="col border-l-b text-center" @endif
-                    style="height: 25px">
+                    style="height: 20px">
                         @if($componentIndex < count($tdr_ws))
                             @php $currentTdrId = $tdr_ws[$componentIndex]->id; @endphp
 
@@ -487,15 +496,15 @@
 
                             {{-- Выводим первое, второе и третье значения number_line --}}
                             @if(isset($ndtForCurrentTdr[$r]))
-                                <div class="border-r" style="height: 25px; width: 25px">
+                                <div class="border-r" style="height: 20px; width: 30px">
                                     {{ $ndtForCurrentTdr[$r]['number_line'] }}
                                 </div>
                             @else
-                                <div class="border-r" style="height: 25px; width: 25px"></div>
+                                <div class="border-r" style="height: 20px; width: 30px"></div>
                             @endif
                             @php $componentIndex++; @endphp
                         @else
-                            <div class="border-r" style="height: 25px; width: 25px"></div>
+                            <div class="border-r" style="height: 20px; width: 30px"></div>
                         @endif
                     </div>
                 @endfor
@@ -506,14 +515,14 @@
     @foreach($processNames as $name)
         <div class="row g-0 fs-7">
             <div class="col-2 border-l-b ps-1">
-                <div style="height: 23px"><strong>{{ $name->name }}</strong></div>
+                <div style="height: 18px"><strong>{{ $name->name }}</strong></div>
             </div>
             <div class="col-10">
                 <div class="row g-0">
                     @php $componentIndex = 0; @endphp
                     @for($i = 0; $i < 6; $i++)
                         <div @if($i == 5) class="col border-l-b-r text-center" @else class="col border-l-b text-center" @endif
-                        style="height: 25px">
+                        style="height: 20px">
                             @if($componentIndex < count($tdr_ws))
                                 @php
                                     $currentTdrId = $tdr_ws[$componentIndex]->id;
@@ -528,16 +537,16 @@
 
                                 {{-- Выводим все number_line через запятую --}}
                                 @if($numberLines)
-                                    <div class="border-r" style="height: 25px; width: 25px">
+                                    <div class="border-r" style="height: 20px; width: 30px">
                                         {{ $numberLines }}
                                     </div>
                                 @else
-                                    <div class="border-r" style="height: 25px; width: 25px"></div>
+                                    <div class="border-r" style="height: 20px; width: 30px"></div>
                                 @endif
 
                                 @php $componentIndex++; @endphp
                             @else
-                                <div class="border-r" style="height: 25px; width: 25px"></div>
+                                <div class="border-r" style="height: 20px; width: 30px"></div>
                             @endif
                         </div>
                     @endfor
@@ -548,16 +557,16 @@
 
     <div class="row g-0 fs-7">
         <div class="col-2 border-l-b ps-1">
-            <div style="height: 23px"><strong></strong></div>
+            <div style="height: 18px"><strong></strong></div>
         </div>
         <div class="col-10">
             <div class="row g-0">
                 @php $componentIndex = 0; @endphp
                 @for($i = 0; $i < 6; $i++)
                     <div @if($i == 5) class="col border-l-b-r text-center" @else class="col border-l-b text-center" @endif
-                    style="height: 25px">
+                    style="height: 20px">
 
-                        <div class="border-r" style="height: 25px; width: 25px"></div>
+                        <div class="border-r" style="height: 20px; width: 30px"></div>
 
                     </div>
                 @endfor
