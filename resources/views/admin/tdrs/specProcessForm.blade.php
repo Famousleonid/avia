@@ -66,6 +66,10 @@
                 max-height: 100vh;
                 overflow: hidden;
             }
+            .border-r {
+                -webkit-print-color-adjust: exact;
+                print-color-adjust: exact;
+            }
         }
 
         .border-all {
@@ -231,6 +235,7 @@
         .page-break {
             page-break-after: always;
         }
+
     </style>
 </head>
 
@@ -250,7 +255,6 @@
 @endphp
 
 @foreach($componentChunks as $chunk)
-{{count($chunk)}}
 <div class="container-fluid">
 
     <div class="row">
@@ -407,43 +411,50 @@
                 </div>
             </div>
         </div>
-
     <div class="row g-0 fs-7">
         <div class="col-2 border-l-t ps-1">
             <div style="height: 18px"><strong></strong></div>
         </div>
         <div class="col-10">
             <div class="row g-0">
-                @php $componentIndex = 0; @endphp
-                @for($i = 0; $i < 6; $i++)
-                    <div class="col {{ $i < 5 ? 'border-l-t-b' : 'border-all' }} text-center" style="height: 20px">
-                        @if($componentIndex < count($tdr_ws))
-                            @php $currentTdrId = $tdr_ws[$componentIndex]->id; @endphp
+                @php
+                    $componentIndex = 0;
+                @endphp
 
-                            {{-- Фильтруем ndt_processes для текущего tdrs_id --}}
-                            @php
-                                $r = 0;
-                                $ndtForCurrentTdr = collect($ndt_processes)
-                                    ->where('tdrs_id', $currentTdrId)
-                                    ->values(); // Переиндексируем массив
-                            @endphp
+                @foreach($chunk as $index => $component)
+                    @php
+                        $localIndex = $index % 6;
+                        $currentTdrId = $component->id;
+                        $ndtForCurrentTdr = collect($ndt_processes)
+                            ->where('tdrs_id', $currentTdrId)
+                            ->values();
+                    @endphp
 
-                            {{-- Выводим первое, второе и третье значения number_line --}}
-                            @if(isset($ndtForCurrentTdr[$r]))
-                                <div class="border-r" style="height: 20px; width: 30px">
-                                    {{ $ndtForCurrentTdr[$r]['number_line'] }}
-                                </div>
-                            @else
-                                <div class="border-r" style="height: 20px; width: 30px"></div>
-
-                            @endif
-                            @php $componentIndex++; @endphp
+                    <div class="col {{ $localIndex < 5 ? 'border-l-t-b' : 'border-all' }} text-center" style="height:
+                     20px">
+                        @if($componentIndex < count($chunk) && isset($ndtForCurrentTdr[0]))
+                            <div class="border-r" style="height: 20px; width: 30px">
+                                {{ $ndtForCurrentTdr[0]['number_line'] }}
+                            </div>
                         @else
                             <div class="border-r" style="height: 20px; width: 30px"></div>
                         @endif
+                    </div>
+
+                    @php $componentIndex++; @endphp
+                @endforeach
+
+                @for($i = count($chunk); $i < $componentsPerPage; $i++)
+                    <div class="col {{ $i < 5 ? 'border-l-t-b' : 'border-all' }} text-center" style="height: 20px;
+                    position: relative;">
+                        {{ __(' ') }}
+                        <!-- Граница внутри ячейки, отступ 30px от левого края -->
+                        <div style="position: absolute; left: 29px; top: 0; bottom: 0; width: 1px; border-left: 1px solid black;"></div>
 
                     </div>
                 @endfor
+
+
             </div>
         </div>
 
@@ -454,34 +465,44 @@
         </div>
         <div class="col-10">
             <div class="row g-0">
-                @php $componentIndex = 0; @endphp
-                @for($i = 0; $i < 6; $i++)
-                    <div class="col {{ $i < 5 ? 'border-l-b' : 'border-l-b-r'}} text-center" style="height: 20px">
+                @php
+                    $componentIndex = 0;
+                @endphp
 
-                        @if($componentIndex < count($tdr_ws))
-                            @php $currentTdrId = $tdr_ws[$componentIndex]->id; @endphp
-                            {{-- Фильтруем ndt_processes для текущего tdrs_id --}}
-                            @php
-                                $r = 1;
-                                $ndtForCurrentTdr = collect($ndt_processes)
-                                    ->where('tdrs_id', $currentTdrId)
-                                    ->values(); // Переиндексируем массив
-                            @endphp
+                @foreach($chunk as $index => $component)
+                    @php
+                        $localIndex = $index % 6;
+                        $currentTdrId = $component->id;
+                        $ndtForCurrentTdr = collect($ndt_processes)
+                            ->where('tdrs_id', $currentTdrId)
+                            ->values();
+                    @endphp
 
-                            {{-- Выводим первое, второе и третье значения number_line --}}
-                            @if(isset($ndtForCurrentTdr[$r]))
-                                <div class="border-r" style="height: 20px; width: 30px">
-                                    {{ $ndtForCurrentTdr[$r]['number_line'] }}
-                                </div>
+                    <div class="col {{ $localIndex < 5 ? 'border-l-b' : 'border-l-b-r' }} text-center" style="height:
+                     20px">
+                        @if($componentIndex < count($chunk) && isset($ndtForCurrentTdr[1]))
+                            <div class="border-r" style="height: 20px; width: 30px">
+                                {{ $ndtForCurrentTdr[1]['number_line'] }}
+                            </div>
                             @else
-                                <div class="border-r" style="height: 20px; width: 30px"></div>
-                            @endif
-                            @php $componentIndex++; @endphp
-                        @else
-                            <div class="border-r" style="height: 20px; width: 30px"></div>
+                                 <div class="border-r" style="height: 20px; width: 30px"></div>
                         @endif
                     </div>
+
+                    @php $componentIndex++; @endphp
+                @endforeach
+
+                @for($i = count($chunk); $i < $componentsPerPage; $i++)
+                    <div class="col {{ $i < 5 ? 'border-l-b' : 'border-l-b-r' }} text-center" style="height: 20px;
+                    position: relative;">
+                        {{ __(' ') }}
+                        <!-- Граница внутри ячейки, отступ 30px от левого края -->
+                        <div style="position: absolute; left: 29px; top: 0; bottom: 0; width: 1px; border-left: 1px solid black;"></div>
+
+                    </div>
                 @endfor
+
+
             </div>
         </div>
     </div>
@@ -491,35 +512,44 @@
         </div>
         <div class="col-10">
             <div class="row g-0">
-                @php $componentIndex = 0; @endphp
-                @for($i = 0; $i < 6; $i++)
-                    <div class="col {{ $i < 5 ? 'border-l-b' : 'border-l-b-r'}} text-center" style="height: 20px">
+                @php
+                    $componentIndex = 0;
+                @endphp
 
-                        @if($componentIndex < count($tdr_ws))
-                            @php $currentTdrId = $tdr_ws[$componentIndex]->id; @endphp
+                @foreach($chunk as $index => $component)
+                    @php
+                        $localIndex = $index % 6;
+                        $currentTdrId = $component->id;
+                        $ndtForCurrentTdr = collect($ndt_processes)
+                            ->where('tdrs_id', $currentTdrId)
+                            ->values();
+                    @endphp
 
-                            {{-- Фильтруем ndt_processes для текущего tdrs_id --}}
-                            @php
-                                $r = 2;
-                                $ndtForCurrentTdr = collect($ndt_processes)
-                                    ->where('tdrs_id', $currentTdrId)
-                                    ->values(); // Переиндексируем массив
-                            @endphp
-
-                            {{-- Выводим первое, второе и третье значения number_line --}}
-                            @if(isset($ndtForCurrentTdr[$r]))
-                                <div class="border-r" style="height: 20px; width: 30px">
-                                    {{ $ndtForCurrentTdr[$r]['number_line'] }}
-                                </div>
-                            @else
-                                <div class="border-r" style="height: 20px; width: 30px"></div>
-                            @endif
-                            @php $componentIndex++; @endphp
+                    <div class="col {{ $localIndex < 5 ? 'border-l-b' : 'border-l-b-r' }} text-center" style="height:
+                     20px">
+                        @if($componentIndex < count($chunk) && isset($ndtForCurrentTdr[2]))
+                            <div class="border-r" style="height: 20px; width: 30px">
+                                {{ $ndtForCurrentTdr[2]['number_line'] }}
+                            </div>
                         @else
                             <div class="border-r" style="height: 20px; width: 30px"></div>
                         @endif
                     </div>
+
+                    @php $componentIndex++; @endphp
+                @endforeach
+
+                @for($i = count($chunk); $i < $componentsPerPage; $i++)
+                    <div class="col {{ $i < 5 ? 'border-l-b' : 'border-l-b-r' }} text-center" style="height: 20px;
+                    position: relative;">
+                        {{ __(' ') }}
+                        <!-- Граница внутри ячейки, отступ 30px от левого края -->
+                        <div style="position: absolute; left: 29px; top: 0; bottom: 0; width: 1px; border-left: 1px solid black;"></div>
+
+                    </div>
                 @endfor
+
+
             </div>
 
         </div>
@@ -531,37 +561,41 @@
             </div>
             <div class="col-10">
                 <div class="row g-0">
-                    @php $componentIndex = 0; @endphp
-                    @for($i = 0; $i < 6; $i++)
-                        <div class="col {{ $i < 5 ? 'border-l-b' : 'border-l-b-r'}} text-center" style="height: 20px">
+                    @php
+                        $componentIndex = 0;
+                    @endphp
 
-                            @if($componentIndex < count($tdr_ws))
-                                @php
-                                    $currentTdrId = $tdr_ws[$componentIndex]->id;
-                                    $processForCurrentTdr = $processes
-                                        ->where('process_name_id', $name->id)
-                                        ->where('tdrs_id', $currentTdrId)
-                                        ->values();
-
-                                    // Собираем все number_line через запятую
-                                    $numberLines = $processForCurrentTdr->pluck('number_line')->implode(',');
-                                @endphp
-
-                                {{-- Выводим все number_line через запятую --}}
-                                @if($numberLines)
-                                    <div class="border-r" style="height: 20px; width: 30px">
-                                        {{ $numberLines }}
-                                    </div>
+                    @foreach($chunk as $index => $component)
+                        @php
+                            $localIndex = $index % 6;
+                            $currentTdrId = $component->id;
+                            $processForCurrentTdr = $processes
+                                ->where('process_name_id', $name->id)
+                                ->where('tdrs_id', $currentTdrId)
+                                ->values();
+                            // Собираем все number_line через запятую
+                            $numberLines = $processForCurrentTdr->pluck('number_line')->implode(',');
+                        @endphp
+                        <div class="col {{ $localIndex < 5 ? 'border-l-b' : 'border-l-b-r' }} text-center" style="height: 20px">
+{{--                      Выводим все number_line через запятую --}}
+                            @if($numberLines)
+                                <div class="border-r" style="height: 20px; width: 30px">
+                                    {{ $numberLines }}
+                                </div>
                                 @else
-                                    <div class="border-r" style="height: 20px; width: 30px"></div>
-                                @endif
-
-                                @php $componentIndex++; @endphp
-                            @else
                                 <div class="border-r" style="height: 20px; width: 30px"></div>
                             @endif
+                            @php $componentIndex++; @endphp
+                        </div>
+                    @endforeach
+                    @for($i = count($chunk); $i < $componentsPerPage; $i++)
+                        <div class="col {{ $i < 5 ? 'border-l-b' : 'border-l-b-r' }} text-center" style="height: 20px;
+                    position: relative;"> {{ __(' ') }}
+                            <!-- Граница внутри ячейки, отступ 30px от левого края -->
+                            <div style="position: absolute; left: 29px; top: 0; bottom: 0; width: 1px; border-left: 1px solid black;"></div>
                         </div>
                     @endfor
+
                 </div>
             </div>
         </div>
@@ -585,15 +619,7 @@
 
         </div>
     </div>
-
-{{--    {{$ndt_processes}}--}}
-{{--    <br>------------------------------------------ <br>--}}
-{{--{{$processes}}--}}
-
-
-    </div>
-
-
+</div>
 
     <footer >
         <div class="row" style="width: 100%; padding: 5px 5px;">
@@ -607,13 +633,12 @@
 
     </footer>
 
-{{-- Добавляем разрыв страницы, если это не последняя группа --}}
+
 @if(!$loop->last)
     <div style="page-break-after: always;"></div>
 @endif
+
 @endforeach
-
-
 
     <!-- Скрипт для печати -->
     <script>
