@@ -96,6 +96,14 @@
                                 </div>
                                 <div class="col-md-6">
                                     <label for="process">Processes:</label>
+
+                                    <button type="button" class="btn btn-link mb-1" data-bs-toggle="modal"
+                                            data-bs-target="#addProcessModal">
+                                        <img src="{{ asset('img/plus.png')}}" alt="arrow"
+                                             style="width: 20px;" class="" >
+                                    </button>
+
+
                                     <div class="process-options">
                                         <!-- Здесь будут чекбоксы для выбранного имени процесса -->
                                     </div>
@@ -109,6 +117,19 @@
                         <a href="{{ route('admin.tdrs.processes', ['workorder_id' => $current_tdr->workorder->id]) }}" class="btn btn-outline-secondary mt-3">{{ __('Cancel') }}</a>
                     </div>
                 </form>
+
+            </div>
+            <div class="modal fade" id="addProcessModal" tabindex="-1" aria-labelledby="addProcessModalLabel"
+                 aria-hidden="true">
+                <div class="modal-dialog">
+                    <div class="modal-content bg-gradient">
+
+                        <div class="modal-header">
+                            <h5 class="modal-title" id="addProcessModalLabel">{{ __('Add Process') }}</h5>
+                            {{$manual_id}}
+                        </div>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
