@@ -119,18 +119,56 @@
                 </form>
 
             </div>
-            <div class="modal fade" id="addProcessModal" tabindex="-1" aria-labelledby="addProcessModalLabel"
-                 aria-hidden="true">
+            <!-- Модальное окно для работы с процессом -->
+            <div class="modal fade" id="addProcessModal" tabindex="-1" aria-labelledby="addProcessModalLabel" aria-hidden="true">
                 <div class="modal-dialog">
                     <div class="modal-content bg-gradient">
-
                         <div class="modal-header">
-                            <h5 class="modal-title" id="addProcessModalLabel">{{ __('Add Process') }}</h5>
-                            {{$manual_id}}
+                            <h5 class="modal-title" id="addProcessModalLabel">
+                                Add Process for: <span id="modalProcessName"></span>
+                            </h5>
+                            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Закрыть"></button>
+                        </div>
+                        <div class="modal-body">
+                            <!-- Скрытое поле для передачи ID выбранного Process Name -->
+                            <input type="hidden" id="modalProcessNameId" name="process_names_id">
+
+                            <!-- Переключатель сценария -->
+                            <div class="mb-3">
+                                <label class="form-check-label me-2">Выберите сценарий:</label>
+                                <div class="form-check form-check-inline">
+                                    <input class="form-check-input" type="radio" name="processOption" id="optionNew" value="new" checked>
+                                    <label class="form-check-label" for="optionNew">Ввести новый процесс</label>
+                                </div>
+                                <div class="form-check form-check-inline">
+                                    <input class="form-check-input" type="radio" name="processOption" id="optionExisting" value="existing">
+                                    <label class="form-check-label" for="optionExisting">Выбрать существующий</label>
+                                </div>
+                            </div>
+
+                            <!-- Панель для ввода нового процесса -->
+                            <div id="newProcessPanel" class="mb-3">
+                                <div class="mb-3">
+                                    <label for="newProcessInput" class="form-label">Название процесса</label>
+                                    <input type="text" class="form-control" id="newProcessInput" name="new_process">
+                                </div>
+                            </div>
+
+                            <!-- Панель для выбора существующего процесса -->
+                            <div id="existingProcessPanel" class="mb-3" style="display: none;">
+                                <div id="modalProcessCheckboxes">
+                                    Loading...
+                                </div>
+                            </div>
+                        </div>
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Отмена</button>
+                            <button type="button" class="btn btn-outline-primary" id="saveProcessModal">Сохранить</button>
                         </div>
                     </div>
                 </div>
             </div>
+
         </div>
     </div>
 
@@ -260,6 +298,149 @@
                 }
             }
         });
+
+        // Глобальная переменная для хранения текущей строки, из которой вызвали модальное окно
+        let currentRow = null;
+
+        // Функция для загрузки существующих процессов по выбранному Process Name
+        function loadExistingProcesses() {
+            const processNameId = document.getElementById('modalProcessNameId').value;
+            const manualId = document.getElementById('processes-container').dataset.manualId;
+            fetch(`/admin/get-process/${processNameId}?manual_id=${manualId}`)
+                .then(response => response.json())
+                .then(data => {
+                    const container = document.getElementById('modalProcessCheckboxes');
+                    container.innerHTML = ''; // Очистка контейнера
+                    if(data.length > 0) {
+                        data.forEach(process => {
+                            const checkboxDiv = document.createElement('div');
+                            checkboxDiv.className = 'form-check';
+                            checkboxDiv.innerHTML = `
+                            <input type="checkbox" name="modal_processes[]" value="${process.id}" class="form-check-input">
+                            <label class="form-check-label">${process.process}</label>
+                        `;
+                            container.appendChild(checkboxDiv);
+                        });
+                    } else {
+                        container.innerHTML = '<div>Нет доступных процессов</div>';
+                    }
+                })
+                .catch(error => {
+                    console.error('Ошибка при загрузке процессов:', error);
+                    document.getElementById('modalProcessCheckboxes').innerHTML = '<div>Error loading processes</div>';
+                });
+        }
+
+        // При клике на кнопку открытия модального окна внутри строки сохраняем ссылку на строку
+        document.querySelectorAll('.btn.btn-link[data-bs-target="#addProcessModal"]').forEach(btn => {
+            btn.addEventListener('click', function() {
+                currentRow = this.closest('.process-row');
+                const select = currentRow.querySelector('.select2-process');
+                const processNameText = select.options[select.selectedIndex].text;
+                const processNameId = select.value;
+                // Заполняем заголовок модального окна и скрытое поле
+                document.getElementById('modalProcessName').innerText = processNameText;
+                document.getElementById('modalProcessNameId').value = processNameId;
+                // По умолчанию выбираем режим нового процесса
+                document.getElementById('optionNew').checked = true;
+                document.getElementById('newProcessPanel').style.display = 'block';
+                document.getElementById('existingProcessPanel').style.display = 'none';
+            });
+        });
+
+        // Переключение между сценариями
+        document.querySelectorAll('input[name="processOption"]').forEach(radio => {
+            radio.addEventListener('change', function() {
+                if (this.value === 'new') {
+                    document.getElementById('newProcessPanel').style.display = 'block';
+                    document.getElementById('existingProcessPanel').style.display = 'none';
+                } else if (this.value === 'existing') {
+                    document.getElementById('newProcessPanel').style.display = 'none';
+                    document.getElementById('existingProcessPanel').style.display = 'block';
+                    loadExistingProcesses();
+                }
+            });
+        });
+
+        // Обработчик для кнопки "Сохранить" в модальном окне
+        document.getElementById('saveProcessModal').addEventListener('click', function() {
+            const selectedOption = document.querySelector('input[name="processOption"]:checked').value;
+            const processNameId = document.getElementById('modalProcessNameId').value;
+
+            if (selectedOption === 'new') {
+                const newProcess = document.getElementById('newProcessInput').value.trim();
+                if (!newProcess) {
+                    alert('Введите название нового процесса');
+                    return;
+                }
+                // Подготовка данных для нового процесса
+                const formData = new FormData();
+                formData.append('_token', document.querySelector('meta[name="csrf-token"]').content);
+                formData.append('process_names_id', processNameId);
+                formData.append('process', newProcess);
+                // Отправляем AJAX-запрос для сохранения нового процесса
+                fetch(`/admin/processes/add`, {
+                    method: 'POST',
+                    body: formData
+                })
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.success) {
+                            alert('Процесс успешно добавлен');
+                            // Добавляем новый процесс в текущую строку в виде чекбокса
+                            if (currentRow) {
+                                const processOptionsContainer = currentRow.querySelector('.process-options');
+                                const checkboxDiv = document.createElement('div');
+                                checkboxDiv.className = 'form-check';
+                                checkboxDiv.innerHTML = `
+                            <input type="checkbox" name="processes[${processNameId}][process][]" value="${data.process.id}" class="form-check-input" checked>
+                            <label class="form-check-label">${data.process.process}</label>
+                        `;
+                                processOptionsContainer.appendChild(checkboxDiv);
+                            }
+                            // Закрываем модальное окно
+                            const modalElement = document.getElementById('addProcessModal');
+                            const modalInstance = bootstrap.Modal.getInstance(modalElement);
+                            modalInstance.hide();
+                            // Сброс значения поля
+                            document.getElementById('newProcessInput').value = '';
+                        } else {
+                            alert('Ошибка при добавлении процесса');
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Ошибка:', error);
+                        alert('Ошибка при добавлении процесса');
+                    });
+            } else if (selectedOption === 'existing') {
+                // Собираем выбранные чекбоксы из существующих процессов
+                const checkboxes = document.querySelectorAll('#modalProcessCheckboxes input[type="checkbox"]:checked');
+                if (checkboxes.length === 0) {
+                    alert('Выберите хотя бы один процесс');
+                    return;
+                }
+                if (currentRow) {
+                    const processOptionsContainer = currentRow.querySelector('.process-options');
+                    checkboxes.forEach(checkbox => {
+                        const processId = checkbox.value;
+                        const processLabel = checkbox.nextElementSibling.innerText;
+                        const checkboxDiv = document.createElement('div');
+                        checkboxDiv.className = 'form-check';
+                        checkboxDiv.innerHTML = `
+                        <input type="checkbox" name="processes[${processNameId}][process][]" value="${processId}" class="form-check-input" checked>
+                        <label class="form-check-label">${processLabel}</label>
+                    `;
+                        processOptionsContainer.appendChild(checkboxDiv);
+                    });
+                }
+                // Закрываем модальное окно
+                const modalElement = document.getElementById('addProcessModal');
+                const modalInstance = bootstrap.Modal.getInstance(modalElement);
+                modalInstance.hide();
+            }
+        });
+
+
 
     </script>
 @endsection
