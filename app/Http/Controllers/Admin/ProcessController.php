@@ -74,11 +74,20 @@ class ProcessController extends Controller
         ]);
 
         // Если выбран процесс из списка
-        if ($validated['selected_process_id']) {
+//        if ($validated['selected_process_id']) {
+//            $processId = $validated['selected_process_id'];
+//        }
+//        // Если введен новый процесс
+//        else {
+//            $process = Process::create([
+//                'process_names_id' => $validated['process_name_id'],
+//                'process' => $validated['process'],
+//            ]);
+//            $processId = $process->id;
+//        }
+        if (isset($validated['selected_process_id']) && $validated['selected_process_id']) {
             $processId = $validated['selected_process_id'];
-        }
-        // Если введен новый процесс
-        else {
+        } else {
             $process = Process::create([
                 'process_names_id' => $validated['process_name_id'],
                 'process' => $validated['process'],
@@ -92,6 +101,13 @@ class ProcessController extends Controller
             'processes_id' => $processId,
         ]);
 
+        // Если это AJAX-запрос, возвращаем JSON
+        if ($request->ajax()) {
+            return response()->json([
+                'success' => true,
+                'process' => isset($process) ? $process : Process::find($processId)
+            ]);
+        }
         return redirect()->back()->with('success', 'Запись успешно добавлена.');
     }
 //

@@ -168,7 +168,7 @@
             const newRow = document.createElement('div');
             newRow.classList.add('process-row', 'mb-3');
             newRow.innerHTML = `
-                <div class="row ">
+                <div class="row">
                     <div class="col-md-6">
                         <label for="process_names">Process Name:</label>
                         <select name="processes[${index}][process_names_id]" class="form-control select2-process" required>
@@ -180,12 +180,6 @@
         </div>
         <div class="col-md-6">
             <label for="process">Processes:</label>
-
-             <button type="button" class="btn btn-link mb-1" data-bs-toggle="modal"
-                                            data-bs-target="#addProcessModal">
-                                        <img src="{{ asset('img/plus.png')}}" alt="arrow"
-                                             style="width: 20px;" class="" >
-                                    </button>
             <div class="process-options">
                 <!-- Здесь будут чекбоксы для выбранного имени процесса -->
             </div>
@@ -195,8 +189,6 @@
             container.appendChild(newRow);
 
         });
-
-
 
         // Обработка отправки формы
         document.getElementById('createCPForm').addEventListener('submit', function (event) {
@@ -310,8 +302,7 @@
                 document.getElementById('modalProcessNameId').value = processNameId;
 
                 // Получаем manual_id (в данном примере из скрытого поля формы)
-                // const manualId = document.querySelector('input[name="manual_id"]').value;
-                const manualId = document.getElementById('processes-container').dataset.manualId;
+                const manualId = document.querySelector('input[name="manual_id"]').value;
 
                 // Загружаем availableProcesses для выбранного process_name_id и manualId
                 fetch(`/admin/get-processes?processNameId=${processNameId}&manualId=${manualId}`)
@@ -341,47 +332,6 @@
             });
         });
 
-        // Используем делегирование событий на контейнере, где находятся все process-row
-        document.getElementById('processes-container').addEventListener('click', function(e) {
-            const btn = e.target.closest('.btn[data-bs-target="#addProcessModal"]');
-            if (!btn) return;
-
-            currentRow = btn.closest('.process-row');
-            const select = currentRow.querySelector('.select2-process');
-            const processNameId = select.value;
-            const processNameText = select.options[select.selectedIndex].text;
-            document.getElementById('modalProcessName').innerText = processNameText;
-            document.getElementById('modalProcessNameId').value = processNameId;
-
-            // Получаем manual_id через data-атрибут
-            const manualId = document.getElementById('processes-container').dataset.manualId;
-
-            fetch(`/admin/get-processes?processNameId=${processNameId}&manualId=${manualId}`)
-                .then(response => response.json())
-                .then(data => {
-                    const container = document.getElementById('existingProcessContainer');
-                    container.innerHTML = '';
-                    if (data.availableProcesses && data.availableProcesses.length > 0) {
-                        data.availableProcesses.forEach(process => {
-                            const div = document.createElement('div');
-                            div.className = 'form-check';
-                            div.innerHTML = `
-                        <input type="checkbox" class="form-check-input" name="modal_processes[]" value="${process.id}" id="modal_process_${process.id}">
-                        <label class="form-check-label" for="modal_process_${process.id}">${process.process}</label>
-                    `;
-                            container.appendChild(div);
-                        });
-                    } else {
-                        container.innerHTML = '<div>No available processes</div>';
-                    }
-                })
-                .catch(error => {
-                    console.error('Error loading processes:', error);
-                    document.getElementById('existingProcessContainer').innerHTML = '<div>Error loading processes</div>';
-                });
-        });
-
-
         // Обработка нажатия кнопки "Save Process" в модальном окне
         document.getElementById('saveProcessModal').addEventListener('click', function() {
             const processNameId = document.getElementById('modalProcessNameId').value;
@@ -395,8 +345,7 @@
             }
 
             // Получаем manual_id (например, из скрытого поля формы)
-            // const manualId = document.querySelector('input[name="manual_id"]').value;
-            const manualId = document.getElementById('processes-container').dataset.manualId;
+            const manualId = document.querySelector('input[name="manual_id"]').value;
 
             if (currentRow) {
                 const processOptionsContainer = currentRow.querySelector('.process-options');
@@ -405,8 +354,7 @@
                 if (newProcess !== '') {
                     const formData = new FormData();
                     formData.append('_token', document.querySelector('meta[name="csrf-token"]').content);
-                    formData.append('process_name_id', processNameId);
-
+                    formData.append('process_names_id', processNameId);
                     formData.append('process', newProcess);
                     formData.append('manual_id', manualId);
 
