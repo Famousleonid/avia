@@ -392,6 +392,7 @@
             if (newProcess === '' && selectedCheckboxes.length === 0) {
                 alert("Введите новый процесс или выберите существующий.");
                 return;
+
             }
 
             // Получаем manual_id (например, из скрытого поля формы)
