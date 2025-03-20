@@ -3,7 +3,7 @@
 @section('content')
     <style>
         .container {
-            max-width: 650px;
+            max-width: 850px;
         }
 
         /* Стили для Select2 (темная и светлая темы) */
@@ -99,6 +99,7 @@
 
                                     <button type="button" class="btn btn-link mb-1" data-bs-toggle="modal"
                                             data-bs-target="#addProcessModal">
+
                                         <img src="{{ asset('img/plus.png')}}" alt="arrow"
                                              style="width: 20px;" class="" >
                                     </button>

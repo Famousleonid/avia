@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\Manual;
+use App\Models\ManualProcess;
 use App\Models\Process;
 use App\Models\ProcessName;
 use Illuminate\Contracts\Foundation\Application;
@@ -74,17 +75,7 @@ class ProcessController extends Controller
         ]);
 
         // Если выбран процесс из списка
-//        if ($validated['selected_process_id']) {
-//            $processId = $validated['selected_process_id'];
-//        }
-//        // Если введен новый процесс
-//        else {
-//            $process = Process::create([
-//                'process_names_id' => $validated['process_name_id'],
-//                'process' => $validated['process'],
-//            ]);
-//            $processId = $process->id;
-//        }
+
         if (isset($validated['selected_process_id']) && $validated['selected_process_id']) {
             $processId = $validated['selected_process_id'];
         } else {
@@ -164,11 +155,20 @@ class ProcessController extends Controller
      * Show the form for editing the specified resource.
      *
      * @param  int  $id
-     * @return \Illuminate\Http\Response
+     * @return Application|Factory|View
      */
     public function edit($id)
     {
-        //
+//        dd($id);
+        $manual = Manual::findorFail($id);
+        $processNames = ProcessName::all();
+        $processes = Process::all();
+        $man_processes = ManualProcess::where('manual_id',$id)->get();
+
+        return view('admin.processes.edit', compact('manual','processNames',
+            'processes','man_processes'
+
+        ));
     }
 
     /**

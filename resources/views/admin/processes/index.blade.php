@@ -161,6 +161,10 @@
                             <a href="{{ route('admin.processes.create', ['manual' => $manual->id]) }}" class="btn btn-outline-primary btn-sm">
                                 <i class="bi bi-plus-lg"></i>
                             </a>
+                            <a href="{{ route('admin.processes.edit', ['process' => $manual->id]) }}" class="btn
+                            btn-outline-primary btn-sm">
+                                <i class="bi bi-vignette"></i>
+                            </a>
                         </td>
                     </tr>
 
