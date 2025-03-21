@@ -107,13 +107,10 @@
                 <div class="d-flex justify-content-between">
                     <h4 class="text-primary">{{ __('Edit Manual Processes') }}</h4>
                     <h4 class="pe-3">{{$manual->number}} ({{$manual->title}})</h4>
-                    <a href="{{ route('admin.processes.index') }}" class="btn btn-outline-secondary">{{ __('Back') }}
-                    </a>
-
                 </div>
             </div>
-
             <div class="card-body">
+
                 <div class="table-wrapper me-3 p-2">
                     <table id="processTable" class="display table table-hover table-striped align-middle table-bordered">
                         <thead class="bg-gradient">
@@ -146,13 +143,13 @@
                                     </td>
                                     <td class="text-center">
                                         {{$man_process->id}}
-                                        <a href="{{ route('admin.manual_processes.edit', ['manual_process' => $man_process->id]) }}" class="btn btn-outline-primary btn-sm">
+                                        <a href="#" class="btn btn-outline-primary btn-sm btn-edit" data-process-id="{{$man_process->id}}" data-process="{{$process->process}}">
                                             <i class="bi bi-pencil-square"></i>
                                         </a>
-                                        <form action="{{ route('admin.manual_processes.destroy', ['manual_process' => $man_process->id]) }}" method="POST" style="display:inline;">
+                                        <form id="" action="#" method="POST" style="display:inline;">
                                             @csrf
                                             @method('DELETE')
-                                            <button type="submit" class="btn btn-sm btn-outline-danger" onclick="return confirm('Are you sure you want to delete this process?')">
+                                            <button class="btn btn-sm btn-outline-danger btn-delete" type="button" data-process-id="{{$man_process->id}}">
                                                 <i class="bi bi-trash"></i>
                                             </button>
                                         </form>
@@ -165,4 +162,96 @@
             </div>
         </div>
     </div>
+    <!-- Modal for Edit -->
+    <div class="modal fade" id="editModal" tabindex="-1" aria-labelledby="editModalLabel" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="editModalLabel">Edit Process</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="editForm">
+                        @csrf
+                        <input type="hidden" id="editProcessId" name="process_id">
+                        <div class="mb-3">
+                            <label for="editProcess" class="form-label">Process</label>
+                            <input type="text" class="form-control" id="editProcess" name="process">
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                    <button type="button" class="btn btn-primary" id="updateProcess">Update</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // Обработка нажатия на кнопку Edit
+            document.querySelectorAll('.btn-edit').forEach(button => {
+                button.addEventListener('click', function() {
+                    const processId = this.getAttribute('data-process-id');
+                    const process = this.getAttribute('data-process');
+
+                    document.getElementById('editProcessId').value = processId;
+                    document.getElementById('editProcess').value = process;
+
+                    const editModal = new bootstrap.Modal(document.getElementById('editModal'));
+                    editModal.show();
+                });
+            });
+
+            // Обработка нажатия на кнопку Update в модальном окне
+            document.getElementById('updateProcess').addEventListener('click', function() {
+                const processId = document.getElementById('editProcessId').value;
+                const process = document.getElementById('editProcess').value;
+
+                fetch(`/processes/${processId}`, {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
+                    },
+                    body: JSON.stringify({ process: process })
+                })
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.success) {
+                            location.reload();
+                        } else {
+                            alert('Error updating process');
+                        }
+                    });
+            });
+
+            // Обработка нажатия на кнопку Delete
+            document.querySelectorAll('.btn-delete').forEach(button => {
+                button.addEventListener('click', function() {
+                    const processId = this.getAttribute('data-process-id');
+
+                    if (confirm('Are you sure you want to delete this process?')) {
+                        fetch(`admin/manual_processes/${processId}`, {
+                            method: 'DELETE',
+                            headers: {
+                                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
+                            }
+                        })
+                            .then(response => response.json())
+                            .then(data => {
+                                if (data.success) {
+                                    location.reload();
+                                } else {
+                                    alert('Error deleting process');
+                                }
+                            });
+                    }
+                });
+            });
+        });
+    </script>
+
+
 @endsection

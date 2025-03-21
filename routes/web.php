@@ -134,6 +134,10 @@ Route::group(['middleware' => ['auth', 'isAdmin'], 'prefix' => 'admin', 'as' =>'
     Route::get('trainings/form132/{id}', [\App\Http\Controllers\Admin\TrainingController::class, 'showForm132'])->name('trainings.form132');
     Route::post('/trainings/createTraining', [\App\Http\Controllers\Admin\TrainingController::class, 'createTraining'])->name('trainings.createTraining');
 
+//    Route::put('/processes/{id}', [\App\Http\Controllers\Admin\ProcessController::class, 'update']);
+//    Route::delete('manual_processes/{id}', [\App\Http\Controllers\Admin\ManualProcessController::class, 'destroy']);
+    Route::resource('/manual_processes', \App\Http\Controllers\Admin\ManualProcessController::class);
+
 });
 
 
