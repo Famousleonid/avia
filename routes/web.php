@@ -3,8 +3,7 @@
 use App\Http\Controllers\Cabinet\ManualController;
 use App\Http\Controllers\Cabinet\MaterialController;
 use App\Http\Controllers\Cabinet\UserController;
-use App\Http\Controllers\Cabinet\MainController;
-use App\Http\Controllers\Cabinet\ProgressController;
+use App\Http\Controllers\Admin\MainController;
 use App\Http\Controllers\Cabinet\TrainingController;
 use App\Http\Controllers\Cabinet\UnitController;
 use App\Http\Controllers\Cabinet\WorkorderController;
@@ -84,10 +83,12 @@ Route::group(['middleware' => ['auth', 'isAdmin'], 'prefix' => 'admin', 'as' =>'
     Route::resource('/tasks',  \App\Http\Controllers\Admin\TaskController::class);
     Route::resource('/general-tasks',  \App\Http\Controllers\Admin\GeneralTaskController::class);
     Route::resource('/workorders',  \App\Http\Controllers\Admin\WorkorderController::class);
+    Route::resource('/mains',  \App\Http\Controllers\Admin\MainController::class);
     Route::resource('/units',  \App\Http\Controllers\Admin\UnitController::class)->except('update');
 
     Route::get('/workorders/approve/{id}/', [\App\Http\Controllers\Admin\WorkorderController::class, 'approve'])->name('workorders.approve');
     Route::post('workorders/{workorder}/inspection', [\App\Http\Controllers\Admin\WorkorderController::class, 'updateInspect'])->name('workorders.inspection');
+    Route::get('/progress', [\App\Http\Controllers\Admin\MainController::class, 'progress'])->name('progress.index');
 
  //   Route::post('/units/{manualId}', [\App\Http\Controllers\Admin\UnitController::class, 'update'])->name('units.update');
 
