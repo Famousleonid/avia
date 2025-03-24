@@ -6,6 +6,12 @@
             <i class="bi bi-file-earmark-word fs-6 me-2 "></i> Workorder
         </a>
     </li>
+
+    <li class="nav-item">
+        <a class="nav-link press-spinner" href="{{route('admin.progress.index')}}" onclick="showLoadingSpinner()">
+            <i class="bi bi-graph-up-arrow me-2"></i> Work in Progress
+        </a>
+    </li>
     <li class="nav-item">
         <a class="nav-link press-spinner" href="{{route('admin.customers.index')}}">
             <i class="bi bi-person-workspace me-2"></i> Customers
