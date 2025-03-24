@@ -74,7 +74,7 @@
                     @csrf
 
                     <div class="">
-                        <div class=" form-groupmb-3">
+                        <div class=" form-group mb-3">
                             <label for="manual_id" class="form-label">CMM</label>
                             <select name="manual_id" id="manual_id" class="form-control">
                                 <option disabled selected value="">---</option>

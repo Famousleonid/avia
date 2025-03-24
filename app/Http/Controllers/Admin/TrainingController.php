@@ -64,18 +64,22 @@ class TrainingController extends Controller
     public function create()
     {
         $userId = auth()->id();
-
         $planes = Plane::pluck('type', 'id');
-
 
         // Получаем ID юнитов, которые уже добавлены для текущего пользователя
         $addedCmmIds = Training::where('user_id', $userId)->pluck('manuals_id');
 
-        // Получаем юниты, которые не добавлены для текущего пользователя
-        $manuals = Manual::whereNotIn('id', $addedCmmIds)->get();
+        // Получаем юниты, которые:
+        // 1. Не добавлены для текущего пользователя
+        // 2. Имеют unit_name_training не NULL И не пустую строку
+        $manuals = Manual::whereNotIn('id', $addedCmmIds)
+            ->where(function($query) {
+                $query->whereNotNull('unit_name_training')
+                    ->where('unit_name_training', '<>', '');
+            })
+            ->get();
 
-        return view('admin.trainings.create', compact('manuals','planes'));
-
+        return view('admin.trainings.create', compact('manuals', 'planes'));
     }
 
     /**
