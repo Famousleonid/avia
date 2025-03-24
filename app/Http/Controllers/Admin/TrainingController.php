@@ -210,4 +210,28 @@ class TrainingController extends Controller
     {
         //
     }
+
+    public function deleteAll(Request $request)
+    {
+        $request->validate([
+            'user_id' => 'required|integer',
+            'manual_id' => 'required|integer'
+        ]);
+
+        try {
+            $deleted = Training::where('user_id', $request->user_id)
+                ->where('manuals_id', $request->manual_id)
+                ->delete();
+
+            return response()->json([
+                'success' => true,
+                'message' => "Deleted {$deleted} training records"
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => $e->getMessage()
+            ], 500);
+        }
+    }
 }

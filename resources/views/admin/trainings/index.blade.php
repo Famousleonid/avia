@@ -151,6 +151,14 @@
                                     {{__('View Training')}}
                                 </button>
 
+                                <!-- Кнопка удаления -->
+                                <button class="btn btn-danger ms-2 delete-training-btn"
+                                        data-user-id="{{ auth()->id() }}"
+                                        data-manual-id="{{ $trainingList['first_training']->manuals_id }}"
+                                        data-title="{{ $trainingList['first_training']->manual->title ?? 'N/A' }}">
+                                    {{__('DELETE Training')}}
+                                </button>
+                            </td>
                                 <!-- Модальное окно -->
                                 <div class="modal fade" id="trainingModal{{ $trainingList['first_training']->manuals_id }}" tabindex="-1"
                                      aria-labelledby="trainingModalLabel" aria-hidden="true">
@@ -250,7 +258,7 @@
                                         </div>
                                     </div>
                                 </div>
-                            </td>
+
 
                         </tr>
                     @endforeach
@@ -259,7 +267,25 @@
             </div>
         </div>
     </div>
-
+    <!-- Modal для подтверждения удаления -->
+    <div class="modal fade" id="confirmDeleteModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Confirm Delete</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <p>Are you sure you want to delete ALL training records for <span id="manualTitle"></span>?</p>
+                    <p class="text-danger">This action cannot be undone!</p>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="button" class="btn btn-danger" id="confirmDeleteBtn">Delete All</button>
+                </div>
+            </div>
+        </div>
+    </div>
     <script>
 
         function handleCheckboxChange(checkbox, manualsId, dateTraining, manualsTitle) {
@@ -389,6 +415,57 @@
             });
         });
 
+        // Обработка удаления тренировок
+        document.addEventListener('DOMContentLoaded', function() {
+            let currentUserId, currentManualId;
+
+            // Обработчик клика по кнопке удаления
+            document.querySelectorAll('.delete-training-btn').forEach(btn => {
+                btn.addEventListener('click', function() {
+                    currentUserId = this.getAttribute('data-user-id');
+                    currentManualId = this.getAttribute('data-manual-id');
+                    const manualTitle = this.getAttribute('data-title');
+
+                    document.getElementById('manualTitle').textContent = manualTitle;
+                    const modal = new bootstrap.Modal(document.getElementById('confirmDeleteModal'));
+                    modal.show();
+                });
+            });
+
+            // Обработчик подтверждения удаления
+            document.getElementById('confirmDeleteBtn').addEventListener('click', function() {
+                if (!currentUserId || !currentManualId) return;
+
+                fetch('{{ route("admin.trainings.deleteAll") }}', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRF-TOKEN': '{{ csrf_token() }}',
+                        'Accept': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        user_id: currentUserId,
+                        manual_id: currentManualId
+                    })
+                })
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.success) {
+                            alert('All training records deleted successfully!');
+                            location.reload();
+                        } else {
+                            alert('Error deleting records: ' + (data.message || 'Unknown error'));
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Error:', error);
+                        alert('An error occurred while deleting records');
+                    })
+                    .finally(() => {
+                        bootstrap.Modal.getInstance(document.getElementById('confirmDeleteModal')).hide();
+                    });
+            });
+        });
 
     </script>
 
