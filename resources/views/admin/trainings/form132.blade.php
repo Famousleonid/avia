@@ -193,7 +193,7 @@
 
 <div class="container-fluid">
     <div class="row">
-        <img src="{{ asset('image/AT_logo-rb.svg') }}" alt="Logo"
+        <img src="{{ asset('img/icons/AT_logo-rb.svg') }}" alt="Logo"
              style="width: 210px; margin: 2px 2px 0;">
     </div>
 
