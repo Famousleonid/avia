@@ -145,7 +145,7 @@
                                         @endforeach
                                     </td>
                                     <td class="text-center">
-                                        {{$man_process->id}}
+{{--                                        {{$man_process->id}}--}}
                                         <a href="{{ route('admin.manual_processes.edit', ['manual_process' => $man_process->id]) }}" class="btn btn-outline-primary btn-sm">
                                             <i class="bi bi-pencil-square"></i>
                                         </a>

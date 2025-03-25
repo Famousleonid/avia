@@ -57,38 +57,39 @@ class TdrController extends Controller
      */
     public function inspection($workorder_id)
     {
-
-        // Находим текущий рабочий заказ по переданному ID
         $current_wo = Workorder::findOrFail($workorder_id);
+        $manual_id = $current_wo->unit->manual_id;
 
-        // Получаем manual_id из связанного unit
-        $manual_id = $current_wo->unit->manual_id;  // предполагаем, что в workorder есть связь с unit
+        // Получаем ID уже введенных условий для этого workorder
+        $existing_condition_ids = Tdr::where('workorder_id', $workorder_id)
+            ->pluck('conditions_id')
+            ->filter()
+            ->unique()
+            ->toArray();
 
-        // Извлекаем компоненты, которые связаны с этим manual_id
+        // Получаем условия для unit, исключая уже введенные
+        $unit_conditions = Condition::where('unit', true)
+            ->whereNotIn('id', $existing_condition_ids)
+            ->get();
+
+        // Получаем условия для компонентов, исключая уже введенные
+        $component_conditions = Condition::where('unit', false)
+            ->whereNotIn('id', $existing_condition_ids)
+            ->get();
+
+        // Остальной код остается без изменений
         $components = Component::where('manual_id', $manual_id)->get();
-
-        // Извлекаем все manuals для отображения (если нужно отфильтровать, можно это сделать)
-        $manuals = Manual::all();  // или можно отфильтровать только тот, который связан с unit
-
-        // Дополнительные данные для формы
+        $manuals = Manual::all();
         $units = Unit::all();
-
         $user = Auth::user();
         $customers = Customer::all();
-
         $planes = Plane::all();
         $builders = Builder::all();
         $instruction = Instruction::all();
-
-
         $necessaries = Necessary::all();
         $conditions = Condition::all();
         $codes = Code::all();
-        $unit_conditions = Condition::where('unit', true)->get();
-        $component_conditions = Condition::where('unit', false)->get();
 
-
-        // Отправляем данные в представление
         return view('admin.tdrs.inspection', compact(
             'current_wo', 'manual_id',
             'manuals', 'components', 'units', 'user', 'customers',
