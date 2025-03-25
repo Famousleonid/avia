@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Admin\TdrController;
 use App\Http\Controllers\Cabinet\ManualController;
 use App\Http\Controllers\Cabinet\MaterialController;
 use App\Http\Controllers\Cabinet\UserController;
@@ -9,7 +10,6 @@ use App\Http\Controllers\Cabinet\UnitController;
 use App\Http\Controllers\Cabinet\WorkorderController;
 use App\Http\Controllers\Front\FrontController;
 use App\Http\Controllers\Cabinet\CabinetController;
-use App\Http\Controllers\Cabinet\CustomerController;
 use App\Http\Controllers\General\MediaController;
 use App\Http\Controllers\Mobile\MobileController;
 use Illuminate\Support\Facades\Artisan;
@@ -45,6 +45,7 @@ Route::group(['middleware' => ['auth'], 'prefix' => 'cabinet', 'as' =>'cabinet.'
     Route::resource('/users', UserController::class);
     Route::resource('/materials', MaterialController::class);
     Route::resource('/manuals',ManualController::class);
+    Route::resource('/tdrs',TdrController::class);
 
     Route::post('/trainings/createTraining', [TrainingController::class, 'createTraining'])->name('trainings.createTraining');
     Route::get('trainings/form112/{id}', [TrainingController::class, 'showForm112'])->name('trainings.form112');
@@ -84,52 +85,34 @@ Route::group(['middleware' => ['auth', 'isAdmin'], 'prefix' => 'admin', 'as' =>'
     Route::resource('/workorders',  \App\Http\Controllers\Admin\WorkorderController::class);
     Route::resource('/mains',  \App\Http\Controllers\Admin\MainController::class);
     Route::resource('/units',  \App\Http\Controllers\Admin\UnitController::class)->except('update');
+    Route::resource('/tdrs',\App\Http\Controllers\Admin\TdrController::class);
+    Route::resource('/components', \App\Http\Controllers\Admin\ComponentController::class);
+    Route::resource('/processes', \App\Http\Controllers\Admin\ProcessController::class);
+    Route::resource('/tdr-processes',\App\Http\Controllers\Admin\TdrProcessController::class);
+    Route::resource('/process-names',\App\Http\Controllers\Admin\ProcessNameController::class);
+    Route::resource('/trainings', \App\Http\Controllers\Admin\TrainingController::class);
+    Route::resource('/manual_processes', \App\Http\Controllers\Admin\ManualProcessController::class);
 
     Route::get('/workorders/approve/{id}/', [\App\Http\Controllers\Admin\WorkorderController::class, 'approve'])->name('workorders.approve');
     Route::post('workorders/{workorder}/inspection', [\App\Http\Controllers\Admin\WorkorderController::class, 'updateInspect'])->name('workorders.inspection');
     Route::get('/progress', [\App\Http\Controllers\Admin\MainController::class, 'progress'])->name('progress.index');
 
- //   Route::post('/units/{manualId}', [\App\Http\Controllers\Admin\UnitController::class, 'update'])->name('units.update');
-
-    Route::resource('/tdrs',\App\Http\Controllers\Admin\TdrController::class);
-
-
-    Route::get('/tdrs/processes/{workorder_id}',[\App\Http\Controllers\Admin\TdrController::class, 'processes'])
-        ->name('tdrs.processes');
-    Route::get('/tdrs/inspection/{workorder_id}',[\App\Http\Controllers\Admin\TdrController::class, 'inspection'])
-        ->name('tdrs.inspection');
+    Route::get('/tdrs/processes/{workorder_id}',[\App\Http\Controllers\Admin\TdrController::class, 'processes'])->name('tdrs.processes');
+    Route::get('/tdrs/inspection/{workorder_id}',[\App\Http\Controllers\Admin\TdrController::class, 'inspection'])->name('tdrs.inspection');
     Route::get('tdrs/tdrForm/{id}', [\App\Http\Controllers\Admin\TdrController::class, 'tdrForm'])->name('tdrs.tdrForm');
     Route::get('tdrs/prlForm/{id}', [\App\Http\Controllers\Admin\TdrController::class, 'prlForm'])->name('tdrs.prlForm');
     Route::get('tdrs/specProcessForm/{id}', [\App\Http\Controllers\Admin\TdrController::class, 'specProcessForm'])->name('tdrs.specProcessForm');
-
     Route::get('tdrs/ndtForm/{id}', [\App\Http\Controllers\Admin\TdrController::class, 'ndtForm'])->name('tdrs.ndtForm');
 
-
-    Route::resource('/components', \App\Http\Controllers\Admin\ComponentController::class);
-
-    Route::post('/components/store_from_inspection', [\App\Http\Controllers\Admin\ComponentController::class, 'storeFromInspection'])
-        ->name('components.storeFromInspection');
-
-    Route::resource('/processes', \App\Http\Controllers\Admin\ProcessController::class);
+    Route::post('/components/store_from_inspection', [\App\Http\Controllers\Admin\ComponentController::class, 'storeFromInspection'])->name('components.storeFromInspection');
     Route::get('/get-processes', [\App\Http\Controllers\Admin\ProcessController::class, 'getProcesses'])->name('processes.getProcesses');
-    Route::resource('/process-names',\App\Http\Controllers\Admin\ProcessNameController::class);
-
-    Route::resource('/tdr-processes',\App\Http\Controllers\Admin\TdrProcessController::class);
-
-    Route::get('tdr-processes/processesForm/{id}', [\App\Http\Controllers\Admin\TdrProcessController::class, 'processesForm'])
-        ->name('tdr-processes.processesForm');
+    Route::get('tdr-processes/processesForm/{id}', [\App\Http\Controllers\Admin\TdrProcessController::class, 'processesForm'])->name('tdr-processes.processesForm');
 
     // Уникальный путь для createProcesses
-        Route::get('/tdr/{tdrId}/create-processes', [\App\Http\Controllers\Admin\TdrProcessController::class, 'createProcesses'])
-        ->name('tdr-processes.createProcesses');
-    Route::get('/tdr/{tdrId}/processes', [\App\Http\Controllers\Admin\TdrProcessController::class, 'processes'])
-        ->name('tdr-processes.processes');
+    Route::get('/tdr/{tdrId}/create-processes', [\App\Http\Controllers\Admin\TdrProcessController::class, 'createProcesses'])->name('tdr-processes.createProcesses');
+    Route::get('/tdr/{tdrId}/processes', [\App\Http\Controllers\Admin\TdrProcessController::class, 'processes'])->name('tdr-processes.processes');
+    Route::get('/get-process/{processNameId}', [\App\Http\Controllers\Admin\TdrProcessController::class, 'getProcess'])->name('tdr-processes.get-process');
 
-    Route::get('/get-process/{processNameId}', [\App\Http\Controllers\Admin\TdrProcessController::class, 'getProcess'])
-        ->name('tdr-processes.get-process');
-
-
-    Route::resource('/trainings', \App\Http\Controllers\Admin\TrainingController::class);
     Route::get('trainings/form112/{id}', [\App\Http\Controllers\Admin\TrainingController::class, 'showForm112'])->name('trainings.form112');
     Route::get('trainings/form132/{id}', [\App\Http\Controllers\Admin\TrainingController::class, 'showForm132'])->name('trainings.form132');
     Route::post('/trainings/createTraining', [\App\Http\Controllers\Admin\TrainingController::class, 'createTraining'])->name('trainings.createTraining');
@@ -137,7 +120,6 @@ Route::group(['middleware' => ['auth', 'isAdmin'], 'prefix' => 'admin', 'as' =>'
 
 //    Route::put('/processes/{id}', [\App\Http\Controllers\Admin\ProcessController::class, 'update']);
 //    Route::delete('manual_processes/{id}', [\App\Http\Controllers\Admin\ManualProcessController::class, 'destroy']);
-    Route::resource('/manual_processes', \App\Http\Controllers\Admin\ManualProcessController::class);
 
 });
 

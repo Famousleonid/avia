@@ -130,11 +130,11 @@
 
                             <td class="text-center">{{$workorder->serial_number}}
                                 @if($workorder->amdt>0)
-                                    Amdt {{$workorder->amdt}}
+                                    Amdt: {{$workorder->amdt}}
                                 @endif
                             </td>
                             <td class="text-center">
-                                <a href="{{ route('admin.tdrs.show', ['tdr' => $workorder->id]) }}"
+                                <a href="{{ route('cabinet.tdrs.show', ['tdr' => $workorder->id]) }}"
                                    class="btn btn-outline-primary btn-sm">
                                     <i class="bi bi-journal-richtext"></i>
                                 </a>
