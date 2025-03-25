@@ -92,6 +92,7 @@ Route::group(['middleware' => ['auth', 'isAdmin'], 'prefix' => 'admin', 'as' =>'
     Route::resource('/process-names',\App\Http\Controllers\Admin\ProcessNameController::class);
     Route::resource('/trainings', \App\Http\Controllers\Admin\TrainingController::class);
     Route::resource('/manual_processes', \App\Http\Controllers\Admin\ManualProcessController::class);
+    Route::resource('/conditions',\App\Http\Controllers\Admin\ConditionController::class);
 
     Route::get('/workorders/approve/{id}/', [\App\Http\Controllers\Admin\WorkorderController::class, 'approve'])->name('workorders.approve');
     Route::post('workorders/{workorder}/inspection', [\App\Http\Controllers\Admin\WorkorderController::class, 'updateInspect'])->name('workorders.inspection');
@@ -117,6 +118,8 @@ Route::group(['middleware' => ['auth', 'isAdmin'], 'prefix' => 'admin', 'as' =>'
     Route::get('trainings/form132/{id}', [\App\Http\Controllers\Admin\TrainingController::class, 'showForm132'])->name('trainings.form132');
     Route::post('/trainings/createTraining', [\App\Http\Controllers\Admin\TrainingController::class, 'createTraining'])->name('trainings.createTraining');
     Route::post('/trainings/delete-all', [\App\Http\Controllers\Admin\TrainingController::class, 'deleteAll'])->name('trainings.deleteAll');
+
+
 
 //    Route::put('/processes/{id}', [\App\Http\Controllers\Admin\ProcessController::class, 'update']);
 //    Route::delete('manual_processes/{id}', [\App\Http\Controllers\Admin\ManualProcessController::class, 'destroy']);

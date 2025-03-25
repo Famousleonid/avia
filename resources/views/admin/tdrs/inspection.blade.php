@@ -196,7 +196,14 @@
                                         @endif
                                     @endforeach
                                 </select>
+                                <button type="button" class="btn btn-link" data-bs-toggle="modal"
+                                        data-bs-target="#addConditionModal">{{ __('Add Condition') }}
+                                </button>
+                                <button type="button" class="btn btn-link" data-bs-toggle="modal"
+                                        data-bs-target="#manageConditionModal">{{ __('Manage Condition') }}
+                                </button>
                             </div>
+
                         </div>
 
                         <div class="text-end">
@@ -208,6 +215,35 @@
                 </form>
             </div>
 
+        </div>
+    </div>
+
+    <!-- Modal - Add condition -->
+    <div class="modal fade" id="addConditionModal" tabindex="-1" aria-labelledby="addConditionModalLabel"
+         aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content bg-gradient">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="addConditionModalLabel">{{ __('Add Condition') }}</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Закрыть"></button>
+                </div>
+
+                <form action="{{ route('admin.conditions.store') }}" method="POST" id="addConditionForm">
+                 @csrf
+
+                    <div class="modal-body">
+                        <input type="hidden" name="unit" value="1">
+                        <div class="form-group">
+                            <label for="name">{{ __('Name') }}</label>
+                            <input id='name' type="text" class="form-control" name="name" required>
+                        </div>
+
+                    </div>
+
+                <button type="submit" class="btn btn-outline-primary m-3">Save Condition</button>
+
+                </form>
+            </div>
         </div>
     </div>
 
