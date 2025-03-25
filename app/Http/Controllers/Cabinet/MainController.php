@@ -8,19 +8,14 @@ use App\Models\Main;
 use App\Models\User;
 use App\Models\Workorder;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 
 
 class MainController extends Controller
 {
-    public function index($workorder_id)
+    public function index()
     {
-        $users = User::all();
-        $general_tasks = GeneralTask::all();
-        $mains = Main::where('workorder_id', $workorder_id)->get();
-        $current_workorder = Workorder::find($workorder_id);
-
-        return view('cabinet.pages.main', compact('users', 'current_workorder', 'mains', 'general_tasks'));
-
+        return 1;
     }
 
     public function create(Request $request)
@@ -42,6 +37,18 @@ class MainController extends Controller
         return redirect()->back()->with('success', 'Created success');
     }
 
+    public function show($workorder_id)
+    {
+        $users = User::all();
+        $general_tasks = GeneralTask::all();
+        $mains = Main::where('workorder_id', $workorder_id)->get();
+        $current_workorder = Workorder::find($workorder_id);
+
+
+
+        return view('cabinet.mains.main', compact('users', 'current_workorder', 'mains', 'general_tasks'));
+
+    }
 
     public function edit($id)
     {
@@ -63,6 +70,22 @@ class MainController extends Controller
         Main::destroy($id);
 
         return redirect()->back()->with('success', 'General row deleted');
+    }
+
+
+    public function progress()
+    {
+        $user = Auth::user()->load('team');
+
+        $mains = Main::where(['user_id' => $user->id])->with('workorder')->get();
+        $wos = $mains->unique('workorder_id')->sortByDesc('workorder_id');
+        $team_techniks = collect();
+        if ($user->team) {
+            $team_techniks = User::where('team_id', $user->team->id)->get();
+        }
+
+        return view('cabinet.mains.progress', compact('mains', 'wos', 'team_techniks', 'user'));
+
     }
 
 }

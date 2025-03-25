@@ -19,6 +19,7 @@ return new class extends Migration {
             ['name' => 'start'],
             ['name' => 'clean'],
             ['name' => 'disassembly'],
+            ['name' => 'Submitted Wo Disassembly'],
             ['name' => 'NDT List'],
             ['name' => 'CAD List'],
             ['name' => 'stress relief'],
@@ -29,6 +30,7 @@ return new class extends Migration {
             ['name' => 'paint'],
             ['name' => 'test'],
             ['name' => 'done'],
+            ['name' => 'Submitted Wo Assembly'],
         ];
 
         GeneralTask::insert($dataGeneralTask);

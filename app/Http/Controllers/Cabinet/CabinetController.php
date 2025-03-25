@@ -42,7 +42,7 @@ class CabinetController extends Controller
 
         // $base = 1;
 
-        return view('cabinet.pages.progress');
+        return view('cabinet.mains.progress');
 
     }
 

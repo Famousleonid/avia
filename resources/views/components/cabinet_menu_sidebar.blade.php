@@ -7,7 +7,7 @@
         </a>
     </li>
     <li class="nav-item">
-        <a class="nav-link press-spinner" href="#" >
+        <a class="nav-link press-spinner" href="{{route('cabinet.progress.index')}}" >
             <i class="bi bi-graph-up-arrow me-2"></i> Progress
         </a>
     </li>

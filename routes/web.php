@@ -42,7 +42,6 @@ Route::group(['middleware' => ['auth'], 'prefix' => 'cabinet', 'as' =>'cabinet.'
     Route::resource('/users', UserController::class);
     Route::resource('/workorders', WorkorderController::class);
     Route::resource('/units', UnitController::class);
-    Route::resource('/customers', CustomerController::class);
     Route::resource('/users', UserController::class);
     Route::resource('/materials', MaterialController::class);
     Route::resource('/manuals',ManualController::class);

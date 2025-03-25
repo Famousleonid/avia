@@ -32,11 +32,11 @@
                     <li class="nav-item px-lg-3">
                         <a href="{{ route('login') }}" class="nav-link">{{ __('Login') }}</a>
                     </li>
-                    @if (Route::has('register'))
-                        <li class="nav-item px-lg-3">
-                            <a href="{{ route('register') }}" class="nav-link">{{ __('Register') }}</a>
-                        </li>
-                    @endif
+{{--                    @if (Route::has('register'))--}}
+{{--                        <li class="nav-item px-lg-3">--}}
+{{--                            <a href="{{ route('register') }}" class="nav-link">{{ __('Register') }}</a>--}}
+{{--                        </li>--}}
+{{--                    @endif--}}
                 @else
                     <li class="nav-item dropdown">
                         <a id="navbarDropdown" class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">
