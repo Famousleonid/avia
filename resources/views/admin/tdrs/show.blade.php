@@ -420,8 +420,13 @@
                                         table-hover table-striped align-middle table-bordered bg-gradient">
                                 <thead>
                                 <tr>
-                                    <th class=" text-primary text-center " style="width: 400px;">{{__('Teardown Inspection')
+                                    <th class=" text-primary text-center mb-2 " style="width: 400px;">{{__('Teardown Inspection')
                                     }}</th>
+                                    <th class=" text-primary text-center " style="width: 100px;">
+                                        <button class="btn btn-outline-info btn-sm" style="height: 40px"  >
+                                            {{ __('Add') }}</button>
+                                    </th>
+
                                 </tr>
                                 </thead>
                                 <tbody>
@@ -429,7 +434,7 @@
                                     @if($tdr->use_tdr == true and $tdr->use_process_forms != true)
                                             <tr>
                                                 <td
-                                                    class="text-center">
+                                                    class="text-center fs-7">
                                                     @foreach($conditions as $condition)
                                                         @if($condition->id == $tdr->conditions_id)
                                                             {{$condition ->name}}
@@ -446,6 +451,18 @@
 
                                                         @endif
                                                     @endforeach
+                                                </td>
+                                                <td class="p-3 text-center">
+                                                    <!-- Кнопка удаления -->
+                                                    <form action="{{ route('admin.tdrs.destroy', $unit->id) }}" method="POST"
+                                                          onsubmit="return confirm('Are you sure you want to delete this item?');">
+                                                        @csrf
+                                                        @method('DELETE')
+                                                        <button type="submit" class="btn btn-outline-danger btn-sm ">
+{{--                                                            {__('Delete')}}--}}
+                                                            <i class="bi bi-trash"></i>
+                                                        </button>
+                                                    </form>
                                                 </td>
                                             </tr>
                                     @endif

@@ -98,6 +98,60 @@ class TdrController extends Controller
         ));
     }
 
+    public function inspection_($workorder_id, $type = null)
+    {
+        $current_wo = Workorder::findOrFail($workorder_id);
+        $manual_id = $current_wo->unit->manual_id;
+
+        // Получаем ID уже введенных условий для этого workorder
+        $existing_condition_ids = Tdr::where('workorder_id', $workorder_id)
+            ->pluck('conditions_id')
+            ->filter()
+            ->unique()
+            ->toArray();
+
+        // Получаем условия для unit, исключая уже введенные
+        $unit_conditions = Condition::where('unit', true)
+            ->whereNotIn('id', $existing_condition_ids)
+            ->get();
+
+        // Получаем условия для компонентов, исключая уже введенные
+        $component_conditions = Condition::where('unit', false)
+            ->whereNotIn('id', $existing_condition_ids)
+            ->get();
+
+        $components = Component::where('manual_id', $manual_id)->get();
+        $manuals = Manual::all();
+        $units = Unit::all();
+        $user = Auth::user();
+        $customers = Customer::all();
+        $planes = Plane::all();
+        $builders = Builder::all();
+        $instruction = Instruction::all();
+        $necessaries = Necessary::all();
+        $conditions = Condition::all();
+        $codes = Code::all();
+
+        // Определяем какую страницу показывать
+        if ($type === 'component') {
+            return view('admin.tdrs.component-inspection', compact(
+                'current_wo', 'manual_id', 'components', 'codes',
+                'necessaries', 'component_conditions'
+            ));
+        } elseif ($type === 'unit') {
+            return view('admin.tdrs.unit-inspection', compact(
+                'current_wo', 'manual_id', 'unit_conditions'
+            ));
+        }
+
+        // Старая страница с выбором (можно оставить или удалить)
+        return view('admin.tdrs.inspection', compact(
+            'current_wo', 'manual_id', 'manuals', 'components', 'units', 'user',
+            'customers', 'planes', 'builders', 'instruction', 'necessaries',
+            'conditions', 'codes', 'unit_conditions', 'component_conditions'
+        ));
+    }
+
 
     /**
      * Store a newly created resource in storage.
