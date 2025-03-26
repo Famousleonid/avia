@@ -36,17 +36,18 @@ class ConditionController extends Controller
      */
     public function store(Request $request)
     {
-//        dd($request);
         $validated = $request->validate([
-
-            'name' => 'required|string|max:250',
-            'unit' => 1,
-
+            'name' => 'required|string|max:255',
+            'unit' => 'required|boolean',
         ]);
 
-        $condition = Condition::create($validated);
+        // Явное преобразование в integer (1 или 0)
+        $validated['unit'] = $validated['unit'] ? 1 : 0;
 
-        return redirect()->route('admin.tdrs.inspection');
+        Condition::create($validated);
+
+        return redirect()->route('admin.tdrs.inspection', ['workorder_id' => $request->workorder_id])
+            ->with('success', 'Condition added successfully');
     }
 
     /**

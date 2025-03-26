@@ -8,6 +8,7 @@ use Illuminate\Database\Eloquent\Model;
 class Condition extends Model
 {
     use HasFactory;
+    public $timestamps = false;
     protected $fillable = [
         'name','unit',
     ];

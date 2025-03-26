@@ -232,7 +232,8 @@
                  @csrf
 
                     <div class="modal-body">
-                        <input type="hidden" name="unit" value="1">
+                        <input type="hidden" name="unit" value="1"> <!-- Используем 1 вместо true -->
+                        <input type="hidden" name="workorder_id" value="{{$current_wo->id }}">
                         <div class="form-group">
                             <label for="name">{{ __('Name') }}</label>
                             <input id='name' type="text" class="form-control" name="name" required>
