@@ -407,57 +407,81 @@ class TdrController extends Controller
 
     public function ndtForm(Request $request, $id)
     {
-        // Загрузка Workorder по ID
+        // Загрузка Workorder с необходимыми отношениями
         $current_wo = Workorder::findOrFail($id);
 
-        // Получаем данные о manual_id, связанном с этим Workorder
+        // Получаем manual_id через отношения
         $manual_id = $current_wo->unit->manual_id;
 
-        // Извлекаем компоненты, связанные с manual_id
+        // Получаем компоненты для manual
         $components = Component::where('manual_id', $manual_id)->get();
 
-        $tdrs = Tdr::where('workorder_id',$current_wo->id)->pluck('component_id');;
+        // Получаем TDR записи с непустым component_id
+        $tdrs = Tdr::where('workorder_id', $current_wo->id)
+            ->whereNotNull('component_id')
+            ->get(['id', 'component_id']); // Выбираем только нужные поля
 
-        $manuals = Manual::where('id', $manual_id)->get();
+        // Получаем ID process names одним запросом
+        $processNames = ProcessName::whereIn('name', [
+            'NDT-1',
+            'NDT-4',
+            'Eddy Current Test',
+            'BNI'
+        ])->pluck('id', 'name');
 
-        $ndt1_name_id = ProcessName::where('name','NDT-1')->first()->id;
-        $ndt4_name_id = ProcessName::where('name','NDT-4')->first()->id;
-        $ndt6_name_id = ProcessName::where('name','Eddy Current Test')->first()->id;
-        $ndt5_name_id = ProcessName::where('name','BNI')->first()->id;
-        $tdr = Tdr::all();
+        // Проверяем, что все process names найдены
+        if ($processNames->count() !== 4) {
+            abort(500, 'Не все Process Names найдены');
+        }
 
-       $processNames = ProcessName::all();
-        // Получаем processes_id из таблицы manual_processes для данного manual_id
-        $manualProcesses = ManualProcess::where('manual_id', $manual_id)->pluck('processes_id');
+        // Извлекаем ID по именам
+        $ndt1_name_id = $processNames['NDT-1'];
+        $ndt4_name_id = $processNames['NDT-4'];
+        $ndt6_name_id = $processNames['Eddy Current Test'];
+        $ndt5_name_id = $processNames['BNI'];
 
-        $form_number = ProcessName::where('process_sheet_name','NDT')->first()->form_number;
+        // Получаем manual processes
+        $manualProcesses = ManualProcess::where('manual_id', $manual_id)
+            ->pluck('processes_id');
+
+        // Получаем form_number
+        $form_number = ProcessName::where('process_sheet_name', 'NDT')
+            ->value('form_number');
+
+        // Получаем NDT processes
         $ndt_processes = Process::whereIn('id', $manualProcesses)
-            ->where(function ($query) use ($ndt1_name_id, $ndt4_name_id, $ndt5_name_id, $ndt6_name_id) {
-                $query->where('process_names_id', $ndt1_name_id)
-                    ->orWhere('process_names_id', $ndt4_name_id)
-                    ->orWhere('process_names_id', $ndt5_name_id)
-                    ->orWhere('process_names_id', $ndt6_name_id);
-            })
-            ->get();
-        $ndt_components = TdrProcess::whereIn('tdrs_id',$tdrs)
-        ->where(function ($query) use ($ndt1_name_id, $ndt4_name_id, $ndt5_name_id, $ndt6_name_id) {
-            $query->where('process_names_id', $ndt1_name_id)
-                ->orWhere('process_names_id', $ndt4_name_id)
-                ->orWhere('process_names_id', $ndt5_name_id)
-                ->orWhere('process_names_id', $ndt6_name_id);
-        })
-            ->with('tdr')
-            ->with('processName')
+            ->whereIn('process_names_id', [
+                $ndt1_name_id,
+                $ndt4_name_id,
+                $ndt5_name_id,
+                $ndt6_name_id
+            ])
             ->get();
 
-//        dd($manual_id, $ndt1_name_id,$ndt4_name_id, $ndt_processes, $manualProcesses);
+        // Получаем NDT components
+        $ndt_components = TdrProcess::whereIn('tdrs_id', $tdrs->pluck('id'))
+            ->whereIn('process_names_id', [
+                $ndt1_name_id,
+                $ndt4_name_id,
+                $ndt5_name_id,
+                $ndt6_name_id
+            ])
+            ->with(['tdr', 'processName'])
+            ->get();
 
-
-        return view('admin.tdrs.ndtForm', compact('current_wo', 'components',
-            'tdrs','manuals','ndt_processes','ndt1_name_id','ndt4_name_id','ndt5_name_id','ndt6_name_id',
-            'ndt_components','form_number'
-        ));
-
+        return view('admin.tdrs.ndtForm', [
+            'current_wo' => $current_wo,
+            'components' => $components,
+            'tdrs' => $tdrs,
+            'manuals' => Manual::where('id', $manual_id)->get(), // Оставлено для совместимости
+            'ndt_processes' => $ndt_processes,
+            'ndt1_name_id' => $ndt1_name_id,
+            'ndt4_name_id' => $ndt4_name_id,
+            'ndt5_name_id' => $ndt5_name_id,
+            'ndt6_name_id' => $ndt6_name_id,
+            'ndt_components' => $ndt_components,
+            'form_number' => $form_number
+        ]);
     }
 
     public function specProcessForm(Request $request, $id)
@@ -671,6 +695,10 @@ class TdrController extends Controller
 
         // Логируем workorder_id
         Log::info('Workorder ID: ' . $workorderId);
+
+        // Удалить связанные записи из tdr_processes
+        TdrProcess::where('tdrs_id', $id)->delete();
+        Log::info('Удалены связанные процессы для TDR с ID: ' . $id);
 
         // Удалить запись Tdr
         $tdr->delete();
