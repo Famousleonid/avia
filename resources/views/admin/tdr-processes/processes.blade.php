@@ -120,6 +120,8 @@
                                                         {{__('Delete')}}
                                                     </button>
                                                 </form>
+                                                <a href="{{ route('admin.tdr-processes.show', ['tdr_process' =>
+                                                $processes->id]) }}" class="btn btn-sm btn-outline-primary" target="_blank">{{__('Form')}}</a>
                                             </td>
                                         </tr>
                                     @endforeach

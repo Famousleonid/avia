@@ -312,7 +312,72 @@ class TdrProcessController extends Controller
      */
     public function show($id)
     {
+        // Загружаем процесс TDR со связанными данными (жадная загрузка)
+        $current_tdrs_process = TdrProcess::with([
+            'processName',                   // Название процесса
+            'tdr.workorder.unit.manuals',    // Рабочий заказ -> агрегат ->
+            // руководство
+            'tdr.workorder'                 // Рабочий заказ
+        ])->findOrFail($id);
 
+        // Получаем связанные данные через отношения
+        $process_name = $current_tdrs_process->processName;
+        $current_tdr = $current_tdrs_process->tdr;
+        $current_wo = $current_tdr->workorder;
+        $manual_id = $current_wo->unit->manual_id;
+
+        // Получаем компоненты и процессы из руководства
+        $components = Component::where('manual_id', $manual_id)->get();
+        $manualProcesses = ManualProcess::where('manual_id', $manual_id)
+            ->pluck('processes_id');
+
+        // Базовые данные для представления
+        $viewData = [
+            'current_wo' => $current_wo,             // Текущий рабочий заказ
+            'components' => $components,             // Компоненты
+            'tdrs' => [$current_tdr->id],           // ID связанных TDR (массив для совместимости)
+            'manuals' => Manual::where('id', $manual_id)->get(), // Руководства
+            'process_name' => $process_name,         // Название процесса
+            'manual_id' => $manual_id               // ID руководства
+        ];
+
+        // Обработка случая для NDT-форм
+        if ($process_name->process_sheet_name == 'NDT') {
+            // Получаем данные только для текущего процесса NDT
+            $viewData += [
+                'ndt_processes' => Process::whereIn('id', $manualProcesses)
+                    ->where('process_names_id', $process_name->id)
+                    ->get(),
+
+                'ndt_components' => TdrProcess::where('tdrs_id', $current_tdr->id)
+                    ->where('process_names_id', $process_name->id)
+                    ->with(['tdr', 'processName'])
+                    ->get(),
+
+                // Добавляем ID текущего процесса (а не всех NDT процессов)
+                'current_ndt_id' => $process_name->id,
+
+                // Оставляем остальные ID для возможного использования в шаблоне
+                'ndt1_name_id' => ProcessName::where('name', 'NDT-1')->value('id'),
+                'ndt4_name_id' => ProcessName::where('name', 'NDT-4')->value('id'),
+                'ndt6_name_id' => ProcessName::where('name', 'Eddy Current Test')->value('id'),
+                'ndt5_name_id' => ProcessName::where('name', 'BNI')->value('id')
+            ];
+
+        } else {
+            // Обработка обычных процессов
+            $viewData += [
+                'process_components' => Process::whereIn('id', $manualProcesses)
+                    ->where('process_names_id', $process_name->id)
+                    ->get(),
+                'process_tdr_components' => TdrProcess::where('tdrs_id', $current_tdr->id)
+                    ->where('process_names_id', $process_name->id)
+                    ->with(['tdr', 'processName'])
+                    ->get()
+            ];
+        }
+
+        return view('admin.tdr-processes.processesForm', $viewData);
     }
 
     public function processes(Request $request, $tdrId)
