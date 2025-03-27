@@ -105,6 +105,15 @@ Route::group(['middleware' => ['auth', 'isAdmin'], 'prefix' => 'admin', 'as' =>'
     Route::get('tdrs/specProcessForm/{id}', [\App\Http\Controllers\Admin\TdrController::class, 'specProcessForm'])->name('tdrs.specProcessForm');
     Route::get('tdrs/ndtForm/{id}', [\App\Http\Controllers\Admin\TdrController::class, 'ndtForm'])->name('tdrs.ndtForm');
 
+    // Для component inspection
+    Route::get('tdrs/{workorder_id}/component-inspection', [TdrController::class, 'inspections'])
+        ->name('admin.tdrs.component-inspection');
+
+    // Для unit inspection
+    Route::get('tdrs/{workorder_id}/unit-inspection', [TdrController::class, 'inspections'])
+        ->name('admin.tdrs.unit-inspection');
+
+
     Route::post('/components/store_from_inspection', [\App\Http\Controllers\Admin\ComponentController::class, 'storeFromInspection'])->name('components.storeFromInspection');
     Route::get('/get-processes', [\App\Http\Controllers\Admin\ProcessController::class, 'getProcesses'])->name('processes.getProcesses');
     Route::get('tdr-processes/processesForm/{id}', [\App\Http\Controllers\Admin\TdrProcessController::class, 'processesForm'])->name('tdr-processes.processesForm');

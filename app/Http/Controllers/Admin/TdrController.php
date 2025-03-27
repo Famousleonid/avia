@@ -98,7 +98,7 @@ class TdrController extends Controller
         ));
     }
 
-    public function inspection_($workorder_id, $type = null)
+    public function inspections($workorder_id, $type = null)
     {
         $current_wo = Workorder::findOrFail($workorder_id);
         $manual_id = $current_wo->unit->manual_id;
@@ -318,6 +318,7 @@ class TdrController extends Controller
                 return $query->where('conditions_id', '!=', $missingCondition->id);
             })
             ->with('conditions')
+            ->with('necessaries')
             ->get();
 
         // Загружаем TDR с жадной загрузкой компонента и фильтруем по нужным условиям
@@ -352,7 +353,7 @@ class TdrController extends Controller
 
         return view('admin.tdrs.show', compact('current_wo', 'tdrs', 'units',
             'components', 'user', 'customers',
-            'manuals', 'builders', 'planes', 'instruction',
+            'manuals', 'builders', 'planes', 'instruction','necessary',
             'necessaries', 'unit_conditions', 'component_conditions',
             'codes', 'conditions', 'missingParts','ordersParts','inspectsUnit',
             'processParts'));
@@ -726,8 +727,6 @@ class TdrController extends Controller
         // Возвращаем данные в представление
         return view('admin.tdrs.tdrForm', compact('current_wo', 'components', 'necessaries', 'conditions', 'codes', 'tdrInspections'));
     }
-
-
 
 
     /**

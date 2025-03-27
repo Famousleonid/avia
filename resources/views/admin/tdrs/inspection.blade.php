@@ -105,7 +105,7 @@
                                                 value="{{ $component->id }}"
                                                 data-has_assy_part_number="{{ $component->assy_part_number ? 'true' : 'false' }}"
                                                 data-title="{{$component->name}}">
-                                                {{$component->part_number}} ( {{ $component->name }} )
+                                                 {{$component->part_number}} ({{$component->ipl_num}},{{ $component->name }} )
 
                                             </option>
                                         @endforeach

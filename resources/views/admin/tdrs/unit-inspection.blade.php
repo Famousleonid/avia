@@ -2,7 +2,65 @@
 
 @section('content')
     <style>
-        /* Ваши стили */
+        .container {
+            max-width: 650px;
+        }
+
+        /* ----------------------------------- Select 2 Dark Theme -------------------------------------*/
+
+
+
+        html[data-bs-theme="dark"]  .select2-selection--single {
+            background-color: #121212 !important;
+            color: gray !important;
+            height: 38px !important;
+            border: 1px solid #495057 !important;
+            align-items: center !important;
+            border-radius: 8px;
+        }
+
+        html[data-bs-theme="dark"] .select2-container .select2-selection__rendered {
+            color: #999999;
+            line-height: 2.2 !important;
+        }
+
+        html[data-bs-theme="dark"] .select2-search--dropdown .select2-search__field  {
+            background-color: #343A40 !important;
+        }
+
+        html[data-bs-theme="dark"] .select2-container--default .select2-selection--single .select2-selection__rendered {
+            padding-right: 25px;
+        }
+
+        html[data-bs-theme="dark"] .select2-container .select2-dropdown {
+            max-height: 40vh !important;
+            overflow-y: auto !important;
+            border: 1px solid #ccc !important;
+            border-radius: 8px;
+            color: white;
+            background-color: #121212 !important;
+        }
+
+        html[data-bs-theme="light"] .select2-container .select2-dropdown {
+            max-height: 40vh !important;
+            overflow-y: auto !important;
+
+        }
+
+        html[data-bs-theme="dark"] .select2-container .select2-results__option:hover {
+            background-color: #6ea8fe;
+            color: #000000;
+
+        }
+        .select2-container .select2-selection__clear {
+            position: absolute !important;
+            right: 10px !important;
+            top: 50% !important;
+            transform: translateY(-50%) !important;
+            z-index: 1;
+        }
+
+
     </style>
     <div class="container mt-3">
         <div class="card bg-gradient">
@@ -47,9 +105,76 @@
     </div>
 
     <!-- Модальные окна -->
-    @include('admin.tdrs.partials.condition-modal')
+{{--    @include('admin.tdrs.partials.condition-modal')--}}
 
+    <!-- Modal - Add condition -->
+    <div class="modal fade" id="addConditionModal" tabindex="-1" aria-labelledby="addConditionModalLabel"
+         aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content bg-gradient">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="addConditionModalLabel">{{ __('Add Condition') }}</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Закрыть"></button>
+                </div>
+
+                <form action="{{ route('admin.conditions.store') }}" method="POST" id="addConditionForm">
+                    @csrf
+
+                    <div class="modal-body">
+                        <input type="hidden" name="unit" value="1"> <!-- Используем 1 вместо true -->
+                        <input type="hidden" name="workorder_id" value="{{$current_wo->id }}">
+                        <div class="form-group">
+                            <label for="name">{{ __('Name') }}</label>
+                            <input id='name' type="text" class="form-control" name="name" required>
+                        </div>
+
+                    </div>
+
+                    <button type="submit" class="btn btn-outline-primary m-3">Save Condition</button>
+
+                </form>
+            </div>
+        </div>
+    </div>
     <script>
-        // JavaScript специфичный для unit inspection
+        // --------------------------------- Select 2 --------------------------------------------------------
+
+        $(document).ready(function () {
+            $('#component_id').select2({
+                placeholder: '---',
+                theme: 'bootstrap-5',
+                allowClear: true
+            });
+        });
+
+        $(function() {
+            applyTheme();
+        });
+
+        $(document).ready(function () {
+            $('#conditions_id').select2({
+                placeholder: '---',
+                theme: 'bootstrap-5',
+                allowClear: true
+            });
+        });
+
+        $(function() {
+            applyTheme();
+        });
+
+        function applyTheme() {
+            const isDark = document.documentElement.getAttribute('data-bs-theme');
+            const selectContainer = $('.select2-container');
+            if (isDark === 'dark') {
+                selectContainer.addClass('select2-dark').removeClass('select2-light');
+                $('.select2-container .select2-dropdown').addClass('select2-dark').removeClass('select2-light');
+            } else {
+                selectContainer.addClass('select2-light').removeClass('select2-dark');
+                $('.select2-container .select2-dropdown').addClass('select2-light').removeClass('select2-dark');
+            }
+        }
+
+        // ----------------------------------------------------------------------------------------------------
     </script>
 @endsection
