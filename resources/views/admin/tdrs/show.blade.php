@@ -201,24 +201,30 @@
 
 {{--                                @endif--}}
 {{--                            </div>--}}
-                            <div class="" style=" height: 40px; width: 250px">
+                            <div class=" d-flex justify-content-between" style=" height: 40px; width: 450px">
                                 @if(count($tdrs))
+
                                     <a href="{{ route('admin.tdrs.tdrForm', ['id'=> $current_wo->id]) }}"
                                        class="btn btn-outline-warning mb-1 formLink "
                                        target="_blank"
                                        id="#" style=" height: 40px">
-
                                         <i class="bi bi-file-earmark-excel"> TDR Form</i>
                                     </a>
+
+                                    <a href="{{ route('admin.tdrs.specProcessForm', ['id'=> $current_wo->id]) }}"
+                                       class="btn btn-outline-warning  formLink "
+                                       target="_blank"
+                                       id="#" style=" height: 40px">
+                                        <i class="bi bi-file-earmark-excel"> Special Process Form</i>
+                                    </a>
+
                                     <a href="{{ route('admin.tdrs.prlForm', ['id'=> $current_wo->id]) }}"
                                        class="btn btn-outline-warning mb-1 formLink "
                                        target="_blank"
                                        id="#" style=" height: 40px">
-{{--                                        PRL--}}
                                         <i class="bi bi-file-earmark-excel"> PRL  </i>
                                     </a>
                                 @endif
-
 
                             </div>
                         </div>
@@ -245,9 +251,7 @@
                                                     </a>
                                                 </div>
                                             </div>
-
                                         </div>
-
                                     </div>
                                     <div class="table-wrapper">
                                         <table class="display table table-cm table-hover table-striped align-middle table-bordered">
@@ -401,7 +405,6 @@
                                     </div>
                                     <div class="modal-body">
 
-
                                     </div>
                                 </div>
                             </div>
@@ -428,7 +431,9 @@
                                     Inspection')
                                     }}</th>
                                     <th class=" text-primary text-center " style="width: 150px;">
-                                        <a href="#"
+
+                                        <a href="{{ route('admin.tdrs.unit-inspection', ['workorder_id' => $current_wo->id,
+                                        'type' => 'unit']) }}"
                                            class="btn btn-outline-info btn-sm" style="height: 32px"  >
                                             {{ __('Add') }}
                                         </a>
@@ -523,7 +528,8 @@
                                     <th class=" text-center  text-primary " style="width: 120px">{{__('Code')}}</th>
                                     <th class=" text-primary text-center">
                                         Action
-                                        <a href="#"
+                                        <a href="{{ route('admin.tdrs.component-inspection', ['workorder_id' => $current_wo->id,
+                                        'type' => 'component']) }}"
                                            class="btn btn-outline-info btn-sm" style="height: 32px"  >
                                             {{ __('Add') }}
                                         </a>

@@ -98,8 +98,10 @@ class TdrController extends Controller
         ));
     }
 
-    public function inspections($workorder_id, $type = null)
+    public function inspection_new($workorder_id, $type)
     {
+//        dd($type,$workorder_id);
+
         $current_wo = Workorder::findOrFail($workorder_id);
         $manual_id = $current_wo->unit->manual_id;
 
