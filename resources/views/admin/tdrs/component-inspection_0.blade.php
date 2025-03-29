@@ -74,8 +74,6 @@
                       action="{{route('admin.tdrs.store')}}" enctype="multipart/form-data">
                     @csrf
                     <input type="hidden" name="workorder_id" value="{{$current_wo->id }}">
-{{--                    <input type="hidden" name="conditions_id" value=" ">--}}
-                    <input type="hidden" name="use_tdr" value="true">
 
                     <!-- Только содержимое componentGroup -->
                     <div class="form-group d-flex">
@@ -95,70 +93,8 @@
                         </button>
                     </div>
 
-                    <div class="  ms-2 me-2"  >
-                        <div class="form-group ms-4 d-flex justify-content-between "  id="sns-group" style="display: block;">
-                            <div></div>
-                            <div class="">
-                                <label class="" for="serial_number">{{ __('Serial Number')}}</label>
-                                <input id='serial_number' type="text"
-                                       class="form-control " name="serial_number" >
-                            </div>
-                            <div class="" >
-                                <div class="" id="assy_serial_number_container" >
-                                    <label class="" for="assy_serial_number">{{__('Assy Serial Number')}}</label>
-                                    <input id='assy_serial_number' type="text"
-                                           class="form-control " name="assy_serial_number" >
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="d-flex">
-                        <div class=" form-group m-2">
-                            <label for="codes_id" class="form-label pe-2">Code Inspection</label>
-                            <select name="codes_id" id="codes_id" class="form-control" style="width: 230px">
-                                <option  selected value="">---</option>
-                                @foreach($codes as $code)
-                                    <option
-                                        value="{{ $code->id }}"
-                                        data-title="{{$code->name}}">
-                                        {{$code->name}}
-
-                                    </option>
-                                @endforeach
-                            </select>
-                        </div>
-                        <div class="form-group m-2" id="qty" style="display: none">
-                            <label class="" for="qty">{{__('QTY')}}</label>
-                            <input id="qty" type="number" class="form-control" name="qty" value="1">
-                        </div>
-
-                        <div class=" form-group m-2" id="necessary">
-                            <label for="necessaries_id" class="form-label pe-2">Necessary to Do</label>
-                            <select name="necessaries_id" id="necessaries_id" class="form-control"
-                                    style="width: 230px">
-                                <option  selected value="">---</option>
-                                @foreach($necessaries as $necessary)
-                                    <option
-                                        value="{{ $necessary->id }}"
-                                        data-title="{{$necessary->name}}">
-                                        {{$necessary->name}}
-                                    </option>
-                                @endforeach
-                            </select>
-                        </div>
-                    </div>
-                    <div class="form-group m-2" id="conditions">
-                        <label for="c_conditions_id" class="form-label pe-2">Conditions</label>
-                        <select name="conditions_id" id="c_conditions_id" class="form-control"
-                                style="width: 278px">
-                            <option value="" disabled selected>---</option> <!-- Пустое значение по умолчанию -->
-                            @foreach($component_conditions as $component_condition)
-                                <option value="{{ $component_condition->id }}" data-title="{{ $component_condition->name }}">
-                                    {{ $component_condition->name }}
-                                </option>
-                            @endforeach
-                        </select>
-                    </div>
+                    <!-- Остальные поля component inspection -->
+                    <!-- ... -->
 
                     <div class="text-end">
                         <button type="submit" class="btn btn-outline-primary mt-3">{{ __('Save') }}</button>

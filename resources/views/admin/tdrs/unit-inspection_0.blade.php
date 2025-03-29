@@ -65,85 +65,101 @@
     <div class="container mt-3">
         <div class="card bg-gradient">
             <div class="card-header">
-                <h4 class="text-primary">{{ __('Add Unit Inspection') }}</h4>
-                <h4 class="text-primary">{{ __('Work Order') }} {{$current_wo->number}}</h4>
+                <h4 class="text-primary">{{__('Add Unit Inspection')}}</h4>
+                <h4 class="text-primary"> {{__('Work Order')}} {{$current_wo->number}}</h4>
             </div>
-            <div class="card-body" id="create_div_inputs">
-                <form id="createForm" method="POST" action="{{ route('admin.tdrs.store') }}" enctype="multipart/form-data">
+            <div class="card-body">
+                <form id="createForm" class="createForm" role="form" method="POST"
+                      action="{{route('admin.tdrs.store')}}" enctype="multipart/form-data">
                     @csrf
-                    <input type="hidden" name="workorder_id" value="{{ $current_wo->id }}">
-                    <input type="hidden" name="qty" value="1">
-                    <input type="hidden" name="component_id" value="">
-                    <input type="hidden" name="serial_number" value="null">
-                    <input type="hidden" name="assy_serial_number" value="null">
-                    <input type="hidden" name="codes_id" value="">
-                    <input type="hidden" name="necessaries_id" value=" ">
+                    <input type="hidden" name="workorder_id" value="{{$current_wo->id }}">
                     <input type="hidden" name="use_tdr" value="true">
 
-                    <!-- Поля, специфичные для Unit Inspection -->
+                    <!-- Только содержимое unitGroup -->
                     <div class="form-group m-2">
                         <label for="u_conditions_id" class="form-label pe-2">Condition</label>
                         <select name="conditions_id" id="u_conditions_id" class="form-control" style="width:575px">
                             <option selected value="">---</option>
                             @foreach($unit_conditions as $unit_condition)
                                 @if($unit_condition->name != 'PARTS MISSING UPON ARRIVAL AS INDICATED ON PARTS LIST')
-                                    <option value="{{ $unit_condition->id }}" data-title="{{ $unit_condition->name }}">
-                                        {{ $unit_condition->name }}
+                                    <option value="{{ $unit_condition->id }}"
+                                            data-title="{{$unit_condition->name}}">
+                                        {{$unit_condition->name}}
                                     </option>
                                 @endif
                             @endforeach
                         </select>
-                        <button type="button" class="btn btn-link" data-bs-toggle="modal" data-bs-target="#addConditionModal">
-                            {{ __('Add Condition') }}
-                        </button>
-                        <button type="button" class="btn btn-link" data-bs-toggle="modal" data-bs-target="#manageConditionModal">
-                            {{ __('Manage Condition') }}
+                        <button type="button" class="btn btn-link" data-bs-toggle="modal"
+                                data-bs-target="#addConditionModal">{{ __('Add Condition') }}
                         </button>
                     </div>
 
                     <div class="text-end">
                         <button type="submit" class="btn btn-outline-primary mt-3">{{ __('Save') }}</button>
-                        <a href="{{ route('admin.tdrs.show', ['tdr' => $current_wo->id]) }}" class="btn btn-outline-secondary mt-3">{{ __('Cancel') }}</a>
+                        <a href="{{ route('admin.tdrs.show', ['tdr'=>$current_wo->id]) }}"
+                           class="btn btn-outline-secondary mt-3">{{ __('Cancel') }} </a>
                     </div>
                 </form>
             </div>
         </div>
     </div>
 
-    <!-- Модальное окно для добавления условия (можно вынести в отдельный файл, если используется на нескольких страницах) -->
-    <div class="modal fade" id="addConditionModal" tabindex="-1" aria-labelledby="addConditionModalLabel" aria-hidden="true">
+    <!-- Модальные окна -->
+{{--    @include('admin.tdrs.partials.condition-modal')--}}
+
+    <!-- Modal - Add condition -->
+    <div class="modal fade" id="addConditionModal" tabindex="-1" aria-labelledby="addConditionModalLabel"
+         aria-hidden="true">
         <div class="modal-dialog">
             <div class="modal-content bg-gradient">
                 <div class="modal-header">
                     <h5 class="modal-title" id="addConditionModalLabel">{{ __('Add Condition') }}</h5>
                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Закрыть"></button>
                 </div>
+
                 <form action="{{ route('admin.conditions.store') }}" method="POST" id="addConditionForm">
                     @csrf
+
                     <div class="modal-body">
-                        <input type="hidden" name="unit" value="1">
-                        <input type="hidden" name="workorder_id" value="{{ $current_wo->id }}">
+                        <input type="hidden" name="unit" value="1"> <!-- Используем 1 вместо true -->
+                        <input type="hidden" name="workorder_id" value="{{$current_wo->id }}">
                         <div class="form-group">
                             <label for="name">{{ __('Name') }}</label>
-                            <input id="name" type="text" class="form-control" name="name" required>
+                            <input id='name' type="text" class="form-control" name="name" required>
                         </div>
+
                     </div>
+
                     <button type="submit" class="btn btn-outline-primary m-3">Save Condition</button>
+
                 </form>
             </div>
         </div>
     </div>
-@endsection
-
-@section('scripts')
     <script>
-        $(document).ready(function () {
-            $('#u_conditions_id').select2({
-                placeholder: '---',
+        // --------------------------------- Select 2 --------------------------------------------------------
 
+        $(document).ready(function () {
+            $('#component_id').select2({
+                placeholder: '---',
                 theme: 'bootstrap-5',
                 allowClear: true
             });
+        });
+
+        $(function() {
+            applyTheme();
+        });
+
+        $(document).ready(function () {
+            $('#conditions_id').select2({
+                placeholder: '---',
+                theme: 'bootstrap-5',
+                allowClear: true
+            });
+        });
+
+        $(function() {
             applyTheme();
         });
 
@@ -158,7 +174,7 @@
                 $('.select2-container .select2-dropdown').addClass('select2-light').removeClass('select2-dark');
             }
         }
+
+        // ----------------------------------------------------------------------------------------------------
     </script>
-
 @endsection
-

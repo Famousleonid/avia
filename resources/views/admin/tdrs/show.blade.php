@@ -432,8 +432,12 @@
                                     }}</th>
                                     <th class=" text-primary text-center " style="width: 150px;">
 
-                                        <a href="{{ route('admin.tdrs.unit-inspection', ['workorder_id' => $current_wo->id,
-                                        'type' => 'unit']) }}"
+{{--                                        <a href="{{ route('admin.tdrs.unit-inspection', ['workorder_id' => $current_wo->id,--}}
+{{--                                        'type' => 'unit']) }}"--}}
+{{--                                           class="btn btn-outline-info btn-sm" style="height: 32px"  >--}}
+{{--                                            {{ __('Add_D') }}--}}
+{{--                                        </a>--}}
+                                        <a href="{{ route('admin.tdrs.inspection.unit', ['workorder_id' => $current_wo->id]) }}"
                                            class="btn btn-outline-info btn-sm" style="height: 32px"  >
                                             {{ __('Add') }}
                                         </a>
@@ -528,12 +532,16 @@
                                     <th class=" text-center  text-primary " style="width: 120px">{{__('Code')}}</th>
                                     <th class=" text-primary text-center">
                                         Action
-                                        <a href="{{ route('admin.tdrs.component-inspection', ['workorder_id' => $current_wo->id,
-                                        'type' => 'component']) }}"
+{{--                                        <a href="{{ route('admin.tdrs.component-inspection', ['workorder_id' => $current_wo->id,--}}
+{{--                                        'type' => 'component']) }}"--}}
+{{--                                           class="btn btn-outline-info btn-sm" style="height: 32px"  >--}}
+{{--                                            {{ __('Add_D') }}--}}
+{{--                                        </a>--}}
+                                        <a href="{{ route('admin.tdrs.inspection.component', ['workorder_id' => $current_wo->id])
+                                         }}"
                                            class="btn btn-outline-info btn-sm" style="height: 32px"  >
                                             {{ __('Add') }}
                                         </a>
-
                                     </th>
                                 </tr>
                                 </thead>

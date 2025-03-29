@@ -140,7 +140,7 @@
         $(document).ready(function () {
             $('#u_conditions_id').select2({
                 placeholder: '---',
-
+                
                 theme: 'bootstrap-5',
                 allowClear: true
             });

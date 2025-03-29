@@ -108,10 +108,12 @@ Route::group(['middleware' => ['auth', 'isAdmin'], 'prefix' => 'admin', 'as' =>'
     // Для component inspection
     Route::get('tdrs/{workorder_id}/component-inspection/{type}', [TdrController::class, 'inspection_new'])
         ->name('tdrs.component-inspection');
+    Route::get('admin/tdrs/inspection/unit/{workorder_id}', [TdrController::class, 'inspectionUnit'])->name('tdrs.inspection.unit');
 
     // Для unit inspection
     Route::get('tdrs/{workorder_id}/unit-inspection/{type}', [TdrController::class, 'inspection_new'])
         ->name('tdrs.unit-inspection');
+    Route::get('admin/tdrs/inspection/component/{workorder_id}', [TdrController::class, 'inspectionComponent'])->name('tdrs.inspection.component');
 
 
     Route::post('/components/store_from_inspection', [\App\Http\Controllers\Admin\ComponentController::class, 'storeFromInspection'])->name('components.storeFromInspection');

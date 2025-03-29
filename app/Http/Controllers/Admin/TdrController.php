@@ -98,6 +98,55 @@ class TdrController extends Controller
         ));
     }
 
+    public function inspectionUnit($workorder_id)
+    {
+        $current_wo = Workorder::findOrFail($workorder_id);
+        $manual_id = $current_wo->unit->manual_id;
+
+        // Получение уже введённых условий для этого workorder
+        $existing_condition_ids = Tdr::where('workorder_id', $workorder_id)
+            ->pluck('conditions_id')
+            ->filter()
+            ->unique()
+            ->toArray();
+
+        // Условия для Unit
+        $unit_conditions = Condition::where('unit', true)
+            ->whereNotIn('id', $existing_condition_ids)
+            ->get();
+
+        // Другие необходимые данные (например, manuals, units, customers, и т.п.)
+        // ...
+
+        return view('admin.tdrs.unit-inspection', compact('current_wo', 'unit_conditions' /*, ...*/));
+    }
+
+    public function inspectionComponent($workorder_id)
+    {
+        $current_wo = Workorder::findOrFail($workorder_id);
+        $manual_id = $current_wo->unit->manual_id;
+
+        // Получение уже введённых условий для этого workorder
+        $existing_condition_ids = Tdr::where('workorder_id', $workorder_id)
+            ->pluck('conditions_id')
+            ->filter()
+            ->unique()
+            ->toArray();
+
+        // Условия для Component
+        $component_conditions = Condition::where('unit', false)
+            ->whereNotIn('id', $existing_condition_ids)
+            ->get();
+
+        // Получаем компоненты, коды, necessaries и т.п.
+        $components = Component::where('manual_id', $manual_id)->get();
+        $codes = Code::all();
+        $necessaries = Necessary::all();
+        // Другие данные...
+
+        return view('admin.tdrs.component-inspection', compact('current_wo', 'component_conditions', 'components', 'codes', 'necessaries' /*, ...*/));
+    }
+
     public function inspection_new($workorder_id, $type)
     {
 //        dd($type,$workorder_id);
@@ -183,7 +232,7 @@ class TdrController extends Controller
 
         $qty = (int)$validated['qty'] ?? 1; // Приведение к целому числу
 
-//dd($request->all(), $qty);
+//dd($request->all());
 
 
         // Сохранение в таблице tdrs
