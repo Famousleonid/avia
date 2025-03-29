@@ -243,7 +243,7 @@ class TdrController extends Controller
             'assy_serial_number' => $validated['assy_serial_number'],
             'codes_id' => $validated['codes_id'],  // Обработка передачи
             // codes_id
-            'conditions_id' => $validated['conditions_id'],
+//            'conditions_id' => $validated['conditions_id'],
             'necessaries_id' => $validated['necessaries_id'],
             'qty' => $qty,
             'use_tdr' => $use_tdr,

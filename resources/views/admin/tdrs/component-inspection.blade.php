@@ -74,7 +74,7 @@
                       action="{{route('admin.tdrs.store')}}" enctype="multipart/form-data">
                     @csrf
                     <input type="hidden" name="workorder_id" value="{{$current_wo->id }}">
-{{--                    <input type="hidden" name="conditions_id" value=" ">--}}
+                    <input type="hidden" name="conditions_id" value="NULL">
                     <input type="hidden" name="use_tdr" value="true">
 
                     <!-- Только содержимое componentGroup -->
@@ -147,18 +147,18 @@
                             </select>
                         </div>
                     </div>
-                    <div class="form-group m-2" id="conditions">
-                        <label for="c_conditions_id" class="form-label pe-2">Conditions</label>
-                        <select name="conditions_id" id="c_conditions_id" class="form-control"
-                                style="width: 278px">
-                            <option value="" disabled selected>---</option> <!-- Пустое значение по умолчанию -->
-                            @foreach($component_conditions as $component_condition)
-                                <option value="{{ $component_condition->id }}" data-title="{{ $component_condition->name }}">
-                                    {{ $component_condition->name }}
-                                </option>
-                            @endforeach
-                        </select>
-                    </div>
+{{--                    <div class="form-group m-2" id="conditions">--}}
+{{--                        <label for="c_conditions_id" class="form-label pe-2">Conditions</label>--}}
+{{--                        <select name="conditions_id" id="c_conditions_id" class="form-control"--}}
+{{--                                style="width: 278px">--}}
+{{--                            <option value="" disabled selected>---</option> <!-- Пустое значение по умолчанию -->--}}
+{{--                            @foreach($component_conditions as $component_condition)--}}
+{{--                                <option value="{{ $component_condition->id }}" data-title="{{ $component_condition->name }}">--}}
+{{--                                    {{ $component_condition->name }}--}}
+{{--                                </option>--}}
+{{--                            @endforeach--}}
+{{--                        </select>--}}
+{{--                    </div>--}}
 
                     <div class="text-end">
                         <button type="submit" class="btn btn-outline-primary mt-3">{{ __('Save') }}</button>
