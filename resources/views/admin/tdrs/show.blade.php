@@ -537,11 +537,11 @@
 {{--                                           class="btn btn-outline-info btn-sm" style="height: 32px"  >--}}
 {{--                                            {{ __('Add_D') }}--}}
 {{--                                        </a>--}}
-                                        <a href="{{ route('admin.tdrs.inspection.component', ['workorder_id' => $current_wo->id])
-                                         }}"
-                                           class="btn btn-outline-info btn-sm" style="height: 32px"  >
-                                            {{ __('Add') }}
-                                        </a>
+{{--                                        <a href="{{ route('admin.tdrs.inspection.component', ['workorder_id' => $current_wo->id])--}}
+{{--                                         }}"--}}
+{{--                                           class="btn btn-outline-info btn-sm" style="height: 32px"  >--}}
+{{--                                            {{ __('Add') }}--}}
+{{--                                        </a>--}}
                                     </th>
                                 </tr>
                                 </thead>

@@ -213,6 +213,10 @@ class TdrController extends Controller
     public function store(Request $request)
     {
 //        dd($request->all()); // Посмотреть все переданные данные
+
+
+
+
         // Валидация данных
         $validated = $request->validate([
             'component_id' => 'nullable|exists:components,id',
@@ -242,8 +246,8 @@ class TdrController extends Controller
             'serial_number' => $validated['serial_number'] ?? 'NSN',
             'assy_serial_number' => $validated['assy_serial_number'],
             'codes_id' => $validated['codes_id'],  // Обработка передачи
-            // codes_id
-//            'conditions_id' => $validated['conditions_id'],
+//             codes_id
+            'conditions_id' => $validated['conditions_id'],
             'necessaries_id' => $validated['necessaries_id'],
             'qty' => $qty,
             'use_tdr' => $use_tdr,
@@ -386,9 +390,6 @@ class TdrController extends Controller
             ->with('component')  // Используем связь, а не коллекцию компонентов
             ->get();
 
-
-
-
         $planes = Plane::all();
         $builders = Builder::all();
         $instruction = Instruction::all();
@@ -402,14 +403,87 @@ class TdrController extends Controller
 
         $tdrs = Tdr::where('workorder_id', $current_wo->id)->get();
 
-        return view('admin.tdrs.show', compact('current_wo', 'tdrs', 'units',
+        return view('admin.tdrs.show', compact('current_wo', 'tdrs',
+            'units',
             'components', 'user', 'customers',
             'manuals', 'builders', 'planes', 'instruction','necessary',
             'necessaries', 'unit_conditions', 'component_conditions',
             'codes', 'conditions', 'missingParts','ordersParts','inspectsUnit',
             'processParts'));
     }
+    public function show_($id)
+    {
+        // Основной запрос с жадной загрузкой всех необходимых отношений
+        $current_wo = Workorder::with([
+            'unit.manuals.builder',
+            'instruction',
+            'tdrs' => function($query) {
+                $query->with([
+                    'component',
+                    'conditions',
+                    'necessaries',
+                    'codes'
+                ]);
+            }
+        ])->findOrFail($id);
 
+        // Проверка наличия связанных данных
+        if (!$current_wo->unit || !$current_wo->unit->manual_id) {
+            abort(404, 'Unit or Manual not found for this Workorder');
+        }
+
+        // Получаем специальные записи
+        $code = Code::where('name', 'Missing')->first();
+        $missingCondition = Condition::where('name', 'PARTS MISSING UPON ARRIVAL AS INDICATED ON PARTS LIST')->first();
+        $necessary = Necessary::where('name', 'Order New')->first();
+
+        // Фильтрация данных через коллекции (меньше запросов к БД)
+        $components = Component::where('manual_id', $current_wo->unit->manual_id)->get();
+
+        $processParts = $current_wo->tdrs
+            ->where('component_id', '!=', null)
+            ->when($necessary, fn($collection) => $collection->where('necessaries_id', '!=', $necessary->id));
+
+        $inspectsUnit = $current_wo->tdrs
+            ->where('component_id', null)
+            ->when($missingCondition, fn($collection) => $collection->where('conditions_id', '!=', $missingCondition->id));
+
+        $missingParts = $current_wo->tdrs->where('codes_id', $code->id ?? null);
+
+        $ordersParts = $current_wo->tdrs
+            ->when($code, fn($collection) => $collection->where('codes_id', '!=', $code->id))
+            ->when($necessary, fn($collection) => $collection->where('necessaries_id', $necessary->id));
+
+        // Справочные данные (можно оптимизировать, если они используются редко)
+        $data = [
+            'units' => Unit::all(),
+            'customers' => Customer::all(),
+            'manuals' => Manual::all(),
+            'planes' => Plane::all(),
+            'builders' => Builder::all(),
+            'instruction' => Instruction::all(),
+            'necessaries' => Necessary::all(),
+            'codes' => Code::all(),
+            'conditions' => Condition::all(),
+            'unit_conditions' => Condition::where('unit', true)->get(),
+            'component_conditions' => Condition::where('unit', false)->get(),
+        ];
+
+        return view('admin.tdrs.show', array_merge(
+            [
+                'current_wo' => $current_wo,
+                'user' => Auth::user(),
+                'necessary' => $necessary,
+                'components' => $components,
+                'processParts' => $processParts,
+                'inspectsUnit' => $inspectsUnit,
+                'missingParts' => $missingParts,
+                'ordersParts' => $ordersParts,
+                'tdrs' => $current_wo->tdrs
+            ],
+            $data
+        ));
+    }
     /**
      * Show the form for editing the specified resource.
      *

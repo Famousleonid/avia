@@ -73,9 +73,9 @@
                 <form id="createForm" class="createForm" role="form" method="POST"
                       action="{{route('admin.tdrs.store')}}" enctype="multipart/form-data">
                     @csrf
-                    <input type="hidden" name="workorder_id" value="{{$current_wo->id }}">
-                    <input type="hidden" name="conditions_id" value="NULL">
+
                     <input type="hidden" name="use_tdr" value="true">
+                    <input type="hidden" name="workorder_id" value="{{$current_wo->id }}">
 
                     <!-- Только содержимое componentGroup -->
                     <div class="form-group d-flex">
@@ -147,18 +147,18 @@
                             </select>
                         </div>
                     </div>
-{{--                    <div class="form-group m-2" id="conditions">--}}
-{{--                        <label for="c_conditions_id" class="form-label pe-2">Conditions</label>--}}
-{{--                        <select name="conditions_id" id="c_conditions_id" class="form-control"--}}
-{{--                                style="width: 278px">--}}
-{{--                            <option value="" disabled selected>---</option> <!-- Пустое значение по умолчанию -->--}}
-{{--                            @foreach($component_conditions as $component_condition)--}}
-{{--                                <option value="{{ $component_condition->id }}" data-title="{{ $component_condition->name }}">--}}
-{{--                                    {{ $component_condition->name }}--}}
-{{--                                </option>--}}
-{{--                            @endforeach--}}
-{{--                        </select>--}}
-{{--                    </div>--}}
+                    <div class="form-group m-2" id="conditions" style="display: block">
+                        <label for="c_conditions_id" class="form-label pe-2">Conditions</label>
+                        <select name="conditions_id" id="c_conditions_id" class="form-control"
+                                style="width: 278px">
+                            <option value=""  selected>---</option> <!-- Пустое значение по умолчанию -->
+                            @foreach($component_conditions as $component_condition)
+                                <option value="{{ $component_condition->id }}" data-title="{{ $component_condition->name }}">
+                                    {{ $component_condition->name }}
+                                </option>
+                            @endforeach
+                        </select>
+                    </div>
 
                     <div class="text-end">
                         <button type="submit" class="btn btn-outline-primary mt-3">{{ __('Save') }}</button>
@@ -239,31 +239,20 @@
         </div>
     </div>
 
+    <!-- Добавьте перед вашим скриптом -->
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+
     <script>
-
-        // Ожидаем изменения в поле "codes_id"
+        // Отслеживаем изменение кода инспекции для показа/скрытия поля qty
         document.getElementById('codes_id').addEventListener('change', function() {
-            // Получаем выбранное значение из выпадающего списка
             var selectedCode = this.options[this.selectedIndex].text;
-
-            // Если выбранный код "Missing", показываем инпут "qty", иначе скрываем его
-            if (selectedCode === "Missing") {
-                document.getElementById('qty').style.display = 'block';
-            } else {
-                document.getElementById('qty').style.display = 'none';
-            }
+            document.getElementById('qty').style.display = (selectedCode === "Missing") ? 'block' : 'none';
         });
-        // Ожидаем изменения в поле "necessaries_id"
-        document.getElementById('necessaries_id').addEventListener('change', function() {
-            // Получаем выбранное значение из выпадающего списка
-            var selectedCodeNec = this.options[this.selectedIndex].text;
 
-            // Если выбранный код "Missing", показываем инпут "qty", иначе скрываем его
-            if (selectedCodeNec === "Order New") {
-                document.getElementById('qty').style.display = 'block';
-            } else {
-                document.getElementById('qty').style.display = 'none';
-            }
+        // Отслеживаем изменение необходимости для показа/скрытия поля qty
+        document.getElementById('necessaries_id').addEventListener('change', function() {
+            var selectedNec = this.options[this.selectedIndex].text;
+            document.getElementById('qty').style.display = (selectedNec === "Order New") ? 'block' : 'none';
         });
 
         document.addEventListener('DOMContentLoaded', function () {
@@ -271,57 +260,18 @@
             var necessaryDiv = document.getElementById('necessary');
             var conditionsDiv = document.getElementById('conditions');
             var snsDiv = document.getElementById('sns-group');
-            var form = document.getElementById('createForm'); // Получаем форму
-
+            var form = document.getElementById('createForm');
             var necessariesSelect = document.getElementById('necessaries_id');
 
+            // Сброс значения necessaries при изменении кода
             codesSelect.addEventListener('change', function() {
-                necessariesSelect.value = ""; // Сбрасываем значение necessaries_id при изменении codes_id
+                necessariesSelect.value = "";
             });
 
-// Массив скрытых полей
-            var hiddenFields = [];
-
-            // Получаем ссылку на элемент select
-            var selectCondition = document.getElementById('c_conditions_id');
-
-            /// Функция для обновления значения condition_id
-            function updateConditionsId() {
-                var conditionsId = selectCondition.value;
-                console.log(conditionsId);  // Выводим новое значение в консоль для проверки
-
-                // Обновляем объект Kit
-                var skits = {
-                    kFields: [
-                        { name: 'conditions_id', value: conditionsId },
-                    ]
-                };
-
-                // Добавляем скрытые поля в форму
-                addHiddenFields(skits.kFields);
-            }
-
-            // Слушаем изменение значения в select для условий
-            selectCondition.addEventListener('change', updateConditionsId);
-
-            // Пример данных для necessaries в зависимости от выбранного кода
+            // Объект с данными для скрытых полей (пример – дополните по своим правилам)
             var necessariesData = {
-                'Missing': {
-                    // necessaries_id: 'Order New',
-                    hiddenFields: [
-                        { name: 'conditions_id', value: '1' },
-                        { name: 'necessaries_id', value: '2' },
-                        // { name: 'use_tdr', value: 'false' },
-                    ]
-                },
-                'Life': {
-                    // necessaries_id: 'Order New',
-                    LifeFields: [
-                        { name: 'necessaries_id', value: '2' },
-                        { name: 'conditions_id', value: '34' },
-                        // { name: 'use_tdr', value: 'false' },
-                    ]
-                },
+                'Missing': { hiddenFields: [{ name: 'conditions_id', value: '1' }, { name: 'necessaries_id', value: '2' }] },
+                'Life': { LifeFields: [{ name: 'necessaries_id', value: '2' }, { name: 'conditions_id', value: '34' }] },
                 'Incorrect Part': {
                     // necessaries_id: 'Order New',
                     ipFields: [
@@ -415,233 +365,102 @@
                         {name: 'use_process_forms', value: 'true'}
                     ]
                 }
-
             };
 
-            // Функция для добавления скрытых полей
-            function addHiddenFields(fields) {
-                fields.forEach(function (field) {
-                    // Проверка, чтобы избежать дублирования
-                    if (!document.querySelector(`input[name="${field.name}"]`)) {
-                        var inputField = document.createElement('input');
-                        inputField.type = 'hidden';
-                        inputField.name = field.name;
-                        inputField.value = field.value;
-                        form.appendChild(inputField);
-                    }
-                });
-            }
+            // function addHiddenFields(fields) {
+            //     fields.forEach(function (field) {
+            //         if (!document.querySelector(`input[name="${field.name}"]`)) {
+            //             var inputField = document.createElement('input');
+            //             inputField.type = 'hidden';
+            //             inputField.name = field.name;
+            //             inputField.value = field.value;
+            //             form.appendChild(inputField);
+            //         }
+            //     });
+            // }
 
-            // Функция для удаления скрытых полей
-            function removeHiddenFields() {
-                hiddenFields.forEach(function (field) {
-                    var inputField = document.querySelector(`input[name="${field.name}"]`);
-                    if (inputField) {
-                        inputField.remove();
-                    }
-                });
-            }
+            // function removeHiddenFields() {
+            //     // Пример: удаляем скрытые поля по именам
+            //     ['conditions_id','necessaries_id','use_tdr','use_process_forms'].forEach(function(name){
+            //         var inputField = document.querySelector(`input[name="${name}"]`);
+            //         if (inputField) inputField.remove();
+            //     });
+            // }
 
-            // Функция для обновления скрытых полей в зависимости от выбранного кода и necessaries
             function updateHiddenFields(codeName, necessariesValue) {
-                // Очищаем старые скрытые поля
                 removeHiddenFields();
-
                 var data;
-
                 if (codeName === 'Missing') {
-                    // Для кода 'Missing' всегда использует 'Order New' с дополнительными скрытыми полями
                     data = necessariesData['Missing'].hiddenFields;
-                } else if (codeName === 'Damage' && necessariesData['Damage'][necessariesValue]) {
-                    // Для кода 'Damage' и выбранного значения в necessaries
-                    data = necessariesData['Damage'][necessariesValue];
-                } else if (codeName === 'Corroded' && necessariesData['Corroded'][necessariesValue]) {
-                    // Для кода 'Damage' и выбранного значения в necessaries
-                    data = necessariesData['Corroded'][necessariesValue];
-                } else if (codeName === 'Life' ) {
-                    // Для кода 'Life' и выбранного значения в necessaries
+                } else if (codeName === 'Life') {
                     data = necessariesData['Life'].LifeFields;
-                } else if (codeName === 'Incorrect Part' ) {
-                    // Для кода 'Incorrect Part' и выбранного значения в necessaries
-                    data = necessariesData['Incorrect Part'].ipFields;
-                } else if (codeName === 'Service Bulletin' ) {
-                    // Для кода 'Incorrect Part' и выбранного значения в necessaries
-                    data = necessariesData['Service Bulletin'].sbFields;
-                } else if (codeName === 'Kit' ) {
-                    // Для кода 'Kit' и выбранного значения в necessaries
-                    data = necessariesData['Kit'].kFields;
-                } else if (codeName === 'Worn' ) {
-                    // Для кода 'Kit' и выбранного значения в necessaries
-                    data = necessariesData['Worn'].wFields;
-                } else if (codeName === 'Cracked' ) {
-                    // Для кода 'Kit' и выбранного значения в necessaries
-                    data = necessariesData['Cracked'].crackFields;
                 } else {
                     data = [];
                 }
-
-                // Добавляем новые скрытые поля
                 addHiddenFields(data);
             }
 
-
-            // Функция для скрытия/показа div sns в зависимости от selectedCode и necessariesValue
             function toggleSnsDiv(necessariesName) {
-                console.log('Toggle snsDiv called with:', necessariesName); // Проверяем вызов функции
-
                 if (necessariesName === 'Order New' || necessariesName === null) {
                     snsDiv.style.visibility = 'hidden';
                     conditionsDiv.style.display = 'none';
-                    // snsDiv.style.display = 'none'; // Скрываем snsDiv
-                    console.log('snsDiv is now hidden');
                 } else {
                     snsDiv.style.visibility = 'visible';
-                    // snsDiv.style.display = 'block'; // Показываем snsDiv
-                    console.log('snsDiv is now visible');
                     conditionsDiv.style.display = 'block';
                 }
             }
 
-
-            // Функция для скрытия/показа div necessary в зависимости от selectedCode
             function toggleNecessaryDiv(codeName) {
-
-                if (codeName === 'Missing' || codeName === 'Life'  || codeName === 'Service Bulletin' || codeName ===
-                    'Incorrect Part' || codeName === 'Kit' || codeName === 'Worn') {
-                    necessaryDiv.style.display = 'none';  // Скрываем necessaryDiv, если код = 'Missing'
-                } else {
-                    necessaryDiv.style.display = 'block'; // Показываем necessaryDiv в остальных случаях
-                }
+                necessaryDiv.style.display = (['Missing', 'Life'].includes(codeName)) ? 'none' : 'block';
             }
 
-            // Функция для скрытия/показа div conditions в зависимости от selectedCode
-            function toggleConditionsDiv(codeName) {
-                if (codeName === 'Missing' || codeName === 'Life' || codeName === 'Service Bulletin' || codeName === 'Incorrect Part'
-                    || codeName === 'Kit' || codeName === 'Worn') {
-                    conditionsDiv.style.display = 'none';  // Скрываем necessaryDiv, если код = 'Missing'
-                } else {
-                    conditionsDiv.style.display = 'block'; // Показываем necessaryDiv в остальных случаях
-                }
-            }
             function toggleConditionsDivExtra(codeName, necessariesName){
                 if (codeName === 'Corroded' && necessariesName === 'Repair') {
                     conditionsDiv.style.display = 'none';
-                    console.log(codeName, necessariesName)
                 } else {
-                    conditionsDiv.style.visibility = 'block'; // Показываем necessaryDiv в остальных случаях
+                    conditionsDiv.style.visibility = 'block';
                 }
             }
 
-
             codesSelect.addEventListener('change', function () {
-                // var selectedCode = this.options[this.selectedIndex].value; // Получаем id
-                var selectedCodeName = this.options[this.selectedIndex].getAttribute('data-title'); // Получаем name
+                var selectedCodeName = this.options[this.selectedIndex].getAttribute('data-title');
                 var selectedNecessariesName = necessariesSelect.options[necessariesSelect.selectedIndex].getAttribute('data-title');
-
                 updateHiddenFields(selectedCodeName, selectedNecessariesName);
                 toggleNecessaryDiv(selectedCodeName);
                 toggleSnsDiv(selectedNecessariesName);
-                toggleConditionsDiv(selectedCodeName);
                 toggleConditionsDivExtra(selectedCodeName, selectedNecessariesName);
             });
-            necessariesSelect.addEventListener('change', function () {
-                // var selectedNecessaries = this.value; // Получаем id
-                var selectedNecessariesName = this.options[this.selectedIndex].getAttribute('data-title'); // Получаем name
-                var selectedCodeName = codesSelect.options[codesSelect.selectedIndex].getAttribute('data-title');
 
+            necessariesSelect.addEventListener('change', function () {
+                var selectedNecessariesName = this.options[this.selectedIndex].getAttribute('data-title');
+                var selectedCodeName = codesSelect.options[codesSelect.selectedIndex].getAttribute('data-title');
                 updateHiddenFields(selectedCodeName, selectedNecessariesName);
                 toggleSnsDiv(selectedNecessariesName);
                 toggleConditionsDivExtra(selectedCodeName, selectedNecessariesName);
             });
 
-
-
-            // Проверяем значение при загрузке страницы
+            // Инициализация при загрузке страницы
             var selectedCodeName = codesSelect.options[codesSelect.selectedIndex].getAttribute('data-title');
             var selectedNecessariesName = necessariesSelect.options[necessariesSelect.selectedIndex].getAttribute('data-title');
-
             updateHiddenFields(selectedCodeName, selectedNecessariesName);
             toggleNecessaryDiv(selectedCodeName);
             toggleSnsDiv(selectedNecessariesName);
-
-            // var selectedCode = codesSelect.options[codesSelect.selectedIndex].text;
-            // var selectedNecessaries = necessariesSelect.value;
-            // updateHiddenFields(selectedCode, selectedNecessaries); // Добавляем скрытые поля при первой загрузке
-
-            // Функция для отображения нужной группы
-            function showSelectedGroup() {
-                var selectedOption = document.querySelector('input[name="RadioInspection"]:checked');
-
-                // Если радиокнопка не выбрана, скрываем обе группы
-                if (!selectedOption) {
-                    document.getElementById('componentGroup').style.display = 'none';
-                    document.getElementById('unitGroup').style.display = 'none';
-                    return;
-                }
-
-                // Скрываем обе группы
-                document.getElementById('componentGroup').style.display = 'none';
-                document.getElementById('unitGroup').style.display = 'none';
-
-                // Отображаем нужную группу в зависимости от выбранной радиокнопки
-                if (selectedOption.id === 'Component') {
-                    document.getElementById('componentGroup').style.display = 'block';
-                    removeUseTdrInput();
-                } else if (selectedOption.id === 'Unit') {
-                    document.getElementById('unitGroup').style.display = 'block';
-                    addUseTdrInput();
-                }
-            }
-            // Функция для добавления скрытого инпута use_tdr
-            function addUseTdrInput() {
-                var hiddenInput = document.querySelector('input[name="use_tdr"]');
-                if (!hiddenInput) {
-                    var inputField = document.createElement('input');
-                    inputField.type = 'hidden';
-                    inputField.name = 'use_tdr';
-                    inputField.value = 'true';
-                    document.getElementById('unitGroup').appendChild(inputField); // Добавляем инпут в unitGroup
-                }
-            }
-
-            // Функция для удаления скрытого инпута use_tdr
-            function removeUseTdrInput() {
-                var hiddenInput = document.querySelector('input[name="use_tdr"]');
-                if (hiddenInput) {
-                    hiddenInput.remove(); // Удаляем инпут из unitGroup
-                }
-            }
-            // Слушаем изменения выбора радиокнопок
-            document.querySelectorAll('input[name="RadioInspection"]').forEach(function (radio) {
-                radio.addEventListener('change', function () {
-                    showSelectedGroup();
-                });
-            });
-
-            // Вызов функции при загрузке страницы, чтобы скрыть обе группы (так как нет выбранной радиокнопки)
-            window.onload = function () {
-                showSelectedGroup();
-            };
         });
 
+        // Обработка AJAX‑отправки формы добавления компонента
         window.addEventListener('load', function () {
-
-            // Обработка отправки формы для добавления компонента
             $('#addComponentForm').submit(function(e) {
-                e.preventDefault();  // предотвращаем стандартную отправку формы
-
-                var formData = new FormData(this);  // собираем данные из формы
-
+                e.preventDefault();
+                var formData = new FormData(this);
                 $.ajax({
-                    url: $(this).attr('action'),  // URL маршрута
-                    type: 'POST',  // метод отправки данных
-                    data: formData,  // данные из формы
-                    processData: false,  // не обрабатывать данные как обычную строку
-                    contentType: false,  // не устанавливать заголовок типа контента
+                    url: $(this).attr('action'),
+                    type: 'POST',
+                    data: formData,
+                    processData: false,
+                    contentType: false,
                     success: function(response) {
                         if (response.success) {
                             $('#addComponentModal').modal('hide');
-                            // Создаем новый option и устанавливаем data‑атрибут
                             var newOption = new Option(
                                 response.component.part_number + ' (' + response.component.name + ')',
                                 response.component.id
@@ -652,22 +471,16 @@
                                 .trigger('change');
                         }
                     },
-
                     error: function(response) {
-                        // Если что-то пошло не так, выводим сообщение об ошибке
                         alert('Error occurred while adding the component');
                     }
                 });
             });
 
-
-
-            // Функция для отображения/скрытия div assy_serial_number
+            // Функция для показа/скрытия блока Assy Serial Number
             function toggleAssySerialNumberField(selectedComponentId) {
                 const selectedOption = $('#component_id option[value="' + selectedComponentId + '"]');
                 const hasAssyPartNumber = selectedOption.data('has_assy_part_number');
-
-                // Показываем или скрываем div в зависимости от наличия assy_part_number
                 if (hasAssyPartNumber) {
                     $('#assy_serial_number_container').show();
                 } else {
@@ -675,46 +488,29 @@
                 }
             }
 
-            // Обработчик события изменения выбора компонента
             $('#component_id').on('change', function () {
                 const selectedComponentId = $(this).val();
-                console.log("Selected Component ID:", selectedComponentId);
-
-                // Вызываем функцию для отображения/скрытия assy_serial_number
                 toggleAssySerialNumberField(selectedComponentId);
             });
 
-            // При загрузке страницы, проверяем выбранный компонент
             const defaultSelectedId = $('#component_id').val();
             if (defaultSelectedId) {
-                console.log("Initial Selected Component ID:", defaultSelectedId);
                 toggleAssySerialNumberField(defaultSelectedId);
             }
         });
 
-        // --------------------------------- Select 2 --------------------------------------------------------
-
+        // Инициализация select2 для полей компонента
         $(document).ready(function () {
             $('#component_id').select2({
                 placeholder: '---',
                 theme: 'bootstrap-5',
                 allowClear: true
             });
-        });
-
-        $(function() {
-            applyTheme();
-        });
-
-        $(document).ready(function () {
             $('#conditions_id').select2({
                 placeholder: '---',
                 theme: 'bootstrap-5',
                 allowClear: true
             });
-        });
-
-        $(function() {
             applyTheme();
         });
 
@@ -729,7 +525,10 @@
                 $('.select2-container .select2-dropdown').addClass('select2-light').removeClass('select2-dark');
             }
         }
-
-        // -----------------------------------------------------------------------------------------------------
     </script>
+
+
+
+
+
 @endsection

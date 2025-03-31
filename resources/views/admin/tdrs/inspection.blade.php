@@ -784,17 +784,7 @@
             applyTheme();
         });
 
-        $(document).ready(function () {
-            $('#conditions_id').select2({
-                placeholder: '---',
-                theme: 'bootstrap-5',
-                allowClear: true
-            });
-        });
 
-        $(function() {
-            applyTheme();
-        });
 
         function applyTheme() {
             const isDark = document.documentElement.getAttribute('data-bs-theme');
