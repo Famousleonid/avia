@@ -6,7 +6,6 @@
             max-width: 650px;
         }
 
-
         /* ----------------------------------- Select 2 Dark Theme -------------------------------------*/
 
 
@@ -73,14 +72,13 @@
                 <form id="createForm" class="createForm" role="form" method="POST"
                       action="{{route('admin.tdrs.store')}}" enctype="multipart/form-data">
                     @csrf
+{{--                    <input type="hidden" name="use_tdr" value="true">--}}
 
-                    <input type="hidden" name="use_tdr" value="true">
                     <input type="hidden" name="workorder_id" value="{{$current_wo->id }}">
 
-                    <!-- Только содержимое componentGroup -->
-                    <div class="form-group d-flex">
-                        <label for="component_id" class="form-label me-2">Component</label>
-                        <select name="component_id" id="component_id" class="form-control" style="width: 300px">
+                    <div class="form-group  d-flex">
+                        <label for="i_component_id" class="form-label pe-2">Component</label>
+                        <select name="component_id" id="i_component_id" class="form-control" style="width: 350px">
                             <option selected value="">---</option>
                             @foreach($components as $component)
                                 <option value="{{ $component->id }}"
@@ -147,7 +145,7 @@
                             </select>
                         </div>
                     </div>
-                    <div class="form-group m-2" id="conditions" style="display: block">
+                    <div class="form-group m-2" id="conditions" style="visibility: hidden">
                         <label for="c_conditions_id" class="form-label pe-2">Conditions</label>
                         <select name="conditions_id" id="c_conditions_id" class="form-control"
                                 style="width: 278px">
@@ -240,274 +238,42 @@
     </div>
 
     <!-- Добавьте перед вашим скриптом -->
-    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+{{--    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>--}}
 
+
+
+
+
+
+@endsection
+@section('scripts')
     <script>
-        // Отслеживаем изменение кода инспекции для показа/скрытия поля qty
-        document.getElementById('codes_id').addEventListener('change', function() {
-            var selectedCode = this.options[this.selectedIndex].text;
-            document.getElementById('qty').style.display = (selectedCode === "Missing") ? 'block' : 'none';
+        // Получить элемент select
+        const selectElement = document.getElementById('i_component_id');
+
+
+        // Слушатель изменения значения
+        selectElement.addEventListener('change', function() {
+            const selectedValue = this.value;
+            console.log('Selected component_id:', selectedValue);
+
+            // Если нужно получить data-атрибуты выбранного option
+            const selectedOption = this.options[this.selectedIndex];
+            const hasAssyPartNumber = selectedOption.getAttribute('data-has_assy_part_number');
+            const title = selectedOption.getAttribute('data-title');
+
+            console.log('Has assy part number:', hasAssyPartNumber);
+            console.log('Title:', title);
         });
 
-        // Отслеживаем изменение необходимости для показа/скрытия поля qty
-        document.getElementById('necessaries_id').addEventListener('change', function() {
-            var selectedNec = this.options[this.selectedIndex].text;
-            document.getElementById('qty').style.display = (selectedNec === "Order New") ? 'block' : 'none';
-        });
 
-        document.addEventListener('DOMContentLoaded', function () {
-            var codesSelect = document.getElementById('codes_id');
-            var necessaryDiv = document.getElementById('necessary');
-            var conditionsDiv = document.getElementById('conditions');
-            var snsDiv = document.getElementById('sns-group');
-            var form = document.getElementById('createForm');
-            var necessariesSelect = document.getElementById('necessaries_id');
 
-            // Сброс значения necessaries при изменении кода
-            codesSelect.addEventListener('change', function() {
-                necessariesSelect.value = "";
-            });
+        // --------------------------------- Select 2 --------------------------------------------------------
 
-            // Объект с данными для скрытых полей (пример – дополните по своим правилам)
-            var necessariesData = {
-                'Missing': { hiddenFields: [{ name: 'conditions_id', value: '1' }, { name: 'necessaries_id', value: '2' }] },
-                'Life': { LifeFields: [{ name: 'necessaries_id', value: '2' }, { name: 'conditions_id', value: '34' }] },
-                'Incorrect Part': {
-                    // necessaries_id: 'Order New',
-                    ipFields: [
-                        { name: 'necessaries_id', value: '2' },
-                        { name: 'conditions_id', value: '38' },
-                        { name: 'use_tdr', value: 'true' },
-                    ]
-                },
-                'Service Bulletin': {
-                    // necessaries_id: 'Order New',
-                    sbFields: [
-                        { name: 'necessaries_id', value: '2' },
-                        { name: 'conditions_id', value: '39' },
-                        { name: 'use_tdr', value: 'true' },
-                    ]
-                },
-                'Kit': {
-                    // necessaries_id: 'Order New',
-                    kFields: [
-                        { name: 'necessaries_id', value: '2' },
-                        { name: 'conditions_id', value: '38' },
-                        { name: 'use_tdr', value: 'false' },
-                        { name: 'use_process_forms', value: 'false' }
-                    ]
-                },
-                'Worn': {
-                    // necessaries_id: 'Order New',
-                    wFields: [
-                        { name: 'necessaries_id', value: '2' },
-                        { name: 'conditions_id', value: '6' },
-                        { name: 'use_tdr', value: 'true' },
-
-                    ]
-                },
-                'Cracked': {
-                    // necessaries_id: 'Order New',
-                    crackFields: [
-                        { name: 'necessaries_id', value: '2' },
-                        { name: 'conditions_id', value: '3' },
-                        { name: 'use_tdr', value: 'true' },
-
-                    ]
-                },
-                'Corroded': {
-                    'Repair': [
-                        { name: 'conditions_id', value: '5' },
-                        {name: 'use_tdr', value: 'true'},
-                        {name: 'use_process_forms', value: 'true'}
-                    ],
-                    'Order New': [
-                        { name: 'conditions_id', value: '5' },
-                        { name: 'necessaries_id', value: '2' },
-                        {name: 'use_tdr', value: 'true'},
-                        // {name: 'use_process_forms', value: 'true'}
-                    ],
-                    'Safran Inspection': [
-
-                        {name: 'use_tdr', value: 'true'},
-                        {name: 'use_process_forms', value: 'true'}
-                    ],
-                    'Etch Inspection': [
-                        {name: 'use_tdr', value: 'true'},
-                        {name: 'use_process_forms', value: 'true'}
-                    ],
-                    'EC': [
-                        {name: 'use_tdr', value: 'true'},
-                        {name: 'use_process_forms', value: 'true'}
-                    ]
-                },
-
-                'Damage': {
-                    'Repair': [
-                        {name: 'use_tdr', value: 'true'},
-                        {name: 'use_process_forms', value: 'true'}
-                    ],
-                    'Order New': [
-                        {name: 'conditions_id', value: '3'},
-                        { name: 'necessaries_id', value: '2' },
-                        {name: 'use_tdr', value: 'true'},
-                    ],
-                    'Safran Inspection': [
-                        {name: 'use_tdr', value: 'true'},
-                        {name: 'use_process_forms', value: 'true'}
-                    ],
-                    'Etch Inspection': [
-                        {name: 'use_tdr', value: 'true'},
-                        {name: 'use_process_forms', value: 'true'}
-                    ],
-                    'EC': [
-                        {name: 'use_tdr', value: 'true'},
-                        {name: 'use_process_forms', value: 'true'}
-                    ]
-                }
-            };
-
-            // function addHiddenFields(fields) {
-            //     fields.forEach(function (field) {
-            //         if (!document.querySelector(`input[name="${field.name}"]`)) {
-            //             var inputField = document.createElement('input');
-            //             inputField.type = 'hidden';
-            //             inputField.name = field.name;
-            //             inputField.value = field.value;
-            //             form.appendChild(inputField);
-            //         }
-            //     });
-            // }
-
-            // function removeHiddenFields() {
-            //     // Пример: удаляем скрытые поля по именам
-            //     ['conditions_id','necessaries_id','use_tdr','use_process_forms'].forEach(function(name){
-            //         var inputField = document.querySelector(`input[name="${name}"]`);
-            //         if (inputField) inputField.remove();
-            //     });
-            // }
-
-            function updateHiddenFields(codeName, necessariesValue) {
-                removeHiddenFields();
-                var data;
-                if (codeName === 'Missing') {
-                    data = necessariesData['Missing'].hiddenFields;
-                } else if (codeName === 'Life') {
-                    data = necessariesData['Life'].LifeFields;
-                } else {
-                    data = [];
-                }
-                addHiddenFields(data);
-            }
-
-            function toggleSnsDiv(necessariesName) {
-                if (necessariesName === 'Order New' || necessariesName === null) {
-                    snsDiv.style.visibility = 'hidden';
-                    conditionsDiv.style.display = 'none';
-                } else {
-                    snsDiv.style.visibility = 'visible';
-                    conditionsDiv.style.display = 'block';
-                }
-            }
-
-            function toggleNecessaryDiv(codeName) {
-                necessaryDiv.style.display = (['Missing', 'Life'].includes(codeName)) ? 'none' : 'block';
-            }
-
-            function toggleConditionsDivExtra(codeName, necessariesName){
-                if (codeName === 'Corroded' && necessariesName === 'Repair') {
-                    conditionsDiv.style.display = 'none';
-                } else {
-                    conditionsDiv.style.visibility = 'block';
-                }
-            }
-
-            codesSelect.addEventListener('change', function () {
-                var selectedCodeName = this.options[this.selectedIndex].getAttribute('data-title');
-                var selectedNecessariesName = necessariesSelect.options[necessariesSelect.selectedIndex].getAttribute('data-title');
-                updateHiddenFields(selectedCodeName, selectedNecessariesName);
-                toggleNecessaryDiv(selectedCodeName);
-                toggleSnsDiv(selectedNecessariesName);
-                toggleConditionsDivExtra(selectedCodeName, selectedNecessariesName);
-            });
-
-            necessariesSelect.addEventListener('change', function () {
-                var selectedNecessariesName = this.options[this.selectedIndex].getAttribute('data-title');
-                var selectedCodeName = codesSelect.options[codesSelect.selectedIndex].getAttribute('data-title');
-                updateHiddenFields(selectedCodeName, selectedNecessariesName);
-                toggleSnsDiv(selectedNecessariesName);
-                toggleConditionsDivExtra(selectedCodeName, selectedNecessariesName);
-            });
-
-            // Инициализация при загрузке страницы
-            var selectedCodeName = codesSelect.options[codesSelect.selectedIndex].getAttribute('data-title');
-            var selectedNecessariesName = necessariesSelect.options[necessariesSelect.selectedIndex].getAttribute('data-title');
-            updateHiddenFields(selectedCodeName, selectedNecessariesName);
-            toggleNecessaryDiv(selectedCodeName);
-            toggleSnsDiv(selectedNecessariesName);
-        });
-
-        // Обработка AJAX‑отправки формы добавления компонента
-        window.addEventListener('load', function () {
-            $('#addComponentForm').submit(function(e) {
-                e.preventDefault();
-                var formData = new FormData(this);
-                $.ajax({
-                    url: $(this).attr('action'),
-                    type: 'POST',
-                    data: formData,
-                    processData: false,
-                    contentType: false,
-                    success: function(response) {
-                        if (response.success) {
-                            $('#addComponentModal').modal('hide');
-                            var newOption = new Option(
-                                response.component.part_number + ' (' + response.component.name + ')',
-                                response.component.id
-                            );
-                            $(newOption).attr('data-has_assy_part_number', response.component.assy_part_number ? 'true' : 'false');
-                            $('#component_id').append(newOption)
-                                .val(response.component.id)
-                                .trigger('change');
-                        }
-                    },
-                    error: function(response) {
-                        alert('Error occurred while adding the component');
-                    }
-                });
-            });
-
-            // Функция для показа/скрытия блока Assy Serial Number
-            function toggleAssySerialNumberField(selectedComponentId) {
-                const selectedOption = $('#component_id option[value="' + selectedComponentId + '"]');
-                const hasAssyPartNumber = selectedOption.data('has_assy_part_number');
-                if (hasAssyPartNumber) {
-                    $('#assy_serial_number_container').show();
-                } else {
-                    $('#assy_serial_number_container').hide();
-                }
-            }
-
-            $('#component_id').on('change', function () {
-                const selectedComponentId = $(this).val();
-                toggleAssySerialNumberField(selectedComponentId);
-            });
-
-            const defaultSelectedId = $('#component_id').val();
-            if (defaultSelectedId) {
-                toggleAssySerialNumberField(defaultSelectedId);
-            }
-        });
-
-        // Инициализация select2 для полей компонента
         $(document).ready(function () {
-            $('#component_id').select2({
+            $('#i_component_id').select2({
                 placeholder: '---',
-                theme: 'bootstrap-5',
-                allowClear: true
-            });
-            $('#conditions_id').select2({
-                placeholder: '---',
+
                 theme: 'bootstrap-5',
                 allowClear: true
             });
@@ -526,9 +292,5 @@
             }
         }
     </script>
-
-
-
-
 
 @endsection
