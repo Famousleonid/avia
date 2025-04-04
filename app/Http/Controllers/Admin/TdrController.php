@@ -126,6 +126,10 @@ class TdrController extends Controller
         $current_wo = Workorder::findOrFail($workorder_id);
         $manual_id = $current_wo->unit->manual_id;
 
+        $components = Component::where('manual_id', $manual_id)
+            ->select('id', 'part_number', 'assy_part_number', 'name', 'ipl_num')
+            ->get();
+
         // Получение уже введённых условий для этого workorder
         $existing_condition_ids = Tdr::where('workorder_id', $workorder_id)
             ->pluck('conditions_id')
@@ -144,7 +148,8 @@ class TdrController extends Controller
         $necessaries = Necessary::all();
         // Другие данные...
 
-        return view('admin.tdrs.component-inspection', compact('current_wo', 'component_conditions', 'components', 'codes', 'necessaries' /*, ...*/));
+        return view('admin.tdrs.component-inspection', compact('current_wo', 'component_conditions',
+            'components', 'codes', 'necessaries' /*, ...*/));
     }
 
     public function inspection_new($workorder_id, $type)

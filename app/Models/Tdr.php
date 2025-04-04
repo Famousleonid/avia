@@ -16,6 +16,7 @@ class Tdr extends Model
         'codes_id',
         'conditions_id',
         'necessaries_id',
+        'description',
         'qty',
         'use_tdr',
         'use_process_forms',

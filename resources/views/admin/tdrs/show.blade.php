@@ -532,16 +532,16 @@
                                     <th class=" text-center  text-primary " style="width: 120px">{{__('Code')}}</th>
                                     <th class=" text-primary text-center">
                                         Action
-                                        <a href="{{ route('admin.tdrs.component-inspection', ['workorder_id' => $current_wo->id,
-                                        'type' => 'component']) }}"
-                                           class="btn btn-outline-info btn-sm" style="height: 32px"  >
-                                            {{ __('Add_D') }}
-                                        </a>
-{{--                                        <a href="{{ route('admin.tdrs.inspection.component', ['workorder_id' => $current_wo->id])--}}
-{{--                                         }}"--}}
+{{--                                        <a href="{{ route('admin.tdrs.component-inspection', ['workorder_id' => $current_wo->id,--}}
+{{--                                        'type' => 'component']) }}"--}}
 {{--                                           class="btn btn-outline-info btn-sm" style="height: 32px"  >--}}
-{{--                                            {{ __('Add') }}--}}
+{{--                                            {{ __('Add_D') }}--}}
 {{--                                        </a>--}}
+                                        <a href="{{ route('admin.tdrs.inspection.component', ['workorder_id' => $current_wo->id])
+                                         }}"
+                                           class="btn btn-outline-info btn-sm" style="height: 32px"  >
+                                            {{ __('Add') }}
+                                        </a>
                                     </th>
                                 </tr>
                                 </thead>

@@ -15,7 +15,7 @@ return new class extends Migration
     {
         Schema::create('tdrs', function (Blueprint $table) {
             $table->id();
-            $table->timestamps();
+
 
             $table->foreignId('workorder_id')->nullable()->constrained()->onDelete('set null');
             $table->foreignId('component_id')->nullable()->constrained()->onDelete('set null');
@@ -25,6 +25,7 @@ return new class extends Migration
             $table->foreignId('codes_id')->nullable()->constrained()->onDelete('set null');
             $table->foreignId('conditions_id')->nullable()->constrained()->onDelete('set null');
             $table->foreignId('necessaries_id')->nullable()->constrained()->onDelete('set null');
+            $table->string('description')->nullable();
 
             $table->unsignedInteger('qty')->default(1);
 
@@ -32,6 +33,8 @@ return new class extends Migration
             $table->boolean('use_process_forms')->default(false);
             $table->boolean('use_log_card')->default(false);
             $table->boolean('use_extra_forms')->default(false);
+
+            $table->timestamps();
         });
     }
 

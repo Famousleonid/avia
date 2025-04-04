@@ -78,13 +78,14 @@
 
                     <div class="form-group  d-flex">
                         <label for="i_component_id" class="form-label pe-2">Component</label>
+
                         <select name="component_id" id="i_component_id" class="form-control" style="width: 350px">
                             <option selected value="">---</option>
                             @foreach($components as $component)
                                 <option value="{{ $component->id }}"
-                                        data-has_assy_part_number="{{ $component->assy_part_number ? 'true' : 'false' }}"
-                                        data-title="{{$component->name}}">
-                                    {{$component->part_number}} ({{ $component->name }})
+                                        data-has_assy="{{ $component->assy_part_number ? 'true' : 'false' }}"
+                                        data-title="{{ $component->name }}">
+                                    {{ $component->part_number }} - {{ $component->name }} ({{ $component->ipl_num }})
                                 </option>
                             @endforeach
                         </select>
@@ -92,70 +93,70 @@
                                 data-bs-target="#addComponentModal">{{ __('Add Component') }}
                         </button>
                     </div>
-
-                    <div class="  ms-2 me-2"  >
-                        <div class="form-group ms-4 d-flex justify-content-between "  id="sns-group" style="display: block;">
-                            <div></div>
-                            <div class="">
-                                <label class="" for="serial_number">{{ __('Serial Number')}}</label>
-                                <input id='serial_number' type="text"
-                                       class="form-control " name="serial_number" >
+                    <div class="row">
+                        <div class="col">
+                            <!-- Code -->
+                            <div class=" form-group m-2">
+                                <label for="codes_id" class="form-label pe-2">Code Inspection</label>
+                                <select name="codes_id" id="codes_id" class="form-control" style="width: 300px">
+                                    <option  selected value="">---</option>
+                                    @foreach($codes as $code)
+                                        <option value="{{ $code->id }}" data-title="{{$code->name}}">
+                                            {{$code->name}}
+                                        </option>
+                                    @endforeach
+                                </select>
                             </div>
-                            <div class="" >
-                                <div class="" id="assy_serial_number_container" >
-                                    <label class="" for="assy_serial_number">{{__('Assy Serial Number')}}</label>
-                                    <input id='assy_serial_number' type="text"
-                                           class="form-control " name="assy_serial_number" >
+                            <!-- Necessaries -->
+                            <div class=" form-group m-2" id="necessary" style="display: none">
+                                <label for="necessaries_id" class="form-label pe-2">Necessary to Do</label>
+                                <select name="necessaries_id" id="necessaries_id" class="form-control"
+                                        style="width: 230px">
+                                    <option  selected value="">---</option>
+                                    @foreach($necessaries as $necessary)
+                                        <option value="{{ $necessary->id }}" data-title="{{$necessary->name}}">
+                                            {{$necessary->name}}
+                                        </option>
+                                    @endforeach
+                                </select>
+                            </div>
+                            <!-- QTY -->
+                            <div class="form-group m-2" id="qty" style="display: none">
+                                <label class="" for="qty">{{__('QTY')}}</label>
+                                <input id="qty" type="number" class="form-control" name="qty" value="1" style="width: 60px">
+                            </div>
+
+                            <div class="form-group m-2" id="conditions" style="display: none">
+                                <label for="c_conditions_id" class="form-label pe-2" >Conditions</label>
+                                <select name="conditions_id" id="c_conditions_id" class="form-control">
+                                    <option value=""  selected>---</option> <!-- Пустое значение по умолчанию -->
+                                    @foreach($component_conditions as $component_condition)
+                                        <option value="{{ $component_condition->id }}" data-title="{{ $component_condition->name }}">
+                                            {{ $component_condition->name }}
+                                        </option>
+                                    @endforeach
+                                </select>
+                            </div>
+                        </div>
+                        <div class="col">
+                            <div class="m-3"  >
+                                <div class="form-group ms-4  "  id="sns-group" style="display: none">
+                                    <div class="m-2">
+                                        <label class="" for="serial_number">{{ __('Serial Number')}}</label>
+                                        <input id='serial_number' type="text"
+                                               class="form-control " name="serial_number" >
+                                    </div>
+                                    <div class="m-2" >
+                                        <div class="" id="assy_serial_number_container" >
+                                            <label class="" for="assy_serial_number">{{__('Assy Serial Number')}}</label>
+                                            <input id='assy_serial_number' type="text"
+                                                   class="form-control " name="assy_serial_number" >
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
                         </div>
-                    </div>
-                    <div class="d-flex">
-                        <div class=" form-group m-2">
-                            <label for="codes_id" class="form-label pe-2">Code Inspection</label>
-                            <select name="codes_id" id="codes_id" class="form-control" style="width: 230px">
-                                <option  selected value="">---</option>
-                                @foreach($codes as $code)
-                                    <option
-                                        value="{{ $code->id }}"
-                                        data-title="{{$code->name}}">
-                                        {{$code->name}}
 
-                                    </option>
-                                @endforeach
-                            </select>
-                        </div>
-                        <div class="form-group m-2" id="qty" style="display: none">
-                            <label class="" for="qty">{{__('QTY')}}</label>
-                            <input id="qty" type="number" class="form-control" name="qty" value="1">
-                        </div>
-
-                        <div class=" form-group m-2" id="necessary">
-                            <label for="necessaries_id" class="form-label pe-2">Necessary to Do</label>
-                            <select name="necessaries_id" id="necessaries_id" class="form-control"
-                                    style="width: 230px">
-                                <option  selected value="">---</option>
-                                @foreach($necessaries as $necessary)
-                                    <option
-                                        value="{{ $necessary->id }}"
-                                        data-title="{{$necessary->name}}">
-                                        {{$necessary->name}}
-                                    </option>
-                                @endforeach
-                            </select>
-                        </div>
-                    </div>
-                    <div class="form-group m-2" id="conditions" style="visibility: hidden">
-                        <label for="c_conditions_id" class="form-label pe-2">Conditions</label>
-                        <select name="conditions_id" id="c_conditions_id" class="form-control"
-                                style="width: 278px">
-                            <option value=""  selected>---</option> <!-- Пустое значение по умолчанию -->
-                            @foreach($component_conditions as $component_condition)
-                                <option value="{{ $component_condition->id }}" data-title="{{ $component_condition->name }}">
-                                    {{ $component_condition->name }}
-                                </option>
-                            @endforeach
-                        </select>
                     </div>
 
                     <div class="text-end">
@@ -169,9 +170,7 @@
     </div>
 
     <!-- Модальные окна -->
-{{--    @include('admin.tdrs.partials.component-modal')--}}
-
-    <!-- Modal - Add component -->
+               <!-- Modal - Add component -->
     <div class="modal fade" id="addComponentModal" tabindex="-1" aria-labelledby="addComponentModalLabel"
          aria-hidden="true">
         <div class="modal-dialog">
@@ -242,42 +241,81 @@
 
 
 
-
-
-
 @endsection
 @section('scripts')
     <script>
-        // Получить элемент select
-        const selectElement = document.getElementById('i_component_id');
-
-
-        // Слушатель изменения значения
-        selectElement.addEventListener('change', function() {
-            const selectedValue = this.value;
-            console.log('Selected component_id:', selectedValue);
-
-            // Если нужно получить data-атрибуты выбранного option
-            const selectedOption = this.options[this.selectedIndex];
-            const hasAssyPartNumber = selectedOption.getAttribute('data-has_assy_part_number');
-            const title = selectedOption.getAttribute('data-title');
-
-            console.log('Has assy part number:', hasAssyPartNumber);
-            console.log('Title:', title);
-        });
-
-
-
-        // --------------------------------- Select 2 --------------------------------------------------------
-
         $(document).ready(function () {
-            $('#i_component_id').select2({
+            // Инициализация Select2
+            $('#i_component_id, #codes_id, #necessaries_id, #c_conditions_id').select2({
                 placeholder: '---',
-
                 theme: 'bootstrap-5',
                 allowClear: true
             });
+
             applyTheme();
+
+            // Функция скрытия всех дополнительных групп
+            function hideAllGroups() {
+                $('#necessary').hide();
+                $('#qty').hide();
+                $('#sns-group').hide();
+                $('#conditions').hide(); // Условия всегда скрыты
+            }
+
+            // Основная функция обновления видимости полей
+            function updateFieldVisibility() {
+                const selectedCode = $('#codes_id').find('option:selected');
+                const codeName = selectedCode.data('title');
+                const selectedNecessary = $('#necessaries_id').find('option:selected');
+                const necessaryName = selectedNecessary.data('title');
+                const selectedComponent = $('#i_component_id').find('option:selected');
+                const hasAssy = selectedComponent.data('has_assy') === true;
+
+                // Ничего не показываем до выбора кода
+                if (!codeName) {
+                    hideAllGroups();
+                    return;
+                }
+
+                // 1. Поле количества (qty)
+                $('#qty').toggle(codeName === "Missing" || necessaryName === "Order New");
+
+                // 2. Группа необходимых действий (necessary)
+                $('#necessary').toggle(codeName && codeName !== "Missing");
+
+                // 3. Группа серийных номеров (sns-group)
+                if (codeName && codeName !== "Missing" && necessaryName && necessaryName !== "Order New") {
+                    $('#sns-group').show();
+
+                    if (hasAssy) {
+                        $('#serial_number').parent().show();
+                        $('#assy_serial_number').parent().show();
+                    } else {
+                        $('#serial_number').parent().show();
+                        $('#assy_serial_number').parent().hide();
+                    }
+                } else {
+                    $('#sns-group').hide();
+                }
+            }
+
+            // Обработчики изменений
+            $('#i_component_id').on('change', function() {
+                // При изменении компонента только сбрасываем другие поля
+                $('#codes_id').val(null).trigger('change');
+                $('#necessaries_id').val(null).trigger('change');
+                hideAllGroups();
+            });
+
+            $('#codes_id').on('change', function() {
+                updateFieldVisibility();
+                $('#necessaries_id').val(null).trigger('change');
+            });
+
+            $('#necessaries_id').on('change', updateFieldVisibility);
+
+            // Инициализация при загрузке - скрываем все группы кроме основных
+            hideAllGroups();
         });
 
         function applyTheme() {
@@ -292,5 +330,4 @@
             }
         }
     </script>
-
 @endsection
