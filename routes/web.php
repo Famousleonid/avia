@@ -106,13 +106,11 @@ Route::group(['middleware' => ['auth', 'isAdmin'], 'prefix' => 'admin', 'as' =>'
     Route::get('tdrs/ndtForm/{id}', [\App\Http\Controllers\Admin\TdrController::class, 'ndtForm'])->name('tdrs.ndtForm');
 
     // Для component inspection
-//    Route::get('tdrs/{workorder_id}/component-inspection/{type}', [TdrController::class, 'inspection_new'])
-//        ->name('tdrs.component-inspection');
+
     Route::get('admin/tdrs/inspection/unit/{workorder_id}', [TdrController::class, 'inspectionUnit'])->name('tdrs.inspection.unit');
 
     // Для unit inspection
-//    Route::get('tdrs/{workorder_id}/unit-inspection/{type}', [TdrController::class, 'inspection_new'])
-//        ->name('tdrs.unit-inspection');
+
     Route::get('admin/tdrs/inspection/component/{workorder_id}', [TdrController::class, 'inspectionComponent'])->name('tdrs.inspection.component');
 
 

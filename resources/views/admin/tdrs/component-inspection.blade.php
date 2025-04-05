@@ -319,75 +319,76 @@
         });
 
         $('#createForm').on('submit', function(e) {
-            var codeName = $('#codes_id option:selected').data('title') || '';
-            var necessaryName = $('#necessaries_id option:selected').data('title') || '';
+            // Удаляем все поля с именами use_tdr и use_process_forms, чтобы избежать дублирования
+            $('#createForm').find('input[name="use_tdr"]').remove();
+            $('#createForm').find('input[name="use_process_forms"]').remove();
 
-            // Нормализуем значения: убираем пробелы и приводим к нижнему регистру
+            // Получаем значения data-title выбранных опций через attr()
+            var codeName = $('#codes_id option:selected').attr('data-title') || '';
+            var necessaryName = $('#necessaries_id option:selected').attr('data-title') || '';
+
+            // Приводим значения к нижнему регистру и убираем лишние пробелы
             codeName = codeName.toString().trim().toLowerCase();
             necessaryName = necessaryName.toString().trim().toLowerCase();
 
             console.log("codeName:", codeName, "necessaryName:", necessaryName);
 
-            if (codeName === 'missing') {
-                // Если Code Inspection = "Missing"
-
-                console.log('missing')
-
-                if (!$('input[name="use_tdr"]').length) {
+            // Функция для установки значения поля (создает новое, если поле отсутствует)
+            function setHiddenInput(name, value) {
+                var $input = $('#createForm').find('input[name="' + name + '"]');
+                if ($input.length) {
+                    $input.val(value);
+                } else {
                     $('<input>').attr({
                         type: 'hidden',
-                        name: 'use_tdr',
-                        value: '0'
-                    }).appendTo('#createForm');
-                }
-                if (!$('input[name="use_process_forms"]').length) {
-                    $('<input>').attr({
-                        type: 'hidden',
-                        name: 'use_process_forms',
-                        value: '0'
-                    }).appendTo('#createForm');
-                }
-                if (!$('input[name="necessaries_id"]').length) {
-                    $('<input>').attr({
-                        type: 'hidden',
-                        name: 'necessaries_id',
-                        value: '2'
-                    }).appendTo('#createForm');
-                }
-            } else if (codeName !== 'Missing' && necessaryName === 'Order New') {
-                // Если Code Inspection ≠ "Missing" и Necessary to Do = "Order New"
-                if (!$('input[name="use_tdr"]').length) {
-                    $('<input>').attr({
-                        type: 'hidden',
-                        name: 'use_tdr',
-                        value: '1'
-                    }).appendTo('#createForm');
-                }
-                if (!$('input[name="use_process_forms"]').length) {
-                    $('<input>').attr({
-                        type: 'hidden',
-                        name: 'use_process_forms',
-                        value: '0'
-                    }).appendTo('#createForm');
-                }
-            } else if (codeName !== 'Missing' && necessaryName !== 'Order New') {
-                // Если Code Inspection ≠ "Missing" и Necessary to Do ≠ "Order New"
-                if (!$('input[name="use_tdr"]').length) {
-                    $('<input>').attr({
-                        type: 'hidden',
-                        name: 'use_tdr',
-                        value: '1'
-                    }).appendTo('#createForm');
-                }
-                if (!$('input[name="use_process_forms"]').length) {
-                    $('<input>').attr({
-                        type: 'hidden',
-                        name: 'use_process_forms',
-                        value: '1'
+                        name: name,
+                        value: value
                     }).appendTo('#createForm');
                 }
             }
+
+            if (codeName === 'missing') {
+                console.log('Исполнение ветки: missing');
+                // Если Code Inspection = "Missing"
+                setHiddenInput('use_tdr', '0');
+                setHiddenInput('use_process_forms', '0');
+                setHiddenInput('necessaries_id', '2');
+                setHiddenInput('conditions_id', '1');
+
+            } else if (codeName !== 'missing' && necessaryName === 'order new') {
+                console.log('Исполнение ветки: order new');
+                setHiddenInput('use_tdr', '1');
+                setHiddenInput('use_process_forms', '0');
+
+                // Ищем в селекте условий (с id="c_conditions_id") option,
+                // у которого data-title совпадает с codeName (с приведением к нижнему регистру)
+                var conditionId = null;
+                $('#c_conditions_id option').each(function() {
+                    var condName = $(this).attr('data-title');
+                    if (condName && condName.toString().trim().toLowerCase() === codeName) {
+                        conditionId = $(this).val();
+                        return false; // прерываем цикл, как только нашли
+                    }
+                });
+
+                // Если нашли подходящее условие, устанавливаем его id
+                if (conditionId) {
+                    setHiddenInput('conditions_id', conditionId);
+                } else {
+                    console.log("Не найдено условие с data-title равным " + codeName);
+                }
+            }
+            else if (codeName !== 'missing' && necessaryName !== 'order new') {
+                console.log('Исполнение ветки: other');
+                setHiddenInput('use_tdr', '1');
+                setHiddenInput('use_process_forms', '1');
+            }
         });
+
+
+
+
+
 
 
 

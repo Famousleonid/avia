@@ -71,7 +71,7 @@
                                        value="{{ old ('unit_name_training', $cmm->unit_name_training) }}" required>
                             </div>
                             <div class="mt-2">
-                                <label for="training_hours">{{ __('Unit First Training') }}</label>
+                                <label for="training_hours">{{ __('Unit First Training Hours') }}</label>
                                 <input id='training_hours' type="text"
                                        class="form-control"
                                        name="training_hours"

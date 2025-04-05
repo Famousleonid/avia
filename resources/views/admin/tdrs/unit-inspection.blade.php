@@ -78,7 +78,8 @@
                     <input type="hidden" name="assy_serial_number" value="null">
                     <input type="hidden" name="codes_id" value="">
                     <input type="hidden" name="necessaries_id" value=" ">
-                    <input type="hidden" name="use_tdr" value="true">
+                    <input type="hidden" name="use_tdr" value="1">
+                    <input type="hidden" name="use_process_forms" value="0">
 
                     <!-- Поля, специфичные для Unit Inspection -->
                     <div class="form-group m-2">
