@@ -184,6 +184,7 @@
 
                     <div class="modal-body">
                         <input type="hidden" name="manual_id" value="{{$current_wo->unit->manual_id}}">
+                        <input type="hidden" name="current_wo" value="{{$current_wo->id}}">
                         <div class="form-group">
                             <label for="name">{{ __('Name') }}</label>
                             <input id='name' type="text" class="form-control" name="name" required>

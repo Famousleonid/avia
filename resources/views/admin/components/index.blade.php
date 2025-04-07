@@ -43,6 +43,7 @@
             top: -1px;
             vertical-align: middle;
             border-top: 1px;
+
             z-index: 1020;
         }
 
@@ -110,8 +111,9 @@
         </div>
 
         @if(count($components))
-            <div class="table-wrapper me-3 p-2 pt-0">
-                <table id="componentTable" class="display table table-sm table-hover table-striped align-middle table-bordered">
+            <div class="table-wrapper me-3 p-2 pt-0 ">
+                <table id="componentTable" class="display table table-sm table-hover bg-gradient table-striped
+                align-middle table-bordered">
                 <thead class="bg-gradient">
                 <tr>
                     <th class="text-center  sortable">{{__('Manual')}} <i class="bi bi-chevron-expand ms-1"></i></th>
@@ -145,11 +147,20 @@
                                     </a>
                                 </td>
                                 <td class="text-center">
-                                    <a href="{{ route('admin.components.edit',
-                                    ['component' => $component->id]) }}" class="btn
-                                    btn-outline-primary btn-sm">
+                                    <a href="{{ route('admin.components.edit',['component' => $component->id]) }}"
+                                       class="btn btn-outline-primary btn-sm">
                                         <i class="bi bi-pencil-square"></i>
                                     </a>
+
+
+{{--                                    <form action="{{ route('admin.components.destroy', $component->id) }}" method="POST" style="display:inline-block;">--}}
+{{--                                        @csrf--}}
+{{--                                        @method('DELETE')--}}
+{{--                                        <button type="submit" class="btn btn-outline-danger btn-sm" onclick="return confirm('Вы уверены, что хотите удалить этот компонент?');">--}}
+{{--                                            <i class="bi bi-trash"></i>--}}
+{{--                                        </button>--}}
+{{--                                    </form>--}}
+
 
                                 </td>
 

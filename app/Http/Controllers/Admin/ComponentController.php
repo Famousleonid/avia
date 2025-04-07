@@ -78,7 +78,9 @@ class ComponentController extends Controller
 
     public function storeFromInspection(Request $request)
     {
-
+//            dd($request);
+            $current_wo = $request->current_wo;
+//                dd($current_wo);
         try {
             // Валидация данных
             $validated = $request->validate([
@@ -86,8 +88,8 @@ class ComponentController extends Controller
                 'manual_id' => 'required|exists:manuals,id',
                 'part_number' => 'required|string|max:50',
                 'ipl_num' => 'nullable|string|max:10',
-                'img' => 'nullable|image|mimes:jpeg,png,jpg,gif,svg|max:2048',
-                'assy_img' => 'nullable|image|mimes:jpeg,png,jpg,gif,svg|max:2048',
+//                'img' => 'nullable|image|mimes:jpeg,png,jpg,gif,svg|max:2048',
+//                'assy_img' => 'nullable|image|mimes:jpeg,png,jpg,gif,svg|max:2048',
             ]);
 
             $validated['assy_ipl_num'] = $request->assy_ipl_num;
@@ -107,10 +109,12 @@ class ComponentController extends Controller
             }
 
             // Возвращаем успешный ответ с данными компонента
-            return response()->json([
-                'success' => true,
-                'component' => $component
-            ]);
+//            return response()->json([
+//                'success' => true,
+//                'component' => $component
+//            ]);
+            return redirect()->route('admin.tdrs.inspection.component',['workorder_id' => $current_wo])->with('success', 'Component created successfully.');
+
         } catch (\Exception $e) {
             // Логирование ошибки
             \Log::error('Error creating component: ' . $e->getMessage());
@@ -206,10 +210,15 @@ class ComponentController extends Controller
      * Remove the specified resource from storage.
      *
      * @param  int  $id
-     * @return \Illuminate\Http\Response
+     * @return \Illuminate\Http\RedirectResponse
      */
     public function destroy($id)
     {
-        //
+        $component = Component::findOrFail($id);
+        $component->delete();
+
+        return redirect()->route('admin.components.index')
+            ->with('success', 'Компонент успешно удален.');
     }
+
 }
