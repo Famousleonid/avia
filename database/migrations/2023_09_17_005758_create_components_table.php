@@ -19,6 +19,7 @@ return new class extends Migration {
 
             $table->foreignId('manual_id')->nullable()->constrained()->onDelete('set null');
             $table->timestamps();
+            $table->softDeletes();
         });
 
 //        $dataComponent = [

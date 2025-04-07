@@ -153,13 +153,13 @@
                                     </a>
 
 
-{{--                                    <form action="{{ route('admin.components.destroy', $component->id) }}" method="POST" style="display:inline-block;">--}}
-{{--                                        @csrf--}}
-{{--                                        @method('DELETE')--}}
-{{--                                        <button type="submit" class="btn btn-outline-danger btn-sm" onclick="return confirm('Вы уверены, что хотите удалить этот компонент?');">--}}
-{{--                                            <i class="bi bi-trash"></i>--}}
-{{--                                        </button>--}}
-{{--                                    </form>--}}
+                                    <form action="{{ route('admin.components.destroy', $component->id) }}" method="POST" style="display:inline-block;">
+                                        @csrf
+                                        @method('DELETE')
+                                        <button type="submit" class="btn btn-outline-danger btn-sm" onclick="return confirm('Вы уверены, что хотите удалить этот компонент?');">
+                                            <i class="bi bi-trash"></i>
+                                        </button>
+                                    </form>
 
 
                                 </td>

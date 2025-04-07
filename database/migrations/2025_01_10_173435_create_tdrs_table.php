@@ -35,6 +35,7 @@ return new class extends Migration
             $table->boolean('use_extra_forms')->default(false);
 
             $table->timestamps();
+            $table->softDeletes();
         });
     }
 

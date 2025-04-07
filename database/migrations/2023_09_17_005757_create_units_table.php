@@ -20,6 +20,8 @@ return new class extends Migration
             $table->boolean('verified')->default(false);
             $table->foreignId('manual_id')->nullable()->constrained()->onDelete('set null');
             $table->timestamps();
+            $table->softDeletes();
+
         });
 
 //        $csvFile = public_path('data/units.csv');
