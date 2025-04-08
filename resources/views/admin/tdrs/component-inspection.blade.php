@@ -119,6 +119,11 @@
                                         </option>
                                     @endforeach
                                 </select>
+                                <div class="m-2">
+                                    <label class="" for="description">{{ __('Notes ')}}</label>
+                                    <input id='description' type="text"
+                                           class="form-control " name="description" >
+                                </div>
                             </div>
                             <!-- QTY -->
                             <div class="form-group m-2" id="qty" style="display: none">
