@@ -120,7 +120,7 @@
                                     @endforeach
                                 </select>
                                 <div class="m-2">
-                                    <label class="" for="description">{{ __('Notes ')}}</label>
+                                    <label class="" for="description">{{ __('Description ')}}</label>
                                     <input id='description' type="text"
                                            class="form-control " name="description" >
                                 </div>

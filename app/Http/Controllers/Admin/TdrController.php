@@ -231,6 +231,7 @@ class TdrController extends Controller
             'necessaries_id' => 'nullable|exists:necessaries,id',
             'codes_id' => 'nullable|exists:codes,id', // Валидация для  codes_id
             'qty' => 'nullable|integer',
+            'description' => 'nullable|string',
         ]);
 //dd($validated);
         // Установка значений по умолчанию для флагов
@@ -257,6 +258,7 @@ class TdrController extends Controller
 //             codes_id
             'conditions_id' => $validated['conditions_id'],
             'necessaries_id' => $validated['necessaries_id'],
+            'description' =>$validated['description'],
             'qty' => $qty,
             'use_tdr' => $use_tdr,
             'use_process_forms' => $use_process_forms,
@@ -824,17 +826,21 @@ class TdrController extends Controller
                 $component = $tdr->component; // Получаем данные о компоненте
                 $necessaries = $tdr->necessaries; // Получаем данные о необходимости
                 $codes = $tdr->codes; // Получаем данные о кодах
+                $description = $tdr->description; // Description
                 if ($component && $necessaries && $codes) {
                     // Строим строку в нужном формате
                     $necessaryComponents[] = sprintf(
-                        "(%s) <b>%s</b> IS NECESSARY: %s - %s", // Формат вывода
+                        "(%s) <b>%s</b> IS NECESSARY: %s - %s ( %s )", // Формат вывода
                         strtoupper($component->ipl_num), // Номер компонента
                         strtoupper($component->name), // Имя компонента
                         strtoupper($necessaries->name), // Название необходимости
-                        strtoupper($codes->name) // Название кода
+                        strtoupper($codes->name), // Название кода
+                        strtoupper($description), // Название кода
+
                     );
                 }
             }
+
         }
 
 // Объединяем все строки в правильном порядке
