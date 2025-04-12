@@ -83,17 +83,28 @@
                             <h5 class="modal-title" id="addProcessNameModalLabel">{{ __('Add Process Name') }}</h5>
                             <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Закрыть"></button>
                         </div>
+                        <form action="{{ route('admin.process-names.store') }}" method="POST" id="addProcessName">
+                            @csrf
                         <div class="modal-body">
+                            <input type="hidden" name="manual_id" value="{{ $manual->first()->id }}">
+
                             <!-- Форма для добавления нового названия процесса -->
-                            <form id="addProcessNameForm">
                                 <div class="form-group">
-                                    <label for="newProcessName">{{ __('Process name') }}</label>
-                                    <input type="text" class="form-control" id="newProcessName" name="newProcessName" required>
+                                    <label for="name">{{ __('Process name') }}</label>
+                                    <input type="text" class="form-control" id="name" name="name" required>
                                 </div>
-                            </form>
+                                <div class="form-group">
+                                    <label for="process_sheet_name">{{ __('Process Sheet Name') }}</label>
+                                    <input type="text" class="form-control" id="process_sheet_name" name="process_sheet_name" required>
+                                </div>
+                                <div class="form-group">
+                                    <label for="form_number">{{ __('Form Number') }}</label>
+                                    <input type="text" class="form-control" id="form_number" name="form_number" required>
+                                </div>
+
                         </div>
                         <div class="modal-footer ">
-                            <button type="button" class="btn btn-outline-primary " id="saveProcessName">
+                            <button type="submit" class="btn btn-outline-primary " >
                                 {{ __('Save') }}
                             </button>
 
@@ -102,6 +113,7 @@
                             </button>
 
                         </div>
+                        </form>
                     </div>
                 </div>
             </div>

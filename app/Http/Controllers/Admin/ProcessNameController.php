@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Models\ProcessName;
 use Illuminate\Http\Request;
 
 class ProcessNameController extends Controller
@@ -31,12 +32,28 @@ class ProcessNameController extends Controller
      * Store a newly created resource in storage.
      *
      * @param  \Illuminate\Http\Request  $request
-     * @return \Illuminate\Http\Response
+     * @return \Illuminate\Http\RedirectResponse
      */
     public function store(Request $request)
     {
-        //
+//        dd($request->all());
+
+        $validateData = $request->validate([
+            'name'=>'required|string|max:255',
+            'process_sheet_name'=>'required|string|max:255',
+            'form_number'=>'required|string|max:255',
+        ]);
+
+        $manual_id = $request->manual_id;
+        ProcessName::create([
+            'name'=>$request->name,
+            'process_sheet_name'=>$request->process_sheet_name,
+            'form_number'=>$request->form_number,
+            ]);
+        return redirect()->route('admin.processes.create', ['manual_id' => $manual_id]);
+
     }
+
 
     /**
      * Display the specified resource.
