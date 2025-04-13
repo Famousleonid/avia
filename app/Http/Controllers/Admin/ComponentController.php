@@ -53,15 +53,19 @@ class ComponentController extends Controller
             'manual_id' => 'required|exists:manuals,id',
             'part_number' =>'required|string|max:50',
             'ipl_num' =>'string|max:10',
-
+//
         ]);
 
         $validated['assy_part_number'] = $request->assy_part_number;
         $validated['assy_ipl_num'] = $request->assy_ipl_num;
 
+        $validated['log_card'] = $request->has('log_card') ? 1 : 0;
 //dd($validated);
-        $component = Component::create($validated);
 
+
+//        $request->merge(['log_card' => $request->has('log_card') ? 1 : 0]);
+
+        $component = Component::create($validated);
 
         if ($request->hasFile('img')) {
             $component->addMedia($request->file('img'))->toMediaCollection('component');
@@ -94,7 +98,7 @@ class ComponentController extends Controller
 
             $validated['assy_ipl_num'] = $request->assy_ipl_num;
             $validated['assy_part_number'] = $request->assy_part_number;
-
+            $validated['log_card'] = $request->has('log_card') ? 1 : 0;
 
             // Создание нового компонента
             $component = Component::create($validated);

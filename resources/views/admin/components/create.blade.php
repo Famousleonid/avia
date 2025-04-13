@@ -139,12 +139,22 @@
                         </div>
 
                     </div>
-                    <div class="text-end">
-                        <button type="submit" class="btn btn-outline-primary
+                    <div class="justify-content-between d-flex">
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox"  id="log_card" name="log_card">
+                            <label class="form-check-label" for="log_card">
+                                Log Card
+                            </label>
+                        </div>
+                        <div class="text-end">
+
+                            <button type="submit" class="btn btn-outline-primary
                         mt-3 ">{{ __('Save') }}</button>
-                        <a href="{{ route('admin.components.index') }}"
-                           class="btn btn-outline-secondary mt-3">{{ __('Cancel') }} </a>
+                            <a href="{{ route('admin.components.index') }}"
+                               class="btn btn-outline-secondary mt-3">{{ __('Cancel') }} </a>
+                        </div>
                     </div>
+
                 </form>
             </div>
         </div>

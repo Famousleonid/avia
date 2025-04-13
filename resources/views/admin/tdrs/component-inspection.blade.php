@@ -235,7 +235,19 @@
                                 </div>
                             </div>
                         </div>
-                        <button type="submit" class="btn btn-primary">Save Component</button>
+                        <div class="d-flex justify-content-between">
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox"  id="log_card" name="log_card">
+                                <label class="form-check-label" for="log_card">
+                                    Log Card
+                                </label>
+                            </div>
+                            <div class="text-end">
+                                <button type="submit" class="btn btn-primary">Save Component</button>
+                            </div>
+
+
+                        </div>
                     </div>
                 </form>
             </div>
