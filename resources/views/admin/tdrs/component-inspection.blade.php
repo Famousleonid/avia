@@ -363,10 +363,11 @@
                         value: value
                     }).appendTo('#createForm');
                 }
+
             }
 
             if (codeName === 'missing') {
-                console.log('Исполнение ветки: missing');
+                // console.log('Исполнение ветки: missing');
                 // Если Code Inspection = "Missing"
                 setHiddenInput('use_tdr', '0');
                 setHiddenInput('use_process_forms', '0');
@@ -374,27 +375,93 @@
                 setHiddenInput('conditions_id', '1');
 
             } else if (codeName !== 'missing' && necessaryName === 'order new') {
-                console.log('Исполнение ветки: order new');
+                var debugLogs = [];
+
+                // Вывод всех доступных опций для отладки
+                debugLogs.push('Все доступные опции в select:');
+                var options = $('#c_conditions_id option');
+                debugLogs.push('Количество опций: ' + options.length);
+
+                options.each(function(index) {
+                    var condName = $(this).attr('data-title');
+                    var condValue = $(this).val();
+                    var optionText = $(this).text();
+                    // debugLogs.push('Опция #' + (index + 1) + ':');
+                    // debugLogs.push('  - Значение: ' + condValue);
+                    // debugLogs.push('  - Название: ' + condName);
+                    // debugLogs.push('  - Текст: ' + optionText);
+                });
+
+                // Сохраняем логи
+                var timestamp = new Date().getTime();
+                // localStorage.setItem('debugLogs_' + timestamp, JSON.stringify(debugLogs));
+
+                // Остальной код остается без изменений
                 setHiddenInput('use_tdr', '1');
                 setHiddenInput('use_process_forms', '0');
 
-                // Ищем в селекте условий (с id="c_conditions_id") option,
-                // у которого data-title совпадает с codeName (с приведением к нижнему регистру)
                 var conditionId = null;
+
+                // Нормализация codeName для сравнения
+                var normalizedCodeName = codeName.toString().trim().toLowerCase();
+                debugLogs.push('Нормализованный codeName: ' + normalizedCodeName + ' Длина: ' + normalizedCodeName.length);
+
+                // Проверка структуры select
+                debugLogs.push('Структура select c_conditions_id:');
+                debugLogs.push($('#c_conditions_id').html());
+
+                // Вывод всех доступных опций для отладки
+                debugLogs.push('Все доступные опции в select:');
                 $('#c_conditions_id option').each(function() {
                     var condName = $(this).attr('data-title');
-                    if (condName && condName.toString().trim().toLowerCase() === codeName) {
-                        conditionId = $(this).val();
-                        return false; // прерываем цикл, как только нашли
+                    var condValue = $(this).val();
+                    var optionText = $(this).text();
+                    // debugLogs.push('Опция: ' + JSON.stringify({
+                    //     значение: condValue,
+                    //     название: condName,
+                    //     текст: optionText,
+                    //     нормализованноеНазвание: condName ? condName.toString().trim().toLowerCase() : null,
+                    //     длинаНазвания: condName ? condName.length : 0
+                    // }));
+                });
+
+                $('#c_conditions_id option').each(function() {
+                    var condName = $(this).attr('data-title');
+                    var condValue = $(this).val();
+
+                    // Нормализация condName для сравнения
+                    var normalizedCondName = condName ? condName.toString().trim().toLowerCase() : null;
+
+                    // debugLogs.push('Сравнение: ' + JSON.stringify({
+                    //     codeName: normalizedCodeName,
+                    //     condName: normalizedCondName,
+                    //     совпадают: normalizedCondName === normalizedCodeName,
+                    //     codeNameТип: typeof normalizedCodeName,
+                    //     condNameТип: typeof normalizedCondName
+                    // }));
+
+                    if (normalizedCondName && normalizedCondName === normalizedCodeName) {
+                        conditionId = condValue;
+                        // debugLogs.push('Найдено точное соответствие: ' + JSON.stringify({
+                        //     id: conditionId,
+                        //     название: condName,
+                        //     нормализованноеНазвание: normalizedCondName
+                        // }));
+                        return false;
                     }
                 });
 
-                // Если нашли подходящее условие, устанавливаем его id
                 if (conditionId) {
                     setHiddenInput('conditions_id', conditionId);
+                    debugLogs.push('Установлен conditions_id: ' + conditionId);
                 } else {
-                    console.log("Не найдено условие с data-title равным " + codeName);
+                    debugLogs.push("Не найдено точное соответствие для codeName: " + normalizedCodeName);
+                    debugLogs.push("Проверьте значения в логах");
+                    setHiddenInput('conditions_id', '39');
                 }
+
+                // Сохраняем логи в localStorage
+                localStorage.setItem('debugLogs', JSON.stringify(debugLogs));
             }
             else if (codeName !== 'missing' && necessaryName !== 'order new') {
                 console.log('Исполнение ветки: other');
@@ -402,13 +469,6 @@
                 setHiddenInput('use_process_forms', '1');
             }
         });
-
-
-
-
-
-
-
 
 
 
@@ -424,4 +484,18 @@
             }
         }
     </script>
+{{--    <script>--}}
+{{--        // Выводим сохраненные логи при загрузке страницы--}}
+{{--        $(document).ready(function() {--}}
+{{--            var savedLogs = localStorage.getItem('debugLogs');--}}
+{{--            if (savedLogs) {--}}
+{{--                console.log('Сохраненные логи отладки:');--}}
+{{--                JSON.parse(savedLogs).forEach(function(log) {--}}
+{{--                    console.log(log);--}}
+{{--                });--}}
+{{--                // Очищаем логи после вывода--}}
+{{--                localStorage.removeItem('debugLogs');--}}
+{{--            }--}}
+{{--        });--}}
+{{--    </script>--}}
 @endsection

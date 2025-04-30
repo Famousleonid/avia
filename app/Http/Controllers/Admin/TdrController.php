@@ -130,26 +130,16 @@ class TdrController extends Controller
             ->select('id', 'part_number', 'assy_part_number', 'name', 'ipl_num')
             ->get();
 
-        // Получение уже введённых условий для этого workorder
-        $existing_condition_ids = Tdr::where('workorder_id', $workorder_id)
-            ->pluck('conditions_id')
-            ->filter()
-            ->unique()
-            ->toArray();
-
-        // Условия для Component
-        $component_conditions = Condition::where('unit', false)
-            ->whereNotIn('id', $existing_condition_ids)
-            ->get();
+        // Условия для Component - без фильтрации
+        $component_conditions = Condition::where('unit', false)->get();
 
         // Получаем компоненты, коды, necessaries и т.п.
         $components = Component::where('manual_id', $manual_id)->get();
         $codes = Code::all();
         $necessaries = Necessary::all();
-        // Другие данные...
 
         return view('admin.tdrs.component-inspection', compact('current_wo', 'component_conditions',
-            'components', 'codes', 'necessaries' /*, ...*/));
+            'components', 'codes', 'necessaries'));
     }
 
     public function inspection_new($workorder_id, $type)
@@ -293,7 +283,7 @@ class TdrController extends Controller
                 ]);
             }
         }
-            // Второе условие: если codes_id не равно $code->id и necessaries_id равно $necessary->id
+        // Второе условие: если codes_id не равно $code->id и necessaries_id равно $necessary->id
         if ($validated['codes_id'] != $code->id && $validated['necessaries_id'] == $necessary->id) {
             $workorder = Workorder::find($request->workorder_id);
 
@@ -930,7 +920,7 @@ class TdrController extends Controller
             }
         }
 
-            // Найти код с именем 'Missing'
+        // Найти код с именем 'Missing'
         $code = Code::where('name', 'Missing')->first();
         Log::info('Найден код с именем "Missing": ' . ($code ? 'Да' : 'Нет'));
 

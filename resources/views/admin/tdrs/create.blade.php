@@ -152,3 +152,217 @@
 
     </div>
 @endsection
+
+<script>
+    // Выводим сохраненные логи при загрузке страницы
+    $(document).ready(function() {
+        var savedLogs = localStorage.getItem('debugLogs');
+        if (savedLogs) {
+            console.log('Сохраненные логи отладки:');
+            JSON.parse(savedLogs).forEach(function(log) {
+                console.log(log);
+            });
+            // Очищаем логи после вывода
+            localStorage.removeItem('debugLogs');
+        }
+    });
+
+    function setHiddenInput(name, value) {
+        var input = document.createElement('input');
+        input.type = 'hidden';
+        input.name = name;
+        input.value = value;
+        document.getElementById('createForm').appendChild(input);
+    }
+
+    function handleOrderNew() {
+        var codeName = $('#manual_id').val();
+        var necessaryName = 'order new';
+
+        if (codeName === null || codeName === '') {
+            // Сохраняем начальные данные
+            var debugLogs = [];
+            debugLogs.push('Выполнение ветки: order new');
+            debugLogs.push('Начальный codeName: ' + codeName + ' Тип: ' + typeof codeName);
+
+            setHiddenInput('use_tdr', '1');
+            setHiddenInput('use_process_forms', '0');
+
+            var conditionId = null;
+
+            // Нормализация codeName для сравнения
+            var normalizedCodeName = codeName.toString().trim().toLowerCase();
+            debugLogs.push('Нормализованный codeName: ' + normalizedCodeName + ' Длина: ' + normalizedCodeName.length);
+
+            // Проверка структуры select
+            debugLogs.push('Структура select c_conditions_id:');
+            debugLogs.push($('#c_conditions_id').html());
+
+            // Вывод всех доступных опций для отладки
+            debugLogs.push('Все доступные опции в select:');
+            var options = $('#c_conditions_id option');
+            debugLogs.push('Количество опций: ' + options.length);
+            
+            options.each(function(index) {
+                var condName = $(this).attr('data-title');
+                var condValue = $(this).val();
+                var optionText = $(this).text();
+                debugLogs.push('Опция #' + (index + 1) + ':');
+                debugLogs.push('  - Значение: ' + condValue);
+                debugLogs.push('  - Название: ' + condName);
+                debugLogs.push('  - Текст: ' + optionText);
+                debugLogs.push('  - Нормализованное название: ' + (condName ? condName.toString().trim().toLowerCase() : 'null'));
+            });
+
+            $('#c_conditions_id option').each(function() {
+                var condName = $(this).attr('data-title');
+                var condValue = $(this).val();
+                
+                // Нормализация condName для сравнения
+                var normalizedCondName = condName ? condName.toString().trim().toLowerCase() : null;
+                
+                debugLogs.push('Сравнение: ' + JSON.stringify({
+                    codeName: normalizedCodeName,
+                    condName: normalizedCondName,
+                    совпадают: normalizedCondName === normalizedCodeName,
+                    codeNameТип: typeof normalizedCodeName,
+                    condNameТип: typeof normalizedCondName
+                }));
+
+                if (normalizedCondName && normalizedCondName === normalizedCodeName) {
+                    conditionId = condValue;
+                    debugLogs.push('Найдено точное соответствие: ' + JSON.stringify({
+                        id: conditionId,
+                        название: condName,
+                        нормализованноеНазвание: normalizedCondName
+                    }));
+                    return false;
+                }
+            });
+
+            if (conditionId) {
+                setHiddenInput('conditions_id', conditionId);
+                debugLogs.push('Установлен conditions_id: ' + conditionId);
+            } else {
+                debugLogs.push("Не найдено точное соответствие для codeName: " + normalizedCodeName);
+                debugLogs.push("Проверьте значения в логах");
+                setHiddenInput('conditions_id', '1');
+            }
+
+            // Сохраняем логи в localStorage с уникальным ключом
+            var timestamp = new Date().getTime();
+            localStorage.setItem('debugLogs_' + timestamp, JSON.stringify(debugLogs));
+            
+            // Добавляем кнопку для просмотра логов
+            if (!$('#viewLogsBtn').length) {
+                $('body').append('<button id="viewLogsBtn" style="position: fixed; top: 10px; right: 10px; z-index: 9999;">Показать логи</button>');
+                $('#viewLogsBtn').click(function() {
+                    var allLogs = [];
+                    for (var i = 0; i < localStorage.length; i++) {
+                        var key = localStorage.key(i);
+                        if (key.startsWith('debugLogs_')) {
+                            var logs = JSON.parse(localStorage.getItem(key));
+                            allLogs = allLogs.concat(logs);
+                        }
+                    }
+                    console.log('Все сохраненные логи:');
+                    allLogs.forEach(function(log) {
+                        console.log(log);
+                    });
+                });
+            }
+        } else if (codeName !== 'missing' && necessaryName === 'order new') {
+            // Сохраняем начальные данные
+            var debugLogs = [];
+            debugLogs.push('Выполнение ветки: order new');
+            debugLogs.push('Начальный codeName: ' + codeName + ' Тип: ' + typeof codeName);
+
+            setHiddenInput('use_tdr', '1');
+            setHiddenInput('use_process_forms', '0');
+
+            var conditionId = null;
+
+            // Нормализация codeName для сравнения
+            var normalizedCodeName = codeName.toString().trim().toLowerCase();
+            debugLogs.push('Нормализованный codeName: ' + normalizedCodeName + ' Длина: ' + normalizedCodeName.length);
+
+            // Проверка структуры select
+            debugLogs.push('Структура select c_conditions_id:');
+            debugLogs.push($('#c_conditions_id').html());
+
+            // Вывод всех доступных опций для отладки
+            debugLogs.push('Все доступные опции в select:');
+            var options = $('#c_conditions_id option');
+            debugLogs.push('Количество опций: ' + options.length);
+            
+            options.each(function(index) {
+                var condName = $(this).attr('data-title');
+                var condValue = $(this).val();
+                var optionText = $(this).text();
+                debugLogs.push('Опция #' + (index + 1) + ':');
+                debugLogs.push('  - Значение: ' + condValue);
+                debugLogs.push('  - Название: ' + condName);
+                debugLogs.push('  - Текст: ' + optionText);
+                debugLogs.push('  - Нормализованное название: ' + (condName ? condName.toString().trim().toLowerCase() : 'null'));
+            });
+
+            $('#c_conditions_id option').each(function() {
+                var condName = $(this).attr('data-title');
+                var condValue = $(this).val();
+                
+                // Нормализация condName для сравнения
+                var normalizedCondName = condName ? condName.toString().trim().toLowerCase() : null;
+                
+                debugLogs.push('Сравнение: ' + JSON.stringify({
+                    codeName: normalizedCodeName,
+                    condName: normalizedCondName,
+                    совпадают: normalizedCondName === normalizedCodeName,
+                    codeNameТип: typeof normalizedCodeName,
+                    condNameТип: typeof normalizedCondName
+                }));
+
+                if (normalizedCondName && normalizedCondName === normalizedCodeName) {
+                    conditionId = condValue;
+                    debugLogs.push('Найдено точное соответствие: ' + JSON.stringify({
+                        id: conditionId,
+                        название: condName,
+                        нормализованноеНазвание: normalizedCondName
+                    }));
+                    return false;
+                }
+            });
+
+            if (conditionId) {
+                setHiddenInput('conditions_id', conditionId);
+                debugLogs.push('Установлен conditions_id: ' + conditionId);
+            } else {
+                debugLogs.push("Не найдено точное соответствие для codeName: " + normalizedCodeName);
+                debugLogs.push("Проверьте значения в логах");
+                setHiddenInput('conditions_id', '1');
+            }
+
+            // Сохраняем логи в localStorage с уникальным ключом
+            var timestamp = new Date().getTime();
+            localStorage.setItem('debugLogs_' + timestamp, JSON.stringify(debugLogs));
+            
+            // Добавляем кнопку для просмотра логов
+            if (!$('#viewLogsBtn').length) {
+                $('body').append('<button id="viewLogsBtn" style="position: fixed; top: 10px; right: 10px; z-index: 9999;">Показать логи</button>');
+                $('#viewLogsBtn').click(function() {
+                    var allLogs = [];
+                    for (var i = 0; i < localStorage.length; i++) {
+                        var key = localStorage.key(i);
+                        if (key.startsWith('debugLogs_')) {
+                            var logs = JSON.parse(localStorage.getItem(key));
+                            allLogs = allLogs.concat(logs);
+                        }
+                    }
+                    console.log('Все сохраненные логи:');
+                    allLogs.forEach(function(log) {
+                        console.log(log);
+                    });
+                });
+            }
+        }
+    }
+</script>
