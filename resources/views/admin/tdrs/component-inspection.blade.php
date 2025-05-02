@@ -425,6 +425,7 @@
                     // }));
                 });
 
+
                 $('#c_conditions_id option').each(function() {
                     var condName = $(this).attr('data-title');
                     var condValue = $(this).val();

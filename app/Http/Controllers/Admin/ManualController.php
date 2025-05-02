@@ -68,16 +68,16 @@ class ManualController extends Controller
             'title' => 'required|string|max:255',
             'revision_date' => 'required|date',
             'unit_name' => 'nullable',
-                'unit_name_training' => 'nullable',
-                'training_hours' => 'nullable',
-
-                'planes_id' => 'required|exists:planes,id',
-                'builders_id' => 'required|exists:builders,id',
-                'scopes_id' => 'required|exists:scopes,id',
-                'lib' => 'required',
-
+            'unit_name_training' => 'nullable',
+            'training_hours' => 'nullable',
+            'planes_id' => 'required|exists:planes,id',
+            'builders_id' => 'required|exists:builders,id',
+            'scopes_id' => 'required|exists:scopes,id',
+            'lib' => 'required',
             'units' => 'nullable|array',
-            'units.*' => 'required|string|max:255', // Валидация для юнитов
+            'units.*' => 'required|string|max:255',
+            'csv_file' => 'nullable|file|mimes:csv,txt|max:10240', // 10MB max
+            'process_type' => 'nullable|in:ndt,cad,stress_relief,other',
         ]);
 
         DB::transaction(function () use ($request) {
@@ -87,22 +87,31 @@ class ManualController extends Controller
                 'planes_id', 'builders_id', 'scopes_id', 'lib',
             ]));
 
-
             if ($request->hasFile('img')) {
                 $manual->addMedia($request->file('img'))->toMediaCollection('manuals');
             }
+
+            if ($request->hasFile('csv_file')) {
+                $media = $manual->addMedia($request->file('csv_file'))
+                    ->toMediaCollection('csv_files');
+                
+                if ($request->filled('process_type')) {
+                    $media->setCustomProperty('process_type', $request->process_type);
+                    $media->save();
+                }
+            }
+
             // Если есть юниты, добавляем их
             if ($request->has('units')) {
                 foreach ($request->units as $partNumber) {
                     $manual->units()->create([
                         'part_number' => $partNumber,
                         'manual_id' => $manual->id,
-                        'verified' => 1, // По умолчанию устанавливаем verified = 1
+                        'verified' => 1,
                     ]);
                 }
             }
         });
-
 
         return redirect()->route('admin.manuals.index')->with('success', 'CMM created successfully along with units!');
     }
@@ -138,14 +147,28 @@ class ManualController extends Controller
             'builders_id' => 'required|exists:builders,id',
             'scopes_id' => 'required|exists:scopes,id',
             'lib' => 'required',
+            'csv_file' => 'nullable|file|mimes:csv,txt|max:10240', // 10MB max
+            'process_type' => 'nullable|in:ndt,cad,stress_relief,other',
         ]);
 
         if ($request->hasFile('img')) {
             if ($cmm->getMedia('manuals')->isNotEmpty()) {
                 $cmm->getMedia('manuals')->first()->delete();
             }
-
             $cmm->addMedia($request->file('img'))->toMediaCollection('manuals');
+        }
+
+        if ($request->hasFile('csv_file')) {
+            if ($cmm->getMedia('csv_files')->isNotEmpty()) {
+                $cmm->getMedia('csv_files')->first()->delete();
+            }
+            $media = $cmm->addMedia($request->file('csv_file'))
+                ->toMediaCollection('csv_files');
+            
+            if ($request->filled('process_type')) {
+                $media->setCustomProperty('process_type', $request->process_type);
+                $media->save();
+            }
         }
 
         $cmm->update($validatedData);
@@ -155,10 +178,12 @@ class ManualController extends Controller
 
     public function destroy($id)
     {
-
         $cmm = Manual::findOrFail($id);
         if ($cmm->getMedia('manuals')->isNotEmpty()) {
             $cmm->getMedia('manuals')->first()->delete();
+        }
+        if ($cmm->getMedia('csv_files')->isNotEmpty()) {
+            $cmm->getMedia('csv_files')->first()->delete();
         }
         $cmm->delete();
 

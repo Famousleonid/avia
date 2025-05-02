@@ -39,6 +39,21 @@
                                 </div>
                             </div>
 
+                            <div class="col-xs-12 col-sm-12 col-md-12 mt-2">
+                                <div class="form-group">
+                                    <strong>{{__('CSV File (e.g. ndt_std.csv):')}}</strong>
+                                    <select name="process_type" class="form-control mb-2">
+                                        <option value="">{{ __('Select Process Type (Optional)') }}</option>
+                                        <option value="ndt">{{ __('NDT') }}</option>
+                                        <option value="cad">{{ __('Cad') }}</option>
+                                        <option value="stress_relief">{{ __('Stress Relief') }}</option>
+                                        <option value="other">{{ __('Other') }}</option>
+                                    </select>
+                                    <input type="file" name="csv_file" class="form-control" accept=".csv,.txt">
+                                    <small class="text-muted">{{__('Upload CSV file with component process requirements')}}</small>
+                                </div>
+                            </div>
+
                             <div class="mt-2">
                                 <label for="revision_date">{{ __('Revision Date') }}</label>
                                 <input id='revision_date' type="date" class="form-control" name="revision_date" required>

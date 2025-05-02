@@ -39,17 +39,41 @@
 
                             <div class="col-xs-12 col-sm-12 col-md-12 mt-2">
                                 <div class="form-group">
-                                    <label>{{__('Image:')}}</label>
-                                    <div class="d-flex">
-                                        <a href="{{ $cmm->getBigImageUrl('manuals') }}" data-fancybox="gallery">
-
-                                        <img class="me-1" src="{{ $cmm->getThumbnailUrl('manuals') }}" width="40" height="40" alt="Image"/>
-                                        </a>
+                                    <strong>{{__('Image:')}}</strong>
                                     <input type="file" name="img" class="form-control" placeholder="Image">
-                                    </div>
-                                    {{--                                    <input type="file" name="img" class="form-control" placeholder="изображение">--}}
-                                    <small>{{__('Leave blank if you do not want to change the image.')}}</small>
+                                </div>
+                            </div>
 
+                            <div class="col-xs-12 col-sm-12 col-md-12 mt-2">
+                                <div class="form-group">
+                                    <strong>{{__('CSV File (e.g. ndt_std.csv):')}}</strong>
+                                    @php
+                                        $csvMedia = $cmm->getMedia('csv_files')->first();
+                                        $processType = $csvMedia ? $csvMedia->getCustomProperty('process_type') : null;
+                                    @endphp
+                                    @if($cmm->getCsvFileName())
+                                        <div class="mb-2">
+                                            <span class="badge bg-info">{{ $cmm->getCsvFileName() }}</span>
+                                            @if($processType)
+                                                <span class="badge bg-secondary">{{ $processType }}</span>
+                                            @endif
+                                            <a href="{{ route('manuals.csv.download', $cmm) }}" class="btn btn-sm btn-primary">
+                                                <i class="fas fa-download"></i> {{__('Download')}}
+                                            </a>
+                                            <a href="{{ route('manuals.csv.view', $cmm) }}" class="btn btn-sm btn-info">
+                                                <i class="fas fa-eye"></i> {{__('View')}}
+                                            </a>
+                                        </div>
+                                    @endif
+                                    <select name="process_type" class="form-control mb-2">
+                                        <option value="">{{ __('Select Process Type (Optional)') }}</option>
+                                        <option value="ndt" {{ old('process_type', $processType) == 'ndt' ? 'selected' : '' }}>{{ __('NDT') }}</option>
+                                        <option value="cad" {{ old('process_type', $processType) == 'cad' ? 'selected' : '' }}>{{ __('Cad') }}</option>
+                                        <option value="stress_relief" {{ old('process_type', $processType) == 'stress_relief' ? 'selected' : '' }}>{{ __('Stress Relief') }}</option>
+                                        <option value="other" {{ old('process_type', $processType) == 'other' ? 'selected' : '' }}>{{ __('Other') }}</option>
+                                    </select>
+                                    <input type="file" name="csv_file" class="form-control" accept=".csv,.txt">
+                                    <small class="text-muted">{{__('Upload CSV file with component process requirements')}}</small>
                                 </div>
                             </div>
 

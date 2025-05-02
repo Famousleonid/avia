@@ -15,6 +15,7 @@ use App\Http\Controllers\Mobile\MobileController;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Route;
+use App\Http\Controllers\Admin\ManualCsvController;
 
 Auth::routes(['verify' => true]);
 
@@ -128,10 +129,10 @@ Route::group(['middleware' => ['auth', 'isAdmin'], 'prefix' => 'admin', 'as' =>'
     Route::post('/trainings/createTraining', [\App\Http\Controllers\Admin\TrainingController::class, 'createTraining'])->name('trainings.createTraining');
     Route::post('/trainings/delete-all', [\App\Http\Controllers\Admin\TrainingController::class, 'deleteAll'])->name('trainings.deleteAll');
 
-
-
-//    Route::put('/processes/{id}', [\App\Http\Controllers\Admin\ProcessController::class, 'update']);
-//    Route::delete('manual_processes/{id}', [\App\Http\Controllers\Admin\ManualProcessController::class, 'destroy']);
+    // CSV файлы для Manual
+    Route::post('manuals/{manual}/csv/upload', [ManualCsvController::class, 'upload'])->name('manuals.csv.upload');
+    Route::get('manuals/{manual}/csv/download', [ManualCsvController::class, 'download'])->name('manuals.csv.download');
+    Route::get('manuals/{manual}/csv/view', [ManualCsvController::class, 'view'])->name('manuals.csv.view');
 
 });
 
