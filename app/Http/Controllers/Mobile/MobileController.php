@@ -3,6 +3,8 @@
 namespace App\Http\Controllers\Mobile;
 
 use App\Http\Controllers\Controller;
+use App\Models\Component;
+use App\Models\Manual;
 use App\Models\Material;
 use App\Models\Workorder;
 use Illuminate\Http\Request;
@@ -12,9 +14,9 @@ class MobileController extends Controller
 {
     public function index()
     {
-        // $workorders = Workorder::all();
+        $workorders = Workorder::with(['unit', 'media'])->get();
 
-        return view('mobile.pages.index');
+        return view('mobile.pages.index',compact('workorders'));
     }
 
     public function profile()
@@ -32,6 +34,35 @@ class MobileController extends Controller
 
         return view('mobile.pages.materials', compact('user', 'materials'));
     }
+
+    public function updateMaterialDescription(Request $request, $id)
+    {
+        $material = Material::findOrFail($id);
+        $material->description = $request->input('description', '');
+        $material->save();
+
+        return response()->json(['success' => true]);
+    }
+
+
+    public function components()
+    {
+
+        $components = Component::all();
+        $manuals = Manual::all();
+
+        return view('mobile.pages.components', compact('manuals', 'components'));
+    }
+
+    public function component_create()
+    {
+
+        $manuals = Manual::all();
+
+        return view('mobile.pages.component_create', compact('manuals' ));
+    }
+
+
 
     public function show_wo(Request $request)
     {

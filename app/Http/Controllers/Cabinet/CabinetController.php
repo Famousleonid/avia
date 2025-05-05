@@ -40,6 +40,8 @@ class CabinetController extends Controller
     public function progress()
     {
 
+        dd('Cabinet');
+
         // $base = 1;
 
         return view('cabinet.mains.progress');

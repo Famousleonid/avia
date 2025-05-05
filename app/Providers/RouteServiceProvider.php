@@ -7,6 +7,7 @@ use Illuminate\Foundation\Support\Providers\RouteServiceProvider as ServiceProvi
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Facades\Route;
+use Jenssegers\Agent\Agent;
 
 class RouteServiceProvider extends ServiceProvider
 {
@@ -48,6 +49,31 @@ class RouteServiceProvider extends ServiceProvider
                 ->group(base_path('routes/web.php'));
         });
     }
+
+    public static function redirectPath(Request $request = null): string
+    {
+        $request = $request ?? request(); // на всякий случай
+        $user = auth()->user();
+        $agent = new Agent();
+
+        if (!$user) {
+            return '/login';
+        }
+
+        if ($agent->isMobile()) {
+            return '/mobile';
+        }
+
+        if (method_exists($user, 'isAdmin') && $user->isAdmin()) {
+            return '/admin';
+        }
+
+        return self::HOME; // '/cabinet'
+    }
+
+
+
+
 
     /**
      * Configure the rate limiters for the application.

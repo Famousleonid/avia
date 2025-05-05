@@ -59,7 +59,9 @@ class MainController extends Controller
     {
 
         $main = Main::find($id);
-        $main->update(['date_finish' => $request->date_finish]);
+        $main->update([
+            'date_finish' => date('Y-m-d', strtotime($request->date_finish)),
+        ]);
 
         return redirect()->back()->with('success', 'Update save success');
     }
@@ -75,6 +77,7 @@ class MainController extends Controller
 
     public function progress()
     {
+
         $user = Auth::user()->load('team');
 
         $mains = Main::where(['user_id' => $user->id])->with('workorder')->get();

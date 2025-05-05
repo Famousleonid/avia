@@ -31,11 +31,13 @@ class FrontController extends Controller
 //        app('valuestore')->put('mobile', $x);
 //        $mobile = app('valuestore')->get('mobile');
 //        Log::channel('avia')->info('_______ фронт _________');
-//        $page = ($x ? 'mobile' : 'front') . '.pages.index';
 
-        $page = 'front.pages.index';
-//
-//        if (!Auth::check() && $mobile) return view('auth.login');
+
+  //      $page = ($x ? 'mobile' : 'front') . '.pages.index';
+
+          $page = 'front.pages.index';
+
+   //     if (!Auth::check() && $mobile) return view('auth.login');
 
         // Log::channel('avia')->info('123' . ' 345 ');
 
@@ -44,6 +46,18 @@ class FrontController extends Controller
 
 
     }
+    public function isMobile($userAgent)
+    {
+        $mobileDevices = [
+            'Android', 'iPhone', 'iPad', 'iPod', 'Opera Mini', 'IEMobile', 'BlackBerry', 'webOS'
+        ];
 
+        foreach ($mobileDevices as $device) {
+            if (stripos($userAgent, $device) !== false) {
+                return true;
+            }
+        }
+        return false;
+    }
 
 }

@@ -18,6 +18,7 @@ return new class extends Migration {
             $table->string('assy_ipl_num')->nullable();
             $table->boolean('log_card')->default(false);
 
+
             $table->foreignId('manual_id')->nullable()->constrained()->onDelete('set null');
             $table->timestamps();
             $table->softDeletes();

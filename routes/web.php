@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Admin\TdrController;
+use App\Http\Controllers\Auth\LoginController;
 use App\Http\Controllers\Cabinet\ManualController;
 use App\Http\Controllers\Cabinet\MaterialController;
 use App\Http\Controllers\Cabinet\UserController;
@@ -26,12 +27,25 @@ Route::get('/clear', function () {
     Artisan::call('route:clear');
     Artisan::call('optimize:clear');
     return "Cache cleared successfully!";
-
 });
 
-Route::get('/', [FrontController::class, 'index'])->name('home');
-Route::get('/mobile', [MobileController::class,'index'])->name('mobile.index');;
+Route::get('/', [FrontController::class, 'index'])->name('home')->middleware('mobile.redirect');
 
+Route::prefix('mobile')->name('mobile.')->middleware('auth')->group(function () {
+    Route::get('/', [MobileController::class, 'index'])->name('index');
+    Route::get('/materials', [MobileController::class, 'materials'])->name('materials');
+    Route::get('/components', [MobileController::class, 'components'])->name('components');
+    Route::get('/profile', [MobileController::class, 'profile'])->name('profile');
+    Route::post('/workorders/photo/{id}', [MediaController::class, 'store_photo_workorders'])->name('workorders.media.store');
+    Route::get('/login', [LoginController::class, 'showMobileLoginForm'])->name('login');
+    Route::delete('/workorders/photo/delete/{id}', [MediaController::class, 'delete_photo'])->name('mobile.workorders.photo.delete');
+    Route::get('/workorders/photos/{id}', [MediaController::class, 'get_photos'])->name('mobile.workorders.photos');
+    Route::post('/materials/{id}/update-description', [MobileController::class, 'updateMaterialDescription'])->name('mobile.materials.updateDescription');
+    Route::get('/profile', [MobileController::class, 'profile'])->name('profile');
+    Route::get('/component/create', [MobileController::class, 'component_create'])->name('component.create');
+    Route::post('/component/store/{id}', [MobileController::class, 'store_component'])->name('component.store');
+
+});
 
 // ---------------------- User Auth route ------------------------------------------------------------------------
 
@@ -43,7 +57,6 @@ Route::group(['middleware' => ['auth'], 'prefix' => 'cabinet', 'as' =>'cabinet.'
     Route::resource('/users', UserController::class);
     Route::resource('/workorders', WorkorderController::class);
     Route::resource('/units', UnitController::class);
-    Route::resource('/users', UserController::class);
     Route::resource('/materials', MaterialController::class);
     Route::resource('/manuals',ManualController::class);
     Route::resource('/tdrs',TdrController::class);

@@ -30,23 +30,23 @@
         }
     </style>
 
-    <div class="container-fluid  w-100 h-100">
+{{--    <div class="container-fluid  w-100 h-100">--}}
 
-        <div class="wave">
-            <span style="--i:1">A</span>
-            <span style="--i:2">v</span>
-            <span style="--i:3">i</span>
-            <span style="--i:4">a</span>
-            <span style="--i:5">T</span>
-            <span style="--i:6">e</span>
-            <span style="--i:7">c</span>
-            <span style="--i:8">h</span>
-            <span style="--i:9">n</span>
-            <span style="--i:10">i</span>
-            <span style="--i:11">k</span>
-        </div>
+{{--        <div class="wave">--}}
+{{--            <span style="--i:1">A</span>--}}
+{{--            <span style="--i:2">v</span>--}}
+{{--            <span style="--i:3">i</span>--}}
+{{--            <span style="--i:4">a</span>--}}
+{{--            <span style="--i:5">T</span>--}}
+{{--            <span style="--i:6">e</span>--}}
+{{--            <span style="--i:7">c</span>--}}
+{{--            <span style="--i:8">h</span>--}}
+{{--            <span style="--i:9">n</span>--}}
+{{--            <span style="--i:10">i</span>--}}
+{{--            <span style="--i:11">k</span>--}}
+{{--        </div>--}}
 
-    </div>
+{{--    </div>--}}
 @endsection
 
 

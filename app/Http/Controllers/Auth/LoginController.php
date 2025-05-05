@@ -18,16 +18,21 @@ class LoginController extends Controller
         $this->middleware('guest')->except('logout');
     }
 
-    public function redirectTo()    // направление по ролям
+    public function redirectTo()
     {
-        $mobile = app('valuestore')->get('mobile');
+        $agent = new \Jenssegers\Agent\Agent();
 
-        if (Auth::check() && $mobile)
+        if (Auth::check() && $agent->isMobile()) {
             return route('mobile.index');
-        if (Auth::check() && Auth::user()->isAdmin())
+        }
+
+        if (Auth::check() && Auth::user()->isAdmin()) {
             return route('admin.index');
-        if (Auth::check())
+        }
+
+        if (Auth::check()) {
             return route('cabinet.index');
+        }
 
         return route('login');
     }
@@ -37,6 +42,9 @@ class LoginController extends Controller
         Auth::logout();
         return redirect(route('home'));    // напрввляет после logout
     }
-
+    public function showMobileLoginForm()
+    {
+        return view('mobile.auth.login');
+    }
 
 }

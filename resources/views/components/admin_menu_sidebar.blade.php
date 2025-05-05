@@ -77,6 +77,11 @@
             <i class="bi bi-stickies me-2"></i> General Tasks
         </a>
     </li>
+    <li class="nav-item press-spinner">
+        <a href="{{route('mobile.index')}}" class="nav-link">
+            <i class="bi bi-phone me-2"></i> Mobile
+        </a>
+    </li>
     <li class="nav-item border-top">
         <a class="nav-link" href="#" id="{{ $themeToggleId }}">
             <i class="bi bi-moon me-2"></i>&nbsp; Thema

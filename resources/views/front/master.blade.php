@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <link rel="icon" href="{{asset('img/favicon.webp')}}" type="image/png">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
     <meta name="keywords" content="avia, landing gear">
     <meta name="robots" content="none"> <!-- Выключение поисковых роботов  -->
     <meta name="csrf-token" content="{{ csrf_token() }}">
@@ -19,11 +19,18 @@
             height: 100%;
             width: 100%;
             padding: 0;
-            margin: 0;
-            background: url("/public/img/dolphin.png"), linear-gradient(blue, deepskyblue);
+            margin: 0 auto;
+            /*background: linear-gradient(blue, deepskyblue);*/
+            background: url("/public/img/avia190.png"), linear-gradient(blue, deepskyblue);
+            background-size: 700px auto, cover; /* 1-е — PNG, 2-е — градиент */
             background-repeat: no-repeat;
             background-attachment: fixed;
             background-position: center center;
+        }
+        @media (max-width: 768px) {
+            body {
+                background-size: 300px auto, cover;
+            }
         }
     </style>
 </head>
@@ -33,7 +40,7 @@
     @yield('content')
 </main>
 
-<script src="{{asset('assets/jquery/jquery371min.js')}}"></script>
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
 <script src="{{asset('assets/Bootstrap 5/bootstrap.bundle.min.js')}}"></script>
 
 @yield('scripts')

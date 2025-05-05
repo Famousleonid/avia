@@ -11,6 +11,10 @@ class Main extends Model
 
     protected $fillable = ['user_id', 'workorder_id', 'general_task_id', 'description', 'date_start', 'date_finish'];
 
+    protected $casts = [
+        'date_start' =>'date:Y-m-d',
+        'date_finish' => 'date:Y-m-d',
+    ];
 
     public function user()
     {

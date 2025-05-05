@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Traits\HasMediaHelpers;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
@@ -12,6 +13,7 @@ use Spatie\MediaLibrary\InteractsWithMedia;
 class Manual extends Model implements  hasMedia
 {
     use softDeletes, InteractsWithMedia;
+    use HasMediaHelpers;
 
     protected $fillable = [
         'number',
@@ -106,7 +108,7 @@ class Manual extends Model implements  hasMedia
     {
         $media = $this->getMedia($collection)->first();
         return $media
-            ? route('image.show.big', ['mediaId' => $media->id, 'modelId' => $this->id, 'mediaName' => '$collection'])
+            ? route('image.show.big', ['mediaId' => $media->id, 'modelId' => $this->id, 'mediaName' => $collection])
             : asset('img/noimage.png');
     }
 }

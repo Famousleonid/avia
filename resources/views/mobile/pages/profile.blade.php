@@ -5,9 +5,7 @@
     <style>
         .parent {
             position: relative;
-
         }
-
         .winPhoto {
             position: absolute;
             right: 0;
@@ -17,31 +15,28 @@
         }
     </style>
 
-
     <div class="card card-primary card-outline shadow">
         <div class="card-body box-profile">
             @php $mediaName = 'avatar' @endphp
 
             <div class="parent text-center">
-                @php
-                    $avatarUrl = $avatar ? route('image.show.thumb', ['mediaId' => $avatar->id, 'modelId' => $user->id, 'mediaName' => $mediaName]) : asset('img/avatar.jpeg');
-                @endphp
-                <img class="rounded-circle" src="{{ $avatarUrl }}" width="70">
 
-                <div class="winPhoto">
-                    <form action="{{ route('mobile.avatar.media.store', ['id' => $user->id]) }}" method="post" enctype="multipart/form-data" id="uploadAvatarForm">
-                        @csrf
-                        <input type="file" id="avatarfileInput" name="avatar" style="display: none;" accept="image/*" capture="user">
-                        <button type="button" class="rounded-circle" style="border: none;" title="Change avatar" id="triggerAvatarButton">
-                            <img class="rounded-circle" src="{{ asset('img/photo.jpeg') }}" width="30">
-                        </button>
-                    </form>
-                </div>
+{{--                <img class="rounded-circle" src="{{ $avatarUrl }}" width="70">--}}
+{{--                <div class="winPhoto">--}}
+{{--                    <form action="{{ route('mobile.avatar.media.store', ['id' => $user->id]) }}" method="post" enctype="multipart/form-data" id="uploadAvatarForm">--}}
+{{--                        @csrf--}}
+{{--                        <input type="file" id="avatarfileInput" name="avatar" style="display: none;" accept="image/*" capture="user">--}}
+{{--                        <button type="button" class="rounded-circle" style="border: none;" title="Change avatar" id="triggerAvatarButton">--}}
+{{--                            <img class="rounded-circle" src="{{ asset('img/photo.jpeg') }}" width="30">--}}
+{{--                        </button>--}}
+{{--                    </form>--}}
+{{--                </div>--}}
+
             </div>
 
             <h3 class="profile-username text-center">{{$user->name}}</h3>
             <p class="text-muted text-center">Aviation technician</p>
-            <form action="{{route('users.update',['users' => $user->id])}}" class="createForm" method="POST">
+            <form action="" class="createForm" method="POST">
                 @method('PUT')
                 @csrf
                 <div class="row">
@@ -72,7 +67,7 @@
                 <div class="form-group container-fluid ">
                     <div class="card-body row ">
                         <div class="col-5 mb-1">
-                            <button id="ntSaveFormsSubmit" type="submit" class="btn btn-info btn-block ntSaveFormsSubmit">Save</button>
+{{--                            <button id="ntSaveFormsSubmit" type="submit" class="btn btn-info btn-block ntSaveFormsSubmit">Save</button>--}}
                         </div>
                         <div class="col-5 mb-1 ml-auto">
                             <a href="{{ route('mobile.index')}}" class="btn btn-secondary btn-block">Cancel</a>
@@ -83,7 +78,7 @@
             </form>
             <div class="form-group ">
                 <div class="row">
-                    <form action="{{route('profile.changePassword', ['id' => $user->id])}}" method="post"
+                    <form action="" method="post"
                     @method('POST')
                     @csrf
                     @include('components.updatepassword')

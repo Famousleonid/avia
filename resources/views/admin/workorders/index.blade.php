@@ -51,6 +51,20 @@
         #currentUserCheckbox {
             cursor: pointer; /* Изменяем курсор при наведении */
         }
+
+        /* Стили для темной темы */
+        [data-bs-theme="dark"] #show-workorder {
+            background: linear-gradient(to bottom, #131313, #2E2E2E) !important;
+        }
+
+        [data-bs-theme="dark"] #show-workorder thead th {
+            background: linear-gradient(to bottom, #131313, #2E2E2E) !important;
+        }
+
+        /* Hover эффект для темной темы */
+        [data-bs-theme="dark"] .table-hover tbody tr:hover {
+            background-color: rgba(255, 255, 255, 0.1) !important;
+        }
     </style>
 
 @endsection
@@ -85,7 +99,7 @@
 
             <div class="table-wrapper me-3 p-2 pt-0">
 
-                <table id="show-workorder" class="display table-sm table-bordered table-striped table-hover w-100 " style="background: linear-gradient(to bottom, #131313, #2E2E2E);">
+                <table id="show-workorder" class="display table-sm table-bordered table-striped table-hover w-100">
 
                     {{--                    <thead style="background: linear-gradient(to bottom, #131313, #2E2E2E);">--}}
 

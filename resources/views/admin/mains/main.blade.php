@@ -1,4 +1,4 @@
-@extends('cabinet.master')
+@extends('admin.master')
 
 @section('link')
     <style>

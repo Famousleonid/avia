@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Traits\HasMediaHelpers;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
@@ -15,6 +16,7 @@ class Workorder extends Model implements HasMedia
     use InteractsWithMedia;
     use LogsActivity;
     use SoftDeletes;
+    use HasMediaHelpers;
 
     protected $fillable = ['number', 'user_id', 'unit_id', 'instruction_id',
         'external_damage','received_disassembly','nameplate_missing','disassembly_upon_arrival',
@@ -63,7 +65,7 @@ class Workorder extends Model implements HasMedia
         return $this->hasMany(Main::class);
     }
 
-    public function registerAllMediaConversions(): void
+    public function registerMediaConversions(\Spatie\MediaLibrary\MediaCollections\Models\Media $media = null): void
     {
         $this->addMediaConversion('thumb')
             ->width(100)
@@ -71,4 +73,5 @@ class Workorder extends Model implements HasMedia
             ->nonOptimized();
 
     }
+
 }
