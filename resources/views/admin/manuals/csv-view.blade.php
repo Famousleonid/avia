@@ -1,4 +1,4 @@
-@extends('admin.layouts.app')
+@extends('admin.master')
 
 @section('content')
     <div class="container">
@@ -38,4 +38,4 @@
             </div>
         </div>
     </div>
-@endsection 
+@endsection

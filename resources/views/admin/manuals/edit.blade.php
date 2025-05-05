@@ -57,14 +57,16 @@
                                             @if($processType)
                                                 <span class="badge bg-secondary">{{ $processType }}</span>
                                             @endif
-                                            <a href="{{ route('manuals.csv.download', $cmm) }}" class="btn btn-sm btn-primary">
+                                            <a href="{{ route('admin.manuals.csv.download', $cmm) }}" class="btn btn-sm
+                                            btn-primary">
                                                 <i class="fas fa-download"></i> {{__('Download')}}
                                             </a>
-                                            <a href="{{ route('manuals.csv.view', $cmm) }}" class="btn btn-sm btn-info">
+                                            <a href="{{ route('admin.manuals.csv.view', $cmm) }}" class="btn btn-sm btn-info">
                                                 <i class="fas fa-eye"></i> {{__('View')}}
                                             </a>
                                         </div>
                                     @endif
+
                                     <select name="process_type" class="form-control mb-2">
                                         <option value="">{{ __('Select Process Type (Optional)') }}</option>
                                         <option value="ndt" {{ old('process_type', $processType) == 'ndt' ? 'selected' : '' }}>{{ __('NDT') }}</option>
