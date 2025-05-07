@@ -224,9 +224,29 @@
                                        id="#" style=" height: 40px">
                                         <i class="bi bi-file-earmark-excel"> PRL  </i>
                                     </a>
-                                @endif
 
+                                @endif
                             </div>
+
+                                    @php
+                                        $manual = $current_wo->unit->manuals;
+                                        $hasNdtCsv = false;
+                                        if ($manual) {
+                                            $hasNdtCsv = $manual->getMedia('csv_files')->first(function($media) {
+                                                return $media->getCustomProperty('process_type') === 'ndt';
+                                            });
+                                        }
+                                    @endphp
+
+                                    @if($current_wo->instruction_id == 1 && $hasNdtCsv)
+                                        <div class="ms-2 ">
+                                            <a href="{{ route('admin.tdrs.ndtStd', ['workorder_id' => $current_wo->id]) }}"
+                                               class="btn btn-outline-warning" style="height: 40px">
+                                                NDT STD
+                                            </a>
+                                        </div>
+                                    @endif
+
                         </div>
 
                         <!--  Missing Modal -->

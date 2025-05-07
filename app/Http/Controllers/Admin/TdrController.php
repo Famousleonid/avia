@@ -18,8 +18,8 @@ use App\Models\ProcessName;
 use App\Models\Tdr;
 use App\Models\TdrProcess;
 use App\Models\Unit;
-use App\Models\Wo_Code;
-use App\Models\WoCode;
+//use App\Models\Wo_Code;
+//use App\Models\WoCode;
 use App\Models\Workorder;
 use Illuminate\Contracts\Foundation\Application;
 use Illuminate\Contracts\View\Factory;
@@ -28,6 +28,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use League\Csv\Reader;
 
 class TdrController extends Controller
 {
@@ -670,6 +671,52 @@ class TdrController extends Controller
         ]);
     }
 
+    // Не забудьте добавить use League\Csv\Reader; вверху файла!
+    public function ndtStd($workorder_id)
+    {
+        $current_wo = \App\Models\Workorder::findOrFail($workorder_id);
+        $manual = $current_wo->unit->manuals;
+
+        // Получаем CSV-файл с process_type = 'ndt'
+        $csvMedia = $manual->getMedia('csv_files')->first(function ($media) {
+            return $media->getCustomProperty('process_type') === 'ndt';
+        });
+
+        $ndt_components = [];
+        $form_number = 'NDT-STD';
+
+        if ($csvMedia) {
+            $csvPath = $csvMedia->getPath();
+            $csv = \League\Csv\Reader::createFromPath($csvPath, 'r');
+            $csv->setHeaderOffset(0);
+
+            $records = iterator_to_array($csv->getRecords());
+
+            // Получаем все ipl_num из tdrs для этого workorder
+            $existingIplNums = \App\Models\Tdr::where('workorder_id', $workorder_id)
+                ->whereNotNull('component_id')
+                ->with('component')
+                ->get()
+                ->pluck('component.ipl_num')
+                ->filter()
+                ->unique()
+                ->toArray();
+
+            // Фильтруем записи из CSV, исключая те, у которых ipl_num уже есть в tdrs
+
+            $ndt_components = array_filter($records, function ($row) use ($existingIplNums) {
+                $itemNo = $row['ITEM No.'] ?? null;
+                return $itemNo && !in_array($itemNo, $existingIplNums);
+            });
+        }
+
+        return view('admin.tdrs.ndtFormStd', [
+            'current_wo' => $current_wo,
+            'manual' => $manual,
+            'ndt_components' => $ndt_components,
+            'form_number' => $form_number,
+        ]);
+    }
     public function specProcessForm(Request $request, $id)
     {
         // Загрузка Workorder по ID
