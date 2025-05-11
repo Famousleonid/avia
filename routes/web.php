@@ -141,6 +141,8 @@ Route::group(['middleware' => ['auth', 'isAdmin'], 'prefix' => 'admin', 'as' =>'
     Route::get('/tdr/{tdrId}/create-processes', [\App\Http\Controllers\Admin\TdrProcessController::class, 'createProcesses'])->name('tdr-processes.createProcesses');
     Route::get('/tdr/{tdrId}/processes', [\App\Http\Controllers\Admin\TdrProcessController::class, 'processes'])->name('tdr-processes.processes');
     Route::get('/get-process/{processNameId}', [\App\Http\Controllers\Admin\TdrProcessController::class, 'getProcess'])->name('tdr-processes.get-process');
+    Route::get('tdrs/{workorder_id}/ndt-std', [TdrController::class, 'ndtStd'])->name('tdrs.ndtStd');
+
 
     Route::get('trainings/form112/{id}', [\App\Http\Controllers\Admin\TrainingController::class, 'showForm112'])->name('trainings.form112');
     Route::get('trainings/form132/{id}', [\App\Http\Controllers\Admin\TrainingController::class, 'showForm132'])->name('trainings.form132');

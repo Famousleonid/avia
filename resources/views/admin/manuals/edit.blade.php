@@ -46,22 +46,23 @@
 
                             <div class="col-xs-12 col-sm-12 col-md-12 mt-2">
                                 <div class="form-group">
-                                    <strong>{{__('CSV File (e.g. ndt_std.csv):')}}</strong>
+{{--                                    <strong>{{__('CSV File d.c(e.g. ndt_stsv):')}}</strong>--}}
+                                    <strong>{{__('CSV FileS: ')}}</strong>
                                     @php
                                         $csvMedia = $cmm->getMedia('csv_files')->first();
                                         $processType = $csvMedia ? $csvMedia->getCustomProperty('process_type') : null;
                                     @endphp
                                     @if($cmm->getCsvFileName())
                                         <div class="mb-2">
-                                            <span class="badge bg-info">{{ $cmm->getCsvFileName() }}</span>
-                                            @if($processType)
-                                                <span class="badge bg-secondary">{{ $processType }}</span>
-                                            @endif
-                                            <a href="{{ route('admin.manuals.csv.download', $cmm) }}" class="btn btn-sm
-                                            btn-primary">
-                                                <i class="fas fa-download"></i> {{__('Download')}}
-                                            </a>
-                                            <a href="{{ route('admin.manuals.csv.view', $cmm) }}" class="btn btn-sm btn-info">
+                                            <span class="badge bg-outline-info">{{ $cmm->getCsvFileName() }}</span>
+{{--                                            @if($processType)--}}
+{{--                                                <span class="badge bg-secondary">{{ $processType }}</span>--}}
+{{--                                            @endif--}}
+{{--                                            <a href="{{ route('admin.manuals.csv.download', $cmm) }}" class="btn btn-sm--}}
+{{--                                            btn-outline-primary">--}}
+{{--                                                <i class="fas fa-download"></i> {{__('Download')}}--}}
+{{--                                            </a>--}}
+                                            <a href="{{ route('admin.manuals.csv.view', $cmm) }}" class="btn btn-sm btn-outline-info">
                                                 <i class="fas fa-eye"></i> {{__('View')}}
                                             </a>
                                         </div>
