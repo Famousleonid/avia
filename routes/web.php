@@ -32,18 +32,23 @@ Route::get('/clear', function () {
 Route::get('/', [FrontController::class, 'index'])->name('home')->middleware('mobile.redirect');
 
 Route::prefix('mobile')->name('mobile.')->middleware('auth')->group(function () {
+
     Route::get('/', [MobileController::class, 'index'])->name('index');
-    Route::get('/materials', [MobileController::class, 'materials'])->name('materials');
-    Route::get('/components', [MobileController::class, 'components'])->name('components');
-    Route::get('/profile', [MobileController::class, 'profile'])->name('profile');
     Route::post('/workorders/photo/{id}', [MediaController::class, 'store_photo_workorders'])->name('workorders.media.store');
     Route::get('/login', [LoginController::class, 'showMobileLoginForm'])->name('login');
     Route::delete('/workorders/photo/delete/{id}', [MediaController::class, 'delete_photo'])->name('mobile.workorders.photo.delete');
     Route::get('/workorders/photos/{id}', [MediaController::class, 'get_photos'])->name('mobile.workorders.photos');
+
+    Route::get('/materials', [MobileController::class, 'materials'])->name('materials');
     Route::post('/materials/{id}/update-description', [MobileController::class, 'updateMaterialDescription'])->name('mobile.materials.updateDescription');
-    Route::get('/profile', [MobileController::class, 'profile'])->name('profile');
+
+    Route::get('/components', [MobileController::class, 'components'])->name('components');
     Route::get('/component/create', [MobileController::class, 'component_create'])->name('component.create');
     Route::post('/component/store/{id}', [MobileController::class, 'store_component'])->name('component.store');
+
+    Route::get('/profile', [MobileController::class, 'profile'])->name('profile');
+    Route::put('/profile/{id}',[MobileController::class, 'update_profile'])->name('update.profile');
+    Route::post('/change_password/user/{id}/', [MobileController::class, 'changePassword'])->name('profile.changePassword');
 
 });
 

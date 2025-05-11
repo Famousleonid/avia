@@ -4,7 +4,8 @@
         bottom: -20px;
         right: 20px;
         width: auto;
-        font-size: 1.1rem;
+        max-width: 350px;
+        font-size: 1.0rem;
         z-index: 2050;
         transform: translateY(100%);
         transition: transform 1s ease-out;

@@ -6,9 +6,12 @@ use App\Http\Controllers\Controller;
 use App\Models\Component;
 use App\Models\Manual;
 use App\Models\Material;
+use App\Models\Team;
+use App\Models\User;
 use App\Models\Workorder;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Hash;
 
 class MobileController extends Controller
 {
@@ -22,9 +25,33 @@ class MobileController extends Controller
     public function profile()
     {
         $user = Auth::user();
-        $avatar = $user->getMedia('avatar')->first();
+        $teams = Team::all();
 
-        return view('mobile.pages.profile', compact('user', 'avatar'));
+        return view('mobile.pages.profile', compact('user','teams'));
+    }
+
+    public function update_profile(Request $request, $id)
+    {
+        $user = User::findOrFail($id);
+
+        $request->validate([
+            'name' => 'required',
+            'phone' => 'nullable',
+            'stamp' => 'required',
+            'team_id' => 'required|exists:teams,id',
+            'file' => 'nullable|image',
+        ]);
+
+        // Обновляем только нужные поля (без 'file')
+        $user->update($request->only(['name', 'phone', 'stamp', 'team_id']));
+
+        // Если загружен новый файл — обновляем аватар
+        if ($request->hasFile('file')) {
+            $user->clearMediaCollection('avatar');
+            $user->addMedia($request->file('file'))->toMediaCollection('avatar');
+        }
+
+        return redirect()->route('mobile.profile')->with('success', 'Changes saved');
     }
 
     public function materials()
@@ -47,7 +74,6 @@ class MobileController extends Controller
 
     public function components()
     {
-
         $components = Component::all();
         $manuals = Manual::all();
 
@@ -56,53 +82,56 @@ class MobileController extends Controller
 
     public function component_create()
     {
-
         $manuals = Manual::all();
 
         return view('mobile.pages.component_create', compact('manuals' ));
     }
 
+//    public function create($wo_id)
+//    {
+//        $workorder = $wo_id;
+//
+//        return view('mobile.pages.create', compact('workorder'));
+//    }
+
+//    public function store(Request $request)
+//    {
+//
+//        $imageData = $request->input('image');
+//        $imageData = str_replace('data:image/jpeg;base64,', '', $imageData);
+//        $imageData = str_replace(' ', '+', $imageData);
+//
+//        $workorder = Workorder::find($request->workorder);
+//
+//        $workorder->addMediaFromBase64($imageData)
+//            ->usingFileName(str($workorder->number) . time() . '.jpg')
+//            ->toMediaCollection('photos');
+//
+//        $photos = $workorder->getMedia('photos');
+//
+//        return view('mobile.pages.photos', compact('photos', 'workorder'));
+//
+//    }
 
 
-    public function show_wo(Request $request)
-    {
-        $workorder = Workorder::find($request->wo_id);
-        $photos = $workorder->getMedia('photos');
+   public function changePassword(Request $request, $id)
+   {
+       $request->validate([
+           'old_pass' => 'required',
+           'password' => 'required|confirmed|min:3',
+       ]);
 
-        return view('mobile.pages.photos', compact('photos', 'workorder'));
-    }
+       $user = User::findOrFail($id);
 
-    public function create($wo_id)
-    {
-        $workorder = $wo_id;
+       if (!Hash::check($request->old_pass, $user->password)) {
+           return redirect()->back()->with('error', 'The current password is incorrect');
+       }
 
-        return view('mobile.pages.create', compact('workorder'));
-    }
+       $user->password = Hash::make($request->password);
+       $user->save();
 
-    public function store(Request $request)
-    {
+       return redirect()->back()->with('success', 'New password saved');
+   }
 
-        $imageData = $request->input('image');
-        $imageData = str_replace('data:image/jpeg;base64,', '', $imageData);
-        $imageData = str_replace(' ', '+', $imageData);
 
-        $workorder = Workorder::find($request->workorder);
-
-        $workorder->addMediaFromBase64($imageData)
-            ->usingFileName(str($workorder->number) . time() . '.jpg')
-            ->toMediaCollection('photos');
-
-        $photos = $workorder->getMedia('photos');
-
-        return view('mobile.pages.photos', compact('photos', 'workorder'));
-
-    }
-
-    public function photoShowThumb($mediaId, $modelId, $mediaName)
-    {
-        $model = Workorder::find($modelId);
-        $media = $model->getMedia($mediaName)->where('id', $mediaId)->first();
-
-        return response()->file($media->getPath('thumb'));
-    }
 }

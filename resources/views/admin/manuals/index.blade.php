@@ -94,15 +94,11 @@
                     </div>
                 </div>
 
-
                 <a href="{{ route('admin.manuals.create') }}" class="btn btn-outline-primary " style="height: 40px">{{
                 __('Add CMM')
                 }}</a>
             </div>
         </div>
-
-
-        .
 
 
         @if(count($cmms))
