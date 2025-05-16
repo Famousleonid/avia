@@ -143,6 +143,7 @@ class TdrController extends Controller
             'components', 'codes', 'necessaries'));
     }
 
+
     public function inspection_new($workorder_id, $type)
     {
 //        dd($type,$workorder_id);
@@ -228,7 +229,6 @@ class TdrController extends Controller
         // Установка значений по умолчанию для флагов
 //        $use_tdr = $request->has('use_tdr');
 //        $use_process_forms = $request->has('use_process_forms');
-
         $use_tdr = $request->input('use_tdr');
         $use_process_forms = $request->input('use_process_forms');
 
@@ -284,7 +284,7 @@ class TdrController extends Controller
                 ]);
             }
         }
-        // Второе условие: если codes_id не равно $code->id и necessaries_id равно $necessary->id
+            // Второе условие: если codes_id не равно $code->id и necessaries_id равно $necessary->id
         if ($validated['codes_id'] != $code->id && $validated['necessaries_id'] == $necessary->id) {
             $workorder = Workorder::find($request->workorder_id);
 
@@ -967,7 +967,7 @@ class TdrController extends Controller
             }
         }
 
-        // Найти код с именем 'Missing'
+            // Найти код с именем 'Missing'
         $code = Code::where('name', 'Missing')->first();
         Log::info('Найден код с именем "Missing": ' . ($code ? 'Да' : 'Нет'));
 
