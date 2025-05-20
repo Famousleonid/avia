@@ -42,10 +42,8 @@ class MobileController extends Controller
             'file' => 'nullable|image',
         ]);
 
-        // Обновляем только нужные поля (без 'file')
         $user->update($request->only(['name', 'phone', 'stamp', 'team_id']));
 
-        // Если загружен новый файл — обновляем аватар
         if ($request->hasFile('file')) {
             $user->clearMediaCollection('avatar');
             $user->addMedia($request->file('file'))->toMediaCollection('avatar');
@@ -71,47 +69,45 @@ class MobileController extends Controller
         return response()->json(['success' => true]);
     }
 
-
     public function components()
     {
         $components = Component::all();
-        $manuals = Manual::all();
+        $workorders = Workorder::all();
 
-        return view('mobile.pages.components', compact('manuals', 'components'));
+        return view('mobile.pages.components', compact('workorders', 'components'));
     }
 
-    public function component_create()
+
+        public function componentStore(Request $request)
     {
-        $manuals = Manual::all();
+        $validated = $request->validate([
+            'workorder_id' => 'required|exists:workorders,id',
+            'ipl_num' => 'required|string|max:255',
+            'part_number' => 'required|string|max:255',
+            'photo' => 'image|max:5120',
+            'name' => 'required|string|max:255',
+        ]);
 
-        return view('mobile.pages.component_create', compact('manuals' ));
+        $workorder = Workorder::with('unit')->findOrFail($validated['workorder_id']);
+        $manualId = optional($workorder->unit)->manual_id;
+
+        if (!$manualId) {
+            return redirect()->back()->withErrors(['manual' => 'Manual not found for selected workorder.']);
+        }
+
+        $component = new Component();
+        $component->manual_id = $manualId;
+        $component->ipl_num = $validated['ipl_num'];
+        $component->part_number = $validated['part_number'];
+        $component->name = $validated['name'];
+        $component->save();
+
+        if ($request->hasFile('photo')) {
+            $component->addMediaFromRequest('photo')->toMediaCollection('components');
+        }
+
+        return redirect()->back()->with('success', 'Component added successfully.');
     }
-
-//    public function create($wo_id)
-//    {
-//        $workorder = $wo_id;
-//
-//        return view('mobile.pages.create', compact('workorder'));
-//    }
-
-//    public function store(Request $request)
-//    {
-//
-//        $imageData = $request->input('image');
-//        $imageData = str_replace('data:image/jpeg;base64,', '', $imageData);
-//        $imageData = str_replace(' ', '+', $imageData);
-//
-//        $workorder = Workorder::find($request->workorder);
-//
-//        $workorder->addMediaFromBase64($imageData)
-//            ->usingFileName(str($workorder->number) . time() . '.jpg')
-//            ->toMediaCollection('photos');
-//
-//        $photos = $workorder->getMedia('photos');
-//
-//        return view('mobile.pages.photos', compact('photos', 'workorder'));
-//
-//    }
 
 
    public function changePassword(Request $request, $id)

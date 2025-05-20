@@ -1,194 +1,232 @@
-
 @extends('mobile.master')
 
-@section('content')
+@section('style')
 
     <style>
-        .table-wrapper {
-            height: calc(100vh - 180px);
+        html, body {
+            padding: 0;
+            margin: 0;
+        }
+
+        .table-responsive {
+            max-height: calc(100vh - 160px);
             overflow-y: auto;
-            overflow-x: hidden;
+        }
+
+        table {
+            table-layout: fixed;
+            width: 100% !important;
         }
 
         .table th, .table td {
             white-space: nowrap;
             overflow: hidden;
             text-overflow: ellipsis;
-            min-width: 80px;
-            max-width: 190px;
-            padding-left: 10px;
-        }
-
-        .table th:nth-child(1), .table td:nth-child(1) {
-            min-width: 80px;
-            max-width: 90px;
-        }
-
-        .table th:nth-child(2), .table td:nth-child(2) {
-            min-width: 50px;
-            max-width: 250px;
-        }
-
-        .table th:nth-child(3), .table td:nth-child(3) {
-            min-width: 50px;
-            max-width: 250px;
-        }
-
-        .table th:nth-child(6), .table td:nth-child(6) {
-            min-width: 50px;
-            max-width: 70px;
+            padding: 6px;
+            text-align: center;
+            vertical-align: middle;
+            font-size: 0.75rem;
         }
 
         .table thead th {
             position: sticky;
-            height: 50px;
-            top: -1px;
-            vertical-align: middle;
-            border-top: 1px;
-
-            z-index: 1020;
+            top: 0;
+            z-index: 10;
+            background-color: #0d6efd;
+            color: white;
         }
 
-        @media (max-width: 1200px) {
-            .table th:nth-child(5), .table td:nth-child(5),
-            .table th:nth-child(2), .table td:nth-child(2),
-            .table th:nth-child(3), .table td:nth-child(3) {
-                display: none;
+        .table td img {
+            width: 40px;
+            height: 40px;
+        }
+
+        @media (max-width: 768px) {
+            .table th, .table td {
+                font-size: 0.7rem;
+                padding: 4px;
+            }
+        }
+        .text-format {
+            font-size: 0.75rem;
+            line-height: 1;
+        }
+
+        @keyframes blink-shadow {
+            0%, 100% {
+                box-shadow: 0 0 0 0 rgba(220, 53, 69, 0.8);
+            }
+            50% {
+                box-shadow: 0 0 0 4px rgba(220, 53, 69, 0.8);
             }
         }
 
-        .table th.sortable {
-            cursor: pointer;
-        }
-
-        .clearable-input {
-            position: relative;
-            width: 400px;
-        }
-
-        .clearable-input .form-control {
-            padding-right: 2.5rem;
-        }
-
-        .clearable-input .btn-clear {
-            position: absolute;
-            right: 0.5rem;
-            top: 50%;
-            transform: translateY(-50%);
-            background: none;
-            border: none;
-            cursor: pointer;
+        .select-error {
+            animation: blink-shadow 0.5s ease-in-out 3;
+            border-color: #dc3545 !important;
+            border-width: 1px;
         }
 
     </style>
+@endsection
 
-    <div class="card ">
-        <div class="card-header my-2 ">
-            <div class="d-flex justify-content-between">
-                <h6 class="text-primary manage-header">{{__('Components')}}( <span class="text-success">{{$components->count()}}
-                    </span>)
-                </h6>
+@section('content')
 
-                <div class="d-flex my-2">
-                    <div class="clearable-input ps-2">
-                        <input id="searchInput" type="text" class="form-control w-100" placeholder="Search...">
-                        <button class="btn-clear text-secondary" onclick="document.getElementById('searchInput').value = ''; document.getElementById('searchInput').dispatchEvent(new Event('input'))">
-                            <i class="bi bi-x-circle"></i>
-                        </button>
+    <div class="container-fluid d-flex flex-column bg-dark p-0" style="min-height: 100vh;">
+        <div class="row g-0 flex-grow-1" style="background-color:#343A40;">
+            <div class="col-12 p-0">
+                <div class="bg-dark py-2 px-3 d-flex justify-content-between align-items-center border-bottom mt-3">
+                    <span class="text-success-emphasis text-format">{{ __('Components') }} ({{ $components->count() }})</span>
+                    <div class="w-80 me-2">
+                        <select id="selectedWorkorderId" class="form-select form-select-sm " required>
+                            <option value="">Select Workorder</option>
+                            @foreach($workorders as $wo)
+                                <option value="{{ $wo->id }}">{{ $wo->number }}</option>
+                            @endforeach
+                        </select>
                     </div>
+                    <button class="btn btn-success btn text-format" id="openAddComponentBtn" {{ $workorders->count() ? '' : 'disabled' }}>
+                        {{ __('Add Component') }}
+                    </button>
                 </div>
 
-                <div>
-
-{{--                    <a href="{{ route('mobile.component.create') }}" class="btn btn-outline-primary " style="height: 40px">--}}
-{{--                        {{__('Add Component')}}--}}
-{{--                    </a>--}}
-
-                </div>
-            </div>
-
-            @if(count($components))
-                <div class="table-wrapper me-3 p-2 pt-0 ">
-                    <table id="componentTable" class="display table table-sm table-hover bg-gradient table-striped
-                align-middle table-bordered">
-                        <thead class="bg-gradient">
-                        <tr>
-                            <th class="text-center  sortable">{{__('Manual')}} <i class="bi bi-chevron-expand ms-1"></i></th>
-                            <th class="text-center  sortable">{{__('IPL Number')}} <i class="bi bi-chevron-expand ms-1"></i></th>
-                            <th class="text-center sortable ">{{__('Component')}} <i class="bi bi-chevron-expand ms-1"></i></th>
-                            {{--                    <th class="text-center text-primary bg-gradient ">Description</th>--}}
-                            <th class="text-center  sortable">{{__('Part number')}} <i class="bi bi-chevron-expand ms-1"></i></th>
-                            <th class=" text-center " style="width: 120px">{{__('Image ')}}</th>
-                            <th class=" text-center " style="width: 120px">{{__('Assy')}}</th>
-
-                        </tr>
-                        </thead>
-                        <tbody>
-                        @foreach($components as $component)
+                @if($components->count())
+                    <div class="table-responsive p-2 ">
+                        <table id="componentTable" class="table table-sm table-striped table-bordered table-dark m-0 shadow">
+                            <thead>
                             <tr>
-                                <td class="text-center">{{$component->manuals->number}}</td>
-                                <td class="text-center">{{$component->ipl_num}}</td>
-                                <td class="text-center">{{$component->name}}</td>
-                                <td class="text-center">{{$component->part_number}}</td>
-                                <td class="text-center" style="width: 120px;">
-                                    <a href="{{ $component->getBigImageUrl('component') }}" data-fancybox="gallery">
-                                        <img class="rounded-circle" src="{{ $component->getThumbnailUrl('component') }}" width="40"
-                                             height="40" alt="IMG"/>
-                                    </a>
-
-                                </td>
-                                <td class="text-center" style="width: 120px;">
-                                    <a href="{{ $component->getBigImageUrl('assy_component') }}" data-fancybox="gallery">
-                                        <img class="rounded-circle" src="{{ $component->getThumbnailUrl('assy_component') }}" width="40"
-                                             height="40" alt="IMG"/>
-                                    </a>
-                                </td>
-
+                                <th class="sortable">{{ __('Manual') }}</th>
+                                <th class="sortable">{{ __('IPL Number') }}</th>
+                                <th class="sortable">{{ __('Component') }}</th>
+                                <th class="sortable">{{ __('Part number') }}</th>
+                                <th>{{ __('Image') }}</th>
                             </tr>
-                        @endforeach
-                        </tbody>
-                    </table>
-                </div>
+                            </thead>
+                            <tbody>
+                            @foreach($components as $component)
+                                <tr>
+                                    <td>{{ $component->manuals->number }}</td>
+                                    <td>{{ $component->ipl_num }}</td>
+                                    <td>{{ $component->name }}</td>
+                                    <td>{{ $component->part_number }}</td>
+                                    <td>
+                                        <a href="{{ $component->getBigImageUrl('components') }}" data-fancybox="component-{{ $component->id }}">
+                                            <img class="rounded-circle" src="{{ $component->getThumbnailUrl('components') }}" alt="Img">
+                                        </a>
+                                    </td>
+                                </tr>
+                            @endforeach
+                            </tbody>
+                        </table>
+                    </div>
+                @else
+                    <div class="text-center text-light py-4">{{ __('COMPONENTS NOT CREATED') }}</div>
+                @endif
 
-            @else
-                <H5 CLASS="text-center">{{__('COMPONENTS NOT CREATED')}}</H5>
-
-            @endif
-
+            </div>
         </div>
+    </div>
 
 
-        <script>
+    <!-- Modal -->
+    <div class="modal fade" id="addComponentModal" tabindex="-1" aria-labelledby="addComponentModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-fullscreen-sm-down">
+            <div class="modal-content bg-dark text-light">
+                <form id="componentUploadForm" method="POST" enctype="multipart/form-data" action="{{ route('mobile.component.store') }}">
+                    @csrf
+                    <div class="modal-header">
+                        <h5 class="modal-title" id="addComponentModalLabel">Add Component</h5>
+                        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+                    <input type="hidden" name="workorder_id" id="modal_workorder_id">
+                    <div class="modal-body">
 
-            // Sorting
-            const table = document.getElementById('componentTable');
-            const headers = document.querySelectorAll('.sortable');
-            headers.forEach(header => {
-                header.addEventListener('click', () => {
-                    const columnIndex = Array.from(header.parentNode.children).indexOf(header);
-                    const rows = Array.from(table.querySelectorAll('tbody tr'));
-                    const direction = header.dataset.direction === 'asc' ? 'desc' : 'asc';
-                    header.dataset.direction = direction;
-                    rows.sort((a, b) => {
-                        const aText = a.cells[columnIndex].innerText.trim();
-                        const bText = b.cells[columnIndex].innerText.trim();
-                        return direction === 'asc' ? aText.localeCompare(bText) : bText.localeCompare(aText);
-                    });
-                    rows.forEach(row => table.querySelector('tbody').appendChild(row));
+                        <div class="mb-3">
+                            <label for="ipl_num" class="form-label">IPL Number</label>
+                            <input type="text" name="ipl_num" id="ipl_num" class="form-control" required>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="part_number" class="form-label">Part Number</label>
+                            <input type="text" name="part_number" id="part_number" class="form-control" required>
+                        </div>
+                        <div class="mb-3">
+                            <label for="name" class="form-label">Component Name</label>
+                            <input type="text" name="name" id="name" class="form-control" required>
+                        </div>
+                        <div class="mb-3">
+                            <label for="photo" class="form-label">Component Photo</label>
+                            <input type="file" name="photo" accept="image/*" capture="environment" class="form-control" required>
+                        </div>
+                    </div>
+
+                    <div class="modal-footer">
+                        <button type="submit" class="btn btn-success">Save</button>
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+@endsection
+
+@section('scripts')
+
+    <script>
+        Fancybox.bind('[data-fancybox^="component-"]', {
+            Toolbar: ["zoom", "fullscreen", "close"],
+            dragToClose: false,
+            showClass: "fancybox-fadeIn",
+            hideClass: "fancybox-fadeOut"
+        });
+
+
+        // Сортировка таблицы
+        const table = document.getElementById('componentTable');
+        const headers = document.querySelectorAll('.sortable');
+
+        headers.forEach(header => {
+            header.addEventListener('click', () => {
+                const index = Array.from(header.parentNode.children).indexOf(header);
+                const direction = header.dataset.direction === 'asc' ? 'desc' : 'asc';
+                header.dataset.direction = direction;
+
+                const rows = Array.from(table.querySelectorAll('tbody tr'));
+                rows.sort((a, b) => {
+                    const aText = a.cells[index].innerText.trim();
+                    const bText = b.cells[index].innerText.trim();
+                    return direction === 'asc'
+                        ? aText.localeCompare(bText)
+                        : bText.localeCompare(aText);
                 });
+
+                rows.forEach(row => table.querySelector('tbody').appendChild(row));
             });
+        });
 
-            // Search
-            const searchInput = document.getElementById('searchInput');
-            searchInput.addEventListener('input', () => {
-                const filter = searchInput.value.toLowerCase();
-                const rows = table.querySelectorAll('tbody tr');
-                rows.forEach(row => {
-                    const text = row.innerText.toLowerCase();
-                    row.style.display = text.includes(filter) ? '' : 'none';
-                });
-            });
+        document.getElementById('openAddComponentBtn').addEventListener('click', function () {
+            const select = document.getElementById('selectedWorkorderId');
+            const selectedId = select.value;
+
+            if (!selectedId) {
+                select.classList.add('select-error');
+
+                // Убираем эффект после анимации (1.5 сек)
+                setTimeout(() => {
+                    select.classList.remove('select-error');
+                }, 1500);
+
+                return;
+            }
+
+            // если выбран — передаём ID
+            document.getElementById('modal_workorder_id').value = selectedId;
+
+            const modal = new bootstrap.Modal(document.getElementById('addComponentModal'));
+            modal.show();
+        });
 
 
-        </script>
+    </script>
 @endsection

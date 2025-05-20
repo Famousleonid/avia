@@ -55,6 +55,8 @@
         font-size: 0.75rem;
         line-height: 1;
     }
+
+
 </style>
 
 <div class="{{ $fixedClass }} bg-primary d-flex justify-content-between align-items-center " style="height: 60px;"> {{--d-md-none--}}

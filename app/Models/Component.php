@@ -2,19 +2,12 @@
 
 namespace App\Models;
 
-use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\SoftDeletes;
 use Spatie\MediaLibrary\HasMedia;
 use Spatie\MediaLibrary\InteractsWithMedia;
 
-
-
-
-
 class Component extends Model implements  hasMedia
 {
-//    use HasFactory;
     use  InteractsWithMedia;
 
     protected $fillable = [
@@ -34,13 +27,6 @@ class Component extends Model implements  hasMedia
     {
         return $this->belongsTo(Manual::class,'manual_id');
     }
-
-
-
-    /*  public function component_main()
-      {
-          return $this->hasMany(Component_main::class);
-      }*/
 
     public function registerAllMediaConversions(): void
     {
@@ -64,9 +50,7 @@ class Component extends Model implements  hasMedia
             ? route('image.show.big', ['mediaId' => $media->id, 'modelId' => $this->id, 'mediaName' => $collection])
             : asset('img/noimage.png');
     }
-    public function component()
-    {
-        return $this->hasMany(Component::class);
-    }
+
+
 
 }

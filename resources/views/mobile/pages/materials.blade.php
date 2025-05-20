@@ -53,6 +53,10 @@
             background-color: #292929 !important;
             color: #ffffff !important;
         }
+        .text-size {
+            font-size: 0.75rem;
+            line-height: 2;
+        }
     </style>
 @endsection
 
@@ -62,10 +66,10 @@
     <div class="card shadow">
         <div class="card-header py-2 px-3 shadow">
             <div class="d-flex align-items-center flex-wrap gap-3">
-                <h6 class="text-primary mb-0">
+                <span class="text-primary mb-0 text-size">
                     {{ __('Materials') }}
                     (<span class="text-success">{{ $materials->count() }}</span>)
-                </h6>
+                </span>
 
                 <!-- Поиск с инпутом, спиннером и крестиком -->
                 <div class="position-relative ms-2 mt-2 mt-sm-0 flex-grow-1" style="max-width: 100%;">
@@ -100,18 +104,18 @@
                 <table id="cmmTable" class="table table-sm table-hover table-striped table-bordered">
                     <thead class="bg-gradient">
                     <tr>
-                        <th class="text-primary">{{ __('Code') }}</th>
-                        <th class="text-primary">{{ __('Material') }}</th>
-                        <th class="text-primary">{{ __('Specification') }}</th>
-                        <th class="text-primary">{{ __('Description') }}</th>
+                        <th class="text-primary text-size">{{ __('Code') }}</th>
+                        <th class="text-primary text-size">{{ __('Material') }}</th>
+                        <th class="text-primary text-size">{{ __('Specification') }}</th>
+                        <th class="text-primary text-size">{{ __('Description') }}</th>
                     </tr>
                     </thead>
                     <tbody>
                     @foreach($materials as $material)
                         <tr data-id="{{ $material->id }}">
-                            <td>{{ $material->code }}</td>
-                            <td title="{{ $material->material }}">{{ \Illuminate\Support\Str::limit($material->material, 12) }}</td>
-                            <td title="{{ $material->specification }}">{{ \Illuminate\Support\Str::limit($material->specification, 12) }}</td>
+                            <td class="text-size">{{ $material->code }}</td>
+                            <td class="text-size" title="{{ $material->material }}">{{ \Illuminate\Support\Str::limit($material->material, 12) }}</td>
+                            <td class="text-size" title="{{ $material->specification }}">{{ \Illuminate\Support\Str::limit($material->specification, 12) }}</td>
                             <td contenteditable="true" class="editable-description">{{ $material->description }}</td>
                         </tr>
                     @endforeach

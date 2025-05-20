@@ -36,13 +36,6 @@
             overflow-x: hidden;
             background-color: #343A40; /* Твой темный фон */
         }
-        .fade-page {
-            opacity: 0;
-            transition: opacity 0.3s ease-in;
-        }
-        .fade-page.loaded {
-            opacity: 1;
-        }
     </style>
 
 </head>

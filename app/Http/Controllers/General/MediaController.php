@@ -6,7 +6,6 @@ use App\Http\Controllers\Controller;
 use App\Models\User;
 use App\Models\Workorder;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Log;
 use Spatie\MediaLibrary\MediaCollections\Models\Media;
 
 class MediaController extends Controller
@@ -29,18 +28,18 @@ class MediaController extends Controller
     public function store_photo_workorders(Request $request, $id)
     {
         $workorder = Workorder::findOrFail($id);
+        $category = $request->query('category', 'photos'); // по умолчанию — 'photos'
+
 
         if ($request->hasFile('photos')) {
             foreach ($request->file('photos') as $photo) {
-                $media = $workorder->addMedia($photo)->toMediaCollection('photos');
-                Log::channel('avia')->info("Added media ID: {$media->id} for workorder {$id}");
+                $media = $workorder->addMedia($photo)->toMediaCollection($category);
             }
         }
 
         $uploadedPhotos = [];
-        foreach ($workorder->getMedia('photos') as $media) {
+        foreach ($workorder->getMedia($category) as $media) {
             if (!$media->id) {
-                Log::channel('avia')->error("Media ID is missing for workorder {$id}", ['media' => $media]);
                 continue;
             }
             $uploadedPhotos[] = [
@@ -48,18 +47,17 @@ class MediaController extends Controller
                 'big_url' => route('image.show.big', [
                     'mediaId' => $media->id,
                     'modelId' => $workorder->id,
-                    'mediaName' => 'photos'
+                    'mediaName' => $category
                 ]),
                 'thumb_url' => route('image.show.thumb', [
                     'mediaId' => $media->id,
                     'modelId' => $workorder->id,
-                    'mediaName' => 'photos'
+                    'mediaName' => $category
                 ]),
                 'alt' => $media->name ?? 'Photo',
             ];
         }
 
-        Log::channel('avia')->info("Photos in store_photo_workorders:", ['photos' => $uploadedPhotos]);
         return response()->json([
             'success' => true,
             'photos' => $uploadedPhotos,
@@ -113,7 +111,7 @@ class MediaController extends Controller
         $uploadedPhotos = [];
 
         foreach ($workorder->getMedia('photos') as $media) {
-            Log::channel('avia')->info("Media ID for workorder {$workorder->id}: {$media->id}");
+
             $uploadedPhotos[] = [
                 'id' => $media->id,
                 'big_url' => route('image.show.big', [

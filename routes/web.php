@@ -43,8 +43,7 @@ Route::prefix('mobile')->name('mobile.')->middleware('auth')->group(function () 
     Route::post('/materials/{id}/update-description', [MobileController::class, 'updateMaterialDescription'])->name('mobile.materials.updateDescription');
 
     Route::get('/components', [MobileController::class, 'components'])->name('components');
-    Route::get('/component/create', [MobileController::class, 'component_create'])->name('component.create');
-    Route::post('/component/store/{id}', [MobileController::class, 'store_component'])->name('component.store');
+    Route::post('/component/store', [MobileController::class, 'componentStore'])->name('component.store');
 
     Route::get('/profile', [MobileController::class, 'profile'])->name('profile');
     Route::put('/profile/{id}',[MobileController::class, 'update_profile'])->name('update.profile');
