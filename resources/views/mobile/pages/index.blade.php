@@ -67,7 +67,7 @@
             color: black !important;
         }
         .equal-width-column {
-            width: 70px;
+            width: 75px;
         }
         .text-size {
             font-size: 0.75rem;
@@ -115,7 +115,7 @@
                                                 <span class="little-info">{{ $count > 99 ? '99+' : $count }}</span>
                                             </div>
                                         @else
-                                            <span class="text-white-50">No Photos</span>
+                                            <span class="text-white-50" style="font-size: 0.70rem;">No Photos</span>
                                         @endif
                                     </td>
                                 @endforeach

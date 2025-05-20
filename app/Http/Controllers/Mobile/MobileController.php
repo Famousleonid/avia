@@ -69,10 +69,19 @@ class MobileController extends Controller
         return response()->json(['success' => true]);
     }
 
-    public function components()
+    public function components(Request $request)
     {
-        $components = Component::all();
-        $workorders = Workorder::all();
+        $workorders = Workorder::with('unit')->get();
+
+        $components = collect();
+        if ($request->filled('workorder_id')) {
+            $workorder = Workorder::with('unit')->find($request->workorder_id);
+            $manualId = optional($workorder->unit)->manual_id;
+
+            if ($manualId) {
+                $components = Component::where('manual_id', $manualId)->get();
+            }
+        }
 
         return view('mobile.pages.components', compact('workorders', 'components'));
     }

@@ -77,14 +77,23 @@
             <div class="col-12 p-0">
                 <div class="bg-dark py-2 px-3 d-flex justify-content-between align-items-center border-bottom mt-3">
                     <span class="text-success-emphasis text-format">{{ __('Components') }} ({{ $components->count() }})</span>
+
                     <div class="w-80 me-2">
-                        <select id="selectedWorkorderId" class="form-select form-select-sm " required>
-                            <option value="">Select Workorder</option>
-                            @foreach($workorders as $wo)
-                                <option value="{{ $wo->id }}">{{ $wo->number }}</option>
-                            @endforeach
-                        </select>
+                        <form method="GET" action="{{ route('mobile.components') }}" class="d-flex w-100 me-2">
+                            <select name="workorder_id"
+                                    id="selectedWorkorderId"
+                                    class="form-select form-select-sm"
+                                    onchange="this.form.submit()">
+                                <option value="">Select Workorder</option>
+                                @foreach($workorders as $wo)
+                                    <option value="{{ $wo->id }}" {{ request('workorder_id') == $wo->id ? 'selected' : '' }}>
+                                        {{ $wo->number }}
+                                    </option>
+                                @endforeach
+                            </select>
+                        </form>
                     </div>
+
                     <button class="btn btn-success btn text-format" id="openAddComponentBtn" {{ $workorders->count() ? '' : 'disabled' }}>
                         {{ __('Add Component') }}
                     </button>
@@ -226,7 +235,11 @@
             const modal = new bootstrap.Modal(document.getElementById('addComponentModal'));
             modal.show();
         });
-
+        // Обработка отправки формы с включением спиннера
+        const form = document.getElementById('componentUploadForm');
+        form.addEventListener('submit', function () {
+            showLoadingSpinner();
+        });
 
     </script>
 @endsection

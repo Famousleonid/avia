@@ -114,8 +114,18 @@
                     @foreach($materials as $material)
                         <tr data-id="{{ $material->id }}">
                             <td class="text-size">{{ $material->code }}</td>
-                            <td class="text-size" title="{{ $material->material }}">{{ \Illuminate\Support\Str::limit($material->material, 12) }}</td>
-                            <td class="text-size" title="{{ $material->specification }}">{{ \Illuminate\Support\Str::limit($material->specification, 12) }}</td>
+                            <td class="text-size text-truncate"
+                                data-bs-toggle="tooltip"
+                                data-bs-placement="top"
+                                title="{{ $material->material }}">
+                                {{ \Illuminate\Support\Str::limit($material->material, 12) }}
+                            </td>
+                            <td class="text-size text-truncate"
+                                data-bs-toggle="tooltip"
+                                data-bs-placement="top"
+                                title="{{ $material->specification }}">
+                                {{ \Illuminate\Support\Str::limit($material->specification, 12) }}
+                            </td>
                             <td contenteditable="true" class="editable-description">{{ $material->description }}</td>
                         </tr>
                     @endforeach
@@ -132,6 +142,7 @@
 @section('scripts')
     <script>
         document.addEventListener('DOMContentLoaded', function () {
+
             const table = document.getElementById('cmmTable');
             const searchInput = document.getElementById('searchInput');
             const spinner = document.getElementById('searchSpinner');
@@ -188,6 +199,19 @@
                         });
                 });
             });
+
+            // Bootstrap tooltips
+            const tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+            tooltipTriggerList.forEach(function (el) {
+                new bootstrap.Tooltip(el, {
+                    trigger: 'hover focus',
+                    placement: el.getAttribute('data-bs-placement') || 'top'
+                });
+            });
+
+
+
+
         });
     </script>
 @endsection
