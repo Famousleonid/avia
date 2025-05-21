@@ -73,6 +73,16 @@
             font-size: 0.75rem;
             line-height: 2;
         }
+        th.active-column, td.active-column {
+            border-bottom: 3px solid yellow !important;
+        }
+
+        th.active-column,
+        td.active-column {
+            border-bottom: 1px solid yellow !important;
+            background-color: transparent !important;
+        }
+
     </style>
 @endsection
 
@@ -83,7 +93,7 @@
             <div class="col-12 d-flex flex-column align-items-center g-0 p-0 m-0">
                 <div class="table-responsive shadow" style="max-height: calc(100vh - 120px); overflow-y: auto; width: 100%; margin-top: 50px; ">
                     <table class="table-sm table-dark table-striped m-0 w-100 table-bordered" >
-                        <thead class="bg-primary">
+                        <thead class="bg-primary sticky-top">
                         <tr>
                             <th class="text-center bg-gradient text-size ">W_order</th>
                             <th class="text-center bg-gradient category-header equal-width-column text-size active" data-category="photos">Photo</th>
@@ -294,13 +304,29 @@
         let currentWorkorderId = null;
         let currentWorkorderNumber = null;
 
-        document.querySelectorAll('.category-header').forEach(header => {
+        document.querySelectorAll('.category-header').forEach((header, index) => {
             header.addEventListener('click', () => {
                 document.querySelectorAll('.category-header').forEach(h => h.classList.remove('active'));
                 header.classList.add('active');
                 currentPhotoCategory = header.dataset.category;
+                clearColumnHighlights();
+                highlightColumn(index + 1); // +1 чтобы учесть W_order слева
             });
         });
+
+        function clearColumnHighlights() {
+            document.querySelectorAll('th, td').forEach(el => el.classList.remove('active-column'));
+        }
+
+        function highlightColumn(index) {
+            document.querySelectorAll('table tr').forEach(row => {
+                const cells = row.querySelectorAll('th, td');
+                if (cells.length > index) {
+                    cells[index].classList.add('active-column');
+                }
+            });
+        }
+
 
         function openCamera(workorderId, workorderNumber) {
             currentWorkorderId = workorderId;
@@ -358,7 +384,6 @@
 
 
         window.addEventListener('load', () => {
-
             document.querySelectorAll('td[data-workorder-id][data-category]').forEach(cell => {
                 const workorderId = cell.dataset.workorderId;
                 const category = cell.dataset.category;

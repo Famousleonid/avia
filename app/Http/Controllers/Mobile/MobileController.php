@@ -17,7 +17,9 @@ class MobileController extends Controller
 {
     public function index()
     {
-        $workorders = Workorder::with(['unit', 'media'])->get();
+        $workorders = Workorder::with(['unit', 'media'])
+            ->orderBy('number', 'desc')
+            ->get();
 
         return view('mobile.pages.index',compact('workorders'));
     }

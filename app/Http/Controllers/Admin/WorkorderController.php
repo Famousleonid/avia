@@ -18,7 +18,7 @@ class WorkorderController extends Controller
 
     public function index()
     {
-        $workorders = Workorder::all();
+        $workorders = Workorder::orderBy('number', 'desc')->get();
         $manuals = Manual::all();
         $units = Unit::with('manuals')->get();
 
