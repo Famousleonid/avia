@@ -134,15 +134,15 @@
                                 <td class="text-center">{{$component->name}}</td>
                                 <td class="text-center">{{$component->part_number}}</td>
                                 <td class="text-center" style="width: 120px;">
-                                    <a href="{{ $component->getBigImageUrl('component') }}" data-fancybox="gallery">
-                                        <img class="rounded-circle" src="{{ $component->getThumbnailUrl('component') }}" width="40"
+                                    <a href="{{ $component->getBigImageUrl('components') }}" data-fancybox="gallery">
+                                        <img class="rounded-circle" src="{{ $component->getThumbnailUrl('components') }}" width="40"
                                              height="40" alt="IMG"/>
                                     </a>
 
                                 </td>
                                 <td class="text-center" style="width: 120px;">
-                                    <a href="{{ $component->getBigImageUrl('assy_component') }}" data-fancybox="gallery">
-                                        <img class="rounded-circle" src="{{ $component->getThumbnailUrl('assy_component') }}" width="40"
+                                    <a href="{{ $component->getBigImageUrl('assy_components') }}" data-fancybox="gallery">
+                                        <img class="rounded-circle" src="{{ $component->getThumbnailUrl('assy_components') }}" width="40"
                                              height="40" alt="IMG"/>
                                     </a>
                                 </td>

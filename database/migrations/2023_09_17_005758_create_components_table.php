@@ -17,20 +17,11 @@ return new class extends Migration {
             $table->string('ipl_num');
             $table->string('assy_ipl_num')->nullable();
             $table->boolean('log_card')->default(false);
-
             $table->foreignId('manual_id')->nullable()->constrained()->onDelete('set null');
             $table->timestamps();
             $table->softDeletes();
         });
 
-//        $dataComponent = [
-//            ['name' => 'Pin'],
-//            ['name' => 'Bracket'],
-//            ['name' => 'Axle'],
-//            ['name' => 'Main Fitting'],
-//            ['name' => 'Pintle Pin'],
-//        ];
-//        Component::insert($dataComponent);
     }
 
     public function down()

@@ -40,11 +40,11 @@ class LoginController extends Controller
     public function logout()
     {
         Auth::logout();
-        return redirect(route('home'));    // напрввляет после logout
+        return redirect(route('home'));
     }
     public function showMobileLoginForm()
     {
-        return view('mobile.auth.login');
+        return view('auth.login');
     }
 
 }

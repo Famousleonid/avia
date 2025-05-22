@@ -30,7 +30,6 @@ Route::get('/clear', function () {
 });
 
 Route::get('/', [FrontController::class, 'index'])->name('home')->middleware('mobile.redirect');
-Route::get('/login', [LoginController::class, 'showMobileLoginForm'])->name('login');
 
 Route::prefix('mobile')->name('mobile.')->middleware('auth')->group(function () {
 
@@ -125,11 +124,11 @@ Route::group(['middleware' => ['auth', 'isAdmin'], 'prefix' => 'admin', 'as' =>'
 
     // Для component inspection
 
-    Route::get('admin/tdrs/inspection/unit/{workorder_id}', [TdrController::class, 'inspectionUnit'])->name('tdrs.inspection.unit');
+    Route::get('/tdrs/inspection/unit/{workorder_id}', [TdrController::class, 'inspectionUnit'])->name('tdrs.inspection.unit');
 
     // Для unit inspection
 
-    Route::get('admin/tdrs/inspection/component/{workorder_id}', [TdrController::class, 'inspectionComponent'])->name('tdrs.inspection.component');
+    Route::get('/tdrs/inspection/component/{workorder_id}', [TdrController::class, 'inspectionComponent'])->name('tdrs.inspection.component');
 
 
     Route::post('/components/store_from_inspection', [\App\Http\Controllers\Admin\ComponentController::class, 'storeFromInspection'])->name('components.storeFromInspection');

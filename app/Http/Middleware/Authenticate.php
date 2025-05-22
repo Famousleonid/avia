@@ -18,6 +18,6 @@ class Authenticate extends Middleware
             // Для AJAX-запросов возвращаем JSON-ответ
             return response()->json(['error' => 'Unauthenticated'], 401);
         }
-        return route('mobile.login');
+        return route('login');
     }
 }
