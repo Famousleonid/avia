@@ -105,24 +105,25 @@ class MediaController extends Controller
         return response()->file($mediaItem->getPath());
     }
 
-    public function get_photos($id)
+    public function get_photos($id, Request $request)
     {
+        $category = $request->query('category', 'photos'); // по умолчанию photos
         $workorder = Workorder::findOrFail($id);
+
         $uploadedPhotos = [];
 
-        foreach ($workorder->getMedia('photos') as $media) {
-
+        foreach ($workorder->getMedia($category) as $media) {
             $uploadedPhotos[] = [
                 'id' => $media->id,
                 'big_url' => route('image.show.big', [
                     'mediaId' => $media->id,
                     'modelId' => $workorder->id,
-                    'mediaName' => 'photos'
+                    'mediaName' => $category,
                 ]),
                 'thumb_url' => route('image.show.thumb', [
                     'mediaId' => $media->id,
                     'modelId' => $workorder->id,
-                    'mediaName' => 'photos'
+                    'mediaName' => $category,
                 ]),
                 'alt' => $media->name ?? 'Photo',
             ];

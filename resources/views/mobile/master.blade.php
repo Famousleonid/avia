@@ -40,13 +40,14 @@
 
 </head>
 <body class="fade-page">
+
 <div id="spinner-load" class=" spinner-border text-warning spinner-win" role="status">
     <span class="visually-hidden">Loading...</span>
 </div>
 
 
 @include('components.mobile-menu', ['position' => 'top'])
-<div style="height: 50px;"></div>
+
 
 @yield('content')
 
