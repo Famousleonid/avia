@@ -8,8 +8,11 @@ use App\Models\Manual;
 use App\Models\Plane;
 use App\Models\Scope;
 use App\Models\Unit;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
+use Throwable;
 
 
 class UnitController extends Controller
@@ -71,29 +74,45 @@ class UnitController extends Controller
     /**
      * Store a newly created resource in storage.
      */
-    public function store(Request $request)
+    public function store(Request $request): JsonResponse
     {
-        $request->validate([
-            'cmm_id' => 'required|exists:manuals,id',
-            'part_numbers' => 'required|array',
-            'part_numbers.*' => 'string|distinct',
-        ]);
-
-        DB::transaction(function () use ($request) {
-            foreach ($request->part_numbers as $partNumber) {
-                Unit::create([
-                    'manual_id' => $request->cmm_id,
-                    'part_number' => $partNumber,
-                    'verified' => 1, // Устанавливаем verified в 1
-                ]);
+        try {
+            if (!$request->ajax()) {
+                Log::channel('avia')->warning('Non-AJAX request to UnitController@store');
+                return response()->json(['error' => 'Invalid request type'], 400);
             }
-        });
 
-        session()->flash('success', 'Unit successfully created.');
+            Log::channel('avia')->debug('Incoming request to UnitController@store', $request->all());
 
+            $validated = $request->validate([
+                'manual_id' => 'required|exists:manuals,id',
+                'part_number' => 'required|string|max:255',
+            ]);
 
-        return response()->json(['success' => true]);
+            Log::channel('avia')->debug('Validated data', $validated);
+
+            $unit = Unit::create([
+                'part_number' => $validated['part_number'],
+                'manual_id' => $validated['manual_id'],
+                'verified' => false,
+            ]);
+
+            Log::channel('avia')->info('Unit created', ['id' => $unit->id, 'manual_id' => $unit->manual_id]);
+
+            return response()->json([
+                'id' => $unit->id,
+                'part_number' => $unit->part_number,
+                'manual_title' => optional($unit->manuals)->title,
+            ]);
+        } catch (Throwable $e) {
+            Log::channel('avia')->error('Unit store exception', [
+                'message' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+            ]);
+            return response()->json(['error' => 'Server error'], 500);
+        }
     }
+
 //    public function storeWorkorder(Request $request)
 //    {
 //        // Валидация данных

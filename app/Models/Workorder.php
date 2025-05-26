@@ -67,8 +67,8 @@ class Workorder extends Model implements HasMedia
     public function registerMediaConversions(\Spatie\MediaLibrary\MediaCollections\Models\Media $media = null): void
     {
         $this->addMediaConversion('thumb')
-            ->width(100)
-            ->height(100)
+            ->width(80)
+            ->height(80)
             ->nonOptimized();
 
     }

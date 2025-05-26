@@ -114,6 +114,10 @@ Route::group(['middleware' => ['auth', 'isAdmin'], 'prefix' => 'admin', 'as' =>'
     Route::get('/workorders/approve/{id}/', [\App\Http\Controllers\Admin\WorkorderController::class, 'approve'])->name('workorders.approve');
     Route::post('workorders/{workorder}/inspection', [\App\Http\Controllers\Admin\WorkorderController::class, 'updateInspect'])->name('workorders.inspection');
     Route::get('/progress', [\App\Http\Controllers\Admin\MainController::class, 'progress'])->name('progress.index');
+    Route::get('/workorders/{id}/photos', [\App\Http\Controllers\Admin\WorkorderController::class, 'photos'])->name('workorders.photos');
+    Route::get('/workorders/download/{id}/all', [\App\Http\Controllers\Admin\WorkorderController::class, 'downloadAllGrouped'])->name('workorders.downloadAllGrouped');
+    Route::delete('/workorders/photo/delete/{id}', [MediaController::class, 'delete_photo'])->name('admin.workorders.photo.delete');
+
 
     Route::get('/tdrs/processes/{workorder_id}',[\App\Http\Controllers\Admin\TdrController::class, 'processes'])->name('tdrs.processes');
     Route::get('/tdrs/inspection/{workorder_id}',[\App\Http\Controllers\Admin\TdrController::class, 'inspection'])->name('tdrs.inspection');

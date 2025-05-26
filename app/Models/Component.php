@@ -2,13 +2,14 @@
 
 namespace App\Models;
 
+use App\Traits\HasMediaHelpers;
 use Illuminate\Database\Eloquent\Model;
 use Spatie\MediaLibrary\HasMedia;
 use Spatie\MediaLibrary\InteractsWithMedia;
 
 class Component extends Model implements  hasMedia
 {
-    use  InteractsWithMedia;
+    use  InteractsWithMedia, HasMediaHelpers;
 
     protected $fillable = [
         'part_number',
@@ -36,21 +37,5 @@ class Component extends Model implements  hasMedia
             ->nonOptimized();
 
     }
-    public function getThumbnailUrl($collection)
-    {
-        $media = $this->getMedia($collection)->first();
-        return $media
-            ? route('image.show.thumb', ['mediaId' => $media->id, 'modelId' => $this->id, 'mediaName' => $collection])
-            : asset('img/noimage.png');
-    }
-    public function getBigImageUrl($collection)
-    {
-        $media = $this->getMedia($collection)->first();
-        return $media
-            ? route('image.show.big', ['mediaId' => $media->id, 'modelId' => $this->id, 'mediaName' => $collection])
-            : asset('img/noimage.png');
-    }
-
-
 
 }

@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Traits\HasMediaHelpers;
 use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\SoftDeletes;
@@ -15,7 +16,7 @@ use Spatie\MediaLibrary\InteractsWithMedia;
 
 class User extends Authenticatable implements MustVerifyEmail, hasMedia
 {
-    use HasFactory, Notifiable, InteractsWithMedia;
+    use HasFactory, Notifiable, InteractsWithMedia, HasMediaHelpers;
     use LogsActivity, softDeletes;
 
     protected $fillable = ['name', 'email', 'password', 'email_verified_at', 'is_admin', 'role_id', 'phone', 'stamp', 'team_id'];
@@ -76,21 +77,6 @@ class User extends Authenticatable implements MustVerifyEmail, hasMedia
             ->height(100)
             ->nonOptimized();
 
-    }
-    public function getThumbnailUrl($collection)
-    {
-        $media = $this->getMedia($collection)->first();
-        return $media
-            ? route('image.show.thumb', ['mediaId' => $media->id, 'modelId' => $this->id, 'mediaName' => 'avatar'])
-            : asset('img/noimage.png');
-    }
-
-    public function getBigImageUrl($collection)
-    {
-        $media = $this->getMedia($collection)->first();
-        return $media
-            ? route('image.show.big', ['mediaId' => $media->id, 'modelId' => $this->id, 'mediaName' => 'avatar'])
-            : asset('img/noimage.png');
     }
 
 }

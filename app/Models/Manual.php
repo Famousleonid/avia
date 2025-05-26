@@ -12,8 +12,7 @@ use Spatie\MediaLibrary\InteractsWithMedia;
 
 class Manual extends Model implements  hasMedia
 {
-    use softDeletes, InteractsWithMedia;
-    use HasMediaHelpers;
+    use softDeletes, InteractsWithMedia, HasMediaHelpers;
 
     protected $fillable = [
         'number',
@@ -96,19 +95,5 @@ class Manual extends Model implements  hasMedia
         return $media ? $media->file_name : null;
     }
 
-    public function getThumbnailUrl($collection)
-    {
-        $media = $this->getMedia($collection)->first();
-        return $media
-            ? route('image.show.thumb', ['mediaId' => $media->id, 'modelId' => $this->id, 'mediaName' => $collection])
-            : asset('img/noimage.png');
-    }
 
-    public function getBigImageUrl($collection)
-    {
-        $media = $this->getMedia($collection)->first();
-        return $media
-            ? route('image.show.big', ['mediaId' => $media->id, 'modelId' => $this->id, 'mediaName' => $collection])
-            : asset('img/noimage.png');
-    }
 }

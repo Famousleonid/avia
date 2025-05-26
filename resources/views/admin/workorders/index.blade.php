@@ -1,12 +1,21 @@
 @extends('admin.master')
 
-@section('links')
+@section('style')
     <style>
+        .card {
+            display: flex;
+            flex-direction: column;
+            height: calc(100vh - 70px); /* подогнано под layout с фиксированным footer */
+        }
+
+        .card-header {
+            flex-shrink: 0;
+        }
+
         .table-wrapper {
-            height: calc(100vh - 170px);
+            flex: 1 1 auto;
             overflow-y: auto;
             overflow-x: hidden;
-            display: none;
         }
 
         .table th, .table td {
@@ -32,24 +41,35 @@
 
         .clearable-input {
             position: relative;
-            width: 400px;
+            max-width: 400px;
+            height: 38px;
         }
 
         .clearable-input .form-control {
             padding-right: 2.5rem;
+            width: 100%;
+            height: 100%;
+            line-height: 38px;
         }
 
         .clearable-input .btn-clear {
             position: absolute;
-            right: 0.5rem;
             top: 50%;
+            right: 0.75rem;
             transform: translateY(-50%);
+            height: 24px;
+            width: 24px;
             background: none;
             border: none;
-            cursor: pointer;
+            padding: 0;
+            font-size: 1.25rem;
+            color: #ccc;
+            z-index: 10;
         }
+
+
         #currentUserCheckbox {
-            cursor: pointer; /* Изменяем курсор при наведении */
+            cursor: pointer;
         }
 
         /* Стили для темной темы */
@@ -73,117 +93,116 @@
 
     <div class="card shadow">
 
-        <div class="card-header my-1 ">
-            <div class="d-flex justify-content-between">
-                <h5 class="text-primary">{{__('Workorders')}}( <span class="text-success">{{$workorders->count()}} </span>)</h5>
-                <a id="admin_new_firm_create" href={{route('admin.workorders.create')}} class=""><img src="{{asset('img/plus.png')}}" width="30px" alt="" data-toggle="tooltip" data-placement="top" title="Add new workorder"></a>
-                <div class="d-flex align-items-center">
-                    <input type="checkbox" id="currentUserCheckbox" style="width: 30px; height: 30px;" checked>
-                    <label for="customCheckbox" class="ms-2">My workorders</label>
-                </div>
-                <div class="me-3">***</div>
+        <div class="card-header d-flex flex-wrap align-items-center justify-content-between gap-2">
+            <div class="d-flex align-items-center gap-3">
+                <h5 class="text-primary mb-0">
+                    {{ __('Workorders') }}
+                    (<span class="text-success">{{ $workorders->count() }}</span>)
+                </h5>
 
+                <a id="admin_new_firm_create" href="{{ route('admin.workorders.create') }}">
+                    <img src="{{ asset('img/plus.png') }}" width="30" alt="Add" data-bs-toggle="tooltip" title="Add new workorder">
+                </a>
             </div>
-        </div>
 
-        <div class="d-flex my-2">
-            <div class="clearable-input ps-2">
-                <input id="searchInput" type="text" class="form-control w-100" placeholder="Search...">
-                <button class="btn-clear text-secondary" onclick="document.getElementById('searchInput').value = ''; document.getElementById('searchInput').dispatchEvent(new Event('input'))">
+            <div class="clearable-input">
+                <input id="searchInput" type="text" class="form-control" placeholder="Search...">
+                <button id="clearSearch" type="button" class="btn-clear">
                     <i class="bi bi-x-circle"></i>
                 </button>
+            </div>
+
+            <div class="form-check d-flex align-items-center mb-0">
+                <input class="form-check-input" type="checkbox" id="currentUserCheckbox" checked style="width: 1.2em; height: 1.2em;">
+                <label class="form-check-label ms-2" for="currentUserCheckbox">My workorders</label>
             </div>
         </div>
 
         @if(count($workorders))
 
-            <div class="table-wrapper me-3 p-2 pt-0">
-
-                <table id="show-workorder" class="display table-sm table-bordered table-striped table-hover w-100">
-
-                    {{--                    <thead style="background: linear-gradient(to bottom, #131313, #2E2E2E);">--}}
-
+            <div class="table-wrapper p-2 pt-0">
+                <table id="show-workorder" class="table table-sm table-bordered table-striped table-hover w-100">
                     <thead class="bg-gradient">
-
                     <tr>
-                        <th class="text-center text-primary bg-gradient sortable">Number<i class="bi bi-chevron-expand ms-1"></i></th>
-                        <th class="text-center text-primary bg-gradient ">Approve</th>
-                        <th class="text-center text-primary bg-gradient ">Unit</th>
-                        <th class="text-center text-primary bg-gradient ">Description</th>
-                        <th class="text-center text-primary bg-gradient ">Serial number</th>
-                        <th class="text-center text-primary bg-gradient ">WO TDR</th>
-                        <th class="text-center text-primary bg-gradient ">Manual</th>
-                        <th class="text-center text-primary bg-gradient sortable">Customer<i class="bi bi-chevron-expand ms-1"></i></th>
-                        <th class="text-center text-primary bg-gradient sortable">Instruction<i class="bi bi-chevron-expand ms-1"></i></th>
-                        <th class="text-center text-primary bg-gradient sortable">Technik<i class="bi bi-chevron-expand ms-1"></i></th>
-                        <th class="text-center text-primary bg-gradient ">Place</th>
-                        <th class="text-center text-primary bg-gradient " data-orderable="false">Edit</th>
-                        <th class="text-center text-primary bg-gradient ">Open Date</th>
-                        <th class="text-center text-primary bg-gradient " data-orderable="false">Delete</th>
+                        <th class="text-center text-primary sortable">Number <i class="bi bi-chevron-expand ms-1"></i></th>
+                        <th class="text-center text-primary">Approve</th>
+                        <th class="text-center text-primary">Unit</th>
+                        <th class="text-center text-primary">Description</th>
+                        <th class="text-center text-primary">Serial number</th>
+                        <th class="text-center text-primary">WO TDR</th>
+                        <th class="text-center text-primary">Manual</th>
+                        <th class="text-center text-primary sortable">Customer <i class="bi bi-chevron-expand ms-1"></i></th>
+                        <th class="text-center text-primary sortable">Instruction <i class="bi bi-chevron-expand ms-1"></i></th>
+                        <th class="text-center text-primary sortable">Technik <i class="bi bi-chevron-expand ms-1"></i></th>
+                        <th class="text-center text-primary">Photos</th>
+                        <th class="text-center text-primary">Edit</th>
+                        <th class="text-center text-primary">Open Date</th>
+                        <th class="text-center text-primary">Delete</th>
                     </tr>
                     </thead>
                     <tbody>
                     @foreach ($workorders as $workorder)
                         <tr>
                             <td class="text-center">
-                                <a class="text-decoration-none" href="{{route('admin.mains.show', ['main' => $workorder->id])}}">
-                                    <span style="font-size: 16px; color: #0DDDFD;  " id="" class="text-bold">w&nbsp; {{$workorder->number}}</span>
+                                <a href="{{ route('admin.mains.show', $workorder->id) }}" class="text-decoration-none">
+                                    <span style="font-size: 16px; color: #0DDDFD;">w&nbsp;{{ $workorder->number }}</span>
                                 </a>
                             </td>
                             <td class="text-center">
-                                <a class="change_approve" href="{{route("admin.workorders.approve", ['id' => $workorder->id])}}" onclick="showLoadingSpinner()">
+                                <a href="{{ route('admin.workorders.approve', $workorder->id) }}" class="change_approve" onclick="showLoadingSpinner()">
                                     @if($workorder->approve_at)
-                                        <img data-toggle="tooltip" title="@if($workorder->approve_at) {{$workorder->approve_at->format('d.m.Y')}}&nbsp; {{$workorder->approve_name}} @endif" src="{{asset('img/ok.png')}}" width="20px" alt="">
+                                        <img src="{{ asset('img/ok.png') }}" width="20" alt="" title="{{ $workorder->approve_at->format('d.m.Y') }} {{ $workorder->approve_name }}">
                                     @else
-                                        <img src="{{asset('img/icon_no.png')}}" width="12px" alt="">
+                                        <img src="{{ asset('img/icon_no.png') }}" width="12" alt="">
                                     @endif
                                 </a>
                             </td>
-                            <td class="text-center">{{$workorder->unit->part_number}}</td>
-                            <td class="text-center">{{$workorder->unit->manuals->title}}</td>
-
-                            <td class="text-center">{{$workorder->serial_number}}
-                                @if($workorder->amdt>0)
-                                    Amdt {{$workorder->amdt}}
-                                @endif
-                            </td>
+                            <td class="text-center">{{ $workorder->unit->part_number }}</td>
+                            <td class="text-center">{{ $workorder->unit->manuals->title }}</td>
+                            <td class="text-center">{{ $workorder->serial_number }} @if($workorder->amdt > 0) Amdt {{ $workorder->amdt }} @endif</td>
                             <td class="text-center">
-                                <a href="{{ route('admin.tdrs.show', ['tdr' => $workorder->id]) }}"
-                                   class="btn btn-outline-primary btn-sm">
+                                <a href="{{ route('admin.tdrs.show', $workorder->id) }}" class="btn btn-outline-primary btn-sm">
                                     <i class="bi bi-journal-richtext"></i>
                                 </a>
                             </td>
-
-                            <td class="text-center">{{$workorder->unit->manuals->number}}</td>
-                            <td class="text-center">{{$workorder->customer->name}}</td>
-                            <td class="text-center">{{$workorder->instruction->name}}</td>
-                            <td class="text-center">{{$workorder->user->name}}</td>
-                            <td class="">{{$workorder->place}}</td>
+                            <td class="text-center">{{ $workorder->unit->manuals->number }}</td>
+                            <td class="text-center">{{ $workorder->customer->name }}</td>
+                            <td class="text-center">{{ $workorder->instruction->name }}</td>
+                            <td class="text-center">{{ $workorder->user->name }}</td>
                             <td class="text-center">
-                                <a href="{{route('admin.workorders.edit', ['workorder' => $workorder->id])}}"><img src="{{asset('img/set.png')}}" width="30px" alt=""></a>
+                                <button class="btn btn-outline-info btn-sm open-photo-modal" data-id="{{ $workorder->id }}">
+                                    <i class="bi bi-images"></i>
+                                </button>
                             </td>
-                            @if($workorder->open_at)
-                                <td class="text-center"><span style="display: none">{{$workorder->open_at->format('Ymd')}}</span>{{$workorder->open_at->format('d.m.Y')}}</td>
-                            @else
-                                <td class="text-center"><span style="display: none">{{$workorder->open_at}}</span>{{$workorder->open_at}}</td>
-                            @endif
                             <td class="text-center">
-                                <form id="deleteForm_{{$workorder->id}}" action="{{ route('admin.workorders.destroy', ['workorder' => $workorder->id]) }}" method="POST" style="display:inline;">
+                                <a href="{{ route('admin.workorders.edit', $workorder->id) }}">
+                                    <img src="{{ asset('img/set.png') }}" width="30" alt="Edit">
+                                </a>
+                            </td>
+                            <td class="text-center">
+                                @if($workorder->open_at)
+                                    <span style="display: none">{{ $workorder->open_at->format('Ymd') }}</span>{{ $workorder->open_at->format('d.m.Y') }}
+                                @else
+                                    <span style="display: none">{{ $workorder->open_at }}</span>{{ $workorder->open_at }}
+                                @endif
+                            </td>
+                            <td class="text-center">
+                                <form id="deleteForm_{{ $workorder->id }}" action="{{ route('admin.workorders.destroy', $workorder->id) }}" method="POST" style="display:inline;">
                                     @csrf
                                     @method('DELETE')
                                     <button class="btn btn-sm btn-outline-danger" type="button" name="btn_delete"
-                                            data-bs-toggle="modal" data-bs-target="#useConfirmDelete" data-title="Delete Confirmation WO {{$workorder->number}}">
+                                            data-bs-toggle="modal" data-bs-target="#useConfirmDelete"
+                                            data-title="Delete Confirmation WO {{ $workorder->number }}">
                                         <i class="bi bi-trash"></i>
                                     </button>
                                 </form>
                             </td>
                         </tr>
-
                     @endforeach
-
                     </tbody>
                 </table>
             </div>
+
         @else
             <p class="ms-2">Workorders not created</p>
         @endif
@@ -191,59 +210,115 @@
 
     @include('components.delete')
 
+    <div class="modal fade" id="photoModal" tabindex="-1" aria-labelledby="photoModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-xl modal-dialog-scrollable">
+            <div class="modal-content" style="background-color: #343A40">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="photoModalLabel">Photos</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <div id="photoModalContent" class="row g-3"></div>
+                </div>
+                <div class="modal-footer">
+                    <button class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                    <button class="btn btn-primary" id="saveAllPhotos">Download All</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+
+
+    <div class="modal fade" id="confirmDeletePhotoModal" tabindex="-1" aria-labelledby="confirmDeletePhotoLabel" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content text-center">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="confirmDeletePhotoLabel">Confirm Deletion</h5>
+                </div>
+                <div class="modal-body">
+                    Are you sure you want to delete this photo?
+                </div>
+                <div class="modal-footer justify-content-center">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button id="confirmPhotoDeleteBtn" class="btn btn-danger">Delete</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="position-fixed bottom-0 end-0 p-3" style="z-index: 1055">
+        <div id="photoDeletedToast" class="toast bg-success text-white" role="alert" aria-live="assertive" aria-atomic="true">
+            <div class="toast-body">
+                Photo deleted successfully.
+            </div>
+        </div>
+    </div>
+
+
+
+
+
+
+
+
 
 @endsection
 
+
 @section('scripts')
-
-
     <script>
-
         const currentUserName = "{{ auth()->user()->name }}";
 
         document.addEventListener('DOMContentLoaded', function () {
+
+            const searchInput = document.getElementById('searchInput');
+            const clearSearchBtn = document.getElementById('clearSearch');
+
+            // показать/скрыть крестик в зависимости от наличия текста
+            searchInput.addEventListener('input', function () {
+                clearSearchBtn.style.display = this.value ? 'block' : 'none';
+            });
+
+            // при загрузке — проверить сразу
+            clearSearchBtn.style.display = searchInput.value ? 'block' : 'none';
+
+
+
             const table = document.getElementById('show-workorder');
             const tableWrapper = document.querySelector('.table-wrapper');
-            const searchInput = document.getElementById('searchInput');
             const headers = document.querySelectorAll('.sortable');
             const checkbox = document.getElementById('currentUserCheckbox');
 
             // Восстановление состояния чекбокса из localStorage
             const savedCheckboxState = localStorage.getItem('myWorkordersCheckbox');
-            if (savedCheckboxState !== null) {
-                checkbox.checked = savedCheckboxState === 'true';
-            } else {
-                checkbox.checked = true; // По умолчанию включён при первом входе
-                localStorage.setItem('myWorkordersCheckbox', 'true'); // Сохраняем начальное состояние
-            }
+            checkbox.checked = savedCheckboxState !== null ? savedCheckboxState === 'true' : true;
+            localStorage.setItem('myWorkordersCheckbox', checkbox.checked);
 
             function filterTable() {
                 const filter = searchInput.value.toLowerCase();
                 const showOnlyMyWorkorders = checkbox.checked;
                 const rows = table.querySelectorAll('tbody tr');
 
-               // showLoadingSpinner();
+                showLoadingSpinner();
 
-                    rows.forEach(row => {
-                        const rowText = row.innerText.toLowerCase();
-                        const technikName = row.querySelector('td:nth-child(10)').innerText.trim(); // Колонка Technik
-                        const matchesSearch = rowText.includes(filter);
-                        const matchesUser = showOnlyMyWorkorders ? technikName === currentUserName : true;
-                        row.style.display = (matchesSearch && matchesUser) ? '' : 'none';
-                    });
+                rows.forEach(row => {
+                    const rowText = row.innerText.toLowerCase();
+                    const technikName = row.querySelector('td:nth-child(10)').innerText.trim();
+                    const matchesSearch = rowText.includes(filter);
+                    const matchesUser = showOnlyMyWorkorders ? technikName === currentUserName : true;
+                    row.style.display = (matchesSearch && matchesUser) ? '' : 'none';
+                });
 
-                //     hideLoadingSpinner();
-
+                hideLoadingSpinner();
             }
 
-            // Sorting
             headers.forEach(header => {
                 header.addEventListener('click', () => {
                     const columnIndex = Array.from(header.parentNode.children).indexOf(header) + 1;
                     const direction = header.dataset.direction === 'asc' ? 'desc' : 'asc';
                     header.dataset.direction = direction;
 
-                    // Icon
                     headers.forEach(h => {
                         const icon = h.querySelector('i');
                         if (icon) icon.className = 'bi bi-chevron-expand';
@@ -251,55 +326,171 @@
                     const currentIcon = header.querySelector('i');
                     if (currentIcon) currentIcon.className = direction === 'asc' ? 'bi bi-arrow-up' : 'bi bi-arrow-down';
 
-                    // Sorting row
                     const rows = Array.from(table.querySelectorAll('tbody tr'));
                     rows.sort((a, b) => {
                         const aText = a.querySelector(`td:nth-child(${columnIndex})`).innerText.trim();
                         const bText = b.querySelector(`td:nth-child(${columnIndex})`).innerText.trim();
                         return direction === 'asc' ? aText.localeCompare(bText) : bText.localeCompare(aText);
                     });
-
-                    // Updating the table
                     rows.forEach(row => table.querySelector('tbody').appendChild(row));
                     filterTable();
                 });
             });
 
-            // Search
             searchInput.addEventListener('input', filterTable);
-
-            // Checkbox
             checkbox.addEventListener('change', () => {
-                localStorage.setItem('myWorkordersCheckbox', checkbox.checked); // Сохраняем состояние
-                filterTable(); // Фильтруем таблицу
+                localStorage.setItem('myWorkordersCheckbox', checkbox.checked);
+                filterTable();
             });
 
-            // Применяем фильтр при загрузке страницы
-            filterTable();
+
             tableWrapper.style.display = 'block';
+            filterTable();
 
-            // --------------- Delete modal -----------------------------------------------------------------------------------
-            const modal = document.getElementById('useConfirmDelete');
-            const confirmDeleteBtn = document.getElementById('confirmDeleteBtn');
-            let deleteForm = null;
-            modal.addEventListener('show.bs.modal', function (event) {
-                const button = event.relatedTarget;
-                deleteForm = button.closest('form');
-                const title = button.getAttribute('data-title');
-                const modalTitle = modal.querySelector('#confirmDeleteLabel');
-                modalTitle.textContent = title || 'Delete Confirmation';
-            });
-            confirmDeleteBtn.addEventListener('click', function () {
-                if (deleteForm) {
-                    deleteForm.submit();
+            // ----------------- Удаление через модалку -----------------
+            document.getElementById('confirmPhotoDeleteBtn').addEventListener('click', async function () {
+                const { mediaId, photoBlock } = window.pendingDelete || {};
+                if (!mediaId) return;
+
+                showLoadingSpinner();
+
+                try {
+                    const response = await fetch(`/admin/workorders/photo/delete/${mediaId}`, {
+                        method: 'DELETE',
+                        headers: {
+                            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content
+                        }
+                    });
+
+                    if (response.ok) {
+                        photoBlock.style.transition = 'opacity 0.3s ease';
+                        photoBlock.style.opacity = '0';
+                        setTimeout(() => {
+                            photoBlock.remove();
+                            loadPhotoModal(window.currentWorkorderId);
+                        }, 300);
+
+                        const toast = new bootstrap.Toast(document.getElementById('photoDeletedToast'));
+                        toast.show();
+                    } else {
+                        alert('Failed to delete photo');
+                    }
+                } catch (err) {
+                    console.error('Delete error:', err);
+                    alert('Server error');
+                } finally {
+                    hideLoadingSpinner();
+                    bootstrap.Modal.getInstance(document.getElementById('confirmDeletePhotoModal')).hide();
+                    window.pendingDelete = null;
                 }
             });
-            // --------------- End Delete modal -----------------------------------------------------------------------------------
+
+            // ----------------- Открытие модалки фото -----------------
+            document.querySelectorAll('.open-photo-modal').forEach(button => {
+                button.addEventListener('click', async function () {
+                    const workorderId = this.dataset.id;
+                    window.currentWorkorderId = workorderId;
+                    await loadPhotoModal(workorderId);
+                    new bootstrap.Modal(document.getElementById('photoModal')).show();
+                });
+            });
+
+            // ----------------- Загрузка фото -----------------
+            async function loadPhotoModal(workorderId) {
+                const modalContent = document.getElementById('photoModalContent');
+                modalContent.innerHTML = 'Loading...';
+                showLoadingSpinner();
+
+                try {
+                    const response = await fetch(`/admin/workorders/${workorderId}/photos`);
+                    if (!response.ok) throw new Error('Response not ok');
+                    const data = await response.json();
+
+
+
+
+                    let html = '';
+                    ['photos', 'damages', 'logs'].forEach(group => {
+                        html += `<div class="col-12"><h6 class="text-primary text-uppercase mt-2">${group}</h6><div class="row">`;
+                        data[group].forEach(media => {
+                            html += `
+                    <div class="col-4 col-md-2 mb-3 text-center">
+                        <div class="position-relative">
+                            <a data-fancybox="${group}" href="${media.big}" data-caption="${group}">
+                                <img src="${media.thumb}" class="img-fluid border border-primary rounded shadow-sm" />
+                            </a>
+                            <button class="btn btn-sm btn-danger position-absolute top-0 end-0 m-1 delete-photo-btn"
+                                    data-id="${media.id}" title="Delete">&times;</button>
+                        </div>
+                    </div>`;
+                        });
+                        html += `</div></div>`;
+                    });
+
+                    modalContent.innerHTML = html;
+                    bindDeleteButtons();
+                } catch (e) {
+                    console.error('Load photo error', e);
+                    modalContent.innerHTML = '<div class="text-danger">Failed to load photos</div>';
+                } finally {
+                    hideLoadingSpinner();
+                }
+            }
+
+            // ----------------- Назначение обработчиков на кнопки удаления -----------------
+            function bindDeleteButtons() {
+                document.querySelectorAll('.delete-photo-btn').forEach(btn => {
+                    btn.addEventListener('click', function (e) {
+                        e.preventDefault();
+                        e.stopPropagation();
+
+                        const mediaId = this.dataset.id;
+                        const photoBlock = this.closest('.col-4, .col-md-2');
+
+                        window.pendingDelete = { mediaId, photoBlock };
+                        new bootstrap.Modal(document.getElementById('confirmDeletePhotoModal')).show();
+                    });
+                });
+            }
+
+            // ----------------- Скачивание ZIP -----------------
+            document.getElementById('saveAllPhotos').addEventListener('click', function () {
+                const workorderId = window.currentWorkorderId;
+                if (!workorderId) return alert('Workorder ID missing');
+
+                showLoadingSpinner();
+
+                fetch(`/admin/workorders/download/${workorderId}/all`)
+                    .then(response => {
+                        if (!response.ok) throw new Error('Download failed');
+                        return response.blob();
+                    })
+                    .then(blob => {
+                        const url = window.URL.createObjectURL(blob);
+                        const a = document.createElement('a');
+                        a.href = url;
+                        a.download = `workorder_${workorderId}_images.zip`;
+                        a.click();
+                        window.URL.revokeObjectURL(url);
+                    })
+                    .catch(err => {
+                        console.error('Error downloading ZIP:', err);
+                        alert('Download failed');
+                    })
+                    .finally(() => {
+                        hideLoadingSpinner();
+                    });
+            });
+
+            document.getElementById('clearSearch').addEventListener('click', function () {
+                const input = document.getElementById('searchInput');
+                input.value = '';
+                input.dispatchEvent(new Event('input'));
+            });
 
         });
-
     </script>
-
 @endsection
+
 
 

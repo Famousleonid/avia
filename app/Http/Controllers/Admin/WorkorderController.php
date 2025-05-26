@@ -12,6 +12,11 @@ use App\Models\Workorder;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Log;
+use ZipStream\ZipStream;
+use Illuminate\Support\Str;
+use Symfony\Component\HttpFoundation\StreamedResponse;
+use ZipStream\Option\Archive as ArchiveOptions;
 
 class WorkorderController extends Controller
 {
@@ -91,8 +96,7 @@ class WorkorderController extends Controller
         $open_at = Carbon::parse($current_wo->open_at)->format('Y-m-d');
 
 
-
-        return view('admin.workorders.edit', compact('users', 'customers', 'units', 'instructions', 'current_wo', 'manuals','open_at'));
+        return view('admin.workorders.edit', compact('users', 'customers', 'units', 'instructions', 'current_wo', 'manuals', 'open_at'));
 
     }
 
@@ -162,6 +166,85 @@ class WorkorderController extends Controller
 
         } catch (\Exception $e) {
             return response()->json(['success' => false, 'error' => $e->getMessage()], 500);
+        }
+    }
+
+    public function photos($id)
+    {
+        try {
+            $workorder = Workorder::findOrFail($id);
+            $collections = ['photos', 'damages', 'logs'];
+            $result = [];
+
+            foreach ($collections as $col) {
+                $result[$col] = $workorder->getMedia($col)->map(function ($media) use ($workorder, $col) {
+                    return [
+                        'id'    => $media->id,
+                        'thumb' => route('image.show.thumb', [
+                            'mediaId'   => $media->id,
+                            'modelId'   => $workorder->id,
+                            'mediaName' => $col,
+                        ]),
+                        'big'   => route('image.show.big', [
+                            'mediaId'   => $media->id,
+                            'modelId'   => $workorder->id,
+                            'mediaName' => $col,
+                        ]),
+                    ];
+                })->values()->toArray();
+            }
+
+            return response()->json($result);
+
+        } catch (\Throwable $e) {
+            Log::channel('avia')->error("Photo load failed [workorder $id]: {$e->getMessage()}");
+            return response()->json(['error' => 'Server error'], 500);
+        }
+    }
+
+    public function downloadAllGrouped($id)
+    {
+        try {
+            $workorder = Workorder::findOrFail($id);
+            $groups = ['photos', 'damages', 'logs'];
+
+            Log::channel('avia')->info("ZIP download started for workorder ID: $id");
+
+            return new StreamedResponse(function () use ($workorder, $groups, $id) {
+                $options = new ArchiveOptions();
+                $options->setSendHttpHeaders(true);
+
+                $zip = new ZipStream(null, $options);
+
+                foreach ($groups as $group) {
+                    foreach ($workorder->getMedia($group) as $media) {
+                        $filePath = $media->getPath();
+
+                        if (!file_exists($filePath)) {
+                            Log::channel('avia')->error("File not found: $filePath");
+                            continue;
+                        }
+
+                        $filename = Str::slug(pathinfo($media->file_name, PATHINFO_FILENAME)) . '.' .
+                            pathinfo($media->file_name, PATHINFO_EXTENSION);
+
+                        $relativePath = "$group/$filename";
+
+                        $zip->addFileFromPath($relativePath, $filePath);
+                        Log::channel('avia')->info("Added to zip: $relativePath");
+                    }
+                }
+
+                $zip->finish();
+                Log::channel('avia')->info("ZIP stream finished for workorder ID: $id");
+
+            }, 200, [
+                'Content-Type' => 'application/octet-stream',
+                'Content-Disposition' => 'attachment; filename="workorder_' . $id . '_images.zip"',
+            ]);
+        } catch (\Throwable $e) {
+            Log::channel('avia')->error("ZIP creation failed: " . $e->getMessage());
+            return response()->json(['error' => 'Server error'], 500);
         }
     }
 }

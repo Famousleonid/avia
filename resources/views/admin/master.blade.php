@@ -21,13 +21,22 @@
         })();
     </script>
 
-{{--    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>--}}
-    @yield('links')
+    @yield('style')
 
     <style>
         .content {
-            overflow: hidden;
+            height: 100vh;
+            overflow-y: auto;
+            padding-right: 12px; /* для компенсации скролла */
+            padding-bottom: 5vh;
         }
+
+        .content-inner {
+            min-height: 100%;
+            display: flex;
+            flex-direction: column;
+        }
+
     </style>
 </head>
 
@@ -43,9 +52,12 @@
         @include('components.sidebar')
     </div>
 
-    <div class="content col-12 col-lg-10 bg-body pt-2 ">
-        @include('components.status')
-        @yield('content')
+    <div class="content col-12 col-lg-10 bg-body pt-2">
+        <div class="content-inner px-2">
+            @include('components.status')
+            @yield('content')
+            @include('components.footer')
+        </div>
     </div>
 
     @include('components.footer')

@@ -1,6 +1,6 @@
 @extends('admin.master')
 
-@section('content')
+@section('style')
 
     <style>
 
@@ -70,33 +70,32 @@
             margin-right: 1px;
         }
 
+        .is-invalid-shadow {
+            box-shadow: 0 0 0 0.25rem rgba(220, 53, 69, 0.5) !important; /* Bootstrap danger */
+        }
 
     </style>
 
+@endsection
+
+@section('content')
+
     <div class="container pl-3 pr-3 mt-5">
         <div class="card  p-2 shadow bg-gradient">
-
             <form id="createForm" class="createForm" role="form" method="post" action="{{route('admin.workorders.store')}}" enctype="multipart/form-data">
                 @csrf
-
                 <input type="text" hidden name="user_id" value="{{auth()->user()->id}}">
-
                 <div class="tab-content">
-
                     <div class="active tab-pane" id="create_firms">
                         <div class="col-md-12">
-
                             <div class="card-header row">
                                 <p class="text-bold">Create workorder for user: ( &nbsp;&nbsp;
                                     <span class="text-info" style="font-size: 1.2rem">{{auth()->user()->name}}</span>
                                     <span>&nbsp;&nbsp; ) email: {{auth()->user()->email}}</span>
                                 </p>
                             </div>
-
                             <div class="card-body row" id="create_div_inputs">
-
                                 <div class="col-lg-9 row">
-
                                     <div class="row ">
                                         <div class="form-group col-lg-4 mb-1">
                                             <label for="number_id">Workorder № <span style="color:red; font-size: x-small">(required)</span></label>
@@ -190,7 +189,6 @@
                                 </div>
 
                                 <div class="col-lg-3 row">
-
                                     <label class="checkbox-wo mb-2"><input type="checkbox" name="part_missing">___ Parts Missing</label><br>
                                     <label class="checkbox-wo mb-2"><input type="checkbox" name="external_damage">___ External Damage</label><br>
                                     <label class="checkbox-wo mb-2"><input type="checkbox" name="received_disassembly">___ Received Disassembly</label><br>
@@ -198,17 +196,14 @@
                                     <label class="checkbox-wo mb-2"><input type="checkbox" name="nameplate_missing">___ Name Plate Missing</label><br>
                                     <label class="checkbox-wo mb-2"><input type="checkbox" name="preliminary_test_false">___ Preliminary Test</label><br>
                                     <label class="checkbox-wo mb-2"><input type="checkbox" name="extra_parts">___ Extra Parts</label><br>
-
-
                                 </div>
 
                             </div>
 
-
                             <div class="form-group container-fluid ">
                                 <div class="card-body row ">
                                     <div class="col col-lg-1  mb-1">
-                                        <button id="ntSaveFormsSubmit" type="submit" class="btn btn-outline-primary btn-block ntSaveFormsSubmit"> Save </button>
+                                        <button id="ntSaveFormsSubmit" type="submit" class="btn btn-outline-primary btn-block ntSaveFormsSubmit"> Save</button>
                                     </div>
                                     <div class="col col-lg-1 offset-6 mb-1 ">
                                         <a href="{{ route('admin.workorders.index') }}" class="btn btn-outline-secondary btn-block"> Cancel </a>
@@ -223,9 +218,6 @@
         </div>
     </div>
 
-
-
-
     <!-- Модальное окно add Unit -->
     <div class="modal fade" id="addUnitModal" tabindex="-1" aria-labelledby="addUnitLabel" aria-hidden="true">
         <div class="modal-dialog">
@@ -237,7 +229,7 @@
                 <div class="modal-body">
                     <div class="mb-3">
                         <label for="cmmSelect" class="form-label">CMM</label>
-                        <select class="form-select" id="cmmSelect" name="cmmSelect">
+                        <select class="form-select" id="cmmSelect" name="manual_id">
                             <option value="">{{ __('Select CMM') }}</option>
                             @foreach($manuals as $manual)
                                 <option value="{{ $manual->id }}"> ({{ $manual->number }})</option>
@@ -246,17 +238,13 @@
                     </div>
                     <div id="pnInputs">
                         <div class="input-group mb-2 pn-field">
-                            <input type="text" class="form-control"
-                                   placeholder="Enter PN" style="width: 200px;"
-                                   name="pn[]">
+                            <input type="text" class="form-control" placeholder="Enter PN" style="width: 200px;" name="part_number" id="partNumberInput">
                         </div>
                     </div>
                 </div>
                 <div class="modal-footer">
-                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Close
-                    </button>
-                    <button type="button" id="createUnitBtn" class="btn btn-outline-primary"> Add Unit
-                    </button>
+                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Close</button>
+                    <button type="button" id="createUnitBtn" class="btn btn-outline-primary">Add Unit</button>
                 </div>
             </div>
         </div>
@@ -266,117 +254,158 @@
 
 @section('scripts')
 
-
     <script>
-
         window.addEventListener('load', function () {
 
+            const form = document.getElementById("createForm");
+            const saveBtn = document.getElementById("ntSaveFormsSubmit");
             const unitSelect = document.getElementById('unit_id');
             const descriptionInput = document.getElementById('wo_description');
 
-            unitSelect.onchange = function (event) {
-                // Получаем выбранный элемент
+            unitSelect.onchange = function () {
                 const selectedOption = this.options[this.selectedIndex];
-                console.log(selectedOption);
                 const title = selectedOption.getAttribute('data-title');
-                descriptionInput.value = title || ''
+                descriptionInput.value = title || '';
             };
 
-
-            // var selection = document.getElementById("unit_id");
-            // selection.onchange = function (event) {
-            //     document.getElementById("lib").value = event.target.options[event.target.selectedIndex].dataset.lib;
-            //     document.getElementById("unit_description").value = event.target.options[event.target.selectedIndex].dataset.description;
-            // };
-
             function check1() {
-                let aa = $('#number_id').val();
-                if ($('#number_id').val() == null) {
-                    $(('#number_id')).addClass('is-invalid');
-                    setTimeout("$(('#number_id')).removeClass('is-invalid')", 3000);
+                const el = $('#number_id');
+                if (!el.val()) {
+                    el.addClass('is-invalid-shadow');
+                    setTimeout(() => el.removeClass('is-invalid-shadow'), 3000);
                     return false;
-                } else {
-                    return true
                 }
+                return true;
             }
 
             function check2() {
-                let aa = $('#unit_id').val()
-                if ($('#unit_id').val() == null) {
-                    $(('#unit_id')).addClass('is-invalid');
-                    setTimeout("$(('#unit_id')).removeClass('is-invalid')", 3500);
+                const el = $('#unit_id');
+                const selection = el.next('.select2-container').find('.select2-selection');
+                if (!el.val()) {
+                    selection.addClass('is-invalid-shadow');
+                    setTimeout(() => selection.removeClass('is-invalid-shadow'), 3000);
                     return false;
-                } else {
-                    return true;
                 }
+                return true;
             }
 
             function check3() {
-                if ($('#customer_id').val() == null) {
-                    $(('#customer_id')).addClass('is-invalid');
-                    setTimeout("$(('#customer_id')).removeClass('is-invalid')", 4500);
+                const el = $('#customer_id');
+                const selection = el.next('.select2-container').find('.select2-selection');
+                if (!el.val()) {
+                    selection.addClass('is-invalid-shadow');
+                    setTimeout(() => selection.removeClass('is-invalid-shadow'), 3000);
                     return false;
-                } else {
-                    return true
                 }
+                return true;
             }
 
             function check4() {
-                if ($('#instruction_id').val() == null) {
-                    $(('#instruction_id')).addClass('is-invalid');
-                    setTimeout("$(('#instruction_id')).removeClass('is-invalid')", 4500);
+                const el = $('#instruction_id');
+                if (!el.val()) {
+                    el.addClass('is-invalid-shadow');
+                    setTimeout(() => el.removeClass('is-invalid-shadow'), 3000);
                     return false;
-                } else {
-                    return true
+                }
+                return true;
+            }
+
+            function scrollToInvalid() {
+                const firstInvalid = document.querySelector('.is-invalid-shadow');
+                if (firstInvalid) {
+                    firstInvalid.scrollIntoView({behavior: 'smooth', block: 'center'});
                 }
             }
 
-            document.getElementById("ntSaveFormsSubmit").addEventListener("click", function (event) {
-                let form = document.getElementById("createForm");
-                check1();
-                check2();
-                check3();
-                check4();
+            saveBtn.addEventListener("click", function (event) {
+                const valid1 = check1();
+                const valid2 = check2();
+                const valid3 = check3();
+                const valid4 = check4();
 
-                if (!(check1() && check2() && check3() && check4())) {
+                if (!(valid1 && valid2 && valid3 && valid4)) {
                     event.preventDefault();
-
+                    scrollToInvalid();
                 } else {
-                    form.submit();
-                    showLoadingSpinner()
+                    showLoadingSpinner();
                 }
             });
 
-            // --------------------------------- Select 2 --------------------------------------------------------
-
+            // --------------------------------- Select2 Initialization ---------------------------------
             $(document).ready(function () {
-                $('#unit_id').select2({
+                $('#unit_id, #customer_id').select2({
                     placeholder: '---',
                     theme: 'bootstrap-5',
                     allowClear: true
                 });
-            });
-            $(function () {
                 applyTheme();
             });
 
             function applyTheme() {
                 const isDark = document.documentElement.getAttribute('data-bs-theme');
                 const selectContainer = $('.select2-container');
+                const dropdown = $('.select2-container .select2-dropdown');
+
                 if (isDark === 'dark') {
                     selectContainer.addClass('select2-dark').removeClass('select2-light');
-                    $('.select2-container .select2-dropdown').addClass('select2-dark').removeClass('select2-light');
+                    dropdown.addClass('select2-dark').removeClass('select2-light');
                 } else {
                     selectContainer.addClass('select2-light').removeClass('select2-dark');
-                    $('.select2-container .select2-dropdown').addClass('select2-light').removeClass('select2-dark');
+                    dropdown.addClass('select2-light').removeClass('select2-dark');
                 }
             }
+        // ---------------------   Save Unit ------------------------------------------------------------------
+            document.getElementById('createUnitBtn').addEventListener('click', function () {
+                const manualId = document.getElementById('cmmSelect').value;
+                const pnInput = document.getElementById('partNumberInput');
+                const partNumber = pnInput.value.trim();
 
-            // -----------------------------------------------------------------------------------------------------
+                if (!manualId || !partNumber) {
+                    alert("Please select a CMM and enter a Part Number.");
+                    return;
+                }
+
+                showLoadingSpinner();
+
+                fetch("{{ route('admin.units.store') }}", {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json",
+                        "Accept": "application/json",
+                        "X-Requested-With": "XMLHttpRequest",
+                        "X-CSRF-TOKEN": document.querySelector('meta[name="csrf-token"]').content
+                    },
+                    body: JSON.stringify({
+                        manual_id: manualId,
+                        part_number: partNumber
+                    })
+                })
+                    .then(res => {
+                        hideLoadingSpinner();
+                        if (!res.ok) throw new Error("Failed to create unit");
+                        return res.json();
+                    })
+                    .then(data => {
+                        // Добавить новую опцию в селект
+                        const option = new Option(data.part_number, data.id, true, true);
+                        option.setAttribute('data-title', data.manual_title);
+                        $('#unit_id').append(option).trigger('change');
+
+                        // Закрыть модалку
+                        bootstrap.Modal.getInstance(document.getElementById('addUnitModal')).hide();
+
+                        // Очистить поля
+                        pnInput.value = '';
+                        document.getElementById('cmmSelect').value = '';
+                    })
+                    .catch(error => {
+                        hideLoadingSpinner();
+                        alert("Error: " + error.message);
+                    });
+            });
 
 
         });
-
-
     </script>
 @endsection
+
