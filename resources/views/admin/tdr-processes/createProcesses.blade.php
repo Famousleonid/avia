@@ -95,7 +95,7 @@
                                     </select>
                                 </div>
                                 <div class="col-md-6">
-                                    <label for="process">Processes:</label>
+                                    <label for="process">Processes (Specification):</label>
 
                                     <button type="button" class="btn btn-link mb-1" data-bs-toggle="modal"
                                             data-bs-target="#addProcessModal">
@@ -268,6 +268,7 @@
                 const processNameId = event.target.value;
                 const processOptionsContainer = event.target.closest('.process-row').querySelector('.process-options');
                 const manualId = document.getElementById('processes-container').dataset.manualId; // Получаем manual_id
+                const saveButton = document.querySelector('button[type="submit"]');
 
                 // Очистка контейнера для чекбоксов
                 processOptionsContainer.innerHTML = '';
@@ -278,18 +279,28 @@
                     fetch(`/admin/get-process/${processNameId}?manual_id=${manualId}`)
                         .then(response => response.json())
                         .then(data => {
-                            data.forEach(process => {
-                                const checkbox = document.createElement('div');
-                                checkbox.classList.add('form-check');
-                                checkbox.innerHTML = `
-                            <input type="checkbox" name="processes[${processNameId}][process][]" value="${process.id}" class="form-check-input">
-                            <label class="form-check-label">${process.process}</label>
-                        `;
-                                processOptionsContainer.appendChild(checkbox);
-                            });
+                            if (data && data.length > 0) {
+                                data.forEach(process => {
+                                    const checkbox = document.createElement('div');
+                                    checkbox.classList.add('form-check');
+                                    checkbox.innerHTML = `
+                                <input type="checkbox" name="processes[${processNameId}][process][]" value="${process.id}" class="form-check-input">
+                                <label class="form-check-label">${process.process}</label>
+                            `;
+                                    processOptionsContainer.appendChild(checkbox);
+                                });
+                                saveButton.disabled = false;
+                            } else {
+                                const noSpecLabel = document.createElement('div');
+                                noSpecLabel.classList.add('text-muted', 'mt-2');
+                                noSpecLabel.innerHTML = 'No specification. Add specification for this process.';
+                                processOptionsContainer.appendChild(noSpecLabel);
+                                saveButton.disabled = true;
+                            }
                         })
                         .catch(error => {
                             console.error('Ошибка при получении процессов:', error);
+                            saveButton.disabled = true;
                         });
                 }
             }
