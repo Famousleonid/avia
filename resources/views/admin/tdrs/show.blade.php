@@ -224,28 +224,26 @@
                                        id="#" style=" height: 40px">
                                         <i class="bi bi-file-earmark-excel"> PRL  </i>
                                     </a>
-
                                 @endif
-                            </div>
+                                </div>
+                                @php
+    $manual = $current_wo->unit->manuals;
+    $hasNdtCsv = false;
+    if ($manual) {
+        $hasNdtCsv = $manual->getMedia('csv_files')->first(function($media) {
+            return $media->getCustomProperty('process_type') === 'ndt';
+        });
+    }
+@endphp
 
-                                    @php
-                                        $manual = $current_wo->unit->manuals;
-                                        $hasNdtCsv = false;
-                                        if ($manual) {
-                                            $hasNdtCsv = $manual->getMedia('csv_files')->first(function($media) {
-                                                return $media->getCustomProperty('process_type') === 'ndt';
-                                            });
-                                        }
-                                    @endphp
-
-                                    @if($current_wo->instruction_id == 1 && $hasNdtCsv)
-                                        <div class="ms-2 ">
-                                            <a href="{{ route('admin.tdrs.ndtStd', ['workorder_id' => $current_wo->id]) }}"
-                                               class="btn btn-outline-warning" style="height: 40px">
-                                                NDT STD
-                                            </a>
-                                        </div>
-                                    @endif
+@if($current_wo->instruction_id == 1 && $hasNdtCsv)
+    <div class="me-2">
+        <a href="{{ route('admin.tdrs.ndtStd', ['workorder_id' => $current_wo->id]) }}"
+           class="btn btn-outline-warning" style="height: 40px">
+            NDT STD
+        </a>
+    </div>
+@endif
 
                         </div>
 
@@ -354,7 +352,7 @@
                         <div class="modal fade" id="orderModal{{$current_wo->number}}" tabindex="-1"
                              role="dialog" aria-labelledby="orderModalLabel{{$current_wo->number}}" aria-hidden="true">
                             <div class="modal-dialog modal-dialog-centered" role="document">
-                                <div class="modal-content bg-gradient" style="width: 1000px">
+                                <div class="modal-content bg-gradient" style="width: 700px">
                                     <div class="modal-header" style="width: 700px">
                                         <div>
                                             <h4 class="modal-title">{{__('Work order ')}}{{$current_wo->number}}</h4>
@@ -362,31 +360,28 @@
                                         </div>
                                         <button type="button" class="btn-close pb-2" data-bs-dismiss="modal" aria-label="Close"></button>
                                     </div>
-                                    @if(count($ordersParts))
+                                    @if(count($ordersPartsNew))
                                         <div class="table-wrapper">
                                             <table class="display table table-cm table-hover table-striped align-middle table-bordered">
                                                 <thead class="bg-gradient">
                                                 <tr>
-                                                    <th class="text-primary  bg-gradient " data-direction="asc">{{__('IPL')
-                                                }}<i class="  ms-1"></i></th>
-                                                    <th class="text-primary  bg-gradient " data-direction="asc">{{__('Part
-                                                Description') }}<i class="  ms-1"></i></th>
-                                                    <th class="text-primary  bg-gradient " style="width: 250px;" data-direction="asc">{{__('Part
-                                                Number')}}<i class="  ms-1"></i></th>
-                                                    <th class="text-primary  bg-gradient " data-direction="asc">{{__('QTY')
-                                                }}<i class="bi  ms-1"></i></th>
-                                                    <th class="text-primary  bg-gradient " >{{__('Conditions')
-                                                }}<i class="bi  ms-1"></i></th>
-                                                    <th class="text-primary  bg-gradient " >{{__('Delete')
-                                                }}<i class="bi  ms-1"></i></th>
+                                                    <th class="text-primary  bg-gradient " data-direction="asc">{{__('IPL')}}<i class="  ms-1"></i></th>
+                                                    <th class="text-primary  bg-gradient " data-direction="asc">{{__('Part Description') }}<i class="  ms-1"></i></th>
+                                                    <th class="text-primary  bg-gradient " style="width: 250px;" data-direction="asc">{{__('Part Number')}}<i class="  ms-1"></i></th>
+                                                    <th class="text-primary  bg-gradient " data-direction="asc">{{__('QTY')}}<i class="bi  ms-1"></i></th>
+                                                    <th class="text-primary  bg-gradient " >{{__('Conditions')}}<i class="bi  ms-1"></i></th>
+                                                    <th class="text-primary  bg-gradient " >{{__('Delete')}}<i class="bi  ms-1"></i></th>
                                                 </tr>
                                                 </thead>
                                                 <tbody>
-                                                @foreach($ordersParts as $part)
+                                                @foreach($ordersPartsNew as $part)
                                                     <tr>
-                                                        <td class="p-3" style="width: 150px"> {{$part->component->ipl_num}} </td>
-                                                        <td class="p-3" style="width: 250px"> {{$part->component->name}} </td>
-                                                        <td class="p-3" style="width: 250px;"> {{$part->component->part_number}} </td>
+
+                                                        <td class="p-3" style="width: 150px">
+                                                            {{$part->orderComponent->ipl_num}} </td>
+
+                                                        <td class="p-3" style="width: 250px"> {{$part->orderComponent->name}} </td>
+                                                        <td class="p-3" style="width: 250px;"> {{$part->orderComponent->part_number}} </td>
                                                         <td class="p-3"> {{$part->qty}} </td>
                                                         <td class="p-3"> {{$part->codes->name}} </td>
                                                         <td class="p-3">

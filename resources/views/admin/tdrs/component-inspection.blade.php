@@ -109,16 +109,32 @@
                             </div>
                             <!-- Necessaries -->
                             <div class=" form-group m-2" id="necessary" style="display: none">
-                                <label for="necessaries_id" class="form-label pe-2">Necessary to Do</label>
-                                <select name="necessaries_id" id="necessaries_id" class="form-control"
-                                        style="width: 230px">
-                                    <option  selected value="">---</option>
-                                    @foreach($necessaries as $necessary)
-                                        <option value="{{ $necessary->id }}" data-title="{{$necessary->name}}">
-                                            {{$necessary->name}}
-                                        </option>
-                                    @endforeach
-                                </select>
+                                <div class="d-flex align-items-center">
+                                    <div>
+                                        <label for="necessaries_id" class="form-label pe-2">Necessary to Do</label>
+                                        <select name="necessaries_id" id="necessaries_id" class="form-control"
+                                                style="width: 230px">
+                                            <option  selected value="">---</option>
+                                            @foreach($necessaries as $necessary)
+                                                <option value="{{ $necessary->id }}" data-title="{{$necessary->name}}">
+                                                    {{$necessary->name}}
+                                                </option>
+                                            @endforeach
+                                        </select>
+                                    </div>
+                                    <!-- Новый select для выбора компонента заказа -->
+                                    <div id="order_component_group" style="display: none; margin-left: 20px;">
+                                        <label for="order_component_id" class="form-label pe-2">{{ __('Order Component') }}</label>
+                                        <select name="order_component_id" id="order_component_id" class="form-control" style="width: 350px">
+                                            <option selected value="">---</option>
+                                            @foreach($components as $component)
+                                                <option value="{{ $component->id }}">
+                                                    {{ $component->part_number }} - {{ $component->name }} ({{ $component->ipl_num }})
+                                                </option>
+                                            @endforeach
+                                        </select>
+                                    </div>
+                                </div>
                                 <div class="m-2">
                                     <label class="" for="description">{{ __('Description ')}}</label>
                                     <input id='description' type="text"
@@ -272,6 +288,13 @@
 
             applyTheme();
 
+            // Инициализация Select2 для нового select
+            $('#order_component_id').select2({
+                placeholder: '---',
+                theme: 'bootstrap-5',
+                allowClear: true
+            });
+
             // Функция скрытия всех дополнительных групп
             function hideAllGroups() {
                 $('#necessary').hide();
@@ -314,6 +337,17 @@
                     }
                 } else {
                     $('#sns-group').hide();
+                }
+
+                // Показать/скрыть select для заказа компонента
+                if (necessaryName === 'Order New') {
+                    $('#order_component_group').show();
+                    // По умолчанию выбрать текущий компонент
+                    const currentComponentId = $('#i_component_id').val();
+                    $('#order_component_id').val(currentComponentId).trigger('change');
+                } else {
+                    $('#order_component_group').hide();
+                    $('#order_component_id').val('').trigger('change');
                 }
             }
 
@@ -363,109 +397,43 @@
                         value: value
                     }).appendTo('#createForm');
                 }
-
             }
 
+            // Всегда сохраняем component_id из начального select'а
+            setHiddenInput('component_id', $('#i_component_id').val());
+
             if (codeName === 'missing') {
-                // console.log('Исполнение ветки: missing');
-                // Если Code Inspection = "Missing"
                 setHiddenInput('use_tdr', '0');
                 setHiddenInput('use_process_forms', '0');
                 setHiddenInput('necessaries_id', '2');
                 setHiddenInput('conditions_id', '1');
-
             } else if (codeName !== 'missing' && necessaryName === 'order new') {
-                var debugLogs = [];
-
-                // Вывод всех доступных опций для отладки
-                debugLogs.push('Все доступные опции в select:');
-                var options = $('#c_conditions_id option');
-                debugLogs.push('Количество опций: ' + options.length);
-
-                options.each(function(index) {
-                    var condName = $(this).attr('data-title');
-                    var condValue = $(this).val();
-                    var optionText = $(this).text();
-                    // debugLogs.push('Опция #' + (index + 1) + ':');
-                    // debugLogs.push('  - Значение: ' + condValue);
-                    // debugLogs.push('  - Название: ' + condName);
-                    // debugLogs.push('  - Текст: ' + optionText);
-                });
-
-                // Сохраняем логи
-                var timestamp = new Date().getTime();
-                // localStorage.setItem('debugLogs_' + timestamp, JSON.stringify(debugLogs));
-
-                // Остальной код остается без изменений
                 setHiddenInput('use_tdr', '1');
                 setHiddenInput('use_process_forms', '0');
+                
+                // Сохраняем order_component_id из Select2
+                setHiddenInput('order_component_id', $('#order_component_id').val());
 
                 var conditionId = null;
-
-                // Нормализация codeName для сравнения
                 var normalizedCodeName = codeName.toString().trim().toLowerCase();
-                debugLogs.push('Нормализованный codeName: ' + normalizedCodeName + ' Длина: ' + normalizedCodeName.length);
-
-                // Проверка структуры select
-                debugLogs.push('Структура select c_conditions_id:');
-                debugLogs.push($('#c_conditions_id').html());
-
-                // Вывод всех доступных опций для отладки
-                debugLogs.push('Все доступные опции в select:');
-                $('#c_conditions_id option').each(function() {
-                    var condName = $(this).attr('data-title');
-                    var condValue = $(this).val();
-                    var optionText = $(this).text();
-                    // debugLogs.push('Опция: ' + JSON.stringify({
-                    //     значение: condValue,
-                    //     название: condName,
-                    //     текст: optionText,
-                    //     нормализованноеНазвание: condName ? condName.toString().trim().toLowerCase() : null,
-                    //     длинаНазвания: condName ? condName.length : 0
-                    // }));
-                });
-
 
                 $('#c_conditions_id option').each(function() {
                     var condName = $(this).attr('data-title');
                     var condValue = $(this).val();
-
-                    // Нормализация condName для сравнения
                     var normalizedCondName = condName ? condName.toString().trim().toLowerCase() : null;
-
-                    // debugLogs.push('Сравнение: ' + JSON.stringify({
-                    //     codeName: normalizedCodeName,
-                    //     condName: normalizedCondName,
-                    //     совпадают: normalizedCondName === normalizedCodeName,
-                    //     codeNameТип: typeof normalizedCodeName,
-                    //     condNameТип: typeof normalizedCondName
-                    // }));
 
                     if (normalizedCondName && normalizedCondName === normalizedCodeName) {
                         conditionId = condValue;
-                        // debugLogs.push('Найдено точное соответствие: ' + JSON.stringify({
-                        //     id: conditionId,
-                        //     название: condName,
-                        //     нормализованноеНазвание: normalizedCondName
-                        // }));
                         return false;
                     }
                 });
 
                 if (conditionId) {
                     setHiddenInput('conditions_id', conditionId);
-                    debugLogs.push('Установлен conditions_id: ' + conditionId);
                 } else {
-                    debugLogs.push("Не найдено точное соответствие для codeName: " + normalizedCodeName);
-                    debugLogs.push("Проверьте значения в логах");
                     setHiddenInput('conditions_id', '39');
                 }
-
-                // Сохраняем логи в localStorage
-                localStorage.setItem('debugLogs', JSON.stringify(debugLogs));
-            }
-            else if (codeName !== 'missing' && necessaryName !== 'order new') {
-                console.log('Исполнение ветки: other');
+            } else if (codeName !== 'missing' && necessaryName !== 'order new') {
                 setHiddenInput('use_tdr', '1');
                 setHiddenInput('use_process_forms', '1');
             }

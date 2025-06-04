@@ -224,6 +224,7 @@ class TdrController extends Controller
             'codes_id' => 'nullable|exists:codes,id', // Валидация для  codes_id
             'qty' => 'nullable|integer',
             'description' => 'nullable|string',
+            'order_component_id' => 'nullable|exists:components,id', // Добавляем валидацию для order_component_id
         ]);
 //dd($validated);
         // Установка значений по умолчанию для флагов
@@ -256,6 +257,7 @@ class TdrController extends Controller
             'use_process_forms' => $use_process_forms,
             'use_log_card' => $use_log_card,
             'use_extra_forms' => $use_extra_forms,
+            'order_component_id' => $validated['order_component_id'], // Добавляем сохранение order_component_id
         ]);
 
         $missingCondition = Condition::where('name', 'PARTS MISSING UPON ARRIVAL AS INDICATED ON PARTS LIST')->first();
@@ -391,10 +393,20 @@ class TdrController extends Controller
 
 
         $ordersParts = Tdr::where('workorder_id', $current_wo->id)
-            ->where('codes_id', '!=', $code->id)  // Заменили '!' на правильное условие "не равно"
+            ->where('codes_id', '!=', $code->id)
             ->where('necessaries_id', $necessary->id)
             ->with('codes')
-            ->with('component')  // Используем связь, а не коллекцию компонентов
+            ->with('component')
+            ->get();
+
+        // Добавляем новую выборку для order_component_id
+        $ordersPartsNew = Tdr::where('workorder_id', $current_wo->id)
+            ->where('codes_id', '!=', $code->id)
+            ->where('necessaries_id', $necessary->id)
+            ->whereNotNull('order_component_id')
+            ->with(['codes', 'orderComponent' => function($query) {
+                $query->select('id', 'name', 'part_number', 'ipl_num');
+            }])
             ->get();
 
         $planes = Plane::all();
@@ -416,7 +428,7 @@ class TdrController extends Controller
             'manuals', 'builders', 'planes', 'instruction','necessary',
             'necessaries', 'unit_conditions', 'component_conditions',
             'codes', 'conditions', 'missingParts','ordersParts','inspectsUnit',
-            'processParts'));
+            'processParts', 'ordersPartsNew'));
     }
     public function show_($id)
     {
@@ -457,9 +469,12 @@ class TdrController extends Controller
 
         $missingParts = $current_wo->tdrs->where('codes_id', $code->id ?? null);
 
-        $ordersParts = $current_wo->tdrs
-            ->when($code, fn($collection) => $collection->where('codes_id', '!=', $code->id))
-            ->when($necessary, fn($collection) => $collection->where('necessaries_id', $necessary->id));
+        $ordersParts = Tdr::where('workorder_id', $current_wo->id)
+            ->where('codes_id', '!=', $code->id)
+            ->where('necessaries_id', $necessary->id)
+            ->with('codes')
+            ->with('component')  // Используем связь, а не коллекцию компонентов
+            ->get();
 
         // Справочные данные (можно оптимизировать, если они используются редко)
         $data = [
@@ -575,21 +590,34 @@ class TdrController extends Controller
         $necessaries = Necessary::all();
 
         $necessary = Necessary::where('name', 'Order New')->first();
+        $code = Code::where('name', 'Missing')->first();
 
         $manuals = Manual::where('id', $manual_id)
             ->with('builder')
             ->get();
 
-        $ordersParts = Tdr::where('workorder_id', $current_wo->id)
+        // Получаем TDR записи с непустым order_component_id
+        $ordersPartsNew = Tdr::where('workorder_id', $current_wo->id)
             ->where('necessaries_id', $necessary->id)
-            ->with('codes')
-            ->with('component')  // Используем связь, а не коллекцию компонентов
+            ->whereNotNull('order_component_id')
+            ->with(['codes', 'orderComponent' => function($query) {
+                $query->select('id', 'name', 'part_number', 'ipl_num', 'assy_part_number', 'assy_ipl_num');
+            }])
             ->get();
 
-//
+        // Получаем TDR записи без order_component_id
+        $ordersParts = Tdr::where('workorder_id', $current_wo->id)
+            ->where('necessaries_id', $necessary->id)
+            ->whereNull('order_component_id')
+            ->with(['codes', 'component' => function($query) {
+                $query->select('id', 'name', 'part_number', 'ipl_num', 'assy_part_number', 'assy_ipl_num');
+            }])
+            ->get();
+
+        // Объединяем коллекции
+        $ordersParts = $ordersPartsNew->concat($ordersParts);
 
         return view('admin.tdrs.prlForm', compact('current_wo', 'components','manuals', 'builders', 'codes','necessaries', 'ordersParts'));
-
     }
 
     public function ndtForm(Request $request, $id)
