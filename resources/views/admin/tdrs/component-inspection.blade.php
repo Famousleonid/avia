@@ -3,7 +3,7 @@
 @section('content')
     <style>
         .container {
-            max-width: 650px;
+            max-width: 850px;
         }
 
         /* ----------------------------------- Select 2 Dark Theme -------------------------------------*/
@@ -79,13 +79,13 @@
                     <div class="form-group  d-flex">
                         <label for="i_component_id" class="form-label pe-2">Component</label>
 
-                        <select name="component_id" id="i_component_id" class="form-control" style="width: 350px">
+                        <select name="component_id" id="i_component_id" class="form-control" style="width: 550px">
                             <option selected value="">---</option>
                             @foreach($components as $component)
                                 <option value="{{ $component->id }}"
                                         data-has_assy="{{ $component->assy_part_number ? 'true' : 'false' }}"
                                         data-title="{{ $component->name }}">
-                                    {{ $component->part_number }} - {{ $component->name }} ({{ $component->ipl_num }})
+                                    {{ $component->ipl_num }} : {{ $component->part_number }} - {{ $component->name }}
                                 </option>
                             @endforeach
                         </select>
@@ -283,7 +283,40 @@
             $('#i_component_id, #codes_id, #necessaries_id, #c_conditions_id').select2({
                 placeholder: '---',
                 theme: 'bootstrap-5',
-                allowClear: true
+                allowClear: true,
+                sorter: function(data) {
+                    return data.sort(function(a, b) {
+                        // Извлекаем IPL номер из текста (всё до первого ":")
+                        const aIpl = a.text.split(':')[0].trim();
+                        const bIpl = b.text.split(':')[0].trim();
+                        
+                        // Разбиваем IPL номер на части (например, "1-40" -> ["1", "40"])
+                        const aParts = aIpl.split('-');
+                        const bParts = bIpl.split('-');
+                        
+                        // Сравниваем первую часть (до дефиса)
+                        const aFirst = parseInt(aParts[0]);
+                        const bFirst = parseInt(bParts[0]);
+                        if (aFirst !== bFirst) {
+                            return aFirst - bFirst;
+                        }
+                        
+                        // Если первые части равны, сравниваем вторую часть
+                        const aSecond = aParts[1].replace(/[^0-9]/g, ''); // Убираем буквы
+                        const bSecond = bParts[1].replace(/[^0-9]/g, '');
+                        const aSecondNum = parseInt(aSecond);
+                        const bSecondNum = parseInt(bSecond);
+                        
+                        if (aSecondNum !== bSecondNum) {
+                            return aSecondNum - bSecondNum;
+                        }
+                        
+                        // Если числовые части равны, сравниваем буквенные суффиксы
+                        const aSuffix = aParts[1].replace(/[0-9]/g, '');
+                        const bSuffix = bParts[1].replace(/[0-9]/g, '');
+                        return aSuffix.localeCompare(bSuffix);
+                    });
+                }
             });
 
             applyTheme();
@@ -410,7 +443,7 @@
             } else if (codeName !== 'missing' && necessaryName === 'order new') {
                 setHiddenInput('use_tdr', '1');
                 setHiddenInput('use_process_forms', '0');
-                
+
                 // Сохраняем order_component_id из Select2
                 setHiddenInput('order_component_id', $('#order_component_id').val());
 

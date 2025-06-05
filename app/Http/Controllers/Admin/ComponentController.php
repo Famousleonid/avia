@@ -19,7 +19,7 @@ class ComponentController extends Controller
      */
     public function index()
     {
-        $components = Component::all();
+        $components = Component::orderBy('ipl_num')->get();
         $manuals = Manual::all();
         return view('admin.components.index', compact('components','manuals'));
     }

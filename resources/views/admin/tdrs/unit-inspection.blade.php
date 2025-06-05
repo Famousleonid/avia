@@ -74,6 +74,7 @@
                     <input type="hidden" name="workorder_id" value="{{ $current_wo->id }}">
                     <input type="hidden" name="qty" value="1">
                     <input type="hidden" name="component_id" value="">
+                    <input type="hidden" name="order_component_id" value="">
                     <input type="hidden" name="serial_number" value=" ">
                     <input type="hidden" name="assy_serial_number" value=" ">
                     <input type="hidden" name="codes_id" value="">
