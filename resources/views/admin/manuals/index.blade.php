@@ -134,7 +134,7 @@
                             <td class="text-center">
                                 <div class="d-flex justify-content-center gap-1">
                                     @foreach($cmm->getMedia('csv_files') as $file)
-                                        <a href="{{ route('admin.manuals.csv.view', ['manual' => $cmm->id, 'file' => $file->id]) }}" 
+                                        <a href="/admin/manuals/{{ $cmm->id }}/csv/{{ $file->id }}" 
                                            class="btn btn-sm btn-outline-info">
                                             <i class="fas fa-file-csv"></i>
                                             @if($file->getCustomProperty('process_type'))

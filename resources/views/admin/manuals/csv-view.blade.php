@@ -4,17 +4,22 @@
     <div class="container">
         <div class="card">
             <div class="card-header">
-                <h4>CSV файл для Manual: {{ $manual->number }} - {{ $manual->title }}</h4>
-                <div class="float-end">
-                    <a href="{{ route('admin.manuals.csv.download', $manual) }}" class="btn btn-primary">
-                        <i class="fas fa-download"></i> Скачать CSV
-                    </a>
-                    <a href="{{ route('admin.manuals.index') }}" class="btn btn-secondary">
-                        <i class="fas fa-arrow-left"></i> Назад к списку
-                    </a>
+                <div class="d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0">{{ $media->file_name }}</h5>
+                    <div>
+                        <a href="javascript:history.back()" class="btn btn-primary">
+                            <i class="fas fa-arrow-left"></i> {{ __('Back') }}
+                        </a>
+                    </div>
                 </div>
             </div>
             <div class="card-body">
+                @if($media->getCustomProperty('process_type'))
+                    <div class="alert alert-info">
+                        {{ __('Process Type') }}: {{ $media->getCustomProperty('process_type') }}
+                    </div>
+                @endif
+
                 <div class="table-responsive">
                     <table class="table table-bordered table-striped">
                         <thead>
@@ -27,8 +32,8 @@
                         <tbody>
                             @foreach($records as $record)
                                 <tr>
-                                    @foreach($headers as $header)
-                                        <td>{{ $record[$header] }}</td>
+                                    @foreach($record as $value)
+                                        <td>{{ $value }}</td>
                                     @endforeach
                                 </tr>
                             @endforeach
