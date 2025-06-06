@@ -745,13 +745,13 @@ class TdrController extends Controller
 
                 // Получаем заголовки CSV файла
                 $headers = $csv->getHeader();
-                
+
                 // Выводим заголовки для отладки
                 \Log::info('CSV Headers:', $headers);
 
                 // Получаем все записи из CSV
                 $records = iterator_to_array($csv->getRecords());
-                
+
                 // Выводим количество записей
                 \Log::info('Total records in CSV:', ['count' => count($records)]);
 
@@ -774,7 +774,7 @@ class TdrController extends Controller
                     }
 
                     $itemNo = $row['ITEM   No.'];
-                    
+
                     // Проверяем, что компонент еще не добавлен в TDRs
                     if (in_array($itemNo, $existingIplNums)) {
                         continue;
@@ -962,11 +962,11 @@ class TdrController extends Controller
                         if ($lastKey >= 0) {
                             $groupedByConditions[$conditions->name][$lastKey] .= ', ' . $componentString;
                         } else {
-                            $groupedByConditions[$conditions->name][] = $conditions->name . ' : ' . $componentString;
+                            $groupedByConditions[$conditions->name][] = $conditions->name . ' (scrap): ' . $componentString;
                         }
                     } else {
                         // Если длина превышает 120 символов, создаем новую строку
-                        $groupedByConditions[$conditions->name][] = $conditions->name . ' : ' . $componentString;
+                        $groupedByConditions[$conditions->name][] = $conditions->name . ' (scrap): ' . $componentString;
                     }
                 }
             } elseif ($tdr->component_id !== null && $tdr->necessaries_id !== $necessary->id) {
