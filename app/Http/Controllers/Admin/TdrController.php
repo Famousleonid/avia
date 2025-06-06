@@ -345,19 +345,16 @@ class TdrController extends Controller
 
     public function show($id)
     {
-        $current_wo = Workorder::findOrFail($id);
+        $current_wo = Workorder::with(['unit.manuals.builder', 'instruction'])->findOrFail($id);
         $units = Unit::all();
         $user = Auth::user();
         $customers = Customer::all();
 
         // Получаем manual_id из связанного unit
-        $manual_id = $current_wo->unit->manual_id;  // предполагаем, что в workorder есть связь с unit
+        $manual_id = $current_wo->unit->manual_id;
 
-//        // Извлекаем компоненты, которые связаны с этим manual_id
-//        $components = Component::where('manual_id', $manual_id)->get();
-
-        // Извлекаем все manuals для отображения (если нужно отфильтровать, можно это сделать)
-        $manuals = Manual::all();  // или можно отфильтровать только тот, который связан с unit
+        // Извлекаем все manuals для отображения
+        $manuals = Manual::all();
 
         // Извлекаем компоненты, которые связаны с этим manual_id
         $components = Component::where('manual_id', $manual_id)->get();
@@ -369,11 +366,13 @@ class TdrController extends Controller
         $necessary = Necessary::where('name', 'Order New')->first();
 
         $processParts = Tdr::where('workorder_id', $current_wo->id)
-            ->where('component_id', '!=',null)
+            ->where('component_id', '!=', null)
             ->when($necessary, function ($query) use ($necessary) {
                 return $query->where('necessaries_id', '!=', $necessary->id);
             })
-            ->with('component')
+            ->with(['component' => function($query) {
+                $query->select('id', 'name', 'part_number', 'ipl_num');
+            }])
             ->get();
 
         $inspectsUnit = Tdr::where('workorder_id', $current_wo->id)
@@ -381,25 +380,24 @@ class TdrController extends Controller
             ->when($missingCondition, function ($query) use ($missingCondition) {
                 return $query->where('conditions_id', '!=', $missingCondition->id);
             })
-            ->with('conditions')
-            ->with('necessaries')
+            ->with(['conditions', 'necessaries'])
             ->get();
 
-        // Загружаем TDR с жадной загрузкой компонента и фильтруем по нужным условиям
         $missingParts = Tdr::where('workorder_id', $current_wo->id)
             ->where('codes_id', $code->id)
-            ->with('component')  // Используем связь, а не коллекцию компонентов
+            ->with(['component' => function($query) {
+                $query->select('id', 'name', 'part_number', 'ipl_num');
+            }])
             ->get();
-
 
         $ordersParts = Tdr::where('workorder_id', $current_wo->id)
             ->where('codes_id', '!=', $code->id)
             ->where('necessaries_id', $necessary->id)
-            ->with('codes')
-            ->with('component')
+            ->with(['codes', 'component' => function($query) {
+                $query->select('id', 'name', 'part_number', 'ipl_num');
+            }])
             ->get();
 
-        // Добавляем новую выборку для order_component_id
         $ordersPartsNew = Tdr::where('workorder_id', $current_wo->id)
             ->where('codes_id', '!=', $code->id)
             ->where('necessaries_id', $necessary->id)
@@ -412,23 +410,24 @@ class TdrController extends Controller
         $planes = Plane::all();
         $builders = Builder::all();
         $instruction = Instruction::all();
-
         $necessaries = Necessary::all();
         $unit_conditions = Condition::where('unit', true)->get();
         $component_conditions = Condition::where('unit', false)->get();
-
-
         $codes = Code::all();
 
-        $tdrs = Tdr::where('workorder_id', $current_wo->id)->get();
+        $tdrs = Tdr::where('workorder_id', $current_wo->id)
+            ->with(['component' => function($query) {
+                $query->select('id', 'name', 'part_number', 'ipl_num');
+            }])
+            ->get();
 
-        return view('admin.tdrs.show', compact('current_wo', 'tdrs',
-            'units',
-            'components', 'user', 'customers',
-            'manuals', 'builders', 'planes', 'instruction','necessary',
+        return view('admin.tdrs.show', compact(
+            'current_wo', 'tdrs', 'units', 'components', 'user', 'customers',
+            'manuals', 'builders', 'planes', 'instruction', 'necessary',
             'necessaries', 'unit_conditions', 'component_conditions',
-            'codes', 'conditions', 'missingParts','ordersParts','inspectsUnit',
-            'processParts', 'ordersPartsNew'));
+            'codes', 'conditions', 'missingParts', 'ordersParts', 'inspectsUnit',
+            'processParts', 'ordersPartsNew'
+        ));
     }
     public function show_($id)
     {
@@ -783,17 +782,11 @@ class TdrController extends Controller
 
                     // Создаем структуру данных, ожидаемую представлением
                     $component = (object)[
-                        'tdr' => (object)[
-                            'component' => (object)[
-                                'ipl_num' => $itemNo,
-                                'part_number' => $row['PART No.'] ?? '',
-                                'name' => $row['DESCRIPTION'] ?? ''
-                            ],
-                            'qty' => $row['QTY'] ?? 1
-                        ],
-                        'processName' => (object)[
-                            'name' => $row['PROCESS No.'] ?? '1'
-                        ]
+                        'ipl_num' => $itemNo,
+                        'part_number' => $row['PART No.'] ?? '',
+                        'name' => $row['DESCRIPTION'] ?? '',
+                        'qty' => $row['QTY'] ?? 1,
+                        'process_name' => $row['PROCESS No.'] ?? '1'
                     ];
 
                     $ndt_components[] = $component;

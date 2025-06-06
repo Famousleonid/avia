@@ -387,19 +387,19 @@
         @foreach($ndt_components as $component)
             <div class="row fs-85">
                 <div class="col-1 border-l-b details-row text-center" style="height: 32px">
-                    {{ $component->tdr->component->ipl_num }}
+                    {{ $component->ipl_num }}
                 </div>
                 <div class="col-3 border-l-b details-row text-center" style="height: 32px">
-                    {{ $component->tdr->component->part_number }}
+                    {{ $component->part_number }}
                 </div>
                 <div class="col-3 border-l-b details-row text-center" style="height: 32px">
-                    {{ $component->tdr->component->name }}
+                    {{ $component->name }}
                 </div>
                 <div class="col-2 border-l-b details-row text-center" style="height: 32px">
-                    {{ $component->processName->name }}
+                    {{ $component->qty }}
                 </div>
                 <div class="col-1 border-l-b details-row text-center" style="height: 32px">
-                    {{ $component->tdr->qty }}
+                    {{ $component->process_name }}
                 </div>
                 <div class="col-1 border-l-b details-row text-center" style="height: 32px">
                     <!-- Пустая ячейка -->

@@ -242,7 +242,7 @@
         <a href="{{ route('admin.tdrs.ndtStd', ['workorder_id' => $current_wo->id]) }}"
            class="btn btn-outline-warning" style="height: 40px"
            target="_blank">
-            NDT LIST
+            NDT STD
         </a>
     </div>
 @endif
@@ -287,9 +287,9 @@
                                             <tbody>
                                             @foreach($missingParts as $part)
                                                 <tr>
-                                                    <td class="p-3"> {{$part->component->ipl_num}} </td>
-                                                    <td class="p-3"> {{$part->component->name}} </td>
-                                                    <td class="p-3"> {{$part->component->part_number}} </td>
+                                                    <td class="p-3"> {{$part->component->ipl_num ?? ''}} </td>
+                                                    <td class="p-3"> {{$part->component->name ?? ''}} </td>
+                                                    <td class="p-3"> {{$part->component->part_number ?? ''}} </td>
                                                     <td class="p-3"> {{$part->qty}} </td>
                                                     <td class="p-3">
                                                         <!-- Кнопка удаления -->
@@ -379,11 +379,10 @@
                                                 @foreach($ordersPartsNew as $part)
                                                     <tr>
 
-                                                        <td class="p-3" style="width: 150px">
-                                                            {{$part->orderComponent->ipl_num}} </td>
+                                                        <td class="p-3" style="width: 150px"> {{$part->orderComponent->ipl_num ?? ''}} </td>
 
-                                                        <td class="p-3" style="width: 250px"> {{$part->orderComponent->name}} </td>
-                                                        <td class="p-3" style="width: 250px;"> {{$part->orderComponent->part_number}} </td>
+                                                        <td class="p-3" style="width: 250px"> {{$part->orderComponent->name ?? ''}} </td>
+                                                        <td class="p-3" style="width: 250px;"> {{$part->orderComponent->part_number ?? ''}} </td>
                                                         <td class="p-3"> {{$part->qty}} </td>
                                                         <td class="p-3"> {{$part->codes->name}} </td>
                                                         <td class="p-3">
