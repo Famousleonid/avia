@@ -396,7 +396,7 @@
                     {{ $component->tdr->component->name }}
                 </div>
                 <div class="col-2 border-l-b details-row text-center" style="height: 32px">
-                    {{ substr($component->processName->name, -1) }}
+                    {{ $component->processName->name }}
                 </div>
                 <div class="col-1 border-l-b details-row text-center" style="height: 32px">
                     {{ $component->tdr->qty }}

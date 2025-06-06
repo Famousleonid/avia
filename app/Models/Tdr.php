@@ -28,14 +28,7 @@ class Tdr extends Model
     {
         return $this->belongsTo(Workorder::class, 'workorder_id');
     }
-    public function orderComponent()
-    {
-        return $this->belongsTo(Component::class, 'order_component_id');
-    }
-    public function component()
-    {
-        return $this->belongsTo(Component::class);
-    }
+    // 
 
     public function conditions()
     {
@@ -64,7 +57,7 @@ class Tdr extends Model
     {
         return $this->belongsTo(Process::class, 'process_id'); // Предполагаем, что process_id связывает с Process
     }
-
+   
 }
 
 

@@ -702,7 +702,7 @@ class TdrController extends Controller
     // Не забудьте добавить use League\Csv\Reader; вверху файла!
     public function ndtStd($workorder_id)
     {
-        $current_wo = \App\Models\Workorder::findOrFail($workorder_id);
+        $current_wo = Workorder::findOrFail($workorder_id);
         $manual = $current_wo->unit->manuals;
 
         // Получаем CSV-файл с process_type = 'ndt'
@@ -710,41 +710,130 @@ class TdrController extends Controller
             return $media->getCustomProperty('process_type') === 'ndt';
         });
 
+        // Получаем ID process names для NDT
+        $processNames = ProcessName::whereIn('name', [
+            'NDT-1',
+            'NDT-4',
+            'Eddy Current Test',
+            'BNI'
+        ])->pluck('id', 'name');
+
+        // Извлекаем ID по именам
+        $ndt_ids = [
+            'ndt1_name_id' => $processNames['NDT-1'] ?? null,
+            'ndt4_name_id' => $processNames['NDT-4'] ?? null,
+            'ndt6_name_id' => $processNames['Eddy Current Test'] ?? null,
+            'ndt5_name_id' => $processNames['BNI'] ?? null
+        ];
+
+        // Получаем manual processes
+        $manualProcesses = ManualProcess::where('manual_id', $manual->id)
+            ->pluck('processes_id');
+
+        // Получаем NDT processes
+        $ndt_processes = Process::whereIn('id', $manualProcesses)
+            ->whereIn('process_names_id', $ndt_ids)
+            ->get();
+
         $ndt_components = [];
         $form_number = 'NDT-STD';
 
         if ($csvMedia) {
-            $csvPath = $csvMedia->getPath();
-            $csv = \League\Csv\Reader::createFromPath($csvPath, 'r');
-            $csv->setHeaderOffset(0);
+            try {
+                $csvPath = $csvMedia->getPath();
+                $csv = Reader::createFromPath($csvPath, 'r');
+                $csv->setHeaderOffset(0);
 
-            $records = iterator_to_array($csv->getRecords());
+                // Получаем заголовки CSV файла
+                $headers = $csv->getHeader();
+                
+                // Выводим заголовки для отладки
+                \Log::info('CSV Headers:', $headers);
 
-            // Получаем все ipl_num из tdrs для этого workorder
-            $existingIplNums = \App\Models\Tdr::where('workorder_id', $workorder_id)
-                ->whereNotNull('component_id')
-                ->with('component')
-                ->get()
-                ->pluck('component.ipl_num')
-                ->filter()
-                ->unique()
-                ->toArray();
+                // Получаем все записи из CSV
+                $records = iterator_to_array($csv->getRecords());
+                
+                // Выводим количество записей
+                \Log::info('Total records in CSV:', ['count' => count($records)]);
 
-            // Фильтруем записи из CSV, исключая те, у которых ipl_num уже есть в tdrs
+                // Получаем все ipl_num из tdrs для этого workorder
+                $existingIplNums = Tdr::where('workorder_id', $workorder_id)
+                    ->whereNotNull('component_id')
+                    ->with('component')
+                    ->get()
+                    ->pluck('component.ipl_num')
+                    ->filter()
+                    ->unique()
+                    ->toArray();
 
-            $ndt_components = array_filter($records, function ($row) use ($existingIplNums) {
-                $itemNo = $row['ITEM No.'] ?? null;
-                return $itemNo && !in_array($itemNo, $existingIplNums);
-            });
+                // Фильтруем и преобразуем записи из CSV
+                foreach ($records as $row) {
+                    // Проверяем наличие необходимых данных
+                    if (!isset($row['ITEM   No.'])) {
+                        \Log::warning('Missing item number in row:', $row);
+                        continue;
+                    }
+
+                    $itemNo = $row['ITEM   No.'];
+                    
+                    // Проверяем, что компонент еще не добавлен в TDRs
+                    if (in_array($itemNo, $existingIplNums)) {
+                        continue;
+                    }
+
+                    // Создаем структуру данных, ожидаемую представлением
+                    $component = (object)[
+                        'tdr' => (object)[
+                            'component' => (object)[
+                                'ipl_num' => $itemNo,
+                                'part_number' => $row['PART No.'] ?? '',
+                                'name' => $row['DESCRIPTION'] ?? ''
+                            ],
+                            'qty' => $row['QTY'] ?? 1
+                        ],
+                        'processName' => (object)[
+                            'name' => $row['PROCESS No.'] ?? '1'
+                        ]
+                    ];
+
+                    $ndt_components[] = $component;
+                }
+
+                // Выводим количество найденных компонентов
+                \Log::info('Total components found:', ['count' => count($ndt_components)]);
+
+            } catch (\Exception $e) {
+                \Log::error('Error processing CSV file:', [
+                    'error' => $e->getMessage(),
+                    'trace' => $e->getTraceAsString()
+                ]);
+            }
         }
 
         return view('admin.tdrs.ndtFormStd', [
             'current_wo' => $current_wo,
             'manual' => $manual,
             'ndt_components' => $ndt_components,
+            'ndt_processes' => $ndt_processes,
             'form_number' => $form_number,
-        ]);
+            'manuals' => [$manual], // Для совместимости с существующим кодом
+        ] + $ndt_ids); // Добавляем ID процессов NDT
     }
+
+    /**
+     * Находит индекс колонки по возможным названиям
+     */
+    private function findColumnIndex($headers, $possibleNames)
+    {
+        foreach ($possibleNames as $name) {
+            $index = array_search($name, $headers);
+            if ($index !== false) {
+                return $name;
+            }
+        }
+        return null;
+    }
+
     public function specProcessForm(Request $request, $id)
     {
         // Загрузка Workorder по ID

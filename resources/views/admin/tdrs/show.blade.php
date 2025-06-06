@@ -226,6 +226,7 @@
                                     </a>
                                 @endif
                                 </div>
+
                                 @php
     $manual = $current_wo->unit->manuals;
     $hasNdtCsv = false;
@@ -239,8 +240,9 @@
 @if($current_wo->instruction_id == 1 && $hasNdtCsv)
     <div class="me-2">
         <a href="{{ route('admin.tdrs.ndtStd', ['workorder_id' => $current_wo->id]) }}"
-           class="btn btn-outline-warning" style="height: 40px">
-            NDT STD
+           class="btn btn-outline-warning" style="height: 40px"
+           target="_blank">
+            NDT LIST
         </a>
     </div>
 @endif
