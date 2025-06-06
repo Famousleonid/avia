@@ -147,7 +147,7 @@ class ManualController extends Controller
             'builders_id' => 'required|exists:builders,id',
             'scopes_id' => 'required|exists:scopes,id',
             'lib' => 'required',
-            'csv_file' => 'nullable|file|mimes:csv,txt|max:10240', // 10MB max
+            'csv_files.*' => 'nullable|file|mimes:csv,txt|max:10240', // 10MB max
             'process_type' => 'nullable|in:ndt,cad,stress_relief,other',
         ]);
 
@@ -158,16 +158,15 @@ class ManualController extends Controller
             $cmm->addMedia($request->file('img'))->toMediaCollection('manuals');
         }
 
-        if ($request->hasFile('csv_file')) {
-            if ($cmm->getMedia('csv_files')->isNotEmpty()) {
-                $cmm->getMedia('csv_files')->first()->delete();
-            }
-            $media = $cmm->addMedia($request->file('csv_file'))
-                ->toMediaCollection('csv_files');
-            
-            if ($request->filled('process_type')) {
-                $media->setCustomProperty('process_type', $request->process_type);
-                $media->save();
+        if ($request->hasFile('csv_files')) {
+            foreach ($request->file('csv_files') as $file) {
+                $media = $cmm->addMedia($file)
+                    ->toMediaCollection('csv_files');
+                
+                if ($request->filled('process_type')) {
+                    $media->setCustomProperty('process_type', $request->process_type);
+                    $media->save();
+                }
             }
         }
 

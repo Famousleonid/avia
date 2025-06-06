@@ -38,9 +38,13 @@ class ManualCsvController extends Controller
         return response()->download($media->getPath(), $media->file_name);
     }
 
-    public function view(Manual $manual)
+    public function view(Manual $manual, $file = null)
     {
-        $media = $manual->getMedia('csv_files')->first();
+        if ($file) {
+            $media = $manual->getMedia('csv_files')->firstWhere('id', $file);
+        } else {
+            $media = $manual->getMedia('csv_files')->first();
+        }
         
         if (!$media) {
             return redirect()->back()->with('error', 'CSV файл не найден');
@@ -52,6 +56,34 @@ class ManualCsvController extends Controller
         $records = $csv->getRecords();
         $headers = $csv->getHeader();
 
-        return view('admin.manuals.csv-view', compact('manual', 'records', 'headers'));
+        return view('admin.manuals.csv-view', compact('manual', 'records', 'headers', 'media'));
+    }
+
+    public function delete(Manual $manual, $file)
+    {
+        try {
+            $media = $manual->getMedia('csv_files')->firstWhere('id', $file);
+            
+            if (!$media) {
+                return response()->json([
+                    'success' => false,
+                    'error' => 'CSV файл не найден'
+                ], 404);
+            }
+
+            $media->delete();
+            
+            return response()->json([
+                'success' => true,
+                'message' => 'CSV файл успешно удален'
+            ]);
+            
+        } catch (\Exception $e) {
+            \Log::error('Error deleting CSV file: ' . $e->getMessage());
+            return response()->json([
+                'success' => false,
+                'error' => 'Ошибка при удалении файла: ' . $e->getMessage()
+            ], 500);
+        }
     }
 } 

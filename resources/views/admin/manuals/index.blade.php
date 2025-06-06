@@ -114,6 +114,7 @@
                         <th class="text-primary text-center bg-gradient">{{__('Image')}}</th>
                         <th class="text-primary text-center bg-gradient">{{__('Rev.Date')}}</th>
                         <th class="text-primary text-center  sortable bg-gradient" data-direction="asc">{{__('Lib')}} <i class="bi bi-chevron-expand ms-1"></i></th>
+                        <th class="text-primary text-center bg-gradient">{{__('STD Files')}}</th>
                         <th class="text-primary text-center bg-gradient">{{__('Action')}}</th>
                     </tr>
                     </thead>
@@ -130,6 +131,21 @@
                             </td>
                             <td class="text-center">{{$cmm->revision_date}}</td>
                             <td class="text-center">{{$cmm->lib}}</td>
+                            <td class="text-center">
+                                <div class="d-flex justify-content-center gap-1">
+                                    @foreach($cmm->getMedia('csv_files') as $file)
+                                        <a href="{{ route('admin.manuals.csv.view', ['manual' => $cmm->id, 'file' => $file->id]) }}" 
+                                           class="btn btn-sm btn-outline-info">
+                                            <i class="fas fa-file-csv"></i>
+                                            @if($file->getCustomProperty('process_type'))
+                                                {{ $file->getCustomProperty('process_type') }}
+                                            @else
+                                                {{__('No Type')}}
+                                            @endif
+                                        </a>
+                                    @endforeach
+                                </div>
+                            </td>
                             <td class="text-center">
                                 <a href="{{ route('admin.manuals.edit', ['manual' => $cmm->id]) }}" class="btn btn-outline-primary btn-sm">
                                     <i class="bi bi-pencil-square"></i>

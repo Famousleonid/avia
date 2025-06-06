@@ -46,37 +46,39 @@
 
                             <div class="col-xs-12 col-sm-12 col-md-12 mt-2">
                                 <div class="form-group">
-{{--                                    <strong>{{__('CSV File d.c(e.g. ndt_stsv):')}}</strong>--}}
-                                    <strong>{{__('CSV FileS: ')}}</strong>
+                                    <strong>{{__('CSV Files: ')}}</strong>
                                     @php
-                                        $csvMedia = $cmm->getMedia('csv_files')->first();
-                                        $processType = $csvMedia ? $csvMedia->getCustomProperty('process_type') : null;
+                                        $csvFiles = $cmm->getMedia('csv_files');
                                     @endphp
-                                    @if($cmm->getCsvFileName())
+                                    @if($csvFiles->count() > 0)
                                         <div class="mb-2">
-                                            <span class="badge bg-outline-info">{{ $cmm->getCsvFileName() }}</span>
-{{--                                            @if($processType)--}}
-{{--                                                <span class="badge bg-secondary">{{ $processType }}</span>--}}
-{{--                                            @endif--}}
-{{--                                            <a href="{{ route('admin.manuals.csv.download', $cmm) }}" class="btn btn-sm--}}
-{{--                                            btn-outline-primary">--}}
-{{--                                                <i class="fas fa-download"></i> {{__('Download')}}--}}
-{{--                                            </a>--}}
-                                            <a href="{{ route('admin.manuals.csv.view', $cmm) }}" class="btn btn-sm btn-outline-info">
-                                                <i class="fas fa-eye"></i> {{__('View')}}
-                                            </a>
+                                            @foreach($csvFiles as $csvFile)
+                                                <div class="d-flex align-items-center mb-1">
+                                                    <span class="badge bg-outline-info me-2">{{ $csvFile->file_name }}</span>
+                                                    @if($csvFile->getCustomProperty('process_type'))
+                                                        <span class="badge bg-secondary me-2">{{ $csvFile->getCustomProperty('process_type') }}</span>
+                                                    @endif
+                                                    <a href="{{ route('admin.manuals.csv.view', ['manual' => $cmm->id, 'file' => $csvFile->id]) }}" class="btn btn-sm btn-outline-info me-1">
+                                                        <i class="fas fa-eye"></i> {{__('View')}}
+                                                    </a>
+                                                    <button type="button" class="btn btn-sm btn-outline-danger" 
+                                                            onclick="deleteCsvFile('{{ route('admin.manuals.csv.delete', ['manual' => $cmm->id, 'file' => $csvFile->id]) }}', event)">
+                                                        <i class="fas fa-trash"></i> {{__('Del')}}
+                                                    </button>
+                                                </div>
+                                            @endforeach
                                         </div>
                                     @endif
 
                                     <select name="process_type" class="form-control mb-2">
                                         <option value="">{{ __('Select Process Type (Optional)') }}</option>
-                                        <option value="ndt" {{ old('process_type', $processType) == 'ndt' ? 'selected' : '' }}>{{ __('NDT') }}</option>
-                                        <option value="cad" {{ old('process_type', $processType) == 'cad' ? 'selected' : '' }}>{{ __('Cad') }}</option>
-                                        <option value="stress_relief" {{ old('process_type', $processType) == 'stress_relief' ? 'selected' : '' }}>{{ __('Stress Relief') }}</option>
-                                        <option value="other" {{ old('process_type', $processType) == 'other' ? 'selected' : '' }}>{{ __('Other') }}</option>
+                                        <option value="ndt">{{ __('NDT') }}</option>
+                                        <option value="cad">{{ __('Cad') }}</option>
+                                        <option value="stress_relief">{{ __('Stress Relief') }}</option>
+                                        <option value="other">{{ __('Other') }}</option>
                                     </select>
-                                    <input type="file" name="csv_file" class="form-control" accept=".csv,.txt">
-                                    <small class="text-muted">{{__('Upload CSV file with component process requirements')}}</small>
+                                    <input type="file" name="csv_files[]" class="form-control" accept=".csv,.txt" multiple>
+                                    <small class="text-muted">{{__('Upload one or more CSV files with component process requirements')}}</small>
                                 </div>
                             </div>
 
@@ -284,5 +286,51 @@
         handleFormSubmission('addMFRForm', 'addMFRModal', '{{ route('admin.builders.store') }}', 'builders_id', 'id',
             'name');
         handleFormSubmission('addScopeForm', 'addScopeModal', '{{ route('admin.scopes.store') }}', 'scopes_id', 'id', 'scope');
+
+        function deleteCsvFile(url, event) {
+            if (confirm('{{ __("Are you sure you want to delete this file?") }}')) {
+                fetch(url, {
+                    method: 'DELETE',
+                    headers: {
+                        'X-CSRF-TOKEN': '{{ csrf_token() }}',
+                        'Accept': 'application/json',
+                        'Content-Type': 'application/json'
+                    }
+                })
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error('Network response was not ok');
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    if (data.success) {
+                        // Находим родительский элемент файла и удаляем его
+                        const fileElement = event.target.closest('.d-flex');
+                        if (fileElement) {
+                            fileElement.remove();
+                        }
+                    } else {
+                        throw new Error(data.error || '{{ __("Error deleting file") }}');
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    alert(error.message || '{{ __("Error deleting file") }}');
+                });
+            }
+            // Предотвращаем всплытие события
+            event.stopPropagation();
+            return false;
+        }
+
+        // Обработка отправки основной формы
+        document.getElementById('editCMMForm').addEventListener('submit', function(e) {
+            // Если есть ошибки валидации, не отправляем форму
+            if (!this.checkValidity()) {
+                e.preventDefault();
+                return false;
+            }
+        });
     </script>
 @endsection

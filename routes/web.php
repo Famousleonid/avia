@@ -154,7 +154,8 @@ Route::group(['middleware' => ['auth', 'isAdmin'], 'prefix' => 'admin', 'as' =>'
     // CSV файлы для Manual
     Route::post('manuals/{manual}/csv/upload', [ManualCsvController::class, 'upload'])->name('manuals.csv.upload');
     Route::get('manuals/{manual}/csv/download', [ManualCsvController::class, 'download'])->name('manuals.csv.download');
-    Route::get('manuals/{manual}/csv/view', [ManualCsvController::class, 'view'])->name('manuals.csv.view');
+    Route::get('manuals/{manual}/csv/view/{file?}', [ManualCsvController::class, 'view'])->name('manuals.csv.view');
+    Route::delete('manuals/{manual}/csv/{file}', [ManualCsvController::class, 'delete'])->name('manuals.csv.delete');
 
 });
 

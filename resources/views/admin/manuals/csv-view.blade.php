@@ -9,8 +9,8 @@
                     <a href="{{ route('admin.manuals.csv.download', $manual) }}" class="btn btn-primary">
                         <i class="fas fa-download"></i> Скачать CSV
                     </a>
-                    <a href="{{ route('admin.manuals.edit', $manual) }}" class="btn btn-secondary">
-                        <i class="fas fa-arrow-left"></i> Назад
+                    <a href="{{ route('admin.manuals.index') }}" class="btn btn-secondary">
+                        <i class="fas fa-arrow-left"></i> Назад к списку
                     </a>
                 </div>
             </div>
