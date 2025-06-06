@@ -151,11 +151,12 @@ Route::group(['middleware' => ['auth', 'isAdmin'], 'prefix' => 'admin', 'as' =>'
     Route::post('/trainings/createTraining', [\App\Http\Controllers\Admin\TrainingController::class, 'createTraining'])->name('trainings.createTraining');
     Route::post('/trainings/delete-all', [\App\Http\Controllers\Admin\TrainingController::class, 'deleteAll'])->name('trainings.deleteAll');
 
-    // CSV файлы для Manual
-    Route::post('manuals/{manual}/csv/upload', [ManualCsvController::class, 'upload'])->name('manuals.csv.upload');
-    Route::get('manuals/{manual}/csv/download', [ManualCsvController::class, 'download'])->name('manuals.csv.download');
-    Route::get('manuals/{manual}/csv/view/{file?}', [ManualCsvController::class, 'view'])->name('manuals.csv.view');
-    Route::delete('manuals/{manual}/csv/{file}', [ManualCsvController::class, 'delete'])->name('manuals.csv.delete');
+    // CSV файлы для мануалов
+    Route::prefix('manuals/{manual}/csv')->name('manuals.csv.')->group(function () {
+        Route::post('/', [ManualCsvController::class, 'store'])->name('store');
+        Route::get('/{file}', [ManualCsvController::class, 'view'])->name('view');
+        Route::delete('/{file}', [ManualCsvController::class, 'delete'])->name('delete');
+    });
 
 });
 

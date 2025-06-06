@@ -51,9 +51,9 @@
                                         $csvFiles = $cmm->getMedia('csv_files');
                                     @endphp
                                     @if($csvFiles->count() > 0)
-                                        <div class="mb-2">
+                                        <div class="csv-files-list mt-2">
                                             @foreach($csvFiles as $csvFile)
-                                                <div class="d-flex align-items-center mb-1">
+                                                <div class="d-flex align-items-center mb-1" data-process-type="{{ $csvFile->getCustomProperty('process_type') }}">
                                                     <span class="badge bg-outline-info me-2">{{ $csvFile->file_name }}</span>
                                                     @if($csvFile->getCustomProperty('process_type'))
                                                         <span class="badge bg-secondary me-2">{{ $csvFile->getCustomProperty('process_type') }}</span>
@@ -332,5 +332,80 @@
                 return false;
             }
         });
+
+        // Функция для обработки загрузки файлов
+        function handleFileUpload(event) {
+            const fileInput = event.target;
+            const processType = document.querySelector('select[name="process_type"]').value;
+            const formData = new FormData();
+            
+            if (fileInput.files.length > 0) {
+                formData.append('csv_file', fileInput.files[0]);
+                formData.append('process_type', processType);
+                
+                fetch('{{ route("admin.manuals.csv.store", ["manual" => $cmm->id]) }}', {
+                    method: 'POST',
+                    body: formData,
+                    headers: {
+                        'X-CSRF-TOKEN': '{{ csrf_token() }}',
+                        'Accept': 'application/json'
+                    }
+                })
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error('Network response was not ok');
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    if (data.success) {
+                        // Если файл с таким process_type уже существовал, удаляем его из DOM
+                        const existingFile = document.querySelector(`[data-process-type="${processType}"]`);
+                        if (existingFile) {
+                            existingFile.remove();
+                        }
+                        
+                        // Добавляем новый файл в список
+                        const fileList = document.querySelector('.csv-files-list');
+                        const fileElement = createFileElement(data.file);
+                        fileList.appendChild(fileElement);
+                        
+                        // Очищаем input
+                        fileInput.value = '';
+                    } else {
+                        throw new Error(data.error || '{{ __("Error uploading file") }}');
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    alert(error.message || '{{ __("Error uploading file") }}');
+                });
+            }
+        }
+
+        // Функция для создания элемента файла
+        function createFileElement(file) {
+            const div = document.createElement('div');
+            div.className = 'd-flex align-items-center mb-1';
+            div.setAttribute('data-process-type', file.process_type);
+            
+            div.innerHTML = `
+                <span class="badge bg-outline-info me-2">${file.name}</span>
+                ${file.process_type ? `<span class="badge bg-secondary me-2">${file.process_type}</span>` : ''}
+                <a href="/admin/manuals/{{ $cmm->id }}/csv/${file.id}" 
+                   class="btn btn-sm btn-outline-info me-1">
+                    <i class="fas fa-eye"></i> {{__('View')}}
+                </a>
+                <button type="button" class="btn btn-sm btn-outline-danger" 
+                        onclick="deleteCsvFile('/admin/manuals/{{ $cmm->id }}/csv/${file.id}', event)">
+                    <i class="fas fa-trash"></i> {{__('Del')}}
+                </button>
+            `;
+            
+            return div;
+        }
+
+        // Добавляем обработчик события для input файла
+        document.querySelector('input[name="csv_files[]"]').addEventListener('change', handleFileUpload);
     </script>
 @endsection
