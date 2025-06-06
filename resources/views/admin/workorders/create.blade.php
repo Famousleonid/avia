@@ -189,7 +189,7 @@
                                 </div>
 
                                 <div class="col-lg-3 row">
-                                    <label class="checkbox-wo mb-2"><input type="checkbox" name="part_missing">___ Parts Missing</label><br>
+
                                     <label class="checkbox-wo mb-2"><input type="checkbox" name="external_damage">___ External Damage</label><br>
                                     <label class="checkbox-wo mb-2"><input type="checkbox" name="received_disassembly">___ Received Disassembly</label><br>
                                     <label class="checkbox-wo mb-2"><input type="checkbox" name="disassembly_upon_arrival">___ Disassembly Upon Arrival</label><br>

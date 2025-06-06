@@ -190,7 +190,7 @@
                                 <div class="col-lg-3 row">
 
                                     <div class="form-group">
-                                        <label class="checkbox-wo mb-2"><input type="checkbox" name="part_missing" {{ $current_wo->part_missing ? 'checked' : '' }}>___ Parts Missing</label><br>
+                                        <label class="checkbox-wo mb-2"><input type="checkbox" name="part_missing" {{ $current_wo->part_missing ? 'checked' : '' }} disabled>___ Parts Missing</label><br>
                                     </div>
                                     <div class="form-group">
                                         <label class="checkbox-wo mb-2"><input type="checkbox" name="external_damage" {{ $current_wo->external_damage ? 'checked' : '' }}>___ External damage</label><br>
