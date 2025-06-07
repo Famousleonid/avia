@@ -356,12 +356,9 @@
                     </div>
                 </div>
                 <div class="row border-all mt-2" style="height: 56px">
-                    @foreach($manuals as $manual)
-                        @if($manual->id == $current_wo->unit->manual_id)
-                            <h6 class="text-center mt-3"><strong> {{$manual->number}}</strong></h6>
-                        @endif
-                    @endforeach
-
+                    @if($current_wo && $current_wo->unit && $current_wo->unit->manuals)
+                        <h6 class="text-center mt-3"><strong>{{ $current_wo->unit->manuals->number }}</strong></h6>
+                    @endif
                 </div>
             </div>
         </div>

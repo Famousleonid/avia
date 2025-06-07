@@ -242,7 +242,7 @@
         $totalPages = ceil($totalParts / $partsPerPage); // Общее количество страниц
     @endphp
 
-{{--{{$totalParts}} {{$totalPages}}--}}
+    {{--{{$totalParts}} {{$totalPages}}--}}
 
     @if($totalParts > 0) <!-- Проверка, есть ли данные -->
     @for($page = 0; $page < $totalPages; $page++)
@@ -353,8 +353,7 @@
                 @php
                     // Если данные существуют, выбираем ipl_num или assy_ipl_num
                     if ($i < $totalParts) {
-                        $component = $ordersParts[$i]->orderComponent ?? $ordersParts[$i]->component;
-                        $ipl_num = $component->assy_ipl_num ?? $component->ipl_num ?? '';
+                        $ipl_num = $ordersParts[$i]->component->assy_ipl_num ?? $ordersParts[$i]->component->ipl_num ?? '';
                         $ipl_parts = explode('-', $ipl_num);
                         $first_part = $ipl_parts[0] ?? '';
                         $second_part = $ipl_parts[1] ?? '';
@@ -375,21 +374,21 @@
                                 <h6>{{ $second_part }}</h6>
                             </div>
                             <div class="col-9 border-l-b text-center pt-1 align-content-center">
-                                {{ $i < $totalParts ? ($component->name ?? '') : '' }}
+                                {{ $i < $totalParts ? ($ordersParts[$i]->component->name ?? '') : '' }}
+{{--                                {{ $i < $totalParts ? ($component->name ?? '') . ($component->assy_ipl_num ? ' ASSY' : '') : '' }}--}}
+
                             </div>
                         </div>
                     </div>
-
-
                     <div class="col-7">
                         <div class="row" style="height: 36px">
                             <div class="col-4 border-l-b text-center pt-2 align-content-center">
-                                @if($i < $totalParts && isset($component))
+                                @if($i < $totalParts && isset($ordersParts[$i]->component))
                                     <h6>
-                                        {{ $component->assy_part_number ?? $component->part_number }}
+                                        {{ $ordersParts[$i]->component->assy_part_number ?? $ordersParts[$i]->component->part_number }}
                                     </h6>
                                 @else
-                                    <h6> </h6>
+                                    <h6></h6>
                                 @endif
                             </div>
                             <div class="col-1 border-l-b text-center pt-2 align-content-center">
@@ -409,21 +408,21 @@
                 </div>
             @endfor
 
-                <!-- Проверка на последнюю страницу и добавление специального блока -->
-                @if ($page == $totalPages - 1)
-                    <div class="row mt-2">
-                        <div class="col-8"></div>
-                        <div class="col-1 border-l-t-b" style="width: 48px; height: 46px">
-                            <img src="{{ asset('img/icons/prod_st.png') }}" alt="stamp"
-                                 style="width: 42px; margin-left: -8px">
-                        </div>
-                        <div class="col-1 border-all" style="width: 48px; height: 46px">
-                            <img src="{{ asset('img/icons/qual_st.png') }}" alt="stamp"
-                                 style="width: 42px; margin-left: -10px; margin-top: 1px">
-                        </div>
-                        <div class="col-2"></div>
+            <!-- Проверка на последнюю страницу и добавление специального блока -->
+            @if ($page == $totalPages - 1)
+                <div class="row mt-2">
+                    <div class="col-8"></div>
+                    <div class="col-1 border-l-t-b" style="width: 48px; height: 46px">
+                        <img src="{{ asset('img/icons/prod_st.png') }}" alt="stamp"
+                             style="width: 42px; margin-left: -8px">
                     </div>
-                @endif
+                    <div class="col-1 border-all" style="width: 48px; height: 46px">
+                        <img src="{{ asset('img/icons/qual_st.png') }}" alt="stamp"
+                             style="width: 42px; margin-left: -10px; margin-top: 1px">
+                    </div>
+                    <div class="col-2"></div>
+                </div>
+            @endif
         </div>
     @endfor
     @else
@@ -564,18 +563,18 @@
                     </div>
                 </div>
             @endfor
-                <div class="row mt-2">
-                    <div class="col-8"></div>
-                    <div class="col-1 border-l-t-b" style="width: 48px; height: 46px">
-                        <img src="{{ asset('img/icons/prod_st.png') }}" alt="stamp"
-                             style="width: 42px; margin-left: -8px">
-                    </div>
-                    <div class="col-1 border-all" style="width: 48px; height: 46px">
-                        <img src="{{ asset('img/icons/qual_st.png') }}" alt="stamp"
-                             style="width: 42px; margin-left: -10px; margin-top: 1px">
-                    </div>
-                    <div class="col-2"></div>
+            <div class="row mt-2">
+                <div class="col-8"></div>
+                <div class="col-1 border-l-t-b" style="width: 48px; height: 46px">
+                    <img src="{{ asset('img/icons/prod_st.png') }}" alt="stamp"
+                         style="width: 42px; margin-left: -8px">
                 </div>
+                <div class="col-1 border-all" style="width: 48px; height: 46px">
+                    <img src="{{ asset('img/icons/qual_st.png') }}" alt="stamp"
+                         style="width: 42px; margin-left: -10px; margin-top: 1px">
+                </div>
+                <div class="col-2"></div>
+            </div>
         </div>
 
     @endif
