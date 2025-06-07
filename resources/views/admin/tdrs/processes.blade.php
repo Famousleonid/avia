@@ -87,13 +87,37 @@
                     <h5 class="text-primary me-5">{{__('Work Order: ')}} {{$current_wo->number}}</h5>
                     <h5>{{__('All Components Processes')}}</h5>
 
-                    <a href="{{ route('admin.tdrs.ndtForm', ['id'=> $current_wo->id]) }}"
-                       class="btn btn-outline-warning formLink "
-                       target="_blank"
-                       id="#" style=" height: 36px">
+                    @php
+                        $manual = null;
+                        $hasNdtCsv = false;
 
-                        <i class="bi bi-file-earmark-excel"> NDT (Cat #1)</i>
-                    </a>
+                        if ($current_wo && $current_wo->unit && $current_wo->unit->manuals) {
+                            $manual = $current_wo->unit->manuals;
+                            try {
+                                $csv_media = $manual->getMedia('csv_files')->first(function($media) {
+                                    return $media->getCustomProperty('process_type') === 'ndt';
+                                });
+                                $hasNdtCsv = $csv_media !== null;
+                            } catch (\Exception $e) {
+                                \Log::error('Error checking NDT CSV:', [
+                                    'message' => $e->getMessage(),
+                                    'workorder_id' => $current_wo->id ?? null,
+                                    'unit_id' => $current_wo->unit->id ?? null,
+                                    'manual_id' => $current_wo->unit->manual_id ?? null
+                                ]);
+                            }
+                        }
+                    @endphp
+
+                    @if($current_wo && $current_wo->instruction_id == 1 && $hasNdtCsv)
+                        <a href="{{ route('admin.tdrs.ndtStd', ['workorder_id' => $current_wo->id]) }}"
+                           class="btn btn-outline-warning formLink"
+                           target="_blank"
+                           style="height: 36px">
+                            <i class="bi bi-file-earmark-excel"> NDT (Cat #1)</i>
+                        </a>
+                    @endif
+
                     <a href="{{ route('admin.tdrs.specProcessForm', ['id'=> $current_wo->id]) }}"
                        class="btn btn-outline-warning  formLink "
                        target="_blank"

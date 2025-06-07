@@ -327,7 +327,9 @@
             <div class="row">
                 <div class="col-1 border-bb"></div>
                 <div class="col-10 border-bb" style="height: 36px"></div>
-                <div class="col-1 border-ll-bb-rr"> {{count($tdrInspections)}}</div>
+                <div class="col-1 border-ll-bb-rr">
+{{--                    {{count($tdrInspections)}}--}}
+                </div>
             </div>
         </div>
     </div>

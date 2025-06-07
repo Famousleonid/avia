@@ -226,8 +226,7 @@
                                     </a>
                                 @endif
                                 </div>
-
-                                @php
+ @php
     $manual = null;
     $hasNdtCsv = false;
 
@@ -258,6 +257,7 @@
         </a>
     </div>
 @endif
+
                         </div>
 
                         <!--  Missing Modal -->
