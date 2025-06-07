@@ -374,9 +374,7 @@
                                 <h6>{{ $second_part }}</h6>
                             </div>
                             <div class="col-9 border-l-b text-center pt-1 align-content-center">
-                                {{ $i < $totalParts ? ($ordersParts[$i]->component->name ?? '') : '' }}
-{{--                                {{ $i < $totalParts ? ($component->name ?? '') . ($component->assy_ipl_num ? ' ASSY' : '') : '' }}--}}
-
+                                {{ $i < $totalParts ? ($ordersParts[$i]->component->name ?? '') . ($ordersParts[$i]->component->assy_ipl_num ? ' ASSY' : '') : '' }}
                             </div>
                         </div>
                     </div>
