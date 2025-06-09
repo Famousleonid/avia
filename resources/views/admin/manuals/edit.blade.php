@@ -15,7 +15,7 @@
 
             <div class="card-body">
                 <form method="POST"
-                      action="{{ route('admin.manuals.update', [ 'manual' => $cmm->id] ) }}"
+                      action="{{ route('manuals.update', [ 'manual' => $cmm->id] ) }}"
                       enctype="multipart/form-data"   id="editCMMForm">
                     @csrf
                     @method('PUT')
@@ -58,11 +58,11 @@
                                                     @if($csvFile->getCustomProperty('process_type'))
                                                         <span class="badge bg-secondary me-2">{{ $csvFile->getCustomProperty('process_type') }}</span>
                                                     @endif
-                                                    <a href="{{ route('admin.manuals.csv.view', ['manual' => $cmm->id, 'file' => $csvFile->id]) }}" class="btn btn-sm btn-outline-info me-1">
+                                                    <a href="{{ route('manuals.csv.view', ['manual' => $cmm->id, 'file' => $csvFile->id]) }}" class="btn btn-sm btn-outline-info me-1">
                                                         <i class="fas fa-eye"></i> {{__('View')}}
                                                     </a>
-                                                    <button type="button" class="btn btn-sm btn-outline-danger" 
-                                                            onclick="deleteCsvFile('{{ route('admin.manuals.csv.delete', ['manual' => $cmm->id, 'file' => $csvFile->id]) }}', event)">
+                                                    <button type="button" class="btn btn-sm btn-outline-danger"
+                                                            onclick="deleteCsvFile('{{ route('manuals.csv.delete', ['manual' => $cmm->id, 'file' => $csvFile->id]) }}', event)">
                                                         <i class="fas fa-trash"></i> {{__('Del')}}
                                                     </button>
                                                 </div>
@@ -156,7 +156,7 @@
                     <button type="submit" class="btn btn-outline-primary text-center ">
                         {{ __('UpDate') }}
                     </button>
-                    <a href="{{ route('admin.manuals.index') }}" class="btn btn-outline-secondary">
+                    <a href="{{ route('manuals.index') }}" class="btn btn-outline-secondary">
                         {{ __('Cancel') }}
                     </a>
                 </form>
@@ -281,11 +281,11 @@
             });
         }
 
-        handleFormSubmission('addAirCraftForm', 'addAirCraftModal', '{{ route('admin.planes.store') }}',
+        handleFormSubmission('addAirCraftForm', 'addAirCraftModal', '{{ route('planes.store') }}',
             'planes_id', 'id', 'type');
-        handleFormSubmission('addMFRForm', 'addMFRModal', '{{ route('admin.builders.store') }}', 'builders_id', 'id',
+        handleFormSubmission('addMFRForm', 'addMFRModal', '{{ route('builders.store') }}', 'builders_id', 'id',
             'name');
-        handleFormSubmission('addScopeForm', 'addScopeModal', '{{ route('admin.scopes.store') }}', 'scopes_id', 'id', 'scope');
+        handleFormSubmission('addScopeForm', 'addScopeModal', '{{ route('scopes.store') }}', 'scopes_id', 'id', 'scope');
 
         function deleteCsvFile(url, event) {
             if (confirm('{{ __("Are you sure you want to delete this file?") }}')) {
@@ -338,12 +338,12 @@
             const fileInput = event.target;
             const processType = document.querySelector('select[name="process_type"]').value;
             const formData = new FormData();
-            
+
             if (fileInput.files.length > 0) {
                 formData.append('csv_file', fileInput.files[0]);
                 formData.append('process_type', processType);
-                
-                fetch('{{ route("admin.manuals.csv.store", ["manual" => $cmm->id]) }}', {
+
+                fetch('{{ route("manuals.csv.store", ["manual" => $cmm->id]) }}', {
                     method: 'POST',
                     body: formData,
                     headers: {
@@ -364,12 +364,12 @@
                         if (existingFile) {
                             existingFile.remove();
                         }
-                        
+
                         // Добавляем новый файл в список
                         const fileList = document.querySelector('.csv-files-list');
                         const fileElement = createFileElement(data.file);
                         fileList.appendChild(fileElement);
-                        
+
                         // Очищаем input
                         fileInput.value = '';
                     } else {
@@ -388,20 +388,20 @@
             const div = document.createElement('div');
             div.className = 'd-flex align-items-center mb-1';
             div.setAttribute('data-process-type', file.process_type);
-            
+
             div.innerHTML = `
                 <span class="badge bg-outline-info me-2">${file.name}</span>
                 ${file.process_type ? `<span class="badge bg-secondary me-2">${file.process_type}</span>` : ''}
-                <a href="/admin/manuals/{{ $cmm->id }}/csv/${file.id}" 
+                <a href="/admin/manuals/{{ $cmm->id }}/csv/${file.id}"
                    class="btn btn-sm btn-outline-info me-1">
                     <i class="fas fa-eye"></i> {{__('View')}}
                 </a>
-                <button type="button" class="btn btn-sm btn-outline-danger" 
+                <button type="button" class="btn btn-sm btn-outline-danger"
                         onclick="deleteCsvFile('/admin/manuals/{{ $cmm->id }}/csv/${file.id}', event)">
                     <i class="fas fa-trash"></i> {{__('Del')}}
                 </button>
             `;
-            
+
             return div;
         }
 
