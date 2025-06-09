@@ -22,20 +22,18 @@ class RedirectToMobile
             }
         }
 
-        // Только для авторизованных пользователей
         if (!$user) {
             return $next($request);
         }
 
-        // Если пользователь зашёл с мобильного и он не на /mobile — редиректим
-        if ($isMobile && !$request->is('mobile')) {
+        if ($isMobile && !$request->is('mobile*')) {
             return redirect()->route('mobile.index');
         }
 
-        // Если десктоп и пользователь админ — направляем в админку
-        if (!$isMobile && $user->isAdmin() && !$request->is('admin*')) {
-            return redirect()->route('admin.index'); // пример
+        if (!$isMobile && !$request->is('cabinet*') && !$request->is('login')) {
+            return redirect()->route('cabinet.index');
         }
+
 
         return $next($request);
     }

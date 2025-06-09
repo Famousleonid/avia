@@ -73,7 +73,7 @@ Route::group(['middleware' => ['auth', 'isAdmin'] ], function () {
 // ---------------------- Cabinet route ------------------------------------------------------------------------
 Route::group(['middleware' => ['auth'] ], function () {
 
-    Route::get('/', [CabinetController::class, 'index'])->name('cabinet.index');
+    Route::get('/cabinet', [CabinetController::class, 'index'])->name('cabinet.index');
     Route::get('/logs', [CabinetController::class, 'activity'])->name('log.activity');
     Route::resource('/users', UserController::class);
     Route::resource('/manuals',ManualController::class);

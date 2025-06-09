@@ -18,7 +18,7 @@ class LoginController extends Controller
         $this->middleware('guest')->except('logout');
     }
 
-    public function redirectTo()
+    protected function redirectTo()
     {
         $agent = new \Jenssegers\Agent\Agent();
 
