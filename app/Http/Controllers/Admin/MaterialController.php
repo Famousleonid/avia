@@ -32,7 +32,7 @@ class MaterialController extends Controller
 
         Material::create($validated);
 
-        return redirect()->route('admin.materials.index')->with('success', 'Material created successfully.');
+        return redirect()->route('materials.index')->with('success', 'Material created successfully.');
     }
 
     public function show($id)
@@ -56,14 +56,14 @@ class MaterialController extends Controller
 
         $material->update($validated);
 
-        return redirect()->route('admin.materials.index')->with('success', 'Material updated successfully.');
+        return redirect()->route('materials.index')->with('success', 'Material updated successfully.');
     }
 
     public function destroy(Material $material)
     {
         $material->delete();
 
-        return redirect()->route('admin.materials.index')->with('success', 'Material deleted successfully.');
+        return redirect()->route('materials.index')->with('success', 'Material deleted successfully.');
     }
 
 

@@ -21,7 +21,7 @@
                 </div>
             </div>
             <div class="card-body">
-                <form method="POST" action="{{ route('admin.tdr-processes.update', $current_tdr_processes->id) }}" enctype="multipart/form-data" id="editCPForm">
+                <form method="POST" action="{{ route('tdr-processes.update', $current_tdr_processes->id) }}" enctype="multipart/form-data" id="editCPForm">
                     @csrf
                     @method('PUT')
                     <input type="hidden" name="tdrs_id" value="{{ $current_tdr->id }}">
@@ -59,7 +59,7 @@
 
                     <div class="text-end">
                         <button type="submit" class="btn btn-outline-primary mt-3">{{ __('Update') }}</button>
-                        <a href="{{ route('admin.tdrs.processes', ['workorder_id' => $current_tdr->workorder->id]) }}" class="btn btn-outline-secondary mt-3">{{ __('Cancel') }}</a>
+                        <a href="{{ route('tdrs.processes', ['workorder_id' => $current_tdr->workorder->id]) }}" class="btn btn-outline-secondary mt-3">{{ __('Cancel') }}</a>
                     </div>
                 </form>
             </div>

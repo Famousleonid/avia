@@ -113,7 +113,7 @@
                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
                 <div class="modal-body">
-                    <form id="createForm" method="POST" action="{{ route('admin.tasks.store') }}">
+                    <form id="createForm" method="POST" action="{{ route('tasks.store') }}">
                         @csrf
                         <div class="mb-3">
                             <label for="createName" class="form-label">Name</label>
@@ -135,7 +135,7 @@
                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
                 <div class="modal-body">
-                    <form id="editForm" method="POST" action="{{ route('admin.tasks.update', ':id') }}">
+                    <form id="editForm" method="POST" action="{{ route('tasks.update', ':id') }}">
                         @csrf
                         @method('PUT')
                         <input type="hidden" id="editId" name="id">
@@ -160,7 +160,7 @@
                 </div>
                 <div class="modal-body">
                     <p>Are you sure you want to delete this ?</p>
-                    <form id="deleteForm" method="POST" action="{{ route('admin.tasks.destroy', ':id') }}">
+                    <form id="deleteForm" method="POST" action="{{ route('tasks.destroy', ':id') }}">
                         @csrf
                         @method('DELETE')
                         <input type="hidden" id="deleteId" name="id">
@@ -225,12 +225,12 @@
         function populateEditModal(id, name) {
             document.getElementById('editId').value = id;
             document.getElementById('editName').value = name;
-            document.getElementById('editForm').action = `{{ route('admin.tasks.update', ':id') }}`.replace(':id', id);
+            document.getElementById('editForm').action = `{{ route('tasks.update', ':id') }}`.replace(':id', id);
         }
 
         function populateDeleteModal(id, name) {
             document.getElementById('deleteId').value = id;
-            document.getElementById('deleteForm').action = `{{ route('admin.tasks.destroy', ':id') }}`.replace(':id', id);
+            document.getElementById('deleteForm').action = `{{ route('tasks.destroy', ':id') }}`.replace(':id', id);
             document.getElementById('deleteModalTitle').innerText = `Delete task (${name})`;
         }
     </script>

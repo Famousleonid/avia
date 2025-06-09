@@ -30,6 +30,8 @@ class Manual extends Model implements  hasMedia
 
     protected $dates = ['deleted_at'];
 
+    public $mediaUrlName = 'manuals';
+
     // Отношение с моделью AirCraft
     public function plane()
     {

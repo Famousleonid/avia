@@ -70,7 +70,7 @@
             </div>
             <div class="card-body">
                 <form id="createForm" class="createForm" role="form" method="POST"
-                      action="{{route('admin.tdrs.store')}}" enctype="multipart/form-data">
+                      action="{{route('tdrs.store')}}" enctype="multipart/form-data">
                     @csrf
 {{--                    <input type="hidden" name="use_tdr" value="true">--}}
 
@@ -182,7 +182,7 @@
 
                     <div class="text-end">
                         <button type="submit" class="btn btn-outline-primary mt-3">{{ __('Save') }}</button>
-                        <a href="{{ route('admin.tdrs.show', ['tdr'=>$current_wo->id]) }}"
+                        <a href="{{ route('tdrs.show', ['tdr'=>$current_wo->id]) }}"
                            class="btn btn-outline-secondary mt-3">{{ __('Cancel') }} </a>
                     </div>
                 </form>
@@ -200,7 +200,7 @@
                     <h5 class="modal-title" id="addComponentModalLabel">{{ __('Add Component') }}</h5>
                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Закрыть"></button>
                 </div>
-                <form action="{{ route('admin.components.storeFromInspection') }}" method="POST" id="addComponentForm">
+                <form action="{{ route('components.storeFromInspection') }}" method="POST" id="addComponentForm">
                     @csrf
 
                     <div class="modal-body">
@@ -289,28 +289,28 @@
                         // Извлекаем IPL номер из текста (всё до первого ":")
                         const aIpl = a.text.split(':')[0].trim();
                         const bIpl = b.text.split(':')[0].trim();
-                        
+
                         // Разбиваем IPL номер на части (например, "1-40" -> ["1", "40"])
                         const aParts = aIpl.split('-');
                         const bParts = bIpl.split('-');
-                        
+
                         // Сравниваем первую часть (до дефиса)
                         const aFirst = parseInt(aParts[0]);
                         const bFirst = parseInt(bParts[0]);
                         if (aFirst !== bFirst) {
                             return aFirst - bFirst;
                         }
-                        
+
                         // Если первые части равны, сравниваем вторую часть
                         const aSecond = aParts[1].replace(/[^0-9]/g, ''); // Убираем буквы
                         const bSecond = bParts[1].replace(/[^0-9]/g, '');
                         const aSecondNum = parseInt(aSecond);
                         const bSecondNum = parseInt(bSecond);
-                        
+
                         if (aSecondNum !== bSecondNum) {
                             return aSecondNum - bSecondNum;
                         }
-                        
+
                         // Если числовые части равны, сравниваем буквенные суффиксы
                         const aSuffix = aParts[1].replace(/[0-9]/g, '');
                         const bSuffix = bParts[1].replace(/[0-9]/g, '');

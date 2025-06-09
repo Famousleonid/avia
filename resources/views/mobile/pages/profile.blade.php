@@ -14,12 +14,12 @@
 @endsection
 
 @section('content')
-    <div class="card card-primary card-outline shadow mt-2 mb-4">
+    <div class="card card-primary card-outline shadow mt-1 mb-4">
         <div class="card-body box-profile">
 
             <div class="text-center mb-3">
-                <a href="{{ $user->getBigImageUrl('avatar') }}" class="open-fancybox" data-caption="Avatar">
-                    <img src="{{ $user->getThumbnailUrl('avatar') }}" width="60" class="rounded-circle">
+                <a href="{{ $user->getFirstMediaBigUrl('avatar') }}" class="open-fancybox" data-caption="Avatar">
+                    <img src="{{ $user->getFirstMediaThumbnailUrl('avatar') }}" width="60" class="rounded-circle">
                 </a>
             </div>
 
@@ -58,22 +58,15 @@
                         </label>
                         <input type="file" id="avatarUpload" name="file" accept="image/*" class="d-none">
 
-                        {{-- Превью изображения (по умолчанию скрыто) --}}
-
                         <img id="avatarPreviewImg"
-                             src="{{ $user->getThumbnailUrl('avatar') }}"
+                             src="{{ $user->getFirstMediaThumbnailUrl('avatar') }}"
                              alt="Preview"
                              width="40"
                              height="40"
                              class="rounded-circle"
                              style="cursor: zoom-in;"
-                             data-default="{{ $user->getBigImageUrl('avatar') }}">
+                             data-default="{{ $user->getFirstMediaBigUrl('avatar') }}">
 
-
-                        {{-- Название файла --}}
-{{--                        <span id="file-name" class="small text-muted">No file chosen</span>--}}
-
-                        {{-- Select --}}
                         <select name="team_id"
                                 class="form-select form-select-sm {{ is_null($user->team_id) ? 'border-danger text-danger' : '' }}"
                                 style="min-width: 160px; flex: 1;">
@@ -101,7 +94,7 @@
 
         </form>
 
-        <div class="form-group mt-5">
+        <div class="form-group mt-5 text-center">
             <button class="btn btn-primary btn-block" type="button"
                     data-bs-toggle="modal"
                     data-bs-target="#updatePasswordModal">

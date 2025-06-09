@@ -26,10 +26,6 @@ class LoginController extends Controller
             return route('mobile.index');
         }
 
-        if (Auth::check() && Auth::user()->isAdmin()) {
-            return route('admin.index');
-        }
-
         if (Auth::check()) {
             return route('cabinet.index');
         }

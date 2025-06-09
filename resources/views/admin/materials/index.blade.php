@@ -146,7 +146,7 @@
                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
                 <div class="modal-body">
-                    <form id="createForm" method="POST" action="{{ route('admin.materials.store') }}">
+                    <form id="createForm" method="POST" action="{{ route('materials.store') }}">
                         @csrf
                         <div class="mb-3">
                             <label for="createCode" class="form-label">Code</label>
@@ -180,7 +180,7 @@
                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
                 <div class="modal-body">
-                    <form id="editForm" method="POST" action="{{ route('admin.materials.update', ':id') }}">
+                    <form id="editForm" method="POST" action="{{ route('materials.update', ':id') }}">
                         @csrf
                         @method('PUT')
                         <input type="hidden" id="editId" name="id">
@@ -217,7 +217,7 @@
                 </div>
                 <div class="modal-body">
                     <p>Are you sure you want to delete this material?</p>
-                    <form id="deleteForm" method="POST" action="{{ route('admin.materials.destroy', ':id') }}">
+                    <form id="deleteForm" method="POST" action="{{ route('materials.destroy', ':id') }}">
                         @csrf
                         @method('DELETE')
                         <input type="hidden" id="deleteId" name="id">
@@ -295,12 +295,12 @@
             document.getElementById('editMaterial').value = material;
             document.getElementById('editSpecification').value = specification;
             document.getElementById('editDescription').value = description;
-            document.getElementById('editForm').action = `{{ route('admin.materials.update', ':id') }}`.replace(':id', id);
+            document.getElementById('editForm').action = `{{ route('materials.update', ':id') }}`.replace(':id', id);
         }
 
         function populateDeleteModal(id, code) {
             document.getElementById('deleteId').value = id;
-            document.getElementById('deleteForm').action = `{{ route('admin.materials.destroy', ':id') }}`.replace(':id', id);
+            document.getElementById('deleteForm').action = `{{ route('materials.destroy', ':id') }}`.replace(':id', id);
             document.getElementById('deleteModalTitle').innerText = `Delete Material (Code: ${code})`;
         }
     </script>

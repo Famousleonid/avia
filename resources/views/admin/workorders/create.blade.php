@@ -82,7 +82,7 @@
 
     <div class="container pl-3 pr-3 mt-5">
         <div class="card  p-2 shadow bg-gradient">
-            <form id="createForm" class="createForm" role="form" method="post" action="{{route('admin.workorders.store')}}" enctype="multipart/form-data">
+            <form id="createForm" class="createForm" role="form" method="post" action="{{route('workorders.store')}}" enctype="multipart/form-data">
                 @csrf
                 <input type="text" hidden name="user_id" value="{{auth()->user()->id}}">
                 <div class="tab-content">
@@ -206,7 +206,7 @@
                                         <button id="ntSaveFormsSubmit" type="submit" class="btn btn-outline-primary btn-block ntSaveFormsSubmit"> Save</button>
                                     </div>
                                     <div class="col col-lg-1 offset-6 mb-1 ">
-                                        <a href="{{ route('admin.workorders.index') }}" class="btn btn-outline-secondary btn-block"> Cancel </a>
+                                        <a href="{{ route('workorders.index') }}" class="btn btn-outline-secondary btn-block"> Cancel </a>
                                     </div>
                                 </div>
                             </div>
@@ -367,7 +367,7 @@
 
                 showLoadingSpinner();
 
-                fetch("{{ route('admin.units.store') }}", {
+                fetch("{{ route('units.store') }}", {
                     method: "POST",
                     headers: {
                         "Content-Type": "application/json",

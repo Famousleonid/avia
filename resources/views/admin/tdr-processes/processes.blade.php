@@ -106,9 +106,9 @@
 
                                             </td>
                                             <td class="text-center">
-                                                <a href="{{ route('admin.tdr-processes.edit', ['tdr_process' =>
+                                                <a href="{{ route('tdr-processes.edit', ['tdr_process' =>
                                                 $processes->id]) }}" class="btn btn-sm btn-outline-primary">{{__('Edit')}}</a>
-                                                <form id="deleteForm_{{ $processes->id }}" action="{{ route('admin.tdr-processes.destroy', ['tdr_process' => $processes->id]) }}" method="POST" style="display:inline;">
+                                                <form id="deleteForm_{{ $processes->id }}" action="{{ route('tdr-processes.destroy', ['tdr_process' => $processes->id]) }}" method="POST" style="display:inline;">
                                                     @csrf
                                                     <input type="hidden" name="tdrId" value="{{ $current_tdr->id }}">
                                                     <input type="hidden" name="process" value="{{ $process }}">
@@ -120,7 +120,7 @@
                                                         {{__('Delete')}}
                                                     </button>
                                                 </form>
-                                                <a href="{{ route('admin.tdr-processes.show', ['tdr_process' =>
+                                                <a href="{{ route('tdr-processes.show', ['tdr_process' =>
                                                 $processes->id]) }}" class="btn btn-sm btn-outline-primary" target="_blank">{{__('Form')}}</a>
                                             </td>
                                         </tr>
@@ -131,7 +131,7 @@
                         </table>
                     </div>
                 </div>
-                <a href="{{ route('admin.tdrs.processes', ['workorder_id'=>$current_tdr->workorder->id]) }}"
+                <a href="{{ route('tdrs.processes', ['workorder_id'=>$current_tdr->workorder->id]) }}"
                    class="btn btn-outline-secondary mt-3">{{ __('All Components Processes') }} </a>
             </div>
         </div>

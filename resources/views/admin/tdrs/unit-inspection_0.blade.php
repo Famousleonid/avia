@@ -70,7 +70,7 @@
             </div>
             <div class="card-body">
                 <form id="createForm" class="createForm" role="form" method="POST"
-                      action="{{route('admin.tdrs.store')}}" enctype="multipart/form-data">
+                      action="{{route('tdrs.store')}}" enctype="multipart/form-data">
                     @csrf
                     <input type="hidden" name="workorder_id" value="{{$current_wo->id }}">
                     <input type="hidden" name="use_tdr" value="true">
@@ -96,7 +96,7 @@
 
                     <div class="text-end">
                         <button type="submit" class="btn btn-outline-primary mt-3">{{ __('Save') }}</button>
-                        <a href="{{ route('admin.tdrs.show', ['tdr'=>$current_wo->id]) }}"
+                        <a href="{{ route('tdrs.show', ['tdr'=>$current_wo->id]) }}"
                            class="btn btn-outline-secondary mt-3">{{ __('Cancel') }} </a>
                     </div>
                 </form>
@@ -117,7 +117,7 @@
                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Закрыть"></button>
                 </div>
 
-                <form action="{{ route('admin.conditions.store') }}" method="POST" id="addConditionForm">
+                <form action="{{ route('conditions.store') }}" method="POST" id="addConditionForm">
                     @csrf
 
                     <div class="modal-body">

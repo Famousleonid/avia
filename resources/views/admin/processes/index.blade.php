@@ -158,10 +158,10 @@
                             @endif
                         </td>
                         <td class="text-center" >
-                            <a href="{{ route('admin.processes.create', ['manual' => $manual->id]) }}" class="btn btn-outline-primary btn-sm">
+                            <a href="{{ route('processes.create', ['manual' => $manual->id]) }}" class="btn btn-outline-primary btn-sm">
                                 <i class="bi bi-plus-lg"></i>
                             </a>
-                            <a href="{{ route('admin.processes.edit', ['process' => $manual->id]) }}" class="btn
+                            <a href="{{ route('processes.edit', ['process' => $manual->id]) }}" class="btn
                             btn-outline-primary btn-sm">
                                 <i class="bi bi-vignette"></i>
                             </a>
@@ -187,7 +187,7 @@
                                 <div class="modal-body">
                                     <div class="d-flex">
                                         <div class="me-2">
-                                            <img class="" src="{{ $manual->getBigImageUrl('manuals') }}"
+                                            <img class="" src="{{ $manual->getFirstMediaBigUrl('manuals') }}"
                                                  width="200" alt="Image"/>
                                         </div>
                                         <div>

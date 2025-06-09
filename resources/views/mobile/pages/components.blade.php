@@ -31,7 +31,7 @@
         .table thead th {
             position: sticky;
             top: 0;
-            z-index: 10;
+            z-index: 1020;
             background-color: #0d6efd;
             color: white;
         }
@@ -72,7 +72,8 @@
 
 @section('content')
 
-    <div class="container-fluid d-flex flex-column bg-dark p-0" style="min-height: 100vh;">
+    <div class="container-fluid d-flex flex-column bg-dark p-0"  style="min-height: calc(100vh - 80px);padding-top: 60px; ">
+
         <div class="row g-0 flex-grow-1" style="background-color:#343A40;">
             <div class="col-12 p-0">
                 <div class="bg-dark py-2 px-3 d-flex justify-content-between align-items-center border-bottom mt-3">
@@ -100,7 +101,7 @@
                 </div>
 
                 @if($components->count())
-                    <div class="table-responsive p-2 ">
+                    <div class="table-responsive p-2 " >
                         <table id="componentTable" class="table table-sm table-striped table-bordered table-dark m-0 shadow">
                             <thead>
                             <tr>
@@ -119,8 +120,8 @@
                                     <td>{{ $component->name }}</td>
                                     <td>{{ $component->part_number }}</td>
                                     <td>
-                                        <a href="{{ $component->getBigImageUrl('components') }}" data-fancybox="component-{{ $component->id }}">
-                                            <img class="rounded-circle" src="{{ $component->getThumbnailUrl('components') }}" alt="Img">
+                                        <a href="{{ $component->getFirstMediaBigUrl('components') }}" data-fancybox="component-{{ $component->id }}">
+                                            <img class="rounded-circle" src="{{ $component->getFirstMediaThumbnailUrl('components') }}" alt="Img">
                                         </a>
                                     </td>
                                 </tr>

@@ -69,7 +69,7 @@
                 <h4>{{ __('Select Unit') }}</h4>
             </div>
             <div class="card-body">
-                <form method="POST" action="{{ route('admin.trainings.store') }}">
+                <form method="POST" action="{{ route('trainings.store') }}">
                     @csrf
                     <div class="form-group mt-2">
                         <label for="manuals_id">{{ __('Unit PN') }}</label>
@@ -92,7 +92,7 @@
                     </div>
                     <div class="text-end">
                         <button type="submit" class="btn btn-primary mt-3">{{ __('Add Unit') }}</button>
-                    <a href="{{ route('admin.trainings.index') }}"
+                    <a href="{{ route('trainings.index') }}"
                        class="btn btn-outline-secondary mt-3">{{ __('Cancel') }} </a>
                     </div>
                 </form>

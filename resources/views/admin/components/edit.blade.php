@@ -67,7 +67,7 @@
             </div>
             <div class="card-body" id="edit_div_inputs">
                 <form id="editForm" class="editForm" role="form" method="POST"
-                      action="{{route('admin.components.update',
+                      action="{{route('components.update',
                   ['component'=>$current_component->id])}}"
                       enctype="multipart/form-data" id="editComponentForm">
                     @csrf
@@ -180,7 +180,7 @@
                     <div class="text-end">
                         <button type="submit" class="btn btn-outline-primary
                         mt-3 ">{{ __('Update') }}</button>
-                        <a href="{{ route('admin.components.index') }}"
+                        <a href="{{ route('components.index') }}"
                            class="btn btn-outline-secondary mt-3">{{ __('Cancel') }} </a>
                     </div>
                 </form>

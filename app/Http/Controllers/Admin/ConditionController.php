@@ -46,7 +46,7 @@ class ConditionController extends Controller
 
         Condition::create($validated);
 
-        return redirect()->route('admin.tdrs.inspection', ['workorder_id' => $request->workorder_id])
+        return redirect()->route('tdrs.inspection', ['workorder_id' => $request->workorder_id])
             ->with('success', 'Condition added successfully');
     }
 

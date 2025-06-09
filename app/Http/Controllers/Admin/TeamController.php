@@ -24,7 +24,7 @@ class TeamController extends Controller
 
         Team::create($validated);
 
-        return redirect()->route('admin.teams.index')->with('success', 'Team created successfully.');
+        return redirect()->route('teams.index')->with('success', 'Team created successfully.');
     }
 
 
@@ -36,13 +36,13 @@ class TeamController extends Controller
 
         $team->update($validated);
 
-        return redirect()->route('admin.teams.index')->with('success', 'Team updated successfully.');
+        return redirect()->route('teams.index')->with('success', 'Team updated successfully.');
     }
 
     public function destroy(Team $team)
     {
         $team->delete();
 
-        return redirect()->route('admin.teams.index')->with('success', 'Team deleted successfully.');
+        return redirect()->route('teams.index')->with('success', 'Team deleted successfully.');
     }
 }

@@ -6,6 +6,7 @@
             height: calc(100vh - 140px);
             overflow-y: auto;
             overflow-x: hidden;
+            margin: 0;
         }
 
         .table th, .table td {
@@ -20,8 +21,8 @@
         }
 
         .table th:nth-child(2), .table td:nth-child(2) {
-            max-width: 15vw;
-            width: 15vw;
+            max-width: 18vw;
+            width: 18vw;
         }
 
         .table th:nth-child(4), .table td:nth-child(4) {
@@ -64,6 +65,7 @@
 
 
     <div class="card shadow">
+
         <div class="card-header py-2 px-3 shadow">
             <div class="d-flex align-items-center flex-wrap gap-3">
                 <span class="text-primary mb-0 text-size">
@@ -100,7 +102,8 @@
         </div>
 
         @if(count($materials))
-            <div class="table-wrapper me-3 p-2 pt-0">
+
+            <div class="table-wrapper p-2 pt-0">
                 <table id="cmmTable" class="table table-sm table-hover table-striped table-bordered">
                     <thead class="bg-gradient">
                     <tr>

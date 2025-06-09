@@ -123,7 +123,7 @@
                             <td class="text-center">{{$order->user->name}}</td>
                             <td class="text-center">
 
-                                    <a href="{{ route('admin.tdrs.show', ['tdr' => $order->id]) }}" class="btn btn-outline-primary
+                                    <a href="{{ route('tdrs.show', ['tdr' => $order->id]) }}" class="btn btn-outline-primary
                                             btn-sm">
                                         <i class="bi bi-patch-plus"></i>
                                     </a>

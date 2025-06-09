@@ -14,7 +14,7 @@
             </div>
 
             <div class="card-body">
-                <form method="POST" action="{{ route('admin.processes.store') }}" enctype="multipart/form-data"
+                <form method="POST" action="{{ route('processes.store') }}" enctype="multipart/form-data"
                       id="createCMMForm">
                 @csrf
                     <input type="hidden" name="manual_id" value="{{ $manual->first()->id }}">
@@ -69,7 +69,7 @@
 
                     <div class="text-end m-3">
                         <button type="submit" class="btn btn-outline-primary mt-3 ">{{ __('Save') }}</button>
-                        <a href="{{ route('admin.processes.index') }}" class="btn btn-outline-secondary mt-3">{{ __('Back') }}
+                        <a href="{{ route('processes.index') }}" class="btn btn-outline-secondary mt-3">{{ __('Back') }}
                         </a>
                     </div>
                 </form>
@@ -83,7 +83,7 @@
                             <h5 class="modal-title" id="addProcessNameModalLabel">{{ __('Add Process Name') }}</h5>
                             <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Закрыть"></button>
                         </div>
-                        <form action="{{ route('admin.process-names.store') }}" method="POST" id="addProcessName">
+                        <form action="{{ route('process-names.store') }}" method="POST" id="addProcessName">
                             @csrf
                         <div class="modal-body">
                             <input type="hidden" name="manual_id" value="{{ $manual->first()->id }}">

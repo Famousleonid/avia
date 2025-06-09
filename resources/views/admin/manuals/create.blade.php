@@ -14,7 +14,7 @@
             </div>
 
             <div class="card-body">
-                <form method="POST" action="{{ route('admin.manuals.store') }}" enctype="multipart/form-data"
+                <form method="POST" action="{{ route('manuals.store') }}" enctype="multipart/form-data"
                       id="createCMMForm">
                     @csrf
 
@@ -137,7 +137,7 @@
 
                     <div class="text-end">
                         <button type="submit" class="btn btn-outline-primary mt-3 ">{{ __('Add CMM') }}</button>
-                        <a href="{{ route('admin.manuals.index') }}" class="btn btn-outline-secondary mt-3">{{ __('Cancel') }} </a>
+                        <a href="{{ route('manuals.index') }}" class="btn btn-outline-secondary mt-3">{{ __('Cancel') }} </a>
                     </div>
 
                 </form>
@@ -266,11 +266,11 @@
         }
 
         // Обновляем вызовы функции для передачи правильных ID модальных окон
-        handleFormSubmission('addAirCraftForm', '{{ route('admin.planes.store') }}', 'planes_id', 'id', 'type',
+        handleFormSubmission('addAirCraftForm', '{{ route('planes.store') }}', 'planes_id', 'id', 'type',
             'addAirCraftModal');
-        handleFormSubmission('addMFRForm', '{{ route('admin.builders.store') }}', 'builders_id', 'id', 'name',
+        handleFormSubmission('addMFRForm', '{{ route('builders.store') }}', 'builders_id', 'id', 'name',
             'addMFRModal');
-        handleFormSubmission('addScopeForm', '{{ route('admin.scopes.store') }}', 'scopes_id', 'id', 'scope', 'addScopeModal');
+        handleFormSubmission('addScopeForm', '{{ route('scopes.store') }}', 'scopes_id', 'id', 'scope', 'addScopeModal');
 
 
 

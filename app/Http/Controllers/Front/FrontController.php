@@ -35,7 +35,7 @@ class FrontController extends Controller
 
   //      $page = ($x ? 'mobile' : 'front') . '.pages.index';
 
-          $page = 'front.pages.index';
+          $page = 'front.index';
 
    //     if (!Auth::check() && $mobile) return view('auth.login');
 

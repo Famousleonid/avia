@@ -356,9 +356,12 @@
                     </div>
                 </div>
                 <div class="row border-all mt-2" style="height: 56px">
-                    @if($current_wo && $current_wo->unit && $current_wo->unit->manuals)
-                        <h6 class="text-center mt-3"><strong>{{ $current_wo->unit->manuals->number }}</strong></h6>
-                    @endif
+                    @foreach($manuals as $manual)
+                        @if($manual->id == $current_wo->unit->manual_id)
+                            <h6 class="text-center mt-3"><strong> {{$manual->number}}</strong></h6>
+                        @endif
+                    @endforeach
+
                 </div>
             </div>
         </div>
@@ -436,7 +439,7 @@
     <footer>
         <div class="row fs-85" style="width: 100%; padding: 5px 0;">
             <div class="col-6 text-start">
-                   {{__('Form #')}} {{"016"}}
+                   {{__('Form #')}} {{$form_number}}
             </div>
             <div class="col-6 text-end pe-4 ">
                 {{__('Rev#0, 15/Dec/2012   ')}}
@@ -445,4 +448,4 @@
     </footer>
 </div>
 </body>
-</html>
+</html> 

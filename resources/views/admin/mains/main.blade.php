@@ -30,7 +30,7 @@
 
                 <!-- Форма -->
                 <div class="col-12 col-md">
-                    <form id="general_task_form" action="{{route('admin.mains.create')}}" class="row g-3 align-items-end mx-md-3">
+                    <form id="general_task_form" action="{{route('mains.create')}}" class="row g-3 align-items-end mx-md-3">
                         @csrf
                         <input type="text" hidden name="workorder_id" value="{{$current_workorder->id}}">
 
@@ -106,7 +106,7 @@
                                         <td class="text-center"><span>{{date('d-M-Y', strtotime($main->date_finish))}}</span></td>
                                     @else
                                         <td class="text-center">
-                                            <form id="form_date_finish_{{$index}}" name="form_date_finish_{{$index}}" action="{{route('admin.mains.update', ['main' => $main->id])}}" method="post">
+                                            <form id="form_date_finish_{{$index}}" name="form_date_finish_{{$index}}" action="{{route('mains.update', ['main' => $main->id])}}" method="post">
                                                 @csrf
                                                 @method('PUT')
                                                 <input type="date" class="task_date_finish form-control border-primary" name="date_finish">
@@ -115,7 +115,7 @@
                                         </td>
                                     @endif
                                     <td class="text-center">
-                                        <form action="{{route('admin.mains.destroy', ['main' => $main->id])}}" method="post">
+                                        <form action="{{route('mains.destroy', ['main' => $main->id])}}" method="post">
                                             @csrf
                                             @method('DELETE')
                                             <button class="btn btn-xs btn-danger" type="button" name="btn_delete" data-toggle="modal" data-target="#confirmDelete" data-title="Delete general task row" data-message="Are you sure you want to delete this row?">
