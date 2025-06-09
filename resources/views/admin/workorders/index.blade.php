@@ -5,7 +5,7 @@
         .card {
             display: flex;
             flex-direction: column;
-            height: calc(100vh - 70px); /* подогнано под layout с фиксированным footer */
+            height: calc(100vh - 70px);
         }
 
         .card-header {
@@ -67,21 +67,15 @@
             z-index: 10;
         }
 
-
         #currentUserCheckbox {
             cursor: pointer;
         }
-
-        /* Стили для темной темы */
         [data-bs-theme="dark"] #show-workorder {
             background: linear-gradient(to bottom, #131313, #2E2E2E) !important;
         }
-
         [data-bs-theme="dark"] #show-workorder thead th {
             background: linear-gradient(to bottom, #131313, #2E2E2E) !important;
         }
-
-        /* Hover эффект для темной темы */
         [data-bs-theme="dark"] .table-hover tbody tr:hover {
             background-color: rgba(255, 255, 255, 0.1) !important;
         }
@@ -100,7 +94,7 @@
                     (<span class="text-success">{{ $workorders->count() }}</span>)
                 </h5>
 
-                <a id="admin_new_firm_create" href="{{ route('admin.workorders.create') }}">
+                <a id="admin_new_firm_create" href="{{ route('workorders.create') }}">
                     <img src="{{ asset('img/plus.png') }}" width="30" alt="Add" data-bs-toggle="tooltip" title="Add new workorder">
                 </a>
             </div>
@@ -133,23 +127,25 @@
                         <th class="text-center text-primary">Manual</th>
                         <th class="text-center text-primary sortable">Customer <i class="bi bi-chevron-expand ms-1"></i></th>
                         <th class="text-center text-primary sortable">Instruction <i class="bi bi-chevron-expand ms-1"></i></th>
-                        <th class="text-center text-primary sortable">Technik <i class="bi bi-chevron-expand ms-1"></i></th>
                         <th class="text-center text-primary">Photos</th>
+                        <th class="text-center text-primary sortable">Technik <i class="bi bi-chevron-expand ms-1"></i></th>
                         <th class="text-center text-primary">Edit</th>
                         <th class="text-center text-primary">Open Date</th>
-                        <th class="text-center text-primary">Delete</th>
+                        @if (is_admin())
+                            <th class="text-center text-primary">Delete</th>
+                        @endif
                     </tr>
                     </thead>
                     <tbody>
                     @foreach ($workorders as $workorder)
                         <tr>
                             <td class="text-center">
-                                <a href="{{ route('admin.mains.show', $workorder->id) }}" class="text-decoration-none">
+                                <a href="{{ route('mains.show', $workorder->id) }}" class="text-decoration-none">
                                     <span style="font-size: 16px; color: #0DDDFD;">w&nbsp;{{ $workorder->number }}</span>
                                 </a>
                             </td>
                             <td class="text-center">
-                                <a href="{{ route('admin.workorders.approve', $workorder->id) }}" class="change_approve" onclick="showLoadingSpinner()">
+                                <a href="{{ route('workorders.approve', $workorder->id) }}" class="change_approve" onclick="showLoadingSpinner()">
                                     @if($workorder->approve_at)
                                         <img src="{{ asset('img/ok.png') }}" width="20" alt="" title="{{ $workorder->approve_at->format('d.m.Y') }} {{ $workorder->approve_name }}">
                                     @else
@@ -161,21 +157,22 @@
                             <td class="text-center">{{ $workorder->unit->manuals->title }}</td>
                             <td class="text-center">{{ $workorder->serial_number }} @if($workorder->amdt > 0) Amdt {{ $workorder->amdt }} @endif</td>
                             <td class="text-center">
-                                <a href="{{ route('admin.tdrs.show', $workorder->id) }}" class="btn btn-outline-primary btn-sm">
+                                <a href="{{ route('tdrs.show', $workorder->id) }}" class="btn btn-outline-primary btn-sm">
                                     <i class="bi bi-journal-richtext"></i>
                                 </a>
                             </td>
                             <td class="text-center">{{ $workorder->unit->manuals->number }}</td>
                             <td class="text-center">{{ $workorder->customer->name }}</td>
                             <td class="text-center">{{ $workorder->instruction->name }}</td>
-                            <td class="text-center">{{ $workorder->user->name }}</td>
+
                             <td class="text-center">
-                                <button class="btn btn-outline-info btn-sm open-photo-modal" data-id="{{ $workorder->id }}">
-                                    <i class="bi bi-images"></i>
+                                <button class="btn btn-outline-info btn-sm open-photo-modal" data-id="{{ $workorder->id }}" data-number="{{ $workorder->number }}">
+                                    <i class="bi bi-images text-decoration-none"></i>
                                 </button>
                             </td>
+                            <td class="text-center">{{ $workorder->user?->name ?? 'N/A' }}</td>
                             <td class="text-center">
-                                <a href="{{ route('admin.workorders.edit', $workorder->id) }}">
+                                <a href="{{ route('workorders.edit', $workorder->id) }}">
                                     <img src="{{ asset('img/set.png') }}" width="30" alt="Edit">
                                 </a>
                             </td>
@@ -186,17 +183,19 @@
                                     <span style="display: none">{{ $workorder->open_at }}</span>{{ $workorder->open_at }}
                                 @endif
                             </td>
-                            <td class="text-center">
-                                <form id="deleteForm_{{ $workorder->id }}" action="{{ route('admin.workorders.destroy', $workorder->id) }}" method="POST" style="display:inline;">
-                                    @csrf
-                                    @method('DELETE')
-                                    <button class="btn btn-sm btn-outline-danger" type="button" name="btn_delete"
-                                            data-bs-toggle="modal" data-bs-target="#useConfirmDelete"
-                                            data-title="Delete Confirmation WO {{ $workorder->number }}">
-                                        <i class="bi bi-trash"></i>
-                                    </button>
-                                </form>
-                            </td>
+                            @if (is_admin())
+                                <td class="text-center">
+                                    <form id="deleteForm_{{ $workorder->id }}" action="{{ route('workorders.destroy', $workorder->id) }}" method="POST" style="display:inline;">
+                                        @csrf
+                                        @method('DELETE')
+                                        <button class="btn btn-sm btn-outline-danger" type="button" name="btn_delete"
+                                                data-bs-toggle="modal" data-bs-target="#useConfirmDelete"
+                                                data-title="Delete Confirmation WO {{ $workorder->number }}">
+                                            <i class="bi bi-trash"></i>
+                                        </button>
+                                    </form>
+                                </td>
+                            @endif
                         </tr>
                     @endforeach
                     </tbody>
@@ -228,8 +227,6 @@
         </div>
     </div>
 
-
-
     <div class="modal fade" id="confirmDeletePhotoModal" tabindex="-1" aria-labelledby="confirmDeletePhotoLabel" aria-hidden="true">
         <div class="modal-dialog modal-dialog-centered">
             <div class="modal-content text-center">
@@ -255,14 +252,6 @@
         </div>
     </div>
 
-
-
-
-
-
-
-
-
 @endsection
 
 
@@ -282,7 +271,6 @@
 
             // при загрузке — проверить сразу
             clearSearchBtn.style.display = searchInput.value ? 'block' : 'none';
-
 
 
             const table = document.getElementById('show-workorder');
@@ -349,13 +337,13 @@
 
             // ----------------- Удаление через модалку -----------------
             document.getElementById('confirmPhotoDeleteBtn').addEventListener('click', async function () {
-                const { mediaId, photoBlock } = window.pendingDelete || {};
+                const {mediaId, photoBlock} = window.pendingDelete || {};
                 if (!mediaId) return;
 
                 showLoadingSpinner();
 
                 try {
-                    const response = await fetch(`/admin/workorders/photo/delete/${mediaId}`, {
+                    const response = await fetch(`/workorders/photo/delete/${mediaId}`, {
                         method: 'DELETE',
                         headers: {
                             'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content
@@ -388,8 +376,12 @@
             // ----------------- Открытие модалки фото -----------------
             document.querySelectorAll('.open-photo-modal').forEach(button => {
                 button.addEventListener('click', async function () {
+
                     const workorderId = this.dataset.id;
+                    const workorderNumber = this.dataset.number;
                     window.currentWorkorderId = workorderId;
+                    window.currentWorkorderNumber = workorderNumber;
+
                     await loadPhotoModal(workorderId);
                     new bootstrap.Modal(document.getElementById('photoModal')).show();
                 });
@@ -398,32 +390,38 @@
             // ----------------- Загрузка фото -----------------
             async function loadPhotoModal(workorderId) {
                 const modalContent = document.getElementById('photoModalContent');
-                modalContent.innerHTML = 'Loading...';
                 showLoadingSpinner();
 
                 try {
-                    const response = await fetch(`/admin/workorders/${workorderId}/photos`);
+                    const response = await fetch(`/workorders/${workorderId}/photos`);
                     if (!response.ok) throw new Error('Response not ok');
                     const data = await response.json();
 
-
-
-
                     let html = '';
                     ['photos', 'damages', 'logs'].forEach(group => {
-                        html += `<div class="col-12"><h6 class="text-primary text-uppercase mt-2">${group}</h6><div class="row">`;
+                        html += `
+                <div class="col-12">
+                    <h6 class="text-primary text-uppercase mt-2">${group}</h6>
+                    <div class="row g-2">
+            `;
+
                         data[group].forEach(media => {
                             html += `
-                    <div class="col-4 col-md-2 mb-3 text-center">
-                        <div class="position-relative">
+                    <div class="col-4 col-md-2 p-1">
+                        <div class="position-relative d-inline-block">
                             <a data-fancybox="${group}" href="${media.big}" data-caption="${group}">
-                                <img src="${media.thumb}" class="img-fluid border border-primary rounded shadow-sm" />
+                                <img src="${media.thumb}" class="img-fluid border border-primary rounded" />
                             </a>
-                            <button class="btn btn-sm btn-danger position-absolute top-0 end-0 m-1 delete-photo-btn"
-                                    data-id="${media.id}" title="Delete">&times;</button>
+                            <button class="btn btn-danger btn-sm rounded-circle p-0 d-flex align-items-center justify-content-center position-absolute delete-photo-btn"
+                                  style="top: -6px; right: -6px; width: 20px; height: 20px; z-index: 10;"
+                                    data-id="${media.id}" title="Delete">
+                                    <i class="bi bi-x" style="font-size: 12px;"></i>
+                            </button>
                         </div>
-                    </div>`;
+                    </div>
+                `;
                         });
+
                         html += `</div></div>`;
                     });
 
@@ -437,6 +435,7 @@
                 }
             }
 
+
             // ----------------- Назначение обработчиков на кнопки удаления -----------------
             function bindDeleteButtons() {
                 document.querySelectorAll('.delete-photo-btn').forEach(btn => {
@@ -447,7 +446,7 @@
                         const mediaId = this.dataset.id;
                         const photoBlock = this.closest('.col-4, .col-md-2');
 
-                        window.pendingDelete = { mediaId, photoBlock };
+                        window.pendingDelete = {mediaId, photoBlock};
                         new bootstrap.Modal(document.getElementById('confirmDeletePhotoModal')).show();
                     });
                 });
@@ -456,11 +455,12 @@
             // ----------------- Скачивание ZIP -----------------
             document.getElementById('saveAllPhotos').addEventListener('click', function () {
                 const workorderId = window.currentWorkorderId;
+                const workorderNumber = window.currentWorkorderNumber || 'workorder';
                 if (!workorderId) return alert('Workorder ID missing');
 
                 showLoadingSpinner();
 
-                fetch(`/admin/workorders/download/${workorderId}/all`)
+                fetch(`/workorders/download/${workorderId}/all`)
                     .then(response => {
                         if (!response.ok) throw new Error('Download failed');
                         return response.blob();
@@ -469,7 +469,7 @@
                         const url = window.URL.createObjectURL(blob);
                         const a = document.createElement('a');
                         a.href = url;
-                        a.download = `workorder_${workorderId}_images.zip`;
+                        a.download = `workorder_${workorderNumber}_images.zip`;
                         a.click();
                         window.URL.revokeObjectURL(url);
                     })

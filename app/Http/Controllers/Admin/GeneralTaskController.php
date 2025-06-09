@@ -12,7 +12,7 @@ class GeneralTaskController extends Controller
     {
         $general_tasks = GeneralTask::all();
 
-        return view('admin.general_tasks.index',compact('general_tasks'));
+        return view('admin.general-tasks.index',compact('general_tasks'));
     }
 
 
@@ -24,7 +24,7 @@ class GeneralTaskController extends Controller
 
         GeneralTask::create($validated);
 
-        return redirect()->route('admin.general-tasks.index')->with('success', 'General task created successfully.');
+        return redirect()->route('general-tasks.index')->with('success', 'General task created successfully.');
     }
 
 
@@ -36,13 +36,13 @@ class GeneralTaskController extends Controller
 
         $generalTask->update($validated);
 
-        return redirect()->route('admin.general-tasks.index')->with('success', 'General task updated successfully.');
+        return redirect()->route('general-tasks.index')->with('success', 'General task updated successfully.');
     }
 
     public function destroy(GeneralTask $generalTask)
     {
         $generalTask->delete();
 
-        return redirect()->route('admin.general-tasks.index')->with('success', 'General task deleted successfully.');
+        return redirect()->route('general-tasks.index')->with('success', 'General task deleted successfully.');
     }
 }

@@ -94,7 +94,7 @@
                     </div>
                 </div>
 
-                <a href="{{ route('admin.manuals.create') }}" class="btn btn-outline-primary " style="height: 40px">{{
+                <a href="{{ route('manuals.create') }}" class="btn btn-outline-primary " style="height: 40px">{{
                 __('Add CMM')
                 }}</a>
             </div>
@@ -125,8 +125,8 @@
                             <td title="{{$cmm->title}}">{{$cmm->title}}</td>
                             <td title="{{$cmm->unit_name}}">{{$cmm->unit_name}}</td>
                             <td class="text-center">
-                                <a href="{{ $cmm->getBigImageUrl('manuals') }}" data-fancybox="gallery">
-                                    <img class="rounded-circle" src="{{ $cmm->getThumbnailUrl('manuals') }}" width="40" height="40" alt="Image"/>
+                                <a href="{{ $cmm->getFirstMediaBigUrl('manuals') }}" data-fancybox="gallery">
+                                    <img class="rounded-circle" src="{{ $cmm->getFirstMediaThumbnailUrl('manuals') }}" width="40" height="40" alt="Image"/>
                                 </a>
                             </td>
                             <td class="text-center">{{$cmm->revision_date}}</td>
@@ -134,7 +134,7 @@
                             <td class="text-center">
                                 <div class="d-flex justify-content-center gap-1">
                                     @foreach($cmm->getMedia('csv_files') as $file)
-                                        <a href="/admin/manuals/{{ $cmm->id }}/csv/{{ $file->id }}" 
+                                        <a href="/admin/manuals/{{ $cmm->id }}/csv/{{ $file->id }}"
                                            class="btn btn-sm btn-outline-info">
                                             <i class="fas fa-file-csv"></i>
                                             @if($file->getCustomProperty('process_type'))
@@ -147,10 +147,10 @@
                                 </div>
                             </td>
                             <td class="text-center">
-                                <a href="{{ route('admin.manuals.edit', ['manual' => $cmm->id]) }}" class="btn btn-outline-primary btn-sm">
+                                <a href="{{ route('manuals.edit', ['manual' => $cmm->id]) }}" class="btn btn-outline-primary btn-sm">
                                     <i class="bi bi-pencil-square"></i>
                                 </a>
-                                <form id="deleteForm_{{$cmm->id}}" action="{{ route('admin.manuals.destroy', ['manual' => $cmm->id]) }}" method="POST" style="display:inline;">
+                                <form id="deleteForm_{{$cmm->id}}" action="{{ route('manuals.destroy', ['manual' => $cmm->id]) }}" method="POST" style="display:inline;">
                                     @csrf
                                     @method('DELETE')
                                     <button class="btn btn-sm btn-outline-danger" type="button" name="btn_delete" data-bs-toggle="modal"

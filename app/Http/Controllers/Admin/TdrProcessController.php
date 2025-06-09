@@ -144,7 +144,7 @@ class TdrProcessController extends Controller
         // Возвращаем JSON-ответ с URL для перенаправления
         return response()->json([
             'message' => 'Processes saved successfully!',
-            'redirect' => route('admin.tdrs.processes', ['workorder_id' => $tdr->workorder->id])
+            'redirect' => route('tdrs.processes', ['workorder_id' => $tdr->workorder->id])
         ], 200);
     }
 
@@ -484,7 +484,7 @@ class TdrProcessController extends Controller
 
         // Редирект с сообщением об успехе
         return redirect()
-            ->route('admin.tdrs.processes', ['workorder_id' => $workorder_id])
+            ->route('tdrs.processes', ['workorder_id' => $workorder_id])
             ->with('success', 'TDR for Component updated successfully');
     }
 
@@ -516,14 +516,14 @@ class TdrProcessController extends Controller
         // Если processes пустой или не является массивом, удаляем всю запись
         if (!is_array($processData)) {
             $tdrProcess->delete();
-            return redirect()->route('admin.tdrs.processes', ['workorder_id' => $tdr->workorder->id])
+            return redirect()->route('tdrs.processes', ['workorder_id' => $tdr->workorder->id])
                 ->with('success', 'Process deleted successfully.');
         }
 
         // Если processes содержит только одно значение, удаляем всю запись
         if (count($processData) === 1) {
             $tdrProcess->delete();
-            return redirect()->route('admin.tdrs.processes', ['workorder_id' => $tdr->workorder->id])
+            return redirect()->route('tdrs.processes', ['workorder_id' => $tdr->workorder->id])
                 ->with('success', 'Process deleted successfully.');
         }
 
@@ -537,7 +537,7 @@ class TdrProcessController extends Controller
         $tdrProcess->save();
 
         // Перенаправляем с сообщением об успехе
-        return redirect()->route('admin.tdrs.processes', ['workorder_id' => $tdr->workorder->id])
+        return redirect()->route('tdrs.processes', ['workorder_id' => $tdr->workorder->id])
             ->with('success', 'Process removed successfully.');
     }
 }

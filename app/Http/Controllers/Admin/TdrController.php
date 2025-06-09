@@ -299,7 +299,7 @@ class TdrController extends Controller
         $current_wo = $request->workorder_id;
 
 
-        return redirect()->route('admin.tdrs.show', ['tdr' => $current_wo]);
+        return redirect()->route('tdrs.show', ['tdr' => $current_wo]);
 
     }
 
@@ -571,7 +571,7 @@ class TdrController extends Controller
 
         // Перенаправляем на страницу просмотра с сообщением об успехе
         return redirect()
-            ->route('admin.tdrs.show', ['tdr' => $request->workorder_id])
+            ->route('tdrs.show', ['tdr' => $request->workorder_id])
             ->with('success', 'TDR for Component updated successfully');
     }
     public function prlForm(Request $request, $id){
@@ -1127,7 +1127,7 @@ class TdrController extends Controller
         }
 
         // Перенаправить с сообщением об успехе
-        return redirect()->route('admin.tdrs.show', ['tdr' => $workorderId])->with('success', 'Запись успешно удалена.');
+        return redirect()->route('tdrs.show', ['tdr' => $workorderId])->with('success', 'Запись успешно удалена.');
     }
 
 

@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\User;
 use App\Models\Workorder;
 use Illuminate\Http\Request;
+use Illuminate\Support\Str;
 use Spatie\MediaLibrary\MediaCollections\Models\Media;
 
 class MediaController extends Controller
@@ -28,20 +29,24 @@ class MediaController extends Controller
     public function store_photo_workorders(Request $request, $id)
     {
         $workorder = Workorder::findOrFail($id);
-        $category = $request->query('category', 'photos'); // по умолчанию — 'photos'
-
+        $category = $request->query('category', 'photos');
 
         if ($request->hasFile('photos')) {
             foreach ($request->file('photos') as $photo) {
-                $media = $workorder->addMedia($photo)->toMediaCollection($category);
+                // Формируем уникальное читаемое имя файла
+                $filename = 'wo_' . $workorder->number . '_' . now()->format('Ymd_Hi') . '_' . Str::random(3) . '.' . $photo->getClientOriginalExtension();
+
+                $workorder->addMedia($photo)
+                    ->usingFileName($filename)
+                    ->toMediaCollection($category);
             }
         }
 
+        // Формируем список загруженных файлов для фронта
         $uploadedPhotos = [];
         foreach ($workorder->getMedia($category) as $media) {
-            if (!$media->id) {
-                continue;
-            }
+            if (!$media->id) continue;
+
             $uploadedPhotos[] = [
                 'id' => $media->id,
                 'big_url' => route('image.show.big', [
@@ -58,6 +63,7 @@ class MediaController extends Controller
             ];
         }
 
+        // Ответ для JS
         return response()->json([
             'success' => true,
             'photos' => $uploadedPhotos,

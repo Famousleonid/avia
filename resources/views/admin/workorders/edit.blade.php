@@ -76,7 +76,7 @@
     <div class="container pl-3 pr-3 mt-5">
         <div class="card  p-2 shadow bg-gradient">
 
-            <form id="createForm" class="createForm" role="form" method="POST" action="{{route('admin.workorders.update',['workorder' => $current_wo->id])}}" enctype="multipart/form-data">
+            <form id="createForm" class="createForm" role="form" method="POST" action="{{route('workorders.update',['workorder' => $current_wo->id])}}" enctype="multipart/form-data">
                 @csrf
                 @method('PUT')
 
@@ -222,7 +222,7 @@
                                         <button id="ntSaveFormsSubmit" type="submit" class="btn btn-outline-primary btn-block ntSaveFormsSubmit"> Update</button>
                                     </div>
                                     <div class="col col-lg-1 offset-6 mb-1 ">
-                                        <a href="{{ route('admin.workorders.index') }}" class="btn btn-outline-secondary btn-block"> Cancel </a>
+                                        <a href="{{ route('workorders.index') }}" class="btn btn-outline-secondary btn-block"> Cancel </a>
                                     </div>
                                 </div>
                             </div>

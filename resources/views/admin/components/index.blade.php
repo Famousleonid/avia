@@ -103,7 +103,7 @@
 
                 <div>
 
-                    <a href="{{ route('admin.components.create') }}" class="btn btn-outline-primary " style="height: 40px">
+                    <a href="{{ route('components.create') }}" class="btn btn-outline-primary " style="height: 40px">
                         {{__('Add Component')}}
                     </a>
 
@@ -134,26 +134,26 @@
                                 <td class="text-center">{{$component->name}}</td>
                                 <td class="text-center">{{$component->part_number}}</td>
                                 <td class="text-center" style="width: 120px;">
-                                    <a href="{{ $component->getBigImageUrl('components') }}" data-fancybox="gallery">
-                                        <img class="rounded-circle" src="{{ $component->getThumbnailUrl('components') }}" width="40"
+                                    <a href="{{ $component->getFirstMediaBigUrl('components') }}" data-fancybox="gallery">
+                                        <img class="rounded-circle" src="{{ $component->getFirstMediaThumbnailUrl('components') }}" width="40"
                                              height="40" alt="IMG"/>
                                     </a>
 
                                 </td>
                                 <td class="text-center" style="width: 120px;">
-                                    <a href="{{ $component->getBigImageUrl('assy_components') }}" data-fancybox="gallery">
-                                        <img class="rounded-circle" src="{{ $component->getThumbnailUrl('assy_components') }}" width="40"
+                                    <a href="{{ $component->getFirstMediaBigUrl('assy_components') }}" data-fancybox="gallery">
+                                        <img class="rounded-circle" src="{{ $component->getFirstMediaThumbnailUrl('assy_components') }}" width="40"
                                              height="40" alt="IMG"/>
                                     </a>
                                 </td>
                                 <td class="text-center">
-                                    <a href="{{ route('admin.components.edit',['component' => $component->id]) }}"
+                                    <a href="{{ route('components.edit',['component' => $component->id]) }}"
                                        class="btn btn-outline-primary btn-sm">
                                         <i class="bi bi-pencil-square"></i>
                                     </a>
 
 
-                                    <form action="{{ route('admin.components.destroy', $component->id) }}" method="POST" style="display:inline-block;">
+                                    <form action="{{ route('components.destroy', $component->id) }}" method="POST" style="display:inline-block;">
                                         @csrf
                                         @method('DELETE')
                                         <button type="submit" class="btn btn-outline-danger btn-sm" onclick="return confirm('Вы уверены, что хотите удалить этот компонент?');">

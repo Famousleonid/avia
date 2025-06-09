@@ -35,14 +35,16 @@
             min-height: 100%;
             display: flex;
             flex-direction: column;
+            position: relative;
         }
+
 
     </style>
 </head>
 
 <body class="p-0 m-0 g-0">
 
-<div id="spinner-load" class=" spinner-border text-warning spinner-win" role="status">
+<div id="spinner-load" class="spinner-border text-warning spinner-win" role="status">
     <span class="visually-hidden">Loading...</span>
 </div>
 

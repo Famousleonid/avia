@@ -16,7 +16,7 @@
                 </div>
             </div>
             <div class="card-body">
-                <form action="{{ route('admin.manual_processes.update', ['manual_process' => $manualProcess->id]) }}" method="POST">
+                <form action="{{ route('manual_processes.update', ['manual_process' => $manualProcess->id]) }}" method="POST">
                     @csrf
                     @method('PUT')
 
@@ -26,7 +26,7 @@
                     </div>
 
                     <button type="submit" class="btn btn-outline-primary">Update</button>
-                    <a href="{{ route('admin.processes.edit',['process' => $manualId]) }}" class="btn
+                    <a href="{{ route('processes.edit',['process' => $manualId]) }}" class="btn
                     btn-outline-secondary">Cancel</a>
                 </form>
             </div>

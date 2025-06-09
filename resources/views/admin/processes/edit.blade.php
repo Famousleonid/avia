@@ -107,7 +107,7 @@
                 <div class="d-flex justify-content-between">
                     <h4 class="text-primary">{{ __('Edit Manual Processes') }}</h4>
                     <h4 class="pe-3">{{$manual->number}} ({{$manual->title}})</h4>
-                    <a href="{{ route('admin.processes.index') }}" class="btn btn-outline-secondary">{{ __('Back') }}
+                    <a href="{{ route('processes.index') }}" class="btn btn-outline-secondary">{{ __('Back') }}
                     </a>
 
                 </div>
@@ -146,10 +146,10 @@
                                     </td>
                                     <td class="text-center">
 {{--                                        {{$man_process->id}}--}}
-                                        <a href="{{ route('admin.manual_processes.edit', ['manual_process' => $man_process->id]) }}" class="btn btn-outline-primary btn-sm">
+                                        <a href="{{ route('manual_processes.edit', ['manual_process' => $man_process->id]) }}" class="btn btn-outline-primary btn-sm">
                                             <i class="bi bi-pencil-square"></i>
                                         </a>
-                                        <form action="{{ route('admin.manual_processes.destroy', ['manual_process' => $man_process->id]) }}" method="POST" style="display:inline;">
+                                        <form action="{{ route('manual_processes.destroy', ['manual_process' => $man_process->id]) }}" method="POST" style="display:inline;">
                                             @csrf
                                             @method('DELETE')
                                             <button type="submit" class="btn btn-sm btn-outline-danger" onclick="return confirm('Are you sure you want to delete this process?')">

@@ -69,7 +69,7 @@
                 <h4 class="text-primary">{{ __('Work Order') }} {{$current_wo->number}}</h4>
             </div>
             <div class="card-body" id="create_div_inputs">
-                <form id="createForm" method="POST" action="{{ route('admin.tdrs.store') }}" enctype="multipart/form-data">
+                <form id="createForm" method="POST" action="{{ route('tdrs.store') }}" enctype="multipart/form-data">
                     @csrf
                     <input type="hidden" name="workorder_id" value="{{ $current_wo->id }}">
                     <input type="hidden" name="qty" value="1">
@@ -103,7 +103,7 @@
 
                     <div class="text-end">
                         <button type="submit" class="btn btn-outline-primary mt-3">{{ __('Save') }}</button>
-                        <a href="{{ route('admin.tdrs.show', ['tdr' => $current_wo->id]) }}" class="btn btn-outline-secondary mt-3">{{ __('Cancel') }}</a>
+                        <a href="{{ route('tdrs.show', ['tdr' => $current_wo->id]) }}" class="btn btn-outline-secondary mt-3">{{ __('Cancel') }}</a>
                     </div>
                 </form>
             </div>
@@ -118,7 +118,7 @@
                     <h5 class="modal-title" id="addConditionModalLabel">{{ __('Add Condition') }}</h5>
                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Закрыть"></button>
                 </div>
-                <form action="{{ route('admin.conditions.store') }}" method="POST" id="addConditionForm">
+                <form action="{{ route('conditions.store') }}" method="POST" id="addConditionForm">
                     @csrf
                     <div class="modal-body">
                         <input type="hidden" name="unit" value="1">
@@ -140,7 +140,7 @@
         $(document).ready(function () {
             $('#u_conditions_id').select2({
                 placeholder: '---',
-                
+
                 theme: 'bootstrap-5',
                 allowClear: true
             });

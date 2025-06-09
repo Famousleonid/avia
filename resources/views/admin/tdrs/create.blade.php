@@ -69,7 +69,7 @@
             </div>
         </div>
         <div class="card-body" id="create_div_inputs">
-            <form id="createForm" class="createForm" role="form" method="POST" action="{{route('admin.tdrs.store')}}"
+            <form id="createForm" class="createForm" role="form" method="POST" action="{{route('tdrs.store')}}"
                   enctype="multipart/form-data" id="createComponentForm">
                 @csrf
 
@@ -144,7 +144,7 @@
                 <div class="text-end">
                     <button type="submit" class="btn btn-outline-primary
                         mt-3 ">{{ __('Save') }}</button>
-                    <a href="{{ route('admin.tdrs.index') }}"
+                    <a href="{{ route('tdrs.index') }}"
                        class="btn btn-outline-secondary mt-3">{{ __('Cancel') }} </a>
                 </div>
             </form>
@@ -202,7 +202,7 @@
             debugLogs.push('Все доступные опции в select:');
             var options = $('#c_conditions_id option');
             debugLogs.push('Количество опций: ' + options.length);
-            
+
             options.each(function(index) {
                 var condName = $(this).attr('data-title');
                 var condValue = $(this).val();
@@ -217,10 +217,10 @@
             $('#c_conditions_id option').each(function() {
                 var condName = $(this).attr('data-title');
                 var condValue = $(this).val();
-                
+
                 // Нормализация condName для сравнения
                 var normalizedCondName = condName ? condName.toString().trim().toLowerCase() : null;
-                
+
                 debugLogs.push('Сравнение: ' + JSON.stringify({
                     codeName: normalizedCodeName,
                     condName: normalizedCondName,
@@ -252,7 +252,7 @@
             // Сохраняем логи в localStorage с уникальным ключом
             var timestamp = new Date().getTime();
             localStorage.setItem('debugLogs_' + timestamp, JSON.stringify(debugLogs));
-            
+
             // Добавляем кнопку для просмотра логов
             if (!$('#viewLogsBtn').length) {
                 $('body').append('<button id="viewLogsBtn" style="position: fixed; top: 10px; right: 10px; z-index: 9999;">Показать логи</button>');
@@ -294,7 +294,7 @@
             debugLogs.push('Все доступные опции в select:');
             var options = $('#c_conditions_id option');
             debugLogs.push('Количество опций: ' + options.length);
-            
+
             options.each(function(index) {
                 var condName = $(this).attr('data-title');
                 var condValue = $(this).val();
@@ -309,10 +309,10 @@
             $('#c_conditions_id option').each(function() {
                 var condName = $(this).attr('data-title');
                 var condValue = $(this).val();
-                
+
                 // Нормализация condName для сравнения
                 var normalizedCondName = condName ? condName.toString().trim().toLowerCase() : null;
-                
+
                 debugLogs.push('Сравнение: ' + JSON.stringify({
                     codeName: normalizedCodeName,
                     condName: normalizedCondName,
@@ -344,7 +344,7 @@
             // Сохраняем логи в localStorage с уникальным ключом
             var timestamp = new Date().getTime();
             localStorage.setItem('debugLogs_' + timestamp, JSON.stringify(debugLogs));
-            
+
             // Добавляем кнопку для просмотра логов
             if (!$('#viewLogsBtn').length) {
                 $('body').append('<button id="viewLogsBtn" style="position: fixed; top: 10px; right: 10px; z-index: 9999;">Показать логи</button>');

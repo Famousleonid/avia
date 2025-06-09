@@ -87,14 +87,14 @@
                     <h5 class="text-primary me-5">{{__('Work Order: ')}} {{$current_wo->number}}</h5>
                     <h5>{{__('All Components Processes')}}</h5>
 
-                    <a href="{{ route('admin.tdrs.ndtForm', ['id'=> $current_wo->id]) }}"
+                    <a href="{{ route('tdrs.ndtForm', ['id'=> $current_wo->id]) }}"
                        class="btn btn-outline-warning formLink "
                        target="_blank"
                        id="#" style=" height: 36px">
 
                         <i class="bi bi-file-earmark-excel"> NDT (Cat #1)</i>
                     </a>
-                    <a href="{{ route('admin.tdrs.specProcessForm', ['id'=> $current_wo->id]) }}"
+                    <a href="{{ route('tdrs.specProcessForm', ['id'=> $current_wo->id]) }}"
                        class="btn btn-outline-warning  formLink "
                        target="_blank"
                        id="#" style=" height: 36px">
@@ -106,7 +106,7 @@
                         {{__('Forms')}}
                     </button>
                 </div>
-                <a href="{{ route('admin.tdrs.show', ['tdr'=>$current_wo->id]) }}"
+                <a href="{{ route('tdrs.show', ['tdr'=>$current_wo->id]) }}"
                    class="btn btn-outline-secondary mt-3" style="height: 40px">{{ __('Back to Work Order') }} </a>
             </div>
         </div>
@@ -159,11 +159,11 @@
                                         </td>
                                         <td class="text-center">
                                             <div style="width: 100px">
-                                                <a href="{{ route('admin.tdr-processes.createProcesses',['tdrId'=>$tdr->id])}}"
+                                                <a href="{{ route('tdr-processes.createProcesses',['tdrId'=>$tdr->id])}}"
                                                    class="btn btn-outline-success btn-sm"> {{__('Add')}}
                                                     {{--                                                <i class="bi bi-plus-circle"></i>--}}
                                                 </a>
-                                                <a href="{{ route('admin.tdr-processes.processes',['tdrId'=>$tdr->id])}}"
+                                                <a href="{{ route('tdr-processes.processes',['tdrId'=>$tdr->id])}}"
                                                    class="btn btn-outline-primary btn-sm"> {{__('Processes')}}
                                                     {{--                                                <i class="bi bi-pencil-square"></i>--}}
                                                 </a>
@@ -252,7 +252,7 @@
                                     <div class="row ">
                                         @foreach($globalGroupedProcesses as $type => $data)
                                             <div class=" mb-3 text-center">
-                                                <a href="{{ route('admin.tdr-processes.processesForm', [
+                                                <a href="{{ route('tdr-processes.processesForm', [
                                                                'id' => $current_wo->id,
                                                  'process_name_id'  => $data['process_name_id']
                                                          ]) }}" target="_blank" class="btn btn-outline-primary btn-block">

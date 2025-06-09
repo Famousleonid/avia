@@ -10,15 +10,15 @@
         <div class="card bg-gradient">
             <div class="card-header text-center">
                 @if($user->hasMedia('avatar'))
-                    <a href="{{ $user->getBigImageUrl('avatar') }}" data-fancybox="gallery">
-                        <img class="rounded-circle mb-3" src="{{ $user->getThumbnailUrl('avatar') }}" width="150" height="150" alt="Avatar"/>
+                    <a href="{{ $user->getFirstMediaBigUrl('avatar') }}" data-fancybox="gallery">
+                        <img class="rounded-circle mb-3" src="{{ $user->getFirstMediaThumbnailUrl('avatar') }}" width="150" height="150" alt="Avatar"/>
                     </a>
                 @else
                     <img src="https://via.placeholder.com/150" class="rounded-circle mb-3" width="150" height="150" alt="Default Avatar">
                 @endif
             </div>
             <div class="card-body">
-                <form action="{{ route('admin.users.update', $user->id) }}" method="POST" enctype="multipart/form-data" onsubmit="return validateForm();">
+                <form action="{{ route('users.update', $user->id) }}" method="POST" enctype="multipart/form-data" onsubmit="return validateForm();">
                     @csrf
                     @method('PUT')
 
@@ -77,7 +77,7 @@
 
                     <div class="d-flex justify-content-between">
                         <button type="submit" class="btn btn-primary" onclick="showLoadingSpinner()">Save</button>
-                        <a href="{{ route('admin.users.index') }}" class="btn btn-secondary">Cancel</a>
+                        <a href="{{ route('users.index') }}" class="btn btn-secondary">Cancel</a>
                     </div>
                 </form>
             </div>

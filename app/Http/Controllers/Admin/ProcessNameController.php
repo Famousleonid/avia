@@ -50,7 +50,7 @@ class ProcessNameController extends Controller
             'process_sheet_name'=>$request->process_sheet_name,
             'form_number'=>$request->form_number,
             ]);
-        return redirect()->route('admin.processes.create', ['manual_id' => $manual_id]);
+        return redirect()->route('processes.create', ['manual_id' => $manual_id]);
 
     }
 

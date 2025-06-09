@@ -130,7 +130,7 @@ class TrainingController extends Controller
             'form_type' => 112,
         ]);
 
-        return redirect()->route('admin.trainings.index')->with('success', 'Unit added for trainings.');
+        return redirect()->route('trainings.index')->with('success', 'Unit added for trainings.');
     }
     public function createTraining(Request $request)
     {

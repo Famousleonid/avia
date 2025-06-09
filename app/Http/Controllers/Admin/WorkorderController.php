@@ -58,7 +58,7 @@ class WorkorderController extends Controller
         $number = Workorder::where('number', $request['number'])->first();
         if ($number) {
             return redirect()
-                ->route('admin.workorders.create')
+                ->route('workorders.create')
                 ->with('error', 'Workorder number is already exists.');
         }
 
@@ -74,7 +74,7 @@ class WorkorderController extends Controller
 
         Workorder::create($request->all());
 
-        return redirect()->route('admin.workorders.index')->with('success', 'Workorder added');
+        return redirect()->route('workorders.index')->with('success', 'Workorder added');
     }
 
     public function destroy($id)
@@ -82,7 +82,7 @@ class WorkorderController extends Controller
 
         Workorder::destroy($id);
 
-        return redirect()->route('admin.workorders.index')->with('success', 'Workorder deleted');
+        return redirect()->route('workorders.index')->with('success', 'Workorder deleted');
     }
 
     public function edit($id)
@@ -122,7 +122,7 @@ class WorkorderController extends Controller
 
         $wo->update($request->all());
 
-        return redirect()->route('admin.workorders.index')->with('success', 'Workorder was edited successfully');
+        return redirect()->route('workorders.index')->with('success', 'Workorder was edited successfully');
     }
 
     public function approve($id)

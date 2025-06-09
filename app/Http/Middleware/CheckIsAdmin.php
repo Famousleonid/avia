@@ -12,7 +12,7 @@ class CheckIsAdmin
     {
 
         if (!Auth::user()->isAdmin()) {
-            abort('404');
+            abort(403, 'No access');
         }
 
         return $next($request);

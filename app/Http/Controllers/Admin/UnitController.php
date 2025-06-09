@@ -322,11 +322,11 @@ class UnitController extends Controller
             Unit::where('manual_id', $manual->id)->delete();
 
             // Перенаправляем на индекс с сообщением об успешном удалении
-            return redirect()->route('admin.units.index')->with('success', 'Все юниты успешно удалены.');
+            return redirect()->route('units.index')->with('success', 'Все юниты успешно удалены.');
         }
 
         // Если мануал не найден, возвращаем ошибку
-        return redirect()->route('admin.units.index')->with('error', 'Мануал не найден.');
+        return redirect()->route('units.index')->with('error', 'Мануал не найден.');
     }
 
 

@@ -75,7 +75,7 @@ class ComponentController extends Controller
             $component->addMedia($request->file('assy_img'))->toMediaCollection('assy_component');
         }
 
-        return redirect()->route('admin.components.index')->with('success', 'Component created successfully.');
+        return redirect()->route('components.index')->with('success', 'Component created successfully.');
 
     }
 
@@ -117,7 +117,7 @@ class ComponentController extends Controller
 //                'success' => true,
 //                'component' => $component
 //            ]);
-            return redirect()->route('admin.tdrs.inspection.component',['workorder_id' => $current_wo])->with('success', 'Component created successfully.');
+            return redirect()->route('tdrs.inspection.component',['workorder_id' => $current_wo])->with('success', 'Component created successfully.');
 
         } catch (\Exception $e) {
             // Логирование ошибки
@@ -206,7 +206,7 @@ class ComponentController extends Controller
         }
         $component->update($validated);
 
-        return redirect()->route('admin.components.index')->with('success', 'Manual updated successfully');
+        return redirect()->route('components.index')->with('success', 'Manual updated successfully');
 
     }
 
@@ -221,7 +221,7 @@ class ComponentController extends Controller
         $component = Component::findOrFail($id);
         $component->delete();
 
-        return redirect()->route('admin.components.index')
+        return redirect()->route('components.index')
             ->with('success', 'Компонент успешно удален.');
     }
 

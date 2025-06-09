@@ -1,6 +1,6 @@
 @php
     $menuId = $position === 'top' ? 'logout-form-top' : 'logout-form-bottom';
-     $fixedClass = $position === 'top' ? 'fixed-top border-bottom' : 'fixed-bottom border-top';
+     $borderClass = $position === 'top' ? ' border-bottom' : ' border-top';
      $isActive = fn($route) => request()->routeIs($route);
 @endphp
 
@@ -59,7 +59,7 @@
 
 </style>
 
-<div class="{{ $fixedClass }} bg-primary d-flex justify-content-between align-items-center " style="height: 60px;"> {{--d-md-none--}}
+<div class="{{ $borderClass }} bg-primary d-flex justify-content-between align-items-center " style="height: 60px;">
     <a href="{{ route('mobile.index') }}"
        class="flex-fill text-center d-flex flex-column align-items-center justify-content-center text-white">
         <div class="menu-icon-wrapper {{ $isActive('mobile.index') ? 'active' : '' }}">

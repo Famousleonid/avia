@@ -69,7 +69,7 @@
                 <h4 class="text-primary">{{__('Add Component')}}</h4>
             </div>
             <div class="card-body" id="create_div_inputs">
-                <form id="createForm" class="createForm" role="form" method="POST" action="{{route('admin.components.store')
+                <form id="createForm" class="createForm" role="form" method="POST" action="{{route('components.store')
                 }}" enctype="multipart/form-data" id="createComponentForm">
                     @csrf
 
@@ -150,7 +150,7 @@
 
                             <button type="submit" class="btn btn-outline-primary
                         mt-3 ">{{ __('Save') }}</button>
-                            <a href="{{ route('admin.components.index') }}"
+                            <a href="{{ route('components.index') }}"
                                class="btn btn-outline-secondary mt-3">{{ __('Cancel') }} </a>
                         </div>
                     </div>

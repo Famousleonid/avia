@@ -43,7 +43,7 @@
 
             <div class="card-body">
                 <form id="editForm" class="editForm" role="form" method="POST"
-                      action="{{ route('admin.tdrs.update', $current_tdr->id) }}"
+                      action="{{ route('tdrs.update', $current_tdr->id) }}"
                       enctype="multipart/form-data">
                     @csrf
                     @method('PUT')
@@ -93,7 +93,7 @@
 
                     <div class="text-end">
                         <button type="submit" class="btn btn-outline-primary mt-3">{{ __('Update') }}</button>
-                        <a href="{{ route('admin.tdrs.show', ['tdr'=>$current_tdr->workorder->id]) }}"
+                        <a href="{{ route('tdrs.show', ['tdr'=>$current_tdr->workorder->id]) }}"
                         class="btn btn-outline-secondary mt-3" >{{ __('Cancel') }}</a>
                     </div>
                 </form>

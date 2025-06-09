@@ -94,7 +94,7 @@ class ManualController extends Controller
             if ($request->hasFile('csv_file')) {
                 $media = $manual->addMedia($request->file('csv_file'))
                     ->toMediaCollection('csv_files');
-                
+
                 if ($request->filled('process_type')) {
                     $media->setCustomProperty('process_type', $request->process_type);
                     $media->save();
@@ -113,7 +113,7 @@ class ManualController extends Controller
             }
         });
 
-        return redirect()->route('admin.manuals.index')->with('success', 'CMM created successfully along with units!');
+        return redirect()->route('manuals.index')->with('success', 'CMM created successfully along with units!');
     }
 
 
@@ -162,7 +162,7 @@ class ManualController extends Controller
             foreach ($request->file('csv_files') as $file) {
                 $media = $cmm->addMedia($file)
                     ->toMediaCollection('csv_files');
-                
+
                 if ($request->filled('process_type')) {
                     $media->setCustomProperty('process_type', $request->process_type);
                     $media->save();
@@ -172,7 +172,7 @@ class ManualController extends Controller
 
         $cmm->update($validatedData);
 
-        return redirect()->route('admin.manuals.index')->with('success', 'Manual updated successfully');
+        return redirect()->route('manuals.index')->with('success', 'Manual updated successfully');
     }
 
     public function destroy($id)
@@ -186,7 +186,7 @@ class ManualController extends Controller
         }
         $cmm->delete();
 
-        return redirect()->route('admin.manuals.index')->with('success', 'Manual deleted successfully');
+        return redirect()->route('manuals.index')->with('success', 'Manual deleted successfully');
     }
 }
 

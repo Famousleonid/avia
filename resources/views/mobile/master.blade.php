@@ -31,31 +31,50 @@
         html, body {
             width: 100%;
             height: 100%;
-            margin: 0 auto;
+            margin: 0;
             padding: 0;
-            overflow-x: hidden;
+            overflow: hidden;
             background-color: #343A40; /* Твой темный фон */
+        }
+
+        .app-container {
+            display: flex;
+            flex-direction: column;
+            height: 100vh; /* Занимает всю высоту экрана */
+        }
+
+        /* Контейнер для меню */
+        .app-header {
+            flex-shrink: 0; /* Запрещаем меню сжиматься */
+        }
+
+        /* Контейнер для основного контента */
+        .app-content {
+            flex-grow: 1; /* Растягивается на все оставшееся место */
+            overflow-y: auto; /* Включаем прокрутку ТОЛЬКО для контента, если он не помещается */
+            min-height: 0; /* Важный хак для правильной работы flex-grow */
         }
     </style>
 
 </head>
 <body class="fade-page">
+<div class="app-container">
 
-<div id="spinner-load" class=" spinner-border text-warning spinner-win" role="status">
-    <span class="visually-hidden">Loading...</span>
+    <div id="spinner-load" class=" spinner-border text-warning spinner-win" role="status">
+        <span class="visually-hidden">Loading...</span>
+    </div>
+
+    <div class="app-header">
+        @include('components.mobile-menu', ['position' => 'top'])
+    </div>
+
+    <main class="app-content">
+        @yield('content')
+    </main>
+
+    <div style="height: 10px;"></div>
+
 </div>
-
-
-@include('components.mobile-menu', ['position' => 'top'])
-
-
-@yield('content')
-
-
-{{--@include('components.mobile-menu', ['position' => 'bottom'])--}}
-
-<div style="height: 10px;"></div>
-
 
 <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
 <script src="{{asset('assets/Bootstrap 5/bootstrap.bundle.min.js')}}"></script>

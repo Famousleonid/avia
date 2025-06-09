@@ -99,7 +99,7 @@
                                             <td class="text-center"><span>{{date('d-M-Y', strtotime($main->date_finish))}}</span></td>
                                         @else
                                             <td class="td-date text-center">
-                                                <form id="form_date_finish_{{$index}}" name="form_date_finish_{{$index}}" action="{{route('admin.mains.update', ['main' => $main->id])}}" method="post">
+                                                <form id="form_date_finish_{{$index}}" name="form_date_finish_{{$index}}" action="{{route('mains.update', ['main' => $main->id])}}" method="post">
                                                     @csrf
                                                     @method('PUT')
                                                     <input id="date_finish_input" type="text" class="task_date_finish form-control border-primary datepicker" name="date_finish" autocomplete="off">

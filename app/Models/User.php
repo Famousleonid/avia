@@ -16,14 +16,15 @@ use Spatie\MediaLibrary\InteractsWithMedia;
 
 class User extends Authenticatable implements MustVerifyEmail, hasMedia
 {
-    use HasFactory, Notifiable, InteractsWithMedia, HasMediaHelpers;
-    use LogsActivity, softDeletes;
+    use HasFactory, Notifiable, InteractsWithMedia, HasMediaHelpers, LogsActivity, softDeletes;
 
     protected $fillable = ['name', 'email', 'password', 'email_verified_at', 'is_admin', 'role_id', 'phone', 'stamp', 'team_id'];
     protected $casts = ['email_verified_at' => 'datetime'];
     protected $hidden = ['password', 'remember_token'];
     protected static $logAttributes = ['name', 'password', 'phone', 'stamp'];
     protected $dates = ['deleted_at'];
+
+    public $mediaUrlName = 'users';
 
     public function getActivitylogOptions(): LogOptions
     {
@@ -67,7 +68,6 @@ class User extends Authenticatable implements MustVerifyEmail, hasMedia
     {
         return $this->hasMany(Training::class);
     }
-
 
 
     public function registerAllMediaConversions(): void

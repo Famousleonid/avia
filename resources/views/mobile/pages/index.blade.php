@@ -33,58 +33,71 @@
             }
         }
 
-        .fancybox__button--delete {
-            display: inline-block !important;
-            visibility: visible !important;
-            background: red !important;
-            padding: 5px !important;
-            border: 1px solid white !important;
-            color: white !important;
-            cursor: pointer !important;
-            z-index: 10000 !important;
-            line-height: 1 !important;
-            font-size: 16px !important;
-            margin-right: 5px !important;
-            pointer-events: auto !important;
-            position: relative !important;
-        }
-
-        .fancybox__toolbar {
-            display: flex !important;
-            align-items: center !important;
-            justify-content: space-between !important;
-            overflow: visible !important;
-            width: auto !important;
-            pointer-events: auto !important;
+        .fancybox__container .fancybox__button--delete {
+            display: inline-block;
+            visibility: visible;
+            background: red;
+            padding: 5px;
+            border: 1px solid white;
+            color: white;
+            cursor: pointer;
+            z-index: 10000;
+            line-height: 1;
+            font-size: 16px;
+            margin-right: 5px;
+            pointer-events: auto;
+            position: relative;
         }
 
         .category-header {
             cursor: pointer;
         }
 
-        .category-header.active {
-            background: gold !important;
-            color: black !important;
+        .table-dark .category-header.active {
+            background: gold;
+            color: black;
         }
 
-        .equal-width-column {
-            width: 75px;
+        /* --- Новые и измененные стили для макета --- */
+
+        /* Обертка для всей таблицы (заголовок + тело) */
+        .table-wrapper {
+            display: flex;
+            flex-direction: column;
+            overflow: hidden; /* Важно для правильной работы дочернего скролла */
         }
 
-        .text-size {
-            font-size: 0.75rem;
-            line-height: 2;
+        /* Блок, содержащий прокручиваемое тело таблицы */
+        .table-body-scrollable {
+            overflow-y: auto;
+            flex-grow: 1; /* Занимает все доступное место по высоте */
+            padding-bottom: 230px;
+            box-sizing: border-box;
         }
 
+        /* Классы для синхронизации ширины колонок */
+        .col-workorder { width: 20%; }
+        .col-media { width: 20%; } /* Для Photo, Log, Dam&corr */
+        .col-camera { width: 20%; }
+
+        /* Убираем верхнюю границу у второй таблицы, чтобы они слились в одну */
+        .table-body-scrollable .table-bordered {
+            border-top: none;
+        }
+        .table-body-scrollable .table-bordered td {
+            border-top: none;
+        }
 
     </style>
 @endsection
 
 @section('content')
 
-    <div class="container-fluid d-flex flex-column bg-dark p-0" style="padding-top: 60px; padding-bottom: 60px; min-height: 100vh; ">
+    {{-- Главный контейнер страницы, занимающий 100% высоты родителя (.app-content) --}}
+    <div class="container-fluid d-flex flex-column bg-dark p-0" style="height: 100%;">
 
-        <div class="position-sticky top-0 z-3 bg-dark shadow-sm" style="margin-top: 15px;">
+        {{-- 1. БЛОК ПОИСКА (прилипает к верху) --}}
+        <div class="position-sticky bg-dark shadow-sm" style="top: 0; z-index: 10; flex-shrink: 0;">
             <div class="px-3 py-2 border-bottom border-secondary">
                 <div class="position-relative">
                     <input type="text" id="searchInput"
@@ -93,361 +106,356 @@
                     <button type="button" id="clearSearch"
                             class="btn btn-sm btn-outline-light border-0 position-absolute top-50 end-0 translate-middle-y me-2 px-2 py-0"
                             style="display: none; font-size: 1.2rem;">
-                        &times;
+                        ×
                     </button>
                 </div>
             </div>
         </div>
 
+        {{-- 2. ОБЕРТКА ДЛЯ ТАБЛИЦЫ (растягивается на все оставшееся место) --}}
+        <div class="table-wrapper" style="flex-grow: 1; min-height: 0;">
 
-        <div class="row flex-grow-1 g-0 p-0 m-0" style="background-color:#343A40;">
+            {{-- 2.1 ЗАГОЛОВОК ТАБЛИЦЫ (статичный, не прокручивается) --}}
+            <div class="table-header-sticky">
+                <table class="table-sm table-dark m-0 w-100 table-bordered">
+                    <thead>
+                    <tr>
+                        <th class="text-center bg-gradient text-size col-workorder">W_order</th>
+                        <th class="text-center bg-gradient category-header text-size col-media active" data-category="photos">Photo</th>
+                        <th class="text-center bg-gradient category-header text-size col-media" data-category="logs">Log card</th>
+                        <th class="text-center bg-gradient category-header text-size col-media" data-category="damages">Dam&corr</th>
+                        <th class="text-center bg-gradient text-size col-camera">Camera</th>
+                    </tr>
+                    </thead>
+                </table>
+            </div>
 
-            <div class="col-12 d-flex flex-column align-items-center g-0 p-0 m-0">
-                <div class="table-responsive shadow" style="max-height: calc(100vh - 150px); overflow-y: auto; width: 100%; margin-top: 0; ">
-                    <table class="table-sm table-dark table-striped m-0 w-100 table-bordered">
-                        <thead class="bg-primary sticky-top">
+            <div class="table-body-scrollable">
+                <table class="table-sm table-dark table-striped m-0 w-100 table-bordered">
+                    <tbody>
+                    @foreach($workorders as $workorder)
                         <tr>
-                            <th class="text-center bg-gradient text-size ">W_order</th>
-                            <th class="text-center bg-gradient category-header equal-width-column text-size active" data-category="photos">Photo</th>
-                            <th class="text-center bg-gradient category-header equal-width-column text-size " data-category="logs">Log card</th>
-                            <th class="text-center bg-gradient category-header equal-width-column text-size " data-category="damages">Dam&corr</th>
-                            <th class="text-center bg-gradient text-size ">Camera</th>
-                        </tr>
-                        </thead>
-                        <tbody>
-                        @foreach($workorders as $workorder)
-                            <tr>
-                                <td class="text-center align-middle">
-                                    <span class="text-info fw-bold workorder-click" style="cursor: pointer;" data-number="{{ $workorder->number }}">{{ $workorder->number }}</span>
-                                </td>
+                            <td class="text-center align-middle col-workorder">
+                                <span class="text-info fw-bold workorder-click" style="cursor: pointer;" data-number="{{ $workorder->number }}">{{ $workorder->number }}</span>
+                            </td>
 
-                                @foreach(['photos', 'logs', 'damages'] as $type)
-                                    <td class="text-center equal-width-column " data-workorder-id="{{ $workorder->id }}" data-category="{{ $type }}">
-                                        @php $media = $workorder->getMedia($type); $count = $media->count(); @endphp
-                                        @if ($count > 0)
-                                            <div style="position: relative; display: inline-block; margin: 5px;">
-                                                @foreach($media as $index => $photo)
-                                                    <a href="{{ route('image.show.big', ['mediaId' => $photo->id, 'modelId' => $workorder->id, 'mediaName' => $type]) }}"
-                                                       data-fancybox="gallery-{{ $workorder->id }}-{{ $type }}"
-                                                       data-media-id="{{ $photo->id }}"
-                                                       data-caption="Workorder: {{ $workorder->number }} - {{ ucfirst($type) }}"
-                                                       style="{{ $index === 0 ? '' : 'display: none;' }}">
+                            @foreach(['photos', 'logs', 'damages'] as $type)
+                                <td class="text-center col-media" data-workorder-id="{{ $workorder->id }}" data-category="{{ $type }}">
+                                    @php
+                                        // 1. Получаем всю коллекцию медиа один раз.
+                                        // Благодаря ->with('media') в контроллере, это не делает новый запрос к БД.
+                                        $mediaForType = $workorder->getMedia($type);
+                                        $count = $mediaForType->count();
+                                    @endphp
+
+                                    @if ($count > 0)
+                                        <div style="position: relative; display: inline-block; margin: 5px;">
+                                            {{-- 2. Генерируем ссылки для галереи Fancybox --}}
+                                            @foreach($mediaForType as $index => $media)
+                                                <a href="{{ $workorder->generateMediaUrl($media, '', $type) }}"
+                                                   data-fancybox="gallery-{{ $workorder->id }}-{{ $type }}"
+                                                   data-media-id="{{ $media->id }}"
+                                                   data-caption="Workorder: {{ $workorder->number }} - {{ ucfirst($type) }}"
+                                                   {{-- 3. Показываем только первое изображение, остальные скрываем для галереи --}}
+                                                   style="{{ $index === 0 ? '' : 'display: none;' }}">
+
+                                                    {{-- 4. Показываем превью только для первого элемента в цикле --}}
+                                                    @if ($index === 0)
                                                         <img class="rounded-circle"
-                                                             src="{{ route('image.show.thumb', ['mediaId' => $photo->id, 'modelId' => $workorder->id, 'mediaName' => $type]) }}"
+                                                             src="{{ $workorder->generateMediaUrl($media, 'thumb', $type) }}"
                                                              width="40" height="40" alt="Photo">
-                                                    </a>
-                                                @endforeach
-                                                <span class="little-info">{{ $count > 99 ? '99+' : $count }}</span>
-                                            </div>
-                                        @else
-                                            <span class="text-white-50" style="font-size: 0.70rem;">No Photos</span>
-                                        @endif
-                                    </td>
-                                @endforeach
-                                <td class="text-center">
-                                    <a href="#" onclick="openCamera({{ $workorder->id }}, '{{ $workorder->number }}')" class="text-info">
-                                        <i class="bi bi-camera" style="font-size: 1.5rem;"></i>
-                                    </a>
+                                                    @endif
+                                                </a>
+                                            @endforeach
+                                            <span class="little-info">{{ $count > 99 ? '99+' : $count }}</span>
+                                        </div>
+                                    @else
+                                        <span class="text-white-50" style="font-size: 0.70rem;">No Photos</span>
+                                    @endif
                                 </td>
-                            </tr>
-                        @endforeach
-                        </tbody>
-                    </table>
-                </div>
+                            @endforeach
+                            <td class="text-center col-camera">
+                                <a href="#" class="text-info js-camera-btn"
+                                   data-workorder-id="{{ $workorder->id }}"
+                                   data-workorder-number="{{ $workorder->number }}">
+                                    <i class="bi bi-camera" style="font-size: 1.5rem;"></i>
+                                </a>
+                            </td>
+                        </tr>
+                    @endforeach
+                    </tbody>
+                </table>
             </div>
         </div>
     </div>
 
-    <form id="photo-upload-form" data-url-template="/mobile/workorders/photo/WORKORDER_ID" method="POST" enctype="multipart/form-data" style="display: none;">
-        @csrf
-    </form>
+    {{-- Скрытая форма для загрузки фото --}}
+    <form id="photo-upload-form" data-url-template="/mobile/workorders/photo/WORKORDER_ID" method="POST" enctype="multipart/form-data" style="display: none;"></form>
+
 @endsection
 
-// ========== Глобальный блок скриптов для мобильной галереи ==========
+{{--
+    Секцию @section('scripts') можно вставить сюда без изменений.
+--}}
+
 @section('scripts')
     <script>
-        // ===== Поиск по номеру воркрдера с крестиком =====
-        const searchInput = document.getElementById('searchInput');
-        const clearBtn = document.getElementById('clearSearch');
+        document.addEventListener('DOMContentLoaded', () => {
 
-        searchInput.addEventListener('input', function () {
-            const filter = this.value.toLowerCase();
-            clearBtn.style.display = this.value ? 'block' : 'none';
+            // ===== Глобальные переменные для хранения состояния =====
+            let currentPhotoCategory = 'photos';
+            let currentWorkorderId = null;
+            let currentWorkorderNumber = null;
 
-            document.querySelectorAll('tbody tr').forEach(row => {
-                const workorder = row.querySelector('td')?.textContent?.toLowerCase() || '';
-                row.style.display = workorder.includes(filter) ? '' : 'none';
-            });
-        });
-
-        clearBtn.addEventListener('click', function () {
-            searchInput.value = '';
-            clearBtn.style.display = 'none';
-            document.querySelectorAll('tbody tr').forEach(row => row.style.display = '');
-            searchInput.focus();
-        });
-
-        // ===== Утилита для HTTP-запросов (POST/DELETE и т.п.) через fetch =====
-        async function makeRequest(url, method, body = null) {
-            const headers = {
-                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
-                'Accept': 'application/json',
-                'X-Requested-With': 'XMLHttpRequest'
-            };
-            const options = {method, headers};
-            if (body) options.body = body;
-
-            try {
-                const response = await fetch(url, options);
-                const text = await response.text();
-                console.log('RAW RESPONSE:', text);
-
-                const data = JSON.parse(text);
-
-                // ❗ Убираем проверку на response.ok
-                if (!data.success) throw new Error(data.message || 'Ошибка ответа от сервера');
-                return data;
-
-            } catch (err) {
-                console.error('makeRequest error:', err);
-                throw err;
-            }
-        }
-
-        // ===== Создание кнопки удаления фото в тулбаре Fancybox =====
-        function createDeleteButton(fancybox, workorderId, workorderNumber, category) {
-            const toolbar = document.querySelector('.fancybox__toolbar');
-            if (!toolbar || document.querySelector('.fancybox__button--delete')) return;
-
-            const btn = document.createElement('button');
-            btn.className = 'fancybox__button fancybox__button--delete';
-            btn.title = 'Удалить фото';
-            btn.innerHTML = '🗑️';
-
-            btn.onclick = async () => {
-                const slide = fancybox.getSlide();
-                const mediaId = slide.triggerEl?.dataset.mediaId;
-                if (!mediaId) return alert('ID не найден');
-                if (!confirm('Удалить это фото?')) return;
+            // ===== Утилита для HTTP-запросов (POST/DELETE и т.п.) через fetch =====
+            // ИСПРАВЛЕНИЕ: Добавлена проверка response.ok для корректной обработки HTTP-ошибок (4xx, 5xx).
+            async function makeRequest(url, method, body = null) {
+                const headers = {
+                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
+                    'Accept': 'application/json',
+                    'X-Requested-With': 'XMLHttpRequest'
+                };
+                const options = { method, headers };
+                if (body) options.body = body;
 
                 try {
-                    const data = await makeRequest(`/mobile/workorders/photo/delete/${mediaId}`, 'DELETE');
+                    const response = await fetch(url, options);
 
-                    if (data.success) {
-                        refreshGalleryAfterDeletion(workorderId, workorderNumber, category);
-                        fancybox.close();
-                    } else {
-                        console.log('Ответ сервера:', data);
-                        alert('Ошибка при удалении');
+                    if (!response.ok) {
+                        const errorText = await response.text();
+                        throw new Error(`HTTP error! Status: ${response.status}, Body: ${errorText}`);
                     }
-                } catch (e) {
-                    console.error('Ошибка удаления:', e);
-                    alert('Ошибка удаления');
+
+                    // Попытка парсить JSON только после успешного ответа
+                    const data = await response.json();
+
+                    if (!data.success) {
+                        throw new Error(data.message || 'Server returned an error.');
+                    }
+                    return data;
+
+                } catch (err) {
+                    console.error('makeRequest error:', err);
+                    // Перебрасываем ошибку, чтобы вызывающий код мог ее обработать
+                    throw err;
                 }
-            };
-            const counter = toolbar.querySelector('.fancybox__counter');
-            if (counter) {
-                counter.before(btn);
-            } else {
-                toolbar.prepend(btn);
             }
-        }
 
-        // ===== Обновление галереи и бейджа после удаления фото =====
-        async function refreshGalleryAfterDeletion(workorderId, workorderNumber, category) {
-            try {
-                const response = await makeRequest(`/mobile/workorders/photos/${workorderId}?category=${category}`, 'GET');
+            // ===== Поиск по номеру воркордера =====
+            const searchInput = document.getElementById('searchInput');
+            const clearSearchBtn = document.getElementById('clearSearch');
 
-                // Ожидаем, что сервер вернёт: { success: true, photos: [...], photo_count: N }
-                if (response.success) {
-                    updateGallery(workorderId, workorderNumber, response, category);
-                    setTimeout(() => {
-                        bindFancybox(workorderId, workorderNumber, category);
-                    }, 100);
-                } else {
-                    console.warn('Не удалось обновить ячейку после удаления');
-                }
-            } catch (e) {
-                console.error('Ошибка при обновлении галереи после удаления:', e);
-            }
-        }
-
-        // ===== Полная перерисовка ячейки галереи на основе новых данных =====
-        function updateGallery(workorderId, workorderNumber, response, category) {
-            const cell = document.querySelector(`td[data-workorder-id="${workorderId}"][data-category="${category}"]`);
-            if (!cell) return;
-
-            cell.innerHTML = '';
-
-            if (response.photos && response.photos.length > 0) {
-                const wrapper = document.createElement('div');
-                wrapper.style.position = 'relative';
-                wrapper.style.display = 'inline-block';
-                wrapper.style.margin = '5px';
-
-                response.photos.forEach((photo, index) => {
-                    const a = document.createElement('a');
-                    a.href = photo.big_url;
-                    a.setAttribute('data-fancybox', `gallery-${workorderId}-${category}`);
-                    a.setAttribute('data-media-id', photo.id);
-                    a.setAttribute('data-caption', `Workorder: ${workorderNumber} - ${category}`);
-                    if (index > 0) a.style.display = 'none';
-
-                    const img = document.createElement('img');
-                    img.src = photo.thumb_url;
-                    img.alt = 'Photo';
-                    img.className = 'rounded-circle fade-in';
-                    img.style.width = '40px';
-                    img.style.height = '40px';
-                    img.style.objectFit = 'cover';
-
-                    a.appendChild(img);
-                    wrapper.appendChild(a);
+            searchInput.addEventListener('input', () => {
+                const filter = searchInput.value.toLowerCase();
+                clearSearchBtn.style.display = searchInput.value ? 'block' : 'none';
+                document.querySelectorAll('tbody tr').forEach(row => {
+                    const workorderCell = row.querySelector('td:first-child');
+                    const workorderNumber = workorderCell?.textContent?.toLowerCase() || '';
+                    row.style.display = workorderNumber.includes(filter) ? '' : 'none';
                 });
+            });
 
-                const badge = document.createElement('span');
-                badge.className = 'little-info';
-                badge.innerText = response.photo_count > 99 ? '99+' : response.photo_count;
-                wrapper.appendChild(badge);
-                cell.appendChild(wrapper);
-            } else {
-                cell.innerHTML = '<span class="text-white-50">No Photos</span>';
-            }
-        }
+            clearSearchBtn.addEventListener('click', () => {
+                searchInput.value = '';
+                clearSearchBtn.style.display = 'none';
+                document.querySelectorAll('tbody tr').forEach(row => row.style.display = '');
+                searchInput.focus();
+            });
 
-        // ===== Привязка fancybox к новой галерее =====
-        function bindFancybox(workorderId, workorderNumber, category) {
-            Fancybox.unbind(`[data-fancybox="gallery-${workorderId}-${category}"]`);
-            Fancybox.bind(`[data-fancybox="gallery-${workorderId}-${category}"]`, {
-                animated: true,
-                compact: true,
-                dragToClose: true,
-                toolbar: [
-                    {id: "counter", position: "left"},
-                    {id: "close", position: "right"}
-                ],
-                on: {
-                    done: (fancybox) => createDeleteButton(fancybox, workorderId, workorderNumber, category),
-                    close: () => {
-                        const btn = document.querySelector('.fancybox__button--delete');
-                        if (btn) btn.remove();
+
+            // ===== ЕДИНЫЙ ОБРАБОТЧИК КЛИКОВ (ДЕЛЕГИРОВАНИЕ СОБЫТИЙ) =====
+            // УЛУЧШЕНИЕ: Вместо множества querySelectorAll().forEach() используется один обработчик.
+            // Это производительнее и работает для динамически добавленных элементов.
+            document.body.addEventListener('click', (event) => {
+                const target = event.target;
+
+                // Клик по кнопке "Камера"
+                const cameraBtn = target.closest('.js-camera-btn');
+                if (cameraBtn) {
+                    event.preventDefault();
+                    currentWorkorderId = cameraBtn.dataset.workorderId;
+                    currentWorkorderNumber = cameraBtn.dataset.workorderNumber;
+                    openCamera();
+                    return;
+                }
+
+                // Клик по заголовку категории
+                const categoryHeader = target.closest('.category-header');
+                if (categoryHeader) {
+                    document.querySelectorAll('.category-header').forEach(h => h.classList.remove('active'));
+                    categoryHeader.classList.add('active');
+                    currentPhotoCategory = categoryHeader.dataset.category;
+                    return;
+                }
+
+                // Клик по номеру воркордера для быстрой фильтрации
+                const workorderLink = target.closest('.workorder-click');
+                if (workorderLink) {
+                    const number = workorderLink.dataset.number;
+                    searchInput.value = number;
+                    // Имитируем событие input для запуска фильтрации
+                    searchInput.dispatchEvent(new Event('input'));
+                }
+            });
+
+            // ===== Создание кнопки удаления фото в тулбаре Fancybox =====
+            function createDeleteButton(fancybox) {
+                const slide = fancybox.getSlide();
+                if (!slide) return;
+
+                const workorderId = slide.triggerEl?.closest('td')?.dataset.workorderId;
+                const category = slide.triggerEl?.closest('td')?.dataset.category;
+                const workorderNumberEl = slide.triggerEl?.closest('tr')?.querySelector('.workorder-click');
+                const workorderNumber = workorderNumberEl?.dataset.number;
+
+                const btn = document.createElement('button');
+                btn.className = 'fancybox__button fancybox__button--delete';
+                btn.title = 'Delete photo';
+                btn.innerHTML = '🗑️';
+
+                btn.onclick = async () => {
+                    const mediaId = slide.triggerEl?.dataset.mediaId;
+                    if (!mediaId) return alert('Media ID not found!');
+                    if (!confirm('Are you sure you want to delete this photo?')) return;
+
+                    try {
+                        await makeRequest(`/mobile/workorders/photo/delete/${mediaId}`, 'DELETE');
+                        // Если запрос успешен, обновляем галерею
+                        refreshGalleryAfterAction(workorderId, workorderNumber, category);
+                        fancybox.close();
+                    } catch (e) {
+                        alert(`Error deleting photo: ${e.message}`);
                     }
-                }
-            });
-        }
+                };
 
-        // ===== Открытие камеры, создание input и запуск загрузки =====
-        function openCamera(workorderId, workorderNumber) {
-            currentWorkorderId = workorderId;
-            currentWorkorderNumber = workorderNumber;
-
-            const form = document.getElementById('photo-upload-form');
-            const oldInput = document.getElementById('camera-input');
-            if (oldInput) oldInput.remove();
-
-            const newInput = document.createElement('input');
-            newInput.type = 'file';
-            newInput.id = 'camera-input';
-            newInput.name = 'photos[]';
-            newInput.accept = 'image/*';
-            newInput.multiple = true;
-            newInput.capture = 'environment';
-            newInput.style.display = 'none';
-
-            newInput.onchange = () => {
-                if (newInput.files.length > 0) {
-                    showLoadingSpinner(); // Показать спинер после выбора
-                    submitPhotos(currentPhotoCategory);
-                }
-            };
-
-            form.appendChild(newInput);
-            newInput.click();
-        }
-
-        // ===== Отправка фото на сервер =====
-        async function submitPhotos(category) {
-            const form = document.getElementById('photo-upload-form');
-            const input = document.getElementById('camera-input');
-            const urlTemplate = form.dataset.urlTemplate;
-            form.action = urlTemplate.replace('WORKORDER_ID', currentWorkorderId) + `?category=${category}`;
-
-            const formData = new FormData();
-            for (let file of input.files) {
-                formData.append('photos[]', file);
-            }
-
-            try {
-                const response = await makeRequest(form.action, 'POST', formData);
-                if (response.success) {
-                    updateGallery(currentWorkorderId, currentWorkorderNumber, response, category);
-                    await new Promise(resolve => setTimeout(resolve, 100));
-                    bindFancybox(currentWorkorderId, currentWorkorderNumber, category);
+                // Вставляем кнопку в тулбар
+                const counter = fancybox.toolbar.querySelector('.fancybox__counter');
+                if (counter) {
+                    counter.before(btn);
                 } else {
-                    alert('Ошибка загрузки фото');
+                    fancybox.toolbar.prepend(btn);
                 }
-            } catch (e) {
-                alert('Ошибка сети');
-            } finally {
-                hideLoadingSpinner(); // Скрыть спинер после ответа
             }
-        }
 
-        // ===== Глобальные переменные =====
-        let currentPhotoCategory = 'photos';
-        let currentWorkorderId = null;
-        let currentWorkorderNumber = null;
-
-        // ===== Обработка кликов по заголовкам категорий =====
-        document.querySelectorAll('.category-header').forEach((header, index) => {
-            header.addEventListener('click', () => {
-                document.querySelectorAll('.category-header').forEach(h => h.classList.remove('active'));
-                header.classList.add('active');
-                currentPhotoCategory = header.dataset.category;
-                clearColumnHighlights();
-                highlightColumn(index + 1);
-            });
-        });
-
-        // ===== Очистка подсветки колонок =====
-        function clearColumnHighlights() {
-            document.querySelectorAll('th, td').forEach(el => el.classList.remove('active-column'));
-        }
-
-        // ===== Подсветка выбранной колонки =====
-        function highlightColumn(index) {
-            document.querySelectorAll('table tr').forEach(row => {
-                const cells = row.querySelectorAll('th, td');
-                if (cells.length > index) {
-                    cells[index].classList.add('active-column');
+            // ===== Обновление галереи и бейджа после действия (удаление/добавление) =====
+            async function refreshGalleryAfterAction(workorderId, workorderNumber, category) {
+                try {
+                    const response = await makeRequest(`/mobile/workorders/photos/${workorderId}?category=${category}`, 'GET');
+                    updateGalleryUI(workorderId, workorderNumber, response, category);
+                    // Небольшая задержка перед перепривязкой Fancybox для гарантии отрисовки DOM
+                    setTimeout(() => bindFancyboxForCell(workorderId, category), 100);
+                } catch (e) {
+                    console.error('Failed to refresh gallery:', e);
                 }
-            });
-        }
+            }
 
-        // ===== Привязка fancybox ко всем галереям после загрузки =====
-        window.addEventListener('load', () => {
+            // ===== Полная перерисовка ячейки галереи на основе новых данных =====
+            function updateGalleryUI(workorderId, workorderNumber, response, category) {
+                const cell = document.querySelector(`td[data-workorder-id="${workorderId}"][data-category="${category}"]`);
+                if (!cell) return;
+
+                cell.innerHTML = ''; // Очищаем ячейку
+
+                if (response.photos && response.photos.length > 0) {
+                    const wrapper = document.createElement('div');
+                    wrapper.style.cssText = 'position: relative; display: inline-block; margin: 5px;';
+
+                    response.photos.forEach((photo, index) => {
+                        const a = document.createElement('a');
+                        a.href = photo.big_url;
+                        a.dataset.fancybox = `gallery-${workorderId}-${category}`;
+                        a.dataset.mediaId = photo.id;
+                        a.dataset.caption = `Workorder: ${workorderNumber} - ${category}`;
+                        if (index > 0) a.style.display = 'none';
+
+                        const img = document.createElement('img');
+                        img.src = photo.thumb_url;
+                        img.alt = 'Photo';
+                        img.className = 'rounded-circle fade-in';
+                        img.style.cssText = 'width: 40px; height: 40px; object-fit: cover;';
+
+                        a.appendChild(img);
+                        wrapper.appendChild(a);
+                    });
+
+                    const badge = document.createElement('span');
+                    badge.className = 'little-info';
+                    badge.innerText = response.photo_count > 99 ? '99+' : response.photo_count;
+                    wrapper.appendChild(badge);
+                    cell.appendChild(wrapper);
+                } else {
+                    cell.innerHTML = '<span class="text-white-50" style="font-size: 0.70rem;">No Photos</span>';
+                }
+            }
+
+            // ===== Привязка Fancybox к элементам в конкретной ячейке =====
+            function bindFancyboxForCell(workorderId, category) {
+                const selector = `[data-fancybox="gallery-${workorderId}-${category}"]`;
+                Fancybox.unbind(selector);
+                Fancybox.bind(selector, {
+                    on: {
+                        done: (fancybox) => createDeleteButton(fancybox),
+                    }
+                });
+            }
+
+            // ===== Открытие камеры и запуск загрузки =====
+            function openCamera() {
+                const form = document.getElementById('photo-upload-form');
+                // Удаляем старый input, если он есть, чтобы избежать проблем
+                document.getElementById('camera-input')?.remove();
+
+                const fileInput = document.createElement('input');
+                fileInput.type = 'file';
+                fileInput.id = 'camera-input';
+                fileInput.name = 'photos[]';
+                fileInput.accept = 'image/*';
+                fileInput.multiple = true;
+                fileInput.capture = 'environment';
+                fileInput.style.display = 'none';
+
+                fileInput.onchange = () => {
+                    if (fileInput.files.length > 0) {
+                        // TODO: Показать спиннер загрузки
+                        submitPhotos(fileInput.files);
+                    }
+                };
+
+                form.appendChild(fileInput);
+                fileInput.click();
+            }
+
+            // ===== Отправка фото на сервер =====
+            async function submitPhotos(files) {
+                const form = document.getElementById('photo-upload-form');
+                const urlTemplate = form.dataset.urlTemplate;
+                const actionUrl = urlTemplate.replace('WORKORDER_ID', currentWorkorderId) + `?category=${currentPhotoCategory}`;
+
+                const formData = new FormData();
+                for (let file of files) {
+                    formData.append('photos[]', file);
+                }
+
+                try {
+                    const response = await makeRequest(actionUrl, 'POST', formData);
+                    // Обновляем галерею с данными из ответа сервера
+                    updateGalleryUI(currentWorkorderId, currentWorkorderNumber, response, currentPhotoCategory);
+                    setTimeout(() => bindFancyboxForCell(currentWorkorderId, currentPhotoCategory), 100);
+                } catch (e) {
+                    alert(`Error uploading photos: ${e.message}`);
+                } finally {
+                    // TODO: Скрыть спиннер загрузки
+                }
+            }
+
+            // ===== Первичная привязка Fancybox ко всем галереям при загрузке страницы =====
             document.querySelectorAll('td[data-workorder-id][data-category]').forEach(cell => {
                 const workorderId = cell.dataset.workorderId;
                 const category = cell.dataset.category;
-                const workorderNumber = cell.querySelector('a[data-fancybox]')?.dataset?.caption?.split(': ')[1]?.split(' - ')[0] || '';
-                bindFancybox(workorderId, workorderNumber, category);
+                if (cell.querySelector('a[data-fancybox]')) {
+                    bindFancyboxForCell(workorderId, category);
+                }
             });
         });
-
-        // ===== Клик по номеру воркордера — фильтрация =====
-        document.querySelectorAll('.workorder-click').forEach(el => {
-            el.addEventListener('click', () => {
-                const number = el.dataset.number;
-                searchInput.value = number;
-                clearBtn.style.display = 'block';
-
-                document.querySelectorAll('tbody tr').forEach(row => {
-                    const workorder = row.querySelector('td')?.textContent?.toLowerCase() || '';
-                    row.style.display = workorder.includes(number.toLowerCase()) ? '' : 'none';
-                });
-            });
-        });
-
     </script>
 @endsection
-

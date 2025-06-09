@@ -13,7 +13,7 @@
                 <h4 class="text-primary">Create new USER</h4>
             </div>
             <div class="card-body">
-                <form method="POST" action="{{ route('admin.users.store') }}"
+                <form method="POST" action="{{ route('users.store') }}"
                       enctype="multipart/form-data"
                       id="createUserForm">
                     @csrf
@@ -84,7 +84,7 @@
 
                     <!-- Кнопка для создания пользователя -->
                     <button type="submit" class="btn btn-outline-primary mt-3" onclick="hideLoadingSpinner()">{{ __('Create') }} </button>
-                    <a href="{{ route('admin.users.index') }}" class="btn btn-outline-secondary mt-3">{{ __('Cancel') }} </a>
+                    <a href="{{ route('users.index') }}" class="btn btn-outline-secondary mt-3">{{ __('Cancel') }} </a>
                 </form>
             </div>
         </div>
@@ -213,10 +213,10 @@
         }
 
         // Пример использования для ролей
-        handleFormSubmission('addRoleForm', 'addRoleModal', '{{ route('admin.roles.store') }}', 'roles_id', 'id', 'name');
+        handleFormSubmission('addRoleForm', 'addRoleModal', '{{ route('roles.store') }}', 'roles_id', 'id', 'name');
 
         // Пример использования для команд
-        handleFormSubmission('addTeamForm', 'addTeamModal', '{{ route('admin.teams.store') }}', 'teams_id', 'id', 'name');
+        handleFormSubmission('addTeamForm', 'addTeamModal', '{{ route('teams.store') }}', 'teams_id', 'id', 'name');
 
     </script>
 

@@ -106,7 +106,7 @@ class ManualProcessController extends Controller
             $process->save();
         }
 
-        return redirect()->route('admin.processes.edit',['process' => $manualId])
+        return redirect()->route('processes.edit',['process' => $manualId])
             ->with('success', 'Process updated successfully');
     }
 
@@ -125,7 +125,7 @@ class ManualProcessController extends Controller
 //        dd($manualProcess, $manualId);
         $manualProcess->delete();
 
-        return redirect()->route('admin.processes.edit',['process' => $manualId])
+        return redirect()->route('processes.edit',['process' => $manualId])
             ->with('success', 'Process deleted successfully');
     }
 }

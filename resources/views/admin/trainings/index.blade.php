@@ -79,7 +79,7 @@
                             trainings</label>
                     </div>
                     <div class="align-middle">
-                        <a href="{{ route('admin.trainings.create') }}"
+                        <a href="{{ route('trainings.create') }}"
                            class="btn btn-primary align-middle">
                             {{ __('Add Unit') }}</a>
                     </div>
@@ -178,13 +178,13 @@
                                                             (Form: {{ $training->form_type }} )
                                                         </label>
                                                         @if($training->form_type == '112')
-                                                            <a href="{{ route('admin.trainings.form112', ['id'=> $training->id, 'showImage' => 'false']) }}"
+                                                            <a href="{{ route('trainings.form112', ['id'=> $training->id, 'showImage' => 'false']) }}"
                                                                class="btn btn-success mb-1 formLink " target="_blank"
                                                                id="formLink{{ $trainingList['first_training']->manuals_id }}">
                                                                 View/Print Form  112
                                                             </a>
                                                         @elseif($training->form_type == '132')
-                                                            <a href="{{ route('admin.trainings.form132', ['id' => $training->id, 'showImage' => 'false']) }}"
+                                                            <a href="{{ route('trainings.form132', ['id' => $training->id, 'showImage' => 'false']) }}"
                                                                class="btn  btn-info mb-1 formLink "  target="_blank"
                                                                id="formLink{{ $trainingList['first_training']->manuals_id }}">
                                                                 View/Print Form  132
@@ -232,8 +232,8 @@
                                             <div class="modal-body bg-white">
                                                 <div class="d-flex bg-white">
                                                     <div class="me-2">
-                                                        @if($trainingList['first_training']->manual->getFirstMediaUrl('manuals'))
-                                                            <img src="{{$trainingList['first_training']->manual->getBigImageUrl('manuals') }}"
+                                                        @if($trainingList['first_training']->manual->getFirstMediaBigUrl('manuals'))
+                                                            <img src="{{$trainingList['first_training']->manual->getFirstMediaBigUrl('manuals') }}"
                                                                  style="width: 200px;"  alt="{{ $trainingList['first_training']->manual->title }}" >
                                                         @else
                                                             <p>No image available</p>
@@ -326,7 +326,7 @@
 // Показываем сообщение для подтверждения
                 if (confirm(confirmationMessage + "\nAre you sure you want to continue creating trainings?")) {
 // Если пользователь подтвердил, выполняем запрос
-                    fetch('{{ route('admin.trainings.createTraining') }}', {
+                    fetch('{{ route('trainings.createTraining') }}', {
                         method: 'POST',
                         headers: {
                             'Content-Type': 'application/json',
@@ -436,7 +436,7 @@
             document.getElementById('confirmDeleteBtn').addEventListener('click', function() {
                 if (!currentUserId || !currentManualId) return;
 
-                fetch('{{ route("admin.trainings.deleteAll") }}', {
+                fetch('{{ route("trainings.deleteAll") }}', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',

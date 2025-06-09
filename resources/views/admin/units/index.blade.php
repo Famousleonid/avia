@@ -160,8 +160,8 @@
                                 @endif
                             </td>
                             <td class="text-center">
-                                <a href="{{ $units->first()->manuals->getBigImageUrl('manuals') }}" data-fancybox="gallery">
-                                    <img class="rounded-circle" src="{{ $units->first()->manuals->getThumbnailUrl('manuals') }}" width="40" height="40" alt="Image"/>
+                                <a href="{{ $units->first()->manuals->getFirstMediaBigUrl('manuals') }}" data-fancybox="gallery">
+                                    <img class="rounded-circle" src="{{ $units->first()->manuals->getFirstMediaThumbnailUrl('manuals') }}" width="40" height="40" alt="Image"/>
                                 </a>
                             </td>
                             <td class="text-center">
@@ -178,14 +178,14 @@
                                             data-manual="{{ $unit->manuals->title }}"
                                             data-manual-number="{{ $unit->manuals->number }}"
 {{--                                            data-manual-image="{{$units->first()->manuals->img}}"--}}
-                                            data-manual-image="{{$units->first()->manuals->getBigImageUrl('manuals') }}"
+                                            data-manual-image="{{$units->first()->manuals->getFirstMediaBigUrl('manuals') }}"
                                             data-bs-toggle="modal"
                                             data-bs-target="#editUnitModal">
 
                                         <i class="bi bi-pencil-square"></i>
                                     </button>
 
-{{--                                    <form action="{{ route('admin.units.destroy', $manualNumber) }}" method="post"--}}
+{{--                                    <form action="{{ route('units.destroy', $manualNumber) }}" method="post"--}}
 {{--                                          style="display: inline-block">--}}
 {{--                                        @csrf--}}
 {{--                                        @method('DELETE')--}}
@@ -225,7 +225,7 @@
                                         <div class="modal-body">
                                             <div class="d-flex">
                                                 <div class="me-2">
-                                                    <img class="" src="{{ $units->first()->manuals->getBigImageUrl('manuals') }}"
+                                                    <img class="" src="{{ $units->first()->manuals->getFirstMediaBigUrl('manuals') }}"
                                                          width="200"  alt="Image"/>
 
                                                 </div>
@@ -424,7 +424,7 @@
                 // AJAX-запрос для отправки данных на сервер
                 if (cmmId && pnValues.length > 0) {
                     $.ajax({
-                        url: '{{ route('admin.units.store') }}', // Обновите с вашим маршрутом для сохранения юнитов
+                        url: '{{ route('units.store') }}', // Обновите с вашим маршрутом для сохранения юнитов
                         type: 'POST',
                         data: {
                             cmm_id: cmmId,

@@ -50,9 +50,9 @@ class UserController extends Controller
             $user->addMedia($request->file('img'))->toMediaCollection('avatar');
         }
 
+        $user->sendEmailVerificationNotification();
 
-
-        return redirect()->route('admin.users.index')->with('success', 'Пользователь добавлен');
+        return redirect()->route('users.index')->with('success', 'Пользователь добавлен');
     }
 
     public function edit($id)
@@ -87,7 +87,7 @@ class UserController extends Controller
         }
         $user->update($request->all());
 
-        return redirect()->route('admin.users.index')->with('success', 'Changes saved');
+        return redirect()->route('users.index')->with('success', 'Changes saved');
 
     }
 
@@ -99,7 +99,7 @@ class UserController extends Controller
             return back()->withErrors('The databases are linked. First remove...');
         }
 
-        return redirect()->route('admin.users.index')->with('success', 'Technik deleted');
+        return redirect()->route('users.index')->with('success', 'Technik deleted');
     }
 
     public function removeSpace($var)

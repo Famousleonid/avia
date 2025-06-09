@@ -28,6 +28,7 @@
     .colored-svg {
         color: #0DDDFD;
         fill: #fff;
+        background-color: transparent;
     }
 </style>
 
@@ -38,7 +39,7 @@
             <div class="col-3">
                 <img src="{{ asset('img/favicon.webp') }}" width="30" alt="Logo">
             </div>
-            <div class="col-8">
+            <div class="col-8 bg-transparent">
                 <a href="{{ url('/') }}" target="_blank" class="brand-link">
                     @include('components.logo')
                 </a>
@@ -77,10 +78,8 @@
         </div>
 
         <div class="flex-grow-1 d-flex flex-column">
-            @if(Auth()->user()->isadmin())
+            @if(Auth()->user())
                 @include('components.admin_menu_sidebar', ['themeToggleId' => 'themeToggle'])
-            @else
-                @include('components.cabinet_menu_sidebar', ['themeToggleId' => 'themeToggle'])
             @endif
 
         </div>
@@ -137,10 +136,8 @@
     </div>
 
     <div class="flex-grow-1 d-flex flex-column">
-        @if(Auth()->user()->isadmin())
+        @if(Auth()->user())
             @include('components.admin_menu_sidebar', ['themeToggleId' => 'themeToggle'])
-        @else
-            @include('components.cabinet_menu_sidebar', ['themeToggleId' => 'themeToggle'])
         @endif
     </div>
 

@@ -3,7 +3,6 @@
 namespace App\Models;
 
 use App\Traits\HasMediaHelpers;
-use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Spatie\Activitylog\LogOptions;
@@ -13,27 +12,17 @@ use Spatie\MediaLibrary\InteractsWithMedia;
 
 class Workorder extends Model implements HasMedia
 {
-    use InteractsWithMedia;
-    use LogsActivity;
-    use SoftDeletes;
-    use HasMediaHelpers;
+    use InteractsWithMedia, LogsActivity, SoftDeletes, HasMediaHelpers;
 
-    protected $fillable = ['number', 'user_id', 'unit_id', 'instruction_id',
-        'external_damage','received_disassembly','nameplate_missing','disassembly_upon_arrival',
-        'preliminary_test_false','part_missing','extra_parts','new_parts',
-        'open_at', 'customer_id', 'approve', 'approve_at',
-        'description', 'manual', 'serial_number', 'place', 'created_at','amdt'];
+    protected $fillable = ['number', 'user_id', 'unit_id', 'instruction_id', 'external_damage','received_disassembly','nameplate_missing','disassembly_upon_arrival',
+        'preliminary_test_false','part_missing','extra_parts','new_parts', 'open_at', 'customer_id', 'approve', 'approve_at', 'description', 'manual',
+        'serial_number', 'place', 'created_at','amdt'];
 
     protected $dates = ['approve_at','deleted_at','open_at'];
 
-    public function getActivitylogOptions(): LogOptions
-    {
-        return LogOptions::defaults()
-            ->logAll()
-            ->logOnly(['number', 'user_id', 'unit_id', 'instruction_id', 'customer_id', 'approve', 'description', 'notes', 'manual', 'serial_number', 'place', 'open_at','amdt'])
-            ->logOnlyDirty();
+    public $mediaUrlName = 'workorders';
 
-    }
+
     public function tdrs()
     {
         return $this->hasMany(Tdr::class,'workorder_id');
@@ -70,6 +59,15 @@ class Workorder extends Model implements HasMedia
             ->width(80)
             ->height(80)
             ->nonOptimized();
+
+    }
+
+    public function getActivitylogOptions(): LogOptions
+    {
+        return LogOptions::defaults()
+            ->logAll()
+            ->logOnly(['number', 'user_id', 'unit_id', 'instruction_id', 'customer_id', 'approve', 'description', 'notes', 'manual', 'serial_number', 'place', 'open_at','amdt'])
+            ->logOnlyDirty();
 
     }
 
