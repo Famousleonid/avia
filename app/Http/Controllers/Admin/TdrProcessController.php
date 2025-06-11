@@ -95,13 +95,37 @@ class TdrProcessController extends Controller
             })
             ->get();
 
-
         // Log or inspect the response data for debugging
         \Log::info($processes); // Log data to inspect it
 
         return response()->json($processes);
     }
 
+    public function getProcesses(Request $request)
+    {
+        $processNameId = $request->query('processNameId');
+        $manualId = $request->query('manualId');
+
+        // Получаем процессы, которые уже связаны с данным manual_id
+        $existingProcessIds = ManualProcess::where('manual_id', $manualId)
+            ->pluck('processes_id')
+            ->toArray();
+
+        // Фильтруем процессы для выбора (исключаем существующие)
+        $availableProcesses = Process::where('process_names_id', $processNameId)
+            ->whereNotIn('id', $existingProcessIds)
+            ->get();
+
+        // Получаем существующие процессы
+        $existingProcesses = Process::whereIn('id', $existingProcessIds)
+            ->where('process_names_id', $processNameId)
+            ->get();
+
+        return response()->json([
+            'existingProcesses' => $existingProcesses,
+            'availableProcesses' => $availableProcesses,
+        ]);
+    }
 
     /**
      * Store a newly created resource in storage.

@@ -87,13 +87,13 @@
                     <h5 class="text-primary me-5">{{__('Work Order: ')}} {{$current_wo->number}}</h5>
                     <h5>{{__('All Components Processes')}}</h5>
 
-                    <a href="{{ route('tdrs.ndtForm', ['id'=> $current_wo->id]) }}"
-                       class="btn btn-outline-warning formLink "
-                       target="_blank"
-                       id="#" style=" height: 36px">
+{{--                    <a href="{{ route('tdrs.ndtForm', ['id'=> $current_wo->id]) }}"--}}
+{{--                       class="btn btn-outline-warning formLink "--}}
+{{--                       target="_blank"--}}
+{{--                       id="#" style=" height: 36px">--}}
 
-                        <i class="bi bi-file-earmark-excel"> NDT (Cat #1)</i>
-                    </a>
+{{--                        <i class="bi bi-file-earmark-excel"> NDT (Cat #1)</i>--}}
+{{--                    </a>--}}
                     <a href="{{ route('tdrs.specProcessForm', ['id'=> $current_wo->id]) }}"
                        class="btn btn-outline-warning  formLink "
                        target="_blank"
@@ -187,7 +187,7 @@
                                                    <div class="d-flex">
                                                        <div class="me-2">
                                                            <img class=""
-                                                                src="{{ $tdr->component->getBigImageUrl('component')}}"
+                                                                src="{{ $tdr->component->getFirstMediaBigUrl('component')}}"
                                                                 width="200"  alt="Image"/>
                                                        </div>
                                                        <div>

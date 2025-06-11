@@ -182,7 +182,7 @@
                         </div>
                     </div>
                     <div class="modal-footer">
-                        {{--                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Закрыть"></button>--}}
+{{--                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Закрыть"></button>--}}
                         <button type="submit" class="btn btn-outline-primary">{{ __('Save') }}</button>
                     </div>
                 </form>
@@ -207,7 +207,7 @@
                         </div>
                     </div>
                     <div class="modal-footer">
-                        {{--                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Закрыть"></button>--}}
+{{--                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Закрыть"></button>--}}
                         <button type="submit" class="btn btn-outline-primary">{{ __('Save') }}</button>
                     </div>
                 </form>
@@ -232,7 +232,7 @@
                         </div>
                     </div>
                     <div class="modal-footer">
-                        {{--                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Закрыть"></button>--}}
+{{--                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Закрыть"></button>--}}
                         <button type="submit" class="btn btn-outline-primary">{{ __('Save') }}</button>
                     </div>
                 </form>
@@ -297,27 +297,27 @@
                         'Content-Type': 'application/json'
                     }
                 })
-                    .then(response => {
-                        if (!response.ok) {
-                            throw new Error('Network response was not ok');
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error('Network response was not ok');
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    if (data.success) {
+                        // Находим родительский элемент файла и удаляем его
+                        const fileElement = event.target.closest('.d-flex');
+                        if (fileElement) {
+                            fileElement.remove();
                         }
-                        return response.json();
-                    })
-                    .then(data => {
-                        if (data.success) {
-                            // Находим родительский элемент файла и удаляем его
-                            const fileElement = event.target.closest('.d-flex');
-                            if (fileElement) {
-                                fileElement.remove();
-                            }
-                        } else {
-                            throw new Error(data.error || '{{ __("Error deleting file") }}');
-                        }
-                    })
-                    .catch(error => {
-                        console.error('Error:', error);
-                        alert(error.message || '{{ __("Error deleting file") }}');
-                    });
+                    } else {
+                        throw new Error(data.error || '{{ __("Error deleting file") }}');
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    alert(error.message || '{{ __("Error deleting file") }}');
+                });
             }
             // Предотвращаем всплытие события
             event.stopPropagation();
@@ -351,35 +351,35 @@
                         'Accept': 'application/json'
                     }
                 })
-                    .then(response => {
-                        if (!response.ok) {
-                            throw new Error('Network response was not ok');
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error('Network response was not ok');
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    if (data.success) {
+                        // Если файл с таким process_type уже существовал, удаляем его из DOM
+                        const existingFile = document.querySelector(`[data-process-type="${processType}"]`);
+                        if (existingFile) {
+                            existingFile.remove();
                         }
-                        return response.json();
-                    })
-                    .then(data => {
-                        if (data.success) {
-                            // Если файл с таким process_type уже существовал, удаляем его из DOM
-                            const existingFile = document.querySelector(`[data-process-type="${processType}"]`);
-                            if (existingFile) {
-                                existingFile.remove();
-                            }
 
-                            // Добавляем новый файл в список
-                            const fileList = document.querySelector('.csv-files-list');
-                            const fileElement = createFileElement(data.file);
-                            fileList.appendChild(fileElement);
+                        // Добавляем новый файл в список
+                        const fileList = document.querySelector('.csv-files-list');
+                        const fileElement = createFileElement(data.file);
+                        fileList.appendChild(fileElement);
 
-                            // Очищаем input
-                            fileInput.value = '';
-                        } else {
-                            throw new Error(data.error || '{{ __("Error uploading file") }}');
-                        }
-                    })
-                    .catch(error => {
-                        console.error('Error:', error);
-                        alert(error.message || '{{ __("Error uploading file") }}');
-                    });
+                        // Очищаем input
+                        fileInput.value = '';
+                    } else {
+                        throw new Error(data.error || '{{ __("Error uploading file") }}');
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    alert(error.message || '{{ __("Error uploading file") }}');
+                });
             }
         }
 
@@ -395,12 +395,12 @@
                 <a href="/admin/manuals/{{ $cmm->id }}/csv/${file.id}"
                    class="btn btn-sm btn-outline-info me-1">
                     <i class="fas fa-eye"></i> {{__('View')}}
-            </a>
-            <button type="button" class="btn btn-sm btn-outline-danger"
-                    onclick="deleteCsvFile('/admin/manuals/{{ $cmm->id }}/csv/${file.id}', event)">
+                </a>
+                <button type="button" class="btn btn-sm btn-outline-danger"
+                        onclick="deleteCsvFile('/admin/manuals/{{ $cmm->id }}/csv/${file.id}', event)">
                     <i class="fas fa-trash"></i> {{__('Del')}}
-            </button>
-`;
+                </button>
+            `;
 
             return div;
         }

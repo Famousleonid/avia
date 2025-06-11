@@ -68,38 +68,42 @@ class ProcessController extends Controller
     public function store(Request $request)
     {
         $validated = $request->validate([
-            'process_name_id' => 'required|integer|exists:process_names,id',
-            'process' => 'nullable|string|max:255',
-            'selected_process_id' => 'nullable|integer|exists:processes,id',
+            'process_names_id' => 'required|integer|exists:process_names,id',
+            'process' => 'required|string|max:255',
             'manual_id' => 'required|integer|exists:manuals,id',
         ]);
 
-        // Если выбран процесс из списка
-
-        if (isset($validated['selected_process_id']) && $validated['selected_process_id']) {
-            $processId = $validated['selected_process_id'];
-        } else {
+        try {
+            // Создаем новый процесс
             $process = Process::create([
-                'process_names_id' => $validated['process_name_id'],
+                'process_names_id' => $validated['process_names_id'],
                 'process' => $validated['process'],
             ]);
-            $processId = $process->id;
-        }
 
-        // Добавление записи в таблицу manual_processes
-        DB::table('manual_processes')->insert([
-            'manual_id' => $validated['manual_id'],
-            'processes_id' => $processId,
-        ]);
-
-        // Если это AJAX-запрос, возвращаем JSON
-        if ($request->ajax()) {
-            return response()->json([
-                'success' => true,
-                'process' => isset($process) ? $process : Process::find($processId)
+            // Добавляем запись в таблицу manual_processes
+            DB::table('manual_processes')->insert([
+                'manual_id' => $validated['manual_id'],
+                'processes_id' => $process->id,
             ]);
+
+            // Если это AJAX-запрос, возвращаем JSON
+            if ($request->ajax()) {
+                return response()->json([
+                    'success' => true,
+                    'process' => $process
+                ]);
+            }
+
+            return redirect()->back()->with('success', 'Process added successfully.');
+        } catch (\Exception $e) {
+            if ($request->ajax()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Error adding process: ' . $e->getMessage()
+                ], 500);
+            }
+            return redirect()->back()->with('error', 'Error adding process: ' . $e->getMessage());
         }
-        return redirect()->back()->with('success', 'Запись успешно добавлена.');
     }
 //
 

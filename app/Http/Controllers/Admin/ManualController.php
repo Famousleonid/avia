@@ -58,7 +58,7 @@ class ManualController extends Controller
 //                $manual->addMedia($request->file('img'))->toMediaCollection('manuals');
 //            }
 //
-//            return redirect()->route('admin.manuals.index')->with('success', 'Manual success created.');
+//            return redirect()->route('.manuals.index')->with('success', 'Manual success created.');
 //        }
 //    }
     public function store(Request $request)
@@ -113,7 +113,7 @@ class ManualController extends Controller
             }
         });
 
-        return redirect()->route('manuals.index')->with('success', 'CMM created successfully along with units!');
+        return redirect()->route('admin.manuals.index')->with('success', 'CMM created successfully along with units!');
     }
 
 
@@ -172,7 +172,7 @@ class ManualController extends Controller
 
         $cmm->update($validatedData);
 
-        return redirect()->route('manuals.index')->with('success', 'Manual updated successfully');
+        return redirect()->route('admin.manuals.index')->with('success', 'Manual updated successfully');
     }
 
     public function destroy($id)
@@ -186,7 +186,7 @@ class ManualController extends Controller
         }
         $cmm->delete();
 
-        return redirect()->route('manuals.index')->with('success', 'Manual deleted successfully');
+        return redirect()->route('admin.manuals.index')->with('success', 'Manual deleted successfully');
     }
 }
 

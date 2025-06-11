@@ -75,6 +75,7 @@ Route::group(['middleware' => ['auth'] ], function () {
 
     Route::get('/', [CabinetController::class, 'index'])->name('cabinet.index');
     Route::get('/logs', [CabinetController::class, 'activity'])->name('log.activity');
+
     Route::resource('/users', UserController::class);
     Route::resource('/manuals',ManualController::class);
     Route::resource('/planes',PlaneController::class);
@@ -103,7 +104,7 @@ Route::group(['middleware' => ['auth'] ], function () {
     Route::get('/progress', [MainController::class, 'progress'])->name('progress.index');
     Route::get('/workorders/{id}/photos', [WorkorderController::class, 'photos'])->name('workorders.photos');
     Route::get('/workorders/download/{id}/all', [WorkorderController::class, 'downloadAllGrouped'])->name('workorders.downloadAllGrouped');
-    Route::delete('/workorders/photo/delete/{id}', [MediaController::class, 'delete_photo'])->name('admin.workorders.photo.delete');
+    Route::delete('/workorders/photo/delete/{id}', [MediaController::class, 'delete_photo'])->name('workorders.photo.delete');
 
     Route::get('/tdrs/processes/{workorder_id}',[TdrController::class, 'processes'])->name('tdrs.processes');
     Route::get('/tdrs/inspection/{workorder_id}',[TdrController::class, 'inspection'])->name('tdrs.inspection');
@@ -119,8 +120,9 @@ Route::group(['middleware' => ['auth'] ], function () {
     Route::get('/tdrs/inspection/component/{workorder_id}', [TdrController::class, 'inspectionComponent'])->name('tdrs.inspection.component');
 
     Route::post('/components/store_from_inspection', [ComponentController::class, 'storeFromInspection'])->name('components.storeFromInspection');
-    Route::get('/get-processes', [ProcessController::class, 'getProcesses'])->name('processes.getProcesses');
+    Route::get('/get-processes', [TdrProcessController::class, 'getProcesses'])->name('processes.getProcesses');
     Route::get('tdr-processes/processesForm/{id}', [TdrProcessController::class, 'processesForm'])->name('tdr-processes.processesForm');
+    Route::post('/processes/store', [ProcessController::class, 'store'])->name('processes.store');
 
     // Уникальный путь для createProcesses
     Route::get('/tdr/{tdrId}/create-processes', [TdrProcessController::class, 'createProcesses'])->name('tdr-processes.createProcesses');

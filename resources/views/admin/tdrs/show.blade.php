@@ -171,7 +171,7 @@
                         {{--                        </div>--}}
                         @if(count($processParts))
                             <div class="me-2">
-                                <a href="{{route('admin.tdrs.processes',['workorder_id' => $current_wo->id])}}"
+                                <a href="{{route('tdrs.processes',['workorder_id' => $current_wo->id])}}"
                                    class="btn  btn-outline-primary " style="height: 60px;width: 150px" onclick="showLoadingSpinner
                                    ()">
                                     {{__('WO Component Processes')}}
@@ -237,17 +237,30 @@
                             </div>
 
                             @php
-                                $manual = $current_wo->unit->manuals;
+                                $manual = null;
                                 $hasNdtCsv = false;
-                                if ($manual) {
-                                    $hasNdtCsv = $manual->getMedia('csv_files')->first(function($media) {
-                                        return $media->getCustomProperty('process_type') === 'ndt';
-                                    });
+
+                                if ($current_wo && $current_wo->unit && $current_wo->unit->manuals) {
+                                    $manual = $current_wo->unit->manuals;
+                                    try {
+                                        $csv_media = $manual->getMedia('csv_files')->first(function($media) {
+                                            return $media->getCustomProperty('process_type') === 'ndt';
+                                        });
+                                        $hasNdtCsv = $csv_media !== null;
+                                    } catch (\Exception $e) {
+                                        \Log::error('Error checking NDT CSV:', [
+                                            'message' => $e->getMessage(),
+                                            'workorder_id' => $current_wo->id ?? null,
+                                            'unit_id' => $current_wo->unit->id ?? null,
+                                            'manual_id' => $current_wo->unit->manual_id ?? null
+                                        ]);
+                                    }
                                 }
                             @endphp
 
-                            @if($current_wo->instruction_id == 1 && $hasNdtCsv)
-                                <div class="me-2">
+
+                        @if($current_wo->instruction_id == 1 && $hasNdtCsv)
+                                <div class="me-2 ms-2">
                                     <a href="{{ route('tdrs.ndtStd', ['workorder_id' => $current_wo->id]) }}"
                                        class="btn btn-outline-warning" style="height: 40px"
                                        target="_blank">

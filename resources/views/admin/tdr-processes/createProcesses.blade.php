@@ -241,11 +241,24 @@
             formData.append('tdrs_id', tdrId);
             formData.append('processes', JSON.stringify(processesData));
 
-            fetch(`/admin/tdr-processes`, {
+            fetch(`{{ route('tdr-processes.store') }}`, {
                 method: 'POST',
-                body: formData
+                headers: {
+                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
+                    'Accept': 'application/json',
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    tdrs_id: tdrId,
+                    processes: JSON.stringify(processesData)
+                })
             })
-                .then(response => response.json())
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error('Network response was not ok');
+                    }
+                    return response.json();
+                })
                 .then(data => {
                     console.log('Success:', data);
                     if (data.message) {
@@ -275,9 +288,14 @@
 
                 // Если имя процесса выбрано, загружаем связанные процессы
                 if (processNameId) {
-                    console.log(`/admin/get-process/${processNameId}?manual_id=${manualId}`);
-                    fetch(`/admin/get-process/${processNameId}?manual_id=${manualId}`)
-                        .then(response => response.json())
+                    console.log(`/get-process/${processNameId}?manual_id=${manualId}`);
+                    fetch(`/get-process/${processNameId}?manual_id=${manualId}`)
+                        .then(response => {
+                            if (!response.ok) {
+                                throw new Error('Network response was not ok');
+                            }
+                            return response.json();
+                        })
                         .then(data => {
                             if (data && data.length > 0) {
                                 data.forEach(process => {
@@ -326,8 +344,13 @@
                 const manualId = document.getElementById('processes-container').dataset.manualId;
 
                 // Загружаем availableProcesses для выбранного process_name_id и manualId
-                fetch(`/admin/get-processes?processNameId=${processNameId}&manualId=${manualId}`)
-                    .then(response => response.json())
+                fetch(`{{ route('processes.getProcesses') }}?processNameId=${processNameId}&manualId=${manualId}`)
+                    .then(response => {
+                        if (!response.ok) {
+                            throw new Error('Network response was not ok');
+                        }
+                        return response.json();
+                    })
                     .then(data => {
                         const container = document.getElementById('existingProcessContainer');
                         container.innerHTML = ''; // Очищаем контейнер
@@ -368,8 +391,13 @@
             // Получаем manual_id через data-атрибут
             const manualId = document.getElementById('processes-container').dataset.manualId;
 
-            fetch(`/admin/get-processes?processNameId=${processNameId}&manualId=${manualId}`)
-                .then(response => response.json())
+            fetch(`{{ route('processes.getProcesses') }}?processNameId=${processNameId}&manualId=${manualId}`)
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error('Network response was not ok');
+                    }
+                    return response.json();
+                })
                 .then(data => {
                     const container = document.getElementById('existingProcessContainer');
                     container.innerHTML = '';
@@ -404,50 +432,66 @@
             if (newProcess === '' && selectedCheckboxes.length === 0) {
                 alert("Введите новый процесс или выберите существующий.");
                 return;
-
             }
 
-            // Получаем manual_id (например, из скрытого поля формы)
-            // const manualId = document.querySelector('input[name="manual_id"]').value;
+            // Получаем manual_id через data-атрибут
             const manualId = document.getElementById('processes-container').dataset.manualId;
 
             if (currentRow) {
                 const processOptionsContainer = currentRow.querySelector('.process-options');
+                const saveButton = document.querySelector('button[type="submit"]');
 
                 // Если введён новый процесс – отправляем AJAX-запрос для его создания
                 if (newProcess !== '') {
                     const formData = new FormData();
                     formData.append('_token', document.querySelector('meta[name="csrf-token"]').content);
-                    formData.append('process_name_id', processNameId);
-
+                    formData.append('process_names_id', processNameId);
                     formData.append('process', newProcess);
                     formData.append('manual_id', manualId);
 
                     fetch("{{ route('processes.store') }}", {
                         method: 'POST',
                         headers: {
-                            'X-Requested-With': 'XMLHttpRequest'  // Для распознавания запроса как AJAX
+                            'X-Requested-With': 'XMLHttpRequest',
+                            'Accept': 'application/json',
+                            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content
                         },
                         body: formData
                     })
-                        .then(response => response.json())
+                        .then(response => {
+                            if (!response.ok) {
+                                throw new Error('Network response was not ok');
+                            }
+                            return response.json();
+                        })
                         .then(data => {
+                            console.log('Response:', data); // Добавляем для отладки
                             if (data.success) {
                                 // Добавляем созданный процесс в виде чекбокса в контейнер текущей строки
                                 const div = document.createElement('div');
                                 div.classList.add('form-check');
                                 div.innerHTML = `
-                        <input type="checkbox" class="form-check-input" name="processes[${processNameId}][process][]" value="${data.process.id}" checked>
-                        <label class="form-check-label">${data.process.process}</label>
-                    `;
+                            <input type="checkbox" class="form-check-input" name="processes[${processNameId}][process][]" value="${data.process.id}" checked>
+                            <label class="form-check-label">${data.process.process}</label>
+                        `;
                                 processOptionsContainer.appendChild(div);
+                                saveButton.disabled = false; // Активируем кнопку Save
+
+                                // Очищаем сообщение "No specification"
+                                const noSpecLabel = processOptionsContainer.querySelector('.text-muted');
+                                if (noSpecLabel) {
+                                    noSpecLabel.remove();
+                                }
+
+                                // Очищаем поле ввода нового процесса
+                                document.getElementById('newProcessInput').value = '';
                             } else {
-                                alert("Ошибка при добавлении нового процесса.");
+                                alert(data.message || "Ошибка при добавлении нового процесса.");
                             }
                         })
                         .catch(error => {
                             console.error('Ошибка:', error);
-                            alert("Ошибка при добавлении нового процесса.");
+                            alert("Ошибка при добавлении нового процесса: " + error.message);
                         });
                 }
 
@@ -464,6 +508,7 @@
                 `;
                         processOptionsContainer.appendChild(div);
                     });
+                    saveButton.disabled = false; // Активируем кнопку Save
                 }
             }
 
@@ -471,8 +516,6 @@
             const modalEl = document.getElementById('addProcessModal');
             const modalInstance = bootstrap.Modal.getInstance(modalEl);
             modalInstance.hide();
-            // Очищаем поле нового процесса в модальном окне
-            document.getElementById('newProcessInput').value = '';
         });
 
 

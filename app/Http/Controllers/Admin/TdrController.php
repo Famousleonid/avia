@@ -299,7 +299,7 @@ class TdrController extends Controller
         $current_wo = $request->workorder_id;
 
 
-        return redirect()->route('tdrs.show', ['tdr' => $current_wo]);
+        return redirect()->route('admin.tdrs.show', ['tdr' => $current_wo]);
 
     }
 
@@ -571,7 +571,7 @@ class TdrController extends Controller
 
         // Перенаправляем на страницу просмотра с сообщением об успехе
         return redirect()
-            ->route('tdrs.show', ['tdr' => $request->workorder_id])
+            ->route('admin.tdrs.show', ['tdr' => $request->workorder_id])
             ->with('success', 'TDR for Component updated successfully');
     }
     public function prlForm(Request $request, $id){
@@ -745,14 +745,10 @@ class TdrController extends Controller
 
                 // Получаем заголовки CSV файла
                 $headers = $csv->getHeader();
-
-                // Выводим заголовки для отладки
                 \Log::info('CSV Headers:', $headers);
 
                 // Получаем все записи из CSV
                 $records = iterator_to_array($csv->getRecords());
-
-                // Выводим количество записей
                 \Log::info('Total records in CSV:', ['count' => count($records)]);
 
                 // Получаем все ipl_num из tdrs для этого workorder
@@ -765,6 +761,8 @@ class TdrController extends Controller
                     ->unique()
                     ->toArray();
 
+                \Log::info('Existing IPL numbers:', $existingIplNums);
+
                 // Фильтруем и преобразуем записи из CSV
                 foreach ($records as $row) {
                     // Проверяем наличие необходимых данных
@@ -774,26 +772,42 @@ class TdrController extends Controller
                     }
 
                     $itemNo = $row['ITEM   No.'];
+                    $shouldSkip = false;
 
-                    // Проверяем, что компонент еще не добавлен в TDRs
-                    if (in_array($itemNo, $existingIplNums)) {
-                        continue;
+                    // Проверяем каждый существующий ipl_num
+                    foreach ($existingIplNums as $iplNum) {
+                        if (empty($iplNum)) continue;
+
+                        // Очищаем строки от неалфавитно-цифровых символов для сравнения
+                        $cleanItemNo = preg_replace('/[^A-Za-z0-9]/', '', $itemNo);
+                        $cleanIplNum = preg_replace('/[^A-Za-z0-9]/', '', $iplNum);
+
+                        // Если один номер содержит другой, пропускаем эту запись
+                        if (strpos($cleanItemNo, $cleanIplNum) !== false ||
+                            strpos($cleanIplNum, $cleanItemNo) !== false) {
+                            \Log::info('Skipping record due to existing IPL:', [
+                                'item_no' => $itemNo,
+                                'existing_ipl' => $iplNum
+                            ]);
+                            $shouldSkip = true;
+                            break;
+                        }
                     }
 
-                    // Создаем структуру данных, ожидаемую представлением
-                    $component = (object)[
-                        'ipl_num' => $itemNo,
-                        'part_number' => $row['PART No.'] ?? '',
-                        'name' => $row['DESCRIPTION'] ?? '',
-                        'qty' => $row['QTY'] ?? 1,
-                        'process_name' => $row['PROCESS No.'] ?? '1'
-                    ];
+                    if ($shouldSkip) continue;
+
+                    // Если запись не была пропущена, создаем объект компонента
+                    $component = new \stdClass();
+                    $component->ipl_num = $itemNo;
+                    $component->part_number = $row['PART No.'] ?? '';
+                    $component->name = $row['DESCRIPTION'] ?? '';
+                    $component->qty = $row['QTY'] ?? 1;
+                    $component->process_name = $row['PROCESS No.'] ?? '1';
 
                     $ndt_components[] = $component;
                 }
 
-                // Выводим количество найденных компонентов
-                \Log::info('Total components found:', ['count' => count($ndt_components)]);
+                \Log::info('Total components after filtering:', ['count' => count($ndt_components)]);
 
             } catch (\Exception $e) {
                 \Log::error('Error processing CSV file:', [
@@ -804,14 +818,15 @@ class TdrController extends Controller
         }
 
         return view('admin.tdrs.ndtFormStd', [
-            'current_wo' => $current_wo,
-            'manual' => $manual,
-            'ndt_components' => $ndt_components,
-            'ndt_processes' => $ndt_processes,
-            'form_number' => $form_number,
-            'manuals' => [$manual], // Для совместимости с существующим кодом
-        ] + $ndt_ids); // Добавляем ID процессов NDT
+                'current_wo' => $current_wo,
+                'manual' => $manual,
+                'ndt_components' => $ndt_components,
+                'ndt_processes' => $ndt_processes,
+                'form_number' => $form_number,
+                'manuals' => [$manual], // Для совместимости с существующим кодом
+            ] + $ndt_ids); // Добавляем ID процессов NDT
     }
+
 
     /**
      * Находит индекс колонки по возможным названиям
@@ -1017,7 +1032,8 @@ class TdrController extends Controller
 //        }
 
         // Возвращаем данные в представление
-        return view('admin.tdrs.tdrForm', compact('current_wo', 'components', 'necessaries', 'conditions', 'codes', 'tdrInspections'));
+        return view('admin.tdrs.tdrForm', compact('current_wo', 'components',
+            'necessaries', 'conditions', 'codes', 'tdrInspections'));
     }
 
 
@@ -1127,7 +1143,8 @@ class TdrController extends Controller
         }
 
         // Перенаправить с сообщением об успехе
-        return redirect()->route('tdrs.show', ['tdr' => $workorderId])->with('success', 'Запись успешно удалена.');
+        return redirect()->route('admin.tdrs.show', ['tdr' => $workorderId])
+            ->with('success', 'Запись успешно удалена.');
     }
 
 
