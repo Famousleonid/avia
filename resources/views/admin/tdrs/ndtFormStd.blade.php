@@ -396,10 +396,10 @@
                     {{ $component->name }}
                 </div>
                 <div class="col-2 border-l-b details-row text-center" style="height: 32px">
-                    {{ $component->qty }}
+                    {{ $component->process_name }}
                 </div>
                 <div class="col-1 border-l-b details-row text-center" style="height: 32px">
-                    {{ $component->process_name }}
+                    {{ $component->qty }}
                 </div>
                 <div class="col-1 border-l-b details-row text-center" style="height: 32px">
                     <!-- Пустая ячейка -->
@@ -439,7 +439,8 @@
     <footer>
         <div class="row fs-85" style="width: 100%; padding: 5px 0;">
             <div class="col-6 text-start">
-                   {{__('Form #')}} {{$form_number}}
+                   {{__('Form #016')}}
+{{--                {{$form_number}}--}}
             </div>
             <div class="col-6 text-end pe-4 ">
                 {{__('Rev#0, 15/Dec/2012   ')}}
@@ -448,4 +449,4 @@
     </footer>
 </div>
 </body>
-</html> 
+</html>
