@@ -64,7 +64,7 @@ class ManualCsvController extends Controller
                 fclose($handle);
             }
 
-            return view('manuals.csv-view', compact('manual', 'records', 'headers', 'media'));
+            return view('admin.manuals.csv-view', compact('manual', 'records', 'headers', 'media'));
         } catch (\Exception $e) {
             \Log::error('Error viewing CSV file: ' . $e->getMessage());
             return redirect()->back()->with('error', 'Ошибка при просмотре файла: ' . $e->getMessage());

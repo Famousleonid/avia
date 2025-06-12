@@ -379,7 +379,7 @@
     </div>
     <div class="page data-page">
         @php
-            $totalRows = 17; // Общее количество строк
+            $totalRows = 16; // Общее количество строк
             $dataRows = count($ndt_components); // Количество строк с данными
             $emptyRows = $totalRows - $dataRows; // Количество пустых строк
         @endphp
@@ -438,12 +438,30 @@
     </div>
     <footer>
         <div class="row fs-85" style="width: 100%; padding: 5px 0;">
-            <div class="col-6 text-start">
-                   {{__('Form #016')}}
-{{--                {{$form_number}}--}}
+            <div class="col-3 text-start">
+                {{__('Form #016')}}
+            </div>
+            <div class="col-3 text-center">
+{{--                {{__('Total QTY:')}} {{ array_sum(array_column($ndt_components, 'qty')) }}--}}
+{{--                <br>--}}
+{{--                {{__('Total QTY (Process 1):')}} {{ array_sum(array_column(array_filter($ndt_components, function($item) {--}}
+{{--                    return strpos($item->process_name, '1') !== false;--}}
+{{--                }), 'qty')) }}--}}
+{{--                <br>--}}
+{{--                {{__('Total QTY (without Process 1):')}} {{ array_sum(array_column(array_filter($ndt_components, function($item) {--}}
+{{--                    return strpos($item->process_name, '1') === false;--}}
+{{--                }), 'qty')) }}--}}
             </div>
             <div class="col-6 text-end pe-4 ">
                 {{__('Rev#0, 15/Dec/2012   ')}}
+                <br class=" ">
+                {{__(' QTY:')}} {{ array_sum(array_column($ndt_components, 'qty')) }}
+                ( {{__('MPI:')}} {{ array_sum(array_column(array_filter($ndt_components, function($item) {
+                    return strpos($item->process_name, '1') !== false;
+                }), 'qty')) }} {{__(' ; ')}}
+                {{__('FPI:')}} {{ array_sum(array_column(array_filter($ndt_components, function($item) {
+                    return strpos($item->process_name, '1') === false;
+                }), 'qty')) }} )
             </div>
         </div>
     </footer>
