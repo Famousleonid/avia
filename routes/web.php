@@ -77,27 +77,27 @@ Route::group(['middleware' => ['auth'] ], function () {
     Route::get('/logs', [CabinetController::class, 'activity'])->name('log.activity');
 
     Route::resource('/users', UserController::class);
-    Route::resource('/manuals',ManualController::class);
-    Route::resource('/planes',PlaneController::class);
+    Route::resource('/manuals', ManualController::class);
+    Route::resource('/planes', PlaneController::class);
     Route::resource('/builders', BuilderController::class);
-    Route::resource('/scopes',  ScopeController::class);
-    Route::resource('/materials',  MaterialController::class);
-    Route::resource('/roles',  RoleController::class);
-    Route::resource('/teams',  TeamController::class);
-    Route::resource('/customers',  CustomerController::class);
-    Route::resource('/tasks',  TaskController::class);
-    Route::resource('/general-tasks',  GeneralTaskController::class);
-    Route::resource('/workorders',  WorkorderController::class);
-    Route::resource('/mains',  MainController::class);
-    Route::resource('/units',  UnitController::class)->except('update');
-    Route::resource('/tdrs',TdrController::class);
+    Route::resource('/scopes', ScopeController::class);
+    Route::resource('/materials', MaterialController::class);
+    Route::resource('/roles', RoleController::class);
+    Route::resource('/teams', TeamController::class);
+    Route::resource('/customers', CustomerController::class);
+    Route::resource('/tasks', TaskController::class);
+    Route::resource('/general-tasks', GeneralTaskController::class);
+    Route::resource('/workorders', WorkorderController::class);
+    Route::resource('/mains', MainController::class);
+    Route::resource('/units', UnitController::class)->except('update');
+    Route::resource('/tdrs', TdrController::class);
     Route::resource('/components', ComponentController::class);
     Route::resource('/processes', ProcessController::class);
-    Route::resource('/tdr-processes',TdrProcessController::class);
-    Route::resource('/process-names',ProcessNameController::class);
+    Route::resource('/tdr-processes', TdrProcessController::class);
+    Route::resource('/process-names', ProcessNameController::class);
     Route::resource('/trainings', TrainingController::class);
     Route::resource('/manual_processes', ManualProcessController::class);
-    Route::resource('/conditions',ConditionController::class);
+    Route::resource('/conditions', ConditionController::class);
 
     Route::get('/workorders/approve/{id}/', [WorkorderController::class, 'approve'])->name('workorders.approve');
     Route::post('workorders/{workorder}/inspection', [WorkorderController::class, 'updateInspect'])->name('workorders.inspection');
@@ -106,8 +106,8 @@ Route::group(['middleware' => ['auth'] ], function () {
     Route::get('/workorders/download/{id}/all', [WorkorderController::class, 'downloadAllGrouped'])->name('workorders.downloadAllGrouped');
     Route::delete('/workorders/photo/delete/{id}', [MediaController::class, 'delete_photo'])->name('workorders.photo.delete');
 
-    Route::get('/tdrs/processes/{workorder_id}',[TdrController::class, 'processes'])->name('tdrs.processes');
-    Route::get('/tdrs/inspection/{workorder_id}',[TdrController::class, 'inspection'])->name('tdrs.inspection');
+    Route::get('/tdrs/processes/{workorder_id}', [TdrController::class, 'processes'])->name('tdrs.processes');
+    Route::get('/tdrs/inspection/{workorder_id}', [TdrController::class, 'inspection'])->name('tdrs.inspection');
     Route::get('tdrs/tdrForm/{id}', [TdrController::class, 'tdrForm'])->name('tdrs.tdrForm');
     Route::get('tdrs/prlForm/{id}', [TdrController::class, 'prlForm'])->name('tdrs.prlForm');
     Route::get('tdrs/specProcessForm/{id}', [TdrController::class, 'specProcessForm'])->name('tdrs.specProcessForm');
@@ -141,7 +141,6 @@ Route::group(['middleware' => ['auth'] ], function () {
         Route::get('/{file}', [ManualCsvController::class, 'view'])->name('view');
         Route::delete('/{file}', [ManualCsvController::class, 'delete'])->name('delete');
     });
-
 });
 
 

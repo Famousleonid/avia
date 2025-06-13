@@ -32,6 +32,11 @@ use League\Csv\Reader;
 
 class TdrController extends Controller
 {
+    const DEFAULT_QTY = 1;
+    const DEFAULT_PROCESS = 1;
+    const PROCESS_TYPE_NDT = 'ndt';
+    const PROCESS_TYPE_CAD = 'cad';
+
     /**
      * Display a listing of the resource.
      *
@@ -299,7 +304,7 @@ class TdrController extends Controller
         $current_wo = $request->workorder_id;
 
 
-        return redirect()->route('admin.tdrs.show', ['tdr' => $current_wo]);
+        return redirect()->route('tdrs.show', ['tdr' => $current_wo]);
 
     }
 
@@ -826,6 +831,118 @@ class TdrController extends Controller
                 'manuals' => [$manual], // Для совместимости с существующим кодом
             ] + $ndt_ids); // Добавляем ID процессов NDT
     }
+    public function cadtStd($workorder_id)
+    {
+        try {
+            // Получаем рабочий заказ и связанные данные
+            $current_wo = Workorder::findOrFail($workorder_id);
+            $manual = $current_wo->unit->manuals;
+
+            if (!$manual) {
+                throw new \RuntimeException('Manual not found for this workorder');
+            }
+
+            // Получаем CSV-файл с process_type = 'cad'
+            $csvMedia = $manual->getMedia('csv_files')->first(function ($media) {
+                return $media->getCustomProperty('process_type') === self::PROCESS_TYPE_CAD;
+            });
+
+            // Получаем ID process names для CAD
+            $processNames = ProcessName::whereIn('name', ['CAD'])->pluck('id', 'name');
+
+            if (!isset($processNames['CAD'])) {
+                throw new \RuntimeException('CAD process name not found');
+            }
+
+            // Извлекаем ID по именам
+            $cad_ids = [
+                'cad_name_id' => $processNames['CAD']
+            ];
+
+            // Получаем manual processes
+            $manualProcesses = ManualProcess::where('manual_id', $manual->id)
+                ->pluck('processes_id');
+
+            // Получаем CAD processes
+            $cad_processes = Process::whereIn('id', $manualProcesses)
+                ->whereIn('process_names_id', $cad_ids)
+                ->get();
+
+            $cad_components = [];
+            $form_number = 'CAD-STD';
+
+            if ($csvMedia) {
+                $csvPath = $csvMedia->getPath();
+                $csv = Reader::createFromPath($csvPath, 'r');
+                $csv->setHeaderOffset(0);
+
+                // Проверяем обязательные заголовки
+                $requiredHeaders = ['ITEM   No.', 'PART No.', 'DESCRIPTION', 'QTY', 'PROCESS No.'];
+                $headers = $csv->getHeader();
+                $missingHeaders = array_diff($requiredHeaders, $headers);
+
+                if (!empty($missingHeaders)) {
+                    throw new \RuntimeException('Отсутствуют обязательные заголовки CSV: ' . implode(', ', $missingHeaders));
+                }
+
+                // Получаем все записи из CSV
+                $records = iterator_to_array($csv->getRecords());
+                \Log::info('Total CAD records in CSV:', ['count' => count($records)]);
+
+                // Получаем существующие IPL номера
+                $existingIplNums = Tdr::where('workorder_id', $workorder_id)
+                    ->whereNotNull('component_id')
+                    ->with('component')
+                    ->get()
+                    ->pluck('component.ipl_num')
+                    ->filter()
+                    ->unique()
+                    ->toArray();
+
+                // Обрабатываем записи
+                foreach ($records as $row) {
+                    if (!isset($row['ITEM   No.'])) {
+                        \Log::warning('Missing item number in CAD row:', $row);
+                        continue;
+                    }
+
+                    $itemNo = $row['ITEM   No.'];
+
+                    if ($this->shouldSkipItem($itemNo, $existingIplNums)) {
+                        continue;
+                    }
+
+                    // Создаем объект компонента
+                    $component = new \stdClass();
+                    $component->ipl_num = $itemNo;
+                    $component->part_number = $row['PART No.'] ?? '';
+                    $component->name = $row['DESCRIPTION'] ?? '';
+                    $component->qty = (int)($row['QTY'] ?? self::DEFAULT_QTY);
+                    $component->process_name = $row['PROCESS No.'] ?? self::DEFAULT_PROCESS;
+
+                    $cad_components[] = $component;
+                }
+
+                \Log::info('Total CAD components after filtering:', ['count' => count($cad_components)]);
+            }
+
+            return view('admin.tdrs.cadFormStd', [
+                    'current_wo' => $current_wo,
+                    'manual' => $manual,
+                    'cad_components' => $cad_components,
+                    'cad_processes' => $cad_processes,
+                    'form_number' => $form_number,
+                    'manuals' => [$manual],
+                ] + $cad_ids);
+
+        } catch (\Exception $e) {
+            \Log::error('Error in CAD processing:', [
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+            throw $e;
+        }
+    }
 
 
     /**
@@ -849,6 +966,10 @@ class TdrController extends Controller
 
         // Получаем данные о manual_id, связанном с этим Workorder
         $manual_id = $current_wo->unit->manual_id;
+
+        // Получаем NDT суммы
+        $ndtSums = $this->calcNdtSums($id);
+
 
         $tdr_ws = Tdr::where('workorder_id', $current_wo->id)
             ->where('use_process_forms', true)
@@ -904,6 +1025,7 @@ class TdrController extends Controller
             'current_wo' => $current_wo,
             'processes' => $result, // Исходная коллекция
             'ndt_processes' => $ndt_processes, // Отфильтрованная коллекция
+            'ndtSums' => $ndtSums, // Добавляем NDT суммы в представление
         ], compact('tdrs', 'tdr_ws','processNames'));
     }
 
@@ -1143,9 +1265,233 @@ class TdrController extends Controller
         }
 
         // Перенаправить с сообщением об успехе
-        return redirect()->route('admin.tdrs.show', ['tdr' => $workorderId])
+        return redirect()->route('tdrs.show', ['tdr' => $workorderId])
             ->with('success', 'Запись успешно удалена.');
     }
+
+
+    /**
+     * Расчет сумм NDT из данных CSV для рабочего заказа
+     *
+     * @param int $workorder_id ID рабочего заказа
+     * @return array{total: int, mpi: int, fpi: int} Массив с общими суммами, MPI и FPI
+     */
+    private function calcNdtSums(int $workorder_id): array
+    {
+
+        // Инициализация счетчиков
+        $total = 0;
+        $mpi = 0;
+        $fpi = 0;
+
+        try {
+            // Получение рабочего заказа и связанных данных
+            $current_wo = Workorder::findOrFail($workorder_id);
+            $manual = $current_wo->unit->manuals;
+
+            // Получение CSV файла NDT
+            $csvMedia = $manual->getMedia('csv_files')->first(function ($media) {
+                return $media->getCustomProperty('process_type') === self::PROCESS_TYPE_NDT;
+            });
+
+            // Если CSV файл не найден, возвращаем нулевые значения
+            if (!$csvMedia) {
+                return ['total' => 0, 'mpi' => 0, 'fpi' => 0];
+            }
+
+            // Получение существующих номеров IPL
+            $existingIplNums = Tdr::where('workorder_id', $workorder_id)
+                ->whereNotNull('component_id')
+                ->with('component')
+                ->get()
+                ->pluck('component.ipl_num')
+                ->filter()
+                ->unique()
+                ->toArray();
+
+            // Обработка CSV файла
+            $csvPath = $csvMedia->getPath();
+            $csv = Reader::createFromPath($csvPath, 'r');
+            $csv->setHeaderOffset(0);
+
+            // Проверка заголовков CSV
+            $requiredHeaders = ['ITEM   No.', 'PART No.', 'DESCRIPTION', 'QTY', 'PROCESS No.'];
+            $headers = $csv->getHeader();
+            $missingHeaders = array_diff($requiredHeaders, $headers);
+
+            if (!empty($missingHeaders)) {
+                throw new \RuntimeException('Отсутствуют обязательные заголовки CSV: ' . implode(', ', $missingHeaders));
+            }
+
+            // Обработка записей
+            $ndt_components = [];
+            foreach ($csv->getRecords() as $row) {
+                if (!isset($row['ITEM   No.'])) {
+                    \Log::warning('Отсутствует номер элемента в строке:', $row);
+                    continue;
+                }
+
+                $itemNo = $row['ITEM   No.'];
+
+                // Пропуск, если номер элемента совпадает с существующим IPL
+                if ($this->shouldSkipItem($itemNo, $existingIplNums)) {
+                    continue;
+                }
+
+                // Создание объекта компонента
+                $component = new \stdClass();
+                $component->ipl_num = $itemNo;
+                $component->part_number = $row['PART No.'] ?? '';
+                $component->name = $row['DESCRIPTION'] ?? '';
+                $component->qty = (int)($row['QTY'] ?? self::DEFAULT_QTY);
+                $component->process_name = $row['PROCESS No.'] ?? self::DEFAULT_PROCESS;
+
+                $ndt_components[] = $component;
+            }
+
+            // Вычисление сумм за один проход
+            foreach ($ndt_components as $component) {
+                $qty = $component->qty;
+                $total += $qty;
+
+                if (strpos($component->process_name, '1') !== false) {
+                    $mpi += $qty;
+                } else {
+                    $fpi += $qty;
+                }
+            }
+
+            return [
+                'total' => $total,
+                'mpi' => $mpi,
+                'fpi' => $fpi
+            ];
+
+        } catch (\Exception $e) {
+            \Log::error('Ошибка при обработке CSV файла:', [
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+            return ['total' => 0, 'mpi' => 0, 'fpi' => 0];
+        }
+    }
+    private function calcCadSums(int $workorder_id): array
+    {
+
+        // Инициализация счетчиков
+        $total = 0;
+
+
+        try {
+            // Получение рабочего заказа и связанных данных
+            $current_wo = Workorder::findOrFail($workorder_id);
+            $manual = $current_wo->unit->manuals;
+
+            // Получение CSV файла NDT
+            $csvMedia = $manual->getMedia('csv_files')->first(function ($media) {
+                return $media->getCustomProperty('process_type') === self::PROCESS_TYPE_CAD;
+            });
+
+            // Если CSV файл не найден, возвращаем нулевые значения
+            if (!$csvMedia) {
+                return ['total' => 0];
+            }
+
+            // Получение существующих номеров IPL
+            $existingIplNums = Tdr::where('workorder_id', $workorder_id)
+                ->whereNotNull('component_id')
+                ->with('component')
+                ->get()
+                ->pluck('component.ipl_num')
+                ->filter()
+                ->unique()
+                ->toArray();
+
+            // Обработка CSV файла
+            $csvPath = $csvMedia->getPath();
+            $csv = Reader::createFromPath($csvPath, 'r');
+            $csv->setHeaderOffset(0);
+
+            // Проверка заголовков CSV
+            $requiredHeaders = ['ITEM   No.', 'PART No.', 'DESCRIPTION', 'QTY', 'PROCESS No.'];
+            $headers = $csv->getHeader();
+            $missingHeaders = array_diff($requiredHeaders, $headers);
+
+            if (!empty($missingHeaders)) {
+                throw new \RuntimeException('Отсутствуют обязательные заголовки CSV: ' . implode(', ', $missingHeaders));
+            }
+
+            // Обработка записей
+            $ndt_components = [];
+            foreach ($csv->getRecords() as $row) {
+                if (!isset($row['ITEM   No.'])) {
+                    \Log::warning('Отсутствует номер элемента в строке:', $row);
+                    continue;
+                }
+
+                $itemNo = $row['ITEM   No.'];
+
+                // Пропуск, если номер элемента совпадает с существующим IPL
+                if ($this->shouldSkipItem($itemNo, $existingIplNums)) {
+                    continue;
+                }
+
+                // Создание объекта компонента
+                $component = new \stdClass();
+                $component->ipl_num = $itemNo;
+                $component->part_number = $row['PART No.'] ?? '';
+                $component->name = $row['DESCRIPTION'] ?? '';
+                $component->qty = (int)($row['QTY'] ?? self::DEFAULT_QTY);
+                $component->process_name = $row['PROCESS No.'] ?? self::DEFAULT_PROCESS;
+
+                $cad_components[] = $component;
+            }
+
+            // Вычисление сумм за один проход
+            foreach ($cad_components as $component) {
+                $qty = $component->qty;
+                $total += $qty;
+
+            }
+
+            return [
+                'total' => $total,
+
+            ];
+
+        } catch (\Exception $e) {
+            \Log::error('Ошибка при обработке CSV файла:', [
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+            return ['total' => 0];
+        }
+    }
+
+    /**
+     * Проверяет, нужно ли пропустить элемент на основе существующих IPL номеров
+     */
+    private function shouldSkipItem(string $itemNo, array $existingIplNums): bool
+    {
+        foreach ($existingIplNums as $iplNum) {
+            if (empty($iplNum)) continue;
+
+            // Очистка строк от неалфавитно-цифровых символов для сравнения
+            $cleanItemNo = preg_replace('/[^A-Za-z0-9]/', '', $itemNo);
+            $cleanIplNum = preg_replace('/[^A-Za-z0-9]/', '', $iplNum);
+
+            // Если один номер содержит другой, пропускаем
+            if (strpos($cleanItemNo, $cleanIplNum) !== false ||
+                strpos($cleanIplNum, $cleanItemNo) !== false) {
+                return true;
+            }
+        }
+        return false;
+    }
+    /**
+     * Проверяет, нужно ли пропустить элемент на основе существующих IPL номеров
+     */
+
 
 
 }

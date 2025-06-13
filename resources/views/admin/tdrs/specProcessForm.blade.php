@@ -291,10 +291,10 @@
                     <img src="{{ asset('img/icons/icons8-right-arrow.gif')}}" alt="arrow"
                          style="width: 24px;height: 20px">
                 </div>
-                <div class="border-l-t-b text-center pt-1 fs-8" style="width: 25px;height: 20px"></div>
+                <div class="border-l-t-b text-center pt-0 fs-7" style="width: 25px;height: 20px">{{ $ndtSums['mpi'] }}</div>
                 <div class="border-l-t-b ps-2 fs-8 " style="width: 130px;height: 20px; color: grey; font-style: italic" >RO
                     No.</div>
-                <div class="border-all text-center pt-1 fs-8" style="width: 25px;height: 20px"></div>
+                <div class="border-all text-center pt-0 fs-7" style="width: 25px;height: 20px">{{ $ndtSums['fpi'] }}</div>
                 <div class=" text-center fs-8" style="width: 20px;height: 20px"></div>
                 <div class="border-l-t-b ps-2 fs-8 " style="width: 100px;height: 20px; color: grey; font-style: italic" >RO
                     No.</div>
@@ -626,6 +626,7 @@
             <div class="col-6 text-start">
                 {{__("Form #012")}}
             </div>
+
             <div class="col-6 text-end pe-4 ">
                 {{__('Rev#0, 15/Dec/2012   ')}}
             </div>

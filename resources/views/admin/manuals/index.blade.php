@@ -133,8 +133,20 @@
                             <td class="text-center">{{$cmm->lib}}</td>
                             <td class="text-center">
                                 <div class="d-flex justify-content-center gap-1">
+{{--                                    @foreach($cmm->getMedia('csv_files') as $file)--}}
+{{--                                        <a href="/admin/manuals/{{ $cmm->id }}/csv/{{ $file->id }}"--}}
+{{--                                           class="btn btn-sm btn-outline-info">--}}
+{{--                                            <i class="fas fa-file-csv"></i>--}}
+{{--                                            @if($file->getCustomProperty('process_type'))--}}
+{{--                                                {{ $file->getCustomProperty('process_type') }}--}}
+{{--                                            @else--}}
+{{--                                                {{__('No Type')}}--}}
+{{--                                            @endif--}}
+{{--                                        </a>--}}
+{{--                                    @endforeach--}}
+
                                     @foreach($cmm->getMedia('csv_files') as $file)
-                                        <a href="/admin/manuals/{{ $cmm->id }}/csv/{{ $file->id }}"
+                                        <a href="{{ route('manuals.csv.view', ['manual' => $cmm->id, 'file' => $file->id]) }}"
                                            class="btn btn-sm btn-outline-info">
                                             <i class="fas fa-file-csv"></i>
                                             @if($file->getCustomProperty('process_type'))
