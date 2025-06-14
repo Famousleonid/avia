@@ -211,13 +211,13 @@
 </head>
 
 <body>
-    <!-- Кнопка для печати -->
-    <div class="text-start m-3">
-        <button class="btn btn-outline-primary no-print" onclick="window.print()">
-            Print Form
-        </button>
+<!-- Кнопка для печати -->
+<div class="text-start m-3">
+    <button class="btn btn-primary no-print" onclick="window.print()">
+        Print Form
+    </button>
 
-    </div>
+</div>
 
 <div class="container-fluid">
     <div class="row">
@@ -237,12 +237,12 @@
         </div>
         <div class="col-5 border-all pt-1" style="height: 32px">
             <h5 class="">
-            <strong> {{$current_wo->description}}</strong>
+                <strong> {{$current_wo->description}}</strong>
             </h5>
         </div>
         <div class="col-2 border-t-r-b" style="height: 32px" >
             <h5 class="pt-1">
-               <strong> W{{$current_wo->number}}</strong>
+                <strong> W{{$current_wo->number}}</strong>
             </h5>
         </div>
     </div>
@@ -253,38 +253,38 @@
         </div>
         <div class="col-5 pt-1 border-l-b-r" style="height: 32px" >
             <h5 class="">
-            <strong> {{$current_wo->unit->part_number}}</strong>
+                <strong> {{$current_wo->unit->part_number}}</strong>
             </h5>
         </div>
     </div>
 
-        <div class="row mt-2 mb-1" >
-            <div class="col-6" style="height: 32px">
-                <div class="row" >
-                    <div class="col-1" style="height: 32px"></div>
-                    <div class="col-10 border-all-b" style="height: 32px">
-                        <p class="fs-7 pt-1">
-                            <strong>TEARDOWN INSPECTION & CONDITION:</strong>
-                        </p>
-                    </div>
-                    <div class="col-1"></div>
+    <div class="row mt-2 mb-1" >
+        <div class="col-6" style="height: 32px">
+            <div class="row" >
+                <div class="col-1" style="height: 32px"></div>
+                <div class="col-10 border-all-b" style="height: 32px">
+                    <p class="fs-7 pt-1">
+                        <strong>TEARDOWN INSPECTION & CONDITION:</strong>
+                    </p>
                 </div>
-            </div>
-            <div class="col-6 border-all-b" style="height: 32px">
-                <p class="fs-7 pt-1">
-                    <strong>TEARDOWN INSPECTION & CONDITION:</strong>
-                </p>
+                <div class="col-1"></div>
             </div>
         </div>
-        <div class="row  border-all-b" style="height: 38px">
-            <div class="col-5">
-                <p class="fs-7 text-end"><strong>ATTENTION PRODUCTION DEPARTMENT:</strong> </p>
-            </div>
-            <div class="col-7">
-                <p class="fs-8  ">MAKE SURE TO ADD INFORMATION FROM WO COWER SHEET TO IDENTIFY PRELIMINARY INSPECTION
-                    DETAILS FOR STRIP REPORT</p>
-            </div>
+        <div class="col-6 border-all-b" style="height: 32px">
+            <p class="fs-7 pt-1">
+                <strong>TEARDOWN INSPECTION & CONDITION:</strong>
+            </p>
         </div>
+    </div>
+    <div class="row  border-all-b" style="height: 38px">
+        <div class="col-5">
+            <p class="fs-7 text-end"><strong>ATTENTION PRODUCTION DEPARTMENT:</strong> </p>
+        </div>
+        <div class="col-7">
+            <p class="fs-8  ">MAKE SURE TO ADD INFORMATION FROM WO COWER SHEET TO IDENTIFY PRELIMINARY INSPECTION
+                DETAILS FOR STRIP REPORT</p>
+        </div>
+    </div>
     <div class="row " >
         <div class="col-6">
             <div class="row " >
@@ -314,7 +314,7 @@
         <div class="col-6">
             <div class="row " >
                 <div class="col-1 border-l-b align-items-center justify-content-center" style="height: 36px">
-                     <img class="pt-1 ps-1" src="{{ asset('img/icons/reqs.png') }}" alt="reqs" style="height: 24px; margin-left:
+                    <img class="pt-1 ps-1" src="{{ asset('img/icons/reqs.png') }}" alt="reqs" style="height: 24px; margin-left:
                             -10px" >
                 </div>
                 <div class="col-10 border-ll-bb">
@@ -353,7 +353,7 @@
                     <div class="col-10 border-b" style="height: 36px">
                         <p class="fs-75">
                             <!-- Заполняем значением из первого столбца, если оно есть -->
-{{--                            {!! isset($firstColumn[$i]) ? $firstColumn[$i] : '' !!}--}}
+                            {{--                            {!! isset($firstColumn[$i]) ? $firstColumn[$i] : '' !!}--}}
                             {!! $firstColumn[$i] ?? '' !!}
                         </p>
                     </div>
@@ -376,8 +376,8 @@
                     </div>
                     <div class="col-10 border-b" style="height: 36px">
                         <p class="fs-75">
-                        <!-- Заполняем значением из второго столбца, если оно есть -->
-                        {{ $secondColumn[$i] ?? '' }}
+                            <!-- Заполняем значением из второго столбца, если оно есть -->
+                            {{ $secondColumn[$i] ?? '' }}
                         </p>
                     </div>
                     <div class="col-1 border-l-b-r" style="height: 36px">
