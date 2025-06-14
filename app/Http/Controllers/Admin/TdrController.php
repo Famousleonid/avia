@@ -214,10 +214,6 @@ class TdrController extends Controller
      */
     public function store(Request $request)
     {
-//        dd($request->all()); // Посмотреть все переданные данные
-
-
-
 
         // Валидация данных
         $validated = $request->validate([
@@ -831,16 +827,20 @@ class TdrController extends Controller
                 'manuals' => [$manual], // Для совместимости с существующим кодом
             ] + $ndt_ids); // Добавляем ID процессов NDT
     }
-    public function cadtStd($workorder_id)
+    public function cadStd($workorder_id)
     {
         try {
             // Получаем рабочий заказ и связанные данные
             $current_wo = Workorder::findOrFail($workorder_id);
             $manual = $current_wo->unit->manuals;
 
+
+
             if (!$manual) {
                 throw new \RuntimeException('Manual not found for this workorder');
             }
+
+            $cadSum = $this->calcCadSums($workorder_id);
 
             // Получаем CSV-файл с process_type = 'cad'
             $csvMedia = $manual->getMedia('csv_files')->first(function ($media) {
@@ -848,15 +848,15 @@ class TdrController extends Controller
             });
 
             // Получаем ID process names для CAD
-            $processNames = ProcessName::whereIn('name', ['CAD'])->pluck('id', 'name');
+            $processNames = ProcessName::whereIn('name', ['Cad plate'])->pluck('id', 'name');
 
-            if (!isset($processNames['CAD'])) {
+            if (!isset($processNames['Cad plate'])) {
                 throw new \RuntimeException('CAD process name not found');
             }
 
             // Извлекаем ID по именам
             $cad_ids = [
-                'cad_name_id' => $processNames['CAD']
+                'cad_name_id' => $processNames['Cad plate']
             ];
 
             // Получаем manual processes
@@ -899,6 +899,14 @@ class TdrController extends Controller
                     ->unique()
                     ->toArray();
 
+                // Получаем все процессы для данного manual и process_name
+                $validProcesses = Process::whereIn('id', $manualProcesses)
+                    ->where('process_names_id', $cad_ids['cad_name_id'])
+                    ->pluck('process')
+                    ->toArray();
+
+                \Log::info('Valid processes for CAD:', ['processes' => $validProcesses]);
+
                 // Обрабатываем записи
                 foreach ($records as $row) {
                     if (!isset($row['ITEM   No.'])) {
@@ -912,13 +920,60 @@ class TdrController extends Controller
                         continue;
                     }
 
+                    // Проверяем и создаем процесс, если его нет
+                    $processName = $row['PROCESS No.'] ?? '';
+                    if (!empty($processName)) {
+                        // Проверяем существование процесса
+                        $process = Process::where('process', $processName)
+                            ->where('process_names_id', $cad_ids['cad_name_id'])
+                            ->first();
+
+                        if (!$process) {
+                            // Создаем новый процесс
+                            $process = Process::create([
+                                'process' => $processName,
+                                'process_names_id' => $cad_ids['cad_name_id']
+                            ]);
+                            \Log::info('Created new process:', ['process' => $processName]);
+                        }
+
+                        // Проверяем привязку к manual
+                        $manualProcess = ManualProcess::where('manual_id', $manual->id)
+                            ->where('processes_id', $process->id)
+                            ->first();
+
+                        if (!$manualProcess) {
+                            // Создаем привязку к manual
+                            ManualProcess::create([
+                                'manual_id' => $manual->id,
+                                'processes_id' => $process->id
+                            ]);
+                            \Log::info('Created manual-process binding:', [
+                                'manual_id' => $manual->id,
+                                'process_id' => $process->id
+                            ]);
+                        }
+
+                        // Обновляем список валидных процессов
+                        $validProcesses[] = $processName;
+                    }
+
+                    if (!in_array($processName, $validProcesses)) {
+                        \Log::warning('Invalid process found in CSV:', [
+                            'process' => $processName,
+                            'item_no' => $itemNo,
+                            'valid_processes' => $validProcesses
+                        ]);
+                        continue;
+                    }
+
                     // Создаем объект компонента
                     $component = new \stdClass();
                     $component->ipl_num = $itemNo;
                     $component->part_number = $row['PART No.'] ?? '';
                     $component->name = $row['DESCRIPTION'] ?? '';
                     $component->qty = (int)($row['QTY'] ?? self::DEFAULT_QTY);
-                    $component->process_name = $row['PROCESS No.'] ?? self::DEFAULT_PROCESS;
+                    $component->process_name = $processName;
 
                     $cad_components[] = $component;
                 }
@@ -926,14 +981,25 @@ class TdrController extends Controller
                 \Log::info('Total CAD components after filtering:', ['count' => count($cad_components)]);
             }
 
+            // Обновляем список процессов после возможного добавления новых
+            $cad_processes = Process::whereIn('id', $manualProcesses)
+                ->whereIn('process_names_id', $cad_ids)
+                ->get();
+
+            // Рассчитываем общее количество деталей
+            $totalQuantities = $this->calcCadSums($workorder_id);
+
             return view('admin.tdrs.cadFormStd', [
-                    'current_wo' => $current_wo,
-                    'manual' => $manual,
-                    'cad_components' => $cad_components,
-                    'cad_processes' => $cad_processes,
-                    'form_number' => $form_number,
-                    'manuals' => [$manual],
-                ] + $cad_ids);
+                'current_wo' => $current_wo,
+                'manual' => $manual,
+                'cad_components' => $cad_components,
+                'cad_processes' => $cad_processes,
+                'form_number' => $form_number,
+                'manuals' => [$manual],
+                'process_name' => ProcessName::where('name', 'Cad plate')->first(),
+                'total_quantities' => $totalQuantities,
+                    'cadSum' => $cadSum,
+            ] + $cad_ids);
 
         } catch (\Exception $e) {
             \Log::error('Error in CAD processing:', [
@@ -943,7 +1009,6 @@ class TdrController extends Controller
             throw $e;
         }
     }
-
 
     /**
      * Находит индекс колонки по возможным названиям
@@ -969,7 +1034,7 @@ class TdrController extends Controller
 
         // Получаем NDT суммы
         $ndtSums = $this->calcNdtSums($id);
-
+        $cadSum = $this->calcCadSums($id);
 
         $tdr_ws = Tdr::where('workorder_id', $current_wo->id)
             ->where('use_process_forms', true)
@@ -1026,6 +1091,7 @@ class TdrController extends Controller
             'processes' => $result, // Исходная коллекция
             'ndt_processes' => $ndt_processes, // Отфильтрованная коллекция
             'ndtSums' => $ndtSums, // Добавляем NDT суммы в представление
+            'cadSum' => $cadSum,
         ], compact('tdrs', 'tdr_ws','processNames'));
     }
 
@@ -1375,96 +1441,92 @@ class TdrController extends Controller
             return ['total' => 0, 'mpi' => 0, 'fpi' => 0];
         }
     }
-    private function calcCadSums(int $workorder_id): array
+    private function calcCadSums($workorder_id)
     {
-
-        // Инициализация счетчиков
-        $total = 0;
-
-
         try {
-            // Получение рабочего заказа и связанных данных
+            // Получаем текущий workorder
             $current_wo = Workorder::findOrFail($workorder_id);
             $manual = $current_wo->unit->manuals;
 
-            // Получение CSV файла NDT
+            if (!$manual) {
+                throw new \RuntimeException('Manual not found for this workorder');
+            }
+
+            // 1. Чтение CSV файла
             $csvMedia = $manual->getMedia('csv_files')->first(function ($media) {
                 return $media->getCustomProperty('process_type') === self::PROCESS_TYPE_CAD;
             });
 
-            // Если CSV файл не найден, возвращаем нулевые значения
             if (!$csvMedia) {
-                return ['total' => 0];
+                throw new \RuntimeException('CSV file not found');
             }
 
-            // Получение существующих номеров IPL
-            $existingIplNums = Tdr::where('workorder_id', $workorder_id)
-                ->whereNotNull('component_id')
-                ->with('component')
-                ->get()
-                ->pluck('component.ipl_num')
-                ->filter()
-                ->unique()
-                ->toArray();
-
-            // Обработка CSV файла
+            // Читаем CSV файл
             $csvPath = $csvMedia->getPath();
             $csv = Reader::createFromPath($csvPath, 'r');
             $csv->setHeaderOffset(0);
 
-            // Проверка заголовков CSV
-            $requiredHeaders = ['ITEM   No.', 'PART No.', 'DESCRIPTION', 'QTY', 'PROCESS No.'];
-            $headers = $csv->getHeader();
-            $missingHeaders = array_diff($requiredHeaders, $headers);
+            // Получаем все записи из CSV
+            $records = iterator_to_array($csv->getRecords());
+            \Log::info('Total CAD records in CSV:', ['count' => count($records)]);
 
-            if (!empty($missingHeaders)) {
-                throw new \RuntimeException('Отсутствуют обязательные заголовки CSV: ' . implode(', ', $missingHeaders));
-            }
+            // 2. Чтение TDR компонентов
+            $tdrComponents = Tdr::where('workorder_id', $workorder_id)
+                ->whereNotNull('component_id')
+                ->with('component')
+                ->get();
 
-            // Обработка записей
-            $ndt_components = [];
-            foreach ($csv->getRecords() as $row) {
-                if (!isset($row['ITEM   No.'])) {
-                    \Log::warning('Отсутствует номер элемента в строке:', $row);
+            // Создаем мапу IPL номеров из TDR
+            $tdrIplMap = $tdrComponents->pluck('qty', 'component.ipl_num')->toArray();
+
+            \Log::info('TDR Components:', [
+                'count' => count($tdrIplMap),
+                'ipl_numbers' => array_keys($tdrIplMap)
+            ]);
+
+            // 3. Сравнение и подсчет
+            $totalQty = 0;
+            $totalComponents = 0;
+            $processedIpls = [];
+
+            foreach ($records as $record) {
+                $itemNo = trim($record['ITEM   No.']);
+
+                // Если IPL номер есть в TDR - пропускаем
+                if (isset($tdrIplMap[$itemNo])) {
+                    \Log::info('Skipping component as it exists in TDR:', ['ipl_num' => $itemNo]);
                     continue;
                 }
 
-                $itemNo = $row['ITEM   No.'];
-
-                // Пропуск, если номер элемента совпадает с существующим IPL
-                if ($this->shouldSkipItem($itemNo, $existingIplNums)) {
-                    continue;
+                // Если IPL номер еще не был обработан
+                if (!in_array($itemNo, $processedIpls)) {
+                    $totalQty += 1; // Предполагаем qty = 1 для компонентов из CSV
+                    $totalComponents++;
+                    $processedIpls[] = $itemNo;
+                    \Log::info('Adding component from CSV:', ['ipl_num' => $itemNo]);
                 }
-
-                // Создание объекта компонента
-                $component = new \stdClass();
-                $component->ipl_num = $itemNo;
-                $component->part_number = $row['PART No.'] ?? '';
-                $component->name = $row['DESCRIPTION'] ?? '';
-                $component->qty = (int)($row['QTY'] ?? self::DEFAULT_QTY);
-                $component->process_name = $row['PROCESS No.'] ?? self::DEFAULT_PROCESS;
-
-                $cad_components[] = $component;
             }
 
-            // Вычисление сумм за один проход
-            foreach ($cad_components as $component) {
-                $qty = $component->qty;
-                $total += $qty;
-
-            }
+            \Log::info('CAD calculation results:', [
+                'total_qty' => $totalQty,
+                'total_components' => $totalComponents,
+                'processed_ipls' => $processedIpls
+            ]);
 
             return [
-                'total' => $total,
-
+                'total_qty' => $totalQty,
+                'total_components' => $totalComponents
             ];
 
         } catch (\Exception $e) {
-            \Log::error('Ошибка при обработке CSV файла:', [
+            \Log::error('Error in CAD sums calculation:', [
                 'error' => $e->getMessage(),
                 'trace' => $e->getTraceAsString()
             ]);
-            return ['total' => 0];
+            return [
+                'total_qty' => 0,
+                'total_components' => 0
+            ];
         }
     }
 

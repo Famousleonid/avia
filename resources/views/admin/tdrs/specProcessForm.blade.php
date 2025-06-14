@@ -298,7 +298,7 @@
                 <div class=" text-center fs-8" style="width: 20px;height: 20px"></div>
                 <div class="border-l-t-b ps-2 fs-8 " style="width: 100px;height: 20px; color: grey; font-style: italic" >RO
                     No.</div>
-                <div class="border-all text-center pt-1 fs-8" style="width: 25px;height: 20px"></div>
+                <div class="border-all text-center pt-0 fs-7" style="width: 25px;height: 20px">{{ $cadSum['total_qty'] }}</div>
                 <div class=" text-center fs-8" style="width: 305px;height: 20px"></div>
                 <div class=" text-end pt-2 fs-75" style="width: 75px;height: 20px">Technician</div>
                 <div class="border-b " style="width: 120px"></div>

@@ -129,6 +129,7 @@ Route::group(['middleware' => ['auth'] ], function () {
     Route::get('/tdr/{tdrId}/processes', [TdrProcessController::class, 'processes'])->name('tdr-processes.processes');
     Route::get('/get-process/{processNameId}', [TdrProcessController::class, 'getProcess'])->name('tdr-processes.get-process');
     Route::get('tdrs/{workorder_id}/ndt-std', [TdrController::class, 'ndtStd'])->name('tdrs.ndtStd');
+    Route::get('tdrs/{workorder_id}/cad-std', [TdrController::class, 'cadStd'])->name('tdrs.cadStd');
 
     Route::get('trainings/form112/{id}', [TrainingController::class, 'showForm112'])->name('trainings.form112');
     Route::get('trainings/form132/{id}', [TrainingController::class, 'showForm132'])->name('trainings.form132');

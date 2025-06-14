@@ -239,6 +239,7 @@
                             @php
                                 $manual = null;
                                 $hasNdtCsv = false;
+                                $hasCadCsv = false;
 
                                 if ($current_wo && $current_wo->unit && $current_wo->unit->manuals) {
                                     $manual = $current_wo->unit->manuals;
@@ -255,6 +256,20 @@
                                             'manual_id' => $current_wo->unit->manual_id ?? null
                                         ]);
                                     }
+
+                                    try {
+                                        $cad_media = $manual->getMedia('csv_files')->first(function($media) {
+                                            return $media->getCustomProperty('process_type') === 'cad';
+                                        });
+                                        $hasCadCsv = $cad_media !== null;
+                                    } catch (\Exception $e) {
+                                        \Log::error('Error checking CAD CSV:', [
+                                            'message' => $e->getMessage(),
+                                            'workorder_id' => $current_wo->id ?? null,
+                                            'unit_id' => $current_wo->unit->id ?? null,
+                                            'manual_id' => $current_wo->unit->manual_id ?? null
+                                        ]);
+                                    }
                                 }
                             @endphp
 
@@ -265,6 +280,16 @@
                                        class="btn btn-outline-warning" style="height: 40px"
                                        target="_blank">
                                         NDT STD
+                                    </a>
+                                </div>
+                            @endif
+
+                            @if($current_wo->instruction_id == 1 && $hasCadCsv)
+                                <div class="me-2 ms-2">
+                                    <a href="{{ route('tdrs.cadStd', ['workorder_id' => $current_wo->id]) }}"
+                                       class="btn btn-outline-warning" style="height: 40px"
+                                       target="_blank">
+                                        CAD STD
                                     </a>
                                 </div>
                             @endif
