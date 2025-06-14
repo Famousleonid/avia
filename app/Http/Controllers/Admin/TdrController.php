@@ -32,6 +32,11 @@ use League\Csv\Reader;
 
 class TdrController extends Controller
 {
+    const DEFAULT_QTY = 1;
+    const DEFAULT_PROCESS = 1;
+    const PROCESS_TYPE_NDT = 'ndt';
+    const PROCESS_TYPE_CAD = 'cad';
+
     /**
      * Display a listing of the resource.
      *
@@ -209,10 +214,6 @@ class TdrController extends Controller
      */
     public function store(Request $request)
     {
-//        dd($request->all()); // Посмотреть все переданные данные
-
-
-
 
         // Валидация данных
         $validated = $request->validate([
@@ -299,7 +300,7 @@ class TdrController extends Controller
         $current_wo = $request->workorder_id;
 
 
-        return redirect()->route('admin.tdrs.show', ['tdr' => $current_wo]);
+        return redirect()->route('tdrs.show', ['tdr' => $current_wo]);
 
     }
 
@@ -621,241 +622,84 @@ class TdrController extends Controller
 
     public function ndtForm(Request $request, $id)
     {
-        // Загрузка Workorder по ID
+        // Загрузка Workorder с необходимыми отношениями
         $current_wo = Workorder::findOrFail($id);
 
-        // Получаем данные о manual_id, связанном с этим Workorder
+        // Получаем manual_id через отношения
         $manual_id = $current_wo->unit->manual_id;
 
-        // Извлекаем компоненты, связанные с manual_id
+        // Получаем компоненты для manual
         $components = Component::where('manual_id', $manual_id)->get();
 
-        // Загружаем необходимые данные для всех записей
-        $necessaries = Necessary::all();
-        $conditions = Condition::all();
-        $codes = Code::all();
+        // Получаем TDR записи с непустым component_id
+        $tdrs = Tdr::where('workorder_id', $current_wo->id)
+            ->whereNotNull('component_id')
+            ->get(['id', 'component_id']); // Выбираем только нужные поля
 
-        // Жадная загрузка данных для tdrs, включая все связи с компонентами, состояниями, необходимостями и кодами
-        $current_wo->load('tdrs.component', 'tdrs.conditions', 'tdrs.necessaries', 'tdrs.codes');
+        // Получаем ID process names одним запросом
+        $processNames = ProcessName::whereIn('name', [
+            'NDT-1',
+            'NDT-4',
+            'Eddy Current Test',
+            'BNI'
+        ])->pluck('id', 'name');
 
-        $necessary = Necessary::where('name', 'Order New')->first();
-        $code = Code::where('name', 'Missing')->first();
-
-        // Массивы для хранения разных типов строк
-        $nullComponentConditions = []; // Для строк, где component_id == null
-        $groupedByConditions = []; // Для строк, где component_id !== null и necessaries_id == Order New
-        $necessaryComponents = []; // Для строк, где component_id !== null и necessaries_id !== Order New
-
-        foreach ($current_wo->tdrs as $tdr) {
-            // Пропускаем строки с codes_id == Missing
-            if ($tdr->codes_id == $code->id) {
-                continue;
-            }
-
-            // Строки с component_id == null
-            if ($tdr->component_id === null) {
-                $conditions = $tdr->conditions; // Получаем данные о состоянии
-                if ($conditions) {
-                    // Добавляем состояние в массив
-                    $nullComponentConditions[] = $conditions->name;
-                }
-            } elseif ($tdr->component_id !== null && $tdr->necessaries_id == $necessary->id) {
-                // Группируем компоненты по состояниям, если necessaries_id == 2 ('Order New')
-                $component = $tdr->component; // Получаем связанные данные о компоненте
-                $conditions = $tdr->conditions; // Получаем связанные данные о состоянии
-                if ($component && $conditions) {
-                    // Формируем строку для компонента
-                    $componentString = sprintf(
-                        "<b>%s</b> (%s%s)", // Номер компонента и его имя
-                        strtoupper($component->name), // Имя компонента
-                        strtoupper($component->ipl_num), // Номер компонента
-                        $tdr->qty == 1 ? '' : ', ' . $tdr->qty . 'pcs' // Если qty == 1, то пустая строка, иначе добавляем qty
-                    // и "pcs"
-                    );
-
-                    // Инициализируем массив для состояния, если он еще не существует
-                    if (!isset($groupedByConditions[$conditions->name])) {
-                        $groupedByConditions[$conditions->name] = [];
-                    }
-
-                    // Получаем последнюю строку в группе
-                    $lastKey = count($groupedByConditions[$conditions->name]) - 1;
-                    $lastString = $lastKey >= 0 ? $groupedByConditions[$conditions->name][$lastKey] : '';
-
-                    // Проверяем длину строки
-                    if (strlen($lastString . ', ' . $componentString) <= 180) {
-                        // Если длина не превышает 120 символов, добавляем к последней строке
-                        if ($lastKey >= 0) {
-                            $groupedByConditions[$conditions->name][$lastKey] .= ', ' . $componentString;
-                        } else {
-                            $groupedByConditions[$conditions->name][] = $conditions->name . ' (scrap): ' . $componentString;
-                        }
-                    } else {
-                        // Если длина превышает 120 символов, создаем новую строку
-                        $groupedByConditions[$conditions->name][] = $conditions->name . ' (scrap): ' . $componentString;
-                    }
-                }
-            } elseif ($tdr->component_id !== null && $tdr->necessaries_id !== $necessary->id) {
-                // Для всех остальных компонентов, где necessaries_id != Order New
-                $component = $tdr->component; // Получаем данные о компоненте
-                $necessaries = $tdr->necessaries; // Получаем данные о необходимости
-                $codes = $tdr->codes; // Получаем данные о кодах
-                $description = $tdr->description; // Description
-                if ($component && $necessaries && $codes) {
-                    // Строим строку в нужном формате
-                    $necessaryComponents[] = sprintf(
-                        "(%s) <b>%s</b> IS NECESSARY: %s - %s ( %s )", // Формат вывода
-                        strtoupper($component->ipl_num), // Номер компонента
-                        strtoupper($component->name), // Имя компонента
-                        strtoupper($necessaries->name), // Название необходимости
-                        strtoupper($codes->name), // Название кода
-                        strtoupper($description), // Название кода
-
-                    );
-                }
-            }
-
+        // Проверяем, что все process names найдены
+        if ($processNames->count() !== 4) {
+            abort(500, 'Не все Process Names найдены');
         }
 
-// Объединяем все строки в правильном порядке
-        $tdrInspections = [];
+        // Извлекаем ID по именам
+        $ndt1_name_id = $processNames['NDT-1'];
+        $ndt4_name_id = $processNames['NDT-4'];
+        $ndt6_name_id = $processNames['Eddy Current Test'];
+        $ndt5_name_id = $processNames['BNI'];
 
-// Добавляем строки с component_id == null
-        if (!empty($nullComponentConditions)) {
-            $tdrInspections = array_merge($tdrInspections, $nullComponentConditions);
-        }
+        // Получаем manual processes
+        $manualProcesses = ManualProcess::where('manual_id', $manual_id)
+            ->pluck('processes_id');
 
-// Добавляем группированные строки по состояниям
-        foreach ($groupedByConditions as $conditionName => $components) {
-            foreach ($components as $componentLine) {
-                $tdrInspections[] = $componentLine;
-            }
-        }
+        // Получаем form_number
+        $form_number = ProcessName::where('process_sheet_name', 'NDT')
+            ->value('form_number');
 
-// Добавляем строки с necessaries_id != Order New
-        if (!empty($necessaryComponents)) {
-            $tdrInspections = array_merge($tdrInspections, $necessaryComponents);
-        }
+        // Получаем NDT processes
+        $ndt_processes = Process::whereIn('id', $manualProcesses)
+            ->whereIn('process_names_id', [
+                $ndt1_name_id,
+                $ndt4_name_id,
+                $ndt5_name_id,
+                $ndt6_name_id
+            ])
+            ->get();
 
-//// Выводим результат
-//        foreach ($tdrInspections as $inspection) {
-//            echo $inspection . "\n";
-//        }
+        // Получаем NDT components
+        $ndt_components = TdrProcess::whereIn('tdrs_id', $tdrs->pluck('id'))
+            ->whereIn('process_names_id', [
+                $ndt1_name_id,
+                $ndt4_name_id,
+                $ndt5_name_id,
+                $ndt6_name_id
+            ])
+            ->with(['tdr', 'processName'])
+            ->get();
 
-        // Возвращаем данные в представление
-        return view('admin.tdrs.tdrForm', compact('current_wo', 'components', 'necessaries', 'conditions', 'codes', 'tdrInspections'));
+        return view('admin.tdrs.ndtForm', [
+            'current_wo' => $current_wo,
+            'components' => $components,
+            'tdrs' => $tdrs,
+            'manuals' => Manual::where('id', $manual_id)->get(), // Оставлено для совместимости
+            'ndt_processes' => $ndt_processes,
+            'ndt1_name_id' => $ndt1_name_id,
+            'ndt4_name_id' => $ndt4_name_id,
+            'ndt5_name_id' => $ndt5_name_id,
+            'ndt6_name_id' => $ndt6_name_id,
+            'ndt_components' => $ndt_components,
+            'form_number' => $form_number
+        ]);
     }
 
-
-    /**
-     * Remove the specified resource from storage.
-     *
-     * @param int $id
-     * @return \Illuminate\Http\RedirectResponse
-     */
-    public function destroy($id)
-    {
-        // Логируем начало метода
-        Log::info('Начало удаления записи TDR с ID: ' . $id);
-
-        // Найти запись Tdr по ID
-        $tdr = Tdr::findOrFail($id);
-
-        // Запомнить workorder_id для дальнейшего использования
-        $workorderId = $tdr->workorder_id;
-
-        // Логируем workorder_id
-        Log::info('Workorder ID: ' . $workorderId);
-
-        // Удалить связанные записи из tdr_processes
-        TdrProcess::where('tdrs_id', $id)->delete();
-        Log::info('Удалены связанные процессы для TDR с ID: ' . $id);
-
-        // Удалить запись Tdr
-        $tdr->delete();
-        Log::info('Запись Tdr с ID: ' . $id . ' была удалена.');
-
-
-
-        // Найти necessary с именем 'Missing'
-        $necessary = Necessary::where('name', 'Order New')->first();
-        Log::info('Найден necessary с именем "Order New": ' . ($necessary ? 'Да' : 'Нет'));
-
-        if ($necessary) {
-            // Проверить, если это последняя запись с necessaries_id = $necessary->id
-            $remainingPartsWithNecessary = Tdr::where('workorder_id', $workorderId)
-                ->where('necessaries_id', $necessary->id)
-                ->count();
-            Log::info('Оставшиеся записи с кодом Order New для workorder_id ' . $workorderId . ': ' .
-                $remainingPartsWithNecessary);
-            if ($remainingPartsWithNecessary == 0) {
-                // Обновляем поле part_missing в workorder
-                $workorder = Workorder::find($workorderId);
-                if ($workorder && $workorder->new_parts == true) {
-                    // Меняем на false, если part_missing равно true
-                    $workorder->new_parts = false;
-                    $workorder->save();
-                    Log::info('Поле new_parts для workorder_id ' . $workorderId . ' обновлено на false');
-                } else {
-                    Log::info('Поле new_parts для workorder_id ' . $workorderId . ' уже false или workorder не найден.');
-                }
-
-            }
-        }
-
-        // Найти код с именем 'Missing'
-        $code = Code::where('name', 'Missing')->first();
-        Log::info('Найден код с именем "Missing": ' . ($code ? 'Да' : 'Нет'));
-
-        if ($code) {
-            // Проверить, если это последняя запись с codes_id = $code->id
-            $remainingPartsWithCodes7 = Tdr::where('workorder_id', $workorderId)
-                ->where('codes_id', $code->id)
-                ->count();
-
-            Log::info('Оставшиеся записи с кодом Missing для workorder_id ' . $workorderId . ': ' . $remainingPartsWithCodes7);
-
-            // Если это была последняя запись с таким кодом, обновляем поле part_missing в workorder
-            if ($remainingPartsWithCodes7 == 0) {
-                // Обновляем поле part_missing в workorder
-                $workorder = Workorder::find($workorderId);
-
-                if ($workorder && $workorder->part_missing == true) {
-                    // Меняем на false, если part_missing равно true
-                    $workorder->part_missing = false;
-                    $workorder->save();
-                    Log::info('Поле part_missing для workorder_id ' . $workorderId . ' обновлено на false');
-                } else {
-                    Log::info('Поле part_missing для workorder_id ' . $workorderId . ' уже false или workorder не найден.');
-                }
-
-                // Найти условие с именем 'PARTS MISSING UPON ARRIVAL AS INDICATED ON PARTS LIST'
-                $missingCondition = Condition::where('name', 'PARTS MISSING UPON ARRIVAL AS INDICATED ON PARTS LIST')->first();
-                Log::info('Найдено условие с именем "PARTS MISSING UPON ARRIVAL AS INDICATED ON PARTS LIST": ' . ($missingCondition ? 'Да' : 'Нет'));
-
-                if ($missingCondition) {
-                    // Проверка на наличие записи с этим conditions_id в таблице tdrs для данного workorder_id
-                    $conditionRecord = Tdr::where('workorder_id', $workorderId)
-                        ->where('conditions_id', $missingCondition->id)
-                        ->first();
-
-                    Log::info('Найдено ли условие в tdrs с conditions_id ' . $missingCondition->id . ' для workorder_id ' . $workorderId . ': ' . ($conditionRecord ? 'Да' : 'Нет'));
-
-                    if ($conditionRecord) {
-                        // Удалить найденную запись
-                        $conditionRecord->delete();
-                        Log::info('Запись с conditions_id ' . $missingCondition->id . ' для workorder_id ' . $workorderId . ' была удалена.');
-                    } else {
-                        Log::warning('Запись с conditions_id ' . $missingCondition->id . ' для workorder_id ' . $workorderId . ' не найдена.');
-                    }
-                }
-            }
-        }
-
-        // Перенаправить с сообщением об успехе
-        return redirect()->route('admin.tdrs.show', ['tdr' => $workorderId])->with('success', 'Запись успешно удалена.');
-    }
-
+    // Не забудьте добавить use League\Csv\Reader; вверху файла!
     public function ndtStd($workorder_id)
     {
         $current_wo = Workorder::findOrFail($workorder_id);
@@ -940,7 +784,7 @@ class TdrController extends Controller
                         $cleanIplNum = preg_replace('/[^A-Za-z0-9]/', '', $iplNum);
 
                         // Если один номер содержит другой, пропускаем эту запись
-                        if (strpos($cleanItemNo, $cleanIplNum) !== false || 
+                        if (strpos($cleanItemNo, $cleanIplNum) !== false ||
                             strpos($cleanIplNum, $cleanItemNo) !== false) {
                             \Log::info('Skipping record due to existing IPL:', [
                                 'item_no' => $itemNo,
@@ -975,13 +819,195 @@ class TdrController extends Controller
         }
 
         return view('admin.tdrs.ndtFormStd', [
-            'current_wo' => $current_wo,
-            'manual' => $manual,
-            'ndt_components' => $ndt_components,
-            'ndt_processes' => $ndt_processes,
-            'form_number' => $form_number,
-            'manuals' => [$manual], // Для совместимости с существующим кодом
-        ] + $ndt_ids); // Добавляем ID процессов NDT
+                'current_wo' => $current_wo,
+                'manual' => $manual,
+                'ndt_components' => $ndt_components,
+                'ndt_processes' => $ndt_processes,
+                'form_number' => $form_number,
+                'manuals' => [$manual], // Для совместимости с существующим кодом
+            ] + $ndt_ids); // Добавляем ID процессов NDT
+    }
+    public function cadStd($workorder_id)
+    {
+        try {
+            // Получаем рабочий заказ и связанные данные
+            $current_wo = Workorder::findOrFail($workorder_id);
+            $manual = $current_wo->unit->manuals;
+
+
+
+            if (!$manual) {
+                throw new \RuntimeException('Manual not found for this workorder');
+            }
+
+            $cadSum = $this->calcCadSums($workorder_id);
+
+            // Получаем CSV-файл с process_type = 'cad'
+            $csvMedia = $manual->getMedia('csv_files')->first(function ($media) {
+                return $media->getCustomProperty('process_type') === self::PROCESS_TYPE_CAD;
+            });
+
+            // Получаем ID process names для CAD
+            $processNames = ProcessName::whereIn('name', ['Cad plate'])->pluck('id', 'name');
+
+            if (!isset($processNames['Cad plate'])) {
+                throw new \RuntimeException('CAD process name not found');
+            }
+
+            // Извлекаем ID по именам
+            $cad_ids = [
+                'cad_name_id' => $processNames['Cad plate']
+            ];
+
+            // Получаем manual processes
+            $manualProcesses = ManualProcess::where('manual_id', $manual->id)
+                ->pluck('processes_id');
+
+            // Получаем CAD processes
+            $cad_processes = Process::whereIn('id', $manualProcesses)
+                ->whereIn('process_names_id', $cad_ids)
+                ->get();
+
+            $cad_components = [];
+            $form_number = 'CAD-STD';
+
+            if ($csvMedia) {
+                $csvPath = $csvMedia->getPath();
+                $csv = Reader::createFromPath($csvPath, 'r');
+                $csv->setHeaderOffset(0);
+
+                // Проверяем обязательные заголовки
+                $requiredHeaders = ['ITEM   No.', 'PART No.', 'DESCRIPTION', 'QTY', 'PROCESS No.'];
+                $headers = $csv->getHeader();
+                $missingHeaders = array_diff($requiredHeaders, $headers);
+
+                if (!empty($missingHeaders)) {
+                    throw new \RuntimeException('Отсутствуют обязательные заголовки CSV: ' . implode(', ', $missingHeaders));
+                }
+
+                // Получаем все записи из CSV
+                $records = iterator_to_array($csv->getRecords());
+                \Log::info('Total CAD records in CSV:', ['count' => count($records)]);
+
+                // Получаем существующие IPL номера
+                $existingIplNums = Tdr::where('workorder_id', $workorder_id)
+                    ->whereNotNull('component_id')
+                    ->with('component')
+                    ->get()
+                    ->pluck('component.ipl_num')
+                    ->filter()
+                    ->unique()
+                    ->toArray();
+
+                // Получаем все процессы для данного manual и process_name
+                $validProcesses = Process::whereIn('id', $manualProcesses)
+                    ->where('process_names_id', $cad_ids['cad_name_id'])
+                    ->pluck('process')
+                    ->toArray();
+
+                \Log::info('Valid processes for CAD:', ['processes' => $validProcesses]);
+
+                // Обрабатываем записи
+                foreach ($records as $row) {
+                    if (!isset($row['ITEM   No.'])) {
+                        \Log::warning('Missing item number in CAD row:', $row);
+                        continue;
+                    }
+
+                    $itemNo = $row['ITEM   No.'];
+
+                    if ($this->shouldSkipItem($itemNo, $existingIplNums)) {
+                        continue;
+                    }
+
+                    // Проверяем и создаем процесс, если его нет
+                    $processName = $row['PROCESS No.'] ?? '';
+                    if (!empty($processName)) {
+                        // Проверяем существование процесса
+                        $process = Process::where('process', $processName)
+                            ->where('process_names_id', $cad_ids['cad_name_id'])
+                            ->first();
+
+                        if (!$process) {
+                            // Создаем новый процесс
+                            $process = Process::create([
+                                'process' => $processName,
+                                'process_names_id' => $cad_ids['cad_name_id']
+                            ]);
+                            \Log::info('Created new process:', ['process' => $processName]);
+                        }
+
+                        // Проверяем привязку к manual
+                        $manualProcess = ManualProcess::where('manual_id', $manual->id)
+                            ->where('processes_id', $process->id)
+                            ->first();
+
+                        if (!$manualProcess) {
+                            // Создаем привязку к manual
+                            ManualProcess::create([
+                                'manual_id' => $manual->id,
+                                'processes_id' => $process->id
+                            ]);
+                            \Log::info('Created manual-process binding:', [
+                                'manual_id' => $manual->id,
+                                'process_id' => $process->id
+                            ]);
+                        }
+
+                        // Обновляем список валидных процессов
+                        $validProcesses[] = $processName;
+                    }
+
+                    if (!in_array($processName, $validProcesses)) {
+                        \Log::warning('Invalid process found in CSV:', [
+                            'process' => $processName,
+                            'item_no' => $itemNo,
+                            'valid_processes' => $validProcesses
+                        ]);
+                        continue;
+                    }
+
+                    // Создаем объект компонента
+                    $component = new \stdClass();
+                    $component->ipl_num = $itemNo;
+                    $component->part_number = $row['PART No.'] ?? '';
+                    $component->name = $row['DESCRIPTION'] ?? '';
+                    $component->qty = (int)($row['QTY'] ?? self::DEFAULT_QTY);
+                    $component->process_name = $processName;
+
+                    $cad_components[] = $component;
+                }
+
+                \Log::info('Total CAD components after filtering:', ['count' => count($cad_components)]);
+            }
+
+            // Обновляем список процессов после возможного добавления новых
+            $cad_processes = Process::whereIn('id', $manualProcesses)
+                ->whereIn('process_names_id', $cad_ids)
+                ->get();
+
+            // Рассчитываем общее количество деталей
+            $totalQuantities = $this->calcCadSums($workorder_id);
+
+            return view('admin.tdrs.cadFormStd', [
+                'current_wo' => $current_wo,
+                'manual' => $manual,
+                'cad_components' => $cad_components,
+                'cad_processes' => $cad_processes,
+                'form_number' => $form_number,
+                'manuals' => [$manual],
+                'process_name' => ProcessName::where('name', 'Cad plate')->first(),
+                'total_quantities' => $totalQuantities,
+                    'cadSum' => $cadSum,
+            ] + $cad_ids);
+
+        } catch (\Exception $e) {
+            \Log::error('Error in CAD processing:', [
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+            throw $e;
+        }
     }
 
     /**
@@ -1005,6 +1031,10 @@ class TdrController extends Controller
 
         // Получаем данные о manual_id, связанном с этим Workorder
         $manual_id = $current_wo->unit->manual_id;
+
+        // Получаем NDT суммы
+        $ndtSums = $this->calcNdtSums($id);
+        $cadSum = $this->calcCadSums($id);
 
         $tdr_ws = Tdr::where('workorder_id', $current_wo->id)
             ->where('use_process_forms', true)
@@ -1060,6 +1090,8 @@ class TdrController extends Controller
             'current_wo' => $current_wo,
             'processes' => $result, // Исходная коллекция
             'ndt_processes' => $ndt_processes, // Отфильтрованная коллекция
+            'ndtSums' => $ndtSums, // Добавляем NDT суммы в представление
+            'cadSum' => $cadSum,
         ], compact('tdrs', 'tdr_ws','processNames'));
     }
 
@@ -1188,8 +1220,340 @@ class TdrController extends Controller
 //        }
 
         // Возвращаем данные в представление
-        return view('admin.tdrs.tdrForm', compact('current_wo', 'components', 'necessaries', 'conditions', 'codes', 'tdrInspections'));
+        return view('admin.tdrs.tdrForm', compact('current_wo', 'components',
+            'necessaries', 'conditions', 'codes', 'tdrInspections'));
     }
+
+
+    /**
+     * Remove the specified resource from storage.
+     *
+     * @param int $id
+     * @return \Illuminate\Http\RedirectResponse
+     */
+    public function destroy($id)
+    {
+        // Логируем начало метода
+        Log::info('Начало удаления записи TDR с ID: ' . $id);
+
+        // Найти запись Tdr по ID
+        $tdr = Tdr::findOrFail($id);
+
+        // Запомнить workorder_id для дальнейшего использования
+        $workorderId = $tdr->workorder_id;
+
+        // Логируем workorder_id
+        Log::info('Workorder ID: ' . $workorderId);
+
+        // Удалить связанные записи из tdr_processes
+        TdrProcess::where('tdrs_id', $id)->delete();
+        Log::info('Удалены связанные процессы для TDR с ID: ' . $id);
+
+        // Удалить запись Tdr
+        $tdr->delete();
+        Log::info('Запись Tdr с ID: ' . $id . ' была удалена.');
+
+
+
+        // Найти necessary с именем 'Missing'
+        $necessary = Necessary::where('name', 'Order New')->first();
+        Log::info('Найден necessary с именем "Order New": ' . ($necessary ? 'Да' : 'Нет'));
+
+        if ($necessary) {
+            // Проверить, если это последняя запись с necessaries_id = $necessary->id
+            $remainingPartsWithNecessary = Tdr::where('workorder_id', $workorderId)
+                ->where('necessaries_id', $necessary->id)
+                ->count();
+            Log::info('Оставшиеся записи с кодом Order New для workorder_id ' . $workorderId . ': ' .
+                $remainingPartsWithNecessary);
+            if ($remainingPartsWithNecessary == 0) {
+                // Обновляем поле part_missing в workorder
+                $workorder = Workorder::find($workorderId);
+                if ($workorder && $workorder->new_parts == true) {
+                    // Меняем на false, если part_missing равно true
+                    $workorder->new_parts = false;
+                    $workorder->save();
+                    Log::info('Поле new_parts для workorder_id ' . $workorderId . ' обновлено на false');
+                } else {
+                    Log::info('Поле new_parts для workorder_id ' . $workorderId . ' уже false или workorder не найден.');
+                }
+
+            }
+        }
+
+        // Найти код с именем 'Missing'
+        $code = Code::where('name', 'Missing')->first();
+        Log::info('Найден код с именем "Missing": ' . ($code ? 'Да' : 'Нет'));
+
+        if ($code) {
+            // Проверить, если это последняя запись с codes_id = $code->id
+            $remainingPartsWithCodes7 = Tdr::where('workorder_id', $workorderId)
+                ->where('codes_id', $code->id)
+                ->count();
+
+            Log::info('Оставшиеся записи с кодом Missing для workorder_id ' . $workorderId . ': ' . $remainingPartsWithCodes7);
+
+            // Если это была последняя запись с таким кодом, обновляем поле part_missing в workorder
+            if ($remainingPartsWithCodes7 == 0) {
+                // Обновляем поле part_missing в workorder
+                $workorder = Workorder::find($workorderId);
+
+                if ($workorder && $workorder->part_missing == true) {
+                    // Меняем на false, если part_missing равно true
+                    $workorder->part_missing = false;
+                    $workorder->save();
+                    Log::info('Поле part_missing для workorder_id ' . $workorderId . ' обновлено на false');
+                } else {
+                    Log::info('Поле part_missing для workorder_id ' . $workorderId . ' уже false или workorder не найден.');
+                }
+
+                // Найти условие с именем 'PARTS MISSING UPON ARRIVAL AS INDICATED ON PARTS LIST'
+                $missingCondition = Condition::where('name', 'PARTS MISSING UPON ARRIVAL AS INDICATED ON PARTS LIST')->first();
+                Log::info('Найдено условие с именем "PARTS MISSING UPON ARRIVAL AS INDICATED ON PARTS LIST": ' . ($missingCondition ? 'Да' : 'Нет'));
+
+                if ($missingCondition) {
+                    // Проверка на наличие записи с этим conditions_id в таблице tdrs для данного workorder_id
+                    $conditionRecord = Tdr::where('workorder_id', $workorderId)
+                        ->where('conditions_id', $missingCondition->id)
+                        ->first();
+
+                    Log::info('Найдено ли условие в tdrs с conditions_id ' . $missingCondition->id . ' для workorder_id ' . $workorderId . ': ' . ($conditionRecord ? 'Да' : 'Нет'));
+
+                    if ($conditionRecord) {
+                        // Удалить найденную запись
+                        $conditionRecord->delete();
+                        Log::info('Запись с conditions_id ' . $missingCondition->id . ' для workorder_id ' . $workorderId . ' была удалена.');
+                    } else {
+                        Log::warning('Запись с conditions_id ' . $missingCondition->id . ' для workorder_id ' . $workorderId . ' не найдена.');
+                    }
+                }
+            }
+        }
+
+        // Перенаправить с сообщением об успехе
+        return redirect()->route('tdrs.show', ['tdr' => $workorderId])
+            ->with('success', 'Запись успешно удалена.');
+    }
+
+
+    /**
+     * Расчет сумм NDT из данных CSV для рабочего заказа
+     *
+     * @param int $workorder_id ID рабочего заказа
+     * @return array{total: int, mpi: int, fpi: int} Массив с общими суммами, MPI и FPI
+     */
+    private function calcNdtSums(int $workorder_id): array
+    {
+
+        // Инициализация счетчиков
+        $total = 0;
+        $mpi = 0;
+        $fpi = 0;
+
+        try {
+            // Получение рабочего заказа и связанных данных
+            $current_wo = Workorder::findOrFail($workorder_id);
+            $manual = $current_wo->unit->manuals;
+
+            // Получение CSV файла NDT
+            $csvMedia = $manual->getMedia('csv_files')->first(function ($media) {
+                return $media->getCustomProperty('process_type') === self::PROCESS_TYPE_NDT;
+            });
+
+            // Если CSV файл не найден, возвращаем нулевые значения
+            if (!$csvMedia) {
+                return ['total' => 0, 'mpi' => 0, 'fpi' => 0];
+            }
+
+            // Получение существующих номеров IPL
+            $existingIplNums = Tdr::where('workorder_id', $workorder_id)
+                ->whereNotNull('component_id')
+                ->with('component')
+                ->get()
+                ->pluck('component.ipl_num')
+                ->filter()
+                ->unique()
+                ->toArray();
+
+            // Обработка CSV файла
+            $csvPath = $csvMedia->getPath();
+            $csv = Reader::createFromPath($csvPath, 'r');
+            $csv->setHeaderOffset(0);
+
+            // Проверка заголовков CSV
+            $requiredHeaders = ['ITEM   No.', 'PART No.', 'DESCRIPTION', 'QTY', 'PROCESS No.'];
+            $headers = $csv->getHeader();
+            $missingHeaders = array_diff($requiredHeaders, $headers);
+
+            if (!empty($missingHeaders)) {
+                throw new \RuntimeException('Отсутствуют обязательные заголовки CSV: ' . implode(', ', $missingHeaders));
+            }
+
+            // Обработка записей
+            $ndt_components = [];
+            foreach ($csv->getRecords() as $row) {
+                if (!isset($row['ITEM   No.'])) {
+                    \Log::warning('Отсутствует номер элемента в строке:', $row);
+                    continue;
+                }
+
+                $itemNo = $row['ITEM   No.'];
+
+                // Пропуск, если номер элемента совпадает с существующим IPL
+                if ($this->shouldSkipItem($itemNo, $existingIplNums)) {
+                    continue;
+                }
+
+                // Создание объекта компонента
+                $component = new \stdClass();
+                $component->ipl_num = $itemNo;
+                $component->part_number = $row['PART No.'] ?? '';
+                $component->name = $row['DESCRIPTION'] ?? '';
+                $component->qty = (int)($row['QTY'] ?? self::DEFAULT_QTY);
+                $component->process_name = $row['PROCESS No.'] ?? self::DEFAULT_PROCESS;
+
+                $ndt_components[] = $component;
+            }
+
+            // Вычисление сумм за один проход
+            foreach ($ndt_components as $component) {
+                $qty = $component->qty;
+                $total += $qty;
+
+                if (strpos($component->process_name, '1') !== false) {
+                    $mpi += $qty;
+                } else {
+                    $fpi += $qty;
+                }
+            }
+
+            return [
+                'total' => $total,
+                'mpi' => $mpi,
+                'fpi' => $fpi
+            ];
+
+        } catch (\Exception $e) {
+            \Log::error('Ошибка при обработке CSV файла:', [
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+            return ['total' => 0, 'mpi' => 0, 'fpi' => 0];
+        }
+    }
+    private function calcCadSums($workorder_id)
+    {
+        try {
+            // Получаем текущий workorder
+            $current_wo = Workorder::findOrFail($workorder_id);
+            $manual = $current_wo->unit->manuals;
+
+            if (!$manual) {
+                throw new \RuntimeException('Manual not found for this workorder');
+            }
+
+            // 1. Чтение CSV файла
+            $csvMedia = $manual->getMedia('csv_files')->first(function ($media) {
+                return $media->getCustomProperty('process_type') === self::PROCESS_TYPE_CAD;
+            });
+
+            if (!$csvMedia) {
+                throw new \RuntimeException('CSV file not found');
+            }
+
+            // Читаем CSV файл
+            $csvPath = $csvMedia->getPath();
+            $csv = Reader::createFromPath($csvPath, 'r');
+            $csv->setHeaderOffset(0);
+
+            // Получаем все записи из CSV
+            $records = iterator_to_array($csv->getRecords());
+            \Log::info('Total CAD records in CSV:', ['count' => count($records)]);
+
+            // 2. Чтение TDR компонентов
+            $tdrComponents = Tdr::where('workorder_id', $workorder_id)
+                ->whereNotNull('component_id')
+                ->with('component')
+                ->get();
+
+            // Создаем мапу IPL номеров из TDR
+            $tdrIplMap = $tdrComponents->pluck('qty', 'component.ipl_num')->toArray();
+
+            \Log::info('TDR Components:', [
+                'count' => count($tdrIplMap),
+                'ipl_numbers' => array_keys($tdrIplMap)
+            ]);
+
+            // 3. Сравнение и подсчет
+            $totalQty = 0;
+            $totalComponents = 0;
+            $processedIpls = [];
+
+            foreach ($records as $record) {
+                $itemNo = trim($record['ITEM   No.']);
+
+                // Если IPL номер есть в TDR - пропускаем
+                if (isset($tdrIplMap[$itemNo])) {
+                    \Log::info('Skipping component as it exists in TDR:', ['ipl_num' => $itemNo]);
+                    continue;
+                }
+
+                // Если IPL номер еще не был обработан
+                if (!in_array($itemNo, $processedIpls)) {
+                    $totalQty += 1; // Предполагаем qty = 1 для компонентов из CSV
+                    $totalComponents++;
+                    $processedIpls[] = $itemNo;
+                    \Log::info('Adding component from CSV:', ['ipl_num' => $itemNo]);
+                }
+            }
+
+            \Log::info('CAD calculation results:', [
+                'total_qty' => $totalQty,
+                'total_components' => $totalComponents,
+                'processed_ipls' => $processedIpls
+            ]);
+
+            return [
+                'total_qty' => $totalQty,
+                'total_components' => $totalComponents
+            ];
+
+        } catch (\Exception $e) {
+            \Log::error('Error in CAD sums calculation:', [
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+            return [
+                'total_qty' => 0,
+                'total_components' => 0
+            ];
+        }
+    }
+
+    /**
+     * Проверяет, нужно ли пропустить элемент на основе существующих IPL номеров
+     */
+    private function shouldSkipItem(string $itemNo, array $existingIplNums): bool
+    {
+        foreach ($existingIplNums as $iplNum) {
+            if (empty($iplNum)) continue;
+
+            // Очистка строк от неалфавитно-цифровых символов для сравнения
+            $cleanItemNo = preg_replace('/[^A-Za-z0-9]/', '', $itemNo);
+            $cleanIplNum = preg_replace('/[^A-Za-z0-9]/', '', $iplNum);
+
+            // Если один номер содержит другой, пропускаем
+            if (strpos($cleanItemNo, $cleanIplNum) !== false ||
+                strpos($cleanIplNum, $cleanItemNo) !== false) {
+                return true;
+            }
+        }
+        return false;
+    }
+    /**
+     * Проверяет, нужно ли пропустить элемент на основе существующих IPL номеров
+     */
+
 
 
 }

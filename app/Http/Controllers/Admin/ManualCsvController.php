@@ -30,7 +30,7 @@ class ManualCsvController extends Controller
     public function download(Manual $manual)
     {
         $media = $manual->getMedia('csv_files')->first();
-        
+
         if (!$media) {
             return redirect()->back()->with('error', 'CSV файл не найден');
         }
@@ -42,7 +42,7 @@ class ManualCsvController extends Controller
     {
         try {
             $media = $manual->getMedia('csv_files')->firstWhere('id', $file);
-            
+
             if (!$media) {
                 return redirect()->back()->with('error', 'CSV файл не найден');
             }
@@ -56,7 +56,7 @@ class ManualCsvController extends Controller
                 if (($data = fgetcsv($handle, 1000, ",")) !== FALSE) {
                     $headers = $data;
                 }
-                
+
                 // Читаем данные
                 while (($data = fgetcsv($handle, 1000, ",")) !== FALSE) {
                     $records[] = $data;
@@ -75,7 +75,7 @@ class ManualCsvController extends Controller
     {
         try {
             $media = $manual->getMedia('csv_files')->firstWhere('id', $file);
-            
+
             if (!$media) {
                 return response()->json([
                     'success' => false,
@@ -84,12 +84,12 @@ class ManualCsvController extends Controller
             }
 
             $media->delete();
-            
+
             return response()->json([
                 'success' => true,
                 'message' => 'CSV файл успешно удален'
             ]);
-            
+
         } catch (\Exception $e) {
             \Log::error('Error deleting CSV file: ' . $e->getMessage());
             return response()->json([
@@ -148,4 +148,4 @@ class ManualCsvController extends Controller
             ], 500);
         }
     }
-} 
+}

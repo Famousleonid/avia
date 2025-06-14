@@ -118,8 +118,8 @@
                                         <div class="form-group mt-3">
                                             <strong>{{__('Image:')}}</strong>
                                             <div class="d-flex mt-2">
-                                                <a href="{{ $current_component->getBigImageUrl('component') }}" data-fancybox="gallery">
-                                                    <img class="me-1" src="{{$current_component->getThumbnailUrl('component') }}"
+                                                <a href="{{ $current_component->getFirstMediaBigUrl('component') }}" data-fancybox="gallery">
+                                                    <img class="me-1" src="{{$current_component->getFirstMediaThumbnailUrl('component') }}"
                                                          width="40" height="40" alt="IMG"/>
                                                 </a>
                                                 <input type="file" name="img" class="form-control" placeholder="Image">
@@ -153,9 +153,9 @@
                                         <div class="form-group mt-3">
                                             <strong>{{__(' Assy Image:')}}</strong>
                                             <div class="d-flex mt-2">
-                                                <a href="{{ $current_component->getBigImageUrl('assy_component') }}" data-fancybox="gallery">
+                                                <a href="{{ $current_component->getFirstMediaBigUrl('assy_component') }}" data-fancybox="gallery">
                                                     <img class="me-1" src="{{
-                                            $current_component->getThumbnailUrl('assy_component') }}" width="40"
+                                            $current_component->getFirstMediaThumbnailUrl('assy_component') }}" width="40"
                                                          height="40" alt="IMG"/>
                                                 </a>
                                             <input type="file"

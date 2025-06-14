@@ -58,7 +58,7 @@ class ManualController extends Controller
 //                $manual->addMedia($request->file('img'))->toMediaCollection('manuals');
 //            }
 //
-//            return redirect()->route('admin.manuals.index')->with('success', 'Manual success created.');
+//            return redirect()->route('.manuals.index')->with('success', 'Manual success created.');
 //        }
 //    }
     public function store(Request $request)
