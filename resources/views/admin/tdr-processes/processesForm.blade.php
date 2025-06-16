@@ -384,196 +384,202 @@
                 </div>
                 <div class="col-3 border-l-b details-row text-center" style="height: 32px">
                     {{ $component->tdr->component->part_number }}
-                </div>
-                <div class="col-3 border-l-b details-row text-center" style="height: 32px">
-                    {{ $component->tdr->component->name }}
-                </div>
-                <div class="col-2 border-l-b details-row text-center" style="height: 32px">
-                    {{ substr($component->processName->name, -1) }}
-                </div>
-                <div class="col-1 border-l-b details-row text-center" style="height: 32px">
-                    {{ $component->tdr->qty }}
-                </div>
-                <div class="col-1 border-l-b details-row text-center" style="height: 32px">
-                    <!-- Пустая ячейка -->
-                </div>
-                <div class="col-1 border-l-b-r details-row text-center" style="height: 32px">
+                    @if($component->tdr->serial_number)
+            SN{{$component->tdr->serial_number}}
+                    @endif
+</div>
+<div class="col-3 border-l-b details-row text-center" style="height: 32px">
+{{ $component->tdr->component->name }}
+</div>
+<div class="col-2 border-l-b details-row text-center" style="height: 32px">
+{{ substr($component->processName->name, -1) }}
+</div>
+<div class="col-1 border-l-b details-row text-center" style="height: 32px">
+{{ $component->tdr->qty }}
+</div>
+<div class="col-1 border-l-b details-row text-center" style="height: 32px">
+<!-- Пустая ячейка -->
+</div>
+<div class="col-1 border-l-b-r details-row text-center" style="height: 32px">
 
-                </div>
-            </div>
+</div>
+</div>
+@endforeach
+
+@for ($i = 0; $i < $emptyRows; $i++)
+<div class="row fs-85">
+<div class="col-1 border-l-b details-row text-center" style="height: 32px">
+<!-- Пустая ячейка -->
+</div>
+<div class="col-3 border-l-b details-row text-center" style="height: 32px">
+<!-- Пустая ячейка -->
+</div>
+<div class="col-3 border-l-b details-row text-center" style="height: 32px">
+<!-- Пустая ячейка -->
+</div>
+<div class="col-2 border-l-b details-row text-center" style="height: 32px">
+<!-- Пустая ячейка -->
+</div>
+<div class="col-1 border-l-b details-row text-center" style="height: 32px">
+<!-- Пустая ячейка -->
+</div>
+<div class="col-1 border-l-b details-row text-center" style="height: 32px">
+<!-- Пустая ячейка -->
+</div>
+<div class="col-1 border-l-b-r details-row text-center" style="height: 32px">
+<!-- Пустая ячейка -->
+</div>
+</div>
+@endfor
+
+
+@else
+<h6 class="mt-3 ms-3"><strong>
+Perform the {{ ucwords(strtolower($process_name->process_sheet_name)) }}
+as the specified under Process No. and in
+accordance with CMM No
+</strong>.</h6>
+
+<div class="page table-header">
+<div class="row mt-2 " >
+<div class="col-1 border-l-t-b pt-2 details-row text-center"><h6 class="fs-7" ><strong> ITEM No.</strong></h6></div>
+<div class="col-2 border-l-t-b pt-2 details-row text-center"><h6  class="fs-7" ><strong>PART No.</strong>
+    </h6>
+</div>
+<div class="col-2 border-l-t-b pt-2  details-row text-center"><h6  class="fs-7" ><strong>DESCRIPTION</strong>
+    </h6></div>
+<div class="col-4 border-l-t-b pt-2 details-row text-center"><h6  class="fs-7" ><strong>PROCESS No.</strong>
+    </h6> </div>
+<div class="col-1 border-l-t-b pt-2  details-row  text-center"><h6  class="fs-7" ><strong>QTY</strong> </h6>
+</div>
+<div class="col-2 border-all pt-2  details-row  text-center"><h6  class="fs-7" ><strong>CMM No.</strong> </h6>
+</div>
+</div>
+</div>
+<div class="page data-page">
+
+@php
+$totalRows = 18; // Общее количество строк
+$dataRows = count($process_tdr_components); // Количество строк с данными
+$emptyRows = $totalRows - $dataRows; // Количество пустых строк
+
+@endphp
+
+@foreach($process_tdr_components as $component)
+@php
+    $processData = json_decode($component->processes, true);
+                        // Получаем имя процесса из связанной модели ProcessName
+    $processesName = $component->processName->name;
+@endphp
+
+@foreach($processData as $process)
+
+<div class="row fs-85 data-row">
+    <div class="col-1 border-l-b details-cell text-center"  style="min-height: 32px">
+        {{ $component->tdr->component->ipl_num }}
+    </div>
+    <div class="col-2 border-l-b details-cell text-center" style="min-height: 32px">
+        {{ $component->tdr->component->part_number }}
+        @if($component->tdr->serial_number)
+            SN{{$component->tdr->serial_number}}
+        @endif
+    </div>
+    <div class="col-2 border-l-b details-cell text-center" style="min-height: 32px" >
+        {{ $component->tdr->component->name }}
+    </div>
+    <div class="col-4 border-l-b details-cell text-center process-cell"  style="min-height: 32px">
+        @foreach($process_components as $component_process)
+            @if($component_process->id == $process)
+                {{$component_process->process}}
+            @endif
         @endforeach
 
-        @for ($i = 0; $i < $emptyRows; $i++)
-            <div class="row fs-85">
-                <div class="col-1 border-l-b details-row text-center" style="height: 32px">
-                    <!-- Пустая ячейка -->
-                </div>
-                <div class="col-3 border-l-b details-row text-center" style="height: 32px">
-                    <!-- Пустая ячейка -->
-                </div>
-                <div class="col-3 border-l-b details-row text-center" style="height: 32px">
-                    <!-- Пустая ячейка -->
-                </div>
-                <div class="col-2 border-l-b details-row text-center" style="height: 32px">
-                    <!-- Пустая ячейка -->
-                </div>
-                <div class="col-1 border-l-b details-row text-center" style="height: 32px">
-                    <!-- Пустая ячейка -->
-                </div>
-                <div class="col-1 border-l-b details-row text-center" style="height: 32px">
-                    <!-- Пустая ячейка -->
-                </div>
-                <div class="col-1 border-l-b-r details-row text-center" style="height: 32px">
-                    <!-- Пустая ячейка -->
-                </div>
-            </div>
-        @endfor
-
-
-        @else
-            <h6 class="mt-3 ms-3"><strong>
-                    Perform the {{ ucwords(strtolower($process_name->process_sheet_name)) }}
-                    as the specified under Process No. and in
-                    accordance with CMM No
-                </strong>.</h6>
-
-            <div class="page table-header">
-                <div class="row mt-2 " >
-                    <div class="col-1 border-l-t-b pt-2 details-row text-center"><h6 class="fs-7" ><strong> ITEM No.</strong></h6></div>
-                    <div class="col-2 border-l-t-b pt-2 details-row text-center"><h6  class="fs-7" ><strong>PART No.</strong>
-                        </h6>
-                    </div>
-                    <div class="col-2 border-l-t-b pt-2  details-row text-center"><h6  class="fs-7" ><strong>DESCRIPTION</strong>
-                        </h6></div>
-                    <div class="col-4 border-l-t-b pt-2 details-row text-center"><h6  class="fs-7" ><strong>PROCESS No.</strong>
-                        </h6> </div>
-                    <div class="col-1 border-l-t-b pt-2  details-row  text-center"><h6  class="fs-7" ><strong>QTY</strong> </h6>
-                    </div>
-                    <div class="col-2 border-all pt-2  details-row  text-center"><h6  class="fs-7" ><strong>CMM No.</strong> </h6>
-                    </div>
-                </div>
-            </div>
-            <div class="page data-page">
-
-                @php
-                    $totalRows = 18; // Общее количество строк
-                    $dataRows = count($process_tdr_components); // Количество строк с данными
-                    $emptyRows = $totalRows - $dataRows; // Количество пустых строк
-
-                @endphp
-
-                @foreach($process_tdr_components as $component)
-                    @php
-                        $processData = json_decode($component->processes, true);
-                                            // Получаем имя процесса из связанной модели ProcessName
-                        $processesName = $component->processName->name;
-                    @endphp
-
-                @foreach($processData as $process)
-
-                    <div class="row fs-85 data-row">
-                        <div class="col-1 border-l-b details-cell text-center"  style="min-height: 32px">
-                            {{ $component->tdr->component->ipl_num }}
-                        </div>
-                        <div class="col-2 border-l-b details-cell text-center" style="min-height: 32px">
-                            {{ $component->tdr->component->part_number }}
-                        </div>
-                        <div class="col-2 border-l-b details-cell text-center" style="min-height: 32px" >
-                            {{ $component->tdr->component->name }}
-                        </div>
-                        <div class="col-4 border-l-b details-cell text-center process-cell"  style="min-height: 32px">
-                            @foreach($process_components as $component_process)
-                                @if($component_process->id == $process)
-                                    {{$component_process->process}}
-                                @endif
-                            @endforeach
-
-                        </div>
-                        <div class="col-1 border-l-b details-cell text-center" style="min-height: 32px" >
-                            {{ $component->tdr->qty }}
-                        </div>
-                        <div class="col-2 border-l-b-r details-cell text-center"  style="min-height: 32px">
-                            @foreach($manuals as $manual)
-                                @if($manual->id == $current_wo->unit->manual_id)
-                                    <h6 class="text-center mt-3"> {{$manual->number}}</h6>
-                                @endif
-                            @endforeach
-
-                        </div>
-
-                    </div>
-                  @endforeach
-                @endforeach
-                @for ($i = 0; $i < $emptyRows; $i++)
-                    <div class="row  empty-row">
-                        <div class="col-1 border-l-b  text-center" style="height: 34px">
-                            <!-- Пустая ячейка -->
-                        </div>
-                        <div class="col-2 border-l-b  text-center" style="height: 34px">
-                            <!-- Пустая ячейка -->
-                        </div>
-                        <div class="col-2 border-l-b  text-center" style="height: 34px">
-                            <!-- Пустая ячейка -->
-                        </div>
-                        <div class="col-4 border-l-b  text-center" style="height: 34px">
-                            <!-- Пустая ячейка -->
-                        </div>
-                        <div class="col-1 border-l-b  text-center" style="height: 34px">
-                            <!-- Пустая ячейка -->
-                        </div>
-
-                        <div class="col-2 border-l-b-r  text-center" style="height: 34px">
-                            <!-- Пустая ячейка -->
-                        </div>
-                    </div>
-                @endfor
-
-            </div>
-
-        @endif
-
-
+    </div>
+    <div class="col-1 border-l-b details-cell text-center" style="min-height: 32px" >
+        {{ $component->tdr->qty }}
+    </div>
+    <div class="col-2 border-l-b-r details-cell text-center"  style="min-height: 32px">
+        @foreach($manuals as $manual)
+            @if($manual->id == $current_wo->unit->manual_id)
+                <h6 class="text-center mt-3"> {{$manual->number}}</h6>
+            @endif
+        @endforeach
 
     </div>
-    <footer>
-        <div class="row fs-85" style="width: 100%; padding: 5px 0;">
-            <div class="col-6 text-start">
-                   {{__('Form #')}} {{$process_name->form_number}}
-            </div>
-            <div class="col-6 text-end pe-4 ">
-                {{__('Rev#0, 15/Dec/2012   ')}}
-            </div>
-        </div>
-    </footer>
+
+</div>
+@endforeach
+@endforeach
+@for ($i = 0; $i < $emptyRows; $i++)
+<div class="row  empty-row">
+    <div class="col-1 border-l-b  text-center" style="height: 34px">
+        <!-- Пустая ячейка -->
+    </div>
+    <div class="col-2 border-l-b  text-center" style="height: 34px">
+        <!-- Пустая ячейка -->
+    </div>
+    <div class="col-2 border-l-b  text-center" style="height: 34px">
+        <!-- Пустая ячейка -->
+    </div>
+    <div class="col-4 border-l-b  text-center" style="height: 34px">
+        <!-- Пустая ячейка -->
+    </div>
+    <div class="col-1 border-l-b  text-center" style="height: 34px">
+        <!-- Пустая ячейка -->
+    </div>
+
+    <div class="col-2 border-l-b-r  text-center" style="height: 34px">
+        <!-- Пустая ячейка -->
+    </div>
+</div>
+@endfor
+
+</div>
+
+@endif
+
+
+
+</div>
+<footer>
+<div class="row fs-85" style="width: 100%; padding: 5px 0;">
+<div class="col-6 text-start">
+{{__('Form #')}} {{$process_name->form_number}}
+</div>
+<div class="col-6 text-end pe-4 ">
+{{__('Rev#0, 15/Dec/2012   ')}}
+</div>
+</div>
+</footer>
 
 <script>
-    document.addEventListener("DOMContentLoaded", function() {
-        // Выбираем ячейки с текстом из строк данных (исключая заголовки)
-        var processCells = document.querySelectorAll('.data-row .process-cell');
-        var totalExtraLines = 0;
+document.addEventListener("DOMContentLoaded", function() {
+// Выбираем ячейки с текстом из строк данных (исключая заголовки)
+var processCells = document.querySelectorAll('.data-row .process-cell');
+var totalExtraLines = 0;
 
-        processCells.forEach(function(cell) {
-            var cellHeight = cell.offsetHeight;
-            // Если высота ячейки больше базовых 36px (2 строки)
-            if(cellHeight > 32) {
-                // Каждые дополнительные 18px считаются как 1 лишняя строка
-                var extraLines = Math.floor((cellHeight - 32) / 16);
-                totalExtraLines += extraLines;
-            }
-        });
+processCells.forEach(function(cell) {
+var cellHeight = cell.offsetHeight;
+// Если высота ячейки больше базовых 36px (2 строки)
+if(cellHeight > 32) {
+// Каждые дополнительные 18px считаются как 1 лишняя строка
+var extraLines = Math.floor((cellHeight - 32) / 16);
+totalExtraLines += extraLines;
+}
+});
 
-        // Каждые 2 дополнительные линии (36px) эквивалентны 1 пустой строке
-        var emptyRowsToRemove = Math.floor(totalExtraLines / 2);
+// Каждые 2 дополнительные линии (36px) эквивалентны 1 пустой строке
+var emptyRowsToRemove = Math.floor(totalExtraLines / 2);
 
-        // Выбираем пустые строки по классу empty-row
-        var emptyRows = document.querySelectorAll('.empty-row');
-        for (var i = 0; i < emptyRowsToRemove && i < emptyRows.length; i++) {
-            emptyRows[i].remove();
-        }
-        console.log("Всего дополнительных строк:", totalExtraLines);
-        console.log("Пустых строк для удаления:", emptyRowsToRemove);
+// Выбираем пустые строки по классу empty-row
+var emptyRows = document.querySelectorAll('.empty-row');
+for (var i = 0; i < emptyRowsToRemove && i < emptyRows.length; i++) {
+emptyRows[i].remove();
+}
+console.log("Всего дополнительных строк:", totalExtraLines);
+console.log("Пустых строк для удаления:", emptyRowsToRemove);
 
-    });
+});
 
 </script>
 </div>
