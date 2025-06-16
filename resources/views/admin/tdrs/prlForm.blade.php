@@ -374,8 +374,11 @@
                             <div class="col-2 border-l-b text-center pt-2 align-content-center">
                                 <h6>{{ $second_part }}</h6>
                             </div>
+{{--                            <div class="col-9 border-l-b text-center pt-1 align-content-center">--}}
+{{--                                {{ $i < $totalParts ? ($component->name ?? '') : '' }}--}}
+{{--                            </div>--}}
                             <div class="col-9 border-l-b text-center pt-1 align-content-center">
-                                {{ $i < $totalParts ? ($component->name ?? '') : '' }}
+                                {{ $i < $totalParts ? ($component->assy_part_number ? $component->name . ' ASSY' : $component->name ?? '') : '' }}
                             </div>
                         </div>
                     </div>
