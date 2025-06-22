@@ -429,7 +429,7 @@
         <div class="col-6">
             <div class="d-flex fs-75">
                <h7>UNIT:</h7>
-                <div class="">
+                <div class="ms-1">
                     @foreach($manuals as $manual)
                         @if($manual->id == $current_wo->unit->manual_id)
                             <h7 class=""> {{$manual->title}}</h7>
@@ -439,7 +439,7 @@
             </div>
             <div class="d-flex fs-75">
                 <h7>AUTHORIZED OVERHAUL LIFE:</h7>
-                <div class="">
+                <div class="ms-1">
                     @foreach($manuals as $manual)
                         @if($manual->id == $current_wo->unit->manual_id)
                             <h7 class=""> {{$manual->ovh_life}}</h7>
@@ -469,43 +469,50 @@
 
 
     <div class="parent">
-        <div class="div1 text-center fs-8 border-all">Aircraft Reg./Con.No.</div>
+        <div class="div1 text-center fs-8 border-all pt-3">Aircraft Reg./Con.No.</div>
         <div class="div2 text-center fs-8 border-t-r">FITTED TO AIRCRAFT</div>
-        <div class="div3 text-center fs-8 border-t">REMOVED FROM AIRCRAFT</div>
-        <div class="div4 text-center fs-8 border-all">REASON FOR REMOVAL</div>
+        <div class="div3 text-center fs-8 border-t-r-b">REMOVED FROM AIRCRAFT</div>
+        <div class="div4 text-center fs-8 border-t-r-b pt-3">REASON FOR REMOVAL</div>
         <div class="div5 text-center fs-8 border-t-r-b">DATE</div>
         <div class="div6 text-center fs-8 border-t-r-b">C.S.O.</div>
         <div class="div7 text-center fs-8 border-t-r-b">C.S.N.</div>
         <div class="div8 text-center fs-8 border-t-r-b">A/F CYCLES</div>
-        <div class="div9 text-center fs-8 border-t-r-b">DATE</div>
-        <div class="div10 text-center fs-8 border-t-r-b">C.S.O.</div>
-        <div class="div11 text-center fs-8 border-t-r-b">C.S.N.</div>
-        <div class="div12 text-center fs-8 border-t-b">A/F CYCLES</div>
+        <div class="div9 text-center fs-8 border-r-b">DATE</div>
+        <div class="div10 text-center fs-8 border-r-b">C.S.O.</div>
+        <div class="div11 text-center fs-8 border-r-b">C.S.N.</div>
+        <div class="div12 text-center fs-8 border-r-b">A/F CYCLES</div>
         @for($i=1; $i<6; $i++)
-            <div class="div13 border-l-b-r" style="color: white">_ </div>
-            <div class="div14 border-b-r" style="color: white"> </div>
-            <div class="div15 border-b-r" style="color: white"> </div>
-            <div class="div16 border-b-r" style="color: white"> </div>
-            <div class="div17 border-b-r" style="color: white"> </div>
-            <div class="div18 border-b-r" style="color: white"> </div>
-            <div class="div19 border-b-r" style="color: white"> </div>
-            <div class="div20 border-b-r" style="color: white"> </div>
-            <div class="div21 border-b-r" style="color: white"> </div>
-            <div class="div22 border-b-r" style="color: white"> </div>
+            <div class="div13 border-l-b-r" style="height: 24px"> </div>
+            <div class="div14 border-b-r" > </div>
+            <div class="div15 border-b-r" > </div>
+            <div class="div16 border-b-r" > </div>
+            <div class="div17 border-b-r" > </div>
+            <div class="div18 border-b-r" > </div>
+            <div class="div19 border-b-r" > </div>
+            <div class="div20 border-b-r" > </div>
+            <div class="div21 border-b-r" > </div>
+            <div class="div22 border-b-r" > </div>
         @endfor
     </div>
     <div class="border-l-t-r mt-1 ">
-        <div class="text-center pt-2 fs-75 justify-content-center d-flex" style="height: 32px">
-            <strong>PRIMARY MEMBER RECORDS</strong>
-           <div class="ms-4">{{$current_wo->number}}</div>
-        </div></div>
+
+        <div class="row">
+            <div class="col-10 text-center pt-1 fs-75 ">
+                <strong>PRIMARY MEMBER RECORDS</strong>
+            </div>
+            <div class="col-2 text-center"><strong>W{{$current_wo->number}}</strong></div>
+        </div>
+
+    </div>
+
+
     <div class="parent">
-        <div class="div31 text-center fs-8 border-all">DESCRIPTION</div>
-        <div class="div32 text-center fs-8 border-t-r-b">PART NO.</div>
-        <div class="div33 text-center fs-8 border-t-r-b">SERIAL NO.</div>
+        <div class="div31 text-center fs-8 border-all pt-3">DESCRIPTION</div>
+        <div class="div32 text-center fs-8 border-t-r-b pt-3">PART NO.</div>
+        <div class="div33 text-center fs-8 border-t-r-b pt-3">SERIAL NO.</div>
         <div class="div34 text-center fs-8 border-t-r-b">FITTER TO GEAR</div>
         <div class="div35 text-center fs-8 border-t-r-b">REMOVED FROM GEAR</div>
-        <div class="div36 text-center fs-8 border-t-r-b">REASON FOR REMOVAL</div>
+        <div class="div36 text-center fs-8 border-t-r-b pt-3">REASON FOR REMOVAL</div>
         <div class="div37 text-center fs-8 border-r-b">DATE.</div>
         <div class="div38 text-center fs-8 border-r-b">C.S.O.</div>
         <div class="div39 text-center fs-8 border-r-b">C.S.N</div>
@@ -513,16 +520,16 @@
         <div class="div41 text-center fs-8 border-r-b">C.S.O.</div>
         <div class="div42 text-center fs-8 border-r-b">C.S.N.</div>
         @for($i=0; $i<10; $i++)
-            <div class="div13 border-l-b-r" style="color: white; background-color: white"> _</div>
-            <div class="div14 border-b-r" style="color: white"> </div>
-            <div class="div15 border-b-r" style="color: white"> </div>
-            <div class="div16 border-b-r" style="color: white"> </div>
-            <div class="div17 border-b-r" style="color: white"> </div>
-            <div class="div18 border-b-r" style="color: white"> </div>
-            <div class="div19 border-b-r" style="color: white"> </div>
-            <div class="div20 border-b-r" style="color: white"> </div>
-            <div class="div21 border-b-r" style="color: white"> </div>
-            <div class="div22 border-b-r" style="color: white"> </div>
+            <div class="div13 border-l-b-r" style="height: 24px"></div>
+            <div class="div14 border-b-r" > </div>
+            <div class="div15 border-b-r" > </div>
+            <div class="div16 border-b-r" > </div>
+            <div class="div17 border-b-r" > </div>
+            <div class="div18 border-b-r" > </div>
+            <div class="div19 border-b-r" > </div>
+            <div class="div20 border-b-r" > </div>
+            <div class="div21 border-b-r" > </div>
+            <div class="div22 border-b-r" > </div>
         @endfor
     </div>
 
