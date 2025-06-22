@@ -46,7 +46,7 @@ Route::get('/', [FrontController::class, 'index'])->name('home')->middleware('mo
 
 // ----------------------- Mobile route -----------------------------------------------------------------
 Route::prefix('mobile')->name('mobile.')->middleware(['auth','verified'])->group(function () {
-    Route::get('/', [MobileController::class, 'index'])->name('index');
+    Route::get('/mobile', [MobileController::class, 'index'])->name('index');
     Route::post('/workorders/photo/{id}', [MediaController::class, 'store_photo_workorders'])->name('workorders.media.store');
     Route::delete('/workorders/photo/delete/{id}', [MediaController::class, 'delete_photo'])->name('mobile.workorders.photo.delete');
     Route::get('/workorders/photos/{id}', [MediaController::class, 'get_photos'])->name('mobile.workorders.photos');
@@ -75,39 +75,38 @@ Route::group(['middleware' => ['auth'] ], function () {
 
     Route::get('/cabinet', [CabinetController::class, 'index'])->name('cabinet.index');
     Route::get('/logs', [CabinetController::class, 'activity'])->name('log.activity');
-
     Route::resource('/users', UserController::class);
-    Route::resource('/manuals', ManualController::class);
-    Route::resource('/planes', PlaneController::class);
+    Route::resource('/manuals',ManualController::class);
+    Route::resource('/planes',PlaneController::class);
     Route::resource('/builders', BuilderController::class);
-    Route::resource('/scopes', ScopeController::class);
-    Route::resource('/materials', MaterialController::class);
-    Route::resource('/roles', RoleController::class);
-    Route::resource('/teams', TeamController::class);
-    Route::resource('/customers', CustomerController::class);
-    Route::resource('/tasks', TaskController::class);
-    Route::resource('/general-tasks', GeneralTaskController::class);
-    Route::resource('/workorders', WorkorderController::class);
-    Route::resource('/mains', MainController::class);
-    Route::resource('/units', UnitController::class)->except('update');
-    Route::resource('/tdrs', TdrController::class);
+    Route::resource('/scopes',  ScopeController::class);
+    Route::resource('/materials',  MaterialController::class);
+    Route::resource('/roles',  RoleController::class);
+    Route::resource('/teams',  TeamController::class);
+    Route::resource('/customers',  CustomerController::class);
+    Route::resource('/tasks',  TaskController::class);
+    Route::resource('/general-tasks',  GeneralTaskController::class);
+    Route::resource('/workorders',  WorkorderController::class);
+    Route::resource('/mains',  MainController::class);
+    Route::resource('/units',  UnitController::class)->except('update');
+    Route::resource('/tdrs',TdrController::class);
     Route::resource('/components', ComponentController::class);
     Route::resource('/processes', ProcessController::class);
-    Route::resource('/tdr-processes', TdrProcessController::class);
-    Route::resource('/process-names', ProcessNameController::class);
+    Route::resource('/tdr-processes',TdrProcessController::class);
+    Route::resource('/process-names',ProcessNameController::class);
     Route::resource('/trainings', TrainingController::class);
     Route::resource('/manual_processes', ManualProcessController::class);
-    Route::resource('/conditions', ConditionController::class);
+    Route::resource('/conditions',ConditionController::class);
 
     Route::get('/workorders/approve/{id}/', [WorkorderController::class, 'approve'])->name('workorders.approve');
     Route::post('workorders/{workorder}/inspection', [WorkorderController::class, 'updateInspect'])->name('workorders.inspection');
     Route::get('/progress', [MainController::class, 'progress'])->name('progress.index');
     Route::get('/workorders/{id}/photos', [WorkorderController::class, 'photos'])->name('workorders.photos');
     Route::get('/workorders/download/{id}/all', [WorkorderController::class, 'downloadAllGrouped'])->name('workorders.downloadAllGrouped');
-    Route::delete('/workorders/photo/delete/{id}', [MediaController::class, 'delete_photo'])->name('workorders.photo.delete');
+    Route::delete('/workorders/photo/delete/{id}', [MediaController::class, 'delete_photo'])->name('admin.workorders.photo.delete');
 
-    Route::get('/tdrs/processes/{workorder_id}', [TdrController::class, 'processes'])->name('tdrs.processes');
-    Route::get('/tdrs/inspection/{workorder_id}', [TdrController::class, 'inspection'])->name('tdrs.inspection');
+    Route::get('/tdrs/processes/{workorder_id}',[TdrController::class, 'processes'])->name('tdrs.processes');
+    Route::get('/tdrs/inspection/{workorder_id}',[TdrController::class, 'inspection'])->name('tdrs.inspection');
     Route::get('tdrs/tdrForm/{id}', [TdrController::class, 'tdrForm'])->name('tdrs.tdrForm');
     Route::get('tdrs/prlForm/{id}', [TdrController::class, 'prlForm'])->name('tdrs.prlForm');
     Route::get('tdrs/specProcessForm/{id}', [TdrController::class, 'specProcessForm'])->name('tdrs.specProcessForm');
@@ -121,16 +120,14 @@ Route::group(['middleware' => ['auth'] ], function () {
     Route::get('/tdrs/inspection/component/{workorder_id}', [TdrController::class, 'inspectionComponent'])->name('tdrs.inspection.component');
 
     Route::post('/components/store_from_inspection', [ComponentController::class, 'storeFromInspection'])->name('components.storeFromInspection');
-    Route::get('/get-processes', [TdrProcessController::class, 'getProcesses'])->name('processes.getProcesses');
+    Route::get('/get-processes', [ProcessController::class, 'getProcesses'])->name('processes.getProcesses');
     Route::get('tdr-processes/processesForm/{id}', [TdrProcessController::class, 'processesForm'])->name('tdr-processes.processesForm');
-    Route::post('/processes/store', [ProcessController::class, 'store'])->name('processes.store');
 
     // Уникальный путь для createProcesses
     Route::get('/tdr/{tdrId}/create-processes', [TdrProcessController::class, 'createProcesses'])->name('tdr-processes.createProcesses');
     Route::get('/tdr/{tdrId}/processes', [TdrProcessController::class, 'processes'])->name('tdr-processes.processes');
     Route::get('/get-process/{processNameId}', [TdrProcessController::class, 'getProcess'])->name('tdr-processes.get-process');
     Route::get('tdrs/{workorder_id}/ndt-std', [TdrController::class, 'ndtStd'])->name('tdrs.ndtStd');
-    Route::get('tdrs/{workorder_id}/cad-std', [TdrController::class, 'cadStd'])->name('tdrs.cadStd');
 
     Route::get('trainings/form112/{id}', [TrainingController::class, 'showForm112'])->name('trainings.form112');
     Route::get('trainings/form132/{id}', [TrainingController::class, 'showForm132'])->name('trainings.form132');
@@ -143,6 +140,7 @@ Route::group(['middleware' => ['auth'] ], function () {
         Route::get('/{file}', [ManualCsvController::class, 'view'])->name('view');
         Route::delete('/{file}', [ManualCsvController::class, 'delete'])->name('delete');
     });
+
 });
 
 

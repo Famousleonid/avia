@@ -5,7 +5,7 @@
         .card {
             display: flex;
             flex-direction: column;
-            height: calc(100vh - 70px); 
+            height: calc(100vh - 70px);
         }
 
         .card-header {
@@ -394,6 +394,7 @@
 
                 try {
                     const response = await fetch(`/workorders/${workorderId}/photos`);
+
                     if (!response.ok) throw new Error('Response not ok');
                     const data = await response.json();
 

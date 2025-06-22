@@ -7,7 +7,7 @@
                 <div class="card">
                     <div class="card-header d-flex justify-content-between align-items-center">
                         {{ __('Login') }}
-                        <a href="{{ url('/') }}" class="btn-close">x</a>
+                        <a href="{{ route('home') }}" class="btn-close " aria-label="Close"></a>
                     </div>
 
                     <div class="card-body">

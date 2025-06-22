@@ -146,7 +146,11 @@
 {{--                                    @endforeach--}}
 
                                     @foreach($cmm->getMedia('csv_files') as $file)
+<<<<<<< HEAD
+                                        <a href="/admin/manuals/{{ $cmm->id }}/csv/{{ $file->id }}"
+=======
                                         <a href="{{ route('manuals.csv.view', ['manual' => $cmm->id, 'file' => $file->id]) }}"
+>>>>>>> origin/master
                                            class="btn btn-sm btn-outline-info">
                                             <i class="fas fa-file-csv"></i>
                                             @if($file->getCustomProperty('process_type'))
