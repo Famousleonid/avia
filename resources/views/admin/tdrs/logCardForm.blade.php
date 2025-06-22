@@ -470,17 +470,17 @@
 
     <div class="parent">
         <div class="div1 text-center fs-8 border-all pt-3">Aircraft Reg./Con.No.</div>
-        <div class="div2 text-center fs-8 border-t-r">FITTED TO AIRCRAFT</div>
-        <div class="div3 text-center fs-8 border-t-r-b">REMOVED FROM AIRCRAFT</div>
+        <div class="div2 text-center fs-8 border-t-r  pt-1">FITTED TO AIRCRAFT</div>
+        <div class="div3 text-center fs-8 border-t-r-b  pt-1">REMOVED FROM AIRCRAFT</div>
         <div class="div4 text-center fs-8 border-t-r-b pt-3">REASON FOR REMOVAL</div>
-        <div class="div5 text-center fs-8 border-t-r-b">DATE</div>
-        <div class="div6 text-center fs-8 border-t-r-b">C.S.O.</div>
-        <div class="div7 text-center fs-8 border-t-r-b">C.S.N.</div>
-        <div class="div8 text-center fs-8 border-t-r-b">A/F CYCLES</div>
-        <div class="div9 text-center fs-8 border-r-b">DATE</div>
-        <div class="div10 text-center fs-8 border-r-b">C.S.O.</div>
-        <div class="div11 text-center fs-8 border-r-b">C.S.N.</div>
-        <div class="div12 text-center fs-8 border-r-b">A/F CYCLES</div>
+        <div class="div5 text-center fs-8 border-t-r-b pt-1">DATE</div>
+        <div class="div6 text-center fs-8 border-t-r-b pt-1">C.S.O.</div>
+        <div class="div7 text-center fs-8 border-t-r-b pt-1">C.S.N.</div>
+        <div class="div8 text-center fs-8 border-t-r-b pt-1">A/F CYCLES</div>
+        <div class="div9 text-center fs-8 border-r-b pt-1">DATE</div>
+        <div class="div10 text-center fs-8 border-r-b pt-1">C.S.O.</div>
+        <div class="div11 text-center fs-8 border-r-b pt-1">C.S.N.</div>
+        <div class="div12 text-center fs-8 border-r-b pt-1">A/F CYCLES</div>
         @for($i=1; $i<6; $i++)
             <div class="div13 border-l-b-r" style="height: 24px"> </div>
             <div class="div14 border-b-r" > </div>
@@ -497,7 +497,7 @@
     <div class="border-l-t-r mt-1 ">
 
         <div class="row">
-            <div class="col-10 text-center pt-1 fs-75 ">
+            <div class="col-10 pt-1  fs-75 " style="text-align: center; padding-left: 28ch;">
                 <strong>PRIMARY MEMBER RECORDS</strong>
             </div>
             <div class="col-2 text-center"><strong>W{{$current_wo->number}}</strong></div>
@@ -506,19 +506,19 @@
     </div>
 
 
-    <div class="parent">
+    <div class="parent ">
         <div class="div31 text-center fs-8 border-all pt-3">DESCRIPTION</div>
         <div class="div32 text-center fs-8 border-t-r-b pt-3">PART NO.</div>
         <div class="div33 text-center fs-8 border-t-r-b pt-3">SERIAL NO.</div>
-        <div class="div34 text-center fs-8 border-t-r-b">FITTER TO GEAR</div>
-        <div class="div35 text-center fs-8 border-t-r-b">REMOVED FROM GEAR</div>
+        <div class="div34 text-center fs-8 border-t-r-b pt-1">FITTER TO GEAR</div>
+        <div class="div35 text-center fs-8 border-t-r-b pt-1">REMOVED FROM GEAR</div>
         <div class="div36 text-center fs-8 border-t-r-b pt-3">REASON FOR REMOVAL</div>
-        <div class="div37 text-center fs-8 border-r-b">DATE.</div>
-        <div class="div38 text-center fs-8 border-r-b">C.S.O.</div>
-        <div class="div39 text-center fs-8 border-r-b">C.S.N</div>
-        <div class="div40 text-center fs-8 border-r-b">DATE</div>
-        <div class="div41 text-center fs-8 border-r-b">C.S.O.</div>
-        <div class="div42 text-center fs-8 border-r-b">C.S.N.</div>
+        <div class="div37 text-center fs-8 border-r-b pt-1">DATE.</div>
+        <div class="div38 text-center fs-8 border-r-b pt-1">C.S.O.</div>
+        <div class="div39 text-center fs-8 border-r-b pt-1">C.S.N</div>
+        <div class="div40 text-center fs-8 border-r-b pt-1">DATE</div>
+        <div class="div41 text-center fs-8 border-r-b pt-1">C.S.O.</div>
+        <div class="div42 text-center fs-8 border-r-b pt-1">C.S.N.</div>
         @for($i=0; $i<10; $i++)
             <div class="div13 border-l-b-r" style="height: 24px"></div>
             <div class="div14 border-b-r" > </div>
