@@ -1095,7 +1095,23 @@ class TdrController extends Controller
         ], compact('tdrs', 'tdr_ws','processNames'));
     }
 
+public function logCardForm(Request $request, $id)
+{
+    // Загрузка Workorder по ID
+    $current_wo = Workorder::findOrFail($id);
+    // Получаем данные о manual_id, связанном с этим Workorder
+    $manual_id = $current_wo->unit->manual_id;
+    $builders = Builder::all();
 
+    $manuals = Manual::where('id', $manual_id)
+        ->with('builder')
+        ->get();
+
+
+
+    return view('admin.tdrs.logCardForm', compact('current_wo','manuals', 'builders'));
+
+}
     public function tdrForm(Request $request, $id)
     {
         // Загрузка Workorder по ID
@@ -1340,7 +1356,8 @@ class TdrController extends Controller
      * Расчет сумм NDT из данных CSV для рабочего заказа
      *
      * @param int $workorder_id ID рабочего заказа
-     * @return array{total: int, mpi: int, fpi: int} Массив с общими суммами, MPI и FPI
+     * @return array{total: int, mpi: int, fpi: int} Массив с общими суммами,
+     *     MPI и FPI
      */
     private function calcNdtSums(int $workorder_id): array
     {

@@ -102,7 +102,10 @@
                                 <div class="m-3">
                                     <div class="">
                                         <label for="ipl_num">{{ __('IPL Number') }}</label>
-                                        <input id='ipl_num' type="text" class="form-control" name="ipl_num" required>
+                                        <input id='ipl_num' type="text" class="form-control" name="ipl_num"
+                                               pattern="^\d+-\d+[A-Za-z]?$"
+                                               title="The format should be: number-number (for example: 1-200A, 1001-100, 5-398B)"
+                                               required>
                                     </div>
                                     <div class="col-xs-12 col-sm-12 col-md-12 mt-2">
                                         <div class="form-group">
@@ -121,7 +124,10 @@
                                 <div class="m-3">
                                     <div class="">
                                         <label for="assy_ipl_num">{{ __('Assembly IPL Number') }}</label>
-                                        <input id='assy_ipl_num' type="text" class="form-control" name="assy_ipl_num" >
+                                        <input id='assy_ipl_num' type="text" class="form-control" name="assy_ipl_num"
+                                               pattern="^\d+-\d+[A-Za-z]?$"
+                                               title="The format should be: number-number (for example: 1-200A, 1001-100, 5-398B)"
+                                               required>
                                     </div>
                                     <div class="col-xs-12 col-sm-12 col-md-12 mt-2">
                                         <div class="form-group">

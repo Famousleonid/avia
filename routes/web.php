@@ -111,6 +111,7 @@ Route::group(['middleware' => ['auth'] ], function () {
     Route::get('tdrs/prlForm/{id}', [TdrController::class, 'prlForm'])->name('tdrs.prlForm');
     Route::get('tdrs/specProcessForm/{id}', [TdrController::class, 'specProcessForm'])->name('tdrs.specProcessForm');
     Route::get('tdrs/ndtForm/{id}', [TdrController::class, 'ndtForm'])->name('tdrs.ndtForm');
+    Route::get('tdrs/logCardForm/{id}', [TdrController::class, 'logCardForm'])->name('tdrs.logCardForm');
 
     // Для component inspection
     Route::get('/tdrs/inspection/unit/{workorder_id}', [TdrController::class, 'inspectionUnit'])->name('tdrs.inspection.unit');

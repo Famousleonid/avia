@@ -210,7 +210,7 @@
 
                             {{--                                @endif--}}
                             {{--                            </div>--}}
-                            <div class=" d-flex justify-content-between" style=" height: 40px; width: 450px">
+                            <div class=" d-flex justify-content-between" style=" height: 40px; width: 550px">
                                 @if(count($tdrs))
 
                                     <a href="{{ route('tdrs.tdrForm', ['id'=> $current_wo->id]) }}"
@@ -224,7 +224,13 @@
                                        class="btn btn-outline-warning  formLink "
                                        target="_blank"
                                        id="#" style=" height: 40px">
-                                        <i class="bi bi-file-earmark-excel"> Special Process Form</i>
+                                        <i class="bi bi-file-earmark-excel">Special Process Form </i>
+                                    </a>
+                                    <a href="{{ route('tdrs.logCardForm', ['id'=> $current_wo->id]) }}"
+                                       class="btn btn-outline-warning  formLink "
+                                       target="_blank"
+                                       id="#" style=" height: 40px">
+                                        <i class="bi bi-file-earmark-excel">Log Card </i>
                                     </a>
 
                                     <a href="{{ route('tdrs.prlForm', ['id'=> $current_wo->id]) }}"
