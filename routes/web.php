@@ -46,7 +46,7 @@ Route::get('/', [FrontController::class, 'index'])->name('home')->middleware('mo
 
 // ----------------------- Mobile route -----------------------------------------------------------------
 Route::prefix('mobile')->name('mobile.')->middleware(['auth','verified'])->group(function () {
-    Route::get('/', [MobileController::class, 'index'])->name('index');
+    Route::get('/mobile', [MobileController::class, 'index'])->name('index');
     Route::post('/workorders/photo/{id}', [MediaController::class, 'store_photo_workorders'])->name('workorders.media.store');
     Route::delete('/workorders/photo/delete/{id}', [MediaController::class, 'delete_photo'])->name('mobile.workorders.photo.delete');
     Route::get('/workorders/photos/{id}', [MediaController::class, 'get_photos'])->name('mobile.workorders.photos');
@@ -73,7 +73,7 @@ Route::group(['middleware' => ['auth', 'isAdmin'] ], function () {
 // ---------------------- Cabinet route ------------------------------------------------------------------------
 Route::group(['middleware' => ['auth'] ], function () {
 
-    Route::get('/', [CabinetController::class, 'index'])->name('cabinet.index');
+    Route::get('/cabinet', [CabinetController::class, 'index'])->name('cabinet.index');
     Route::get('/logs', [CabinetController::class, 'activity'])->name('log.activity');
     Route::resource('/users', UserController::class);
     Route::resource('/manuals',ManualController::class);

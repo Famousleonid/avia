@@ -416,7 +416,7 @@
 
                 fileInput.onchange = () => {
                     if (fileInput.files.length > 0) {
-                        // TODO: Показать спиннер загрузки
+                        showLoadingSpinner();
                         submitPhotos(fileInput.files);
                     }
                 };
