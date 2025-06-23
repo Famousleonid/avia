@@ -75,6 +75,7 @@
                                         <option value="ndt">{{ __('NDT') }}</option>
                                         <option value="cad">{{ __('Cad') }}</option>
                                         <option value="stress_relief">{{ __('Stress Relief') }}</option>
+                                        <option value="log">{{ __('Log Card') }}</option>
                                         <option value="other">{{ __('Other') }}</option>
                                     </select>
                                     <input type="file" name="csv_files[]" class="form-control" accept=".csv,.txt" multiple>
@@ -108,6 +109,20 @@
                             </div>
                         </div>
                         <div style="width: 300px" class="m-3 p-2 border">
+                            <div class="mb-3">
+                                <label for="ovh_life">{{ __('Overhaul Life') }}</label>
+                                <input id='ovh_life' type="text"
+                                       class="form-control"
+                                       name="ovh_life"
+                                       value="{{ old('ovh_life', $cmm->ovh_life) }}" required>
+                            </div>
+                            <div class="mb-3">
+                                <label for="reg_sb">{{ __('Inspection Req.SB') }}</label>
+                                <input id='reg_sb' type="text"
+                                       class="form-control"
+                                       name="reg_sb"
+                                       value="{{ old('reg_sb', $cmm->reg_sb) }}" required>
+                            </div>
                             <div class="form-group ">
                                 <label for="planes_id">{{ __('AirCraft Type') }}</label>
                                 <select id="planes_id" name="planes_id" class="form-control" required>

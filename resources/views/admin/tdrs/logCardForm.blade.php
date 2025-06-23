@@ -202,16 +202,19 @@
         .trainer-init-1 {
             width: 99px;
         }
-        .fs-7 {
+        .fs-9 {
             font-size: 0.9rem; /* или любое другое подходящее значение */
         }
-        .fs-75 {
+        .fs-8 {
             font-size: 0.8rem; /* или любое другое подходящее значение */
         }
-        .fs-8 {
+        .fs-7 {
             font-size: 0.7rem; /* или любое другое подходящее значение */
         }
-        .fs-9 {
+        .fs-75 {
+            font-size: 0.75rem; /* или любое другое подходящее значение */
+        }
+        .fs-4 {
             font-size: 0.4rem; /* или любое другое подходящее значение */
         }
 
@@ -404,6 +407,19 @@
             grid-column-start: 10;
             grid-row-start: 2;
         }
+        .div51 {
+            grid-column: span 2 / span 2;
+        }
+
+        .div52 {
+            grid-column: span 9 / span 9;
+            grid-column-start: 3;
+        }
+
+        .div53 {
+            /*grid-column: span 2 / span 2;*/
+            grid-column-start: 11;
+        }
     </style>
 </head>
 
@@ -463,10 +479,11 @@
             </div>
         </div>
     </div>
-<div class="border-l-t-r"><div class="text-center pt-2 fs-75" style="height: 32px"><strong>AIRCRAFT INSTALLATION
-            RECORDS</strong></div></div>
-
-
+<div class="border-l-t-r">
+    <div class="text-center pt-2 fs-75" style="height: 32px">
+        <strong>AIRCRAFT INSTALLATION RECORDS</strong>
+    </div>
+</div>
 
     <div class="parent">
         <div class="div1 text-center fs-8 border-all pt-3">Aircraft Reg./Con.No.</div>
@@ -481,7 +498,8 @@
         <div class="div10 text-center fs-8 border-r-b pt-1">C.S.O.</div>
         <div class="div11 text-center fs-8 border-r-b pt-1">C.S.N.</div>
         <div class="div12 text-center fs-8 border-r-b pt-1">A/F CYCLES</div>
-        @for($i=1; $i<6; $i++)
+
+           @for($i=1; $i<6; $i++)
             <div class="div13 border-l-b-r" style="height: 24px"> </div>
             <div class="div14 border-b-r" > </div>
             <div class="div15 border-b-r" > </div>
@@ -495,18 +513,16 @@
         @endfor
     </div>
     <div class="border-l-t-r mt-1 ">
-
         <div class="row">
             <div class="col-10 pt-1  fs-75 " style="text-align: center; padding-left: 28ch;">
                 <strong>PRIMARY MEMBER RECORDS</strong>
             </div>
             <div class="col-2 text-center"><strong>W{{$current_wo->number}}</strong></div>
         </div>
-
     </div>
 
 
-    <div class="parent ">
+    <div class="parent">
         <div class="div31 text-center fs-8 border-all pt-3">DESCRIPTION</div>
         <div class="div32 text-center fs-8 border-t-r-b pt-3">PART NO.</div>
         <div class="div33 text-center fs-8 border-t-r-b pt-3">SERIAL NO.</div>
@@ -519,7 +535,8 @@
         <div class="div40 text-center fs-8 border-r-b pt-1">DATE</div>
         <div class="div41 text-center fs-8 border-r-b pt-1">C.S.O.</div>
         <div class="div42 text-center fs-8 border-r-b pt-1">C.S.N.</div>
-        @for($i=0; $i<10; $i++)
+
+        @for($i=0; $i<11; $i++)
             <div class="div13 border-l-b-r" style="height: 24px"></div>
             <div class="div14 border-b-r" > </div>
             <div class="div15 border-b-r" > </div>
@@ -533,6 +550,35 @@
         @endfor
     </div>
 
+    <div class="parent mt-2">
+        <div class="div51">NOTES:</div>
+        <div class="div52 fs-7">
+            <div>
+                1. For ultimate lives and/or inspection requirements, refer to Aircraft Airworthiness Data and to the
+                appropriate
+                @foreach($manuals as $manual)
+                    @if($manual->id == $current_wo->unit->manual_id)
+                        <h7 class=""> {{$manual->reg_sb}}</h7>
+                    @endif
+                @endforeach
+                Service Bulletin.
+            </div>
+            <div>
+                2. It is the Operator's responsibility to ensure these records are fully and accurately maintained.
+            </div>
+            <div>
+                3. Lives of primary members shall be maintained. Failure to comply may result in premature scrap.
+            </div>
+            <div>
+                4. Should a primary member be removed from the unit it must be suitably tagged to indicate consumed life.
+            </div>
+            <div>
+                5. If the Part No. is changed a new Log Card must be completed, transferring relevant information from the previous Card.
+            </div>
+
+        </div>
+        <div class="div53"></div>
+    </div>
 
 
 
@@ -553,6 +599,7 @@
     </div>
 
 </footer>
+
 
 </body>
 

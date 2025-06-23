@@ -75,6 +75,15 @@
                             </div>
                         </div>
                         <div style="width: 250px" class="m-3 p-2 ">
+
+                            <div class="">
+                                <label for="ovh_life">{{ __('Overhaul Life') }}</label>
+                                <input id='ovh_life' type="text" class="form-control" name="ovh_life" required>
+                            </div>
+                            <div class="">
+                                <label for="reg_sb">{{ __('Inspection Req.SB') }}</label>
+                                <input id='reg_sb' type="text" class="form-control" name="reg_sb" required>
+                            </div>
                             <div class="form-group ">
                                 <label for="planes_id">{{ __('AirCraft Type')  }}</label>
                                 <select id="planes_id" name="planes_id" class="form-control" required>

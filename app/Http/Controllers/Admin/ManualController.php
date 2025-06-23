@@ -70,6 +70,9 @@ class ManualController extends Controller
             'unit_name' => 'nullable',
             'unit_name_training' => 'nullable',
             'training_hours' => 'nullable',
+            'ovh_life' => 'nullable',
+            'reg_sb' => 'nullable',
+
             'planes_id' => 'required|exists:planes,id',
             'builders_id' => 'required|exists:builders,id',
             'scopes_id' => 'required|exists:scopes,id',
@@ -143,6 +146,8 @@ class ManualController extends Controller
             'unit_name' => 'nullable',
             'unit_name_training' => 'nullable',
             'training_hours' => 'nullable',
+            'ovh_life' => 'nullable',
+            'reg_sb' => 'nullable',
             'planes_id' => 'required|exists:planes,id',
             'builders_id' => 'required|exists:builders,id',
             'scopes_id' => 'required|exists:scopes,id',

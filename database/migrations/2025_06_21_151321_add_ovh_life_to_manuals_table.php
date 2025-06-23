@@ -15,6 +15,7 @@ return new class extends Migration
     {
         Schema::table('manuals', function (Blueprint $table) {
             $table->string('ovh_life')->nullable()->after('scopes_id');
+            $table->string('reg_sb')->nullable()->after('ovh_life');
         });
     }
 
@@ -27,6 +28,7 @@ return new class extends Migration
     {
         Schema::table('manuals', function (Blueprint $table) {
             $table->dropColumn('ovh_life');
+            $table->dropColumn('reg_sb');
         });
     }
 };

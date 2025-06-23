@@ -36,6 +36,7 @@ class TdrController extends Controller
     const DEFAULT_PROCESS = 1;
     const PROCESS_TYPE_NDT = 'ndt';
     const PROCESS_TYPE_CAD = 'cad';
+    const PROCESS_TYPE_LOG = 'log';
 
     /**
      * Display a listing of the resource.
@@ -1100,14 +1101,18 @@ public function logCardForm(Request $request, $id)
     // Загрузка Workorder по ID
     $current_wo = Workorder::findOrFail($id);
     // Получаем данные о manual_id, связанном с этим Workorder
-    $manual_id = $current_wo->unit->manual_id;
+    $manual = $current_wo->unit->manual_id;
     $builders = Builder::all();
 
-    $manuals = Manual::where('id', $manual_id)
+    $manuals = Manual::where('id', $manual)
         ->with('builder')
         ->get();
 
 
+// Получаем CSV-файл с process_type = 'log'
+    $csvMedia = $manual->getMedia('csv_files')->first(function ($media) {
+        return $media->getCustomProperty('process_type') === self::PROCESS_TYPE_LOG;
+    });
 
     return view('admin.tdrs.logCardForm', compact('current_wo','manuals', 'builders'));
 

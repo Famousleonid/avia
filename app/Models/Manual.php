@@ -27,6 +27,7 @@ class Manual extends Model implements  hasMedia
         'builders_id',
         'scopes_id',
         'ovh_life',
+        'reg_sb',
     ];
 
     protected $dates = ['deleted_at'];
