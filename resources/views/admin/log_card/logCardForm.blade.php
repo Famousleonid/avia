@@ -431,7 +431,7 @@
     </button>
 </div>
 <div class="container-fluid">
-    <div class="row" style="height: 48px">
+    <div class="row" style="height: 60px">
         <div class="col-1">
             <img src="{{ asset('img/icons/AT_logo-rb.svg') }}" alt="Logo"
                  style="width: 160px; margin: 6px 10px 0;">
@@ -485,8 +485,8 @@
     </div>
 </div>
 
-    <div class="parent" >
-        <div class="div1 text-center fs-8 border-all pt-3" >Aircraft Reg./Con.No.</div>
+    <div class="parent">
+        <div class="div1 text-center fs-8 border-all pt-3">Aircraft Reg./Con.No.</div>
         <div class="div2 text-center fs-8 border-t-r  pt-1">FITTED TO AIRCRAFT</div>
         <div class="div3 text-center fs-8 border-t-r-b  pt-1">REMOVED FROM AIRCRAFT</div>
         <div class="div4 text-center fs-8 border-t-r-b pt-3">REASON FOR REMOVAL</div>
@@ -499,8 +499,8 @@
         <div class="div11 text-center fs-8 border-r-b pt-1">C.S.N.</div>
         <div class="div12 text-center fs-8 border-r-b pt-1">A/F CYCLES</div>
 
-           @for($i=1; $i<7; $i++)
-            <div class="div13 border-l-b-r" style="height: 27px"> </div>
+           @for($i=1; $i<6; $i++)
+            <div class="div13 border-l-b-r" style="height: 24px"> </div>
             <div class="div14 border-b-r" > </div>
             <div class="div15 border-b-r" > </div>
             <div class="div16 border-b-r" > </div>
@@ -536,8 +536,8 @@
         <div class="div41 text-center fs-8 border-r-b pt-1">C.S.O.</div>
         <div class="div42 text-center fs-8 border-r-b pt-1">C.S.N.</div>
 
-        @for($i=0; $i<9; $i++)
-            <div class="div13 border-l-b-r" style="height: 27px"></div>
+        @for($i=0; $i<11; $i++)
+            <div class="div13 border-l-b-r" style="height: 24px"></div>
             <div class="div14 border-b-r" > </div>
             <div class="div15 border-b-r" > </div>
             <div class="div16 border-b-r" > </div>

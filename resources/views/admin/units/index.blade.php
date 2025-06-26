@@ -272,7 +272,8 @@
                     <!-- Выпадающий список для выбора CMM -->
                     <div class="mb-3">
                         <label for="cmmSelect" class="form-label">CMM</label>
-                        <select class="form-select" id="cmmSelect" name="cmmSelect">
+{{--                        <select class="form-select" id="cmmSelect" name="cmmSelect">--}}
+                            <select name="cmmSelect" id="cmmSelect" class="form-control">
                             <option value="">{{ __('Select CMM') }}</option>
                             @foreach($manuals as $manual)
                                 <option value="{{ $manual->id }}">{{ $manual->title }} ({{ $manual->number }})</option>
@@ -612,7 +613,38 @@
                 });
         });
 
+        window.addEventListener('load', function () {
 
+
+            // --------------------------------- Select 2 --------------------------------------------------------
+
+            $(document).ready(function () {
+                $('#cmmSelect').select2({
+                    placeholder: '---',
+                    theme: 'bootstrap-5',
+                    allowClear: true
+                });
+            });
+            $(function() {
+                applyTheme();
+            });
+
+            function applyTheme() {
+                const isDark = document.documentElement.getAttribute('data-bs-theme');
+                const selectContainer = $('.select2-container');
+                if (isDark === 'dark') {
+                    selectContainer.addClass('select2-dark').removeClass('select2-light');
+                    $('.select2-container .select2-dropdown').addClass('select2-dark').removeClass('select2-light');
+                } else {
+                    selectContainer.addClass('select2-light').removeClass('select2-dark');
+                    $('.select2-container .select2-dropdown').addClass('select2-light').removeClass('select2-dark');
+                }
+            }
+
+            // -----------------------------------------------------------------------------------------------------
+
+
+        });
 
     </script>
 

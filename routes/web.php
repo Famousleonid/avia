@@ -6,6 +6,7 @@ use App\Http\Controllers\Admin\ComponentController;
 use App\Http\Controllers\Admin\ConditionController;
 use App\Http\Controllers\Admin\CustomerController;
 use App\Http\Controllers\Admin\GeneralTaskController;
+use App\Http\Controllers\Admin\LogCardController;
 use App\Http\Controllers\Admin\ManualProcessController;
 use App\Http\Controllers\Admin\PlaneController;
 use App\Http\Controllers\Admin\ProcessController;
@@ -97,6 +98,10 @@ Route::group(['middleware' => ['auth'] ], function () {
     Route::resource('/trainings', TrainingController::class);
     Route::resource('/manual_processes', ManualProcessController::class);
     Route::resource('/conditions',ConditionController::class);
+    
+    // Отдельный роут для create с параметром id
+    Route::get('/log_card/create/{id}', [LogCardController::class, 'create'])->name('log_card.create');
+    Route::resource('/log_card', LogCardController::class)->except('create');
 
     Route::get('/workorders/approve/{id}/', [WorkorderController::class, 'approve'])->name('workorders.approve');
     Route::post('workorders/{workorder}/inspection', [WorkorderController::class, 'updateInspect'])->name('workorders.inspection');
@@ -113,6 +118,7 @@ Route::group(['middleware' => ['auth'] ], function () {
     Route::get('tdrs/ndtForm/{id}', [TdrController::class, 'ndtForm'])->name('tdrs.ndtForm');
 
     Route::get('tdrs/logCardForm/{id}', [TdrController::class, 'logCardForm'])->name('tdrs.logCardForm');
+    Route::get('log_card/logCardForm/{id}', [LogCardController::class, 'logCardForm'])->name('log_card.logCardForm');
 
     // Для component inspection
     Route::get('/tdrs/inspection/unit/{workorder_id}', [TdrController::class, 'inspectionUnit'])->name('tdrs.inspection.unit');

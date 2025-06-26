@@ -1096,23 +1096,28 @@ class TdrController extends Controller
         ], compact('tdrs', 'tdr_ws','processNames'));
     }
 
-public function logCardForm(Request $request, $id)
+    public function logCardForm(Request $request, $id)
 {
+//    dd($request, $id);
     // Загрузка Workorder по ID
     $current_wo = Workorder::findOrFail($id);
-    // Получаем данные о manual_id, связанном с этим Workorder
+    // Получаем данные о manual, связанном с этим Workorder
     $manual = $current_wo->unit->manual_id;
+    $manual_wo = $current_wo->unit->manuals;
     $builders = Builder::all();
-
+// dd($manual);
     $manuals = Manual::where('id', $manual)
         ->with('builder')
         ->get();
 
+//dd($manuals, $manual);
 
 // Получаем CSV-файл с process_type = 'log'
-    $csvMedia = $manual->getMedia('csv_files')->first(function ($media) {
+    $csvMedia = $manual_wo->getMedia('csv_files')->first(function ($media) {
         return $media->getCustomProperty('process_type') === self::PROCESS_TYPE_LOG;
     });
+
+//    dd($csvMedia);
 
     return view('admin.tdrs.logCardForm', compact('current_wo','manuals', 'builders'));
 

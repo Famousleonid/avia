@@ -178,7 +178,13 @@
                                 </a>
                             </div>
                         @endif
-
+                            <div>
+                                <a href="{{route('log_card.show',['log_card' => $current_wo->id])}}"
+                                   class="btn  btn-outline-primary " style="height: 60px;width: 80px" onclick="showLoadingSpinner
+                                   ()">
+                                    {{__('Log Card')}}
+                                </a>
+                            </div>
                         <div>
 
                         </div>
@@ -226,7 +232,7 @@
                                        id="#" style=" height: 40px">
                                         <i class="bi bi-file-earmark-excel">Special Process Form </i>
                                     </a>
-                                    <a href="{{ route('tdrs.logCardForm', ['id'=> $current_wo->id]) }}"
+                                    <a href="{{ route('log_card.logCardForm', ['id'=> $current_wo->id]) }}"
                                        class="btn btn-outline-warning  formLink "
                                        target="_blank"
                                        id="#" style=" height: 40px">
