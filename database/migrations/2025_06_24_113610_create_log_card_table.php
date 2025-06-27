@@ -15,7 +15,6 @@ return new class extends Migration
     {
         Schema::create('log_card', function (Blueprint $table) {
             $table->id();
-            $table->foreignId('manuals_id')->constrained('manuals')->onDelete('cascade');
             $table->foreignId('workorder_id')->nullable()->constrained()->onDelete('set null');
             $table->json('component_data')->nullable();
 

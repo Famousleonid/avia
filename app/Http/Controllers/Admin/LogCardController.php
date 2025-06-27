@@ -82,7 +82,7 @@ class LogCardController extends Controller
         })->map(function ($group) use ($tdrs, $code, $necessary) {
             return [
                 'ipl_group' => $group->first()->ipl_num,
-                'components' => $group->map(function ($component) use ($tdrs,$code, $necessary) {
+                'components' => $group->map(function ($component) use ($tdrs, $code, $necessary) {
                     // Ищем TDR для данного компонента
                     $tdr = $tdrs->where('component_id', $component->id)->first();
             Log::info('TDR:'.$tdr);
