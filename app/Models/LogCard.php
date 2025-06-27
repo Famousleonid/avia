@@ -10,7 +10,7 @@ class LogCard extends Model
     use HasFactory;
     protected $fillable = [
         'workorder_id',
-        'log_card_data',
+        'component_data',
     ];
 
 }
