@@ -99,12 +99,16 @@
                     <a href="{{ route('tdrs.show', ['tdr'=>$current_wo->id]) }}"
                        class="btn btn-outline-secondary mt-3" style="height: 40px">{{ __('Back to Work Order') }} </a>
                     <div class="mt-3">
-                        <a href="{{ route('log_card.create', ['id' => $current_wo->id]) }}"
-                           class="btn btn-outline-info " style="height: 40px">
-                            {{ __('Create Log Card') }}
-                        </a>
+                        @if($log_card)
+                            <a href="{{ route('log_card.edit', $log_card->id) }}" class="btn btn-warning">
+                                <i class="fas fa-edit"></i> Edit Log Card
+                            </a>
+                        @else
+                            <a href="{{ route('log_card.create', $current_wo->id) }}" class="btn btn-success">
+                                <i class="fas fa-plus"></i> Create Log Card
+                            </a>
+                        @endif
                     </div>
-
 
                 </div>
 
@@ -120,10 +124,24 @@
                     <th class="text-primary text-center">Part Number</th>
                     <th class="text-primary text-center">Serial Number</th>
                     <th class="text-primary text-center">Reason to Removed</th>
-                    <th class="text-primary text-center">Action</th>
+{{--                    <th class="text-primary text-center">Action</th>--}}
                 </tr>
                 </thead>
                 <tbody>
+
+                @foreach($componentData as $item)
+
+                    @php
+                        $comp = $components->firstWhere('id', $item['component_id']);
+
+                    @endphp
+                    <tr>
+                        <td>{{ $comp ? $comp->name : '' }}</td>
+                        <td>{{ $comp ? $comp->part_number : '' }}</td>
+                        <td>{{ $item['serial_number'] }}</td>
+                        <td>{{ $item['reason'] }}</td>
+                    </tr>
+                @endforeach
 
                 </tbody>
             </table>

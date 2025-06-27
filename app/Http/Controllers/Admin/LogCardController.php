@@ -6,10 +6,14 @@ use App\Http\Controllers\Controller;
 use App\Models\Builder;
 use App\Models\Code;
 use App\Models\Component;
+use App\Models\LogCard;
 use App\Models\Manual;
 use App\Models\Necessary;
 use App\Models\Workorder;
 use App\Models\Tdr;
+use Illuminate\Contracts\Foundation\Application;
+use Illuminate\Contracts\View\Factory;
+use Illuminate\Contracts\View\View;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 
@@ -41,18 +45,32 @@ class LogCardController extends Controller
             ->with('builder')
             ->get();
 
-// Получаем CSV-файл с process_type = 'log'
-        $csvMedia = $manual_wo->getMedia('csv_files')->first(function ($media) {
-            return $media->getCustomProperty('process_type') === self::PROCESS_TYPE_LOG;
-        });
+        $components = Component::where('manual_id', $manual)->get();
 
-        return view('admin.log_card.logCardForm', compact('current_wo','manuals', 'builders'));
+        $log_card = LogCard::where('workorder_id', $current_wo->id)->first();
+
+        // Получаем массив из JSON
+        $componentData = [];
+        if ($log_card && $log_card->component_data) {
+            $componentData = is_array($log_card->component_data)
+                ? $log_card->component_data
+                : json_decode($log_card->component_data, true);
+        }
+ $log_count= count($componentData);
+//// Получаем CSV-файл с process_type = 'log'
+//        $csvMedia = $manual_wo->getMedia('csv_files')->first(function ($media) {
+//            return $media->getCustomProperty('process_type') === self::PROCESS_TYPE_LOG;
+//        });
+
+
+
+        return view('admin.log_card.logCardForm', compact('current_wo','manuals', 'builders', 'componentData', 'log_card', 'components' ,'log_count'));
 
     }
     /**
      * Show the form for creating a new resource.
      *
-     * @return \Illuminate\Contracts\Foundation\Application|\Illuminate\Contracts\View\Factory|\Illuminate\Contracts\View\View
+     * @return Application|Factory|View
      */
     public function create($id)
     {
@@ -113,35 +131,77 @@ class LogCardController extends Controller
      * Store a newly created resource in storage.
      *
      * @param  \Illuminate\Http\Request  $request
-     * @return \Illuminate\Http\Response
+     * @return \Illuminate\Http\RedirectResponse
      */
     public function store(Request $request)
     {
-        //
+//        dd($request);
+        $request->validate([
+            'workorder_id' => 'required|integer|exists:workorders,id',
+            'component_data' => 'required|string',
+        ]);
+
+        $workorder_id = $request->input('workorder_id');
+        $componentData = $request->input('component_data'); // это уже JSON-строка
+
+//        dd($componentData);
+
+        \App\Models\LogCard::create([
+            'workorder_id'    => $workorder_id,
+            'component_data' => $componentData,
+        ]);
+
+        return redirect()->route('log_card.show', $workorder_id)
+            ->with('success', 'Log Card успешно создан!');
     }
 
     /**
      * Display the specified resource.
      *
      * @param  int  $id
-     * @return \Illuminate\Contracts\Foundation\Application|\Illuminate\Contracts\View\Factory|\Illuminate\Contracts\View\View
+     * @return Application|Factory|View
      */
     public function show($id)
     {
         $current_wo = Workorder::findOrFail($id);
+        $manual_id = $current_wo->unit->manual_id;
+        $components = Component::where('manual_id', $manual_id)->get();
 
-        return view('admin.log_card.show', compact('current_wo'));
+        $log_card = LogCard::where('workorder_id', $current_wo->id)->first();
+
+        // Получаем массив из JSON
+        $componentData = [];
+        if ($log_card && $log_card->component_data) {
+            $componentData = is_array($log_card->component_data)
+                ? $log_card->component_data
+                : json_decode($log_card->component_data, true);
+        }
+
+        return view('admin.log_card.show', compact('current_wo', 'componentData', 'log_card', 'components'));
     }
 
     /**
      * Show the form for editing the specified resource.
      *
      * @param  int  $id
-     * @return \Illuminate\Http\Response
+     * @return Application|Factory|View
      */
     public function edit($id)
     {
-        //
+        $log_card = LogCard::findOrFail($id);
+        $current_wo = Workorder::findOrFail($log_card->workorder_id);
+        $manual_id = $current_wo->unit->manual_id;
+
+//        $components = Component::where('manual_id', $manual_id)->get();
+        $components = Component::where('manual_id', $manual_id)
+            ->where('log_card', 1)
+            ->orderBy('ipl_num', 'asc')
+            ->get();
+
+        $tdrs = Tdr::where('workorder_id', $current_wo->id)->get();
+        $componentData = json_decode($log_card->component_data, true);
+
+        return view('admin.log_card.edit', compact('current_wo', 'components', 'tdrs', 'log_card', 'componentData'));
     }
 
     /**
@@ -149,11 +209,22 @@ class LogCardController extends Controller
      *
      * @param  \Illuminate\Http\Request  $request
      * @param  int  $id
-     * @return \Illuminate\Http\Response
+     * @return \Illuminate\Http\RedirectResponse
      */
     public function update(Request $request, $id)
     {
-        //
+        $request->validate([
+            'workorder_id' => 'required|integer|exists:workorders,id',
+            'component_data' => 'required|string',
+        ]);
+
+        $log_card = \App\Models\LogCard::findOrFail($id);
+        $log_card->workorder_id = $request->input('workorder_id');
+        $log_card->component_data = $request->input('component_data');
+        $log_card->save();
+
+        return redirect()->route('log_card.show', $log_card->workorder_id)
+            ->with('success', 'Log Card успешно обновлён!');
     }
 
     /**

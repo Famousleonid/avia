@@ -53,12 +53,12 @@
                   enctype="multipart/form-data">
                 @csrf
                 <input type="hidden" name="workorder_id" value="{{ $current_wo->id }}">
-                <input type="hidden" name="manual_id" value="{{ $current_wo->unit->manual_id }}">
+                <input type="hidden" name="component_data" id="component_data_input">
 
                 <div class="table-responsive">
                     <table class="table table-bordered table-hover">
                         <thead>
-                            <tr class="text-center">
+                            <tr>
                                 <th>Description</th>
                                 <th>Part Number</th>
                                 <th>Select</th>
@@ -74,7 +74,7 @@
                                         @if($i === 0)
                                             <td rowspan="{{ $group->count() }}" class="align-middle">{{ $desc }}</td>
                                         @endif
-                                        <td class="text-center">{{ $component->part_number }}</td>
+                                        <td>{{ $component->part_number }}</td>
                                         <td class="text-center">
                                             <input type="radio" name="selected_component[{{ $desc }}]" value="{{ $component->id }}">
                                         </td>
@@ -83,25 +83,22 @@
                                                 <input type="text" class="form-control form-control-sm"
                                                     name="serial_numbers[{{ $desc }}]"
                                                     value="{{ $component->serial_number ?? '' }}"
-                                                    placeholder="serial number">
+                                                    placeholder="Введите серийный номер">
                                             </td>
-                                                <td rowspan="{{ $group->count() }}" class="align-middle">
-                                                    @php
-                                                        $tdr = $tdrs->where('component_id', $component->id)->first();
-                                                        $reason = '';
-                                                        if ($tdr) {
-                                                            if ($tdr->codes_id == $code->id) $reason = 'Missing';
-                                                            elseif ($tdr->necessaries_id == $necessary->id) $reason =
-                                                            $tdr->codes->name;
-                                                        }
-                                                    @endphp
-                                                    @if($reason)
-                                                        <span class="">{{
-                                                         $reason }}</span>
-                                                    @else
-                                                        <span class="text-muted">-</span>
-                                                    @endif
-                                                </td>
+                                            <td rowspan="{{ $group->count() }}" class="align-middle">
+                                                @php
+                                                    $tdr = $tdrs->where('component_id', $component->id)->first();
+                                                    $reason = '';
+                                                    if ($tdr && $tdr->codes && $tdr->codes->name) {
+                                                        $reason = $tdr->codes->name;
+                                                    }
+                                                @endphp
+                                                @if($reason)
+                                                    <span class="reason-badge">{{ $reason }}</span>
+                                                @else
+                                                    <span class="text-muted reason-badge"></span>
+                                                @endif
+                                            </td>
 {{--                                            <td rowspan="{{ $group->count() }}" class="align-middle">--}}
 {{--                                                <a href="{{ route('components.edit', $component->id) }}" class="btn btn-sm btn-primary">--}}
 {{--                                                    <i class="fas fa-edit"></i> Edit--}}
@@ -128,10 +125,38 @@
     </div>
 
     <script>
-        // JavaScript для функциональности radio buttons
-        document.addEventListener('DOMContentLoaded', function() {
-            // Можно добавить дополнительную логику для radio buttons если нужно
-            console.log('Log Card form loaded');
+    document.addEventListener('DOMContentLoaded', function() {
+        document.getElementById('createForm').addEventListener('submit', function(e) {
+            let data = [];
+            let allGroups = new Set();
+            document.querySelectorAll('input[type=radio][name^="selected_component["]').forEach(function(radio) {
+                let group = radio.name.match(/selected_component\[(.*)\]/)[1];
+                allGroups.add(group);
+            });
+
+            document.querySelectorAll('input[type=radio]:checked').forEach(function(radio) {
+                let group = radio.name.match(/selected_component\[(.*)\]/)[1];
+                let component_id = radio.value;
+                let serial_number = document.querySelector('input[name="serial_numbers[' + group + ']"]').value;
+                let reason = '';
+                let reasonCell = radio.closest('tr').querySelector('.reason-badge');
+                if (reasonCell) reason = reasonCell.textContent.trim();
+                data.push({
+                    component_id: component_id,
+                    serial_number: serial_number,
+                    reason: reason
+                });
+            });
+
+            if (data.length !== allGroups.size) {
+                alert('Выберите компонент в каждой группе!');
+                e.preventDefault();
+                return false;
+            }
+
+            let input = document.getElementById('component_data_input');
+            input.value = JSON.stringify(data);
         });
+    });
     </script>
 @endsection

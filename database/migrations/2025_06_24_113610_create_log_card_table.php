@@ -13,7 +13,7 @@ return new class extends Migration
      */
     public function up()
     {
-        Schema::create('log_card', function (Blueprint $table) {
+        Schema::create('log_cards', function (Blueprint $table) {
             $table->id();
             $table->foreignId('workorder_id')->nullable()->constrained()->onDelete('set null');
             $table->json('component_data')->nullable();
@@ -29,6 +29,6 @@ return new class extends Migration
      */
     public function down()
     {
-        Schema::dropIfExists('log_card');
+        Schema::dropIfExists('log_cards');
     }
 };
