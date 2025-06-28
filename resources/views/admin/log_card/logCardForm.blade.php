@@ -41,15 +41,25 @@
             }
 
             /* Отключаем разрывы страниц внутри элементов */
-            table, h1, p {
-                page-break-inside: avoid;
+            /*table, h1, p {*/
+            /*    !*page-break-inside: avoid;*!*/
+            /*}*/
+            .container-fluid {
+                max-height: 9.5in;
+                overflow: hidden;
+                margin: 0 !important;
+                padding: 3px !important;
+                padding-bottom: 20px !important; /* Добавляем отступ для футера */
             }
 
             /* Скрываем ненужные элементы при печати */
-            .no-print {
+            .no-print, .mt-2{
                 display: none;
             }
-
+            /* Уменьшаем отступы между секциями */
+            .row {
+                margin-bottom: 0 !important;
+            }
             /* Колонтитул внизу страницы */
             footer {
                 position: fixed;
@@ -59,17 +69,29 @@
                 font-size: 10px;
                 background-color: #fff;
                 padding: 2px 2px;
+                margin-top: 0; /* Убираем отступ сверху */
             }
 
             /* Обрезка контента и размещение на одной странице */
             .container {
-                max-height: 100vh;
+                max-height: 98vh;
                 overflow: hidden;
             }
             .border-r {
                 -webkit-print-color-adjust: exact;
                 print-color-adjust: exact;
             }
+            /*!* Убираем все отступы у всех элементов *!*/
+            /** {*/
+            /*    margin-bottom: 0 !important;*/
+            /*    padding-bottom: 0 !important;*/
+            /*}*/
+
+            /*!* Специально для последнего элемента в container-fluid *!*/
+            /*.container-fluid > *:last-child {*/
+            /*    margin-bottom: 0 !important;*/
+            /*    padding-bottom: 0 !important;*/
+            /*}*/
         }
 
         .border-all {
@@ -597,15 +619,10 @@
         <div class="div53"></div>
     </div>
 
-
-
 </div>
 
-
-
-
 <footer >
-    <div class="row" style="width: 100%; padding: 5px 5px;">
+    <div class="row" style="width: 100%; padding: 1px 1px;">
         <div class="col-6 text-start">
             {{__("Form #008")}}
         </div>
@@ -614,7 +631,6 @@
             {{__('Rev#0, 15/Dec/2012   ')}}
         </div>
     </div>
-
 </footer>
 
 

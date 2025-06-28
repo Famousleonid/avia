@@ -56,15 +56,35 @@ class LogCardController extends Controller
                 ? $log_card->component_data
                 : json_decode($log_card->component_data, true);
         }
- $log_count= count($componentData);
+
+        $log_count= count($componentData);
+
+        // Разделяем на две части
+        $componentData_1 = [];
+        $componentData_2 = [];
+
+        if ($log_count > 8) {
+            $componentData_1 = array_slice($componentData, 0, 12); // первые 11 элементов
+            $componentData_2 = array_slice($componentData, 12);    // оставшиеся элементы
+        }
+        $log_count_1= count($componentData_1);
+        $log_count_2= count($componentData_2);
 //// Получаем CSV-файл с process_type = 'log'
 //        $csvMedia = $manual_wo->getMedia('csv_files')->first(function ($media) {
 //            return $media->getCustomProperty('process_type') === self::PROCESS_TYPE_LOG;
 //        });
+        if ($log_count > 8) {
+            return view('admin.log_card.logCardForm2', compact('current_wo','manuals', 'builders',  'log_card',
+                'components' ,'componentData_1',
+                'componentData_2', 'log_count_1', 'log_count_2',
+            ));
+
+        }else {
+            return view('admin.log_card.logCardForm', compact('current_wo','manuals', 'builders', 'componentData', 'log_card', 'components' ,'log_count'));
+
+        }
 
 
-
-        return view('admin.log_card.logCardForm', compact('current_wo','manuals', 'builders', 'componentData', 'log_card', 'components' ,'log_count'));
 
     }
     /**

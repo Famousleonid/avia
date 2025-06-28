@@ -536,7 +536,7 @@
         <div class="div41 text-center fs-8 border-r-b pt-1">C.S.O.</div>
         <div class="div42 text-center fs-8 border-r-b pt-1">C.S.N.</div>
 
-        @foreach($componentData as $item)
+        @foreach($componentData_1 as $item)
             @php
                 $comp = $components->firstWhere('id', $item['component_id']);
             @endphp
@@ -553,7 +553,7 @@
 
         @endforeach
 
-        @for($i=0; $i<8-$log_count; $i++)
+        @for($i=0; $i<12-$log_count_1; $i++)
             <div class="div13 border-l-b-r" style="height: 27px"></div>
             <div class="div14 border-b-r" > </div>
             <div class="div15 border-b-r" > </div>
@@ -565,9 +565,68 @@
             <div class="div21 border-b-r" > </div>
             <div class="div22 border-b-r" > </div>
         @endfor
+    <div class="mb-2"></div>
     </div>
 
-    <div class="parent mt-2">
+    <div class="mt-3">
+        <div class="border-l-t-r">
+            <div class="row">
+                <div class="col-10 pt-1  fs-75 " style="text-align: center; padding-left: 28ch;">
+                    <strong>PRIMARY MEMBER RECORDS</strong>
+                </div>
+                <div class="col-2 text-center"><strong>W{{$current_wo->number}}</strong></div>
+            </div>
+        </div>
+        <div class="parent ">
+            <div class="div31 text-center fs-8 border-all pt-3">DESCRIPTION</div>
+            <div class="div32 text-center fs-8 border-t-r-b pt-3">PART NO.</div>
+            <div class="div33 text-center fs-8 border-t-r-b pt-3">SERIAL NO.</div>
+            <div class="div34 text-center fs-8 border-t-r-b pt-1">FITTER TO GEAR</div>
+            <div class="div35 text-center fs-8 border-t-r-b pt-1">REMOVED FROM GEAR</div>
+            <div class="div36 text-center fs-8 border-t-r-b pt-3">REASON FOR REMOVAL</div>
+            <div class="div37 text-center fs-8 border-r-b pt-1">DATE.</div>
+            <div class="div38 text-center fs-8 border-r-b pt-1">C.S.O.</div>
+            <div class="div39 text-center fs-8 border-r-b pt-1">C.S.N</div>
+            <div class="div40 text-center fs-8 border-r-b pt-1">DATE</div>
+            <div class="div41 text-center fs-8 border-r-b pt-1">C.S.O.</div>
+            <div class="div42 text-center fs-8 border-r-b pt-1">C.S.N.</div>
+
+            @foreach($componentData_2 as $item)
+                @php
+                    $comp = $components->firstWhere('id', $item['component_id']);
+                @endphp
+                <div class="div13 border-l-b-r text-center pt-1 fs-7" style="height: 27px">{{ $comp ? $comp->name : '' }}</div>
+                <div class="div14 border-b-r text-center pt-1 fs-7" >{{ $comp ? $comp->part_number : '' }} </div>
+                <div class="div15 border-b-r  text-center pt-1 fs-7" >{{ $item['serial_number'] }} </div>
+                <div class="div16 border-b-r" > </div>
+                <div class="div17 border-b-r" > </div>
+                <div class="div18 border-b-r" > </div>
+                <div class="div19 border-b-r" > </div>
+                <div class="div20 border-b-r" > </div>
+                <div class="div21 border-b-r" > </div>
+                <div class="div22 border-b-r text-center pt-1 fs-75" >{{ $item['reason'] }} </div>
+
+            @endforeach
+
+            @for($i=0; $i<22-$log_count_2; $i++)
+                <div class="div13 border-l-b-r" style="height: 27px"></div>
+                <div class="div14 border-b-r" > </div>
+                <div class="div15 border-b-r" > </div>
+                <div class="div16 border-b-r" > </div>
+                <div class="div17 border-b-r" > </div>
+                <div class="div18 border-b-r" > </div>
+                <div class="div19 border-b-r" > </div>
+                <div class="div20 border-b-r" > </div>
+                <div class="div21 border-b-r" > </div>
+                <div class="div22 border-b-r" > </div>
+            @endfor
+
+        </div>
+    </div>
+
+
+
+    <div class="parent ">
         <div class="div51">NOTES:</div>
         <div class="div52 fs-7">
             <div>
