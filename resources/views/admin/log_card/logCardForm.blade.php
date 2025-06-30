@@ -40,10 +40,7 @@
                 padding: 0;
             }
 
-            /* Отключаем разрывы страниц внутри элементов */
-            /*table, h1, p {*/
-            /*    !*page-break-inside: avoid;*!*/
-            /*}*/
+
             .container-fluid {
                 max-height: calc(100vh - 20px); /* Оставляем место для футера */
                 overflow: hidden;
@@ -72,35 +69,17 @@
                 padding: 2px 0;
                 margin: 0;
             }
-            /* Предотвращаем разрывы страниц внутри важных блоков */
-            /*.parent, .border-all, .border-l-t-r {*/
-            /*    page-break-inside: avoid;*/
+
+            /*!* Уменьшаем отступы в таблицах *!*/
+            /*.div1, .div2, .div3, .div4, .div31, .div32, .div33, .div34, .div35, .div36 {*/
+            /*    padding-top: 2px !important;*/
             /*}*/
 
-            /* Уменьшаем отступы в таблицах */
-            .div1, .div2, .div3, .div4, .div31, .div32, .div33, .div34, .div35, .div36 {
-                padding-top: 2px !important;
-            }
-            /*!* Обрезка контента и размещение на одной странице *!*/
-            /*.container {*/
-            /*    max-height: 98vh;*/
-            /*    overflow: hidden;*/
-            /*}*/
             .border-r {
                 -webkit-print-color-adjust: exact;
                 print-color-adjust: exact;
             }
-            /*/* Убираем все отступы у всех элементов */*/
-            /** {*/
-            /*    margin-bottom: 0 !important;*/
-            /*    padding-bottom: 0 !important;*/
-            /*}*/
 
-            /*/* Специально для последнего элемента в container-fluid */*/
-            /*.container-fluid > *:last-child {*/
-            /*    margin-bottom: 0 !important;*/
-            /*    padding-bottom: 0 !important;*/
-            /*}*/
         }
 
         .border-all {
@@ -584,7 +563,7 @@
 
         @endforeach
 
-        @for($i=0; $i<8-$log_count; $i++)
+        @for($i=0; $i<9-$log_count; $i++)
             <div class="div13 border-l-b-r" style="height: 27px"></div>
             <div class="div14 border-b-r" > </div>
             <div class="div15 border-b-r" > </div>
@@ -596,6 +575,7 @@
             <div class="div21 border-b-r" > </div>
             <div class="div22 border-b-r" > </div>
         @endfor
+
     </div>
 
     <div class="parent mt-2">

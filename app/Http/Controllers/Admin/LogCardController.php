@@ -63,7 +63,7 @@ class LogCardController extends Controller
         $componentData_1 = [];
         $componentData_2 = [];
 
-        if ($log_count < 8) {
+        if ($log_count > 9) {
             $componentData_1 = array_slice($componentData, 0, 12); // первые 11 элементов
             $componentData_2 = array_slice($componentData, 12);    // оставшиеся элементы
         }
@@ -73,7 +73,8 @@ class LogCardController extends Controller
 //        $csvMedia = $manual_wo->getMedia('csv_files')->first(function ($media) {
 //            return $media->getCustomProperty('process_type') === self::PROCESS_TYPE_LOG;
 //        });
-        if ($log_count < 8) {
+        if ($log_count > 9) {
+
             return view('admin.log_card.logCardForm2', compact('current_wo','manuals', 'builders',  'log_card',
                 'components' ,'componentData_1',
                 'componentData_2', 'log_count_1', 'log_count_2',
