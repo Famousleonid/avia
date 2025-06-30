@@ -28,7 +28,7 @@
             /* Задаем размер страницы Letter (8.5 x 11 дюймов) */
             @page {
                 /*size: letter landscape;*/
-                size: 11in 8.5in;
+                size: Letter landscape;
                 margin: 2mm;
             }
 
@@ -45,11 +45,10 @@
             /*    !*page-break-inside: avoid;*!*/
             /*}*/
             .container-fluid {
-                max-height: 9.5in;
+                max-height: calc(100vh - 20px); /* Оставляем место для футера */
                 overflow: hidden;
                 margin: 0 !important;
                 padding: 3px !important;
-                padding-bottom: 20px !important; /* Добавляем отступ для футера */
             }
 
             /* Скрываем ненужные элементы при печати */
@@ -64,30 +63,40 @@
             footer {
                 position: fixed;
                 bottom: 0;
-                width: 1060px;
+                left: 0;
+                right: 0;
+                width: 100%;
                 text-align: center;
                 font-size: 10px;
                 background-color: #fff;
-                padding: 2px 2px;
-                margin-top: 0; /* Убираем отступ сверху */
+                padding: 2px 0;
+                margin: 0;
             }
+            /* Предотвращаем разрывы страниц внутри важных блоков */
+            /*.parent, .border-all, .border-l-t-r {*/
+            /*    page-break-inside: avoid;*/
+            /*}*/
 
-            /* Обрезка контента и размещение на одной странице */
-            .container {
-                max-height: 98vh;
-                overflow: hidden;
+            /* Уменьшаем отступы в таблицах */
+            .div1, .div2, .div3, .div4, .div31, .div32, .div33, .div34, .div35, .div36 {
+                padding-top: 2px !important;
             }
+            /*!* Обрезка контента и размещение на одной странице *!*/
+            /*.container {*/
+            /*    max-height: 98vh;*/
+            /*    overflow: hidden;*/
+            /*}*/
             .border-r {
                 -webkit-print-color-adjust: exact;
                 print-color-adjust: exact;
             }
-            /*!* Убираем все отступы у всех элементов *!*/
+            /*/* Убираем все отступы у всех элементов */*/
             /** {*/
             /*    margin-bottom: 0 !important;*/
             /*    padding-bottom: 0 !important;*/
             /*}*/
 
-            /*!* Специально для последнего элемента в container-fluid *!*/
+            /*/* Специально для последнего элемента в container-fluid */*/
             /*.container-fluid > *:last-child {*/
             /*    margin-bottom: 0 !important;*/
             /*    padding-bottom: 0 !important;*/

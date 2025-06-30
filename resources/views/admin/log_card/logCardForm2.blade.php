@@ -21,6 +21,7 @@
             padding: 3px;
             margin-left: 10px;
             margin-right: 10px;
+
         }
 
 
@@ -54,11 +55,14 @@
             footer {
                 position: fixed;
                 bottom: 0;
-                width: 1060px;
+                left: 0;
+                right: 0;
+                width: 100%;
                 text-align: center;
                 font-size: 10px;
                 background-color: #fff;
-                padding: 2px 2px;
+                padding: 2px 0;
+                margin: 0;
             }
 
             /* Обрезка контента и размещение на одной странице */
@@ -567,7 +571,7 @@
         @endfor
     <div class="mb-2"></div>
     </div>
-
+{{--    <div style="page-break-before: always;"></div>--}}
     <div class="mt-3">
         <div class="border-l-t-r">
             <div class="row">
@@ -621,48 +625,35 @@
                 <div class="div22 border-b-r" > </div>
             @endfor
 
-        </div>
-    </div>
-
-
-
-    <div class="parent ">
-        <div class="div51">NOTES:</div>
-        <div class="div52 fs-7">
-            <div>
-                1. For ultimate lives and/or inspection requirements, refer to Aircraft Airworthiness Data and to the
-                appropriate
-                @foreach($manuals as $manual)
-                    @if($manual->id == $current_wo->unit->manual_id)
-                        <h7 class=""> {{$manual->reg_sb}}</h7>
-                    @endif
-                @endforeach
-                Service Bulletin.
-            </div>
-            <div>
-                2. It is the Operator's responsibility to ensure these records are fully and accurately maintained.
-            </div>
-            <div>
-                3. Lives of primary members shall be maintained. Failure to comply may result in premature scrap.
-            </div>
-            <div>
-                4. Should a primary member be removed from the unit it must be suitably tagged to indicate consumed life.
-            </div>
-            <div>
-                5. If the Part No. is changed a new Log Card must be completed, transferring relevant information from the previous Card.
-            </div>
+                <div class="div51 mt-2" style="height: auto; page-break-inside: avoid;">NOTES:</div>
+                <div class="div52 fs-7 mt-2" style="grid-column: span 10">
+                    <div>
+                        1. For ultimate lives and/or inspection requirements, refer to Aircraft Airworthiness Data and to the
+                        appropriate
+                        @foreach($manuals as $manual)
+                            @if($manual->id == $current_wo->unit->manual_id)
+                                <h7 class=""> {{$manual->reg_sb}}</h7>
+                            @endif
+                        @endforeach
+                        Service Bulletin.
+                    </div>
+                    <div>
+                        2. It is the Operator's responsibility to ensure these records are fully and accurately maintained.
+                    </div>
+                    <div>
+                        3. Lives of primary members shall be maintained. Failure to comply may result in premature scrap.
+                    </div>
+                    <div>
+                        4. Should a primary member be removed from the unit it must be suitably tagged to indicate consumed life.
+                    </div>
+                    <div>
+                        5. If the Part No. is changed a new Log Card must be completed, transferring relevant information from the previous Card.
+                    </div> <!-- Содержимое NOTES -->
+                </div>
 
         </div>
-        <div class="div53"></div>
     </div>
-
-
-
 </div>
-
-
-
-
 <footer >
     <div class="row" style="width: 100%; padding: 5px 5px;">
         <div class="col-6 text-start">
@@ -673,11 +664,6 @@
             {{__('Rev#0, 15/Dec/2012   ')}}
         </div>
     </div>
-
 </footer>
-
-
 </body>
-
-
 </html>
