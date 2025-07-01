@@ -137,6 +137,7 @@
                     <th class="text-primary text-center">Description</th>
                     <th class="text-primary text-center">Part Number</th>
                     <th class="text-primary text-center">Serial Number</th>
+                    <th class="text-primary text-center">ASSY Serial Number</th>
                     <th class="text-primary text-center">Reason to Removed</th>
                 </tr>
                 </thead>
@@ -153,6 +154,11 @@
                         <td>{{ $comp ? $comp->name : '' }}</td>
                         <td>{{ $comp ? $comp->part_number : '' }}</td>
                         <td>{{ $item['serial_number'] }}</td>
+                        <td>
+                            @if(isset($item['assy_serial_number']) && $item['assy_serial_number'])
+                            {{ $item['assy_serial_number'] }}
+                            @endif
+                        </td>
                         <td>{{ $item['reason'] }}</td>
                     </tr>
                 @endforeach

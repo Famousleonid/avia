@@ -430,6 +430,7 @@
             /*grid-column: span 2 / span 2;*/
             grid-column-start: 11;
         }
+
     </style>
 </head>
 
@@ -550,16 +551,24 @@
             @php
                 $comp = $components->firstWhere('id', $item['component_id']);
             @endphp
-                <div class="div13 border-l-b-r text-center pt-1 fs-7" style="height: 27px">{{ $comp ? $comp->name : '' }}</div>
-                <div class="div14 border-b-r text-center pt-1 fs-7" >{{ $comp ? $comp->part_number : '' }} </div>
-                <div class="div15 border-b-r  text-center pt-1 fs-7" >{{ $item['serial_number'] }} </div>
-                <div class="div16 border-b-r" > </div>
+            <div class="div13 border-l-b-r text-center pt-1 fs-7" style="height: 27px">{{ $comp ? $comp->name : '' }}</div>
+            <div class="div14 border-b-r text-center pt-1 fs-7" >{{ $comp ? $comp->part_number : '' }} </div>
+            <div class="div15 border-b-r  text-center pt-1 fs-7" >{{ $item['serial_number'] }} </div>
+            <div class="div16 border-b-r" > </div>
+            
+            @if($comp && $comp->assy_part_number)
+                <div class="div17 border-b-r text-center pt-1 fs-7" style="grid-column: span 5 / span 5;">
+                    {{__('PN ')}} {{$comp->assy_part_number}}{{__(' SN ')}} {{$item['assy_serial_number'] ?? ''}}
+                </div>
+                <div class="div22 border-b-r text-center pt-1 fs-75" >{{ $item['reason'] }} </div>
+            @else
                 <div class="div17 border-b-r" > </div>
                 <div class="div18 border-b-r" > </div>
                 <div class="div19 border-b-r" > </div>
                 <div class="div20 border-b-r" > </div>
                 <div class="div21 border-b-r" > </div>
                 <div class="div22 border-b-r text-center pt-1 fs-75" >{{ $item['reason'] }} </div>
+            @endif
 
         @endforeach
 

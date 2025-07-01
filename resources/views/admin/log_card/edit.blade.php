@@ -31,6 +31,7 @@
                             <th>Part Number</th>
                             <th>Select</th>
                             <th>Serial Number</th>
+                            <th>ASSY Serial Number</th>
                             <th>Reason for Remove</th>
 {{--                            <th>Action</th>--}}
                         </tr>
@@ -57,6 +58,7 @@
                                         }
                                     }
                                     $serialValue = $selectedComponent['serial_number'] ?? '';
+                                    $assySerialValue = $selectedComponent['assy_serial_number'] ?? '';
                                 @endphp
                                 <tr>
                                     @if($i === 0)
@@ -72,8 +74,16 @@
                                             <input type="text" class="form-control form-control-sm"
                                                 name="serial_numbers[{{ $desc }}]"
                                                 value="{{ $serialValue }}"
-                                                placeholder="Введите серийный номер">
+                                                placeholder="Serial Number">
                                         </td>
+                                            <td rowspan="{{ $group->count() }}" class="align-middle">
+                                                @if($component->assy_part_number>null)
+                                                    <input type="text" class="form-control form-control-sm"
+                                                           name="assy_serial_numbers[{{ $desc }}]"
+                                                           value="{{ $assySerialValue }}"
+                                                           placeholder="ASSY Serial Number">
+                                                @endif
+                                            </td>
                                         <td rowspan="{{ $group->count() }}" class="align-middle">
                                             @php
                                                 $tdr = $tdrs->where('component_id', $component->id)->first();
@@ -127,12 +137,16 @@ document.addEventListener('DOMContentLoaded', function() {
             let group = radio.name.match(/selected_component\[(.*)\]/)[1];
             let component_id = radio.value;
             let serial_number = document.querySelector('input[name="serial_numbers[' + group + ']"]').value;
+            let assy_serial_number = '';
+            let assyInput = document.querySelector('input[name="assy_serial_numbers[' + group + ']"]');
+            if (assyInput) assy_serial_number = assyInput.value;
             let reason = '';
             let reasonCell = radio.closest('tr').querySelector('.reason-badge');
             if (reasonCell) reason = reasonCell.textContent.trim();
             data.push({
                 component_id: component_id,
                 serial_number: serial_number,
+                assy_serial_number: assy_serial_number,
                 reason: reason
             });
         });

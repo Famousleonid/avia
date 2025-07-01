@@ -63,6 +63,7 @@
                                 <th>Part Number</th>
                                 <th>Select</th>
                                 <th>Serial Number</th>
+                                <th>ASSY Serial Number</th>
                                 <th>Reason for Remove</th>
 {{--                                <th>Action</th>--}}
                             </tr>
@@ -79,12 +80,20 @@
                                             <input type="radio" name="selected_component[{{ $desc }}]" value="{{ $component->id }}">
                                         </td>
                                         @if($i === 0)
-                                            <td rowspan="{{ $group->count() }}" class="align-middle">
-                                                <input type="text" class="form-control form-control-sm"
-                                                    name="serial_numbers[{{ $desc }}]"
-                                                    value="{{ $component->serial_number ?? '' }}"
-                                                    placeholder="Введите серийный номер">
-                                            </td>
+                                                <td rowspan="{{ $group->count() }}" class="align-middle">
+                                                    <input type="text" class="form-control form-control-sm"
+                                                           name="serial_numbers[{{ $desc }}]"
+                                                           value="{{ $component->serial_number ?? '' }}"
+                                                           placeholder="Serial Number">
+                                                </td>
+                                                <td rowspan="{{ $group->count() }}" class="align-middle">
+                                                    @if($component->assy_part_number>null)
+                                                        <input type="text" class="form-control form-control-sm"
+                                                               name="assy_serial_numbers[{{ $desc }}]"
+                                                               value="{{ $component->assy_serial_number ?? '' }}"
+                                                               placeholder="ASSY Serial Number">
+                                                    @endif
+                                                </td>
                                             <td rowspan="{{ $group->count() }}" class="align-middle">
                                                 @php
                                                     $tdr = $tdrs->where('component_id', $component->id)->first();
@@ -138,12 +147,16 @@
                 let group = radio.name.match(/selected_component\[(.*)\]/)[1];
                 let component_id = radio.value;
                 let serial_number = document.querySelector('input[name="serial_numbers[' + group + ']"]').value;
+                let assy_serial_number = '';
+                let assyInput = document.querySelector('input[name="assy_serial_numbers[' + group + ']"]');
+                if (assyInput) assy_serial_number = assyInput.value;
                 let reason = '';
                 let reasonCell = radio.closest('tr').querySelector('.reason-badge');
                 if (reasonCell) reason = reasonCell.textContent.trim();
                 data.push({
                     component_id: component_id,
                     serial_number: serial_number,
+                    assy_serial_number: assy_serial_number,
                     reason: reason
                 });
             });
