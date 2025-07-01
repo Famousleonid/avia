@@ -554,7 +554,7 @@
                 <div class="div16 border-b-r" > </div>
             @if($comp && $comp->assy_part_number)
                 <div class="div17 border-b-r text-center pt-1 fs-7" style="grid-column: span 5 / span 5;">
-                    {{__('PN ')}} {{$comp->assy_part_number}}{{__(' SN ')}} {{$item['assy_serial_number'] ?? ''}}
+                    {{__(' ASSY PN ')}} {{$comp->assy_part_number}}{{__(' ASSY SN ')}} {{$item['assy_serial_number'] ?? ''}}
                 </div>
                 <div class="div22 border-b-r text-center pt-1 fs-75" >{{ $item['reason'] }} </div>
             @else
@@ -615,7 +615,7 @@
                 <div class="div16 border-b-r" > </div>
                 @if($comp && $comp->assy_part_number)
                     <div class="div17 border-b-r text-center pt-1 fs-7" style="grid-column: span 5 / span 5;">
-                        {{__('PN ')}} {{$comp->assy_part_number}}{{__(' SN ')}} {{$item['assy_serial_number'] ?? ''}}
+                        {{__(' ASSY PN ')}} {{$comp->assy_part_number}}{{__(' ASSY SN ')}} {{$item['assy_serial_number'] ?? ''}}
                     </div>
                     <div class="div22 border-b-r text-center pt-1 fs-75" >{{ $item['reason'] }} </div>
                 @else
