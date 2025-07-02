@@ -50,7 +50,8 @@
                                                     @endforeach
                                                 </div>
                                             @else
-                                                <p>Manual not found</p>
+                                                {{-- TODO: не находит картинку --}}
+                                                <p>Manual1 not found</p>
                                             @endif
                                             <div>
                                                 <div class="d-flex pt-2">

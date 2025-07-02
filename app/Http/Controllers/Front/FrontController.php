@@ -41,7 +41,6 @@ class FrontController extends Controller
 
         // Log::channel('avia')->info('123' . ' 345 ');
 
-
         return View($page);
 
 
