@@ -556,7 +556,7 @@
             <div class="div15 border-b-r  text-center pt-1 fs-7" >{{ $item['serial_number'] }} </div>
             <div class="div16 border-b-r" > </div>
 
-            @if($comp && $comp->assy_part_number)
+            @if($comp && $comp->assy_part_number && isset($item['assy_serial_number']) && !empty($item['assy_serial_number']))
                 <div class="div17 border-b-r text-center pt-1 fs-7" style="grid-column: span 5 / span 5;">
                     {{__(' ASSY PN ')}} {{$comp->assy_part_number}}{{__('  ASSY SN ')}} {{$item['assy_serial_number'] ?? ''}}
                 </div>
