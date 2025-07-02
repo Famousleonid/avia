@@ -44,7 +44,7 @@ return new class extends Migration
             ['name' => 'BNI','process_sheet_name'=>'NDT','form_number'=>'016'],
             ['name' => 'Anodizing','process_sheet_name'=>'ANODIZING','form_number'=>'021'],
             ['name' => 'Xylan coating','process_sheet_name'=>'XYLAN COATING','form_number'=>'033'],
-            ['name' => 'Repair ','process_sheet_name'=>'REPAIR APPLICATION','form_number'=>'017A'],
+            ['name' => 'Repair & Upgrade ','process_sheet_name'=>'REPAIR APPLICATION','form_number'=>'017A'],
             ['name' => 'Paint ','process_sheet_name'=>'PAINT APPLICATION','form_number'=>'017'],
         ]);
     }
