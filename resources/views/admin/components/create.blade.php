@@ -151,6 +151,12 @@
                                 Log Card
                             </label>
                         </div>
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox"  id="repair" name="repair">
+                            <label class="form-check-label" for="repair">
+                                Repair
+                            </label>
+                        </div>
                         <div class="text-end">
 
                             <button type="submit" class="btn btn-outline-primary

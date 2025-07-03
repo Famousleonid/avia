@@ -179,11 +179,27 @@
                         </div>
 
                     </div>
+                    <div class="justify-content-between d-flex">
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox"  id="log_card" name="log_card"
+                                   value="1" {{ $current_component->log_card ? 'checked' : '' }}>
+                            <label class="form-check-label" for="log_card">
+                                Log Card
+                            </label>
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox"  id="repair" name="repair"
+                                   value="1" {{ $current_component->repair ? 'checked' : '' }}>
+                            <label class="form-check-label" for="repair">
+                                Repair
+                            </label>
+                        </div>
                     <div class="text-end">
                         <button type="submit" class="btn btn-outline-primary
                         mt-3 ">{{ __('Update') }}</button>
                         <a href="{{ route('components.index') }}"
                            class="btn btn-outline-secondary mt-3">{{ __('Cancel') }} </a>
+                    </div>
                     </div>
                 </form>
             </div>

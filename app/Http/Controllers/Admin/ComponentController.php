@@ -98,6 +98,7 @@ class ComponentController extends Controller
             ]);
             $validated['assy_part_number'] = $request->assy_part_number;
             $validated['log_card'] = $request->has('log_card') ? 1 : 0;
+            $validated['repair'] = $request->has('repair') ? 1 : 0;
 
             // Создание нового компонента
             $component = Component::create($validated);
@@ -185,7 +186,9 @@ class ComponentController extends Controller
 
 
         $validated['assy_part_number'] = $request->assy_part_number;
-
+        $validated['assy_ipl_num'] = $request->assy_ipl_num;
+        $validated['log_card'] = $request->has('log_card') ? 1 : 0;
+        $validated['repair'] = $request->has('repair') ? 1 : 0;
 //        dd($validated);
 
         if ($request->hasFile('img')) {
