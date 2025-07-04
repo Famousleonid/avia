@@ -127,6 +127,7 @@
             </div>
 
         </div>
+
         @if($log_card)
 
     <div class="d-flex justify-content-center mt-3">

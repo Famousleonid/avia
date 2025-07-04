@@ -11,6 +11,7 @@ use App\Http\Controllers\Admin\ManualProcessController;
 use App\Http\Controllers\Admin\PlaneController;
 use App\Http\Controllers\Admin\ProcessController;
 use App\Http\Controllers\Admin\ProcessNameController;
+use App\Http\Controllers\Admin\RmReportdController;
 use App\Http\Controllers\Admin\RoleController;
 use App\Http\Controllers\Admin\ScopeController;
 use App\Http\Controllers\Admin\TaskController;
@@ -98,7 +99,10 @@ Route::group(['middleware' => ['auth'] ], function () {
     Route::resource('/trainings', TrainingController::class);
     Route::resource('/manual_processes', ManualProcessController::class);
     Route::resource('/conditions',ConditionController::class);
-    
+    Route::resource('/rm_reports', RmReportdController::class);
+
+    Route::get('rm_reports/rmRecordForm/{id}',[RmReportdController::class,'rmRecordForm'])->name('rm_reports.rmRecordForm');
+
     // Отдельный роут для create с параметром id
     Route::get('/log_card/create/{id}', [LogCardController::class, 'create'])->name('log_card.create');
     Route::resource('/log_card', LogCardController::class)->except('create');

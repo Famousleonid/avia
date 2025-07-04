@@ -17,7 +17,7 @@
             <div class="card-header  m-1 shadow">
 
                 <div class="d-flex ">
-                    <div style="width: 300px;">
+                    <div style="width: 160px;">
                         <h5 class="text-primary  ps-4">{{__('Work Order')}}
                             <a class="text-success-emphasis  ps-4" href="#" data-bs-toggle="modal"
                                data-bs-target=#infoModal{{$current_wo->number}}>{{$current_wo->number}}
@@ -162,7 +162,7 @@
                             </div>
                         </div>
                     </div>
-                    <div class="ps-2 d-flex" style="width: 300px;">
+                    <div class="ps-2 d-flex" style="width: 440px;">
                         {{--                        <div class="me-2" >--}}
                         {{--                            <a href="{{route('tdrs.inspection',['workorder_id' => $current_wo->id])}}"--}}
                         {{--                               class="btn  btn-outline-primary " style="height: 60px;align-content: center"--}}
@@ -175,7 +175,7 @@
                                 <a href="{{route('tdrs.processes',['workorder_id' => $current_wo->id])}}"
                                    class="btn  btn-outline-primary " style="height: 60px;width: 150px" onclick="showLoadingSpinner
                                    ()">
-                                    {{__('WO Component Processes')}}
+                                    {{__('Component Processes')}}
                                 </a>
                             </div>
                         @endif
@@ -186,6 +186,14 @@
                                     {{__('Log Card')}}
                                 </a>
                             </div>
+                        <div>
+                            <a href="{{route('rm_reports.show',['rm_report' => $current_wo->id])}}"
+                               class="btn  btn-outline-primary ms-2 " style="height: 60px;width: 180px"
+                               onclick="showLoadingSpinner
+                                   ()">
+                                {{__('Repair & Modification Record')}}
+                            </a>
+                        </div>
                         <div>
 
                         </div>
