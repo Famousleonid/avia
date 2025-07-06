@@ -14,7 +14,7 @@
         }
 
         .container-fluid {
-            max-width: 880px;
+            max-width: 820px;
             height: auto;
             /*transform: scale(0.8);*/
             transform-origin: top left;
@@ -49,7 +49,7 @@
             }
 
             /* Скрываем ненужные элементы при печати */
-            .no-print, .mt-2{
+            .no-print{
                 display: none;
             }
             /* Уменьшаем отступы между секциями */
@@ -251,7 +251,7 @@
 
 
 
-        .parent {
+        .title {
             display: grid;
             grid-template-columns: repeat(5, 1fr);
             grid-template-rows: repeat(1, 1fr);
@@ -267,6 +267,40 @@
             grid-column-start: 5;
         }
 
+
+        .parent {
+            display: grid;
+            grid-template-columns: repeat(12, 1fr);
+            /*grid-template-rows: repeat(5, .5fr);*/
+            gap: 0;
+        }
+
+
+        .div12 {
+            grid-column: span 2 / span 2;
+        }
+
+        .div13 {
+            grid-column-start: 4;
+        }
+
+        .div14 {
+            grid-column: span 3 / span 3;
+            grid-column-start: 5;
+        }
+
+        .div15 {
+            grid-column-start: 8;
+        }
+
+        .div16 {
+            grid-column-start: 9;
+        }
+
+        .div17 {
+            grid-column: span 3 / span 3;
+            grid-column-start: 10;
+        }
 
 
 
@@ -289,7 +323,7 @@
 <div class="container-fluid">
 
 
-    <div class="parent">
+    <div class="title">
 
         <div class="div1">
             <img src="{{ asset('img/icons/AT_logo-rb.svg') }}" alt="Logo"
@@ -299,21 +333,44 @@
             <h5 class="pt-3  text-black text-center"><strong>Repair and Modification Record WO#</strong></h5>
 
         </div>
-        <div class="div3 pt-3 border-all">
+        <div class="div3 pt-3 border-all text-center mb-2">
             <h4>
                     <strong>W{{$current_wo->number}}</strong>
             </h4>
         </div>
     </div>
 
-    <div class="row border-all-b mt-2">
-        <div class="border-b" style="height: 36px">1</div>
-        <div class="border-b" style="height: 36px">1</div>
-        <div class="border-b" style="height: 36px">1</div>
-        <div class="border-b" style="height: 36px">1</div>
-        <div class="border-b" style="height: 36px">1</div>
-        <div class="border-b" style="height: 36px">1</div>
-        <div class="border-b" style="height: 36px">1</div>
+    <div class="row border-all-b  m-sm-0">
+        <h5 class="ps-1 fs-9">Technical Notes:</h5>
+        <div class="border-b pt-2" style="height: 30px">1</div>
+        <div class="border-b pt-2" style="height: 30px">1</div>
+        <div class="border-b pt-2" style="height: 30px">1</div>
+        <div class="border-b pt-2" style="height: 30px">1</div>
+        <div class="border-b pt-2" style="height: 30px">1</div>
+        <div class="border-b pt-2" style="height: 30px">1</div>
+        <div class="border-b pt-2" style="height: 30px">1</div>
+    </div>
+<p></p>
+
+    <div class="parent mt-3">
+        <div class="div11 border-l-t-b text-center align-content-center fs-75" >Item</div>
+        <div class="div12 border-l-t-b text-center align-content-center fs-75">Part Description</div>
+        <div class="div13 border-l-t-b text-center align-content-center fs-75">Modification or Repair #</div>
+        <div class="div14 border-l-t-b text-center align-content-center fs-75">Description of Modification  or
+            Repair</div>
+        <div class="div15 border-l-t-b text-center align-content-center fs-75">Previously Carried out</div>
+        <div class="div16 border-l-t-b text-center align-content-center fs-75">Carried out by AT</div>
+        <div class="div17 border-all text-center align-content-center fs-75">Identification Method</div>
+        @for($i=1; $i<21; $i++)
+            <div class="div11 border-l-b text-center align-content-center fs-75" style="height: 32px">{{$i}}</div>
+            <div class="div12 border-l-b text-center align-content-center fs-75" > </div>
+            <div class="div13 border-l-b text-center align-content-center fs-75" ></div>
+            <div class="div14 border-l-b text-center align-content-center fs-75" ></div>
+            <div class="div15 border-l-b text-center align-content-center fs-75" ></div>
+            <div class="div16 border-l-b text-center align-content-center fs-75" ></div>
+            <div class="div17 border-l-b-r text-center align-content-center fs-75" ></div>
+        @endfor
+
     </div>
 
 
