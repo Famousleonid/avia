@@ -304,6 +304,31 @@
 
 
 
+        .qc_stamp {
+            display: grid;
+            grid-template-columns: repeat(12, 1fr);
+            grid-template-rows: repeat(1, 1fr);
+            gap: 0px;
+        }
+
+        .div21 {
+            grid-column: span 3 / span 3;
+        }
+
+        .div22 {
+            grid-column: span 4 / span 4;
+            grid-column-start: 4;
+        }
+
+        .div23 {
+            grid-column-start: 8;
+        }
+
+        .div24 {
+            grid-column: span 4 / span 4;
+            grid-column-start: 9;
+        }
+
 
 
 
@@ -361,16 +386,23 @@
         <div class="div15 border-l-t-b text-center align-content-center fs-75">Previously Carried out</div>
         <div class="div16 border-l-t-b text-center align-content-center fs-75">Carried out by AT</div>
         <div class="div17 border-all text-center align-content-center fs-75">Identification Method</div>
-        @for($i=1; $i<21; $i++)
+        @for($i=1; $i<19; $i++)
             <div class="div11 border-l-b text-center align-content-center fs-75" style="height: 32px">{{$i}}</div>
             <div class="div12 border-l-b text-center align-content-center fs-75" > </div>
             <div class="div13 border-l-b text-center align-content-center fs-75" ></div>
             <div class="div14 border-l-b text-center align-content-center fs-75" ></div>
-            <div class="div15 border-l-b text-center align-content-center fs-75" ></div>
-            <div class="div16 border-l-b text-center align-content-center fs-75" ></div>
+            <div class="div15 border-l-b text-center align-content-center fs-75"style="color: lightgray">tech stamp</div>
+            <div class="div16 border-l-b text-center align-content-center fs-75" style="color: lightgray">tech stamp</div>
             <div class="div17 border-l-b-r text-center align-content-center fs-75" ></div>
         @endfor
 
+    </div>
+
+    <div class="qc_stamp mt-3">
+        <div class="div21" style="height: 40px"></div>
+        <div class="div22 border-all text-end align-content-center pe-1 fs-8" >Quality Assurance Acceptance </div>
+        <div class="div23 border-t-r-b text-center align-content-center fs-8" style="color: lightgray">Q.C. stamp</div>
+        <div class="div24 border-t-r-b text-center  pt-4  fs-8" style="color: lightgray">Date</div>
     </div>
 
 

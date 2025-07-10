@@ -99,7 +99,9 @@ Route::group(['middleware' => ['auth'] ], function () {
     Route::resource('/trainings', TrainingController::class);
     Route::resource('/manual_processes', ManualProcessController::class);
     Route::resource('/conditions',ConditionController::class);
-    Route::resource('/rm_reports', RmReportdController::class);
+
+    Route::get('/rm_reports/create/{id}',[RmReportdController::class,'create'])->name('rm_reports.create');
+    Route::resource('/rm_reports', RmReportdController::class)->except('create');
 
     Route::get('rm_reports/rmRecordForm/{id}',[RmReportdController::class,'rmRecordForm'])->name('rm_reports.rmRecordForm');
 

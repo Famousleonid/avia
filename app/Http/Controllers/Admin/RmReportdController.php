@@ -26,11 +26,14 @@ class RmReportdController extends Controller
     /**
      * Show the form for creating a new resource.
      *
-     * @return \Illuminate\Http\Response
+     * @return Application|Factory|View
      */
-    public function create()
+    public function create($id)
     {
-        //
+        $current_wo = Workorder::findOrFail($id);
+        $manual_id = $current_wo->unit->manual_id;
+
+        return view('admin.rm_reports.create', compact('current_wo'));
     }
 
     /**

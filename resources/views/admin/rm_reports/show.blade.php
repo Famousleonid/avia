@@ -85,7 +85,7 @@
                 <div>
                     <h4 class="text-primary me-5">{{__('Work Order: ')}} {{$current_wo->number}}</h4>
                     <div>
-                        <h4 class="ps-xl-5">{{__(' REPAIR and MODIFICATION RECORD')}}</h4>
+                        <h4 class="ps-1">{{__(' REPAIR and MODIFICATION RECORD')}}</h4>
                     </div>
 
                 </div>
@@ -96,9 +96,9 @@
 {{--                            <i class="fas fa-edit"></i> Edit Log Card--}}
 {{--                        </a>--}}
 {{--                    @else--}}
-{{--                        <a href="{{ route('log_card.create', $current_wo->id) }}" class="btn btn-success" style="height: 40px">--}}
-{{--                            <i class="fas fa-plus"></i> Create Log Card--}}
-{{--                        </a>--}}
+                        <a href="{{ route('rm_reports.create', $current_wo->id) }}" class="btn btn-success" style="height: 40px">
+                            <i class="fas fa-plus"></i> Create R&M Record
+                        </a>
 {{--                    @endif--}}
                 </div>
 
@@ -126,6 +126,26 @@
             </div>
 
         </div>
+
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table table-bordered table-hover">
+                    <thead>
+                    <tr>
+                        <th>Part Description</th>
+                        <th>Modification or Repair#</th>
+                        <th>Description of Modification or Repair</th>
+                        <th>Select for Report</th>
+                        <th>identification Method</th>
+                        <th></th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
 
     </div>
 
