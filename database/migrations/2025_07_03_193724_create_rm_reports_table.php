@@ -19,7 +19,7 @@ return new class extends Migration
             $table->string('part_description');
             $table->string('mod_repair');
             $table->string('description');
-            $table->string('ident_method');
+            $table->string('ident_method')->nullable();
             $table->timestamps();
         });
     }

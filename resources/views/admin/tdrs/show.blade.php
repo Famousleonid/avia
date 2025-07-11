@@ -181,7 +181,8 @@
                         @endif
                             <div>
                                 <a href="{{route('log_card.show',['log_card' => $current_wo->id])}}"
-                                   class="btn  btn-outline-primary " style="height: 60px;width: 80px" onclick="showLoadingSpinner
+                                   class="btn  btn-outline-primary " style="min-height: 60px;width: 80px"
+                                   onclick="showLoadingSpinner
                                    ()">
                                     {{__('Log Card')}}
                                 </a>
@@ -298,7 +299,7 @@
                         @if($current_wo->instruction_id == 1 && $hasNdtCsv)
                                 <div class="me-2 ms-2">
                                     <a href="{{ route('tdrs.ndtStd', ['workorder_id' => $current_wo->id]) }}"
-                                       class="btn btn-outline-warning" style="height: 40px"
+                                       class="btn btn-outline-warning" style="min-height: 40px"
                                        target="_blank">
                                         NDT STD
                                     </a>
@@ -308,7 +309,7 @@
                             @if($current_wo->instruction_id == 1 && $hasCadCsv)
                                 <div class="me-2 ms-2">
                                     <a href="{{ route('tdrs.cadStd', ['workorder_id' => $current_wo->id]) }}"
-                                       class="btn btn-outline-warning" style="height: 40px"
+                                       class="btn btn-outline-warning" style="min-height: 40px"
                                        target="_blank">
                                         CAD STD
                                     </a>

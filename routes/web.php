@@ -11,7 +11,7 @@ use App\Http\Controllers\Admin\ManualProcessController;
 use App\Http\Controllers\Admin\PlaneController;
 use App\Http\Controllers\Admin\ProcessController;
 use App\Http\Controllers\Admin\ProcessNameController;
-use App\Http\Controllers\Admin\RmReportdController;
+use App\Http\Controllers\Admin\RmReportController;
 use App\Http\Controllers\Admin\RoleController;
 use App\Http\Controllers\Admin\ScopeController;
 use App\Http\Controllers\Admin\TaskController;
@@ -100,10 +100,13 @@ Route::group(['middleware' => ['auth'] ], function () {
     Route::resource('/manual_processes', ManualProcessController::class);
     Route::resource('/conditions',ConditionController::class);
 
-    Route::get('/rm_reports/create/{id}',[RmReportdController::class,'create'])->name('rm_reports.create');
-    Route::resource('/rm_reports', RmReportdController::class)->except('create');
+    Route::get('/rm_reports/create/{id}',[RmReportController::class,'create'])->name('rm_reports.create');
+//    Route::get('/rm_reports/create/{id}',[RmReportController::class,'wo_store'])->name('rm_reports.wo_store');
 
-    Route::get('rm_reports/rmRecordForm/{id}',[RmReportdController::class,'rmRecordForm'])->name('rm_reports.rmRecordForm');
+    Route::resource('/rm_reports', RmReportController::class)->except('create');
+    Route::delete('/rm_reports/multiple', [RmReportController::class, 'destroyMultiple'])->name('rm_reports.destroy.multiple');
+    Route::post('/rm_reports/save-to-workorder', [RmReportController::class, 'saveToWorkorder'])->name('rm_reports.save.to.workorder');
+    Route::get('rm_reports/rmRecordForm/{id}',[RmReportController::class,'rmRecordForm'])->name('rm_reports.rmRecordForm');
 
     // Отдельный роут для create с параметром id
     Route::get('/log_card/create/{id}', [LogCardController::class, 'create'])->name('log_card.create');
