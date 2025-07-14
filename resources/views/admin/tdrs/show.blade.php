@@ -232,27 +232,39 @@
                                     <a href="{{ route('tdrs.tdrForm', ['id'=> $current_wo->id]) }}"
                                        class="btn btn-outline-warning mb-1 formLink "
                                        target="_blank"
-                                       id="#" style=" height: 40px">
+                                       id="#" style=" height: 60px; width: 80px">
                                         <i class="bi bi-file-earmark-excel"> TDR Form</i>
                                     </a>
 
                                     <a href="{{ route('tdrs.specProcessForm', ['id'=> $current_wo->id]) }}"
                                        class="btn btn-outline-warning  formLink "
                                        target="_blank"
-                                       id="#" style=" height: 40px">
-                                        <i class="bi bi-file-earmark-excel">Special Process Form </i>
+                                       id="#" style=" height: 60px; width: 120px">
+                                        <i class="bi bi-file-earmark-excel"> Special Process Form </i>
                                     </a>
-                                    <a href="{{ route('log_card.logCardForm', ['id'=> $current_wo->id]) }}"
+                                    <a href="#"
                                        class="btn btn-outline-warning  formLink "
                                        target="_blank"
-                                       id="#" style=" height: 40px">
-                                        <i class="bi bi-file-earmark-excel">Log Card </i>
+                                       id="#" style=" height: 60px; width: 120px">
+                                        <i class="bi bi-file-earmark-excel"> WO Process Sheet </i>
                                     </a>
+                                    <a href="#"
+                                       class="btn btn-outline-warning  formLink "
+                                       target="_blank"
+                                       id="#" style=" height: 60px; width: 80px">
+                                        <i class="bi bi-file-earmark-excel">  </i>
+                                    </a>
+{{--                                    <a href="{{ route('log_card.logCardForm', ['id'=> $current_wo->id]) }}"--}}
+{{--                                       class="btn btn-outline-warning  formLink "--}}
+{{--                                       target="_blank"--}}
+{{--                                       id="#" style=" height: 60px; width: 80px">--}}
+{{--                                        <i class="bi bi-file-earmark-excel"> Log Card </i>--}}
+{{--                                    </a>--}}
 
                                     <a href="{{ route('tdrs.prlForm', ['id'=> $current_wo->id]) }}"
-                                       class="btn btn-outline-warning mb-1 formLink "
+                                       class="btn btn-outline-warning mb-1 formLink align-content-center "
                                        target="_blank"
-                                       id="#" style=" height: 40px">
+                                       id="#" style=" height: 60px; width: 80px">
                                         <i class="bi bi-file-earmark-excel"> PRL </i>
                                     </a>
                                 @endif
@@ -299,7 +311,7 @@
                         @if($current_wo->instruction_id == 1 && $hasNdtCsv)
                                 <div class="me-2 ms-2">
                                     <a href="{{ route('tdrs.ndtStd', ['workorder_id' => $current_wo->id]) }}"
-                                       class="btn btn-outline-warning" style="min-height: 40px"
+                                       class="btn btn-outline-warning" style="min-height: 60px; width: 80px"
                                        target="_blank">
                                         NDT STD
                                     </a>
@@ -309,7 +321,7 @@
                             @if($current_wo->instruction_id == 1 && $hasCadCsv)
                                 <div class="me-2 ms-2">
                                     <a href="{{ route('tdrs.cadStd', ['workorder_id' => $current_wo->id]) }}"
-                                       class="btn btn-outline-warning" style="min-height: 40px"
+                                       class="btn btn-outline-warning" style="min-height: 60px; width: 80px"
                                        target="_blank">
                                         CAD STD
                                     </a>
