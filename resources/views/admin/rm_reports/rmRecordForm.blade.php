@@ -367,13 +367,13 @@
 
     <div class="row border-all-b  m-sm-0">
         <h5 class="ps-1 fs-9">Technical Notes:</h5>
-        <div class="border-b pt-2" style="height: 30px">1</div>
-        <div class="border-b pt-2" style="height: 30px">1</div>
-        <div class="border-b pt-2" style="height: 30px">1</div>
-        <div class="border-b pt-2" style="height: 30px">1</div>
-        <div class="border-b pt-2" style="height: 30px">1</div>
-        <div class="border-b pt-2" style="height: 30px">1</div>
-        <div class="border-b pt-2" style="height: 30px">1</div>
+        @for($i = 1; $i <= 7; $i++)
+            @php
+                $noteKey = 'note' . $i;
+                $noteValue = $technicalNotes[$noteKey] ?? '';
+            @endphp
+            <div class="border-b pt-2" style="height: 30px">{{ $noteValue }}</div>
+        @endfor
     </div>
 <p></p>
 
@@ -386,20 +386,23 @@
         <div class="div15 border-l-t-b text-center align-content-center fs-75">Previously Carried out</div>
         <div class="div16 border-l-t-b text-center align-content-center fs-75">Carried out by AT</div>
         <div class="div17 border-all text-center align-content-center fs-75">Identification Method</div>
-        @for($i=1; $i<19; $i++)
-            <div class="div11 border-l-b text-center align-content-center fs-75" style="height: 32px">{{$i}}</div>
-            <div class="div12 border-l-b text-center align-content-center fs-75" > </div>
-            <div class="div13 border-l-b text-center align-content-center fs-75" ></div>
-            <div class="div14 border-l-b text-center align-content-center fs-75" ></div>
-            <div class="div15 border-l-b text-center align-content-center fs-75"style="color: lightgray">tech stamp</div>
+        @for($i=1; $i<17; $i++)
+            @php
+                $rmRecord = $rmRecords->get($i-1);
+            @endphp
+            <div class="div11 border-l-b text-center align-content-center fs-75" style="height: 37px">{{$i}}</div>
+            <div class="div12 border-l-b text-center align-content-center fs-75" >{{ $rmRecord ? $rmRecord->part_description : '' }}</div>
+            <div class="div13 border-l-b text-center align-content-center fs-75" >{{ $rmRecord ? $rmRecord->mod_repair : '' }}</div>
+            <div class="div14 border-l-b text-center align-content-center fs-75" >{{ $rmRecord ? $rmRecord->description : '' }}</div>
+            <div class="div15 border-l-b text-center align-content-center fs-75" style="color: lightgray">tech stamp</div>
             <div class="div16 border-l-b text-center align-content-center fs-75" style="color: lightgray">tech stamp</div>
-            <div class="div17 border-l-b-r text-center align-content-center fs-75" ></div>
+            <div class="div17 border-l-b-r text-center align-content-center fs-75" >{{ $rmRecord ? $rmRecord->ident_method : '' }}</div>
         @endfor
 
     </div>
 
-    <div class="qc_stamp mt-3">
-        <div class="div21" style="height: 40px"></div>
+    <div class="qc_stamp mt-1">
+        <div class="div21" style="height: 37px"></div>
         <div class="div22 border-all text-end align-content-center pe-1 fs-8" >Quality Assurance Acceptance </div>
         <div class="div23 border-t-r-b text-center align-content-center fs-8" style="color: lightgray">Q.C. stamp</div>
         <div class="div24 border-t-r-b text-center  pt-4  fs-8" style="color: lightgray">Date</div>

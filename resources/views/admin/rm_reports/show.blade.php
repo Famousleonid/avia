@@ -237,31 +237,99 @@
         </div>
 
         <div class="card-body">
-            <div class="">
-                <div class="parent mt-2">
-                    <div class="div1 border-all  text-center align-content-center" style="border-color: blue; min-height: 36px">Part
-                        Description</div>
-                    <div class="div2 border-t-r-b text-center align-content-center" style="border-color: blue">Modification or Repair#</div>
-                    <div class="div3 border-t-r-b text-center align-content-center" style="border-color: blue">Description of Modification or Repair</div>
-                    <div class="div4 border-t-r-b text-center align-content-center" style="border-color: blue">identification
-                        Method</div>
+            @if(session('success'))
+                <div class="alert alert-success alert-dismissible fade show" role="alert">
+                    {{ session('success') }}
+                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
                 </div>
+            @endif
 
-                {{--                <table class="table table-bordered table-hover">--}}
-{{--                    <thead>--}}
-{{--                    <tr>--}}
-{{--                        <th>Part Description</th>--}}
-{{--                        <th>Modification or Repair#</th>--}}
-{{--                        <th>Description of Modification or Repair</th>--}}
-{{--                        <th>Select for Report</th>--}}
-{{--                        <th>identification Method</th>--}}
-{{--                        <th></th>--}}
-{{--                    </tr>--}}
-{{--                    </thead>--}}
-{{--                    <tbody>--}}
-{{--                    </tbody>--}}
-{{--                </table>--}}
-            </div>
+            @if($current_wo->rm_report)
+                @php
+                    $savedData = json_decode($current_wo->rm_report, true);
+                @endphp
+
+                @if($savedData)
+                    <!-- Technical Notes Section -->
+                    @if(isset($savedData['technical_notes']))
+                        <div class="card mb-4">
+                            <div class="card-header">
+                                <h5 class="text-primary">{{ __('Technical Notes') }}</h5>
+                            </div>
+                            <div class="card-body">
+                                <div class="table-responsive">
+                                    <table class="table table-bordered">
+                                        <tbody>
+                                            @for($i = 1; $i <= 7; $i++)
+                                                @php
+                                                    $noteKey = 'note' . $i;
+                                                    $noteValue = $savedData['technical_notes'][$noteKey] ?? '';
+                                                @endphp
+                                                @if(!empty($noteValue))
+                                                    <tr>
+{{--                                                        <td style="width: 150px; background-color: #f8f9fa;">--}}
+{{--                                                            <strong>{{ __('Note') }} {{ $i }}</strong>--}}
+{{--                                                        </td>--}}
+                                                        <td>{{ $noteValue }}</td>
+                                                    </tr>
+                                                @endif
+                                            @endfor
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
+                    @endif
+
+                    <!-- R&M Records Section -->
+                    @if(isset($savedData['rm_records']) && !empty($savedData['rm_records']))
+                        <div class="card">
+                            <div class="card-header">
+                                <h5 class="text-primary">{{ __('R&M Records') }}</h5>
+                            </div>
+                            <div class="card-body">
+                                <div class="table-responsive">
+                                    <table class="table table-bordered table-striped">
+                                        <thead class="table-dark">
+                                            <tr>
+                                                <th>{{ __('Part Description') }}</th>
+                                                <th>{{ __('Modification or Repair #') }}</th>
+                                                <th>{{ __('Description') }}</th>
+                                                <th>{{ __('Identification Method') }}</th>
+                                                <th>{{ __('Created At') }}</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            @foreach($savedData['rm_records'] as $record)
+                                                @php
+                                                    $rmRecord = \App\Models\RmReport::find($record['id']);
+                                                @endphp
+                                                @if($rmRecord)
+                                                    <tr>
+                                                        <td>{{ $rmRecord->part_description }}</td>
+                                                        <td>{{ $rmRecord->mod_repair }}</td>
+                                                        <td>{{ $rmRecord->description }}</td>
+                                                        <td>{{ $rmRecord->ident_method }}</td>
+                                                        <td>{{ \Carbon\Carbon::parse($record['created_at'])->format('Y-m-d H:i:s') }}</td>
+                                                    </tr>
+                                                @endif
+                                            @endforeach
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
+                    @endif
+                @else
+                    <div class="alert alert-info">
+                        {{ __('No R&M data found for this work order.') }}
+                    </div>
+                @endif
+            @else
+                <div class="alert alert-info">
+                    {{ __('No R&M data found for this work order.') }}
+                </div>
+            @endif
         </div>
 
 
