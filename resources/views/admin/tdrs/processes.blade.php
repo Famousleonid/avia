@@ -120,7 +120,7 @@
                                 <th class="text-primary text-center">IPL</th>
                                 <th class="text-primary text-center">Name</th>
                                 <th class="text-primary text-center" style="width: 400px">Processes</th>
-                                <th class="text-primary text-center">Action</th>
+                                <th class="text-primary text-center" style="width: 150px">Action</th>
                             </tr>
                             </thead>
                             <tbody>

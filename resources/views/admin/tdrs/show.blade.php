@@ -226,34 +226,34 @@
 
                             {{--                                @endif--}}
                             {{--                            </div>--}}
-                            <div class=" d-flex justify-content-between" style=" height: 40px; width: 550px">
+                            <div class=" d-flex " style=" height: 40px; width: 550px">
                                 @if(count($tdrs))
 
                                     <a href="{{ route('tdrs.tdrForm', ['id'=> $current_wo->id]) }}"
-                                       class="btn btn-outline-warning mb-1 formLink "
+                                       class="btn btn-outline-warning me-1 formLink "
                                        target="_blank"
                                        id="#" style=" height: 60px; width: 80px">
                                         <i class="bi bi-file-earmark-excel"> TDR Form</i>
                                     </a>
 
-                                    <a href="{{ route('tdrs.specProcessForm', ['id'=> $current_wo->id]) }}"
-                                       class="btn btn-outline-warning  formLink "
-                                       target="_blank"
-                                       id="#" style=" height: 60px; width: 120px">
-                                        <i class="bi bi-file-earmark-excel"> Special Process Form </i>
-                                    </a>
+{{--                                    <a href="{{ route('tdrs.specProcessForm', ['id'=> $current_wo->id]) }}"--}}
+{{--                                       class="btn btn-outline-warning  formLink "--}}
+{{--                                       target="_blank"--}}
+{{--                                       id="#" style=" height: 60px; width: 120px">--}}
+{{--                                        <i class="bi bi-file-earmark-excel"> Special Process Form </i>--}}
+{{--                                    </a>--}}
                                     <a href="{{ route('tdrs.woProcessForm', ['id'=> $current_wo->id]) }}"
-                                       class="btn btn-outline-warning  formLink "
+                                       class="btn btn-outline-warning me-1 formLink "
                                        target="_blank"
                                        id="#" style=" height: 60px; width: 120px">
                                         <i class="bi bi-file-earmark-excel"> WO Process Sheet </i>
                                     </a>
-                                    <a href="#"
-                                       class="btn btn-outline-warning  formLink "
-                                       target="_blank"
-                                       id="#" style=" height: 60px; width: 80px">
-                                        <i class="bi bi-file-earmark-excel">  </i>
-                                    </a>
+{{--                                    <a href="#"--}}
+{{--                                       class="btn btn-outline-warning  formLink "--}}
+{{--                                       target="_blank"--}}
+{{--                                       id="#" style=" height: 60px; width: 80px">--}}
+{{--                                        <i class="bi bi-file-earmark-excel">  </i>--}}
+{{--                                    </a>--}}
 {{--                                    <a href="{{ route('log_card.logCardForm', ['id'=> $current_wo->id]) }}"--}}
 {{--                                       class="btn btn-outline-warning  formLink "--}}
 {{--                                       target="_blank"--}}
@@ -262,7 +262,7 @@
 {{--                                    </a>--}}
 
                                     <a href="{{ route('tdrs.prlForm', ['id'=> $current_wo->id]) }}"
-                                       class="btn btn-outline-warning mb-1 formLink align-content-center "
+                                       class="btn btn-outline-warning me-1 formLink align-content-center "
                                        target="_blank"
                                        id="#" style=" height: 60px; width: 80px">
                                         <i class="bi bi-file-earmark-excel"> PRL </i>

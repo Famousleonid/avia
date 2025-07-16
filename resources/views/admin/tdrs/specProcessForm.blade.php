@@ -16,8 +16,8 @@
         .container-fluid {
             max-width: 980px;
             height: auto;
-            /*transform: scale(0.8);*/
-            transform-origin: top left;
+            transform: scale(0.97);
+            transform-origin: top ;
             padding: 3px;
             margin-left: 10px;
             margin-right: 10px;
@@ -211,7 +211,7 @@
         .fs-8 {
             font-size: 0.7rem; /* или любое другое подходящее значение */
         }
-        .fs-9 {
+        .fs-4 {
             font-size: 0.4rem; /* или любое другое подходящее значение */
         }
 
@@ -291,14 +291,18 @@
                     <img src="{{ asset('img/icons/icons8-right-arrow.gif')}}" alt="arrow"
                          style="width: 24px;height: 20px">
                 </div>
-                <div class="border-l-t-b text-center pt-0 fs-7" style="width: 25px;height: 20px">{{ $ndtSums['mpi'] }}</div>
-                <div class="border-l-t-b ps-2 fs-8 " style="width: 130px;height: 20px; color: grey; font-style: italic" >RO
+                <div class="border-l-t-b text-center pt-0 fs-75" style="width: 25px;height: 20px">
+                    {{ empty($ndtSums['mpi']) ? 'N/A' : $ndtSums['mpi'] }}</div>
+                <div class="border-l-t-b ps-2 fs-8 " style="width: 130px;height: 20px; color: lightgray; font-style: italic" >RO
                     No.</div>
-                <div class="border-all text-center pt-0 fs-7" style="width: 25px;height: 20px">{{ $ndtSums['fpi'] }}</div>
+                <div class="border-all text-center pt-0 fs-75" style="width: 25px;height: 20px">
+                    {{ empty($ndtSums['fpi']) ? 'N/A' : $ndtSums['fpi'] }}</div>
                 <div class=" text-center fs-8" style="width: 20px;height: 20px"></div>
-                <div class="border-l-t-b ps-2 fs-8 " style="width: 100px;height: 20px; color: grey; font-style: italic" >RO
+                <div class="border-l-t-b ps-2 fs-8 " style="width: 100px;height: 20px; color: lightgray; font-style: italic" >RO
                     No.</div>
-                <div class="border-all text-center pt-0 fs-7" style="width: 25px;height: 20px">{{ $cadSum['total_qty'] }}</div>
+                <div class="border-all text-center pt-0 fs-75" style="width: 25px;height: 20px">
+                    {{ empty($cadSum['total_qty']) ? 'N/A' : $cadSum['total_qty']  }}
+                </div>
                 <div class=" text-center fs-8" style="width: 305px;height: 20px"></div>
                 <div class=" text-end pt-2 fs-75" style="width: 75px;height: 20px">Technician</div>
                 <div class="border-b " style="width: 120px"></div>
@@ -334,8 +338,15 @@
                         @php
                             $localIndex = $index % 6;
                         @endphp
-                        <div class="col {{ $localIndex < 5 ? 'border-l-t-b' : 'border-all' }} text-center" style="height: 22px">
-                            {{ $component->component->name }}
+                        <div class="col {{ $localIndex < 5 ? 'border-l-t-b' : 'border-all' }} text-center" style="height:
+                        22px">
+                            @php
+                                $nameLength = mb_strlen($component->component->name);
+                                $fontSize = $nameLength > 20 ? round(20 / $nameLength, 2) . 'em' : '1em';
+                            @endphp
+                            <span style="font-size: {{ $fontSize }};">
+                                {{ $component->component->name }}
+                            </span>
                         </div>
                     @endforeach
 
