@@ -93,11 +93,12 @@
                 <div class="ps-2 d-flex" style="width: 300px;">
                         @if($log_card)
                             <a href="{{ route('log_card.edit', $log_card->id) }}" class="btn btn-outline-primary"
-                               style="height: 40px">
+                               style="height: 60px;width: 100px">
                                 <i class="fas fa-edit"></i> Edit Log Card
                             </a>
                         @else
-                            <a href="{{ route('log_card.create', $current_wo->id) }}" class="btn btn-success" style="height: 40px">
+                            <a href="{{ route('log_card.create', $current_wo->id) }}" class="btn btn-success" style="height:
+                            60px; width: 100px">
                                 <i class="fas fa-plus"></i> Create Log Card
                             </a>
                         @endif
@@ -109,15 +110,16 @@
                     <a href="{{ route('log_card.logCardForm', ['id'=> $current_wo->id]) }}"
                        class="btn btn-outline-warning mb-3 formLink "
                        target="_blank"
-                       id="#" style=" height: 40px">
-                        <i class="bi bi-file-earmark-excel">Log Card </i>
+                       id="#" style=" height: 60px; width: 80px">
+                        <i class="bi bi-file-earmark-excel"> Log Card </i>
                     </a>
                     @endif
                 </div>
 
                     <div class="">
                         <a href="{{ route('tdrs.show', ['tdr'=>$current_wo->id]) }}"
-                           class="btn btn-outline-secondary mt-3" style="height: 40px">{{ __('Back to Work Order') }} </a>
+                           class="btn btn-outline-secondary " style="height: 60px;width: 110px">{{ __('Back to Work Order')
+                            }} </a>
                     </div>
 
 

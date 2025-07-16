@@ -83,31 +83,31 @@
     <div class="card shadow">
         <div class="card-header m-1 shadow">
             <div class="d-flex justify-content-between">
-                <div>
-                    <h5 class="text-primary me-5">{{__('Work Order: ')}} {{$current_wo->number}}</h5>
-                    <h5>{{__('All Components Processes')}}</h5>
+                <div class="d-flex">
+                    <div style="width: 260px">
+                        <h5 class="text-primary me-5">{{__('Work Order: ')}} {{$current_wo->number}}</h5>
+                        <h5>{{__('All Components Processes')}}</h5>
+                    </div>
 
-{{--                    <a href="{{ route('tdrs.ndtForm', ['id'=> $current_wo->id]) }}"--}}
-{{--                       class="btn btn-outline-warning formLink "--}}
-{{--                       target="_blank"--}}
-{{--                       id="#" style=" height: 36px">--}}
 
-{{--                        <i class="bi bi-file-earmark-excel"> NDT (Cat #1)</i>--}}
-{{--                    </a>--}}
+                    <div class="ps-2 d-flex" style="width: 440px">
+                        <button class="btn btn-outline-primary" data-bs-toggle="modal"
+                                data-bs-target="#formsModal" style=" height: 60px">
+                            {{__('Forms')}}
+                        </button>
+                    </div>
+
                     <a href="{{ route('tdrs.specProcessForm', ['id'=> $current_wo->id]) }}"
                        class="btn btn-outline-warning  formLink "
                        target="_blank"
-                       id="#" style=" height: 36px">
+                       id="#" style=" height: 60px;width: 120px">
 
                         <i class="bi bi-file-earmark-excel"> Special Process Form</i>
                     </a>
-                    <button class="btn btn-outline-warning" data-bs-toggle="modal"
-                            data-bs-target="#formsModal" style=" height: 36px">
-                        {{__('Forms')}}
-                    </button>
+
                 </div>
                 <a href="{{ route('tdrs.show', ['tdr'=>$current_wo->id]) }}"
-                   class="btn btn-outline-secondary mt-3" style="height: 40px">{{ __('Back to Work Order') }} </a>
+                   class="btn btn-outline-secondary " style="height: 60px; width: 110px">{{ __('Back to Work Order') }} </a>
             </div>
         </div>
         <div>

@@ -189,7 +189,7 @@
     <div class="card-shadow ">
         <div class="card-header m-1 shadow">
             <div class="d-flex justify-content-between">
-                <div>
+                <div style="width: 450px">
                     <h4 class="text-primary me-5">{{__('Work Order: ')}} {{$current_wo->number}}</h4>
                     <div>
                         <h4 class="text-center ps-1" >{{__(' REPAIR and MODIFICATION RECORD')}}</h4>
@@ -217,15 +217,16 @@
                         <a href="{{ route('rm_reports.rmRecordForm', ['id'=> $current_wo->id]) }}"
                            class="btn btn-outline-warning mb-3 formLink "
                            target="_blank"
-                           id="#" style=" height: 40px">
-                            <i class="bi bi-file-earmark-excel">R & M Record Form </i>
+                           id="#" style=" height: 60px; width: 120px">
+                            <i class="bi bi-file-earmark-excel"> R & M Record Form </i>
                         </a>
 {{--                    @endif--}}
                 </div>
 
                 <div class="">
                     <a href="{{ route('tdrs.show', ['tdr'=>$current_wo->id]) }}"
-                       class="btn btn-outline-secondary mt-3" style="min-height: 40px">{{ __('Back to Work Order') }} </a>
+                       class="btn btn-outline-secondary " style="min-height: 60px; width: 110px">{{ __('Back to Work
+                       Order') }} </a>
                 </div>
 
 
