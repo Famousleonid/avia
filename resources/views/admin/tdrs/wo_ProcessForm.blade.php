@@ -245,7 +245,7 @@
             height: 30px;
             /*border: 1px solid black;*/
             text-align: center;
-            vertical-align: middle;
+            vertical-align: bottom;
         }
 
         .work-item {
@@ -299,16 +299,15 @@
 
     <div class="section-header mt-3 ">
 
-        <div class="row " style="height: 50px">
-            <div class="col-1 align-content-center pt-1 " style="border: 2px solid black;"><h5><strong>A</strong></h5></div>
+        <div class="row " style="height: 36px">
+            <div class="col-1 align-content-center pt-1 " style="border: 2px solid black;"><h4><strong>A</strong></h4></div>
             <div class="col-10 align-content-center pt-1" style="border: 2px solid black; border-left: none;">
-                <h5><strong>Work to be
-                        carried out</strong></h5></div>
+                <h4><strong>Work to be carried out</strong></h4></div>
             <div class="col-1"></div>
         </div>
 
     </div>
-    <div class="text-center  mb-1" style="font-style: italic">
+    <div class="text-center  mb-3 mt-2" style="font-style: italic">
                 <h5><strong>Select as many as required of the following</strong></h5>
     </div>
 
@@ -317,22 +316,22 @@
         <div class="col-6">
             <table class="table " style="margin-bottom: 0;">
                 <tr>
-                    <td class="work-item  text-center border-l-t-b" style="width: 70px">1.</td>
+                    <td class="work-item  text-center border-l-t-b" style="width: 70px">1</td>
                     <td class="work-item border-l-t-b">FITS & CLEARANCES CARRIED OUT</td>
                     <td class="stamp-box border-all" style="color: grey; width: 70px">TECH STAMP</td>
                 </tr>
                 <tr>
-                    <td class="work-item  text-center border-l-t-b" style="width: 70px">2.</td>
+                    <td class="work-item  text-center border-l-t-b" style="width: 70px">2</td>
                     <td class="work-item border-l-t-b"> SPECIAL PROCESSES to be CARRIED OUT (reference form #012)</td>
                     <td class="stamp-box border-all" style="color: grey; width: 70px">TECH STAMP</td>
                 </tr>
                 <tr>
-                    <td class="work-item  text-center border-l-t-b" style="width: 70px">3.</td>
+                    <td class="work-item  text-center border-l-t-b" style="width: 70px">3</td>
                     <td class="work-item border-l-t-b">SB's and AD's to be CARRIED OUT (reference form #007)</td>
                     <td class="stamp-box border-all" style="color: grey; width: 70px">TECH STAMP</td>
                 </tr>
                 <tr>
-                    <td class="work-item  text-center border-l-t-b" style="width: 70px">4.</td>
+                    <td class="work-item  text-center border-l-t-b" style="width: 70px">4</td>
                     <td class="work-item border-l-t-b">INSPECTED IN ACCORDANCE WITH CMM</td>
                     <td class="stamp-box border-all" style="color: grey; width: 70px">TECH STAMP</td>
                 </tr>
@@ -341,27 +340,27 @@
         <div class="col-6">
             <table class="table " style="margin-bottom: 0;">
                 <tr>
-                      <td class="work-item  text-center border-l-t-b" style="width: 70px">5.</td>
+                      <td class="work-item  text-center border-l-t-b" style="width: 70px">5</td>
                     <td class="work-item border-l-t-b">PRE-TESTED IN ACCORDANCE WITH CMM</td>
                     <td class="stamp-box border-all" style="width: 70px; color: grey">TECH STAMP</td>
                 </tr>
                 <tr>
-                      <td class="work-item  text-center border-l-t-b" style="width: 70px">6.</td>
+                      <td class="work-item  text-center border-l-t-b" style="width: 70px">6</td>
                     <td class="work-item border-l-t-b">MODIFIED IN ACCORDANCE WITH APPROVED DATA</td>
                     <td class="stamp-box border-all" style="width: 70px; color: grey">TECH STAMP</td>
                 </tr>
                 <tr>
-                      <td class="work-item  text-center border-l-t-b" style="width: 70px">7.</td>
+                      <td class="work-item  text-center border-l-t-b" style="width: 70px">7</td>
                     <td class="work-item border-l-t-b">REPAIRED IN ACCORDANCE WITH CMM</td>
                     <td class="stamp-box border-all" style="width: 70px; color: grey">TECH STAMP</td>
                 </tr>
                 <tr>
-                      <td class="work-item  text-center border-l-t-b" style="width: 70px">8.</td>
+                      <td class="work-item  text-center border-l-t-b" style="width: 70px">8</td>
                     <td class="work-item border-l-t-b">FINAL TESTED IN ACCORDANCE WITH CMM</td>
                     <td class="stamp-box border-all" style="width: 70px; color: grey">TECH STAMP</td>
                 </tr>
                 <tr>
-                    <td class="work-item  text-center border-l-t-b" style="width: 70px">9.</td>
+                    <td class="work-item  text-center border-l-t-b" style="width: 70px">9</td>
                     <td class="work-item border-l-t-b">OVERHAULED IN ACCORDANCE WITH CMM</td>
                     <td class="stamp-box border-all" style="width: 70px; color: grey">TECH STAMP</td>
                 </tr>
@@ -372,13 +371,13 @@
 {{--    <div style="margin-bottom: 50px;">--}}
 
     <!-- Section B: Actual Work Carried out on Component -->
-
+<div style="height: 20px"></div>
     <div class="section-header mt-3 mb-3">
 
-        <div class="row " style="height: 50px">
-            <div class="col-1 align-content-center pt-1 " style="border: 2px solid black;"><h5><strong>B</strong></h5></div>
+        <div class="row " style="height: 36px">
+            <div class="col-1 align-content-center pt-1 " style="border: 2px solid black;"><h4><strong>B</strong></h4></div>
             <div class="col-10 align-content-center pt-1" style="border: 2px solid black; border-left: none;">
-                <h5><strong>Actual Work Carried out on Component</strong></h5></div>
+                <h4><strong>Actual Work Carried out on Component</strong></h4></div>
             <div class="col-1"></div>
         </div>
 
@@ -389,68 +388,68 @@
             <table class="table ">
                 <tbody>
                     <tr>
-                        <td class="work-item  text-center border-l-t-b" style="width: 72px">1.</td>
+                        <td class="work-item  text-center border-l-t-b" style="width: 72px">1</td>
                         <td class="work-item border-l-t-b">Preliminary Testing Carried out in accordance with CMM</td>
                         <td class="stamp-box border-l-t-b" style="color: grey">TECH STAMP</td>
-                        <td class="date-box border-all" style="width: 150px"></td>
+                        <td class="date-box border-all" style="width: 150px ;color: lightgray">Date Completed</td>
                     </tr>
                     <tr>
-                    <td class="work-item  text-center border-l-t-b" style="width: 70px">2.</td>
+                    <td class="work-item  text-center border-l-t-b" style="width: 70px">2</td>
                         <td class="work-item border-l-t-b">Teardown Carried out (Reference form #003)</td>
                         <td class="stamp-box border-l-t-b" style="color: grey">TECH STAMP</td>
-                        <td class="date-box border-all" style="width: 150px"></td>
+                        <td class="date-box border-all" style="width: 150px ;color: lightgray">Date Completed</td>
                     </tr>
                     <tr>
-                    <td class="work-item  text-center border-l-t-b" style="width: 70px">3.</td>
+                    <td class="work-item  text-center border-l-t-b" style="width: 70px">3</td>
                         <td class="work-item border-l-t-b">Fits & Clearances Carried out in accordance with CMM</td>
                         <td class="stamp-box border-l-t-b" style="color: grey">TECH STAMP</td>
-                        <td class="date-box border-all" style="width: 150px"></td>
+                        <td class="date-box border-all" style="width: 150px ;color: lightgray">Date Completed</td>
                     </tr>
                     <tr>
-                    <td class="work-item  text-center border-l-t-b" style="width: 70px">4.</td>
+                    <td class="work-item  text-center border-l-t-b" style="width: 70px">4</td>
                         <td class="work-item border-l-t-b">SPECIAL PROCESSES CARRIED OUT (Reference form #012)</td>
                         <td class="stamp-box border-l-t-b" style="color: grey">TECH STAMP</td>
-                        <td class="date-box border-all" style="width: 150px"></td>
+                        <td class="date-box border-all" style="width: 150px ;color: lightgray">Date Completed</td>
                     </tr>
                     <tr>
-                    <td class="work-item  text-center border-l-t-b" style="width: 70px">5.</td>
+                    <td class="work-item  text-center border-l-t-b" style="width: 70px">5</td>
                         <td class="work-item border-l-t-b">SB's and AD's CARRIED OUT (Reference form #007)</td>
                         <td class="stamp-box border-l-t-b" style="color: grey">TECH STAMP</td>
-                        <td class="date-box border-all" style="width: 150px"></td>
+                        <td class="date-box border-all" style="width: 150px ;color: lightgray">Date Completed</td>
                     </tr>
                     <tr>
-                    <td class="work-item  text-center border-l-t-b" style="width: 70px">6.</td>
+                    <td class="work-item  text-center border-l-t-b" style="width: 70px">6</td>
                         <td class="work-item border-l-t-b">Unit Modified</td>
                         <td class="stamp-box border-l-t-b" style="color: grey">TECH STAMP</td>
-                        <td class="date-box border-all" style="width: 150px"></td>
+                        <td class="date-box border-all" style="width: 150px ;color: lightgray">Date Completed</td>
                     </tr>
                     <tr>
-                    <td class="work-item  text-center border-l-t-b" style="width: 70px">7.</td>
+                    <td class="work-item  text-center border-l-t-b" style="width: 70px">7</td>
                         <td class="work-item border-l-t-b">Unit Assembled</td>
                         <td class="stamp-box border-l-t-b" style="color: grey">TECH STAMP</td>
-                        <td class="date-box border-all" style="width: 150px"></td>
+                        <td class="date-box border-all" style="width: 150px ;color: lightgray">Date Completed</td>
                     </tr>
                     <tr>
-                    <td class="work-item  text-center border-l-t-b" style="width: 70px">8.</td>
+                    <td class="work-item  text-center border-l-t-b" style="width: 70px">8</td>
                         <td class="work-item border-l-t-b">Unit Tested</td>
                         <td class="stamp-box border-l-t-b" style="color: grey">TECH STAMP</td>
-                        <td class="date-box border-all" style="width: 150px"></td>
+                        <td class="date-box border-all" style="width: 150px ;color: lightgray">Date Completed</td>
                     </tr>
                     <tr>
-                    <td class="work-item  text-center border-l-t-b" style="width: 70px">9.</td>
+                    <td class="work-item  text-center border-l-t-b" style="width: 70px">9</td>
                         <td class="work-item border-l-t-b">Unit Completed</td>
                         <td class="stamp-box border-l-t-b" style="color: grey">TECH STAMP</td>
-                        <td class="date-box border-all" style="width: 150px"></td>
+                        <td class="date-box border-all" style="width: 150px;color: lightgray">Date Completed</td>
                     </tr>
                 </tbody>
             </table>
 
-            <table class="table mb-4 mt-3">
+            <table class="table mb-3 mt-4">
                 <tr>
-                    <td class="work-item text-center" style="width: 70px; border: 1px solid black;">10.</td>
+                    <td class="work-item text-center" style="width: 70px; border: 1px solid black;">10</td>
                     <td class="work-item" style="border: 2px solid black;">Quality Assurance Final Acceptance</td>
-                    <td class="stamp-box text-center" style="border: 1px solid black;">Q.A. STAMP</td>
-                    <td class="date-box" style="width: 150px; border: 1px solid black;"></td>
+                    <td class="stamp-box text-center" style="border: 1px solid black; color: grey">Q.A. STAMP</td>
+                    <td class="date-box" style="width: 150px; border: 1px solid black;color: lightgray">Data</td>
                 </tr>
             </table>
 
