@@ -1,0 +1,395 @@
+/* ========================================
+   ПОВОРОТ ТЕКСТА В ЯЧЕЙКАХ НА 90 ГРАДУСОВ
+   ======================================== */
+
+/* ========================================
+   1. ОСНОВНЫЕ МЕТОДЫ ПОВОРОТА
+   ======================================== */
+
+/* Поворот на 90 градусов по часовой стрелке */
+.rotate-90 {
+    transform: rotate(90deg);
+}
+
+/* Поворот на 90 градусов против часовой стрелки */
+.rotate-minus-90 {
+    transform: rotate(-90deg);
+}
+
+/* Поворот на 180 градусов */
+.rotate-180 {
+    transform: rotate(180deg);
+}
+
+/* ========================================
+   2. CSS WRITING-MODE - ВЕРТИКАЛЬНЫЙ ТЕКСТ
+   ======================================== */
+
+/* Вертикальный текст справа налево */
+.vertical-text-rl {
+    writing-mode: vertical-rl;
+    text-orientation: mixed;
+}
+
+/* Вертикальный текст слева направо */
+.vertical-text-lr {
+    writing-mode: vertical-lr;
+    text-orientation: mixed;
+}
+
+/* Вертикальный текст с прямыми символами */
+.vertical-text-upright {
+    writing-mode: vertical-rl;
+    text-orientation: upright;
+}
+
+/* ========================================
+   3. КОНТРОЛЬ ЦЕНТРА ВРАЩЕНИЯ
+   ======================================== */
+
+/* Вращение вокруг центра элемента */
+.rotate-center {
+    transform: rotate(90deg);
+    transform-origin: center center;
+}
+
+/* Вращение вокруг левого верхнего угла */
+.rotate-top-left {
+    transform: rotate(90deg);
+    transform-origin: 0 0;
+}
+
+/* Вращение вокруг правого нижнего угла */
+.rotate-bottom-right {
+    transform: rotate(90deg);
+    transform-origin: 100% 100%;
+}
+
+/* Вращение вокруг левого края по центру */
+.rotate-left-center {
+    transform: rotate(90deg);
+    transform-origin: 0 50%;
+}
+
+/* ========================================
+   4. ПРАКТИЧЕСКИЕ ПРИМЕРЫ ДЛЯ ТАБЛИЦ
+   ======================================== */
+
+/* Вертикальные заголовки таблицы */
+.table-vertical-headers th {
+    height: 120px;
+    position: relative;
+}
+
+.table-vertical-headers th span {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%) rotate(90deg);
+    white-space: nowrap;
+}
+
+/* Альтернативный способ для заголовков */
+.table-vertical-headers-alt th {
+    writing-mode: vertical-rl;
+    text-orientation: mixed;
+    height: 120px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+/* ========================================
+   5. ПРИМЕРЫ ДЛЯ CSS GRID
+   ======================================== */
+
+/* Повернутый текст в grid-ячейках */
+.grid-rotated-text {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 20px;
+}
+
+.grid-rotated-text .item {
+    background: #f8f9fa;
+    border: 1px solid #dee2e6;
+    padding: 20px;
+    min-height: 120px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+/* Поворот текста в grid с центрированием */
+.grid-rotated-text .item.centered {
+    position: relative;
+}
+
+.grid-rotated-text .item.centered span {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%) rotate(90deg);
+    white-space: nowrap;
+}
+
+/* ========================================
+   6. ПРИМЕРЫ ДЛЯ FLEXBOX
+   ======================================== */
+
+/* Повернутый текст в flex-контейнерах */
+.flex-rotated-text {
+    display: flex;
+    gap: 20px;
+}
+
+.flex-rotated-text .item {
+    background: #f8f9fa;
+    border: 1px solid #dee2e6;
+    padding: 20px;
+    flex: 1;
+    min-height: 120px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+/* ========================================
+   7. АНИМАЦИИ И ПЕРЕХОДЫ
+   ======================================== */
+
+/* Плавный поворот при наведении */
+.rotate-hover {
+    transition: transform 0.3s ease;
+}
+
+.rotate-hover:hover {
+    transform: rotate(90deg);
+}
+
+/* Анимация поворота */
+@keyframes rotate-animation {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(90deg); }
+}
+
+.rotate-animation {
+    animation: rotate-animation 1s ease-in-out;
+}
+
+/* ========================================
+   8. КОМБИНИРОВАННЫЕ ПОДХОДЫ
+   ======================================== */
+
+/* Комбинация writing-mode и transform */
+.combined-vertical {
+    writing-mode: vertical-rl;
+    text-orientation: mixed;
+    transform: rotate(180deg);
+}
+
+/* Поворот с масштабированием */
+.rotate-scale {
+    transform: rotate(90deg) scale(1.2);
+}
+
+/* Поворот с перемещением */
+.rotate-translate {
+    transform: rotate(90deg) translateX(20px);
+}
+
+/* ========================================
+   9. АДАПТИВНЫЕ РЕШЕНИЯ
+   ======================================== */
+
+/* Адаптивный поворот текста */
+.responsive-rotate {
+    /* По умолчанию - горизонтальный текст */
+    writing-mode: horizontal-tb;
+}
+
+/* На средних экранах - вертикальный текст */
+@media (max-width: 768px) {
+    .responsive-rotate {
+        writing-mode: vertical-rl;
+        text-orientation: mixed;
+    }
+}
+
+/* На маленьких экранах - поворот через transform */
+@media (max-width: 480px) {
+    .responsive-rotate {
+        writing-mode: horizontal-tb;
+        transform: rotate(90deg);
+    }
+}
+
+/* ========================================
+   10. СПЕЦИАЛЬНЫЕ СЛУЧАИ
+   ======================================== */
+
+/* Поворот с сохранением читаемости */
+.readable-rotate {
+    transform: rotate(90deg);
+    /* Увеличиваем высоту контейнера для повернутого текста */
+    min-height: 200px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+/* Поворот с фоном */
+.rotate-with-bg {
+    transform: rotate(90deg);
+    background: linear-gradient(45deg, #3498db, #2980b9);
+    color: white;
+    padding: 20px;
+    border-radius: 8px;
+}
+
+/* Поворот с тенью */
+.rotate-with-shadow {
+    transform: rotate(90deg);
+    box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+    background: white;
+    padding: 15px;
+    border-radius: 4px;
+}
+
+/* ========================================
+   11. УТИЛИТЫ ДЛЯ БЫСТРОГО ПРИМЕНЕНИЯ
+   ======================================== */
+
+/* Утилиты для поворота */
+.rotate-45 { transform: rotate(45deg); }
+.rotate-90 { transform: rotate(90deg); }
+.rotate-135 { transform: rotate(135deg); }
+.rotate-180 { transform: rotate(180deg); }
+.rotate-225 { transform: rotate(225deg); }
+.rotate-270 { transform: rotate(270deg); }
+.rotate-315 { transform: rotate(315deg); }
+
+/* Утилиты для центров вращения */
+.origin-center { transform-origin: center center; }
+.origin-top-left { transform-origin: 0 0; }
+.origin-top-right { transform-origin: 100% 0; }
+.origin-bottom-left { transform-origin: 0 100%; }
+.origin-bottom-right { transform-origin: 100% 100%; }
+
+/* Утилиты для writing-mode */
+.writing-vertical-rl { writing-mode: vertical-rl; }
+.writing-vertical-lr { writing-mode: vertical-lr; }
+.writing-horizontal-tb { writing-mode: horizontal-tb; }
+
+/* Утилиты для text-orientation */
+.text-upright { text-orientation: upright; }
+.text-mixed { text-orientation: mixed; }
+
+/* ========================================
+   12. ПРИМЕРЫ ИСПОЛЬЗОВАНИЯ В HTML
+   ======================================== */
+
+/*
+HTML примеры для использования вышеуказанных классов:
+
+1. Простой поворот в таблице:
+<table>
+    <tr>
+        <th><span class="rotate-90">Заголовок</span></th>
+        <td>Данные</td>
+    </tr>
+</table>
+
+2. Вертикальный текст в grid:
+<div class="grid-rotated-text">
+    <div class="item">
+        <span class="vertical-text-rl">Вертикальный текст</span>
+    </div>
+</div>
+
+3. Адаптивный поворот:
+<div class="responsive-rotate">
+    Адаптивный текст
+</div>
+
+4. Комбинированный подход:
+<div class="combined-vertical">
+    Комбинированный текст
+</div>
+*/
+
+/* ========================================
+   13. ОТЛАДКА И ВИЗУАЛИЗАЦИЯ
+   ======================================== */
+
+/* Стили для отладки поворота */
+.debug-rotate {
+    border: 2px dashed #ff0000;
+    background: rgba(255, 0, 0, 0.1);
+    position: relative;
+}
+
+.debug-rotate::before {
+    content: 'Центр вращения';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background: #ff0000;
+    color: white;
+    padding: 2px 6px;
+    font-size: 10px;
+    border-radius: 3px;
+}
+
+/* Визуализация границ повернутого элемента */
+.visualize-rotate {
+    outline: 2px solid #00ff00;
+    outline-offset: 2px;
+}
+
+/* ========================================
+   14. ПРОИЗВОДИТЕЛЬНОСТЬ И ОПТИМИЗАЦИЯ
+   ======================================== */
+
+/* Оптимизация для производительности */
+.optimized-rotate {
+    transform: rotate(90deg);
+    /* Включаем аппаратное ускорение */
+    will-change: transform;
+    /* Используем transform3d для GPU */
+    transform: rotate3d(0, 0, 1, 90deg);
+}
+
+/* Плавные переходы */
+.smooth-rotate {
+    transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* ========================================
+   15. ДОСТУПНОСТЬ (A11Y)
+   ======================================== */
+
+/* Улучшение доступности для повернутого текста */
+.accessible-rotate {
+    transform: rotate(90deg);
+    /* Увеличиваем контрастность */
+    filter: contrast(1.2);
+    /* Добавляем фокус для клавиатурной навигации */
+    outline: 2px solid transparent;
+    outline-offset: 2px;
+}
+
+.accessible-rotate:focus {
+    outline-color: #007bff;
+}
+
+/* Альтернативный текст для скринридеров */
+.accessible-rotate::after {
+    content: attr(data-alt);
+    position: absolute;
+    left: -9999px;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+} 

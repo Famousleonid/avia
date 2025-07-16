@@ -270,64 +270,66 @@
 
         .parent {
             display: grid;
-            grid-template-columns: repeat(12, 1fr);
+            /*grid-template-columns: repeat(12, 1fr);*/
+            grid-template-columns: .6fr 2.7fr 1fr 3fr 1fr 1fr 3fr ;
             /*grid-template-rows: repeat(5, .5fr);*/
             gap: 0;
         }
 
 
-        .div12 {
-            grid-column: span 2 / span 2;
-        }
+        /*.div12 {*/
+        /*    grid-column: span 2 / span 2;*/
+        /*}*/
 
-        .div13 {
-            grid-column-start: 4;
-        }
+        /*.div13 {*/
+        /*    grid-column-start: 4;*/
+        /*}*/
 
-        .div14 {
-            grid-column: span 3 / span 3;
-            grid-column-start: 5;
-        }
+        /*.div14 {*/
+        /*    grid-column: span 3 / span 3;*/
+        /*    grid-column-start: 5;*/
+        /*}*/
 
-        .div15 {
-            grid-column-start: 8;
-        }
+        /*.div15 {*/
+        /*    grid-column-start: 8;*/
+        /*}*/
 
-        .div16 {
-            grid-column-start: 9;
-        }
+        /*.div16 {*/
+        /*    grid-column-start: 9;*/
+        /*}*/
 
-        .div17 {
-            grid-column: span 3 / span 3;
-            grid-column-start: 10;
-        }
+        /*.div17 {*/
+        /*    grid-column: span 3 / span 3;*/
+        /*    grid-column-start: 10;*/
+        /*}*/
 
 
 
         .qc_stamp {
             display: grid;
-            grid-template-columns: repeat(12, 1fr);
+            grid-template-columns: 3.3fr 4fr 1fr 4fr;
+            /*grid-template-columns: repeat(12, 1fr);*/
             grid-template-rows: repeat(1, 1fr);
             gap: 0px;
         }
 
-        .div21 {
-            grid-column: span 3 / span 3;
-        }
+        /*.div21 {*/
+        /*    grid-column: span 3 / span 3;*/
+        /*}*/
 
-        .div22 {
-            grid-column: span 4 / span 4;
-            grid-column-start: 4;
-        }
+        /*.div22 {*/
+        /*    grid-column: span 4 / span 4;*/
+        /*    grid-column-start: 4;*/
+        /*}*/
 
-        .div23 {
-            grid-column-start: 8;
-        }
+        /*.div23 {*/
+        /*    grid-column-start: 8;*/
+        /*}*/
 
-        .div24 {
-            grid-column: span 4 / span 4;
-            grid-column-start: 9;
-        }
+        /*.div24 {*/
+        /*    grid-column: span 4 / span 4;*/
+        /*    grid-column-start: 9;*/
+        /*}*/
 
 
 

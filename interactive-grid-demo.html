@@ -1,0 +1,526 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Интерактивная демонстрация CSS Grid</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 15px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }
+
+        .header {
+            background: #2c3e50;
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+
+        .header h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+        }
+
+        .header p {
+            font-size: 1.1em;
+            opacity: 0.9;
+        }
+
+        .controls {
+            background: #ecf0f1;
+            padding: 30px;
+            border-bottom: 1px solid #bdc3c7;
+        }
+
+        .control-group {
+            margin-bottom: 25px;
+        }
+
+        .control-group h3 {
+            color: #2c3e50;
+            margin-bottom: 15px;
+            font-size: 1.2em;
+        }
+
+        .control-row {
+            display: flex;
+            gap: 20px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+
+        .control-item {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .control-item label {
+            font-weight: 600;
+            color: #34495e;
+            font-size: 0.9em;
+        }
+
+        .control-item input, .control-item select {
+            padding: 10px;
+            border: 2px solid #bdc3c7;
+            border-radius: 8px;
+            font-size: 14px;
+            transition: border-color 0.3s ease;
+        }
+
+        .control-item input:focus, .control-item select:focus {
+            outline: none;
+            border-color: #3498db;
+        }
+
+        .control-item input[type="range"] {
+            width: 150px;
+        }
+
+        .preset-buttons {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        .preset-btn {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 8px;
+            background: #3498db;
+            color: white;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-weight: 600;
+        }
+
+        .preset-btn:hover {
+            background: #2980b9;
+            transform: translateY(-2px);
+        }
+
+        .preset-btn.active {
+            background: #27ae60;
+        }
+
+        .grid-demo {
+            padding: 30px;
+        }
+
+        .grid-container {
+            display: grid;
+            gap: 15px;
+            min-height: 300px;
+            border: 3px solid #2c3e50;
+            border-radius: 10px;
+            padding: 20px;
+            background: #f8f9fa;
+            transition: all 0.3s ease;
+        }
+
+        .grid-item {
+            background: linear-gradient(45deg, #3498db, #2980b9);
+            color: white;
+            padding: 30px;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            font-size: 1.1em;
+            text-align: center;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+            transition: all 0.3s ease;
+        }
+
+        .grid-item:hover {
+            transform: scale(1.05);
+            box-shadow: 0 8px 25px rgba(0,0,0,0.2);
+        }
+
+        .grid-item:nth-child(1) { background: linear-gradient(45deg, #e74c3c, #c0392b); }
+        .grid-item:nth-child(2) { background: linear-gradient(45deg, #f39c12, #e67e22); }
+        .grid-item:nth-child(3) { background: linear-gradient(45deg, #27ae60, #229954); }
+        .grid-item:nth-child(4) { background: linear-gradient(45deg, #9b59b6, #8e44ad); }
+        .grid-item:nth-child(5) { background: linear-gradient(45deg, #1abc9c, #16a085); }
+        .grid-item:nth-child(6) { background: linear-gradient(45deg, #34495e, #2c3e50); }
+
+        .code-display {
+            background: #2c3e50;
+            color: #ecf0f1;
+            padding: 20px;
+            border-radius: 8px;
+            font-family: 'Courier New', monospace;
+            font-size: 14px;
+            margin-top: 20px;
+            overflow-x: auto;
+        }
+
+        .code-display .property {
+            color: #3498db;
+        }
+
+        .code-display .value {
+            color: #e74c3c;
+        }
+
+        .info-panel {
+            background: #e8f4fd;
+            border-left: 4px solid #3498db;
+            padding: 20px;
+            margin-top: 20px;
+            border-radius: 0 8px 8px 0;
+        }
+
+        .info-panel h4 {
+            color: #2c3e50;
+            margin-bottom: 10px;
+        }
+
+        .info-panel p {
+            color: #34495e;
+            line-height: 1.6;
+        }
+
+        .responsive-info {
+            background: #fff3cd;
+            border: 1px solid #ffeaa7;
+            padding: 15px;
+            border-radius: 8px;
+            margin-top: 20px;
+        }
+
+        .responsive-info h4 {
+            color: #856404;
+            margin-bottom: 10px;
+        }
+
+        @media (max-width: 768px) {
+            .control-row {
+                flex-direction: column;
+                align-items: stretch;
+            }
+            
+            .preset-buttons {
+                justify-content: center;
+            }
+            
+            .header h1 {
+                font-size: 2em;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🎨 Интерактивная CSS Grid</h1>
+            <p>Экспериментируйте с шириной столбцов в реальном времени</p>
+        </div>
+
+        <div class="controls">
+            <div class="control-group">
+                <h3>📏 Тип столбцов</h3>
+                <div class="control-row">
+                    <div class="control-item">
+                        <label>Столбец 1:</label>
+                        <select id="col1-type">
+                            <option value="px">Пиксели (px)</option>
+                            <option value="%">Проценты (%)</option>
+                            <option value="fr">Доли (fr)</option>
+                            <option value="auto">Авто (auto)</option>
+                            <option value="minmax">Диапазон (minmax)</option>
+                        </select>
+                    </div>
+                    <div class="control-item">
+                        <label>Значение 1:</label>
+                        <input type="text" id="col1-value" value="200" placeholder="200">
+                    </div>
+                    <div class="control-item" id="col1-minmax" style="display: none;">
+                        <label>Мин. значение:</label>
+                        <input type="text" id="col1-min" value="100" placeholder="100">
+                    </div>
+                </div>
+
+                <div class="control-row">
+                    <div class="control-item">
+                        <label>Столбец 2:</label>
+                        <select id="col2-type">
+                            <option value="px">Пиксели (px)</option>
+                            <option value="%" selected>Проценты (%)</option>
+                            <option value="fr">Доли (fr)</option>
+                            <option value="auto">Авто (auto)</option>
+                            <option value="minmax">Диапазон (minmax)</option>
+                        </select>
+                    </div>
+                    <div class="control-item">
+                        <label>Значение 2:</label>
+                        <input type="text" id="col2-value" value="50" placeholder="50">
+                    </div>
+                    <div class="control-item" id="col2-minmax" style="display: none;">
+                        <label>Мин. значение:</label>
+                        <input type="text" id="col2-min" value="200" placeholder="200">
+                    </div>
+                </div>
+
+                <div class="control-row">
+                    <div class="control-item">
+                        <label>Столбец 3:</label>
+                        <select id="col3-type">
+                            <option value="px">Пиксели (px)</option>
+                            <option value="%">Проценты (%)</option>
+                            <option value="fr" selected>Доли (fr)</option>
+                            <option value="auto">Авто (auto)</option>
+                            <option value="minmax">Диапазон (minmax)</option>
+                        </select>
+                    </div>
+                    <div class="control-item">
+                        <label>Значение 3:</label>
+                        <input type="text" id="col3-value" value="1" placeholder="1">
+                    </div>
+                    <div class="control-item" id="col3-minmax" style="display: none;">
+                        <label>Мин. значение:</label>
+                        <input type="text" id="col3-min" value="150" placeholder="150">
+                    </div>
+                </div>
+            </div>
+
+            <div class="control-group">
+                <h3>⚙️ Дополнительные настройки</h3>
+                <div class="control-row">
+                    <div class="control-item">
+                        <label>Промежутки (gap):</label>
+                        <input type="range" id="gap-slider" min="0" max="50" value="15">
+                        <span id="gap-value">15px</span>
+                    </div>
+                    <div class="control-item">
+                        <label>Количество элементов:</label>
+                        <input type="range" id="items-slider" min="3" max="6" value="3">
+                        <span id="items-value">3</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="control-group">
+                <h3>🚀 Готовые пресеты</h3>
+                <div class="preset-buttons">
+                    <button class="preset-btn" data-preset="fixed">Фиксированная ширина</button>
+                    <button class="preset-btn" data-preset="percentage">Процентная ширина</button>
+                    <button class="preset-btn active" data-preset="fractional">Долевая ширина</button>
+                    <button class="preset-btn" data-preset="auto">Автоматическая</button>
+                    <button class="preset-btn" data-preset="minmax">Диапазон</button>
+                    <button class="preset-btn" data-preset="responsive">Адаптивная</button>
+                </div>
+            </div>
+        </div>
+
+        <div class="grid-demo">
+            <div class="grid-container" id="grid-container">
+                <div class="grid-item">Элемент 1</div>
+                <div class="grid-item">Элемент 2</div>
+                <div class="grid-item">Элемент 3</div>
+            </div>
+
+            <div class="code-display" id="code-display">
+                <span class="property">grid-template-columns:</span> <span class="value">200px 50% 1fr</span>;
+            </div>
+
+            <div class="info-panel">
+                <h4>💡 Как это работает</h4>
+                <p>Измените настройки выше, чтобы увидеть, как CSS Grid адаптируется к различным типам ширины столбцов. Каждый тип имеет свои преимущества для разных сценариев использования.</p>
+            </div>
+
+            <div class="responsive-info">
+                <h4>📱 Адаптивность</h4>
+                <p>Попробуйте изменить размер окна браузера, чтобы увидеть, как сетка адаптируется к различным размерам экрана. Некоторые комбинации будут более отзывчивыми, чем другие.</p>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Получаем элементы
+        const gridContainer = document.getElementById('grid-container');
+        const codeDisplay = document.getElementById('code-display');
+        
+        // Элементы управления
+        const col1Type = document.getElementById('col1-type');
+        const col1Value = document.getElementById('col1-value');
+        const col1Min = document.getElementById('col1-min');
+        const col1Minmax = document.getElementById('col1-minmax');
+        
+        const col2Type = document.getElementById('col2-type');
+        const col2Value = document.getElementById('col2-value');
+        const col2Min = document.getElementById('col2-min');
+        const col2Minmax = document.getElementById('col2-minmax');
+        
+        const col3Type = document.getElementById('col3-type');
+        const col3Value = document.getElementById('col3-value');
+        const col3Min = document.getElementById('col3-min');
+        const col3Minmax = document.getElementById('col3-minmax');
+        
+        const gapSlider = document.getElementById('gap-slider');
+        const gapValue = document.getElementById('gap-value');
+        const itemsSlider = document.getElementById('items-slider');
+        const itemsValue = document.getElementById('items-value');
+
+        // Пресеты
+        const presets = {
+            fixed: {
+                col1: { type: 'px', value: '200' },
+                col2: { type: 'px', value: '300' },
+                col3: { type: 'px', value: '150' }
+            },
+            percentage: {
+                col1: { type: '%', value: '25' },
+                col2: { type: '%', value: '50' },
+                col3: { type: '%', value: '25' }
+            },
+            fractional: {
+                col1: { type: 'fr', value: '1' },
+                col2: { type: 'fr', value: '2' },
+                col3: { type: 'fr', value: '1' }
+            },
+            auto: {
+                col1: { type: 'auto', value: '' },
+                col2: { type: 'fr', value: '1' },
+                col3: { type: 'auto', value: '' }
+            },
+            minmax: {
+                col1: { type: 'minmax', value: '200', min: '100' },
+                col2: { type: 'minmax', value: '1fr', min: '300' },
+                col3: { type: 'minmax', value: '300', min: '150' }
+            },
+            responsive: {
+                col1: { type: 'minmax', value: '1fr', min: '200' },
+                col2: { type: 'minmax', value: '1fr', min: '200' },
+                col3: { type: 'minmax', value: '1fr', min: '200' }
+            }
+        };
+
+        // Функция для получения значения столбца
+        function getColumnValue(type, value, min = '') {
+            switch(type) {
+                case 'px':
+                case '%':
+                case 'fr':
+                case 'auto':
+                    return value + (type !== 'auto' ? type : '');
+                case 'minmax':
+                    return `minmax(${min}px, ${value}${value.includes('fr') ? '' : 'px'})`;
+                default:
+                    return value;
+            }
+        }
+
+        // Функция обновления сетки
+        function updateGrid() {
+            const col1 = getColumnValue(col1Type.value, col1Value.value, col1Min.value);
+            const col2 = getColumnValue(col2Type.value, col2Value.value, col2Min.value);
+            const col3 = getColumnValue(col3Type.value, col3Value.value, col3Min.value);
+            
+            const templateColumns = `${col1} ${col2} ${col3}`;
+            gridContainer.style.gridTemplateColumns = templateColumns;
+            
+            // Обновляем код
+            codeDisplay.innerHTML = `<span class="property">grid-template-columns:</span> <span class="value">${templateColumns}</span>;`;
+        }
+
+        // Функция обновления количества элементов
+        function updateItems() {
+            const count = parseInt(itemsSlider.value);
+            itemsValue.textContent = count;
+            
+            let html = '';
+            for (let i = 1; i <= count; i++) {
+                html += `<div class="grid-item">Элемент ${i}</div>`;
+            }
+            gridContainer.innerHTML = html;
+        }
+
+        // Функция показа/скрытия minmax полей
+        function toggleMinmaxFields() {
+            col1Minmax.style.display = col1Type.value === 'minmax' ? 'block' : 'none';
+            col2Minmax.style.display = col2Type.value === 'minmax' ? 'block' : 'none';
+            col3Minmax.style.display = col3Type.value === 'minmax' ? 'block' : 'none';
+        }
+
+        // Обработчики событий
+        [col1Type, col2Type, col3Type].forEach(select => {
+            select.addEventListener('change', () => {
+                toggleMinmaxFields();
+                updateGrid();
+            });
+        });
+
+        [col1Value, col1Min, col2Value, col2Min, col3Value, col3Min].forEach(input => {
+            input.addEventListener('input', updateGrid);
+        });
+
+        gapSlider.addEventListener('input', function() {
+            const gap = this.value;
+            gapValue.textContent = gap + 'px';
+            gridContainer.style.gap = gap + 'px';
+        });
+
+        itemsSlider.addEventListener('input', updateItems);
+
+        // Обработчики пресетов
+        document.querySelectorAll('.preset-btn').forEach(btn => {
+            btn.addEventListener('click', function() {
+                // Убираем активный класс
+                document.querySelectorAll('.preset-btn').forEach(b => b.classList.remove('active'));
+                this.classList.add('active');
+                
+                const preset = presets[this.dataset.preset];
+                if (preset) {
+                    // Применяем пресет
+                    col1Type.value = preset.col1.type;
+                    col1Value.value = preset.col1.value;
+                    if (preset.col1.min) col1Min.value = preset.col1.min;
+                    
+                    col2Type.value = preset.col2.type;
+                    col2Value.value = preset.col2.value;
+                    if (preset.col2.min) col2Min.value = preset.col2.min;
+                    
+                    col3Type.value = preset.col3.type;
+                    col3Value.value = preset.col3.value;
+                    if (preset.col3.min) col3Min.value = preset.col3.min;
+                    
+                    toggleMinmaxFields();
+                    updateGrid();
+                }
+            });
+        });
+
+        // Инициализация
+        toggleMinmaxFields();
+        updateGrid();
+        updateItems();
+
+        // Добавляем анимацию при загрузке
+        setTimeout(() => {
+            gridContainer.style.opacity = '1';
+            gridContainer.style.transform = 'translateY(0)';
+        }, 100);
+    </script>
+</body>
+</html> 
