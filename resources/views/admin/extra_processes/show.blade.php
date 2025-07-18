@@ -94,7 +94,7 @@
                        style="height:60px; width: 180px">
                         <i class="fas fa-plus"></i> Create Component Processes
                     </a>
-                    <a href="{{ route('extra_processes.show_all', ['id' => $current_wo->id]) }}"
+                    <a href="{{ route('tdrs.show', ['tdr'=>$current_wo->id]) }}"
                        class="btn btn-outline-secondary me-2" style="height: 60px;width: 110px">{{ __('Back to Work Order')
                             }} </a>
                 </div>
@@ -169,7 +169,7 @@
                                         <div style="width: 100px">
                                             @if($extra_component->component)
                                                 <a href="{{ route('extra_processes.create_processes', ['workorderId' => $current_wo->id, 'componentId' => $extra_component->component->id]) }}"
-                                                   class="btn btn-outline-success btn-sm" 
+                                                   class="btn btn-outline-success btn-sm"
                                                    onclick="console.log('Navigating to:', '{{ route('extra_processes.create_processes', ['workorderId' => $current_wo->id, 'componentId' => $extra_component->component->id]) }}')">
                                                     {{__('Add')}}
                                                 </a>
