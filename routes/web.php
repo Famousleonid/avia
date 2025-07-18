@@ -5,6 +5,7 @@ use App\Http\Controllers\Admin\BuilderController;
 use App\Http\Controllers\Admin\ComponentController;
 use App\Http\Controllers\Admin\ConditionController;
 use App\Http\Controllers\Admin\CustomerController;
+use App\Http\Controllers\Admin\ExtraProcessController;
 use App\Http\Controllers\Admin\GeneralTaskController;
 use App\Http\Controllers\Admin\LogCardController;
 use App\Http\Controllers\Admin\ManualProcessController;
@@ -100,9 +101,16 @@ Route::group(['middleware' => ['auth'] ], function () {
     Route::resource('/manual_processes', ManualProcessController::class);
     Route::resource('/conditions',ConditionController::class);
 
-    Route::get('/rm_reports/create/{id}',[RmReportController::class,'create'])->name('rm_reports.create');
-//    Route::get('/rm_reports/create/{id}',[RmReportController::class,'wo_store'])->name('rm_reports.wo_store');
+    Route::get('/extra_processes/create/{id}', [ExtraProcessController::class, 'create'])->name('extra_process.create');
+Route::get('/extra_processes/create_processes/{workorderId}/{componentId}', [ExtraProcessController::class, 'createProcesses'])->name('extra_processes.create_processes');
+Route::post('/extra_processes/store_processes', [ExtraProcessController::class, 'storeProcesses'])->name('extra_processes.store_processes');
+Route::get('/extra_processes/processes/{workorderId}/{componentId}', [ExtraProcessController::class, 'processes'])->name('extra_processes.processes');
+Route::get('/extra_processes/show_all/{id}', [ExtraProcessController::class, 'showAll'])->name('extra_processes.show_all');
+Route::get('/extra_processes/{id}', [ExtraProcessController::class, 'show'])->name('extra_processes.show');
+Route::get('/extra_processes/{id}/form/{processNameId}', [ExtraProcessController::class, 'showForm'])->name('extra_processes.show_form');
+Route::resource('/extra_processes', ExtraProcessController::class)->except(['create']);
 
+    Route::get('/rm_reports/create/{id}',[RmReportController::class,'create'])->name('rm_reports.create');
     Route::resource('/rm_reports', RmReportController::class)->except('create');
     Route::delete('/rm_reports/multiple', [RmReportController::class, 'destroyMultiple'])->name('rm_reports.destroy.multiple');
     Route::post('/rm_reports/save-to-workorder', [RmReportController::class, 'saveToWorkorder'])->name('rm_reports.save.to.workorder');

@@ -162,7 +162,7 @@
                             </div>
                         </div>
                     </div>
-                    <div class="ps-2 d-flex" style="width: 440px;">
+                    <div class="ps-2 d-flex" style="width: 550px;">
                         {{--                        <div class="me-2" >--}}
                         {{--                            <a href="{{route('tdrs.inspection',['workorder_id' => $current_wo->id])}}"--}}
                         {{--                               class="btn  btn-outline-primary " style="height: 60px;align-content: center"--}}
@@ -173,12 +173,20 @@
                         @if(count($processParts))
                             <div class="me-2">
                                 <a href="{{route('tdrs.processes',['workorder_id' => $current_wo->id])}}"
-                                   class="btn  btn-outline-primary " style="height: 60px;width: 150px" onclick="showLoadingSpinner
+                                   class="btn  btn-outline-primary " style="height: 60px;width: 120px"
+                                   onclick="showLoadingSpinner
                                    ()">
                                     {{__('Component Processes')}}
                                 </a>
                             </div>
                         @endif
+                            <div class="me-2">
+                                <a href="{{route('extra_processes.show_all',['id'=>$current_wo->id])}}"
+                                   class="btn  btn-outline-primary " style="height: 60px;width: 140px" onclick="showLoadingSpinner
+                                       ()">
+                                    {{__('Component Extra Processes')}}
+                                </a>
+                            </div>
                             <div>
                                 <a href="{{route('log_card.show',['log_card' => $current_wo->id])}}"
                                    class="btn  btn-outline-primary " style="min-height: 60px;width: 80px"

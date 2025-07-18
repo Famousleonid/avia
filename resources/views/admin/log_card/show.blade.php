@@ -84,7 +84,7 @@
         <div class="card-header m-1 shadow">
             <div class="d-flex justify-content-between">
                 <div>
-                    <h4 class="text-primary me-5">{{__('Work Order: ')}} {{$current_wo->number}}</h4>
+                    <h4 class="text-primary  ms-2">{{__('Work Order: ')}} {{$current_wo->number}}</h4>
                     <div>
                                             <h4 class="ps-xl-5">{{__('LOG CARD')}}</h4>
                     </div>
@@ -118,7 +118,7 @@
 
                     <div class="">
                         <a href="{{ route('tdrs.show', ['tdr'=>$current_wo->id]) }}"
-                           class="btn btn-outline-secondary " style="height: 60px;width: 110px">{{ __('Back to Work Order')
+                           class="btn btn-outline-secondary me-2" style="height: 60px;width: 110px">{{ __('Back to Work Order')
                             }} </a>
                     </div>
 
