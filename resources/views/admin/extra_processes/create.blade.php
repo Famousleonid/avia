@@ -151,7 +151,7 @@
                     <h5 class="modal-title" id="addComponentModalLabel">{{ __('Add Component') }}</h5>
                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Закрыть"></button>
                 </div>
-                <form action="{{ route('components.storeFromInspection') }}" method="POST" id="addComponentForm">
+                <form action="{{ route('components.storeFromExtra') }}" method="POST" id="addComponentForm">
                     @csrf
 
                     <div class="modal-body">
@@ -603,5 +603,49 @@
                 $('.select2-container .select2-dropdown').addClass('select2-light').removeClass('select2-dark');
             }
         }
+
+        // Обработка успешного добавления компонента
+        document.getElementById('addComponentForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+            
+            const formData = new FormData(this);
+            
+            fetch("{{ route('components.storeFromExtra') }}", {
+                method: 'POST',
+                headers: {
+                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
+                    'Accept': 'application/json',
+                },
+                body: formData
+            })
+            .then(response => {
+                if (!response.ok) {
+                    return response.json().then(errorData => {
+                        throw new Error(errorData.message || `HTTP ${response.status}: ${response.statusText}`);
+                    });
+                }
+                return response.json();
+            })
+            .then(data => {
+                if (data.success) {
+                    // Закрываем модальное окно
+                    const modalEl = document.getElementById('addComponentModal');
+                    const modalInstance = bootstrap.Modal.getInstance(modalEl);
+                    modalInstance.hide();
+                    
+                    // Показываем сообщение об успехе
+                    alert('Component created successfully!');
+                    
+                    // Перезагружаем страницу для обновления списка компонентов
+                    window.location.reload();
+                } else {
+                    alert(data.message || 'Error creating component');
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('Error creating component: ' + error.message);
+            });
+        });
     </script>
 @endsection

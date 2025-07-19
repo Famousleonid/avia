@@ -131,6 +131,54 @@ class ComponentController extends Controller
         }
     }
 
+    public function storeFromExtra(Request $request)
+    {
+        $current_wo = $request->current_wo;
+        
+        try {
+            // Валидация данных
+            $validated = $request->validate([
+                'name' => 'required|string|max:250',
+                'manual_id' => 'required|exists:manuals,id',
+                'part_number' => 'required|string|max:50',
+                'ipl_num' => 'nullable|string|max:10',
+                'assy_ipl_num' => 'nullable|string|max:10|regex:/^\d+-\d+[A-Za-z]?$/',
+            ]);
+            $validated['assy_part_number'] = $request->assy_part_number;
+            $validated['log_card'] = $request->has('log_card') ? 1 : 0;
+            $validated['repair'] = $request->has('repair') ? 1 : 0;
+
+            // Создание нового компонента
+            $component = Component::create($validated);
+
+            // Добавление изображений, если они есть
+            if ($request->hasFile('img')) {
+                $component->addMedia($request->file('img'))->toMediaCollection('component');
+            }
+
+            if ($request->hasFile('assy_img')) {
+                $component->addMedia($request->file('assy_img'))->toMediaCollection('assy_component');
+            }
+
+            // Возвращаем JSON ответ для AJAX запроса
+            return response()->json([
+                'success' => true,
+                'message' => 'Component created successfully.',
+                'component' => $component
+            ]);
+
+        } catch (\Exception $e) {
+            // Логирование ошибки
+            \Log::error('Error creating component from extra: ' . $e->getMessage());
+
+            // Возвращаем ошибку на фронт
+            return response()->json([
+                'success' => false,
+                'message' => 'Error occurred while adding the component. Please try again.'
+            ], 500);
+        }
+    }
+
 
     /**
      * Display the specified resource.

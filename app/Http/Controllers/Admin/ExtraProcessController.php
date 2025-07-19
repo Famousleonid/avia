@@ -487,10 +487,56 @@ class ExtraProcessController extends Controller
             ->with(['component', 'workorder'])
             ->get();
 
+        // Группируем процессы для создания кнопок групповых форм
+        $processGroups = [];
+        
+        foreach ($extra_components as $extra_component) {
+            if (!$extra_component->processes) {
+                continue;
+            }
+
+            // Проверяем старую и новую структуру данных
+            if (is_array($extra_component->processes) && array_keys($extra_component->processes) !== range(0, count($extra_component->processes) - 1)) {
+                // Старая структура: ассоциативный массив
+                foreach ($extra_component->processes as $processNameId => $processId) {
+                    $processName = ProcessName::find($processNameId);
+                    if ($processName) {
+                        if (!isset($processGroups[$processNameId])) {
+                            $processGroups[$processNameId] = [
+                                'process_name' => $processName,
+                                'count' => 0,
+                                'components' => []
+                            ];
+                        }
+                        $processGroups[$processNameId]['count']++;
+                        $processGroups[$processNameId]['components'][] = $extra_component->component;
+                    }
+                }
+            } else {
+                // Новая структура: массив объектов
+                foreach ($extra_component->processes as $processItem) {
+                    $processName = ProcessName::find($processItem['process_name_id']);
+                    if ($processName) {
+                        $processNameId = $processItem['process_name_id'];
+                        if (!isset($processGroups[$processNameId])) {
+                            $processGroups[$processNameId] = [
+                                'process_name' => $processName,
+                                'count' => 0,
+                                'components' => []
+                            ];
+                        }
+                        $processGroups[$processNameId]['count']++;
+                        $processGroups[$processNameId]['components'][] = $extra_component->component;
+                    }
+                }
+            }
+        }
+
         // Отладочная информация
         \Log::info('ExtraProcess showAll method', [
             'workorder_id' => $id,
             'extra_components_count' => $extra_components->count(),
+            'process_groups' => $processGroups,
             'extra_components_data' => $extra_components->map(function($item) {
                 return [
                     'id' => $item->id,
@@ -504,7 +550,131 @@ class ExtraProcessController extends Controller
             })
         ]);
 
-        return view('admin.extra_processes.show', compact('current_wo', 'extra_components'));
+        return view('admin.extra_processes.show', compact('current_wo', 'extra_components', 'processGroups'));
+    }
+
+    /**
+     * Display grouped forms for all extra processes by process name.
+     *
+     * @param  int  $id
+     * @param  int  $processNameId
+     * @return Application|Factory|View
+     */
+    public function showGroupForms($id, $processNameId)
+    {
+        $current_wo = Workorder::findOrFail($id);
+        $processName = ProcessName::findOrFail($processNameId);
+        
+        // Получаем все extra processes для этого work order
+        $extra_processes = ExtraProcess::where('workorder_id', $current_wo->id)
+            ->with(['component'])
+            ->get();
+
+        // Группируем компоненты по process_name_id
+        $groupedComponents = [];
+        
+        foreach ($extra_processes as $extra_process) {
+            if (!$extra_process->component || !$extra_process->processes) {
+                continue;
+            }
+
+            // Проверяем старую и новую структуру данных
+            if (is_array($extra_process->processes) && array_keys($extra_process->processes) !== range(0, count($extra_process->processes) - 1)) {
+                // Старая структура: ассоциативный массив
+                if (isset($extra_process->processes[$processNameId])) {
+                    $processId = $extra_process->processes[$processNameId];
+                    $process = Process::find($processId);
+                    if ($process) {
+                        $groupedComponents[] = [
+                            'process_name' => $processName,
+                            'process' => $process,
+                            'component' => $extra_process->component,
+                            'extra_process' => $extra_process
+                        ];
+                    }
+                }
+            } else {
+                // Новая структура: массив объектов
+                foreach ($extra_process->processes as $processItem) {
+                    if ($processItem['process_name_id'] == $processNameId) {
+                        $process = Process::find($processItem['process_id']);
+                        if ($process) {
+                            $groupedComponents[] = [
+                                'process_name' => $processName,
+                                'process' => $process,
+                                'component' => $extra_process->component,
+                                'extra_process' => $extra_process
+                            ];
+                        }
+                    }
+                }
+            }
+        }
+
+        // Получаем связанные данные
+        $manual_id = $current_wo->unit->manual_id;
+        $components = Component::where('manual_id', $manual_id)->get();
+        $manualProcesses = \App\Models\ManualProcess::where('manual_id', $manual_id)
+            ->pluck('processes_id');
+
+        // Базовые данные для представления
+        $viewData = [
+            'current_wo' => $current_wo,
+            'components' => $components,
+            'manuals' => \App\Models\Manual::where('id', $manual_id)->get(),
+            'manual_id' => $manual_id,
+            'process_name' => $processName,
+            'table_data' => $groupedComponents
+        ];
+
+        // Добавляем первый компонент для заголовка формы (если есть компоненты)
+        if (!empty($groupedComponents)) {
+            $viewData['component'] = $groupedComponents[0]['component'];
+        } else {
+            // Если нет компонентов, создаем пустой объект
+            $viewData['component'] = (object)[
+                'name' => 'Multiple Components',
+                'part_number' => 'Various',
+                'ipl_num' => 'Various'
+            ];
+        }
+
+        // Обработка NDT формы (если нужно)
+        if ($processName->process_sheet_name == 'NDT') {
+            // Получаем ID process names одним запросом
+            $processNames = ProcessName::whereIn('name', [
+                'NDT-1',
+                'NDT-4',
+                'Eddy Current Test',
+                'BNI'
+            ])->pluck('id', 'name');
+
+            // Извлекаем ID по именам
+            $ndt_ids = [
+                'ndt1_name_id' => $processNames['NDT-1'] ?? null,
+                'ndt4_name_id' => $processNames['NDT-4'] ?? null,
+                'ndt6_name_id' => $processNames['Eddy Current Test'] ?? null,
+                'ndt5_name_id' => $processNames['BNI'] ?? null
+            ];
+
+            // Получаем NDT processes
+            $ndt_processes = Process::whereIn('id', $manualProcesses)
+                ->whereIn('process_names_id', $ndt_ids)
+                ->get();
+
+            return view('admin.extra_processes.processesForm', array_merge($viewData, [
+                'ndt_processes' => $ndt_processes
+            ], $ndt_ids));
+        }
+
+        // Обработка обычных процессов
+        $process_components = Process::whereIn('id', $manualProcesses)
+            ->where('process_names_id', $processNameId)
+            ->get();
+
+        return view('admin.extra_processes.processesForm', array_merge($viewData, [
+            'process_components' => $process_components
+        ]));
     }
 
     /**

@@ -227,11 +227,27 @@
             <div class="col-7">
                 <div class="row" style="height: 32px">
                     <div class="col-6 pt-2 text-end"> <strong>COMPONENT NAME</strong> :</div>
-                    <div class="col-6 pt-2 border-b"> <strong>{{$component->name}}</strong> </div>
+                    <div class="col-6 pt-2 border-b"> 
+                        <strong>
+                            @if(isset($table_data) && count($table_data) > 1)
+                                Multiple Components ({{ count($table_data) }} items)
+                            @else
+                                {{$component->name}}
+                            @endif
+                        </strong> 
+                    </div>
                 </div>
                 <div class="row" style="height: 32px">
                     <div class="col-6 pt-2 text-end"> <strong> PART NUMBER:</strong></div>
-                    <div class="col-6 pt-2 border-b"> <strong>{{$component->part_number}}</strong> </div>
+                    <div class="col-6 pt-2 border-b"> 
+                        <strong>
+                            @if(isset($table_data) && count($table_data) > 1)
+                                Various (see table below)
+                            @else
+                                {{$component->part_number}}
+                            @endif
+                        </strong> 
+                    </div>
                 </div>
                 <div class="row" style="height: 32px">
                     <div class="col-6 pt-2 text-end"> <strong>WORK ORDER No:</strong> </div>

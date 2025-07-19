@@ -108,6 +108,7 @@ Route::get('/extra_processes/processes/{workorderId}/{componentId}', [ExtraProce
 Route::get('/extra_processes/show_all/{id}', [ExtraProcessController::class, 'showAll'])->name('extra_processes.show_all');
 Route::get('/extra_processes/{id}', [ExtraProcessController::class, 'show'])->name('extra_processes.show');
 Route::get('/extra_processes/{id}/form/{processNameId}', [ExtraProcessController::class, 'showForm'])->name('extra_processes.show_form');
+Route::get('/extra_processes/{id}/group-forms/{processNameId}', [ExtraProcessController::class, 'showGroupForms'])->name('extra_processes.show_group_forms');
 Route::resource('/extra_processes', ExtraProcessController::class)->except(['create']);
 
     Route::get('/rm_reports/create/{id}',[RmReportController::class,'create'])->name('rm_reports.create');
@@ -147,6 +148,7 @@ Route::resource('/extra_processes', ExtraProcessController::class)->except(['cre
     Route::get('/tdrs/inspection/component/{workorder_id}', [TdrController::class, 'inspectionComponent'])->name('tdrs.inspection.component');
 
     Route::post('/components/store_from_inspection', [ComponentController::class, 'storeFromInspection'])->name('components.storeFromInspection');
+    Route::post('/components/store_from_extra', [ComponentController::class, 'storeFromExtra'])->name('components.storeFromExtra');
     Route::get('/get-processes', [ProcessController::class, 'getProcesses'])->name('processes.getProcesses');
     Route::get('tdr-processes/processesForm/{id}', [TdrProcessController::class, 'processesForm'])->name('tdr-processes.processesForm');
 

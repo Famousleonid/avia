@@ -83,22 +83,47 @@
     <div class="card-shadow">
         <div class="card-header m-1 shadow">
             <div class="d-flex justify-content-between">
-                <div>
-                    <h4 class="text-primary  ms-2">{{__('Work Order: ')}} {{$current_wo->number}}</h4>
-                    <div>
-                        <h4 class="ps-2">{{__('Component Extra Processes')}}</h4>
+                <div class="d-flex" style="width: 500px">
+                    <div style="width: 350px">
+                        <h4 class="text-primary  ms-2">{{__('Work Order: ')}} {{$current_wo->number}}</h4>
+                        <div>
+                            <h4 class="ps-2">{{__('Component Extra Processes')}}</h4>
+                        </div>
+
                     </div>
+                    @if(isset($processGroups) && count($processGroups) > 0)
+                        @php
+                            $hasMultipleComponents = false;
+                            foreach($processGroups as $group) {
+                                if($group['count'] > 1) {
+                                    $hasMultipleComponents = true;
+                                    break;
+                                }
+                            }
+                        @endphp
+                        @if($hasMultipleComponents)
+                            <button type="button" class="btn btn-outline-info me-2"
+                                    style="height: 60px; width: 150px"
+                                    data-bs-toggle="modal"
+                                    data-bs-target="#groupFormsModal">
+                                <i class="fas fa-print"></i> Group Process Forms
+                            </button>
+                        @endif
+                    @endif
+
+
                 </div>
+
                 <div class="">
                     <a href="{{ route('extra_process.create', $current_wo->id) }}" class="btn btn-outline-success"
                        style="height:60px; width: 180px">
                         <i class="fas fa-plus"></i> Create Component Processes
                     </a>
+
                     <a href="{{ route('tdrs.show', ['tdr'=>$current_wo->id]) }}"
                        class="btn btn-outline-secondary me-2" style="height: 60px;width: 110px">{{ __('Back to Work Order')
                             }} </a>
                 </div>
-            </div>
 
         </div>
         <div class="card-body">
@@ -193,4 +218,43 @@
             </div>
         </div>
     </div>
+
+    <!-- Modal - Group Process Forms -->
+    @if(isset($processGroups) && count($processGroups) > 0)
+        <div class="modal fade" id="groupFormsModal" tabindex="-1" aria-labelledby="groupFormsModalLabel" aria-hidden="true">
+            <div class="modal-dialog">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title" id="groupFormsModalLabel">
+                            <i class="fas fa-print"></i> {{ __('Group Process Forms') }}
+                        </h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+                    <div class="modal-body">
+                        <div class="row">
+                            <div class="col-12">
+                                <p class="text-muted mb-3">
+                                    <i class="fas fa-info-circle"></i>
+                                    Select a process type to generate a grouped form with all components that have the same process.
+                                </p>
+                            </div>
+                        </div>
+                        <div class="d-grid gap-2">
+                            @foreach($processGroups as $processNameId => $group)
+                                <a href="{{ route('extra_processes.show_group_forms', ['id' => $current_wo->id, 'processNameId' => $processNameId]) }}"
+                                   class="btn btn-outline-warning btn-lg" target="_blank">
+                                    <i class="fas fa-print me-2"></i>
+                                    {{ $group['process_name']->name }}
+                                    <span class="badge bg-primary ms-2">{{ $group['count'] }} component(s)</span>
+                                </a>
+                            @endforeach
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    @endif
 @endsection
