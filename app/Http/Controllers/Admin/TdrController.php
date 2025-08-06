@@ -573,7 +573,7 @@ class TdrController extends Controller
 
         // Перенаправляем на страницу просмотра с сообщением об успехе
         return redirect()
-            ->route('admin.tdrs.show', ['tdr' => $request->workorder_id])
+            ->route('tdrs.show', ['tdr' => $request->workorder_id])
             ->with('success', 'TDR for Component updated successfully');
     }
     public function prlForm(Request $request, $id){

@@ -60,6 +60,7 @@ class ComponentController extends Controller
         $validated['assy_part_number'] = $request->assy_part_number;
 
         $validated['log_card'] = $request->has('log_card') ? 1 : 0;
+        $validated['repair'] = $request->has('repair') ? 1 : 0;
 //dd($validated);
 
 
@@ -134,7 +135,7 @@ class ComponentController extends Controller
     public function storeFromExtra(Request $request)
     {
         $current_wo = $request->current_wo;
-        
+
         try {
             // Валидация данных
             $validated = $request->validate([

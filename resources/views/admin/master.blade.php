@@ -142,6 +142,25 @@
     });
 </script>
 
+<!-- Обработка ошибок MetaMask -->
+<script>
+    // Подавляем ошибки MetaMask
+    window.addEventListener('error', function(e) {
+        if (e.message && e.message.includes('MetaMask')) {
+            e.preventDefault();
+            return false;
+        }
+    });
+    
+    // Подавляем необработанные промисы
+    window.addEventListener('unhandledrejection', function(e) {
+        if (e.reason && e.reason.message && e.reason.message.includes('MetaMask')) {
+            e.preventDefault();
+            return false;
+        }
+    });
+</script>
+
 </body>
 </html>
 

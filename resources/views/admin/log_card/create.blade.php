@@ -55,6 +55,14 @@
                 <input type="hidden" name="workorder_id" value="{{ $current_wo->id }}">
                 <input type="hidden" name="component_data" id="component_data_input">
 
+                <!-- Отладочная информация о компонентах -->
+                <div style="background: #f0f0f0; padding: 10px; margin-bottom: 10px;">
+                    <strong>DEBUG: Всего компонентов: {{ $components->count() }}</strong><br>
+                    @foreach($components as $comp)
+                        <span style="margin-right: 10px;">ID: {{ $comp->id }}, Name: {{ $comp->name }}, Log_card: {{ $comp->log_card }}</span>
+                    @endforeach
+                </div>
+                
                 <div class="table-responsive">
                     <table class="table table-bordered table-hover">
                         <thead>
@@ -94,26 +102,44 @@
                                                                placeholder="ASSY Serial Number">
                                                     @endif
                                                 </td>
-                                            <td rowspan="{{ $group->count() }}" class="align-middle">
-                                                @php
-                                                    $tdr = $tdrs->where('component_id', $component->id)->first();
-                                                    $reason = '';
-                                                    if ($tdr && $tdr->codes && $tdr->codes->name) {
+                                        @endif
+                                        
+                                        <!-- Определение reason для каждого компонента -->
+                                        @php
+                                            $tdr = $tdrs->where('component_id', $component->id)->first();
+                                            $reason = '';
+                                            
+
+
+                                            if ($tdr) {
+                                                // Проверяем codes (Missing)
+                                                if ($tdr->codes && $tdr->codes->name === 'Missing') {
+                                                    $reason = 'Missing';
+                                                }
+                                                // Проверяем necessary (Order New)
+                                                if ($tdr->necessaries && $tdr->necessaries->name === 'Order New') {
+                                                    // Если necessary = "Order New", то берем значение из codes
+                                                    if ($tdr->codes) {
                                                         $reason = $tdr->codes->name;
                                                     }
-                                                @endphp
-                                                @if($reason)
-                                                    <span class="reason-badge">{{ $reason }}</span>
-                                                @else
-                                                    <span class="text-muted reason-badge"></span>
-                                                @endif
-                                            </td>
+                                                }
+                                            }
+                                            
+
+                                        @endphp
+                                        
+                                        <td class="align-middle">
+                                            @if($reason)
+                                                <span class="reason-badge">{{ $reason }}</span>
+                                            @else
+                                                <span class="text-muted reason-badge"></span>
+                                            @endif
+                                        </td>
 {{--                                            <td rowspan="{{ $group->count() }}" class="align-middle">--}}
 {{--                                                <a href="{{ route('components.edit', $component->id) }}" class="btn btn-sm btn-primary">--}}
 {{--                                                    <i class="fas fa-edit"></i> Edit--}}
 {{--                                                </a>--}}
 {{--                                            </td>--}}
-                                        @endif
                                     </tr>
                                 @endforeach
                             @endforeach

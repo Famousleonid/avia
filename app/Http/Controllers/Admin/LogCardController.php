@@ -106,12 +106,12 @@ class LogCardController extends Controller
 
 
         $components = Component::where('manual_id', $manual_id)
-            ->where('log_card', 1)
+            ->where('log_card', 1)  // Возвращаем условие
             ->orderBy('ipl_num', 'asc')
             ->get();
 
-        // Получаем TDR записи для данного workorder
-        $tdrs = Tdr::where('workorder_id', $id)->get();
+        // Получаем TDR записи для данного workorder с загруженными отношениями
+        $tdrs = Tdr::where('workorder_id', $id)->with(['codes', 'necessaries'])->get();
 
         // Группируем компоненты по цифрам из ipl_num
         $groupedComponents = $components->groupBy(function ($component) {
@@ -124,14 +124,25 @@ class LogCardController extends Controller
                 'components' => $group->map(function ($component) use ($tdrs, $code, $necessary) {
                     // Ищем TDR для данного компонента
                     $tdr = $tdrs->where('component_id', $component->id)->first();
-            Log::info('TDR:'.$tdr);
+                    Log::info('TDR:'.$tdr);
                     // Определяем причину удаления
                     $reasonForRemove = '';
                     if ($tdr) {
-                        if ($tdr->code === $code) {
+                        // Проверяем codes (Missing)
+                        if ($tdr->codes && $tdr->codes->id === $code->id) {
+                            Log::info('Code: ' . $tdr->codes->name);
                             $reasonForRemove = 'Missing';
-                        } elseif ($tdr->necessary === $necessary) {
-                            $reasonForRemove = 'Order New';
+                        }
+
+                        // Проверяем necessary (Order New)
+                        if ($tdr->necessaries && $tdr->necessaries->id === $necessary->id) {
+                            Log::info('Necessary: ' . $tdr->necessaries->name);
+                            
+                            // Если necessary = "Order New", то берем значение из codes
+                            if ($tdr->codes) {
+                                Log::info('Code: ' . $tdr->codes->name);
+                                $reasonForRemove = $tdr->codes->name;
+                            }
                         }
                     }
 
@@ -219,7 +230,7 @@ class LogCardController extends Controller
             ->orderBy('ipl_num', 'asc')
             ->get();
 
-        $tdrs = Tdr::where('workorder_id', $current_wo->id)->get();
+        $tdrs = Tdr::where('workorder_id', $current_wo->id)->with(['codes', 'necessaries'])->get();
         $componentData = json_decode($log_card->component_data, true);
 
         return view('admin.log_card.edit', compact('current_wo', 'components', 'tdrs', 'log_card', 'componentData'));

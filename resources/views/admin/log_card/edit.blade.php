@@ -37,6 +37,8 @@
                         </tr>
                     </thead>
                     <tbody>
+
+                        
                         @php
                             $selected = [];
                             if (!empty($componentData)) {
@@ -59,7 +61,14 @@
                                     }
                                     $serialValue = $selectedComponent['serial_number'] ?? '';
                                     $assySerialValue = $selectedComponent['assy_serial_number'] ?? '';
+                                    
+
+
+                                    
+
                                 @endphp
+
+
                                 <tr>
                                     @if($i === 0)
                                         <td rowspan="{{ $group->count() }}" class="align-middle">{{ $desc }}</td>
@@ -84,26 +93,35 @@
                                                            placeholder="ASSY Serial Number">
                                                 @endif
                                             </td>
-                                        <td rowspan="{{ $group->count() }}" class="align-middle">
-                                            @php
-                                                $tdr = $tdrs->where('component_id', $component->id)->first();
-                                                $reason = '';
-                                                if ($tdr && $tdr->codes && $tdr->codes->name) {
+                                    @endif
+                                    
+                                    <!-- Определение reason для каждого компонента -->
+                                    @php
+                                        $tdr = $tdrs->where('component_id', $component->id)->first();
+                                        $reason = '';
+                                        
+                                        if ($tdr) {
+                                            // Проверяем codes (Missing)
+                                            if ($tdr->codes && $tdr->codes->name === 'Missing') {
+                                                $reason = 'Missing';
+                                            }
+                                            // Проверяем necessary (Order New)
+                                            if ($tdr->necessaries && $tdr->necessaries->name === 'Order New') {
+                                                // Если necessary = "Order New", то берем значение из codes
+                                                if ($tdr->codes) {
                                                     $reason = $tdr->codes->name;
                                                 }
-                                            @endphp
-                                            @if($reason)
-                                                <span class="reason-badge">{{ $reason }}</span>
-                                            @else
-                                                <span class="text-muted reason-badge"></span>
-                                            @endif
-{{--                                        </td>--}}
-{{--                                        <td rowspan="{{ $group->count() }}" class="align-middle">--}}
-{{--                                            <a href="{{ route('components.edit', $component->id) }}" class="btn btn-sm btn-primary">--}}
-{{--                                                <i class="fas fa-edit"></i> Edit--}}
-{{--                                            </a>--}}
-{{--                                        </td>--}}
-                                    @endif
+                                            }
+                                        }
+                                    @endphp
+                                    
+                                    <td class="align-middle">
+                                        @if($reason)
+                                            <span class="reason-badge">{{ $reason }}</span>
+                                        @else
+                                            <span class="text-muted reason-badge"></span>
+                                        @endif
+                                    </td>
                                 </tr>
                             @endforeach
                         @endforeach
