@@ -38,7 +38,7 @@
                     </thead>
                     <tbody>
 
-                        
+
                         @php
                             $selected = [];
                             if (!empty($componentData)) {
@@ -61,10 +61,10 @@
                                     }
                                     $serialValue = $selectedComponent['serial_number'] ?? '';
                                     $assySerialValue = $selectedComponent['assy_serial_number'] ?? '';
-                                    
 
 
-                                    
+
+
 
                                 @endphp
 
@@ -73,7 +73,12 @@
                                     @if($i === 0)
                                         <td rowspan="{{ $group->count() }}" class="align-middle">{{ $desc }}</td>
                                     @endif
-                                    <td>{{ $component->part_number }}</td>
+                                    <td>
+                                        {{ $component->part_number }}
+                                        @if($component->assy_part_number)
+                                            / {{ $component->assy_part_number }}
+                                        @endif
+                                    </td>
                                     <td class="text-center">
                                         <input type="radio" name="selected_component[{{ $desc }}]" value="{{ $component->id }}"
                                             {{ $isChecked ? 'checked' : '' }}>
@@ -94,12 +99,12 @@
                                                 @endif
                                             </td>
                                     @endif
-                                    
+
                                     <!-- Определение reason для каждого компонента -->
                                     @php
                                         $tdr = $tdrs->where('component_id', $component->id)->first();
                                         $reason = '';
-                                        
+
                                         if ($tdr) {
                                             // Проверяем codes (Missing)
                                             if ($tdr->codes && $tdr->codes->name === 'Missing') {
@@ -114,7 +119,7 @@
                                             }
                                         }
                                     @endphp
-                                    
+
                                     <td class="align-middle">
                                         @if($reason)
                                             <span class="reason-badge">{{ $reason }}</span>

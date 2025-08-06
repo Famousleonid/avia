@@ -62,7 +62,7 @@
                         <span style="margin-right: 10px;">ID: {{ $comp->id }}, Name: {{ $comp->name }}, Log_card: {{ $comp->log_card }}</span>
                     @endforeach
                 </div>
-                
+
                 <div class="table-responsive">
                     <table class="table table-bordered table-hover">
                         <thead>
@@ -83,7 +83,12 @@
                                         @if($i === 0)
                                             <td rowspan="{{ $group->count() }}" class="align-middle">{{ $desc }}</td>
                                         @endif
-                                        <td>{{ $component->part_number }}</td>
+                                        <td>
+                                            {{ $component->part_number }}
+                                            @if($component->assy_part_number)
+                                                / {{ $component->assy_part_number }}
+                                            @endif
+                                        </td>
                                         <td class="text-center">
                                             <input type="radio" name="selected_component[{{ $desc }}]" value="{{ $component->id }}">
                                         </td>
@@ -103,12 +108,12 @@
                                                     @endif
                                                 </td>
                                         @endif
-                                        
+
                                         <!-- Определение reason для каждого компонента -->
                                         @php
                                             $tdr = $tdrs->where('component_id', $component->id)->first();
                                             $reason = '';
-                                            
+
 
 
                                             if ($tdr) {
@@ -124,10 +129,10 @@
                                                     }
                                                 }
                                             }
-                                            
+
 
                                         @endphp
-                                        
+
                                         <td class="align-middle">
                                             @if($reason)
                                                 <span class="reason-badge">{{ $reason }}</span>

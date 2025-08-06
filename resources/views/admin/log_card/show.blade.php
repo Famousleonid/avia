@@ -6,7 +6,7 @@
             height: calc(100vh - 180px);
             overflow-y: auto;
             overflow-x: hidden;
-            width: 850px;
+            width: 1050px;
         }
 
         .table th, .table td {
@@ -150,12 +150,24 @@
 
                     @php
                         $comp = $components->firstWhere('id', $item['component_id']);
-
+                        $hasSerialNumber = !empty($item['serial_number']);
+                        $hasAssySerialNumber = isset($item['assy_serial_number']) && !empty($item['assy_serial_number']);
                     @endphp
 
                     <tr>
-                        <td>{{ $comp ? $comp->name : '' }}</td>
-                        <td>{{ $comp ? $comp->part_number : '' }}</td>
+                        <td>
+                            {{ $comp ? $comp->name : '' }}
+                            @if($hasAssySerialNumber && !$hasSerialNumber)
+                                , S/A
+                            @endif
+                        </td>
+                        <td>
+                            @if($hasAssySerialNumber && !$hasSerialNumber)
+                                {{ $comp ? $comp->assy_part_number : '' }}
+                            @else
+                                {{ $comp ? $comp->part_number : '' }}
+                            @endif
+                        </td>
                         <td>{{ $item['serial_number'] }}</td>
                         <td>
                             @if(isset($item['assy_serial_number']) && $item['assy_serial_number'])

@@ -547,12 +547,32 @@
         @foreach($componentData_1 as $item)
             @php
                 $comp = $components->firstWhere('id', $item['component_id']);
+                $hasSerialNumber = !empty($item['serial_number']);
+                $hasAssySerialNumber = isset($item['assy_serial_number']) && !empty($item['assy_serial_number']);
+                $hasAssyPartNumber = $comp && $comp->assy_part_number;
             @endphp
-                <div class="div13 border-l-b-r text-center pt-1 fs-7" style="height: 27px">{{ $comp ? $comp->name : '' }}</div>
-                <div class="div14 border-b-r text-center pt-1 fs-7" >{{ $comp ? $comp->part_number : '' }} </div>
-                <div class="div15 border-b-r  text-center pt-1 fs-7" >{{ $item['serial_number'] }} </div>
+                <div class="div13 border-l-b-r text-center pt-1 fs-7" style="height: 27px">
+                    {{ $comp ? $comp->name : '' }}
+                    @if($hasAssySerialNumber && !$hasSerialNumber)
+                        , S/A
+                    @endif
+                </div>
+                <div class="div14 border-b-r text-center pt-1 fs-7" >
+                    @if($hasAssySerialNumber && !$hasSerialNumber)
+                        {{ $comp ? $comp->assy_part_number : '' }}
+                    @else
+                        {{ $comp ? $comp->part_number : '' }}
+                    @endif
+                </div>
+                <div class="div15 border-b-r  text-center pt-1 fs-7" >
+                    @if($hasAssySerialNumber && !$hasSerialNumber)
+                        {{ $item['assy_serial_number'] }}
+                    @else
+                        {{ $item['serial_number'] }}
+                    @endif
+                </div>
                 <div class="div16 border-b-r" > </div>
-            @if($comp && $comp->assy_part_number && isset($item['assy_serial_number']) && !empty($item['assy_serial_number']))
+            @if($hasAssyPartNumber && $hasAssySerialNumber && $hasSerialNumber)
             <div class="div17 border-b-r text-center pt-1 fs-7" style="grid-column: span 5 / span 5;">
                     {{__(' ASSY PN ')}} {{$comp->assy_part_number}}{{__(' ASSY SN ')}} {{$item['assy_serial_number'] ?? ''}}
                 </div>
@@ -608,12 +628,32 @@
             @foreach($componentData_2 as $item)
                 @php
                     $comp = $components->firstWhere('id', $item['component_id']);
+                    $hasSerialNumber = !empty($item['serial_number']);
+                    $hasAssySerialNumber = isset($item['assy_serial_number']) && !empty($item['assy_serial_number']);
+                    $hasAssyPartNumber = $comp && $comp->assy_part_number;
                 @endphp
-                <div class="div13 border-l-b-r text-center pt-1 fs-7" style="height: 27px">{{ $comp ? $comp->name : '' }}</div>
-                <div class="div14 border-b-r text-center pt-1 fs-7" >{{ $comp ? $comp->part_number : '' }} </div>
-                <div class="div15 border-b-r  text-center pt-1 fs-7" >{{ $item['serial_number'] }} </div>
+                <div class="div13 border-l-b-r text-center pt-1 fs-7" style="height: 27px">
+                    {{ $comp ? $comp->name : '' }}
+                    @if($hasAssySerialNumber && !$hasSerialNumber)
+                        , S/A
+                    @endif
+                </div>
+                <div class="div14 border-b-r text-center pt-1 fs-7" >
+                    @if($hasAssySerialNumber && !$hasSerialNumber)
+                        {{ $comp ? $comp->assy_part_number : '' }}
+                    @else
+                        {{ $comp ? $comp->part_number : '' }}
+                    @endif
+                </div>
+                <div class="div15 border-b-r  text-center pt-1 fs-7" >
+                    @if($hasAssySerialNumber && !$hasSerialNumber)
+                        {{ $item['assy_serial_number'] }}
+                    @else
+                        {{ $item['serial_number'] }}
+                    @endif
+                </div>
                 <div class="div16 border-b-r" > </div>
-                @if($comp && $comp->assy_part_number && isset($item['assy_serial_number']) && !empty($item['assy_serial_number']))
+                @if($hasAssyPartNumber && $hasAssySerialNumber && $hasSerialNumber)
 
                 <div class="div17 border-b-r text-center pt-1 fs-7" style="grid-column: span 5 / span 5;">
                         {{__(' ASSY PN ')}} {{$comp->assy_part_number}}{{__(' ASSY SN ')}} {{$item['assy_serial_number'] ?? ''}}
