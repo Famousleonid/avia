@@ -178,6 +178,16 @@
                             </div>
                         </div>
 
+                        <!-- Bush IPL Number field - показывается только когда Is Bush отмечен -->
+                        <div class="form-group mt-3" id="bush_ipl_container" 
+                             style="display: {{ $current_component->is_bush ? 'block' : 'none' }};">
+                            <label for="bush_ipl_num">{{ __('Initial Bushing IPL Number') }}</label>
+                            <input id='bush_ipl_num' type="text" class="form-control" name="bush_ipl_num"
+                                   pattern="^\d+-\d+[A-Za-z]?$"
+                                   title="The format should be: number-number (for example: 1-200A, 1001-100, 5-398B)"
+                                   value="{{ $current_component->bush_ipl_num }}">
+                        </div>
+
                     </div>
                     <div class="justify-content-between d-flex">
                         <div class="form-check">
@@ -192,6 +202,13 @@
                                    value="1" {{ $current_component->repair ? 'checked' : '' }}>
                             <label class="form-check-label" for="repair">
                                 Repair
+                            </label>
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox"  id="is_bush" name="is_bush"
+                                   value="1" {{ $current_component->is_bush ? 'checked' : '' }} onchange="toggleBushIPL()">
+                            <label class="form-check-label" for="is_bush">
+                                Is Bush
                             </label>
                         </div>
                     <div class="text-end">
@@ -241,6 +258,22 @@
 
 
         });
+
+        // Функция для показа/скрытия поля Bush IPL Number
+        function toggleBushIPL() {
+            const isBushCheckbox = document.getElementById('is_bush');
+            const bushIPLContainer = document.getElementById('bush_ipl_container');
+            const bushIPLInput = document.getElementById('bush_ipl_num');
+            
+            if (isBushCheckbox.checked) {
+                bushIPLContainer.style.display = 'block';
+                bushIPLInput.required = true;
+            } else {
+                bushIPLContainer.style.display = 'none';
+                bushIPLInput.required = false;
+                bushIPLInput.value = ''; // Очищаем поле при скрытии
+            }
+        }
 
 
 

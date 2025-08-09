@@ -54,6 +54,7 @@ class ComponentController extends Controller
             'part_number' =>'required|string|max:50',
             'ipl_num' =>'string|max:10',
             'assy_ipl_num' => 'nullable|string|max:10|regex:/^\d+-\d+[A-Za-z]?$/',
+            'bush_ipl_num' => 'nullable|string|max:10|regex:/^\d+-\d+[A-Za-z]?$/',
 //
         ]);
 
@@ -61,6 +62,8 @@ class ComponentController extends Controller
 
         $validated['log_card'] = $request->has('log_card') ? 1 : 0;
         $validated['repair'] = $request->has('repair') ? 1 : 0;
+        $validated['is_bush'] = $request->has('is_bush') ? 1 : 0;
+        $validated['bush_ipl_num'] = $request->bush_ipl_num;
 //dd($validated);
 
 
@@ -230,6 +233,7 @@ class ComponentController extends Controller
             'part_number' =>'required',
             'ipl_num' =>'required',
             'assy_ipl_num' => 'nullable|string|max:10|regex:/^\d+-\d+[A-Za-z]?$/',
+            'bush_ipl_num' => 'nullable|string|max:10|regex:/^\d+-\d+[A-Za-z]?$/',
 
         ]);
 
@@ -238,6 +242,8 @@ class ComponentController extends Controller
         $validated['assy_ipl_num'] = $request->assy_ipl_num;
         $validated['log_card'] = $request->has('log_card') ? 1 : 0;
         $validated['repair'] = $request->has('repair') ? 1 : 0;
+        $validated['is_bush'] = $request->has('is_bush') ? 1 : 0;
+        $validated['bush_ipl_num'] = $request->bush_ipl_num;
 //        dd($validated);
 
         if ($request->hasFile('img')) {

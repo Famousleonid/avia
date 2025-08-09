@@ -68,7 +68,7 @@
                         <thead>
                             <tr>
                                 <th>Description</th>
-                                <th>Part Number</th>
+                                <th>Part Number / Assy PN</th>
                                 <th>Select</th>
                                 <th>Serial Number</th>
                                 <th>ASSY Serial Number</th>

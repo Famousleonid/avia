@@ -22,6 +22,8 @@ class Component extends Model implements  hasMedia
         'manual_id',
         'img',
         'assy_img',
+        'bush_ipl_num',
+        'is_bush',
     ];
 
 

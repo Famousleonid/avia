@@ -136,7 +136,7 @@
                     console.log('Process Name ID changed:', processNameId); // Проверка, что событие срабатывает
 
                     if (processNameId) {
-                        fetch(`/admin/get-processes?processNameId=${processNameId}&manualId=${manualId}`) // Добавляем manualId в запрос
+                        fetch(`/get-processes?processNameId=${processNameId}&manualId=${manualId}`) // Убираем /admin/ префикс
                             .then(response => {
                                 if (!response.ok) {
                                     throw new Error('Ошибка загрузки данных');

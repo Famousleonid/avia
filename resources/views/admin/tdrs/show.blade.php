@@ -18,8 +18,8 @@
 
                 <div class="d-flex ">
                     <div style="width: 160px;">
-                        <h5 class="text-primary  ps-4">{{__('Work Order')}}
-                            <a class="text-success-emphasis  ps-4" href="#" data-bs-toggle="modal"
+                        <h5 class="text-primary  ps-1">{{__('Work Order')}}
+                            <a class="text-success-emphasis  ps-3" href="#" data-bs-toggle="modal"
                                data-bs-target=#infoModal{{$current_wo->number}}>{{$current_wo->number}}
                             </a>
                         </h5>
@@ -162,7 +162,7 @@
                             </div>
                         </div>
                     </div>
-                    <div class="ps-2 d-flex" style="width: 550px;">
+                    <div class="ps-2 d-flex" style="width: 850px;">
                         {{--                        <div class="me-2" >--}}
                         {{--                            <a href="{{route('tdrs.inspection',['workorder_id' => $current_wo->id])}}"--}}
                         {{--                               class="btn  btn-outline-primary " style="height: 60px;align-content: center"--}}
@@ -195,6 +195,14 @@
                                     {{__('Log Card')}}
                                 </a>
                             </div>
+                        <div>
+                            <a href="{{route('wo_bushings.show',['wo_bushing' => $current_wo->id])}}"
+                               class="btn  btn-outline-primary ms-2" style="min-height: 60px;width: 100px"
+                               onclick="showLoadingSpinner
+                                   ()">
+                                {{__('Bushing Processes')}}
+                            </a>
+                        </div>
                         <div>
                             <a href="{{route('rm_reports.show',['rm_report' => $current_wo->id])}}"
                                class="btn  btn-outline-primary ms-2 " style="height: 60px;width: 180px"

@@ -138,7 +138,7 @@
                 <thead>
                 <tr>
                     <th class="text-primary text-center">Description</th>
-                    <th class="text-primary text-center">Part Number</th>
+                    <th class="text-primary text-center">Part Number / Assy PN</th>
                     <th class="text-primary text-center">Serial Number</th>
                     <th class="text-primary text-center">ASSY Serial Number</th>
                     <th class="text-primary text-center">Reason to Removed</th>

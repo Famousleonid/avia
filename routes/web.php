@@ -26,6 +26,7 @@ use App\Http\Controllers\Admin\MainController;
 use App\Http\Controllers\Admin\TrainingController;
 use App\Http\Controllers\Admin\UnitController;
 use App\Http\Controllers\Admin\WorkorderController;
+use App\Http\Controllers\Admin\WoBushingController;
 use App\Http\Controllers\Front\FrontController;
 use App\Http\Controllers\General\MediaController;
 use App\Http\Controllers\Mobile\MobileController;
@@ -70,9 +71,84 @@ Route::group(['middleware' => 'auth'],function () {
 });
 
 // ----------------------Admin route ------------------------------------------------------------------------
-Route::group(['middleware' => ['auth', 'isAdmin'] ], function () {
+Route::group(['middleware' => ['auth', 'isAdmin'], 'prefix' => 'admin'], function () {
+    Route::resource('/users', UserController::class);
+    Route::resource('/tdrs', TdrController::class);
+    Route::resource('/workorders', WorkorderController::class);
+    Route::resource('/manuals', ManualController::class);
+    Route::resource('/units', UnitController::class);
+    Route::resource('/builders', BuilderController::class);
+    Route::resource('/categories', CategoryController::class);
+    Route::resource('/codes', CodeController::class);
+    Route::resource('/necessaries', NecessaryController::class);
+    Route::resource('/components', ComponentController::class);
+    Route::resource('/log_card', LogCardController::class);
+    Route::resource('/process-names',ProcessNameController::class);
+    Route::resource('/processes', ProcessController::class);
+    Route::get('/get-processes', [ProcessController::class, 'getProcesses'])->name('processes.getProcesses');
+    Route::resource('/tdr-processes',TdrProcessController::class);
+    Route::resource('/manual_processes', ManualProcessController::class);
 
+    Route::resource('/wo_bushings', WoBushingController::class)->except(['create']);
+    Route::get('/wo_bushings/create/{id}', [WoBushingController::class, 'create'])->name('wo_bushings.create');
+
+
+    // Route for LogCard creation with workorder ID
+    Route::get('/extra_processes/create/{id}', [ExtraProcessController::class, 'create'])->name('extra_process.create');
+    Route::get('/extra_processes/create_processes/{workorderId}/{componentId}', [ExtraProcessController::class, 'createProcesses'])->name('extra_processes.create_processes');
+    Route::post('/extra_processes/store_processes', [ExtraProcessController::class, 'storeProcesses'])->name('extra_processes.store_processes');
+    Route::get('/extra_processes/processes/{workorderId}/{componentId}', [ExtraProcessController::class, 'processes'])->name('extra_processes.processes');
+    Route::get('/extra_processes/show_all/{id}', [ExtraProcessController::class, 'showAll'])->name('extra_processes.show_all');
+    Route::get('/extra_processes/{id}', [ExtraProcessController::class, 'show'])->name('extra_processes.show');
+    Route::get('/extra_processes/{id}/form/{processNameId}', [ExtraProcessController::class, 'showForm'])->name('extra_processes.show_form');
+    Route::get('/extra_processes/{id}/group-forms/{processNameId}', [ExtraProcessController::class, 'showGroupForms'])->name('extra_processes.show_group_forms');
+    Route::resource('/extra_processes', ExtraProcessController::class)->except(['create']);
+
+    Route::get('log_card/create/{id}', [LogCardController::class, 'create'])->name('log_card.create');
+    Route::get('log_card/edit/{id}', [LogCardController::class, 'edit'])->name('log_card.edit');
+    Route::get('log_card/show/{id}', [LogCardController::class, 'show'])->name('log_card.show');
+
+    //tdrs workorder route
+    Route::get('tdrs/create/{id}', [TdrController::class, 'create'])->name('tdrs.create');
+    Route::get('tdrs/edit/{id}', [TdrController::class, 'edit'])->name('tdrs.edit');
+    Route::get('tdrs/show/{id}', [TdrController::class, 'show'])->name('tdrs.show');
+    Route::get('tdrs/processes/{workorder_id}',[TdrController::class, 'processes'])->name('tdrs.processes');
+
+    Route::get('processes/create/{manual_id}', [ProcessController::class, 'create'])->name('processes.create');
+    Route::get('processes/edit/{id}', [ProcessController::class, 'edit'])->name('processes.edit');
+
+    //workorder route
+    Route::get('workorders/create/{id}', [WorkorderController::class, 'create'])->name('workorders.create');
+
+    Route::get('tdrs/logCardForm/{id}', [TdrController::class, 'logCardForm'])->name('tdrs.logCardForm');
+    Route::get('log_card/logCardForm/{id}', [LogCardController::class, 'logCardForm'])->name('log_card.logCardForm');
+
+    Route::get('tdrs/woProcessForm/{id}', [TdrController::class, 'wo_Process_Form'])->name('tdrs.woProcessForm');
+    // Для component inspection
+    Route::get('/tdrs/inspection/unit/{workorder_id}', [TdrController::class, 'inspectionUnit'])->name('tdrs.inspection.unit');
+
+    // Для unit inspection
+    Route::get('/tdrs/inspection/component/{workorder_id}', [TdrController::class, 'inspectionComponent'])->name('tdrs.inspection.component');
+
+    Route::post('/components/store_from_inspection', [ComponentController::class, 'storeFromInspection'])->name('components.storeFromInspection');
+    Route::post('/components/store_from_extra', [ComponentController::class, 'storeFromExtra'])->name('components.storeFromExtra');
+    Route::get('tdr-processes/processesForm/{id}', [TdrProcessController::class, 'processesForm'])->name('tdr-processes.processesForm');
+
+    // Уникальный путь для createProcesses
+    Route::get('/tdr/{tdrId}/create-processes', [TdrProcessController::class, 'createProcesses'])->name('tdr-processes.createProcesses');
+    Route::get('/tdr/{tdrId}/processes', [TdrProcessController::class, 'processes'])->name('tdr-processes.processes');
+    Route::get('/get-process/{processNameId}', [TdrProcessController::class, 'getProcess'])->name('tdr-processes.get-process');
+    Route::get('tdrs/{workorder_id}/ndt-std', [TdrController::class, 'ndtStd'])->name('tdrs.ndtStd');
+    Route::get('tdrs/{workorder_id}/cad-std', [TdrController::class, 'cadStd'])->name('tdrs.cadStd');
+    Route::get('tdrs/{workorder_id}/machining-form', [TdrController::class, 'machiningForm'])->name('tdrs.machiningForm');
+    Route::get('tdrs/{workorder_id}/ndt-form', [TdrController::class, 'ndtForm'])->name('tdrs.ndtForm');
+    Route::get('tdrs/{workorder_id}/passivation-form', [TdrController::class, 'passivationForm'])->name('tdrs.passivationForm');
+    Route::get('tdrs/{workorder_id}/cad-form', [TdrController::class, 'cadForm'])->name('tdrs.cadForm');
+    Route::get('tdrs/{workorder_id}/xylan-form', [TdrController::class, 'xylanForm'])->name('tdrs.xylanForm');
+    Route::get('tdrs/{workorder_id}/spec-process', [TdrController::class, 'specProcess'])->name('tdrs.specProcess');
+    Route::post('tdrs/store-processes', [TdrController::class, 'storeProcesses'])->name('tdrs.storeProcesses');
 });
+
 // ---------------------- Cabinet route ------------------------------------------------------------------------
 Route::group(['middleware' => ['auth'] ], function () {
 
@@ -95,6 +171,7 @@ Route::group(['middleware' => ['auth'] ], function () {
     Route::resource('/tdrs',TdrController::class);
     Route::resource('/components', ComponentController::class);
     Route::resource('/processes', ProcessController::class);
+    Route::get('/get-processes', [ProcessController::class, 'getProcesses'])->name('processes.getProcesses');
     Route::resource('/tdr-processes',TdrProcessController::class);
     Route::resource('/process-names',ProcessNameController::class);
     Route::resource('/trainings', TrainingController::class);
@@ -149,7 +226,6 @@ Route::resource('/extra_processes', ExtraProcessController::class)->except(['cre
 
     Route::post('/components/store_from_inspection', [ComponentController::class, 'storeFromInspection'])->name('components.storeFromInspection');
     Route::post('/components/store_from_extra', [ComponentController::class, 'storeFromExtra'])->name('components.storeFromExtra');
-    Route::get('/get-processes', [ProcessController::class, 'getProcesses'])->name('processes.getProcesses');
     Route::get('tdr-processes/processesForm/{id}', [TdrProcessController::class, 'processesForm'])->name('tdr-processes.processesForm');
 
     // Уникальный путь для createProcesses

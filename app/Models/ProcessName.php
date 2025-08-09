@@ -14,6 +14,6 @@ class ProcessName extends Model
     public $timestamps = false;
     public function processes()
     {
-        return $this->hasMany(Process::class, 'process_name_id');
+        return $this->hasMany(Process::class, 'process_names_id');
     }
 }
