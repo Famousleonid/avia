@@ -105,14 +105,19 @@
                 <div>
                     <h4 class="text-primary ms-2">{{__('Work Order: ')}} {{$current_wo->number}}</h4>
                     <div>
-                        <h4 class="ps-xl-5">{{__('BUSHINGS')}}</h4>
+                        <h4 class="ps-xl-2">{{__('BUSHINGS PROCESSES')}}</h4>
                     </div>
                 </div>
-                <div class="ps-2 d-flex" style="width: 300px;">
+                <div class="ps-2 d-flex" style="width: 400px;">
                     @if($woBushing)
-                        <a href="{{ route('wo_bushings.edit', $woBushing->id) }}" class="btn btn-outline-primary"
+                        <a href="{{ route('wo_bushings.edit', $woBushing->id) }}" class="btn btn-outline-primary me-2"
                            style="height: 60px;width: 100px">
                             <i class="fas fa-edit"></i> Edit Bushings
+                        </a>
+                        <div style="width: 100px"></div>
+                        <a href="{{ route('wo_bushings.specProcessForm', $woBushing->id) }}" class="btn btn-outline-warning"
+                           style="height: 60px;width: 120px" target="_blank">
+                            <i class="fas fa-list"></i> Spec Process Form
                         </a>
                     @else
                         @if($bushings->flatten()->count() > 0)
@@ -162,13 +167,132 @@
                         <thead>
                             <tr class="header-row">
                                 <th class="text-primary text-center">Bushings</th>
-                                <th class="text-primary text-center">Status</th>
                                 <th class="text-primary text-center">QTY</th>
-                                <th class="text-primary text-center">Machining</th>
-                                <th class="text-primary text-center">NDT</th>
-                                <th class="text-primary text-center">Passivation</th>
-                                <th class="text-primary text-center">CAD</th>
-                                <th class="text-primary text-center">Xylan</th>
+                                <th class="text-primary text-center">
+                                    Machining<br>
+                                    @if($woBushing)
+                                        @php
+                                            $machiningProcessName = \App\Models\ProcessName::where('name', 'Machining')->first();
+                                            // Проверяем, есть ли сохраненные данные для Machining
+                                            $hasMachiningData = false;
+                                            if (!empty($bushData)) {
+                                                foreach ($bushData as $bushItem) {
+                                                    if (isset($bushItem['processes']['machining']) && !empty($bushItem['processes']['machining'])) {
+                                                        $hasMachiningData = true;
+                                                        break;
+                                                    }
+                                                }
+                                            }
+                                        @endphp
+                                        @if($machiningProcessName && $hasMachiningData)
+                                            <a href="{{ route('wo_bushings.processesForm', ['id' => $woBushing->id, 'processNameId' => $machiningProcessName->id]) }}" target="_blank" class="btn btn-sm btn-outline-primary mt-1">Form</a>
+                                        @else
+                                            <span class="text-muted">Form</span>
+                                        @endif
+                                    @else
+                                        <span class="text-muted">Form</span>
+                                    @endif
+                                </th>
+                                <th class="text-primary text-center">
+                                    NDT<br>
+                                    @if($woBushing)
+                                        @php
+                                            $ndtProcessName = \App\Models\ProcessName::where('name', 'NDT-1')->first();
+                                            // Проверяем, есть ли сохраненные данные для NDT
+                                            $hasNdtData = false;
+                                            if (!empty($bushData)) {
+                                                foreach ($bushData as $bushItem) {
+                                                    if (isset($bushItem['processes']['ndt']) && !empty($bushItem['processes']['ndt'])) {
+                                                        $hasNdtData = true;
+                                                        break;
+                                                    }
+                                                }
+                                            }
+                                        @endphp
+                                        @if($ndtProcessName && $hasNdtData)
+                                            <a href="{{ route('wo_bushings.processesForm', ['id' => $woBushing->id, 'processNameId' => $ndtProcessName->id]) }}" target="_blank" class="btn btn-sm btn-outline-primary mt-1">Form</a>
+                                        @else
+                                            <span class="text-muted">Form</span>
+                                        @endif
+                                    @else
+                                        <span class="text-muted">Form</span>
+                                    @endif
+                                </th>
+                                <th class="text-primary text-center">
+                                    Passivation<br>
+                                    @if($woBushing)
+                                        @php
+                                            $passivationProcessName = \App\Models\ProcessName::where('name', 'Passivation')->first();
+                                            // Проверяем, есть ли сохраненные данные для Passivation
+                                            $hasPassivationData = false;
+                                            if (!empty($bushData)) {
+                                                foreach ($bushData as $bushItem) {
+                                                    if (isset($bushItem['processes']['passivation']) && !empty($bushItem['processes']['passivation'])) {
+                                                        $hasPassivationData = true;
+                                                        break;
+                                                    }
+                                                }
+                                            }
+                                        @endphp
+                                        @if($passivationProcessName && $hasPassivationData)
+                                            <a href="{{ route('wo_bushings.processesForm', ['id' => $woBushing->id, 'processNameId' => $passivationProcessName->id]) }}" target="_blank" class="btn btn-sm btn-outline-primary mt-1">Form</a>
+                                        @else
+                                            <span class="text-muted">Form</span>
+                                        @endif
+                                    @else
+                                        <span class="text-muted">Form</span>
+                                    @endif
+                                </th>
+                                <th class="text-primary text-center">
+                                    CAD<br>
+                                    @if($woBushing)
+                                        @php
+                                            $cadProcessName = \App\Models\ProcessName::where('name', 'Cad plate')->first();
+                                            // Проверяем, есть ли сохраненные данные для CAD
+                                            $hasCadData = false;
+                                            if (!empty($bushData)) {
+                                                foreach ($bushData as $bushItem) {
+                                                    if (isset($bushItem['processes']['cad']) && !empty($bushItem['processes']['cad'])) {
+                                                        $hasCadData = true;
+                                                        break;
+                                                    }
+                                                }
+                                            }
+                                        @endphp
+                                        @if($cadProcessName && $hasCadData)
+                                            <a href="{{ route('wo_bushings.processesForm', ['id' => $woBushing->id, 'processNameId' => $cadProcessName->id]) }}" target="_blank" class="btn btn-sm btn-outline-primary mt-1">Form</a>
+                                        @else
+                                            <span class="text-muted">Form</span>
+                                        @endif
+                                    @else
+                                            <span class="text-muted">Form</span>
+                                    @endif
+                                </th>
+                                <th class="text-primary text-center">
+                                    Xylan<br>
+                                    @if($woBushing)
+                                        @php
+                                            $xylanProcessName = \App\Models\ProcessName::where('name', 'Xylan coating')->first();
+                                            // Проверяем, есть ли сохраненные данные для Xylan
+                                            $hasXylanData = false;
+                                            if (!empty($bushData)) {
+                                                foreach ($bushData as $bushItem) {
+                                                    if (isset($bushItem['processes']['xylan']) && !empty($bushItem['processes']['xylan'])) {
+                                                        $hasXylanData = true;
+                                                        break;
+                                                    }
+                                                }
+                                            }
+                                        @endphp
+                                        @if($xylanProcessName && $hasXylanData)
+                                            <a href="{{ route('wo_bushings.processesForm', ['id' => $woBushing->id, 'processNameId' => $xylanProcessName->id]) }}" target="_blank" class="btn btn-sm btn-outline-primary mt-1">Form</a>
+                                        @else
+                                            <span class="text-muted">Form</span>
+                                        @endif
+                                    @else
+                                        <span class="text-muted">Form</span>
+                                    @endif
+                                </th>
                             </tr>
                         </thead>
                         <tbody>
@@ -200,12 +324,6 @@
                             @endphp
 
                             @foreach($savedBushingsGrouped as $bushIplNum => $savedBushings)
-                                {{-- Group header row --}}
-                                <tr class="table-info">
-                                    <td colspan="8" class="text-center fw-bold">
-                                        <strong>Bush IPL Group: {{ $bushIplNum }}</strong>
-                                    </td>
-                                </tr>
                                 {{-- Individual saved bushings in the group --}}
                                 @foreach($savedBushings as $savedBushing)
                                     @php
@@ -221,16 +339,10 @@
                                     @endphp
                                     <tr>
                                         <td class="ps-4">
-                                            <strong>{{ $component->ipl_num }}</strong><br>
-                                            <span class="text-muted">{{ $component->name }}</span>
+                                            <strong>{{ $component->ipl_num }}</strong> - <span class="text-muted">{{ $component->part_number }}</span>
                                         </td>
                                         <td class="text-center">
-                                            <span class="badge bg-success">
-                                                <i class="fas fa-check"></i> Selected
-                                            </span>
-                                        </td>
-                                        <td class="text-center">
-                                            <span class="badge bg-info">{{ $data['qty'] ?? '-' }}</span>
+                                            {{ $data['qty'] ?? '-' }}
                                         </td>
                                         <td>
                                             {{ $machiningProcess ? $machiningProcess->process : '-' }}

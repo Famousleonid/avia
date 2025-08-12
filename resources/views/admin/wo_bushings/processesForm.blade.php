@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{{$process_name->process_sheet_name ?? $process_name->name ?? 'Extra Process'}} Form</title>
+    <title>{{$process_name->process_sheet_name ?? $process_name->name ?? 'Wo Bushing'}} Form</title>
     <link rel="stylesheet" href="{{asset('assets/Bootstrap 5/bootstrap.min.css')}}">
 
     <style>
@@ -220,7 +220,7 @@
                      style="width: 180px; margin: 6px 10px 0;">
             </div>
             <div class="col-9">
-                <h2 class=" mt-3 text-black text-"><strong>{{$process_name->process_sheet_name ?? $process_name->name ?? 'EXTRA PROCESS'}} PROCESS SHEET</strong></h2>
+                <h2 class=" mt-3 text-black text-"><strong>{{$process_name->process_sheet_name ?? $process_name->name ?? 'WO BUSHING'}} PROCESS SHEET</strong></h2>
             </div>
         </div>
         <div class="row">
@@ -233,7 +233,7 @@
 {{--                            @if(isset($table_data) && count($table_data) > 1)--}}
 {{--                                Multiple Components ({{ count($table_data) }} items)--}}
 {{--                            @else--}}
-{{--                                {{$component->name}}--}}
+{{--                                {{$table_data[0]['component']->name ?? 'Bushings'}}--}}
 {{--                            @endif--}}
                         </strong>
                     </div>
@@ -246,7 +246,7 @@
 {{--                            @if(isset($table_data) && count($table_data) > 1)--}}
 {{--                                Various (see table below)--}}
 {{--                            @else--}}
-{{--                                {{$component->part_number}}--}}
+{{--                                {{$table_data[0]['component']->part_number ?? 'Bushings'}}--}}
 {{--                            @endif--}}
                         </strong>
                     </div>
@@ -387,18 +387,23 @@
                         </div>
                         <div class="col-3 border-l-b details-row text-center" style="height: 32px">
                             {{ $data['component']->part_number }}
-                            @if($data['extra_process']->serial_number)
-                                SN{{$data['extra_process']->serial_number}}
-                            @endif
                         </div>
                         <div class="col-3 border-l-b details-row text-center" style="height: 32px">
                             {{ $data['component']->name }}
                         </div>
                         <div class="col-2 border-l-b details-row text-center" style="height: 32px">
-                            {{ substr($data['process_name']->name, -1) }}
+                            @if(strpos($data['process_name']->name, 'NDT-') === 0)
+                                {{ substr($data['process_name']->name, 4) }}
+                            @elseif($data['process_name']->name === 'Eddy Current Test')
+                                6
+                            @elseif($data['process_name']->name === 'BNI')
+                                5
+                            @else
+                                {{ substr($data['process_name']->name, -1) }}
+                            @endif
                         </div>
                         <div class="col-1 border-l-b details-row text-center" style="height: 32px">
-                            {{ $data['extra_process']->qty ?? 1 }}
+                            {{ $data['qty'] ?? 1 }}
                         </div>
                         <div class="col-1 border-l-b details-row text-center" style="height: 32px">
                             <!-- Пустая ячейка -->
@@ -437,7 +442,7 @@
         </div>
     @else
                         <h6 class="mt-3 ms-3"><strong>
-                    Perform the {{ ucwords(strtolower($process_name->process_sheet_name ?? $process_name->name ?? 'Extra Process')) }}
+                    Perform the {{ ucwords(strtolower($process_name->process_sheet_name ?? $process_name->name ?? 'Wo Bushing Process')) }}
                     as the specified under Process No. and in
                     accordance with CMM No
                 </strong>.</h6>
@@ -448,9 +453,9 @@
                 <div class="col-2 border-l-t-b pt-2 details-row text-center"><h6  class="fs-7" ><strong>PART No.</strong>
                     </h6>
                 </div>
-                <div class="col-2 border-l-t-b pt-2  details-row text-center"><h6  class="fs-7" ><strong>DESCRIPTION</strong>
+                <div class="col-3 border-l-t-b pt-2  details-row text-center"><h6  class="fs-7" ><strong>DESCRIPTION</strong>
                     </h6></div>
-                <div class="col-4 border-l-t-b pt-2 details-row text-center"><h6  class="fs-7" ><strong>PROCESS No.</strong>
+                <div class="col-3 border-l-t-b pt-2 details-row text-center"><h6  class="fs-7" ><strong>PROCESS</strong>
                     </h6> </div>
                 <div class="col-1 border-l-t-b pt-2  details-row  text-center"><h6  class="fs-7" ><strong>QTY</strong> </h6>
                 </div>
@@ -473,18 +478,15 @@
                         </div>
                         <div class="col-2 border-l-b details-cell text-center" style="min-height: 32px">
                             {{ $data['component']->part_number }}
-                            @if($data['extra_process']->serial_number)
-                                SN{{$data['extra_process']->serial_number}}
-                            @endif
                         </div>
-                        <div class="col-2 border-l-b details-cell text-center" style="min-height: 32px" >
+                        <div class="col-3 border-l-b details-cell text-center" style="min-height: 32px" >
                             {{ $data['component']->name }}
                         </div>
-                        <div class="col-4 border-l-b details-cell text-center process-cell"  style="min-height: 32px">
+                        <div class="col-3 border-l-b details-cell text-center process-cell"  style="min-height: 32px">
                             {{ $data['process']->process }}
                         </div>
                         <div class="col-1 border-l-b details-cell text-center" style="min-height: 32px" >
-                            {{ $data['extra_process']->qty ?? 1 }}
+                            {{ $data['qty'] ?? 1 }}
                         </div>
                         <div class="col-2 border-l-b-r details-cell text-center"  style="min-height: 32px">
                             @foreach($manuals as $manual)
@@ -505,10 +507,10 @@
                     <div class="col-2 border-l-b  text-center" style="height: 34px">
                         <!-- Пустая ячейка -->
                     </div>
-                    <div class="col-2 border-l-b  text-center" style="height: 34px">
+                    <div class="col-3 border-l-b  text-center" style="height: 34px">
                         <!-- Пустая ячейка -->
                     </div>
-                    <div class="col-4 border-l-b  text-center" style="height: 34px">
+                    <div class="col-3 border-l-b  text-center" style="height: 34px">
                         <!-- Пустая ячейка -->
                     </div>
                     <div class="col-1 border-l-b  text-center" style="height: 34px">
@@ -525,7 +527,7 @@
 <footer>
     <div class="row fs-85" style="width: 100%; padding: 5px 0;">
         <div class="col-6 text-start">
-            {{__('Form #')}} {{$process_name->form_number ?? 'EXTRA-001'}}
+            {{__('Form #')}} {{$process_name->form_number ?? 'WO-BUSHING-001'}}
         </div>
         <div class="col-6 text-end pe-4 ">
             {{__('Rev#0, 15/Dec/2012   ')}}
