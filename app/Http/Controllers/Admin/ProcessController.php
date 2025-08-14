@@ -50,9 +50,16 @@ class ProcessController extends Controller
      */
     public function create(Request $request)
     {
-//        dd($request->all());
+        $manualId = $request->query('manual');
+        
+        \Log::info('ProcessController::create - Request query parameters:', $request->query());
+        \Log::info('ProcessController::create - Manual ID:', ['manual_id' => $manualId]);
+        
+        if (!$manualId) {
+            abort(400, 'Manual ID is required');
+        }
 
-        $manual = Manual::findorFail($request);
+        $manual = Manual::findOrFail($manualId);
         $processNames = ProcessName::all();
         $processes = Process::all();
 
@@ -67,6 +74,8 @@ class ProcessController extends Controller
      */
     public function store(Request $request)
     {
+        \Log::info('ProcessController::store - Request data:', $request->all());
+        
         $validated = $request->validate([
             'process_names_id' => 'required|integer|exists:process_names,id',
             'process' => 'required|string|max:255',
@@ -92,6 +101,11 @@ class ProcessController extends Controller
                     'success' => true,
                     'process' => $process
                 ]);
+            }
+
+            // Проверяем, куда нужно вернуться
+            if ($request->has('return_to') && $request->return_to) {
+                return redirect($request->return_to)->with('success', 'Process added successfully.');
             }
 
             return redirect()->back()->with('success', 'Process added successfully.');

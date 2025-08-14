@@ -124,7 +124,19 @@
                         <h4 class="ps-xl-5">{{__('CREATE BUSHINGS')}}</h4>
                     </div>
                 </div>
+                <div>
+                    <a href="{{ route('processes.create', ['manual' => $current_wo->unit->manual_id, 'return_to' => route('wo_bushings.create', $current_wo->id)]) }}"
+                       class="btn btn-outline-primary me-2" style="height: 60px;width: 130px">
+                        <i class="fas fa-cogs"></i> {{ __('Add Processes') }}
+                    </a>
+                </div>
                 <div class="">
+
+                    <!-- Debug info -->
+{{--                    <div class="text-muted small">--}}
+{{--                        Manual ID: {{ $current_wo->unit->manual_id ?? 'Not set' }} | --}}
+{{--                        Manual: {{ $current_wo->unit->manual_id ?? 'Not set' }}--}}
+{{--                    </div>--}}
                     <a href="{{ route('wo_bushings.show', $current_wo->id) }}"
                        class="btn btn-outline-secondary me-2" style="height: 60px;width: 110px">
                         {{ __('Back to Bushings') }}
@@ -272,6 +284,10 @@
                             <button type="button" class="btn btn-secondary btn-lg me-2" onclick="clearForm()">
                                 <i class="fas fa-eraser"></i> Clear All
                             </button>
+{{--                            <a href="{{ route('processes.create', ['manual' => $current_wo->unit->manual_id, 'return_to' => route('wo_bushings.create', $current_wo->id)]) }}" --}}
+{{--                               class="btn btn-outline-primary btn-lg me-2">--}}
+{{--                                <i class="fas fa-cogs"></i> Add Processes--}}
+{{--                            </a>--}}
                             <a href="{{ route('wo_bushings.show', $current_wo->id) }}" class="btn btn-outline-secondary btn-lg">
                                 <i class="fas fa-times"></i> Cancel
                             </a>

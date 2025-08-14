@@ -222,6 +222,40 @@
             page-break-after: always;
         }
 
+
+        .parent {
+            display: grid;
+            grid-template-columns: 518px 60px 155px ;
+            /*grid-template-columns: repeat(12, 1fr);*/
+            /*grid-template-rows: repeat(3, 1fr);*/
+            gap: 0px;
+        }
+
+        /*.div2 {*/
+        /*    grid-column: span 6 / span 6;*/
+        /*    grid-column-start: 1;*/
+        /*    grid-row-start: 2;*/
+        /*}*/
+
+        /*.div3 {*/
+        /*    grid-row: span 3 / span 3;*/
+        /*    grid-column-start: 7;*/
+        /*    grid-row-start: 1;*/
+        /*}*/
+
+        /*.div4 {*/
+        /*    grid-column: span 2 / span 2;*/
+        /*    grid-column-start: 8;*/
+        /*    grid-row-start: 2;*/
+        /*}*/
+        /*.div5 {*/
+        /*    grid-column: span 3 / span 3;*/
+        /*    grid-column-start: 10;*/
+        /*    grid-row-start: 2;*/
+        /*}*/
+
+
+
     </style>
 </head>
 
@@ -321,7 +355,7 @@
                         @foreach($processGroups as $groupIndex => $group)
                             <div class="col {{ $groupIndex < 5 ? 'border-l-t-r' : 'border-l-t' }} text-center" style="height:
                             30px">
-                                <span class="">Bushing </span>
+                                <span class="">Bushings </span>
                             </div>
                         @endforeach
                         <!-- Дополняем до 6 столбцов пустыми -->
@@ -829,7 +863,7 @@
         </div>
 
         <!-- Строки 8-15: Пустые строки -->
-        @for($row = 8; $row <= 15; $row++)
+        @for($row = 8; $row <= 13; $row++)
         <div class="row g-0 ">
             <div class="col-2 border-l-t ps-1">
                 <div style="height: 30px"></div>
@@ -924,7 +958,18 @@
             </div>
         </div>
 
+        <div class="parent mt-1">
+            <div class="div2 text-end pe-4 mt-3" style="height: 24px">Quality Assurance Acceptance</div>
+            <div class="div3 border-all text-center  3" style="width: 60px; align-content: center; height: 60px; color: grey">Q
+                .A.
+                STAMP</div>
+            <div class="div4 border-t-r-b mt-3 ps-1" style="height: 24px; color: grey">Data</div>
+            {{--        <div class="div5">5</div>--}}
+        </div>
+
     </div>
+
+
 
     <footer >
         <div class="row" style="width: 100%; padding: 5px 5px;">

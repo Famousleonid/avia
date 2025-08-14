@@ -113,7 +113,19 @@
                         <h4 class="ps-xl-5">{{__('EDIT BUSHINGS')}}</h4>
                     </div>
                 </div>
+                <div>
+                    <a href="{{ route('processes.create', ['manual' => $current_wo->unit->manual_id, 'return_to' => route('wo_bushings.edit', $woBushing->id)]) }}"
+                       class="btn btn-outline-primary me-2" style="height: 60px;width: 130px">
+                        <i class="fas fa-cogs"></i> {{ __('Add Processes') }}
+                    </a>
+                </div>
                 <div class="">
+
+                    <!-- Debug info -->
+{{--                    <div class="text-muted small">--}}
+{{--                        Manual ID: {{ $current_wo->unit->manual_id ?? 'Not set' }} | --}}
+{{--                        Manual: {{ $current_wo->unit->manual_id ?? 'Not set' }}--}}
+{{--                    </div>--}}
                     <a href="{{ route('wo_bushings.show', $current_wo->id) }}"
                        class="btn btn-outline-secondary me-2" style="height: 60px;width: 110px">
                         {{ __('Back to Bushings') }}
@@ -143,7 +155,7 @@
                     <form id="bushings-form" method="POST" action="{{ route('wo_bushings.update', $woBushing->id) }}">
                         @csrf
                         @method('PUT')
-                        
+
                         <table class="display table shadow table-hover align-middle table-bordered bg-gradient">
                             <thead>
                                 <tr class="header-row">
@@ -163,7 +175,7 @@
                                         // Создаем карту выбранных компонентов из новой структуры bushData
                                         $selectedComponentsMap = [];
                                         $groupData = [];
-                                        
+
                                         foreach($bushData as $bushItem) {
                                             if(isset($bushItem['bushing'])) {
                                                 $componentId = $bushItem['bushing'];
@@ -177,7 +189,7 @@
                                                 ];
                                             }
                                         }
-                                        
+
                                         // Определяем выбранные компоненты в данной группе
                                         $selectedComponentsInGroup = [];
                                         foreach($bushingGroup as $bushing) {
@@ -190,13 +202,14 @@
                                         }
                                         $groupSelected = count($selectedComponentsInGroup) > 0;
                                     @endphp
-                                    
+
                                     {{-- Group row with all bushings in first column and group controls --}}
                                     <tr>
                                         <td class="ps-2">
                                             @foreach($bushingGroup as $bushing)
                                                 <div class="mb-1">
-                                                    <span><strong>{{ $bushing->ipl_num }}</strong> - {{ $bushing->name }}</span>
+                                                    <span><strong>{{ $bushing->ipl_num }}</strong> - {{ $bushing->part_number
+                                                    }}</span>
                                                 </div>
                                             @endforeach
                                         </td>
@@ -204,7 +217,7 @@
                                             <div class="text-start">
                                                 @foreach($bushingGroup as $bushing)
                                                     <div class="mb-1">
-                                                        <input type="checkbox" name="group_bushings[{{ $bushIplNum ?: 'no_ipl' }}][components][]" 
+                                                        <input type="checkbox" name="group_bushings[{{ $bushIplNum ?: 'no_ipl' }}][components][]"
                                                                value="{{ $bushing->id }}" class="form-check-input me-1 component-checkbox"
                                                                data-group="{{ $bushIplNum ?: 'no_ipl' }}"
                                                                {{ in_array($bushing->id, $selectedComponentsInGroup) ? 'checked' : '' }}
@@ -215,19 +228,19 @@
                                             </div>
                                         </td>
                                         <td class="text-center">
-                                            <input type="number" name="group_bushings[{{ $bushIplNum ?: 'no_ipl' }}][qty]" 
-                                                   class="form-control qty-input" min="0" 
+                                            <input type="number" name="group_bushings[{{ $bushIplNum ?: 'no_ipl' }}][qty]"
+                                                   class="form-control qty-input" min="0"
                                                    value="{{ $groupData['qty'] ?? '' }}"
                                                    data-group="{{ $bushIplNum ?: 'no_ipl' }}"
                                                    {{ !$groupSelected ? 'disabled' : '' }}>
                                         </td>
                                         <td>
-                                            <select name="group_bushings[{{ $bushIplNum ?: 'no_ipl' }}][machining]" 
+                                            <select name="group_bushings[{{ $bushIplNum ?: 'no_ipl' }}][machining]"
                                                     class="form-select" data-group="{{ $bushIplNum ?: 'no_ipl' }}"
                                                     {{ !$groupSelected ? 'disabled' : '' }}>
                                                 <option value="">-- Select Machining --</option>
                                                 @foreach($machiningProcesses as $process)
-                                                    <option value="{{ $process->id }}" 
+                                                    <option value="{{ $process->id }}"
                                                             {{ isset($groupData['machining']) && $groupData['machining'] == $process->id ? 'selected' : '' }}>
                                                         {{ $process->process }}
                                                     </option>
@@ -235,12 +248,12 @@
                                             </select>
                                         </td>
                                         <td>
-                                            <select name="group_bushings[{{ $bushIplNum ?: 'no_ipl' }}][ndt]" 
+                                            <select name="group_bushings[{{ $bushIplNum ?: 'no_ipl' }}][ndt]"
                                                     class="form-select" data-group="{{ $bushIplNum ?: 'no_ipl' }}"
                                                     {{ !$groupSelected ? 'disabled' : '' }}>
                                                 <option value="">-- Select NDT --</option>
                                                 @foreach($ndtProcesses as $process)
-                                                    <option value="{{ $process->id }}" 
+                                                    <option value="{{ $process->id }}"
                                                             {{ isset($groupData['ndt']) && $groupData['ndt'] == $process->id ? 'selected' : '' }}>
                                                         {{ $process->process_name->name }}
                                                     </option>
@@ -248,12 +261,12 @@
                                             </select>
                                         </td>
                                         <td>
-                                            <select name="group_bushings[{{ $bushIplNum ?: 'no_ipl' }}][passivation]" 
+                                            <select name="group_bushings[{{ $bushIplNum ?: 'no_ipl' }}][passivation]"
                                                     class="form-select" data-group="{{ $bushIplNum ?: 'no_ipl' }}"
                                                     {{ !$groupSelected ? 'disabled' : '' }}>
                                                 <option value="">-- Select Passivation --</option>
                                                 @foreach($passivationProcesses as $process)
-                                                    <option value="{{ $process->id }}" 
+                                                    <option value="{{ $process->id }}"
                                                             {{ isset($groupData['passivation']) && $groupData['passivation'] == $process->id ? 'selected' : '' }}>
                                                         {{ $process->process }}
                                                     </option>
@@ -261,12 +274,12 @@
                                             </select>
                                         </td>
                                         <td>
-                                            <select name="group_bushings[{{ $bushIplNum ?: 'no_ipl' }}][cad]" 
+                                            <select name="group_bushings[{{ $bushIplNum ?: 'no_ipl' }}][cad]"
                                                     class="form-select" data-group="{{ $bushIplNum ?: 'no_ipl' }}"
                                                     {{ !$groupSelected ? 'disabled' : '' }}>
                                                 <option value="">-- Select CAD --</option>
                                                 @foreach($cadProcesses as $process)
-                                                    <option value="{{ $process->id }}" 
+                                                    <option value="{{ $process->id }}"
                                                             {{ isset($groupData['cad']) && $groupData['cad'] == $process->id ? 'selected' : '' }}>
                                                         {{ $process->process }}
                                                     </option>
@@ -274,12 +287,12 @@
                                             </select>
                                         </td>
                                         <td>
-                                            <select name="group_bushings[{{ $bushIplNum ?: 'no_ipl' }}][xylan]" 
+                                            <select name="group_bushings[{{ $bushIplNum ?: 'no_ipl' }}][xylan]"
                                                     class="form-select" data-group="{{ $bushIplNum ?: 'no_ipl' }}"
                                                     {{ !$groupSelected ? 'disabled' : '' }}>
                                                 <option value="">-- Select Xylan --</option>
                                                 @foreach($xylanProcesses as $process)
-                                                    <option value="{{ $process->id }}" 
+                                                    <option value="{{ $process->id }}"
                                                             {{ isset($groupData['xylan']) && $groupData['xylan'] == $process->id ? 'selected' : '' }}>
                                                         {{ $process->process }}
                                                     </option>
@@ -298,6 +311,10 @@
                             <button type="button" class="btn btn-secondary btn-lg me-2" onclick="clearForm()">
                                 <i class="fas fa-eraser"></i> Clear All
                             </button>
+{{--                            <a href="{{ route('processes.create', ['manual' => $current_wo->unit->manual_id, 'return_to' => route('wo_bushings.edit', $woBushing->id)]) }}"--}}
+{{--                               class="btn btn-outline-primary btn-lg me-2">--}}
+{{--                                <i class="fas fa-cogs"></i> Add Processes--}}
+{{--                            </a>--}}
                             <a href="{{ route('wo_bushings.show', $current_wo->id) }}" class="btn btn-outline-secondary btn-lg">
                                 <i class="fas fa-times"></i> Cancel
                             </a>
@@ -336,10 +353,10 @@
         function toggleGroupFields(groupName) {
             const groupCheckboxes = document.querySelectorAll(`.component-checkbox[data-group="${groupName}"]`);
             const groupFields = document.querySelectorAll(`[data-group="${groupName}"]:not(.component-checkbox)`);
-            
+
             // Проверяем, есть ли выбранные чекбоксы в группе
             const hasSelected = Array.from(groupCheckboxes).some(checkbox => checkbox.checked);
-            
+
             // Активируем/деактивируем поля группы
             groupFields.forEach(field => {
                 field.disabled = !hasSelected;
@@ -361,35 +378,35 @@
                 const groupName = checkbox.getAttribute('data-group');
                 allGroups.add(groupName);
             });
-            
+
             // Инициализируем состояние для каждой группы
             allGroups.forEach(function(groupName) {
                 toggleGroupFields(groupName);
             });
-            
+
             const form = document.getElementById('bushings-form');
-            
+
             form.addEventListener('submit', function(e) {
                 const selectedComponents = document.querySelectorAll('.component-checkbox:checked');
-                
+
                 if (selectedComponents.length === 0) {
                     e.preventDefault();
                     alert('{{__("Please select at least one component before submitting.")}}');
                     return false;
                 }
-                
+
                 // Проверяем, что для групп с выбранными компонентами заполнено количество
                 let hasErrors = false;
                 const groupsWithSelectedComponents = new Set();
-                
+
                 selectedComponents.forEach(function(checkbox) {
                     const groupName = checkbox.getAttribute('data-group');
                     groupsWithSelectedComponents.add(groupName);
                 });
-                
+
                 groupsWithSelectedComponents.forEach(function(groupName) {
                     const qtyInput = document.querySelector(`input[name="group_bushings[${groupName}][qty]"]`);
-                    
+
                     if (!qtyInput.value || qtyInput.value <= 0) {
                         qtyInput.style.borderColor = 'red';
                         hasErrors = true;
@@ -397,7 +414,7 @@
                         qtyInput.style.borderColor = '';
                     }
                 });
-                
+
                 if (hasErrors) {
                     e.preventDefault();
                     alert('{{__("Please enter quantity for all groups with selected components.")}}');
@@ -407,4 +424,4 @@
         });
     </script>
 
-@endsection 
+@endsection

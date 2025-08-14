@@ -10,25 +10,30 @@
     <div class="container mt-3">
         <div class="card bg-gradient">
             <div class="card-header">
-                <h4 class="text-primary">Add Process for Manual {{$manual->first()->number}} ({{$manual->first()->title}})</h4>
+                <h4 class="text-primary">Add Process for Manual {{$manual->number}} ({{$manual->title}})</h4>
             </div>
 
             <div class="card-body">
                 <form method="POST" action="{{ route('processes.store') }}" enctype="multipart/form-data"
                       id="createCMMForm">
                 @csrf
-                    <input type="hidden" name="manual_id" value="{{ $manual->first()->id }}">
+                    <input type="hidden" name="manual_id" value="{{ $manual->id }}">
+                    <input type="hidden" name="return_to" value="{{ request()->query('return_to', '') }}">
+                    <!-- Debug info -->
+                    <div class="text-muted small">
+                        Return to: {{ request()->query('return_to', 'Not set') }}
+                    </div>
 
                     <div class="form-group d-flex">
                         <div class="form-group ">
                             <div class="d-flex">
                                 <div class="me-3">
                                     <label for="process_name_id">{{ __('Process Name') }}</label>
-                                    <select id="process_name_id" name="process_name_id" class="form-control mt-2" required
+                                    <select id="process_name_id" name="process_names_id" class="form-control mt-2" required
                                             style="width: 350px">
                                         <option value="">{{ __('Select Process Name') }}</option>
                                         @foreach ($processNames as $processName)
-                                            <option value="{{ $processName->id }}">{{ $processName->name }}</option>
+                                            <option value="{{ $processName->id }}">{{ $processName->id }} - {{ $processName->name }}</option>
                                         @endforeach
                                     </select>
                                     <button type="button" class="btn btn-link" data-bs-toggle="modal"
@@ -86,7 +91,7 @@
                         <form action="{{ route('process-names.store') }}" method="POST" id="addProcessName">
                             @csrf
                         <div class="modal-body">
-                            <input type="hidden" name="manual_id" value="{{ $manual->first()->id }}">
+                            <input type="hidden" name="manual_id" value="{{ $manual->id }}">
 
                             <!-- Форма для добавления нового названия процесса -->
                                 <div class="form-group">
@@ -128,6 +133,8 @@
             const processList = document.getElementById('process-list'); // Список доступных процессов
             const exProcessList = document.getElementById('ex_process-list'); // Список существующих процессов
             const manualId = document.querySelector('input[name="manual_id"]').value; // Получаем manual_id из скрытого поля
+            
+            console.log('Manual ID loaded:', manualId); // Добавляем для отладки
 
             if (processNameSelect && processList && exProcessList) {
                 processNameSelect.addEventListener('change', function () {

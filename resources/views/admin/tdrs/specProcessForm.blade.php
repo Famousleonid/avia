@@ -16,9 +16,9 @@
         .container-fluid {
             max-width: 980px;
             height: auto;
-            transform: scale(0.97);
+            transform: scale(0.94);
             transform-origin: top ;
-            padding: 3px;
+            padding: 1px;
             margin-left: 10px;
             margin-right: 10px;
         }
@@ -29,7 +29,7 @@
             @page {
                 /*size: letter landscape;*/
                 size: 11in 8.5in;
-                margin: 2mm;
+                margin: 1mm;
             }
 
             /* Убедитесь, что вся страница помещается на один лист */
@@ -58,7 +58,7 @@
                 text-align: center;
                 font-size: 10px;
                 background-color: #fff;
-                padding: 2px 2px;
+                padding: 1px 1px;
             }
 
             /* Обрезка контента и размещение на одной странице */
@@ -202,14 +202,17 @@
         .trainer-init-1 {
             width: 99px;
         }
-        .fs-7 {
+        .fs-9 {
             font-size: 0.9rem; /* или любое другое подходящее значение */
         }
         .fs-75 {
-            font-size: 0.8rem; /* или любое другое подходящее значение */
+            font-size: 0.75rem; /* или любое другое подходящее значение */
+        }
+        .fs-7 {
+            font-size: 0.7rem; /* или любое другое подходящее значение */
         }
         .fs-8 {
-            font-size: 0.7rem; /* или любое другое подходящее значение */
+            font-size: 0.8rem; /* или любое другое подходящее значение */
         }
         .fs-4 {
             font-size: 0.4rem; /* или любое другое подходящее значение */
@@ -236,6 +239,14 @@
             page-break-after: always;
         }
 
+
+        .parent {
+            display: grid;
+            grid-template-columns: 518px 60px 155px ;
+            /*grid-template-columns: repeat(12, 1fr);*/
+            /*grid-template-rows: repeat(3, 1fr);*/
+            gap: 0px;
+        }
     </style>
 </head>
 
@@ -256,14 +267,13 @@
 
 @foreach($componentChunks as $chunk)
     <div class="container-fluid">
-
         <div class="row">
             <div class="col-1">
                 <img src="{{ asset('img/icons/AT_logo-rb.svg') }}" alt="Logo"
-                     style="width: 160px; margin: 6px 10px 0;">
+                     style="width: 160px; margin: 0px 6px 0;">
             </div>
             <div class="col-11">
-                <h5 class="pt-1  text-black text-center"><strong>Special Process Form</strong></h5>
+                <h5 class="  text-black text-center"><strong>Special Process Form</strong></h5>
             </div>
         </div>
         <div>
@@ -298,29 +308,30 @@
                 <div class="border-all text-center pt-0 fs-75" style="width: 25px;height: 20px">
                     {{ empty($ndtSums['fpi']) ? 'N/A' : $ndtSums['fpi'] }}</div>
                 <div class=" text-center fs-8" style="width: 20px;height: 20px"></div>
-                <div class="border-l-t-b ps-2 fs-8 " style="width: 100px;height: 20px; color: lightgray; font-style: italic" >RO
+                <div class="border-l-t-b ps-2 fs-8 " style="width: 100px;height: 18px; color: lightgray; font-style: italic" >RO
                     No.</div>
-                <div class="border-all text-center pt-0 fs-75" style="width: 25px;height: 20px">
+                <div class="border-all text-center pt-0 fs-75" style="width: 25px;height: 18px">
                     {{ empty($cadSum['total_qty']) ? 'N/A' : $cadSum['total_qty']  }}
                 </div>
                 <div class=" text-center fs-8" style="width: 305px;height: 20px"></div>
                 <div class=" text-end pt-2 fs-75" style="width: 75px;height: 20px">Technician</div>
                 <div class="border-b " style="width: 120px"></div>
-                <div class="border-l-t-r" style="width: 40px;height: 25px"></div>
+                <div class="border-l-t-r" style="width: 40px;height: 20px"></div>
 
             </div>
             <div class="d-flex">
                 <div class="text-end fs-8 pe-4" style="width: 880px">Name</div>
                 <div class=" " style="width: 29px"></div>
-                <div class="border-l-b-r" style="width: 40px;height: 15px"></div>
+                <div class="border-l-b-r" style="width: 40px;height: 2px"></div>
             </div>
 
         </div>
         <div class="d-flex mb-1">
             <div class="" style="width: 80px"></div>
             <img src="{{ asset('img/icons/arrow_ld.png')}}" alt="arrow"
-                 style="height: 10px;width: 60px" class="mt-2">
-            <div class="border-b fs-7" style="width: 300px; height: 18px"><strong>Cat #2 (not included in NDT & Cad Cat #1)</strong>
+                 style="height: 5px;width: 60px" class="mt-2">
+            <div class="border-b fs-7" style="width: 300px; height: 15px"><strong>Cat #2 (not included in NDT & Cad Cat #1)
+                </strong>
             </div>
         </div>
 
@@ -568,7 +579,7 @@
         @foreach($processNames as $name)
             <div class="row g-0 fs-7">
                 <div class="col-2 border-l-b ps-1">
-                    <div style="height: 18px"><strong>{{ $name->name }}</strong></div>
+                    <div style="height: 17px"><strong>{{ $name->name }}</strong></div>
                 </div>
                 <div class="col-10">
                     <div class="row g-0">
@@ -630,7 +641,22 @@
 
             </div>
         </div>
+        <div class="parent mt-1">
+            <div class="div2 text-end pe-4 mt-2" style="height: 24px">Quality Assurance Acceptance</div>
+            <div class="div3 border-all text-center  fs-9" style="width: 60px; align-content: center; height: 50px; color: grey">Q
+                .A.
+                STAMP</div>
+            <div class="div4 border-t-r-b mt-2 ps-1" style="height: 24px; color: grey">Data</div>
+            {{--        <div class="div5">5</div>--}}
+        </div>
     </div>
+
+
+
+
+
+
+
 
     <footer >
         <div class="row" style="width: 100%; padding: 5px 5px;">

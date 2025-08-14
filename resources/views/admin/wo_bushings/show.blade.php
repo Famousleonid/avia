@@ -185,7 +185,8 @@
                                             }
                                         @endphp
                                         @if($machiningProcessName && $hasMachiningData)
-                                            <a href="{{ route('wo_bushings.processesForm', ['id' => $woBushing->id, 'processNameId' => $machiningProcessName->id]) }}" target="_blank" class="btn btn-sm btn-outline-primary mt-1">Form</a>
+                                            <a href="{{ route('wo_bushings.processesForm', ['id' => $woBushing->id,
+                                            'processNameId' => $machiningProcessName->id]) }}" target="_blank" class="btn btn-sm btn-outline-warning mt-1">Form</a>
                                         @else
                                             <span class="text-muted">Form</span>
                                         @endif
@@ -210,7 +211,8 @@
                                             }
                                         @endphp
                                         @if($ndtProcessName && $hasNdtData)
-                                            <a href="{{ route('wo_bushings.processesForm', ['id' => $woBushing->id, 'processNameId' => $ndtProcessName->id]) }}" target="_blank" class="btn btn-sm btn-outline-primary mt-1">Form</a>
+                                            <a href="{{ route('wo_bushings.processesForm', ['id' => $woBushing->id,
+                                            'processNameId' => $ndtProcessName->id]) }}" target="_blank" class="btn btn-sm btn-outline-warning mt-1">Form</a>
                                         @else
                                             <span class="text-muted">Form</span>
                                         @endif
@@ -235,7 +237,8 @@
                                             }
                                         @endphp
                                         @if($passivationProcessName && $hasPassivationData)
-                                            <a href="{{ route('wo_bushings.processesForm', ['id' => $woBushing->id, 'processNameId' => $passivationProcessName->id]) }}" target="_blank" class="btn btn-sm btn-outline-primary mt-1">Form</a>
+                                            <a href="{{ route('wo_bushings.processesForm', ['id' => $woBushing->id,
+                                            'processNameId' => $passivationProcessName->id]) }}" target="_blank" class="btn btn-sm btn-outline-warning mt-1">Form</a>
                                         @else
                                             <span class="text-muted">Form</span>
                                         @endif
@@ -260,7 +263,8 @@
                                             }
                                         @endphp
                                         @if($cadProcessName && $hasCadData)
-                                            <a href="{{ route('wo_bushings.processesForm', ['id' => $woBushing->id, 'processNameId' => $cadProcessName->id]) }}" target="_blank" class="btn btn-sm btn-outline-primary mt-1">Form</a>
+                                            <a href="{{ route('wo_bushings.processesForm', ['id' => $woBushing->id,
+                                            'processNameId' => $cadProcessName->id]) }}" target="_blank" class="btn btn-sm btn-outline-warning mt-1">Form</a>
                                         @else
                                             <span class="text-muted">Form</span>
                                         @endif
@@ -285,7 +289,8 @@
                                             }
                                         @endphp
                                         @if($xylanProcessName && $hasXylanData)
-                                            <a href="{{ route('wo_bushings.processesForm', ['id' => $woBushing->id, 'processNameId' => $xylanProcessName->id]) }}" target="_blank" class="btn btn-sm btn-outline-primary mt-1">Form</a>
+                                            <a href="{{ route('wo_bushings.processesForm', ['id' => $woBushing->id,
+                                            'processNameId' => $xylanProcessName->id]) }}" target="_blank" class="btn btn-sm btn-outline-warning mt-1">Form</a>
                                         @else
                                             <span class="text-muted">Form</span>
                                         @endif
