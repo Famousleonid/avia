@@ -214,6 +214,9 @@
         .fs-8 {
             font-size: 0.8rem; /* или любое другое подходящее значение */
         }
+        .fs-6 {
+            font-size: 0.6rem; /* или любое другое подходящее значение */
+        }
         .fs-4 {
             font-size: 0.4rem; /* или любое другое подходящее значение */
         }
@@ -242,7 +245,7 @@
 
         .parent {
             display: grid;
-            grid-template-columns: 518px 60px 155px ;
+            grid-template-columns: 525px 45px 170px ;
             /*grid-template-columns: repeat(12, 1fr);*/
             /*grid-template-rows: repeat(3, 1fr);*/
             gap: 0px;
@@ -308,21 +311,22 @@
                 <div class="border-all text-center pt-0 fs-75" style="width: 25px;height: 20px">
                     {{ empty($ndtSums['fpi']) ? 'N/A' : $ndtSums['fpi'] }}</div>
                 <div class=" text-center fs-8" style="width: 20px;height: 20px"></div>
-                <div class="border-l-t-b ps-2 fs-8 " style="width: 100px;height: 18px; color: lightgray; font-style: italic" >RO
+                <div class="border-l-t-b ps-2 fs-8 " style="width: 100px;height: 20px; color: lightgray; font-style:
+                italic" >RO
                     No.</div>
-                <div class="border-all text-center pt-0 fs-75" style="width: 25px;height: 18px">
+                <div class="border-all text-center pt-0 fs-75" style="width: 25px;height: 20px">
                     {{ empty($cadSum['total_qty']) ? 'N/A' : $cadSum['total_qty']  }}
                 </div>
-                <div class=" text-center fs-8" style="width: 305px;height: 20px"></div>
-                <div class=" text-end pt-2 fs-75" style="width: 75px;height: 20px">Technician</div>
+                <div class=" text-center fs-7" style="width: 305px;height: 20px"></div>
+                <div class=" text-end pt-2 fs-8" style="width: 75px;height: 10px">Technician</div>
                 <div class="border-b " style="width: 120px"></div>
-                <div class="border-l-t-r" style="width: 40px;height: 20px"></div>
+                <div class="border-l-t-r" style="width: 40px;height: 28px"></div>
 
             </div>
             <div class="d-flex">
-                <div class="text-end fs-8 pe-4" style="width: 880px">Name</div>
+                <div class="text-end fs-7 pe-4" style="width: 880px; height: 15px">Name</div>
                 <div class=" " style="width: 29px"></div>
-                <div class="border-l-b-r" style="width: 40px;height: 2px"></div>
+                <div class="border-l-b-r" style="width: 40px;height: 12px"></div>
             </div>
 
         </div>
@@ -623,30 +627,29 @@
             </div>
         @endforeach
 
-        <div class="row g-0 fs-7">
-            <div class="col-2 border-l-b ps-1">
-                <div style="height: 18px"><strong></strong></div>
-            </div>
-            <div class="col-10">
-                <div class="row g-0">
-                    @php $componentIndex = 0; @endphp
-                    @for($i = 0; $i < 6; $i++)
-                        <div class="col {{ $i < 5 ? 'border-l-b' : 'border-l-b-r'}} text-center" style="height: 20px">
+{{--        <div class="row g-0 fs-7">--}}
+{{--            <div class="col-2 border-l-b ps-1">--}}
+{{--                <div style="height: 18px"><strong></strong></div>--}}
+{{--            </div>--}}
+{{--            <div class="col-10">--}}
+{{--                <div class="row g-0">--}}
+{{--                    @php $componentIndex = 0; @endphp--}}
+{{--                    @for($i = 0; $i < 6; $i++)--}}
+{{--                        <div class="col {{ $i < 5 ? 'border-l-b' : 'border-l-b-r'}} text-center" style="height: 20px">--}}
 
-                            <div class="border-r" style="height: 20px; width: 30px"></div>
+{{--                            <div class="border-r" style="height: 20px; width: 30px"></div>--}}
 
-                        </div>
-                    @endfor
-                </div>
+{{--                        </div>--}}
+{{--                    @endfor--}}
+{{--                </div>--}}
 
-            </div>
-        </div>
+{{--            </div>--}}
+{{--        </div>--}}
         <div class="parent mt-1">
             <div class="div2 text-end pe-4 mt-2" style="height: 24px">Quality Assurance Acceptance</div>
-            <div class="div3 border-all text-center  fs-9" style="width: 60px; align-content: center; height: 50px; color: grey">Q
-                .A.
-                STAMP</div>
-            <div class="div4 border-t-r-b mt-2 ps-1" style="height: 24px; color: grey">Data</div>
+            <div class="div3 border-all text-center  fs-75" style="width: 45px; align-content: center; height: 42px;
+            color: grey">Q.A. STAMP</div>
+            <div class="div4 border-t-r-b fs-75 mt-2 ps-2 pt-1" style="height: 24px; color: grey">Data</div>
             {{--        <div class="div5">5</div>--}}
         </div>
     </div>
