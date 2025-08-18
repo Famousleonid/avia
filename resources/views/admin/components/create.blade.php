@@ -3,7 +3,7 @@
 @section('content')
     <style>
         .container {
-            max-width: 650px;
+            max-width: 750px;
         }
 
         /* ----------------------------------- Select 2 Dark Theme -------------------------------------*/
@@ -72,16 +72,18 @@
                 <form id="createForm" class="createForm" role="form" method="POST" action="{{route('components.store')
                 }}" enctype="multipart/form-data" id="createComponentForm">
                     @csrf
+                    <input type="hidden" name="redirect" value="{{ old('redirect', request('redirect', route('components.index'))) }}">
 
                     <div class="">
                         <div class=" form-group mb-3">
                             <label for="manual_id" class="form-label">CMM</label>
                             <select name="manual_id" id="manual_id" class="form-control">
-                                <option disabled selected value="">---</option>
+                                <option disabled value="" {{ old('manual_id', request('manual_id')) ? '' : 'selected' }}>---</option>
                                 @foreach($manuals as $manual)
                                     <option
                                         value="{{ $manual->id }}"
-                                            data-title="{{$manual->title}}">
+                                            data-title="{{$manual->title}}"
+                                            {{ (string)old('manual_id', request('manual_id')) === (string)$manual->id ? 'selected' : '' }}>
                                         {{$manual->number}}
                                         ( {{ $manual->title }} -
                                         {{$manual->unit_name_training}} )
@@ -143,44 +145,43 @@
                             </div>
                         </div>
 
-                        <!-- Bush IPL Number field - показывается только когда Is Bush отмечен -->
-                        <div class="form-group mt-3" id="bush_ipl_container" style="display: none;">
-                            <label for="bush_ipl_num">{{ __('Initial Bushing IPL Number') }}</label>
-                            <input id='bush_ipl_num' type="text" class="form-control" name="bush_ipl_num"
-                                   pattern="^\d+-\d+[A-Za-z]?$"
-                                   title="The format should be: number-number (for example: 1-200A, 1001-100, 5-398B)">
-                        </div>
+
 
                     </div>
-                    <div class="justify-content-between d-flex">
-                        <div class="form-check">
+                    <div class="d-flex">
+                        <div class="form-check ms-1 ">
                             <input class="form-check-input" type="checkbox"  id="log_card" name="log_card">
                             <label class="form-check-label" for="log_card">
                                 Log Card
                             </label>
                         </div>
-                        <div class="form-check">
+                        <div class="form-check ms-3">
                             <input class="form-check-input" type="checkbox"  id="repair" name="repair">
                             <label class="form-check-label" for="repair">
                                 Repair
                             </label>
                         </div>
-                        <div class="form-check">
+                        <div class="form-check ms-3">
                             <input class="form-check-input" type="checkbox"  id="is_bush" name="is_bush" onchange="toggleBushIPL()">
                             <label class="form-check-label" for="is_bush">
                                 Is Bush
                             </label>
                         </div>
-
-                        <div class="text-end">
-
-                            <button type="submit" class="btn btn-outline-primary
-                        mt-3 ">{{ __('Save') }}</button>
-                            <a href="{{ route('components.index') }}"
-                               class="btn btn-outline-secondary mt-3">{{ __('Cancel') }} </a>
+                        <!-- Bush IPL Number field - показывается только когда Is Bush отмечен -->
+                        <div class="form-group ms-3" id="bush_ipl_container" style="display: none;">
+                            <div class="d-flex">
+                                <label for="bush_ipl_num">{{ __('Initial Bushing IPL Number') }}</label>
+                                <input id='bush_ipl_num' type="text" class="form-control" name="bush_ipl_num"
+                                       pattern="^\d+-\d+[A-Za-z]?$"
+                                       title="The format should be: number-number (for example: 1-200A, 1001-100, 5-398B)">
+                            </div>
                         </div>
                     </div>
-
+                    <div class="text-end">
+                        <button type="submit" class="btn btn-outline-primary mt-3 ">{{ __('Save') }}</button>
+                        <a href="{{ old('redirect', request('redirect', route('components.index'))) }}"
+                           class="btn btn-outline-secondary mt-3">{{ __('Cancel') }} </a>
+                    </div>
                 </form>
             </div>
         </div>

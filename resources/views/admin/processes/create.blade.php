@@ -20,9 +20,9 @@
                     <input type="hidden" name="manual_id" value="{{ $manual->id }}">
                     <input type="hidden" name="return_to" value="{{ request()->query('return_to', '') }}">
                     <!-- Debug info -->
-                    <div class="text-muted small">
-                        Return to: {{ request()->query('return_to', 'Not set') }}
-                    </div>
+{{--                    <div class="text-muted small">--}}
+{{--                        Return to: {{ request()->query('return_to', 'Not set') }}--}}
+{{--                    </div>--}}
 
                     <div class="form-group d-flex">
                         <div class="form-group ">
@@ -133,7 +133,7 @@
             const processList = document.getElementById('process-list'); // Список доступных процессов
             const exProcessList = document.getElementById('ex_process-list'); // Список существующих процессов
             const manualId = document.querySelector('input[name="manual_id"]').value; // Получаем manual_id из скрытого поля
-            
+
             console.log('Manual ID loaded:', manualId); // Добавляем для отладки
 
             if (processNameSelect && processList && exProcessList) {

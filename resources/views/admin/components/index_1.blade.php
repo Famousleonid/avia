@@ -88,7 +88,7 @@
     <div class="card shadow">
         <div class="card-header my-1 shadow">
             <div class="d-flex justify-content-between">
-                <h5 class="text-primary manage-header">{{__('Manuals')}}( <span class="text-success">{{$manuals->count()}}
+                <h5 class="text-primary manage-header">{{__('Manage Components')}}( <span class="text-success">{{$components->count()}}
                     </span>)
                 </h5>
 
@@ -110,36 +110,58 @@
                 </div>
         </div>
 
-        @if(count($manuals))
+        @if(count($components))
             <div class="table-wrapper me-3 p-2 pt-0 ">
-                <table id="manualsTable" class="display table table-sm table-hover bg-gradient table-striped
+                <table id="componentTable" class="display table table-sm table-hover bg-gradient table-striped
                 align-middle table-bordered">
                 <thead class="bg-gradient">
                 <tr>
                     <th class="text-center  sortable">{{__('Manual')}} <i class="bi bi-chevron-expand ms-1"></i></th>
-                    <th class="text-center  sortable">{{__('Title')}} <i class="bi bi-chevron-expand ms-1"></i></th>
+                    <th class="text-center  sortable">{{__('IPL Number')}} <i class="bi bi-chevron-expand ms-1"></i></th>
+                    <th class="text-center sortable ">{{__('Component')}} <i class="bi bi-chevron-expand ms-1"></i></th>
+{{--                    <th class="text-center text-primary bg-gradient ">Description</th>--}}
+                    <th class="text-center  sortable">{{__('Part number')}} <i class="bi bi-chevron-expand ms-1"></i></th>
                     <th class=" text-center " style="width: 120px">{{__('Image ')}}</th>
+                    <th class=" text-center " style="width: 120px">{{__('Assy')}}</th>
                     <th class="text-center ">Action</th>
                 </tr>
                 </thead>
                     <tbody>
-                        @foreach($manuals as $manual)
+                        @foreach($components as $component)
                             <tr>
-                                <td class="text-center">{{$manual->number}}</td>
-                                <td class="text-center">{{$manual->title}}</td>
+                                <td class="text-center">{{$component->manuals->number}}</td>
+                                <td class="text-center">{{$component->ipl_num}}</td>
+                                <td class="text-center">{{$component->name}}</td>
+                                <td class="text-center">{{$component->part_number}}</td>
                                 <td class="text-center" style="width: 120px;">
-                                    @if($manual->getMedia('manuals')->isNotEmpty())
-                                        <a href="{{ $manual->getFirstMediaBigUrl('manuals') }}" data-fancybox="gallery">
-                                            <img class="rounded-circle" src="{{ $manual->getFirstMediaThumbnailUrl('manuals') }}" width="40"
-                                                 height="40" alt="IMG"/>
-                                        </a>
-                                    @endif
+                                    <a href="{{ $component->getFirstMediaBigUrl('components') }}" data-fancybox="gallery">
+                                        <img class="rounded-circle" src="{{ $component->getFirstMediaThumbnailUrl('components') }}" width="40"
+                                             height="40" alt="IMG"/>
+                                    </a>
+
+                                </td>
+                                <td class="text-center" style="width: 120px;">
+                                    <a href="{{ $component->getFirstMediaBigUrl('assy_components') }}" data-fancybox="gallery">
+                                        <img class="rounded-circle" src="{{ $component->getFirstMediaThumbnailUrl('assy_components') }}" width="40"
+                                             height="40" alt="IMG"/>
+                                    </a>
                                 </td>
                                 <td class="text-center">
-                                    <a href="{{ route('components.show',['component' => $manual->id]) }}"
+                                    <a href="{{ route('components.edit',['component' => $component->id]) }}"
                                        class="btn btn-outline-primary btn-sm">
-                                        <i class="bi bi-eye"></i>
+                                        <i class="bi bi-pencil-square"></i>
                                     </a>
+
+
+                                    <form action="{{ route('components.destroy', $component->id) }}" method="POST" style="display:inline-block;">
+                                        @csrf
+                                        @method('DELETE')
+                                        <button type="submit" class="btn btn-outline-danger btn-sm" onclick="return confirm('Вы уверены, что хотите удалить этот компонент?');">
+                                            <i class="bi bi-trash"></i>
+                                        </button>
+                                    </form>
+
+
                                 </td>
 
                             </tr>
@@ -149,7 +171,7 @@
             </div>
 
         @else
-            <H5 CLASS="text-center">{{__('MANUALS NOT FOUND')}}</H5>
+            <H5 CLASS="text-center">{{__('COMPONENTS NOT CREATED')}}</H5>
 
         @endif
 
@@ -159,7 +181,7 @@
         <script>
 
         // Sorting
-        const table = document.getElementById('manualsTable');
+        const table = document.getElementById('componentTable');
         const headers = document.querySelectorAll('.sortable');
         headers.forEach(header => {
             header.addEventListener('click', () => {

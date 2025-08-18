@@ -115,8 +115,12 @@
                 </div>
                 <div>
                     <a href="{{ route('processes.create', ['manual' => $current_wo->unit->manual_id, 'return_to' => route('wo_bushings.edit', $woBushing->id)]) }}"
-                       class="btn btn-outline-primary me-2" style="height: 60px;width: 130px">
+                       class="btn btn-outline-primary me-2" style="height: 60px;width: 100px">
                         <i class="fas fa-cogs"></i> {{ __('Add Processes') }}
+                    </a>
+                    <a href="{{ route('components.create', ['manual_id' => $current_wo->unit->manual_id ?? null, 'redirect' => request()->fullUrl()]) }}"
+                       class="btn btn-outline-primary me-2" style="height: 60px;width: 110px">
+                        <i class="fas fa-plus"></i> {{ __('Add Component') }}
                     </a>
                 </div>
                 <div class="">
@@ -134,20 +138,20 @@
             </div>
         </div>
 
-        {{-- Success/Error Messages --}}
-        @if(session('success'))
-            <div class="alert alert-success alert-dismissible fade show mx-3 mt-3" role="alert">
-                {{ session('success') }}
-                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-            </div>
-        @endif
+{{--        --}}{{-- Success/Error Messages --}}
+{{--        @if(session('success'))--}}
+{{--            <div class="alert alert-success alert-dismissible fade show mx-3 mt-3" role="alert">--}}
+{{--                {{ session('success') }}--}}
+{{--                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>--}}
+{{--            </div>--}}
+{{--        @endif--}}
 
-        @if(session('error'))
-            <div class="alert alert-danger alert-dismissible fade show mx-3 mt-3" role="alert">
-                {{ session('error') }}
-                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-            </div>
-        @endif
+{{--        @if(session('error'))--}}
+{{--            <div class="alert alert-danger alert-dismissible fade show mx-3 mt-3" role="alert">--}}
+{{--                {{ session('error') }}--}}
+{{--                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>--}}
+{{--            </div>--}}
+{{--        @endif--}}
 
         @if($bushings->flatten()->count() > 0)
             <div class="d-flex justify-content-center mt-3">

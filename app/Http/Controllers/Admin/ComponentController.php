@@ -79,7 +79,8 @@ class ComponentController extends Controller
             $component->addMedia($request->file('assy_img'))->toMediaCollection('assy_component');
         }
 
-        return redirect()->route('components.index')->with('success', 'Component created successfully.');
+        return redirect($request->input('redirect', route('components.index')))
+            ->with('success', 'Component created successfully.');
 
     }
 
@@ -192,7 +193,13 @@ class ComponentController extends Controller
      */
     public function show($id)
     {
-        //
+        $manual = Manual::with(['components' => function ($query) {
+            $query->orderBy('ipl_num');
+        }])->findOrFail($id);
+
+        $components = $manual->components;
+
+        return view('admin.components.show', compact('manual', 'components'));
     }
 
     /**

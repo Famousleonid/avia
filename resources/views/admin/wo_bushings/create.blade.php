@@ -116,7 +116,7 @@
     </style>
 
     <div class="card-shadow">
-        <div class="card-header m-1 shadow">
+        <div class="card-header m-1 shadow ">
             <div class="d-flex justify-content-between align-items-center">
                 <div>
                     <h4 class="text-primary ms-2">{{__('Work Order: ')}} {{$current_wo->number}}</h4>
@@ -125,18 +125,18 @@
                     </div>
                 </div>
                 <div>
-                    <a href="{{ route('processes.create', ['manual' => $current_wo->unit->manual_id, 'return_to' => route('wo_bushings.create', $current_wo->id)]) }}"
-                       class="btn btn-outline-primary me-2" style="height: 60px;width: 130px">
+                    <a href="{{ route('processes.create', ['manual' => $current_wo->unit->manual_id, 'return_to' => request()->fullUrl()]) }}"
+                       class="btn btn-outline-primary me-2" style="height: 60px;width: 100px">
                         <i class="fas fa-cogs"></i> {{ __('Add Processes') }}
+                    </a>
+                    <a href="{{ route('components.create', ['manual_id' => $current_wo->unit->manual_id ?? null, 'redirect' => request()->fullUrl()]) }}"
+                       class="btn btn-outline-primary me-2" style="height: 60px;width: 110px">
+                        <i class="fas fa-plus"></i> {{ __('Add Component') }}
                     </a>
                 </div>
                 <div class="">
 
-                    <!-- Debug info -->
-{{--                    <div class="text-muted small">--}}
-{{--                        Manual ID: {{ $current_wo->unit->manual_id ?? 'Not set' }} | --}}
-{{--                        Manual: {{ $current_wo->unit->manual_id ?? 'Not set' }}--}}
-{{--                    </div>--}}
+
                     <a href="{{ route('wo_bushings.show', $current_wo->id) }}"
                        class="btn btn-outline-secondary me-2" style="height: 60px;width: 110px">
                         {{ __('Back to Bushings') }}
@@ -146,26 +146,26 @@
         </div>
 
         {{-- Success/Error Messages --}}
-        @if(session('success'))
-            <div class="alert alert-success alert-dismissible fade show mx-3 mt-3" role="alert">
-                {{ session('success') }}
-                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-            </div>
-        @endif
+{{--        @if(session('success'))--}}
+{{--            <div class="alert alert-success alert-dismissible fade show mx-3 mt-3" role="alert">--}}
+{{--                {{ session('success') }}--}}
+{{--                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>--}}
+{{--            </div>--}}
+{{--        @endif--}}
 
-        @if(session('error'))
-            <div class="alert alert-danger alert-dismissible fade show mx-3 mt-3" role="alert">
-                {{ session('error') }}
-                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-            </div>
-        @endif
+{{--        @if(session('error'))--}}
+{{--            <div class="alert alert-danger alert-dismissible fade show mx-3 mt-3" role="alert">--}}
+{{--                {{ session('error') }}--}}
+{{--                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>--}}
+{{--            </div>--}}
+{{--        @endif--}}
 
-        @if(session('warning'))
-            <div class="alert alert-warning alert-dismissible fade show mx-3 mt-3" role="alert">
-                {{ session('warning') }}
-                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-            </div>
-        @endif
+{{--        @if(session('warning'))--}}
+{{--            <div class="alert alert-warning alert-dismissible fade show mx-3 mt-3" role="alert">--}}
+{{--                {{ session('warning') }}--}}
+{{--                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>--}}
+{{--            </div>--}}
+{{--        @endif--}}
 
         @if($bushings->flatten()->count() > 0)
             <div class="d-flex justify-content-center mt-3">
@@ -174,11 +174,11 @@
                         @csrf
                         <input type="hidden" name="workorder_id" value="{{ $current_wo->id }}">
 
-                        <table class="display table shadow table-hover align-middle table-bordered bg-gradient">
-                            <thead>
-                                <tr class="header-row">
+                        <table class="display table shadow table-hover align-middle table-bordered ">
+                            <thead class="">
+                                <tr class="header-row bg-gradient">
                                     <th class="text-primary text-center">Bushings</th>
-                                    <th class="text-primary text-center">Select</th>
+                                    <th class="text-primary text-center "> Select</th>
                                     <th class="text-primary text-center">QTY</th>
                                     <th class="text-primary text-center">Machining</th>
                                     <th class="text-primary text-center">NDT</th>
@@ -284,10 +284,6 @@
                             <button type="button" class="btn btn-secondary btn-lg me-2" onclick="clearForm()">
                                 <i class="fas fa-eraser"></i> Clear All
                             </button>
-{{--                            <a href="{{ route('processes.create', ['manual' => $current_wo->unit->manual_id, 'return_to' => route('wo_bushings.create', $current_wo->id)]) }}" --}}
-{{--                               class="btn btn-outline-primary btn-lg me-2">--}}
-{{--                                <i class="fas fa-cogs"></i> Add Processes--}}
-{{--                            </a>--}}
                             <a href="{{ route('wo_bushings.show', $current_wo->id) }}" class="btn btn-outline-secondary btn-lg">
                                 <i class="fas fa-times"></i> Cancel
                             </a>
