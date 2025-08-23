@@ -82,6 +82,9 @@ Route::group(['middleware' => ['auth', 'isAdmin'], 'prefix' => 'admin'], functio
     Route::resource('/codes', CodeController::class);
     Route::resource('/necessaries', NecessaryController::class);
     Route::resource('/components', ComponentController::class);
+    Route::post('/components/upload-csv', [ComponentController::class, 'uploadCsv'])->name('components.upload-csv');
+    Route::get('/components/download-csv-template', [ComponentController::class, 'downloadCsvTemplate'])->name('components.download-csv-template');
+    // Route for viewing CSV files removed - using simple file storage instead
     Route::resource('/log_card', LogCardController::class);
     Route::resource('/process-names',ProcessNameController::class);
     Route::resource('/processes', ProcessController::class);

@@ -84,6 +84,10 @@ class Manual extends Model implements  hasMedia
     {
         $this->addMediaCollection('csv_files')
             ->acceptsMimeTypes(['text/csv', 'application/csv', 'text/plain']);
+            
+        $this->addMediaCollection('component_csv_files')
+            ->acceptsMimeTypes(['text/csv', 'application/csv', 'text/plain'])
+            ->withCustomProperties(['type' => 'components']);
     }
 
     public function getCsvFileUrl()
