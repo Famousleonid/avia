@@ -195,11 +195,14 @@ class ComponentController extends Controller
      */
     public function show($id)
     {
-        $manual = Manual::with(['components' => function ($query) {
-            $query->orderBy('ipl_num');
-        }])->findOrFail($id);
+        $manual = Manual::findOrFail($id);
 
-        $components = $manual->components;
+        // Get components with custom sorting for IPL numbers
+        $components = $manual->components()
+            ->orderByRaw("CAST(SUBSTRING_INDEX(ipl_num, '-', 1) AS UNSIGNED)")
+            ->orderByRaw("CAST(REGEXP_REPLACE(SUBSTRING_INDEX(ipl_num, '-', -1), '[^0-9]', '') AS UNSIGNED)")
+            ->orderByRaw("REGEXP_REPLACE(SUBSTRING_INDEX(ipl_num, '-', -1), '[0-9]', '')")
+            ->get();
 
         return view('admin.components.show', compact('manual', 'components'));
     }

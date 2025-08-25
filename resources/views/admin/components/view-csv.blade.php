@@ -17,13 +17,13 @@
                             <a href="{{ route('components.index') }}" class="btn btn-outline-secondary btn-sm">
                                 <i class="bi bi-arrow-left"></i> Back to Components
                             </a>
-                            <a href="{{ $csvFile->getUrl() }}" class="btn btn-outline-primary btn-sm" download>
-                                <i class="bi bi-download"></i> Download CSV
-                            </a>
+{{--                            <a href="{{ $csvFile->getUrl() }}" class="btn btn-outline-primary btn-sm" download>--}}
+{{--                                <i class="bi bi-download"></i> Download CSV--}}
+{{--                            </a>--}}
                         </div>
                     </div>
                 </div>
-                
+
                 <div class="card-body">
                     <div class="row mb-3">
                         <div class="col-md-6">
@@ -38,9 +38,9 @@
                         <div class="col-md-6">
                             <h6>CSV Summary</h6>
                             <ul class="list-unstyled">
-                                <li><strong>Total Rows:</strong> {{ count($csvData) + 1 }}</li>
+{{--                                <li><strong>Total Rows:</strong> {{ count($csvData) + 1 }}</li>--}}
                                 <li><strong>Data Rows:</strong> {{ count($csvData) }}</li>
-                                <li><strong>Columns:</strong> {{ count($headers) }}</li>
+{{--                                <li><strong>Columns:</strong> {{ count($headers) }}</li>--}}
                             </ul>
                         </div>
                     </div>
@@ -65,7 +65,8 @@
                                                             @if($row[$colIndex] == '1' || $row[$colIndex] == 'true')
                                                                 <span class="badge bg-success">Yes</span>
                                                             @else
-                                                                <span class="badge bg-secondary">No</span>
+{{--                                                                <span class="badge bg-secondary">No</span>--}}
+                                                                <span class="">No</span>
                                                             @endif
                                                         @else
                                                             {{ $row[$colIndex] ?: '-' }}

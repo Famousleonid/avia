@@ -18,29 +18,30 @@
         }
 
         .table th:nth-child(1), .table td:nth-child(1) {
-            min-width: 80px;
+            min-width: 60px;
             max-width: 90px;
         }
 
         .table th:nth-child(2), .table td:nth-child(2) {
             min-width: 50px;
-            max-width: 250px;
+            max-width: 150px;
         }
 
         .table th:nth-child(3), .table td:nth-child(3) {
             min-width: 50px;
-            max-width: 250px;
+            max-width: 150px;
         }
 
+        .table th:nth-child(4), .table td:nth-child(4) {
+            min-width: 300px;
+            /*max-width: 300px;*/
+        }
         .table th:nth-child(5), .table td:nth-child(5) {
             min-width: 50px;
             max-width: 70px;
         }
 
-        .table th:nth-child(4), .table td:nth-child(4) {
-            min-width: 150px;
-            max-width: 220px;
-        }
+
 
         .table thead th {
             position: sticky;
@@ -141,28 +142,29 @@
                                         </a>
                                     @endif
                                 </td>
-                                <td class="text-center" style="width: 100px;">
+                                <td class="text-center" style="width: 250px;">
                                     @if($manual->getMedia('component_csv_files')->isNotEmpty())
                                         @foreach($manual->getMedia('component_csv_files') as $csvFile)
-                                            <div class="mb-1">
-                                                <div class="btn-group btn-group-sm" role="group">
+                                            <div class="mb-1 d-flex">
+                                                <div class="btn-group btn-group-sm me-1" role="group">
                                                     <a href="{{ route('components.view-csv', ['manual_id' => $manual->id, 'file_id' => $csvFile->id]) }}"
                                                        class="btn btn-outline-info"
                                                        title="View {{ $csvFile->file_name }}"
                                                        target="_blank">
                                                         <i class="bi bi-file-earmark-text"></i>
                                                     </a>
-                                                    <a href="{{ $csvFile->getUrl() }}" 
-                                                       class="btn btn-outline-primary"
-                                                       title="Download {{ $csvFile->file_name }}"
-                                                       download>
-                                                        <i class="bi bi-download"></i>
-                                                    </a>
+{{--                                                    <a href="{{ $csvFile->getUrl() }}" --}}
+{{--                                                       class="btn btn-outline-primary"--}}
+{{--                                                       title="Download {{ $csvFile->file_name }}"--}}
+{{--                                                       download>--}}
+{{--                                                        <i class="bi bi-download"></i>--}}
+{{--                                                    </a>--}}
                                                 </div>
-                                                <small class="d-block text-muted">{{ Str::limit($csvFile->file_name, 15) }}</small>
-                                                <small class="d-block text-success">
-                                                    CSV uploaded
-                                                </small>
+                                             <small class="d-block text-muted pt-1">{{ Str::limit($csvFile->file_name, 30)
+                                             }}</small>
+{{--                                                <small class="d-block text-success">--}}
+{{--                                                    CSV uploaded--}}
+{{--                                                </small>--}}
                                             </div>
                                         @endforeach
                                     @else
