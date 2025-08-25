@@ -124,7 +124,7 @@
                     <th class="text-center  sortable">{{__('Manual')}} <i class="bi bi-chevron-expand ms-1"></i></th>
                     <th class="text-center  sortable">{{__('Title')}} <i class="bi bi-chevron-expand ms-1"></i></th>
                     <th class=" text-center " style="width: 120px">{{__('Image ')}}</th>
-                    <th class="text-center " style="width: 250px">{{__('CSV Upload')}}</th>
+                    <th class="text-center " style="width: 250px">{{__('Component CSV Files')}}</th>
                     <th class="text-center ">Action</th>
                 </tr>
                 </thead>
@@ -142,7 +142,32 @@
                                     @endif
                                 </td>
                                 <td class="text-center" style="width: 100px;">
-                                    <span class="text-muted small">CSV upload available</span>
+                                    @if($manual->getMedia('component_csv_files')->isNotEmpty())
+                                        @foreach($manual->getMedia('component_csv_files') as $csvFile)
+                                            <div class="mb-1">
+                                                <div class="btn-group btn-group-sm" role="group">
+                                                    <a href="{{ route('components.view-csv', ['manual_id' => $manual->id, 'file_id' => $csvFile->id]) }}"
+                                                       class="btn btn-outline-info"
+                                                       title="View {{ $csvFile->file_name }}"
+                                                       target="_blank">
+                                                        <i class="bi bi-file-earmark-text"></i>
+                                                    </a>
+                                                    <a href="{{ $csvFile->getUrl() }}" 
+                                                       class="btn btn-outline-primary"
+                                                       title="Download {{ $csvFile->file_name }}"
+                                                       download>
+                                                        <i class="bi bi-download"></i>
+                                                    </a>
+                                                </div>
+                                                <small class="d-block text-muted">{{ Str::limit($csvFile->file_name, 15) }}</small>
+                                                <small class="d-block text-success">
+                                                    CSV uploaded
+                                                </small>
+                                            </div>
+                                        @endforeach
+                                    @else
+                                        <span class="text-muted small">No CSV</span>
+                                    @endif
                                 </td>
                                 <td class="text-center">
 

@@ -314,8 +314,33 @@ class ComponentController extends Controller
             \Log::info("Received manual_id: " . $manualId);
             \Log::info("Received file: " . ($file ? $file->getClientOriginalName() : 'null'));
             
+            if (!$file) {
+                \Log::error("No CSV file received in request");
+                return response()->json([
+                    'success' => false,
+                    'message' => 'No CSV file received'
+                ], 400);
+            }
+            
+            if (!$file->isValid()) {
+                \Log::error("Invalid CSV file: " . $file->getError());
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Invalid CSV file: ' . $file->getErrorMessage()
+                ], 400);
+            }
+            
             // Find the manual
             $manual = Manual::findOrFail($manualId);
+            
+            // Check if manual has media collections
+            if (!method_exists($manual, 'addMedia')) {
+                \Log::error("Manual model does not have addMedia method - Spatie Media Library not properly configured");
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Media library not properly configured for Manual model'
+                ], 500);
+            }
             
             // Log existing components count for this manual
             $existingComponentsCount = Component::where('manual_id', $manualId)->count();
@@ -406,12 +431,19 @@ class ComponentController extends Controller
                 ], 400);
             }
             
-            // Save CSV file to storage directory
-            $fileName = 'manual_' . $manualId . '_' . time() . '_' . $file->getClientOriginalName();
-            $filePath = $file->storeAs('csv_uploads', $fileName, 'public');
-            
-            // Store file info in database (optional - you can create a separate table for this)
-            // For now, we'll just process the CSV without storing file metadata
+            // Save CSV file to component-specific media collection
+            try {
+                $uploadedCsvFile = $manual->addMedia($file)
+                    ->toMediaCollection('component_csv_files');
+                
+                \Log::info("CSV file uploaded successfully to media collection: " . ($uploadedCsvFile ? $uploadedCsvFile->id : 'null'));
+            } catch (\Exception $e) {
+                \Log::error("Failed to upload CSV to media collection: " . $e->getMessage());
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Failed to save CSV file: ' . $e->getMessage()
+                ], 500);
+            }
 
             $successCount = 0;
             $errorCount = 0;
@@ -514,13 +546,15 @@ class ComponentController extends Controller
         } catch (\Exception $e) {
             \Log::error('CSV upload error: ' . $e->getMessage());
             \Log::error('CSV upload error trace: ' . $e->getTraceAsString());
+            \Log::error('CSV upload error file: ' . $e->getFile() . ':' . $e->getLine());
             
             return response()->json([
                 'success' => false,
                 'message' => 'Error processing CSV file: ' . $e->getMessage(),
                 'debug_info' => [
                     'file' => $e->getFile(),
-                    'line' => $e->getLine()
+                    'line' => $e->getLine(),
+                    'trace' => $e->getTraceAsString()
                 ]
             ], 500);
         }
@@ -590,6 +624,42 @@ class ComponentController extends Controller
         return response()->stream($callback, 200, $headers);
     }
 
-    // Method viewCsv removed - using simple file storage instead
+    /**
+     * View CSV file content
+     *
+     * @param  int  $manual_id
+     * @param  int  $file_id
+     * @return \Illuminate\Http\Response
+     */
+    public function viewCsv($manual_id, $file_id)
+    {
+        try {
+            $manual = Manual::findOrFail($manual_id);
+            $csvFile = $manual->getMedia('component_csv_files')->find($file_id);
+            
+            if (!$csvFile) {
+                abort(404, 'CSV file not found');
+            }
+
+            // Read CSV file content
+            $filePath = $csvFile->getPath();
+            $csvContent = file_get_contents($filePath);
+            
+            // Parse CSV content for display
+            $csvData = array_map('str_getcsv', explode("\n", $csvContent));
+            $headers = array_shift($csvData); // Remove header row
+            
+            // Filter out empty rows
+            $csvData = array_filter($csvData, function($row) {
+                return !empty(array_filter($row, 'strlen'));
+            });
+
+            return view('admin.components.view-csv', compact('manual', 'csvFile', 'headers', 'csvData'));
+
+        } catch (\Exception $e) {
+            \Log::error('CSV view error: ' . $e->getMessage());
+            abort(500, 'Error viewing CSV file');
+        }
+    }
 
 }
