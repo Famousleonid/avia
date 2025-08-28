@@ -121,7 +121,7 @@
                         <th class="text-primary  sortable bg-gradient text-center">{{__('Units Description')}}<i class="bi bi-chevron-expand ms-1"></i></th>
                         <th class="text-primary  sortable bg-gradient text-center">{{__('Units PN')}}<i class="bi bi-chevron-expand
                         ms-1"></i></th>
-                        <th class="text-primary text-center bg-gradient text-center">{{__('EFF Code')}}</th>
+{{--                        <th class="text-primary text-center bg-gradient text-center">{{__('EFF Code')}}</th>--}}
                         <th class="text-primary text-center bg-gradient text-center">{{__('CMM Unit ')}}</th>
                         <th class="text-primary text-center bg-gradient text-center">{{__('Image')}}</th>
                         <th class="text-primary text-center bg-gradient text-center">{{__('Edit')}}</th>
@@ -153,20 +153,20 @@
                                     @endforeach
                                 </select>
                             </td>
-                            <td class="text-center">
-                                @if ($units->isNotEmpty() && $units->first()->manuals)
-                                    @php
-                                        $effCodes = $units->pluck('eff_code')->filter()->unique()->values();
-                                    @endphp
-                                    @if($effCodes->isNotEmpty())
-                                        {{ $effCodes->implode(', ') }}
-                                    @else
-                                        <span class="text-muted">-</span>
-                                    @endif
-                                @else
-                                    <span>No data on CMM</span>
-                                @endif
-                            </td>
+{{--                            <td class="text-center">--}}
+{{--                                @if ($units->isNotEmpty() && $units->first()->manuals)--}}
+{{--                                    @php--}}
+{{--                                        $effCodes = $units->pluck('eff_code')->filter()->unique()->values();--}}
+{{--                                    @endphp--}}
+{{--                                    @if($effCodes->isNotEmpty())--}}
+{{--                                        {{ $effCodes->implode(', ') }}--}}
+{{--                                    @else--}}
+{{--                                        <span class="text-muted">-</span>--}}
+{{--                                    @endif--}}
+{{--                                @else--}}
+{{--                                    <span>No data on CMM</span>--}}
+{{--                                @endif--}}
+{{--                            </td>--}}
                             <td class="text-center">
                                 @if ($units->isNotEmpty() && $units->first()->manuals)
 
@@ -459,7 +459,7 @@
             pnInputs.forEach(field => {
                 const pnInput = field.querySelector('input[name="pn[]"]');
                 const effCodeInput = field.querySelector('input[name="eff_code[]"]');
-                
+
                 if (pnInput && pnInput.value.trim()) {
                     unitData.push({
                         part_number: pnInput.value.trim(),
@@ -641,14 +641,14 @@
             const partNumbers = Array.from(listItems).map((listItem, index) => {
                 const inputs = listItem.querySelectorAll('.form-control');
                 const checkbox = listItem.querySelector('.form-check-input');
-                
+
                 console.log(`Item ${index}:`, {
                     inputs: inputs.length,
                     checkbox: checkbox ? checkbox.checked : 'not found',
                     partNumber: inputs[0] ? inputs[0].value : 'not found',
                     effCode: inputs[1] ? inputs[1].value : 'not found'
                 });
-                
+
                 return {
                     part_number: inputs[0] ? inputs[0].value : '',
                     eff_code: inputs[1] ? inputs[1].value : '',
@@ -698,11 +698,11 @@
                 .then(response => {
                     console.log("Response status:", response.status);
                     console.log("Response headers:", response.headers);
-                    
+
                     if (!response.ok) {
                         throw new Error(`HTTP error! status: ${response.status}`);
                     }
-                    
+
                     return response.json();
                 })
                 .then(data => {
