@@ -95,6 +95,7 @@ class MobileController extends Controller
             'workorder_id' => 'required|exists:workorders,id',
             'ipl_num' => 'required|string|max:255',
             'part_number' => 'required|string|max:255',
+            'eff_code' => 'nullable|string|max:100',
             'photo' => 'image|max:5120',
             'name' => 'required|string|max:255',
         ]);
@@ -110,6 +111,7 @@ class MobileController extends Controller
         $component->manual_id = $manualId;
         $component->ipl_num = $validated['ipl_num'];
         $component->part_number = $validated['part_number'];
+        $component->eff_code = $validated['eff_code'];
         $component->name = $validated['name'];
         $component->save();
 

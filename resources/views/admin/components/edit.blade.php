@@ -135,6 +135,13 @@
                                                value="{{$current_component->part_number}}"
                                                required>
                                     </div>
+                                    <div class="mt-3">
+                                        <label for="eff_code">{{ __('EFF Code') }}</label>
+                                        <input id='eff_code' type="text"
+                                               class="form-control mt-2"
+                                               name="eff_code" placeholder="Enter EFF code (optional)"
+                                               value="{{$current_component->eff_code}}">
+                                    </div>
 
                                 </div>
 

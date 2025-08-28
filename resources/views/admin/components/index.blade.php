@@ -175,7 +175,8 @@
 
                                     <a href="{{ route('components.show',['component' => $manual->id]) }}"
                                        class="btn btn-outline-primary btn-sm">
-                                        <i class="bi bi-eye"></i>
+{{--                                        <i class="bi bi-eye"></i>--}}
+                                        <i class="bi bi-bar-chart-steps"></i>
                                     </a>
 
                                     <button type="button" class="btn btn-outline-success btn-sm ms-1"

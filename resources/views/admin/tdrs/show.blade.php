@@ -182,9 +182,9 @@
                         @endif
                             <div class="me-2">
                                 <a href="{{route('extra_processes.show_all',['id'=>$current_wo->id])}}"
-                                   class="btn  btn-outline-primary " style="height: 60px;width: 140px" onclick="showLoadingSpinner
+                                   class="btn  btn-outline-primary " style="height: 60px;width: 180px" onclick="showLoadingSpinner
                                        ()">
-                                    {{__('Component Extra Processes')}}
+                                    {{__('Extra Component Processes')}}
                                 </a>
                             </div>
                             <div>
@@ -242,7 +242,7 @@
 
                             {{--                                @endif--}}
                             {{--                            </div>--}}
-                            <div class=" d-flex " style=" height: 40px; width: 550px">
+                            <div class=" d-flex " style=" height: 40px; width: 350px">
                                 @if(count($tdrs))
 
                                     <a href="{{ route('tdrs.tdrForm', ['id'=> $current_wo->id]) }}"
@@ -541,7 +541,7 @@
                                         table-hover table-striped align-middle table-bordered bg-gradient">
                                 <thead>
                                 <tr>
-                                    <th class=" text-primary text-center  " style="width: 400px;">{{__('Teardown
+                                    <th class=" text-primary text-center  " style="width: 300px;">{{__('Teardown
                                     Inspection')
                                     }}</th>
                                     <th class=" text-primary text-center " style="width: 150px;">

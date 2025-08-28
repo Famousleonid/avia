@@ -161,12 +161,58 @@
                             <input type="text" name="part_number" id="part_number" class="form-control" required>
                         </div>
                         <div class="mb-3">
+                            <label for="eff_code" class="form-label">EFF Code</label>
+                            <input type="text" name="eff_code" id="eff_code" class="form-control" placeholder="Enter EFF code (optional)">
+                        </div>
+                        <div class="mb-3">
                             <label for="name" class="form-label">Component Name</label>
                             <input type="text" name="name" id="name" class="form-control" required>
                         </div>
                         <div class="mb-3">
+                            <label for="assy_ipl_num" class="form-label">Assembly IPL Number</label>
+                            <input type="text" name="assy_ipl_num" id="assy_ipl_num" class="form-control" placeholder="Enter assembly IPL number (optional)">
+                        </div>
+                        <div class="mb-3">
+                            <label for="assy_img" class="form-label">Assembly Image</label>
+                            <input type="file" name="assy_img" accept="image/*" capture="environment" class="form-control">
+                        </div>
+                        <div class="mb-3">
+                            <label for="assy_part_number" class="form-label">Assembly Part Number</label>
+                            <input type="text" name="assy_part_number" id="assy_part_number" class="form-control" placeholder="Enter assembly part number (optional)">
+                        </div>
+                        <div class="mb-3">
                             <label for="photo" class="form-label">Component Photo</label>
                             <input type="file" name="photo" accept="image/*" capture="environment" class="form-control" required>
+                        </div>
+                        <div class="d-flex justify-content-between">
+                            <div class="d-flex">
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" id="log_card" name="log_card">
+                                    <label class="form-check-label" for="log_card">
+                                        Log Card
+                                    </label>
+                                </div>
+                                <div class="form-check ms-3">
+                                    <input class="form-check-input" type="checkbox" id="repair" name="repair">
+                                    <label class="form-check-label" for="repair">
+                                        Repair
+                                    </label>
+                                </div>
+                                <div class="form-check ms-3">
+                                    <input class="form-check-input" type="checkbox" id="is_bush" name="is_bush" onchange="toggleBushIPL()">
+                                    <label class="form-check-label" for="is_bush">
+                                        Is Bush
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Bush IPL Number field - показывается только когда Is Bush отмечен -->
+                        <div class="form-group mb-3" id="bush_ipl_container" style="display: none;">
+                            <label for="bush_ipl_num" class="form-label">Initial Bushing IPL Number</label>
+                            <input id='bush_ipl_num' type="text" class="form-control" name="bush_ipl_num"
+                                   pattern="^\d+-\d+[A-Za-z]?$"
+                                   title="The format should be: number-number (for example: 1-200A, 1001-100, 5-398B)">
                         </div>
                     </div>
 
@@ -241,6 +287,22 @@
         form.addEventListener('submit', function () {
             showLoadingSpinner();
         });
+
+        // Функция для показа/скрытия поля Bush IPL Number
+        function toggleBushIPL() {
+            const isBushCheckbox = document.getElementById('is_bush');
+            const bushIPLContainer = document.getElementById('bush_ipl_container');
+            const bushIPLInput = document.getElementById('bush_ipl_num');
+
+            if (isBushCheckbox.checked) {
+                bushIPLContainer.style.display = 'block';
+                bushIPLInput.required = true;
+            } else {
+                bushIPLContainer.style.display = 'none';
+                bushIPLInput.required = false;
+                bushIPLInput.value = ''; // Очищаем поле при скрытии
+            }
+        }
 
     </script>
 @endsection

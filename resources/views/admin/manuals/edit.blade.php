@@ -3,7 +3,7 @@
 @section('content')
     <style>
         .container {
-            max-width: 750px;
+            max-width: 1200px;
         }
     </style>
 
@@ -164,6 +164,32 @@
                                        value="{{ old('lib', $cmm->lib) }}" required>
                             </div>
 
+                        </div>
+
+                        <div class="mt-3" style="width: 350px">
+                            <label for="units">{{ __('Units') }}</label>
+                            <div id="unitInputs" class="">
+                                @if($cmm->units && $cmm->units->count() > 0)
+                                    @foreach($cmm->units as $unit)
+                                        <div class="input-group mb-2 d-flex unit-field">
+                                            <input type="text" class="form-control" placeholder="Enter Unit PN" style="width: 130px"
+                                                   name="units[]" value="{{ $unit->part_number }}" required>
+                                            <input type="text" class="form-control" placeholder="Enter EFF Code" style="width: 130px"
+                                                   name="eff_codes[]" value="{{ $unit->eff_code }}">
+                                            <button class="btn btn-outline-danger removeUnitField" type="button">Remove</button>
+                                        </div>
+                                    @endforeach
+                                @else
+                                    <div class="input-group mb-2 unit-field">
+                                        <input type="text" class="form-control" placeholder="Enter Unit PN" style="width: 130px"
+                                               name="units[]" required>
+                                        <input type="text" class="form-control" placeholder="Enter EFF Code" style="width: 130px"
+                                               name="eff_codes[]">
+                                        <button class="btn btn-outline-danger removeUnitField" type="button">Remove</button>
+                                    </div>
+                                @endif
+                                <button class="btn btn-outline-primary" type="button" id="addUnitField">Add Unit</button>
+                            </div>
                         </div>
 
                     </div>
@@ -346,6 +372,18 @@
                 e.preventDefault();
                 return false;
             }
+            
+            // Удаляем пустые поля units перед отправкой
+            const unitFields = document.querySelectorAll('.unit-field');
+            unitFields.forEach(function(field) {
+                const partNumberInput = field.querySelector('input[name="units[]"]');
+                const effCodeInput = field.querySelector('input[name="eff_codes[]"]');
+                
+                if (partNumberInput && partNumberInput.value.trim() === '') {
+                    // Если part_number пустой, удаляем весь блок
+                    field.remove();
+                }
+            });
         });
 
         // Функция для обработки загрузки файлов
@@ -422,5 +460,25 @@
 
         // Добавляем обработчик события для input файла
         document.querySelector('input[name="csv_files[]"]').addEventListener('change', handleFileUpload);
+
+        // Функциональность для управления полями units
+        document.addEventListener('DOMContentLoaded', function () {
+            document.getElementById('addUnitField').addEventListener('click', function () {
+                const newUnitField = document.createElement('div');
+                newUnitField.className = 'input-group mb-2 unit-field';
+                newUnitField.innerHTML = `
+                    <input type="text" class="form-control" placeholder="Enter Unit Part Number" style="width: 130px" name="units[]" required>
+                    <input type="text" class="form-control" placeholder="Enter EFF Code" style="width: 130px" name="eff_codes[]">
+                    <button class="btn btn-outline-danger removeUnitField" type="button">Remove</button>
+                `;
+                document.getElementById('unitInputs').appendChild(newUnitField);
+            });
+
+            document.getElementById('unitInputs').addEventListener('click', function (event) {
+                if (event.target.classList.contains('removeUnitField')) {
+                    event.target.parentElement.remove();
+                }
+            });
+        });
     </script>
 @endsection

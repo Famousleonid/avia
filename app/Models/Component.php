@@ -17,6 +17,7 @@ class Component extends Model implements  hasMedia
         'name',
         'ipl_num',
         'assy_ipl_num',
+        'eff_code',
         'log_card',
         'repair',
         'manual_id',

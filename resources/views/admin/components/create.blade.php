@@ -120,6 +120,11 @@
                                         <input id='part_number' type="text" class="form-control"
                                                name="part_number" required>
                                     </div>
+                                    <div class="mt-2">
+                                        <label for="eff_code">{{ __('EFF Code') }}</label>
+                                        <input id='eff_code' type="text" class="form-control"
+                                               name="eff_code" placeholder="Enter EFF code (optional)">
+                                    </div>
 
                                 </div>
 

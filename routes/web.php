@@ -76,16 +76,21 @@ Route::group(['middleware' => ['auth', 'isAdmin'], 'prefix' => 'admin'], functio
     Route::resource('/tdrs', TdrController::class);
     Route::resource('/workorders', WorkorderController::class);
     Route::resource('/manuals', ManualController::class);
-    Route::resource('/units', UnitController::class);
+
+    Route::resource('/units', UnitController::class)->except(['update']);
+    Route::post('/units/{manualId}', [UnitController::class, 'update'])->name('units.update');
+
     Route::resource('/builders', BuilderController::class);
     Route::resource('/categories', CategoryController::class);
     Route::resource('/codes', CodeController::class);
     Route::resource('/necessaries', NecessaryController::class);
     Route::resource('/components', ComponentController::class);
+
     Route::post('/components/upload-csv', [ComponentController::class, 'uploadCsv'])->name('components.upload-csv');
     Route::get('/components/download-csv-template', [ComponentController::class, 'downloadCsvTemplate'])->name('components.download-csv-template');
     Route::get('/components/view-csv/{manual_id}/{file_id}', [ComponentController::class, 'viewCsv'])->name('components.view-csv');
     Route::resource('/log_card', LogCardController::class);
+
     Route::resource('/process-names',ProcessNameController::class);
     Route::resource('/processes', ProcessController::class);
     Route::get('/get-processes', [ProcessController::class, 'getProcesses'])->name('processes.getProcesses');
@@ -144,7 +149,7 @@ Route::group(['middleware' => ['auth', 'isAdmin'], 'prefix' => 'admin'], functio
 
     // WoBushings processesForm route
     Route::get('wo_bushings/processesForm/{id}/{processNameId}', [WoBushingController::class, 'processesForm'])->name('wo_bushings.processesForm');
-    
+
     // WoBushings specProcessForm route
     Route::get('wo_bushings/specProcessForm/{id}', [WoBushingController::class, 'specProcessForm'])->name('wo_bushings.specProcessForm');
     Route::get('tdrs/{workorder_id}/ndt-std', [TdrController::class, 'ndtStd'])->name('tdrs.ndtStd');

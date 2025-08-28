@@ -155,7 +155,7 @@
                                 <tr>
                                     <td class="text-center">{{ $extra_component->component ? $extra_component->component->ipl_num : 'N/A' }}</td>
                                     <td class="text-center">{{ $extra_component->component ? $extra_component->component->name : 'N/A' }}</td>
-                                    <td class="ps-2">
+                                    <td class="ps-2 ">
                                         @if($extra_component->processes)
                                             @if(is_array($extra_component->processes) && array_keys($extra_component->processes) !== range(0, count($extra_component->processes) - 1))
                                                 {{-- Старая структура: ассоциативный массив --}}
@@ -165,7 +165,7 @@
                                                         $process = \App\Models\Process::find($processId);
                                                     @endphp
                                                     @if($processName && $process)
-                                                        <div class="mb-2">
+                                                        <div class="mb-2  d-flex">
                                                             <strong>{{ $processName->name }}:</strong><br>
                                                             <span class="badge bg-primary me-1">{{ $process->process }}</span>
                                                         </div>
@@ -179,9 +179,10 @@
                                                         $process = \App\Models\Process::find($processItem['process_id']);
                                                     @endphp
                                                     @if($processName && $process)
-                                                        <div class="mb-2">
+                                                        <div class="mb-2  d-flex">
                                                             <strong>{{ $processName->name }}:</strong><br>
-                                                            <span class="badge bg-primary me-1">{{ $process->process }}</span>
+                                                            <span class="badge bg-gradient ms-2">{{ $process->process
+                                                            }}</span>
                                                         </div>
                                                     @endif
                                                 @endforeach

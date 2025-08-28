@@ -12,6 +12,7 @@ class Unit extends Model
     protected $fillable = [
         'part_number',
         'verified',
+        'eff_code',
         'manual_id',
     ];
 
