@@ -134,16 +134,18 @@
                                                name="part_number"
                                                value="{{$current_component->part_number}}"
                                                required>
-                                    </div>
-                                    <div class="mt-3">
-                                        <label for="eff_code">{{ __('EFF Code') }}</label>
-                                        <input id='eff_code' type="text"
-                                               class="form-control mt-2"
-                                               name="eff_code" placeholder="Enter EFF code (optional)"
-                                               value="{{$current_component->eff_code}}">
-                                    </div>
+                                    </div >
 
-                                </div>
+                                        <div class="mt-3">
+                                            <label for="eff_code">{{ __('EFF Code') }}</label>
+                                            <input id='eff_code' type="text"
+                                                   class="form-control mt-2"
+                                                   name="eff_code" placeholder="Enter EFF code (optional)"
+                                                   value="{{$current_component->eff_code}}">
+                                        </div>
+
+
+                                    </div>
 
                                 <div class="m-3">
                                     <div class="">
@@ -158,6 +160,7 @@
 
 
                                     </div>
+
                                     <div class="col-xs-12 col-sm-12 col-md-12 mt-2">
                                         <div class="form-group mt-3">
                                             <strong>{{__(' Assy Image:')}}</strong>
@@ -181,12 +184,19 @@
                                                name="assy_part_number"
                                                value="{{$current_component->assy_part_number}}">
                                     </div>
+                                    <div class="mt-3">
+                                        <label for="units_assy">{{ __('Units per Assy') }}</label>
+                                        <input id='units_assy' type="text"
+                                               class="form-control mt-2"
+                                               name="units_assy" placeholder="Enter units per assembly"
+                                               value="{{$current_component->units_assy}}">
+                                    </div>
                                 </div>
                             </div>
                         </div>
 
                         <!-- Bush IPL Number field - показывается только когда Is Bush отмечен -->
-                        <div class="form-group mt-3" id="bush_ipl_container" 
+                        <div class="form-group mt-3" id="bush_ipl_container"
                              style="display: {{ $current_component->is_bush ? 'block' : 'none' }};">
                             <label for="bush_ipl_num">{{ __('Initial Bushing IPL Number') }}</label>
                             <input id='bush_ipl_num' type="text" class="form-control" name="bush_ipl_num"
@@ -271,7 +281,7 @@
             const isBushCheckbox = document.getElementById('is_bush');
             const bushIPLContainer = document.getElementById('bush_ipl_container');
             const bushIPLInput = document.getElementById('bush_ipl_num');
-            
+
             if (isBushCheckbox.checked) {
                 bushIPLContainer.style.display = 'block';
                 bushIPLInput.required = true;

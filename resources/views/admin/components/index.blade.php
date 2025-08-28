@@ -149,8 +149,7 @@
                                                 <div class="btn-group btn-group-sm me-1" role="group">
                                                     <a href="{{ route('components.view-csv', ['manual_id' => $manual->id, 'file_id' => $csvFile->id]) }}"
                                                        class="btn btn-outline-info"
-                                                       title="View {{ $csvFile->file_name }}"
-                                                       target="_blank">
+                                                       title="View {{ $csvFile->file_name }}">
                                                         <i class="bi bi-file-earmark-text"></i>
                                                     </a>
 {{--                                                    <a href="{{ $csvFile->getUrl() }}" --}}

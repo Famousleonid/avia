@@ -264,6 +264,11 @@
                                         <input id='assy_part_number' type="text" class="form-control"
                                                name="assy_part_number" >
                                     </div>
+                                    <div class="mt-2">
+                                        <label for="units_assy">{{ __('Units per Assy') }}</label>
+                                        <input id='units_assy' type="text" class="form-control"
+                                               name="units_assy" placeholder="Enter units per assembly">
+                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -292,7 +297,7 @@
                                 <button type="submit" class="btn btn-primary">Save Component</button>
                             </div>
                         </div>
-                        
+
                         <!-- Bush IPL Number field - показывается только когда Is Bush отмечен -->
                         <div class="form-group mt-3" id="bush_ipl_container" style="display: none;">
                             <div class="d-flex">

@@ -126,6 +126,7 @@
                                                name="eff_code" placeholder="Enter EFF code (optional)">
                                     </div>
 
+
                                 </div>
 
                                 <div class="m-3">
@@ -145,6 +146,11 @@
                                         <label for="assy_part_number">{{ __(' Assembly Part Number') }}</label>
                                         <input id='assy_part_number' type="text" class="form-control"
                                                name="assy_part_number" >
+                                    </div>
+                                    <div class="mt-2">
+                                        <label for="units_assy">{{ __('Units per Assy') }}</label>
+                                        <input id='units_assy' type="text" class="form-control"
+                                               name="units_assy" placeholder="Enter units per assembly">
                                     </div>
                                 </div>
                             </div>

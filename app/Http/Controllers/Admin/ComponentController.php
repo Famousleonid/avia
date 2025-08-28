@@ -58,11 +58,13 @@ class ComponentController extends Controller
             'assy_ipl_num' => 'nullable|string|max:10|regex:/^\d+-\d+[A-Za-z]?$/',
             'bush_ipl_num' => 'nullable|string|max:10|regex:/^\d+-\d+[A-Za-z]?$/',
             'eff_code' => 'nullable|string|max:100',
+            'units_assy' => 'nullable|string|max:100',
 //
         ]);
 
         $validated['assy_part_number'] = $request->assy_part_number;
         $validated['eff_code'] = $request->eff_code;
+        $validated['units_assy'] = $request->units_assy;
 
         $validated['log_card'] = $request->has('log_card') ? 1 : 0;
         $validated['repair'] = $request->has('repair') ? 1 : 0;
@@ -103,11 +105,13 @@ class ComponentController extends Controller
                 'ipl_num' => 'nullable|string|max:10',
                 'assy_ipl_num' => 'nullable|string|max:10|regex:/^\d+-\d+[A-Za-z]?$/',
                 'eff_code' => 'nullable|string|max:100',
+                'units_assy' => 'nullable|string|max:100',
 //                'img' => 'nullable|image|mimes:jpeg,png,jpg,gif,svg|max:2048',
 //                'assy_img' => 'nullable|image|mimes:jpeg,png,jpg,gif,svg|max:2048',
             ]);
             $validated['assy_part_number'] = $request->assy_part_number;
             $validated['eff_code'] = $request->eff_code;
+            $validated['units_assy'] = $request->units_assy;
             $validated['log_card'] = $request->has('log_card') ? 1 : 0;
             $validated['repair'] = $request->has('repair') ? 1 : 0;
 
@@ -155,9 +159,11 @@ class ComponentController extends Controller
                 'ipl_num' => 'nullable|string|max:10',
                 'assy_ipl_num' => 'nullable|string|max:10|regex:/^\d+-\d+[A-Za-z]?$/',
                 'eff_code' => 'nullable|string|max:100',
+                'units_assy' => 'nullable|string|max:100',
             ]);
             $validated['assy_part_number'] = $request->assy_part_number;
             $validated['eff_code'] = $request->eff_code;
+            $validated['units_assy'] = $request->units_assy;
             $validated['log_card'] = $request->has('log_card') ? 1 : 0;
             $validated['repair'] = $request->has('repair') ? 1 : 0;
 
@@ -253,12 +259,14 @@ class ComponentController extends Controller
             'assy_ipl_num' => 'nullable|string|max:10|regex:/^\d+-\d+[A-Za-z]?$/',
             'bush_ipl_num' => 'nullable|string|max:10|regex:/^\d+-\d+[A-Za-z]?$/',
             'eff_code' => 'nullable|string|max:100',
+            'units_assy' => 'nullable|string|max:100',
 
         ]);
 
 
         $validated['assy_part_number'] = $request->assy_part_number;
         $validated['eff_code'] = $request->eff_code;
+        $validated['units_assy'] = $request->units_assy;
         $validated['assy_ipl_num'] = $request->assy_ipl_num;
         $validated['log_card'] = $request->has('log_card') ? 1 : 0;
         $validated['repair'] = $request->has('repair') ? 1 : 0;
@@ -587,6 +595,8 @@ class ComponentController extends Controller
             }
 
             $successCount = 0;
+            $updateCount = 0;
+            $createCount = 0;
             $errorCount = 0;
             $errors = [];
 
@@ -672,6 +682,17 @@ class ComponentController extends Controller
                         \Log::warning("Row " . ($rowIndex + 2) . " required fields became empty after cleaning");
                         continue;
                     }
+                    
+                    // Дополнительная валидация для специальных полей
+                    if (isset($rowData['units_assy']) && !empty(trim($rowData['units_assy']))) {
+                        $unitsAssy = trim($rowData['units_assy']);
+                        // Проверяем, что units_assy содержит только допустимые символы
+                        if (!preg_match('/^[a-zA-Z0-9\s\-_\.]+$/', $unitsAssy)) {
+                            \Log::warning("Row " . ($rowIndex + 2) . ": units_assy contains invalid characters: " . $unitsAssy);
+                            // Очищаем поле от недопустимых символов
+                            $rowData['units_assy'] = preg_replace('/[^a-zA-Z0-9\s\-_\.]/', '', $unitsAssy);
+                        }
+                    }
 
                     // Prepare component data
                     $componentData = [
@@ -682,33 +703,108 @@ class ComponentController extends Controller
                         'ipl_num' => trim($rowData['ipl_num']),
                         'assy_ipl_num' => isset($rowData['assy_ipl_num']) ? trim($rowData['assy_ipl_num']) : null,
                         'eff_code' => isset($rowData['eff_code']) ? trim($rowData['eff_code']) : null,
+                        'units_assy' => isset($rowData['units_assy']) ? trim($rowData['units_assy']) : null,
                         'log_card' => isset($rowData['log_card']) ? (int)($rowData['log_card'] == '1' || $rowData['log_card'] == 'true') : 0,
                         'repair' => isset($rowData['repair']) ? (int)($rowData['repair'] == '1' || $rowData['repair'] == 'true') : 0,
                         'is_bush' => isset($rowData['is_bush']) ? (int)($rowData['is_bush'] == '1' || $rowData['is_bush'] == 'true') : 0,
                         'bush_ipl_num' => isset($rowData['bush_ipl_num']) ? trim($rowData['bush_ipl_num']) : null,
                     ];
+                    
+                    // Дополнительная проверка на минимальную полноту данных
+                    $hasMinimalData = !empty($componentData['part_number']) && 
+                                     !empty($componentData['name']) && 
+                                     !empty($componentData['ipl_num']);
+                    
+                    if (!$hasMinimalData) {
+                        $errorCount++;
+                        $errors[] = "Row " . ($rowIndex + 2) . ": Insufficient data for component creation";
+                        \Log::warning("Row " . ($rowIndex + 2) . " has insufficient data, skipping");
+                        continue;
+                    }
 
                     // Check if component with the same part_number and ipl_num already exists in this manual
+                    // Приоритет поиска: сначала по точному совпадению part_number + ipl_num + manual_id
                     $existingComponent = Component::where('part_number', $componentData['part_number'])
                         ->where('manual_id', $manualId)
                         ->where('ipl_num', $componentData['ipl_num'])
                         ->first();
+                    
+                    // Дополнительная проверка на дублирование по содержимому (для случаев, когда CSV содержит дублирующиеся строки)
+                    if (!$existingComponent) {
+                        $similarComponent = Component::where('manual_id', $manualId)
+                            ->where('name', $componentData['name'])
+                            ->where('part_number', $componentData['part_number'])
+                            ->where('assy_part_number', $componentData['assy_part_number'])
+                            ->where('eff_code', $componentData['eff_code'])
+                            ->where('units_assy', $componentData['units_assy'])
+                            ->first();
+                        
+                        if ($similarComponent && $similarComponent->ipl_num !== $componentData['ipl_num']) {
+                            \Log::info("Found similar component with different IPL: existing IPL '{$similarComponent->ipl_num}' vs CSV IPL '{$componentData['ipl_num']}' for component '{$componentData['part_number']}'");
+                            
+                            // Если найден похожий компонент, предлагаем обновить IPL вместо создания нового
+                            if ($similarComponent->ipl_num !== $componentData['ipl_num']) {
+                                \Log::info("Suggesting to update IPL from '{$similarComponent->ipl_num}' to '{$componentData['ipl_num']}' for component '{$componentData['part_number']}'");
+                                // Можно добавить логику для автоматического обновления IPL
+                            }
+                        }
+                    }
+                    
+                    // Если не найден, проверяем на дублирование по part_number в том же мануале
+                    if (!$existingComponent) {
+                        $duplicateComponents = Component::where('part_number', $componentData['part_number'])
+                            ->where('manual_id', $manualId)
+                            ->get();
+                        
+                        if ($duplicateComponents->count() > 0) {
+                            $iplNumbers = $duplicateComponents->pluck('ipl_num')->implode(', ');
+                            \Log::warning("Potential duplicates found: part_number '{$componentData['part_number']}' already exists in manual {$manualId} with IPL numbers: [{$iplNumbers}], but CSV has IPL '{$componentData['ipl_num']}'");
+                            
+                            // Если есть только один дубликат и он имеет другой IPL, предлагаем обновить IPL
+                            if ($duplicateComponents->count() === 1) {
+                                $duplicateComponent = $duplicateComponents->first();
+                                if ($duplicateComponent->ipl_num !== $componentData['ipl_num']) {
+                                    \Log::info("Consider updating IPL number from '{$duplicateComponent->ipl_num}' to '{$componentData['ipl_num']}' for component '{$componentData['part_number']}'");
+                                }
+                            }
+                        }
+                    }
 
                     if ($existingComponent) {
                         // Update existing component with new data from CSV
                         try {
-                            $existingComponent->update([
-                                'name' => $componentData['name'],
-                                'assy_part_number' => $componentData['assy_part_number'],
-                                'assy_ipl_num' => $componentData['assy_ipl_num'],
-                                'eff_code' => $componentData['eff_code'],
-                                'log_card' => $componentData['log_card'],
-                                'repair' => $componentData['repair'],
-                                'is_bush' => $componentData['is_bush'],
-                                'bush_ipl_num' => $componentData['bush_ipl_num'],
-                            ]);
-                            $successCount++;
-                            \Log::info("Updated existing component: " . $componentData['part_number'] . " (IPL: " . $componentData['ipl_num'] . ")");
+                            // Обновляем все поля из CSV файла, избегая дублирования
+                            // Фильтруем пустые значения, чтобы не перезаписывать существующие данные
+                            $updateData = array_intersect_key($componentData, array_flip([
+                                'name', 'assy_part_number', 'assy_ipl_num', 'eff_code', 
+                                'units_assy', 'log_card', 'repair', 'is_bush', 'bush_ipl_num'
+                            ]));
+                            
+                            // Убираем пустые строки и null значения, но оставляем 0 для boolean полей
+                            $updateData = array_filter($updateData, function($value, $key) {
+                                if (in_array($key, ['log_card', 'repair', 'is_bush'])) {
+                                    return $value !== null; // Оставляем 0 для boolean полей
+                                }
+                                return $value !== null && $value !== ''; // Убираем пустые строки для текстовых полей
+                            }, ARRAY_FILTER_USE_BOTH);
+                            
+                            // Проверяем, есть ли реальные изменения в данных
+                            $hasChanges = false;
+                            foreach ($updateData as $field => $value) {
+                                if ($existingComponent->$field != $value) {
+                                    $hasChanges = true;
+                                    break;
+                                }
+                            }
+                            
+                            if (!empty($updateData) && $hasChanges) {
+                                $existingComponent->update($updateData);
+                                $successCount++;
+                                $updateCount++;
+                                \Log::info("Updated existing component: " . $componentData['part_number'] . " (IPL: " . $componentData['ipl_num'] . ") with fields: " . implode(', ', array_keys($updateData)));
+                            } else {
+                                \Log::info("No changes needed for component: " . $componentData['part_number'] . " (IPL: " . $componentData['ipl_num'] . ")");
+                            }
                         } catch (\Exception $e) {
                             \Log::error("Row " . ($rowIndex + 2) . ": Failed to update existing component: " . $e->getMessage());
                             $errorCount++;
@@ -717,8 +813,22 @@ class ComponentController extends Controller
                     } else {
                         // Create new component
                         try {
+                            // Дополнительная проверка на уникальность перед созданием
+                            $finalCheck = Component::where('part_number', $componentData['part_number'])
+                                ->where('manual_id', $manualId)
+                                ->where('ipl_num', $componentData['ipl_num'])
+                                ->exists();
+                            
+                            if ($finalCheck) {
+                                \Log::warning("Component already exists after final check, skipping creation: " . $componentData['part_number'] . " (IPL: " . $componentData['ipl_num'] . ")");
+                                $errorCount++;
+                                $errors[] = "Row " . ($rowIndex + 2) . ": Component already exists, skipping creation";
+                                continue;
+                            }
+                            
                             $newComponent = Component::create($componentData);
                             $successCount++;
+                            $createCount++;
                             \Log::info("Created new component: " . $componentData['part_number'] . " (IPL: " . $componentData['ipl_num'] . ")");
                         } catch (\Exception $e) {
                             \Log::error("Row " . ($rowIndex + 2) . ": Failed to create component: " . $e->getMessage());
@@ -736,7 +846,7 @@ class ComponentController extends Controller
             // CSV file uploaded successfully
             // Note: Custom properties are not set due to Spatie Media Library version compatibility
             
-            $message = "Successfully processed {$successCount} components (new and updated).";
+            $message = "Successfully processed {$successCount} components: {$createCount} created, {$updateCount} updated.";
             if ($errorCount > 0) {
                 $message .= " {$errorCount} rows had errors.";
             }
@@ -745,6 +855,8 @@ class ComponentController extends Controller
                 'success' => true,
                 'message' => $message,
                 'success_count' => $successCount,
+                'create_count' => $createCount,
+                'update_count' => $updateCount,
                 'error_count' => $errorCount,
                 'errors' => $errors,
                 'manual_id' => $manualId,
@@ -797,6 +909,8 @@ class ComponentController extends Controller
                 'name',
                 'ipl_num',
                 'assy_ipl_num',
+                'eff_code',
+                'units_assy',
                 'log_card',
                 'repair',
                 'is_bush',
@@ -810,6 +924,8 @@ class ComponentController extends Controller
                 'Example Component Name',
                 '123-456',
                 '123-456A',
+                'EFF001',
+                'UNITS001',
                 '1',
                 '0',
                 '0',
@@ -822,6 +938,8 @@ class ComponentController extends Controller
                 'Another Component',
                 '789-012',
                 '',
+                'EFF002',
+                'UNITS002',
                 '0',
                 '1',
                 '1',
