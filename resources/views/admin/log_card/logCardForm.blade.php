@@ -455,7 +455,7 @@
     <div class="row">
         <div class="col-6">
             <div class="d-flex fs-75">
-               <h7>UNIT:</h7>
+                <h7>UNIT:</h7>
                 <div class="ms-1">
                     @foreach($manuals as $manual)
                         @if($manual->id == $current_wo->unit->manual_id)
@@ -477,7 +477,7 @@
         </div>
         <div class="col-6">
             <div class="row">
-            <div class="d-flex fs-75">
+                <div class="d-flex fs-75">
                     <div class="col-3 "><h7>PART NO:</h7></div>
                     <div class="col"><h7 class="ps-2 "> {{$current_wo->unit->part_number}}</h7></div>
                 </div>
@@ -490,11 +490,11 @@
             </div>
         </div>
     </div>
-<div class="border-l-t-r">
-    <div class="text-center pt-2 fs-75" style="height: 32px">
-        <strong>AIRCRAFT INSTALLATION RECORDS</strong>
+    <div class="border-l-t-r">
+        <div class="text-center pt-2 fs-75" style="height: 32px">
+            <strong>AIRCRAFT INSTALLATION RECORDS</strong>
+        </div>
     </div>
-</div>
 
     <div class="parent">
         <div class="div1 text-center fs-8 border-all pt-3">Aircraft Reg./Con.No.</div>
@@ -510,7 +510,7 @@
         <div class="div11 text-center fs-8 border-r-b pt-1">C.S.N.</div>
         <div class="div12 text-center fs-8 border-r-b pt-1">A/F CYCLES</div>
 
-           @for($i=0; $i<6; $i++)
+        @for($i=0; $i<6; $i++)
             <div class="div13 border-l-b-r" style="height: 27px"> </div>
             <div class="div14 border-b-r" > </div>
             <div class="div15 border-b-r" > </div>
@@ -554,7 +554,7 @@
                 $hasAssySerialNumber = isset($item['assy_serial_number']) && !empty($item['assy_serial_number']);
                 $hasAssyPartNumber = $comp && $comp->assy_part_number;
             @endphp
-            
+
             <div class="div13 border-l-b-r text-center pt-1 fs-7" style="height: 27px">
                 {{ $comp ? $comp->name : '' }}
                 @if($hasAssySerialNumber && !$hasSerialNumber)
@@ -582,12 +582,10 @@
                     {{__(' ASSY PN ')}} {{$comp->assy_part_number}}{{__('  ASSY SN ')}} {{$item['assy_serial_number'] ?? ''}}
                 </div>
                 <div class="div22 border-b-r text-center pt-1 fs-75" >
-                    @if($item['reason'])
-                        @php
-                            $code = $codes->firstWhere('id', $item['reason']);
-                        @endphp
-                        {{ $code ? $code->name : $item['reason'] }}
-                    @endif
+                    @php
+                        $reasonCode = $codes->firstWhere('id', $item['reason']);
+                    @endphp
+                    {{ $reasonCode ? $reasonCode->name : $item['reason'] }}
                 </div>
             @else
                 <div class="div17 border-b-r" > </div>
@@ -596,12 +594,10 @@
                 <div class="div20 border-b-r" > </div>
                 <div class="div21 border-b-r" > </div>
                 <div class="div22 border-b-r text-center pt-1 fs-75" >
-                    @if($item['reason'])
-                        @php
-                            $code = $codes->firstWhere('id', $item['reason']);
-                        @endphp
-                        {{ $code ? $code->name : $item['reason'] }}
-                    @endif
+                    @php
+                        $reasonCode = $codes->firstWhere('id', $item['reason']);
+                    @endphp
+                    {{ $reasonCode ? $reasonCode->name : $item['reason'] }}
                 </div>
             @endif
 

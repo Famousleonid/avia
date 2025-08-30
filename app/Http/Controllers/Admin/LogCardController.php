@@ -143,7 +143,7 @@ class LogCardController extends Controller
                         // Проверяем necessary (Order New)
                         if ($tdr->necessaries && $tdr->necessaries->id === $necessary->id) {
                             Log::info('Necessary: ' . $tdr->necessaries->name);
-                            
+
                             // Если necessary = "Order New", то берем значение из codes
                             if ($tdr->codes) {
                                 Log::info('Code: ' . $tdr->codes->name);
@@ -274,7 +274,7 @@ class LogCardController extends Controller
                     break;
                 }
             }
-            
+
             return [
                 'ipl_group' => $group->keys()->first(), // Используем ключ группы (базовый номер)
                 'group_key' => $group->keys()->first(), // Дублируем для удобства
@@ -282,7 +282,7 @@ class LogCardController extends Controller
                 'components' => $group->sortBy('ipl_num')->map(function ($component) use ($tdrs, $componentData) {
                     // Ищем существующие данные для компонента
                     $existingData = collect($componentData)->firstWhere('component_id', $component->id);
-                    
+
                     return [
                         'component' => $component,
                         'existing_data' => $existingData
