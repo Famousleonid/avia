@@ -19,8 +19,8 @@
         }
 
         .table th:nth-child(1), .table td:nth-child(1) {
-            min-width: 80px;
-            max-width: 90px;
+            min-width: 180px;
+            max-width: 290px;
         }
 
         .table th:nth-child(2), .table td:nth-child(2) {
@@ -174,7 +174,14 @@
                             {{ $item['assy_serial_number'] }}
                             @endif
                         </td>
-                        <td>{{ $item['reason'] }}</td>
+                        <td>
+                            @if($item['reason'])
+                                @php
+                                    $code = $codes->firstWhere('id', $item['reason']);
+                                @endphp
+                                {{ $code ? $code->name : $item['reason'] }}
+                            @endif
+                        </td>
                     </tr>
                 @endforeach
 

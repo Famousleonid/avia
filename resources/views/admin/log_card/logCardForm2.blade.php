@@ -576,14 +576,28 @@
             <div class="div17 border-b-r text-center pt-1 fs-7" style="grid-column: span 5 / span 5;">
                     {{__(' ASSY PN ')}} {{$comp->assy_part_number}}{{__(' ASSY SN ')}} {{$item['assy_serial_number'] ?? ''}}
                 </div>
-                <div class="div22 border-b-r text-center pt-1 fs-75" >{{ $item['reason'] }} </div>
+                <div class="div22 border-b-r text-center pt-1 fs-75" >
+                    @if($item['reason'])
+                        @php
+                            $code = $codes->firstWhere('id', $item['reason']);
+                        @endphp
+                        {{ $code ? $code->name : $item['reason'] }}
+                    @endif
+                </div>
             @else
                 <div class="div17 border-b-r" > </div>
                 <div class="div18 border-b-r" > </div>
                 <div class="div19 border-b-r" > </div>
                 <div class="div20 border-b-r" > </div>
                 <div class="div21 border-b-r" > </div>
-                <div class="div22 border-b-r text-center pt-1 fs-75" >{{ $item['reason'] }} </div>
+                <div class="div22 border-b-r text-center pt-1 fs-75" >
+                    @if($item['reason'])
+                        @php
+                            $code = $codes->firstWhere('id', $item['reason']);
+                        @endphp
+                        {{ $code ? $code->name : $item['reason'] }}
+                    @endif
+                </div>
             @endif
         @endforeach
 
@@ -658,14 +672,28 @@
                 <div class="div17 border-b-r text-center pt-1 fs-7" style="grid-column: span 5 / span 5;">
                         {{__(' ASSY PN ')}} {{$comp->assy_part_number}}{{__(' ASSY SN ')}} {{$item['assy_serial_number'] ?? ''}}
                     </div>
-                    <div class="div22 border-b-r text-center pt-1 fs-75" >{{ $item['reason'] }} </div>
+                    <div class="div22 border-b-r text-center pt-1 fs-75" >
+                        @if($item['reason'])
+                            @php
+                                $code = $codes->firstWhere('id', $item['reason']);
+                            @endphp
+                            {{ $code ? $code->name : $item['reason'] }}
+                        @endif
+                    </div>
                 @else
                     <div class="div17 border-b-r" > </div>
                     <div class="div18 border-b-r" > </div>
                     <div class="div19 border-b-r" > </div>
                     <div class="div20 border-b-r" > </div>
                     <div class="div21 border-b-r" > </div>
-                    <div class="div22 border-b-r text-center pt-1 fs-75" >{{ $item['reason'] }} </div>
+                    <div class="div22 border-b-r text-center pt-1 fs-75" >
+                        @if($item['reason'])
+                            @php
+                                $code = $codes->firstWhere('id', $item['reason']);
+                            @endphp
+                            {{ $code ? $code->name : $item['reason'] }}
+                        @endif
+                    </div>
                 @endif
             @endforeach
 

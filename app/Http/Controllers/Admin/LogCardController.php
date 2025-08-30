@@ -73,15 +73,18 @@ class LogCardController extends Controller
 //        $csvMedia = $manual_wo->getMedia('csv_files')->first(function ($media) {
 //            return $media->getCustomProperty('process_type') === self::PROCESS_TYPE_LOG;
 //        });
+        // Загружаем коды для отображения названий
+        $codes = Code::all();
+
         if ($log_count > 9) {
 
             return view('admin.log_card.logCardForm2', compact('current_wo','manuals', 'builders',  'log_card',
                 'components' ,'componentData_1',
-                'componentData_2', 'log_count_1', 'log_count_2',
+                'componentData_2', 'log_count_1', 'log_count_2', 'codes'
             ));
 
         }else {
-            return view('admin.log_card.logCardForm', compact('current_wo','manuals', 'builders', 'componentData', 'log_card', 'components' ,'log_count'));
+            return view('admin.log_card.logCardForm', compact('current_wo','manuals', 'builders', 'componentData', 'log_card', 'components' ,'log_count', 'codes'));
 
         }
 
@@ -113,15 +116,18 @@ class LogCardController extends Controller
         // Получаем TDR записи для данного workorder с загруженными отношениями
         $tdrs = Tdr::where('workorder_id', $id)->with(['codes', 'necessaries'])->get();
 
-        // Группируем компоненты по цифрам из ipl_num
+        // Группируем компоненты по базовому номеру из ipl_num (без буквенных суффиксов)
         $groupedComponents = $components->groupBy(function ($component) {
-            // Извлекаем только цифры из ipl_num
-            preg_match('/\d+/', $component->ipl_num, $matches);
-            return $matches[0] ?? $component->ipl_num;
+            // Извлекаем базовый номер из ipl_num (например, "1-120" из "1-120A")
+            if (preg_match('/^(\d+-\d+)/', $component->ipl_num, $matches)) {
+                return $matches[1];
+            }
+            return $component->ipl_num;
         })->map(function ($group) use ($tdrs, $code, $necessary) {
             return [
-                'ipl_group' => $group->first()->ipl_num,
-                'components' => $group->map(function ($component) use ($tdrs, $code, $necessary) {
+                'ipl_group' => $group->keys()->first(), // Используем ключ группы (базовый номер)
+                'group_key' => $group->keys()->first(), // Дублируем для удобства
+                'components' => $group->sortBy('ipl_num')->map(function ($component) use ($tdrs, $code, $necessary) {
                     // Ищем TDR для данного компонента
                     $tdr = $tdrs->where('component_id', $component->id)->first();
                     Log::info('TDR:'.$tdr);
@@ -154,6 +160,18 @@ class LogCardController extends Controller
                 'count' => $group->count(),
                 'has_multiple' => $group->count() > 1
             ];
+        });
+
+        // Сортируем группы по базовым номерам ipl_num
+        $groupedComponents = $groupedComponents->sortBy(function ($group, $key) {
+            // Функция для правильной сортировки номеров вида "1-120", "1-130", "2-100"
+            if (preg_match('/^(\d+)-(\d+)$/', $key, $matches)) {
+                $first = (int)$matches[1];
+                $second = (int)$matches[2];
+                // Создаем числовое значение для сортировки (например, 1-120 = 1120, 1-130 = 1130)
+                return $first * 1000 + $second;
+            }
+            return $key;
         });
 
         return view('admin.log_card.create', compact('current_wo', 'groupedComponents', 'components', 'tdrs', 'code', 'necessary','codes'));
@@ -209,7 +227,10 @@ class LogCardController extends Controller
                 : json_decode($log_card->component_data, true);
         }
 
-        return view('admin.log_card.show', compact('current_wo', 'componentData', 'log_card', 'components'));
+        // Загружаем коды для отображения названий
+        $codes = Code::all();
+
+        return view('admin.log_card.show', compact('current_wo', 'componentData', 'log_card', 'components', 'codes'));
     }
 
     /**
@@ -233,7 +254,58 @@ class LogCardController extends Controller
         $tdrs = Tdr::where('workorder_id', $current_wo->id)->with(['codes', 'necessaries'])->get();
         $componentData = json_decode($log_card->component_data, true);
 
-        return view('admin.log_card.edit', compact('current_wo', 'components', 'tdrs', 'log_card', 'componentData'));
+        // Загружаем коды для dropdown
+        $codes = Code::all();
+
+        // Группируем компоненты по базовому номеру из ipl_num (без буквенных суффиксов)
+        $groupedComponents = $components->groupBy(function ($component) {
+            // Извлекаем базовый номер из ipl_num (например, "1-120" из "1-120A")
+            if (preg_match('/^(\d+-\d+)/', $component->ipl_num, $matches)) {
+                return $matches[1];
+            }
+            return $component->ipl_num;
+        })->map(function ($group) use ($tdrs, $componentData) {
+            // Находим существующие данные для группы
+            $groupExistingData = null;
+            foreach ($group as $component) {
+                $existingData = collect($componentData)->firstWhere('component_id', $component->id);
+                if ($existingData) {
+                    $groupExistingData = $existingData;
+                    break;
+                }
+            }
+            
+            return [
+                'ipl_group' => $group->keys()->first(), // Используем ключ группы (базовый номер)
+                'group_key' => $group->keys()->first(), // Дублируем для удобства
+                'existing_data' => $groupExistingData, // Данные для всей группы
+                'components' => $group->sortBy('ipl_num')->map(function ($component) use ($tdrs, $componentData) {
+                    // Ищем существующие данные для компонента
+                    $existingData = collect($componentData)->firstWhere('component_id', $component->id);
+                    
+                    return [
+                        'component' => $component,
+                        'existing_data' => $existingData
+                    ];
+                }),
+                'count' => $group->count(),
+                'has_multiple' => $group->count() > 1
+            ];
+        });
+
+        // Сортируем группы по базовым номерам ipl_num
+        $groupedComponents = $groupedComponents->sortBy(function ($group, $key) {
+            // Функция для правильной сортировки номеров вида "1-120", "1-130", "2-100"
+            if (preg_match('/^(\d+)-(\d+)$/', $key, $matches)) {
+                $first = (int)$matches[1];
+                $second = (int)$matches[2];
+                // Создаем числовое значение для сортировки (например, 1-120 = 1120, 1-130 = 1130)
+                return $first * 1000 + $second;
+            }
+            return $key;
+        });
+
+        return view('admin.log_card.edit', compact('current_wo', 'groupedComponents', 'components', 'tdrs', 'log_card', 'componentData', 'codes'));
     }
 
     /**
@@ -269,4 +341,5 @@ class LogCardController extends Controller
     {
         //
     }
+
 }

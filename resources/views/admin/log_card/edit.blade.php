@@ -7,6 +7,7 @@
     .table td { vertical-align: middle; }
     .component-radio { margin: 0; }
     .align-middle { vertical-align: middle !important; }
+    .reason-select { min-width: 150px; }
 </style>
 
 <div class="container mt-3">
@@ -32,46 +33,59 @@
                             <th>Select</th>
                             <th>Serial Number</th>
                             <th>ASSY Serial Number</th>
-                            <th>Reason for Remove</th>
+                            <th>Reason for Remove (Optional)</th>
 {{--                            <th>Action</th>--}}
                         </tr>
                     </thead>
                     <tbody>
 
+                        <!-- Отладочная информация -->
+{{--                        <tr style="background-color: #f0f0f0;">--}}
+{{--                            <td colspan="6">--}}
+{{--                                <strong>DEBUG: Существующие данные:</strong><br>--}}
+{{--                                @foreach($componentData as $item)--}}
+{{--                                    Component ID: {{ $item['component_id'] }}, --}}
+{{--                                    Serial: {{ $item['serial_number'] ?? 'N/A' }}, --}}
+{{--                                    ASSY: {{ $item['assy_serial_number'] ?? 'N/A' }}, --}}
+{{--                                    Reason: {{ $item['reason'] ?? 'N/A' }}<br>--}}
+{{--                                @endforeach--}}
+{{--                            </td>--}}
+{{--                        </tr>--}}
 
-                        @php
-                            $selected = [];
-                            if (!empty($componentData)) {
-                                foreach ($componentData as $item) {
-                                    $selected[$item['component_id']] = $item;
-                                }
-                            }
-                        @endphp
-                        @foreach($components->groupBy('name') as $desc => $group)
-                            @foreach($group as $i => $component)
+                        @foreach($groupedComponents as $groupIndex => $group)
+                            <!-- Отладочная информация для группы -->
+{{--                            <tr style="background-color: #e8f4fd;">--}}
+{{--                                <td colspan="6">--}}
+{{--                                    <strong>Группа {{ $groupIndex }} ({{ $group['ipl_group'] }}):</strong><br>--}}
+{{--                                    @if($group['existing_data'])--}}
+{{--                                        Serial: {{ $group['existing_data']['serial_number'] ?? 'N/A' }}, --}}
+{{--                                        ASSY: {{ $group['existing_data']['assy_serial_number'] ?? 'N/A' }}, --}}
+{{--                                        Reason: {{ $group['existing_data']['reason'] ?? 'N/A' }}--}}
+{{--                                    @else--}}
+{{--                                        Нет существующих данных--}}
+{{--                                    @endif--}}
+{{--                                </td>--}}
+{{--                            </tr>--}}
+                            
+                            @foreach($group['components'] as $i => $componentData)
                                 @php
-                                    $isChecked = isset($selected[$component->id]);
-                                    // Найти выбранный компонент в группе
-                                    $selectedComponent = null;
-                                    foreach ($group as $comp) {
-                                        if (isset($selected[$comp->id])) {
-                                            $selectedComponent = $selected[$comp->id];
-                                            break;
-                                        }
-                                    }
-                                    $serialValue = $selectedComponent['serial_number'] ?? '';
-                                    $assySerialValue = $selectedComponent['assy_serial_number'] ?? '';
-
-
-
-
-
+                                    $component = $componentData['component'];
+                                    $existingData = $componentData['existing_data'];
+                                    $groupExistingData = $group['existing_data'];
+                                    
+                                    // Определяем, выбран ли этот компонент
+                                    $isChecked = $existingData !== null;
+                                    
+                                    // Получаем значения из существующих данных группы
+                                    $serialValue = $groupExistingData['serial_number'] ?? '';
+                                    $assySerialValue = $groupExistingData['assy_serial_number'] ?? '';
+                                    $reasonValue = $groupExistingData['reason'] ?? '';
                                 @endphp
 
 
                                 <tr>
                                     @if($i === 0)
-                                        <td rowspan="{{ $group->count() }}" class="align-middle">{{ $desc }}</td>
+                                        <td rowspan="{{ $group['count'] }}" class="align-middle">{{ $component->name }}</td>
                                     @endif
                                     <td>
                                         {{ $component->part_number }}
@@ -80,53 +94,41 @@
                                         @endif
                                     </td>
                                     <td class="text-center">
-                                        <input type="radio" name="selected_component[{{ $desc }}]" value="{{ $component->id }}"
+                                        <input type="radio" name="selected_component[{{ $groupIndex }}]" value="{{ $component->id }}"
                                             {{ $isChecked ? 'checked' : '' }}>
                                     </td>
                                     @if($i === 0)
-                                        <td rowspan="{{ $group->count() }}" class="align-middle">
+                                        <td rowspan="{{ $group['count'] }}" class="align-middle">
                                             <input type="text" class="form-control form-control-sm"
-                                                name="serial_numbers[{{ $desc }}]"
+                                                name="serial_numbers[{{ $groupIndex }}]"
                                                 value="{{ $serialValue }}"
                                                 placeholder="Serial Number">
                                         </td>
-                                            <td rowspan="{{ $group->count() }}" class="align-middle">
+                                            <td rowspan="{{ $group['count'] }}" class="align-middle">
                                                 @if($component->assy_part_number>null)
                                                     <input type="text" class="form-control form-control-sm"
-                                                           name="assy_serial_numbers[{{ $desc }}]"
+                                                           name="assy_serial_numbers[{{ $groupIndex }}]"
                                                            value="{{ $assySerialValue }}"
                                                            placeholder="ASSY Serial Number">
                                                 @endif
                                             </td>
                                     @endif
 
-                                    <!-- Определение reason для каждого компонента -->
-                                    @php
-                                        $tdr = $tdrs->where('component_id', $component->id)->first();
-                                        $reason = '';
 
-                                        if ($tdr) {
-                                            // Проверяем codes (Missing)
-                                            if ($tdr->codes && $tdr->codes->name === 'Missing') {
-                                                $reason = 'Missing';
-                                            }
-                                            // Проверяем necessary (Order New)
-                                            if ($tdr->necessaries && $tdr->necessaries->name === 'Order New') {
-                                                // Если necessary = "Order New", то берем значение из codes
-                                                if ($tdr->codes) {
-                                                    $reason = $tdr->codes->name;
-                                                }
-                                            }
-                                        }
-                                    @endphp
 
-                                    <td class="align-middle">
-                                        @if($reason)
-                                            <span class="reason-badge">{{ $reason }}</span>
-                                        @else
-                                            <span class="text-muted reason-badge"></span>
-                                        @endif
-                                    </td>
+                                    @if($i === 0)
+                                        <td rowspan="{{ $group['count'] }}" class="align-middle">
+                                            <select class="form-control form-control-sm reason-select" name="reasons[{{ $groupIndex }}]">
+                                                <option value="">Reason (Optional)</option>
+                                                @foreach($codes as $code)
+                                                    <option value="{{ $code->id }}" 
+                                                            @if($reasonValue && $reasonValue == $code->id) selected @endif>
+                                                        {{ $code->name }}
+                                                    </option>
+                                                @endforeach
+                                            </select>
+                                        </td>
+                                    @endif
                                 </tr>
                             @endforeach
                         @endforeach
@@ -148,37 +150,50 @@
 
 <script>
 document.addEventListener('DOMContentLoaded', function() {
+    // Создаем карту индексов групп для получения базовых номеров
+    let groupMap = {};
+    @foreach($groupedComponents as $groupIndex => $group)
+        groupMap[{{ $groupIndex }}] = '{{ $group['ipl_group'] }}';
+    @endforeach
+
     document.getElementById('editForm').addEventListener('submit', function(e) {
         let data = [];
         let allGroups = new Set();
         document.querySelectorAll('input[type=radio][name^="selected_component["]').forEach(function(radio) {
-            let group = radio.name.match(/selected_component\[(.*)\]/)[1];
-            allGroups.add(group);
+            let groupIndex = radio.name.match(/selected_component\[(.*)\]/)[1];
+            allGroups.add(groupIndex);
         });
 
         document.querySelectorAll('input[type=radio]:checked').forEach(function(radio) {
-            let group = radio.name.match(/selected_component\[(.*)\]/)[1];
+            let groupIndex = radio.name.match(/selected_component\[(.*)\]/)[1];
+            let ipl_group = groupMap[groupIndex]; // Получаем базовый номер группы
             let component_id = radio.value;
-            let serial_number = document.querySelector('input[name="serial_numbers[' + group + ']"]').value;
+            let serial_number = document.querySelector('input[name="serial_numbers[' + groupIndex + ']"]').value;
             let assy_serial_number = '';
-            let assyInput = document.querySelector('input[name="assy_serial_numbers[' + group + ']"]');
+            let assyInput = document.querySelector('input[name="assy_serial_numbers[' + groupIndex + ']"]');
             if (assyInput) assy_serial_number = assyInput.value;
-            let reason = '';
-            let reasonCell = radio.closest('tr').querySelector('.reason-badge');
-            if (reasonCell) reason = reasonCell.textContent.trim();
+            
+            // Получаем reason из dropdown
+            let reasonSelect = document.querySelector('select[name="reasons[' + groupIndex + ']"]');
+            let reason = reasonSelect ? reasonSelect.value : '';
+            
             data.push({
                 component_id: component_id,
+                ipl_group: ipl_group, // Добавляем базовый номер группы
                 serial_number: serial_number,
                 assy_serial_number: assy_serial_number,
                 reason: reason
             });
         });
 
+        // Проверяем, что выбран компонент в каждой группе
         if (data.length !== allGroups.size) {
             alert('Выберите компонент в каждой группе!');
             e.preventDefault();
             return false;
         }
+        
+        // Проверка reason необязательна - убираем валидацию
 
         let input = document.getElementById('component_data_input');
         input.value = JSON.stringify(data);

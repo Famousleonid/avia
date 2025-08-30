@@ -126,7 +126,7 @@
                     <th class="text-center  sortable">{{__('Title')}} <i class="bi bi-chevron-expand ms-1"></i></th>
                     <th class=" text-center " style="width: 120px">{{__('Image ')}}</th>
                     <th class="text-center " style="width: 250px">{{__('Component CSV Files')}}</th>
-                    <th class="text-center ">Action</th>
+                    <th class="text-center ">{{__('Components')}}</th>
                 </tr>
                 </thead>
                     <tbody>
@@ -175,7 +175,8 @@
                                     <a href="{{ route('components.show',['component' => $manual->id]) }}"
                                        class="btn btn-outline-primary btn-sm">
 {{--                                        <i class="bi bi-eye"></i>--}}
-                                        <i class="bi bi-bar-chart-steps"></i>
+{{--                                        <i class="bi bi-bar-chart-steps"></i>--}}
+                                        <i class="bi bi-layout-text-sidebar-reverse"></i>
                                     </a>
 
                                     <button type="button" class="btn btn-outline-success btn-sm ms-1"
