@@ -113,6 +113,12 @@ class LogCardController extends Controller
             ->orderBy('ipl_num', 'asc')
             ->get();
 
+        // Отладочная информация
+        \Log::info('Total components found: ' . $components->count());
+        foreach ($components as $component) {
+            \Log::info('Component: ' . $component->name . ', ipl_num: ' . $component->ipl_num . ', units_assy: ' . ($component->units_assy ?? 'null'));
+        }
+
         // Получаем TDR записи для данного workorder с загруженными отношениями
         $tdrs = Tdr::where('workorder_id', $id)->with(['codes', 'necessaries'])->get();
 
@@ -124,10 +130,15 @@ class LogCardController extends Controller
             }
             return $component->ipl_num;
         })->map(function ($group) use ($tdrs, $code, $necessary) {
+            // Фильтруем компоненты - оставляем только те, у которых units_assy = 1
+            $filteredGroup = $group->filter(function ($component) {
+                return ($component->units_assy ?? 1) == 1;
+            });
+
             return [
                 'ipl_group' => $group->keys()->first(), // Используем ключ группы (базовый номер)
                 'group_key' => $group->keys()->first(), // Дублируем для удобства
-                'components' => $group->sortBy('ipl_num')->map(function ($component) use ($tdrs, $code, $necessary) {
+                'components' => $filteredGroup->sortBy('ipl_num')->map(function ($component) use ($tdrs, $code, $necessary) {
                     // Ищем TDR для данного компонента
                     $tdr = $tdrs->where('component_id', $component->id)->first();
                     Log::info('TDR:'.$tdr);
@@ -157,9 +168,12 @@ class LogCardController extends Controller
                         'reason_for_remove' => $reasonForRemove
                     ];
                 }),
-                'count' => $group->count(),
-                'has_multiple' => $group->count() > 1
+                'count' => $filteredGroup->count(),
+                'has_multiple' => $filteredGroup->count() > 1
             ];
+        })->filter(function ($group) {
+            // Убираем пустые группы
+            return $group['count'] > 0;
         });
 
         // Сортируем группы по базовым номерам ipl_num
@@ -174,7 +188,48 @@ class LogCardController extends Controller
             return $key;
         });
 
-        return view('admin.log_card.create', compact('current_wo', 'groupedComponents', 'components', 'tdrs', 'code', 'necessary','codes'));
+        // Обрабатываем компоненты с units_assy > 1 - создаем отдельные строки
+        $separateComponents = collect();
+
+        // Сначала проверим все компоненты, включая те, что были исключены из группировки
+        foreach ($components as $component) {
+            $units_assy = $component->units_assy ?? 1;
+
+            if ($units_assy > 1) {
+                // Ищем TDR для данного компонента
+                $tdr = $tdrs->where('component_id', $component->id)->first();
+                $reasonForRemove = '';
+                if ($tdr) {
+                    // Проверяем codes (Missing)
+                    if ($tdr->codes && $tdr->codes->id === $code->id) {
+                        $reasonForRemove = 'Missing';
+                    }
+                    // Проверяем necessary (Order New)
+                    if ($tdr->necessaries && $tdr->necessaries->id === $necessary->id) {
+                        if ($tdr->codes) {
+                            $reasonForRemove = $tdr->codes->name;
+                        }
+                    }
+                }
+
+                // Создаем отдельные строки для каждой единицы
+                for ($i = 1; $i <= $units_assy; $i++) {
+                    $separateComponents->push([
+                        'component' => $component,
+                        'reason_for_remove' => $reasonForRemove,
+                        'units_assy' => $units_assy,
+                        'unit_index' => $i,
+                        'is_multiple_units' => true,
+                        'group_key' => 'separate',
+                        'ipl_group' => 'separate'
+                    ]);
+                }
+            }
+        }
+
+        \Log::info('Separate components count: ' . $separateComponents->count());
+
+        return view('admin.log_card.create', compact('current_wo', 'groupedComponents', 'separateComponents', 'components', 'tdrs', 'code', 'necessary','codes'));
     }
 
     /**
@@ -254,6 +309,49 @@ class LogCardController extends Controller
         $tdrs = Tdr::where('workorder_id', $current_wo->id)->with(['codes', 'necessaries'])->get();
         $componentData = json_decode($log_card->component_data, true);
 
+        // Отладочная информация о сохраненных данных
+        \Log::info('Saved component data:', $componentData);
+
+        // Отладочная информация о полученных компонентах
+        \Log::info('Components found with log_card=1: ' . $components->count());
+        foreach ($components as $component) {
+            \Log::info('Component ID: ' . $component->id . ', Name: ' . $component->name . ', IPL: ' . $component->ipl_num . ', Units: ' . ($component->units_assy ?? 1));
+        }
+
+        // Проверяем конкретно компоненты 937, 940 и 981
+        $comp937 = Component::find(937);
+        $comp940 = Component::find(940);
+        $comp981 = Component::find(981);
+
+        if ($comp937) {
+            \Log::info('Component 937: log_card=' . ($comp937->log_card ?? 'null') . ', manual_id=' . ($comp937->manual_id ?? 'null') . ', units_assy=' . ($comp937->units_assy ?? 1));
+        }
+        if ($comp940) {
+            \Log::info('Component 940: log_card=' . ($comp940->log_card ?? 'null') . ', manual_id=' . ($comp940->manual_id ?? 'null') . ', units_assy=' . ($comp940->units_assy ?? 1));
+        }
+        if ($comp981) {
+            \Log::info('Component 981: log_card=' . ($comp981->log_card ?? 'null') . ', manual_id=' . ($comp981->manual_id ?? 'null') . ', units_assy=' . ($comp981->units_assy ?? 1));
+        }
+
+        // Проверяем, есть ли эти компоненты в полученной выборке
+        $found937 = $components->where('id', 937)->first();
+        $found940 = $components->where('id', 940)->first();
+        $found981 = $components->where('id', 981)->first();
+
+        \Log::info('Found in components query: 937=' . ($found937 ? 'YES' : 'NO') . ', 940=' . ($found940 ? 'YES' : 'NO') . ', 981=' . ($found981 ? 'YES' : 'NO'));
+
+        // Проверяем группировку
+        \Log::info('Components 937, 940, 981 should be in groups:');
+        if ($found937) {
+            \Log::info('Component 937: ipl_num=' . $found937->ipl_num . ', units_assy=' . ($found937->units_assy ?? 1));
+        }
+        if ($found940) {
+            \Log::info('Component 940: ipl_num=' . $found940->ipl_num . ', units_assy=' . ($found940->units_assy ?? 1));
+        }
+        if ($found981) {
+            \Log::info('Component 981: ipl_num=' . $found981->ipl_num . ', units_assy=' . ($found981->units_assy ?? 1));
+        }
+
         // Загружаем коды для dropdown
         $codes = Code::all();
 
@@ -265,32 +363,42 @@ class LogCardController extends Controller
             }
             return $component->ipl_num;
         })->map(function ($group) use ($tdrs, $componentData) {
-            // Находим существующие данные для группы
-            $groupExistingData = null;
-            foreach ($group as $component) {
-                $existingData = collect($componentData)->firstWhere('component_id', $component->id);
-                if ($existingData) {
-                    $groupExistingData = $existingData;
-                    break;
-                }
-            }
+            // Фильтруем компоненты - оставляем только те, у которых units_assy = 1
+            $filteredGroup = $group->filter(function ($component) {
+                return ($component->units_assy ?? 1) == 1;
+            });
 
             return [
                 'ipl_group' => $group->keys()->first(), // Используем ключ группы (базовый номер)
                 'group_key' => $group->keys()->first(), // Дублируем для удобства
-                'existing_data' => $groupExistingData, // Данные для всей группы
-                'components' => $group->sortBy('ipl_num')->map(function ($component) use ($tdrs, $componentData) {
+                'components' => $filteredGroup->sortBy('ipl_num')->map(function ($component) use ($tdrs, $componentData) {
                     // Ищем существующие данные для компонента
+                    // Пробуем найти по числовому ID
                     $existingData = collect($componentData)->firstWhere('component_id', $component->id);
+
+                    // Если не найдено, пробуем найти по строковому ID
+                    if (!$existingData) {
+                        $existingData = collect($componentData)->firstWhere('component_id', (string)$component->id);
+                    }
+
+                    // DEBUG: Логируем поиск existing_data
+                    if ($component->id == 937 || $component->id == 940) {
+                        \Log::info('DEBUG: Looking for component ' . $component->id . ' in componentData');
+                        \Log::info('DEBUG: componentData contains: ' . json_encode($componentData));
+                        \Log::info('DEBUG: Found existing_data: ' . ($existingData ? json_encode($existingData) : 'NULL'));
+                    }
 
                     return [
                         'component' => $component,
                         'existing_data' => $existingData
                     ];
                 }),
-                'count' => $group->count(),
-                'has_multiple' => $group->count() > 1
+                'count' => $filteredGroup->count(),
+                'has_multiple' => $filteredGroup->count() > 1
             ];
+        })->filter(function ($group) {
+            // Убираем пустые группы
+            return $group['count'] > 0;
         });
 
         // Сортируем группы по базовым номерам ipl_num
@@ -305,7 +413,71 @@ class LogCardController extends Controller
             return $key;
         });
 
-        return view('admin.log_card.edit', compact('current_wo', 'groupedComponents', 'components', 'tdrs', 'log_card', 'componentData', 'codes'));
+        // Обрабатываем компоненты с units_assy > 1 - создаем отдельные строки
+        $separateComponents = collect();
+
+        // Сначала проверим все компоненты, включая те, что были исключены из группировки
+        foreach ($components as $component) {
+            $units_assy = $component->units_assy ?? 1;
+
+            if ($units_assy > 1) {
+                // Ищем все существующие данные для компонента
+                $existingDataForComponent = collect($componentData)->where('component_id', $component->id);
+
+                // Если не найдено по числовому ID, пробуем по строковому
+                if ($existingDataForComponent->isEmpty()) {
+                    $existingDataForComponent = collect($componentData)->where('component_id', (string)$component->id);
+                }
+
+//                // DEBUG: Логируем поиск для компонента 981
+//                if ($component->id == 981) {
+//                    \Log::info('DEBUG: Looking for component 981 in componentData');
+//                    \Log::info('DEBUG: Found ' . $existingDataForComponent->count() . ' entries for component 981');
+//                    foreach ($existingDataForComponent as $idx => $data) {
+//                        \Log::info('DEBUG: Entry ' . $idx . ': ' . json_encode($data));
+//                    }
+//                }
+
+//                // DEBUG: Логируем все отдельные компоненты
+//                \Log::info('DEBUG: Processing separate component ' . $component->id . ' with units_assy=' . $units_assy);
+//
+                // Создаем отдельные строки для каждой единицы
+                for ($i = 1; $i <= $units_assy; $i++) {
+                    // Для каждой единицы ищем соответствующие данные
+                    // Используем values() чтобы получить массив и взять по индексу
+                    $existingDataArray = $existingDataForComponent->values()->toArray();
+                    $existingData = isset($existingDataArray[$i - 1]) ? $existingDataArray[$i - 1] : null;
+
+                    // DEBUG: Логируем данные для каждой единицы
+                    if ($component->id == 981) {
+                        \Log::info('DEBUG: Component 981 Unit ' . $i . ' - existing_data: ' . ($existingData ? json_encode($existingData) : 'NULL'));
+                    }
+
+                    $separateComponents->push([
+                        'component' => $component,
+                        'existing_data' => $existingData,
+                        'units_assy' => $units_assy,
+                        'unit_index' => $i,
+                        'is_multiple_units' => true,
+                        'group_key' => 'separate',
+                        'ipl_group' => 'separate'
+                    ]);
+                }
+            }
+        }
+
+        \Log::info('Separate components count (edit): ' . $separateComponents->count());
+
+        // Отладочная информация о группированных компонентах
+        \Log::info('Grouped components count: ' . $groupedComponents->count());
+        foreach ($groupedComponents as $groupKey => $group) {
+            \Log::info('Group ' . $groupKey . ': ' . $group['count'] . ' components');
+            foreach ($group['components'] as $comp) {
+                \Log::info('  - Component ID: ' . $comp['component']->id . ', Name: ' . $comp['component']->name . ', IPL: ' . $comp['component']->ipl_num);
+            }
+        }
+
+        return view('admin.log_card.edit', compact('current_wo', 'groupedComponents', 'separateComponents', 'components', 'tdrs', 'log_card', 'componentData', 'codes'));
     }
 
     /**
