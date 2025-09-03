@@ -90,7 +90,7 @@ class ManualController extends Controller
         DB::transaction(function () use ($request) {
             // Создаем новый CMM
             $manual = Manual::create($request->only([
-                'number', 'title', 'revision_date', 'unit_name','unit_name_training','training_hours',
+                'number', 'title', 'revision_date', 'unit_name','unit_name_training','training_hours','ovh_life','reg_sb',
                 'planes_id', 'builders_id', 'scopes_id', 'lib',
             ]));
 
@@ -115,13 +115,13 @@ class ManualController extends Controller
                     'request_units' => $request->units,
                     'request_eff_codes' => $request->eff_codes
                 ]);
-                
+
                 foreach ($request->units as $index => $partNumber) {
                     // Пропускаем пустые значения
                     if (empty(trim($partNumber))) {
                         continue;
                     }
-                    
+
                     $effCode = $request->eff_codes[$index] ?? '';
                     $newUnit = $manual->units()->create([
                         'part_number' => $partNumber,
@@ -129,7 +129,7 @@ class ManualController extends Controller
                         'manual_id' => $manual->id,
                         'verified' => 1,
                     ]);
-                    
+
                     \Log::info('Created new unit', [
                         'unit_id' => $newUnit->id,
                         'part_number' => $partNumber,
@@ -148,7 +148,7 @@ class ManualController extends Controller
                 $message .= " with {$unitCount} unit(s)";
             }
         }
-        
+
         return redirect()->route('manuals.index')->with('success', $message);
     }
 
@@ -218,26 +218,26 @@ class ManualController extends Controller
         if ($request->has('units') && is_array($request->units)) {
             $existingUnits = $cmm->units()->pluck('id')->toArray();
             $newUnits = [];
-            
+
             \Log::info('Updating units for manual', [
                 'manual_id' => $cmm->id,
                 'existing_units' => $existingUnits,
                 'request_units' => $request->units,
                 'request_eff_codes' => $request->eff_codes
             ]);
-            
+
             // Обрабатываем каждый unit
             foreach ($request->units as $index => $partNumber) {
                 // Пропускаем пустые значения
                 if (empty(trim($partNumber))) {
                     continue;
                 }
-                
+
                 $effCode = $request->eff_codes[$index] ?? '';
-                
+
                 // Если у нас есть существующий unit с таким же part_number, обновляем его
                 $existingUnit = $cmm->units()->where('part_number', $partNumber)->first();
-                
+
                 if ($existingUnit) {
                     $existingUnit->update([
                         'eff_code' => $effCode,
@@ -264,12 +264,12 @@ class ManualController extends Controller
                     ]);
                 }
             }
-            
+
             // Удаляем только те units, которые больше не используются
             $unitsToDelete = array_diff($existingUnits, $newUnits);
             if (!empty($unitsToDelete)) {
                 \Log::info('Units to delete', ['unit_ids' => $unitsToDelete]);
-                
+
                 // Проверяем, есть ли связанные workorders
                 foreach ($unitsToDelete as $unitId) {
                     $unit = Unit::find($unitId);
@@ -280,7 +280,7 @@ class ManualController extends Controller
                             'part_number' => $unit->part_number,
                             'workorder_count' => $workorderCount
                         ]);
-                        
+
                         if ($workorderCount == 0) {
                             $unit->delete();
                             \Log::info('Deleted unit', ['unit_id' => $unitId]);
@@ -304,7 +304,7 @@ class ManualController extends Controller
                 $message .= " with {$unitCount} unit(s)";
             }
         }
-        
+
         return redirect()->route('manuals.index')->with('success', $message);
     }
 

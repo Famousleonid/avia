@@ -11,6 +11,7 @@
             margin: 0;
             padding: 0;
             font-family: "Times New Roman", serif;
+            font-size: 0.85rem; /* Уменьшаем базовый размер шрифта на 15% */
         }
 
         .container-fluid {
@@ -60,7 +61,7 @@
                 right: 0;
                 width: 100%;
                 text-align: center;
-                font-size: 10px;
+                font-size: 8.5px; /* уменьшено с 10px на 15% */
                 background-color: #fff;
                 padding: 2px 0;
                 margin: 0;
@@ -213,19 +214,19 @@
             width: 99px;
         }
         .fs-9 {
-            font-size: 0.9rem; /* или любое другое подходящее значение */
+            font-size: 0.77rem; /* уменьшено с 0.9rem на 15% */
         }
         .fs-8 {
-            font-size: 0.8rem; /* или любое другое подходящее значение */
+            font-size: 0.68rem; /* уменьшено с 0.8rem на 15% */
         }
         .fs-7 {
-            font-size: 0.7rem; /* или любое другое подходящее значение */
+            font-size: 0.595rem; /* уменьшено с 0.7rem на 15% */
         }
         .fs-75 {
-            font-size: 0.75rem; /* или любое другое подходящее значение */
+            font-size: 0.64rem; /* уменьшено с 0.75rem на 15% */
         }
         .fs-4 {
-            font-size: 0.4rem; /* или любое другое подходящее значение */
+            font-size: 0.34rem; /* уменьшено с 0.4rem на 15% */
         }
 
         .details-row {
@@ -535,18 +536,18 @@
     </div>
 
     <div class="parent">
-        <div class="div1 text-center fs-8 border-all pt-3">Aircraft Reg./Con.No.</div>
-        <div class="div2 text-center fs-8 border-t-r  pt-1">FITTED TO AIRCRAFT</div>
-        <div class="div3 text-center fs-8 border-t-r-b  pt-1">REMOVED FROM AIRCRAFT</div>
-        <div class="div4 text-center fs-8 border-t-r-b pt-3">REASON FOR REMOVAL</div>
-        <div class="div5 text-center fs-8 border-t-r-b pt-1">DATE</div>
-        <div class="div6 text-center fs-8 border-t-r-b pt-1">C.S.O.</div>
-        <div class="div7 text-center fs-8 border-t-r-b pt-1">C.S.N.</div>
-        <div class="div8 text-center fs-8 border-t-r-b pt-1">A/F CYCLES</div>
-        <div class="div9 text-center fs-8 border-r-b pt-1">DATE</div>
-        <div class="div10 text-center fs-8 border-r-b pt-1">C.S.O.</div>
-        <div class="div11 text-center fs-8 border-r-b pt-1">C.S.N.</div>
-        <div class="div12 text-center fs-8 border-r-b pt-1">A/F CYCLES</div>
+        <div class="div1 text-center fs-7 border-all pt-3">Aircraft Reg./Con.No.</div>
+        <div class="div2 text-center fs-7 border-t-r  pt-1">FITTED TO AIRCRAFT</div>
+        <div class="div3 text-center fs-7 border-t-r-b  pt-1">REMOVED FROM AIRCRAFT</div>
+        <div class="div4 text-center fs-7 border-t-r-b pt-3">REASON FOR REMOVAL</div>
+        <div class="div5 text-center fs-7 border-t-r-b pt-1">DATE</div>
+        <div class="div6 text-center fs-7 border-t-r-b pt-1">C.S.O.</div>
+        <div class="div7 text-center fs-7 border-t-r-b pt-1">C.S.N.</div>
+        <div class="div8 text-center fs-7 border-t-r-b pt-1">A/F CYCLES</div>
+        <div class="div9 text-center fs-7 border-r-b pt-1">DATE</div>
+        <div class="div10 text-center fs-7 border-r-b pt-1">C.S.O.</div>
+        <div class="div11 text-center fs-7 border-r-b pt-1">C.S.N.</div>
+        <div class="div12 text-center fs-7 border-r-b pt-1">A/F CYCLES</div>
 
         @for($i=0; $i<6; $i++)
             <div class="div13 border-l-b-r" style="height: 27px"> </div>

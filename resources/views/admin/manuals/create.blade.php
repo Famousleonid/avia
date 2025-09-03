@@ -3,7 +3,7 @@
 @section('content')
     <style>
         .container {
-            max-width: 900px;
+            max-width: 1080px;
         }
     </style>
 
@@ -302,14 +302,14 @@
                     event.target.parentElement.remove();
                 }
             });
-            
+
             // Обработка отправки формы
             document.getElementById('createCMMForm').addEventListener('submit', function(e) {
                 // Удаляем пустые поля units перед отправкой
                 const unitFields = document.querySelectorAll('.unit-field');
                 unitFields.forEach(function(field) {
                     const partNumberInput = field.querySelector('input[name="units[]"]');
-                    
+
                     if (partNumberInput && partNumberInput.value.trim() === '') {
                         // Если part_number пустой, удаляем весь блок
                         field.remove();

@@ -16,6 +16,7 @@
         .container-fluid {
             max-width: 980px;
             height: auto;
+            font-size: .9rem;
             /*transform: scale(0.8);*/
             transform-origin: top left;
             padding: 3px;
