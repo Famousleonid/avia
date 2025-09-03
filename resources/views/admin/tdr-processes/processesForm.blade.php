@@ -129,6 +129,15 @@
         .border-b {
             border-bottom: 1px solid black;
         }
+
+        /* Стили для длинного текста процесса */
+        .process-text-long {
+            font-size: 0.9em;
+            /*line-height: 0.9;*/
+            letter-spacing: -0.5px;
+            transform: scale(0.95);
+            transform-origin: left;
+        }
         .border-t-r-b {
             border-top: 1px solid black;
             border-right: 1px solid black;
@@ -271,25 +280,25 @@
         <div class="row mt-3">
             <div class="col-5">
                 <div class="text-start"><strong>MAGNETIC PARTICLE AS PER:</strong></div>
-                <div class="row " style="height: 26px">
+                <div class="row " style="min-height: 26px ; line-height: 1">
 
                     <div class="col-1">#1</div>
                     <div class="col-11 border-b">
                         @foreach($ndt_processes as $process)
                             @if($process->process_names_id == $ndt1_name_id)
-                                {{$process->process}}
+                                <span @if(strlen($process->process) > 40) class="process-text-long" @endif>{{$process->process}}</span>
                             @endif
                         @endforeach
                     </div>
                 </div>
                 <div class="text-start"><strong>LIQUID/FLUID PENETRANT AS PER:</strong></div>
 
-                <div class="row " style="height: 26px">
+                <div class="row " style="min-height: 26px; line-height: 1">
                     <div class="col-1">#4</div>
                     <div class="col-11 border-b">
                         @foreach($ndt_processes as $process)
                             @if($process->process_names_id == $ndt4_name_id)
-                                {{$process->process}}
+                                <span @if(strlen($process->process) > 40) class="process-text-long" @endif>{{$process->process}}</span>
                             @endif
                         @endforeach
                     </div>
@@ -317,7 +326,7 @@
                     <div class="col-10 border-b">
                         @foreach($ndt_processes as $process)
                             @if($process->process_names_id == $ndt5_name_id)
-                                {{$process->process}}
+                                <span @if(strlen($process->process) > 40) class="process-text-long" @endif>{{$process->process}}</span>
                             @endif
                         @endforeach
                     </div>
@@ -342,7 +351,7 @@
                     <div class="col-10 border-b">
                         @foreach($ndt_processes as $process)
                             @if($process->process_names_id == $ndt6_name_id)
-                                {{$process->process}}
+                                <span @if(strlen($process->process) > 40) class="process-text-long" @endif>{{$process->process}}</span>
                             @endif
                         @endforeach
                     </div>
@@ -385,7 +394,7 @@
                 <div class="col-3 border-l-b details-row text-center" style="height: 32px">
                     {{ $component->tdr->component->part_number }}
                     @if($component->tdr->serial_number)
-            SN{{$component->tdr->serial_number}}
+            SN {{$component->tdr->serial_number}}
                     @endif
 </div>
 <div class="col-3 border-l-b details-row text-center" style="height: 32px">
@@ -481,7 +490,7 @@ $emptyRows = $totalRows - $dataRows; // Количество пустых стр
     <div class="col-2 border-l-b details-cell text-center" style="min-height: 32px">
         {{ $component->tdr->component->part_number }}
         @if($component->tdr->serial_number)
-            SN{{$component->tdr->serial_number}}
+            SN {{$component->tdr->serial_number}}
         @endif
     </div>
     <div class="col-2 border-l-b details-cell text-center" style="min-height: 32px" >
@@ -490,7 +499,7 @@ $emptyRows = $totalRows - $dataRows; // Количество пустых стр
     <div class="col-4 border-l-b details-cell text-center process-cell"  style="min-height: 32px">
         @foreach($process_components as $component_process)
             @if($component_process->id == $process)
-                {{$component_process->process}}
+                <span @if(strlen($component_process->process) > 40) class="process-text-long" @endif>{{$component_process->process}}</span>
             @endif
         @endforeach
 

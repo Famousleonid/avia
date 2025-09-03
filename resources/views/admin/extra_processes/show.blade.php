@@ -18,6 +18,15 @@
             padding-left: 10px;
         }
 
+        /* Стили для длинного текста процесса */
+        .process-text-long {
+            font-size: 0.65rem;
+            line-height: 0.9;
+            letter-spacing: -0.3px;
+            transform: scale(0.9);
+            transform-origin: left;
+        }
+
         .table th:nth-child(1), .table td:nth-child(1) {
             min-width: 80px;
             max-width: 90px;
@@ -167,7 +176,7 @@
                                                     @if($processName && $process)
                                                         <div class="mb-2  d-flex">
                                                             <strong>{{ $processName->name }}:</strong><br>
-                                                            <span class="badge bg-primary me-1">{{ $process->process }}</span>
+                                                            <span class="badge bg-primary me-1 @if(strlen($process->process) > 40) process-text-long @endif">{{ $process->process }}</span>
                                                         </div>
                                                     @endif
                                                 @endforeach
@@ -181,7 +190,7 @@
                                                     @if($processName && $process)
                                                         <div class="mb-2  d-flex">
                                                             <strong>{{ $processName->name }}:</strong><br>
-                                                            <span class="badge bg-gradient ms-2">{{ $process->process
+                                                            <span class="badge bg-gradient ms-2 @if(strlen($process->process) > 40) process-text-long @endif">{{ $process->process
                                                             }}</span>
                                                         </div>
                                                     @endif

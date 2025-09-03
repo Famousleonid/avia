@@ -209,6 +209,7 @@ class TdrProcessController extends Controller
             $ndt6_name_id = ProcessName::where('name','Eddy Current Test')->first()->id;
             $ndt5_name_id = ProcessName::where('name','BNI')->first()->id;
 
+            // Получаем NDT processes - ВСЕГДА включаем процессы для ndt_1 и ndt_4
             $ndt_processes = Process::whereIn('id', $manualProcesses)
                 ->where(function ($query) use ($ndt1_name_id, $ndt4_name_id, $ndt5_name_id, $ndt6_name_id) {
                     $query->where('process_names_id', $ndt1_name_id)
@@ -287,9 +288,14 @@ class TdrProcessController extends Controller
                 'ndt5_name_id' => $processNames['BNI']
             ];
 
-            // Получаем NDT processes
+            // Получаем NDT processes - ВСЕГДА включаем процессы для ndt_1 и ndt_4
             $ndt_processes = Process::whereIn('id', $manualProcesses)
-                ->whereIn('process_names_id', $ndt_ids)
+                ->where(function ($query) use ($ndt_ids) {
+                    $query->whereIn('process_names_id', $ndt_ids)
+                        // Всегда включаем процессы для NDT-1 и NDT-4, даже если они не связаны с текущим процессом
+                        ->orWhere('process_names_id', $ndt_ids['ndt1_name_id'])
+                        ->orWhere('process_names_id', $ndt_ids['ndt4_name_id']);
+                })
                 ->get();
 
             // Получаем NDT components
@@ -369,11 +375,26 @@ class TdrProcessController extends Controller
 
         // Обработка случая для NDT-форм
         if ($process_name->process_sheet_name == 'NDT') {
-            // Получаем данные только для текущего процесса NDT
+            // Получаем ID process names для NDT
+            $ndt_ids = [
+                'ndt1_name_id' => ProcessName::where('name', 'NDT-1')->value('id'),
+                'ndt4_name_id' => ProcessName::where('name', 'NDT-4')->value('id'),
+                'ndt6_name_id' => ProcessName::where('name', 'Eddy Current Test')->value('id'),
+                'ndt5_name_id' => ProcessName::where('name', 'BNI')->value('id')
+            ];
+
+            // Получаем NDT processes - ВСЕГДА включаем процессы для ndt_1 и ndt_4
+            $ndt_processes = Process::whereIn('id', $manualProcesses)
+                ->where(function ($query) use ($ndt_ids) {
+                    $query->whereIn('process_names_id', $ndt_ids)
+                        // Всегда включаем процессы для NDT-1 и NDT-4, даже если они не связаны с текущим процессом
+                        ->orWhere('process_names_id', $ndt_ids['ndt1_name_id'])
+                        ->orWhere('process_names_id', $ndt_ids['ndt4_name_id']);
+                })
+                ->get();
+
             $viewData += [
-                'ndt_processes' => Process::whereIn('id', $manualProcesses)
-                    ->where('process_names_id', $process_name->id)
-                    ->get(),
+                'ndt_processes' => $ndt_processes,
 
                 'ndt_components' => TdrProcess::where('tdrs_id', $current_tdr->id)
                     ->where('process_names_id', $process_name->id)
@@ -384,10 +405,10 @@ class TdrProcessController extends Controller
                 'current_ndt_id' => $process_name->id,
 
                 // Оставляем остальные ID для возможного использования в шаблоне
-                'ndt1_name_id' => ProcessName::where('name', 'NDT-1')->value('id'),
-                'ndt4_name_id' => ProcessName::where('name', 'NDT-4')->value('id'),
-                'ndt6_name_id' => ProcessName::where('name', 'Eddy Current Test')->value('id'),
-                'ndt5_name_id' => ProcessName::where('name', 'BNI')->value('id')
+                'ndt1_name_id' => $ndt_ids['ndt1_name_id'],
+                'ndt4_name_id' => $ndt_ids['ndt4_name_id'],
+                'ndt6_name_id' => $ndt_ids['ndt6_name_id'],
+                'ndt5_name_id' => $ndt_ids['ndt5_name_id']
             ];
 
         } else {

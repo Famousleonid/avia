@@ -1,6 +1,16 @@
 @extends('admin.master')
 
 @section('content')
+    <style>
+        /* Стили для длинного текста процесса */
+        .process-text-long {
+            font-size: 0.65rem;
+            line-height: 0.9;
+            letter-spacing: -0.3px;
+            transform: scale(0.9);
+            transform-origin: left;
+        }
+    </style>
     <div class="container mt-3">
         <div class="card bg-gradient">
             <div class="card-header">
@@ -34,7 +44,7 @@
                                     <tbody>
                                         @foreach($process_components as $process)
                                             <tr>
-                                                <td>{{ $process->process }}</td>
+                                                <td @if(strlen($process->process) > 40) class="process-text-long" @endif>{{ $process->process }}</td>
                                                 <td>{{ $process->description ?? 'No description available' }}</td>
                                                 <td>
                                                     <span class="badge bg-success">Active</span>

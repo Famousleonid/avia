@@ -5,6 +5,15 @@
         .container {
             max-width: 1020px;
         }
+
+        /* Стили для длинного текста процесса */
+        .process-text-long {
+            font-size: 0.65rem;
+            line-height: 0.9;
+            letter-spacing: -0.3px;
+            transform: scale(0.9);
+            transform-origin: left;
+        }
         .table-wrapper {
             height: calc(100vh - 180px);
             overflow-y: auto;
@@ -140,7 +149,7 @@
                                     <td class="text-center">
                                         @foreach($processes as $process)
                                             @if($process->id == $man_process->processes_id)
-                                                {{$process->process}}
+                                                <span @if(strlen($process->process) > 40) class="process-text-long" @endif>{{$process->process}}</span>
                                             @endif
                                         @endforeach
                                     </td>

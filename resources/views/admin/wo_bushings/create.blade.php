@@ -52,6 +52,15 @@
             padding: 0.375rem 0.5rem;
         }
 
+        /* Стили для длинного текста процесса */
+        .process-text-long {
+            font-size: 0.65rem;
+            line-height: 0.9;
+            letter-spacing: -0.3px;
+            transform: scale(0.9);
+            transform-origin: left;
+        }
+
         .header-row th {
             border-bottom: 2px solid #dee2e6;
             font-weight: bold;
@@ -223,7 +232,7 @@
                                                 <option value="">-- Select Machining --</option>
                                                 @foreach($machiningProcesses as $process)
                                                     <option value="{{ $process->id }}">
-                                                        {{ $process->process }}
+                                                        <span @if(strlen($process->process) > 40) class="process-text-long" @endif>{{ $process->process }}</span>
                                                     </option>
                                                 @endforeach
                                             </select>
@@ -245,7 +254,7 @@
                                                 <option value="">-- Select Passivation --</option>
                                                 @foreach($passivationProcesses as $process)
                                                     <option value="{{ $process->id }}">
-                                                        {{ $process->process }}
+                                                        <span @if(strlen($process->process) > 40) class="process-text-long" @endif>{{ $process->process }}</span>
                                                     </option>
                                                 @endforeach
                                             </select>
@@ -256,7 +265,7 @@
                                                 <option value="">-- Select CAD --</option>
                                                 @foreach($cadProcesses as $process)
                                                     <option value="{{ $process->id }}">
-                                                        {{ $process->process }}
+                                                        <span @if(strlen($process->process) > 40) class="process-text-long" @endif>{{ $process->process }}</span>
                                                     </option>
                                                 @endforeach
                                             </select>
@@ -267,7 +276,7 @@
                                                 <option value="">-- Select Xylan --</option>
                                                 @foreach($xylanProcesses as $process)
                                                     <option value="{{ $process->id }}">
-                                                        {{ $process->process }}
+                                                        <span @if(strlen($process->process) > 40) class="process-text-long" @endif>{{ $process->process }}</span>
                                                     </option>
                                                 @endforeach
                                             </select>

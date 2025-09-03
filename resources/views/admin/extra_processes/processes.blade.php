@@ -6,6 +6,15 @@
             max-width: 900px;
         }
 
+        /* Стили для длинного текста процесса */
+        .process-text-long {
+            font-size: 0.65rem;
+            line-height: 0.9;
+            letter-spacing: -0.3px;
+            transform: scale(0.9);
+            transform-origin: left;
+        }
+
         /* Стили для Select2 (темная и светлая темы) */
         html[data-bs-theme="dark"] .select2-selection--single {
             background-color: #121212 !important;
@@ -101,7 +110,7 @@
                                         @if($processName && $process)
                                             <tr>
                                                 <td class="text-center">{{ $processName->name }}</td>
-                                                <td class="ps-2">{{ $process->process }}</td>
+                                                <td class="ps-2 @if(strlen($process->process) > 40) process-text-long @endif">{{ $process->process }}</td>
                                                 <td class="text-center">
                                                     <a href="{{ route('extra_processes.edit', ['extra_process' => $extra_process->id]) }}" 
                                                        class="btn btn-sm btn-outline-primary">{{__('Edit')}}</a>
@@ -134,7 +143,7 @@
                                         @if($processName && $process)
                                             <tr>
                                                 <td class="text-center">{{ $processName->name }}</td>
-                                                <td class="ps-2">{{ $process->process }}</td>
+                                                <td class="ps-2 @if(strlen($process->process) > 40) process-text-long @endif">{{ $process->process }}</td>
                                                 <td class="text-center">
                                                     <a href="{{ route('extra_processes.edit', ['extra_process' => $extra_process->id]) }}" 
                                                        class="btn btn-sm btn-outline-primary">{{__('Edit')}}</a>

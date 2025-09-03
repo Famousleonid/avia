@@ -129,6 +129,15 @@
         .border-b {
             border-bottom: 1px solid black;
         }
+
+        /* Стили для длинного текста процесса */
+        .process-text-long {
+            font-size: 0.7em;
+            line-height: 0.9;
+            letter-spacing: -0.5px;
+            transform: scale(0.9);
+            transform-origin: left;
+        }
         .border-t-r-b {
             border-top: 1px solid black;
             border-right: 1px solid black;
@@ -277,7 +286,7 @@
                     <div class="col-11 border-b">
                         @foreach($ndt_processes as $process)
                             @if($process->process_names_id == $ndt1_name_id)
-                                {{$process->process}}
+                                <span @if(strlen($process->process) > 40) class="process-text-long" @endif>{{$process->process}}</span>
                             @endif
                         @endforeach
                     </div>
@@ -289,7 +298,7 @@
                     <div class="col-11 border-b">
                         @foreach($ndt_processes as $process)
                             @if($process->process_names_id == $ndt4_name_id)
-                                {{$process->process}}
+                                <span @if(strlen($process->process) > 40) class="process-text-long" @endif>{{$process->process}}</span>
                             @endif
                         @endforeach
                     </div>
@@ -307,7 +316,7 @@
                     <div class="col-10 border-b">
 {{--                        @foreach($ndt_processes as $process)--}}
 {{--                            @if($process->process_names_id == $ndt2_name_id)--}}
-{{--                                {{$process->process}}--}}
+{{--                                <span @if(strlen($process->process) > 40) class="process-text-long" @endif>{{$process->process}}</span>--}}
 {{--                            @endif--}}
 {{--                        @endforeach--}}
                     </div>
@@ -317,7 +326,7 @@
                     <div class="col-10 border-b">
                         @foreach($ndt_processes as $process)
                             @if($process->process_names_id == $ndt5_name_id)
-                                {{$process->process}}
+                                <span @if(strlen($process->process) > 40) class="process-text-long" @endif>{{$process->process}}</span>
                             @endif
                         @endforeach
                     </div>
@@ -331,7 +340,7 @@
                     <div class="col-10 border-b">
 {{--                        @foreach($ndt_processes as $process)--}}
 {{--                            @if($process->process_names_id == $ndt3_name_id)--}}
-{{--                                {{$process->process}}--}}
+{{--                                <span @if(strlen($process->process) > 40) class="process-text-long" @endif>{{$process->process}}</span>--}}
 {{--                            @endif--}}
 {{--                        @endforeach--}}
                     </div>
@@ -342,7 +351,7 @@
                     <div class="col-10 border-b">
                         @foreach($ndt_processes as $process)
                             @if($process->process_names_id == $ndt6_name_id)
-                                {{$process->process}}
+                                <span @if(strlen($process->process) > 40) class="process-text-long" @endif>{{$process->process}}</span>
                             @endif
                         @endforeach
                     </div>

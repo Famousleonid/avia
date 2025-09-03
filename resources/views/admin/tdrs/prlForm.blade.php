@@ -347,6 +347,7 @@
             </div>
         </div>
 
+
         <!-- Данные для текущей страницы -->
         <div class="page data-page">
             @for($i = $page * $partsPerPage; $i < ($page + 1) * $partsPerPage; $i++)
@@ -354,10 +355,22 @@
                     // Если данные существуют, выбираем ipl_num или assy_ipl_num
                     if ($i < $totalParts) {
                         $component = $ordersParts[$i]->orderComponent ?? $ordersParts[$i]->component;
-                        $ipl_num = $component->assy_ipl_num ?? $component->ipl_num ?? '';
-                        $ipl_parts = explode('-', $ipl_num);
-                        $first_part = $ipl_parts[0] ?? '';
-                        $second_part = $ipl_parts[1] ?? '';
+                        if ($component) {
+                            $ipl_num = $component->ipl_num ?? $component->assy_ipl_num ?? '';
+                            $ipl_parts = explode('-', $ipl_num);
+                            $first_part = $ipl_parts[0] ?? '';
+                            $second_part = $ipl_parts[1] ?? '';
+                            
+                            // Отладочная информация
+                            // dd("i: $i, Component exists: " . ($component ? 'YES' : 'NO') . 
+                            //    ", assy_ipl_num: '" . ($component->assy_ipl_num ?? 'NULL') . "'" .
+                            //    ", ipl_num: '" . ($component->ipl_num ?? 'NULL') . "'" .
+                            //    ", IPL: '$ipl_num', First: '$first_part', Second: '$second_part'" .
+                            //    ", All attributes: " . json_encode($component->getAttributes()));
+                        } else {
+                            $first_part = '';
+                            $second_part = '';
+                        }
                     } else {
                         // Если данных нет, заполняем пустыми значениями
                         $first_part = '';
@@ -369,7 +382,7 @@
                     <div class="col-5">
                         <div class="row" style="height: 36px">
                             <div class="col-1 border-l-b text-center pt-1 align-content-center">
-                                <h6>{{ $first_part }}</h6>
+                                <h6>{{ $first_part }} </h6>
                             </div>
                             <div class="col-2 border-l-b text-center pt-2 align-content-center">
                                 <h6>{{ $second_part }}</h6>
@@ -387,9 +400,9 @@
                     <div class="col-7">
                         <div class="row" style="height: 36px">
                             <div class="col-4 border-l-b text-center pt-2 align-content-center">
-                                @if($i < $totalParts && isset($component))
+                                @if($i < $totalParts && isset($component) && $component)
                                     <h6>
-                                        {{ $component->assy_part_number ?? $component->part_number }}
+                                        {{ !empty($component->assy_part_number) ? $component->assy_part_number : $component->part_number }}
                                     </h6>
                                 @else
                                     <h6> </h6>

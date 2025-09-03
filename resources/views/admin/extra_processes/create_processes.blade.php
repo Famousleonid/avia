@@ -6,6 +6,15 @@
             max-width: 850px;
         }
 
+        /* Стили для длинного текста процесса */
+        .process-text-long {
+            font-size: 0.65rem;
+            line-height: 0.9;
+            letter-spacing: -0.3px;
+            transform: scale(0.9);
+            transform-origin: left;
+        }
+
         /* ----------------------------------- Select 2 Dark Theme -------------------------------------*/
 
         html[data-bs-theme="dark"]  .select2-selection--single {
@@ -91,7 +100,7 @@
                                     $process = \App\Models\Process::find($processId);
                                 @endphp
                                 @if($processName && $process)
-                                    <span class="badge bg-secondary me-1">{{ $processName->name }}: {{ $process->process }}</span>
+                                    <span class="badge bg-secondary me-1 @if(strlen($process->process) > 40) process-text-long @endif">{{ $processName->name }}: {{ $process->process }}</span>
                                 @endif
                             @endforeach
                         @else
@@ -102,7 +111,7 @@
                                     $process = \App\Models\Process::find($processItem['process_id']);
                                 @endphp
                                 @if($processName && $process)
-                                    <span class="badge bg-secondary me-1">{{ $processName->name }}: {{ $process->process }}</span>
+                                    <span class="badge bg-secondary me-1 @if(strlen($process->process) > 40) process-text-long @endif">{{ $processName->name }}: {{ $process->process }}</span>
                                 @endif
                             @endforeach
                         @endif
