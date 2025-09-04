@@ -10,6 +10,7 @@ use App\Models\Process;
 use App\Models\ProcessName;
 use App\Models\Tdr;
 use App\Models\TdrProcess;
+use App\Models\Vendor;
 use App\Models\Workorder;
 use Illuminate\Contracts\Foundation\Application;
 use Illuminate\Contracts\View\Factory;
@@ -342,7 +343,7 @@ class TdrProcessController extends Controller
      * @param  int  $id
      * @return Application|Factory|View
      */
-    public function show($id)
+    public function show($id, Request $request)
     {
         // Загружаем процесс TDR со связанными данными (жадная загрузка)
         $current_tdrs_process = TdrProcess::with([
@@ -351,6 +352,13 @@ class TdrProcessController extends Controller
             // руководство
             'tdr.workorder'                 // Рабочий заказ
         ])->findOrFail($id);
+
+        // Получаем vendor_id из запроса
+        $vendorId = $request->input('vendor_id');
+        $selectedVendor = null;
+        if ($vendorId) {
+            $selectedVendor = Vendor::find($vendorId);
+        }
 
         // Получаем связанные данные через отношения
         $process_name = $current_tdrs_process->processName;
@@ -370,7 +378,8 @@ class TdrProcessController extends Controller
             'tdrs' => [$current_tdr->id],           // ID связанных TDR (массив для совместимости)
             'manuals' => Manual::where('id', $manual_id)->get(), // Руководства
             'process_name' => $process_name,         // Название процесса
-            'manual_id' => $manual_id               // ID руководства
+            'manual_id' => $manual_id,              // ID руководства
+            'selectedVendor' => $selectedVendor     // Выбранный поставщик
         ];
 
         // Обработка случая для NDT-форм
@@ -440,9 +449,12 @@ class TdrProcessController extends Controller
 
         $tdrProcesses = TdrProcess::all();
         $proces = Process::all();
+        
+        // Получаем всех поставщиков
+        $vendors = Vendor::all();
 
         return view('admin.tdr-processes.processes',compact('current_tdr',
-            'current_wo','tdrProcesses','proces'
+            'current_wo','tdrProcesses','proces','vendors'
         ));
     }
 

@@ -3,7 +3,7 @@
 @section('content')
     <style>
         .container {
-            max-width: 900px;
+            max-width: 1080px;
         }
 
         /* Стили для Select2 (темная и светлая темы) */
@@ -55,6 +55,16 @@
             transform: translateY(-50%) !important;
             z-index: 1;
         }
+
+        /* Стили для дропдауна vendors */
+        .vendor-select {
+            font-size: 0.875rem;
+        }
+
+        .d-flex.gap-2 {
+            gap: 0.5rem !important;
+            align-items: center;
+        }
     </style>
 
     <div class="container mt-3">
@@ -81,6 +91,7 @@
                                 <th class="text-primary text-center">Process Name</th>
                                 <th class="text-primary text-center" style="width: 450px;">Process</th>
                                 <th class="text-primary text-center">Action</th>
+                                <th class="text-primary text-center">Form</th>
                             </tr>
                             </thead>
                             <tbody>
@@ -120,8 +131,25 @@
                                                         {{__('Delete')}}
                                                     </button>
                                                 </form>
-                                                <a href="{{ route('tdr-processes.show', ['tdr_process' =>
-                                                $processes->id]) }}" class="btn btn-sm btn-outline-primary" target="_blank">{{__('Form')}}</a>
+                                            </td>
+                                            <td class="text-center">
+                                                <div class="d-flex gap-2 justify-content-center">
+                                                    <select class="form-select form-select-sm vendor-select"
+                                                            style="width: 85px"
+                                                            data-tdr-process-id="{{ $processes->id }}"
+                                                            data-process="{{ $process }}">
+                                                        <option value="">Select Vendor</option>
+                                                        @foreach($vendors as $vendor)
+                                                            <option value="{{ $vendor->id }}">{{ $vendor->name }}</option>
+                                                        @endforeach
+                                                    </select>
+                                                    <a href="{{ route('tdr-processes.show', ['tdr_process' =>
+                                                    $processes->id]) }}" class="btn btn-sm btn-outline-primary form-link"
+                                                       style="width: 60px"
+                                                       data-tdr-process-id="{{ $processes->id }}"
+                                                       data-process="{{ $process }}"
+                                                       target="_blank">{{__('Form')}}</a>
+                                                </div>
                                             </td>
                                         </tr>
                                     @endforeach
@@ -177,6 +205,45 @@
                 if (deleteForm) {
                     deleteForm.submit(); // Отправляем форму удаления
                 }
+            });
+
+            // Обработчик для дропдауна vendors
+            const vendorSelects = document.querySelectorAll('.vendor-select');
+            vendorSelects.forEach(select => {
+                select.addEventListener('change', function() {
+                    const tdrProcessId = this.getAttribute('data-tdr-process-id');
+                    const process = this.getAttribute('data-process');
+                    const vendorId = this.value;
+                    const vendorName = this.options[this.selectedIndex].text;
+                    
+                    if (vendorId) {
+                        console.log('Selected vendor:', {
+                            tdrProcessId: tdrProcessId,
+                            process: process,
+                            vendorId: vendorId,
+                            vendorName: vendorName
+                        });
+                    }
+                });
+            });
+
+            // Обработчик для кнопок Form
+            const formLinks = document.querySelectorAll('.form-link');
+            formLinks.forEach(link => {
+                link.addEventListener('click', function(e) {
+                    const tdrProcessId = this.getAttribute('data-tdr-process-id');
+                    const process = this.getAttribute('data-process');
+                    
+                    // Находим соответствующий дропдаун vendor
+                    const vendorSelect = document.querySelector(`select[data-tdr-process-id="${tdrProcessId}"][data-process="${process}"]`);
+                    
+                    if (vendorSelect && vendorSelect.value) {
+                        // Добавляем vendor_id к URL
+                        const currentUrl = this.href;
+                        const separator = currentUrl.includes('?') ? '&' : '?';
+                        this.href = currentUrl + separator + 'vendor_id=' + vendorSelect.value;
+                    }
+                });
             });
         });
     </script>

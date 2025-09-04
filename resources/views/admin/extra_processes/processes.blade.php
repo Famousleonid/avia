@@ -3,16 +3,7 @@
 @section('content')
     <style>
         .container {
-            max-width: 900px;
-        }
-
-        /* Стили для длинного текста процесса */
-        .process-text-long {
-            font-size: 0.65rem;
-            line-height: 0.9;
-            letter-spacing: -0.3px;
-            transform: scale(0.9);
-            transform-origin: left;
+            max-width: 1080px;
         }
 
         /* Стили для Select2 (темная и светлая темы) */
@@ -64,6 +55,16 @@
             transform: translateY(-50%) !important;
             z-index: 1;
         }
+
+        /* Стили для дропдауна vendors */
+        .vendor-select {
+            font-size: 0.875rem;
+        }
+
+        .d-flex.gap-2 {
+            gap: 0.5rem !important;
+            align-items: center;
+        }
     </style>
 
     <div class="container mt-3">
@@ -97,6 +98,7 @@
                                     <th class="text-primary text-center">Process Name</th>
                                     <th class="text-primary text-center" style="width: 450px;">Process</th>
                                     <th class="text-primary text-center">Action</th>
+                                    <th class="text-primary text-center">Form</th>
                                 </tr>
                                 </thead>
                                 <tbody>
@@ -110,25 +112,42 @@
                                         @if($processName && $process)
                                             <tr>
                                                 <td class="text-center">{{ $processName->name }}</td>
-                                                <td class="ps-2 @if(strlen($process->process) > 40) process-text-long @endif">{{ $process->process }}</td>
+                                                <td class="ps-2">{{ $process->process }}</td>
                                                 <td class="text-center">
-                                                    <a href="{{ route('extra_processes.edit', ['extra_process' => $extra_process->id]) }}" 
+                                                    <a href="{{ route('extra_processes.edit', ['extra_process' => $extra_process->id]) }}"
                                                        class="btn btn-sm btn-outline-primary">{{__('Edit')}}</a>
-                                                    <form id="deleteForm_{{ $extra_process->id }}_{{ $processNameId }}" 
-                                                          action="{{ route('extra_processes.destroy', ['extra_process' => $extra_process->id]) }}" 
+                                                    <form id="deleteForm_{{ $extra_process->id }}_{{ $processNameId }}"
+                                                          action="{{ route('extra_processes.destroy', ['extra_process' => $extra_process->id]) }}"
                                                           method="POST" style="display:inline;">
                                                         @csrf
                                                         @method('DELETE')
                                                         <input type="hidden" name="process_name_id" value="{{ $processNameId }}">
                                                         <button class="btn btn-sm btn-outline-danger" type="button"
                                                                 name="btn_delete" data-bs-toggle="modal"
-                                                                data-bs-target="#useConfirmDelete" 
+                                                                data-bs-target="#useConfirmDelete"
                                                                 data-title="Delete Confirmation: {{ $processName->name }}">
                                                             {{__('Delete')}}
                                                         </button>
                                                     </form>
-                                                    <a href="{{ route('extra_processes.show_form', ['id' => $extra_process->id, 'processNameId' => $processNameId]) }}" 
-                                                       class="btn btn-sm btn-outline-primary" target="_blank">{{__('Form')}}</a>
+                                                </td>
+                                                <td class="text-center">
+                                                    <div class="d-flex gap-2">
+                                                        <select class="form-select form-select-sm vendor-select"
+                                                                style="width: 120px"
+                                                                data-extra-process-id="{{ $extra_process->id }}"
+                                                                data-process-name-id="{{ $processNameId }}">
+                                                            <option value="">Select Vendor</option>
+                                                            @foreach($vendors as $vendor)
+                                                                <option value="{{ $vendor->id }}">{{ $vendor->name }}</option>
+                                                            @endforeach
+                                                        </select>
+                                                        <a href="{{ route('extra_processes.show_form', ['id' => $extra_process->id, 'processNameId' => $processNameId]) }}"
+                                                           class="btn btn-sm btn-outline-primary form-link"
+                                                           style="width: 60px"
+                                                           data-extra-process-id="{{ $extra_process->id }}"
+                                                           data-process-name-id="{{ $processNameId }}"
+                                                           target="_blank">{{__('Form')}}</a>
+                                                    </div>
                                                 </td>
                                             </tr>
                                         @endif
@@ -143,25 +162,42 @@
                                         @if($processName && $process)
                                             <tr>
                                                 <td class="text-center">{{ $processName->name }}</td>
-                                                <td class="ps-2 @if(strlen($process->process) > 40) process-text-long @endif">{{ $process->process }}</td>
+                                                <td class="ps-2">{{ $process->process }}</td>
                                                 <td class="text-center">
-                                                    <a href="{{ route('extra_processes.edit', ['extra_process' => $extra_process->id]) }}" 
+                                                    <a href="{{ route('extra_processes.edit', ['extra_process' => $extra_process->id]) }}"
                                                        class="btn btn-sm btn-outline-primary">{{__('Edit')}}</a>
-                                                    <form id="deleteForm_{{ $extra_process->id }}_{{ $index }}" 
-                                                          action="{{ route('extra_processes.destroy', ['extra_process' => $extra_process->id]) }}" 
+                                                    <form id="deleteForm_{{ $extra_process->id }}_{{ $index }}"
+                                                          action="{{ route('extra_processes.destroy', ['extra_process' => $extra_process->id]) }}"
                                                           method="POST" style="display:inline;">
                                                         @csrf
                                                         @method('DELETE')
                                                         <input type="hidden" name="process_index" value="{{ $index }}">
                                                         <button class="btn btn-sm btn-outline-danger" type="button"
                                                                 name="btn_delete" data-bs-toggle="modal"
-                                                                data-bs-target="#useConfirmDelete" 
+                                                                data-bs-target="#useConfirmDelete"
                                                                 data-title="Delete Confirmation: {{ $processName->name }}">
                                                             {{__('Delete')}}
                                                         </button>
                                                     </form>
-                                                    <a href="{{ route('extra_processes.show_form', ['id' => $extra_process->id, 'processNameId' => $processItem['process_name_id']]) }}" 
-                                                       class="btn btn-sm btn-outline-primary" target="_blank">{{__('Form')}}</a>
+                                                </td>
+                                                <td class="text-center">
+                                                    <div class="d-flex gap-2 justify-content-center">
+                                                        <select class="form-select form-select-sm vendor-select"
+                                                                style="width: 85px"
+                                                                data-extra-process-id="{{ $extra_process->id }}"
+                                                                data-process-name-id="{{ $processItem['process_name_id'] }}">
+                                                            <option value="">Select Vendor</option>
+                                                            @foreach($vendors as $vendor)
+                                                                <option value="{{ $vendor->id }}">{{ $vendor->name }}</option>
+                                                            @endforeach
+                                                        </select>
+                                                        <a href="{{ route('extra_processes.show_form', ['id' => $extra_process->id, 'processNameId' => $processItem['process_name_id']]) }}"
+                                                           class="btn btn-sm btn-outline-primary form-link"
+                                                           style="width: 60px"
+                                                           data-extra-process-id="{{ $extra_process->id }}"
+                                                           data-process-name-id="{{ $processItem['process_name_id'] }}"
+                                                           target="_blank">{{__('Form')}}</a>
+                                                    </div>
                                                 </td>
                                             </tr>
                                         @endif
@@ -177,7 +213,7 @@
                         Click "Add Process" to add processes to this component.
                     </div>
                 @endif
-                
+
                 <a href="{{ route('extra_processes.show_all', ['id' => $current_wo->id]) }}"
                    class="btn btn-outline-secondary mt-3">{{ __('Back to All Components') }}</a>
             </div>
@@ -225,7 +261,7 @@
                 if (deleteForm) {
                     // Отправляем форму через AJAX
                     const formData = new FormData(deleteForm);
-                    
+
                     fetch(deleteForm.action, {
                         method: 'POST',
                         headers: {
@@ -251,12 +287,53 @@
                         console.error('Error:', error);
                         alert('Error deleting process');
                     });
-                    
+
                     // Закрываем модальное окно
                     const modal = bootstrap.Modal.getInstance(deleteModal);
                     modal.hide();
                 }
             });
+
+            // Обработчик для дропдауна vendors
+            const vendorSelects = document.querySelectorAll('.vendor-select');
+            vendorSelects.forEach(select => {
+                select.addEventListener('change', function() {
+                    const extraProcessId = this.getAttribute('data-extra-process-id');
+                    const processNameId = this.getAttribute('data-process-name-id');
+                    const vendorId = this.value;
+                    const vendorName = this.options[this.selectedIndex].text;
+
+                    if (vendorId) {
+                        // Здесь можно добавить логику для сохранения выбранного vendor
+                        // Например, отправить AJAX запрос
+                        console.log('Selected vendor:', {
+                            extraProcessId: extraProcessId,
+                            processNameId: processNameId,
+                            vendorId: vendorId,
+                            vendorName: vendorName
+                        });
+                    }
+                });
+            });
+
+            // Обработчик для кнопок Form
+            const formLinks = document.querySelectorAll('.form-link');
+            formLinks.forEach(link => {
+                link.addEventListener('click', function(e) {
+                    const extraProcessId = this.getAttribute('data-extra-process-id');
+                    const processNameId = this.getAttribute('data-process-name-id');
+
+                    // Находим соответствующий дропдаун vendor
+                    const vendorSelect = document.querySelector(`select[data-extra-process-id="${extraProcessId}"][data-process-name-id="${processNameId}"]`);
+
+                    if (vendorSelect && vendorSelect.value) {
+                        // Добавляем vendor_id к URL
+                        const currentUrl = this.href;
+                        const separator = currentUrl.includes('?') ? '&' : '?';
+                        this.href = currentUrl + separator + 'vendor_id=' + vendorSelect.value;
+                    }
+                });
+            });
         });
     </script>
-@endsection 
+@endsection

@@ -30,4 +30,9 @@ class ExtraProcess extends Model
     {
         return $this->belongsTo(Component::class, 'component_id');
     }
+
+    public function vendor()
+    {
+        return $this->belongsTo(Vendor::class, 'vendor_id');
+    }
 }

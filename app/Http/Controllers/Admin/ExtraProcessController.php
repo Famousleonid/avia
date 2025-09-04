@@ -7,6 +7,7 @@ use App\Models\Component;
 use App\Models\ExtraProcess;
 use App\Models\Process;
 use App\Models\ProcessName;
+use App\Models\Vendor;
 use App\Models\Workorder;
 use Illuminate\Contracts\Foundation\Application;
 use Illuminate\Contracts\View\Factory;
@@ -694,8 +695,11 @@ class ExtraProcessController extends Controller
 
         // Получаем все процессы для отображения
         $allProcesses = Process::all();
+        
+        // Получаем всех поставщиков
+        $vendors = Vendor::all();
 
-        return view('admin.extra_processes.processes', compact('current_wo', 'component', 'extra_process', 'allProcesses'));
+        return view('admin.extra_processes.processes', compact('current_wo', 'component', 'extra_process', 'allProcesses', 'vendors'));
     }
 
     /**
@@ -821,12 +825,19 @@ class ExtraProcessController extends Controller
      * @param  int  $processNameId
      * @return Application|Factory|View
      */
-    public function showForm($id, $processNameId)
+    public function showForm($id, $processNameId, Request $request)
     {
         $extra_process = ExtraProcess::findOrFail($id);
         $current_wo = Workorder::findOrFail($extra_process->workorder_id);
         $component = Component::findOrFail($extra_process->component_id);
         $processName = ProcessName::findOrFail($processNameId);
+        
+        // Получаем vendor_id из запроса
+        $vendorId = $request->input('vendor_id');
+        $selectedVendor = null;
+        if ($vendorId) {
+            $selectedVendor = Vendor::find($vendorId);
+        }
         
         // Получаем связанные данные
         $manual_id = $current_wo->unit->manual_id;
@@ -842,7 +853,8 @@ class ExtraProcessController extends Controller
             'extra_process' => $extra_process,
             'manuals' => \App\Models\Manual::where('id', $manual_id)->get(),
             'manual_id' => $manual_id,
-            'process_name' => $processName
+            'process_name' => $processName,
+            'selectedVendor' => $selectedVendor
         ];
 
         // Обработка NDT формы (если нужно)

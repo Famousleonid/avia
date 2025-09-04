@@ -231,7 +231,7 @@
                     <div class="text-end">
                         <button type="submit" class="btn btn-outline-primary
                         mt-3 ">{{ __('Update') }}</button>
-                        <a href="{{ route('components.index') }}"
+                        <a href="{{ route('components.show', $current_component->manual_id) }}"
                            class="btn btn-outline-secondary mt-3">{{ __('Cancel') }} </a>
                     </div>
                     </div>

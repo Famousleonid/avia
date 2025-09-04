@@ -132,7 +132,7 @@
 
         /* Стили для длинного текста процесса */
         .process-text-long {
-            font-size: 0.7em;
+            font-size: 0.9em;
             line-height: 0.9;
             letter-spacing: -0.5px;
             transform: scale(0.9);
@@ -280,7 +280,11 @@
                 </div>
                 <div class="row" style="height: 32px">
                     <div class="col-4 pt-2 text-end"><strong>VENDOR:</strong></div>
-                    <div class="col-8 pt-2 border-b"></div>
+                    <div class="col-8 pt-2 border-b ">
+                            <strong>
+                                {{ $selectedVendor ? $selectedVendor->name : '' }}
+                            </strong>
+                    </div>
                 </div>
             </div>
         </div>

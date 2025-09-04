@@ -291,7 +291,7 @@ class ComponentController extends Controller
         }
         $component->update($validated);
 
-        return redirect()->route('components.index')->with('success', 'Manual updated successfully');
+        return redirect()->route('components.show', $component->manual_id)->with('success', 'Component updated successfully');
 
     }
 
