@@ -80,6 +80,11 @@
                         PN: {{ $current_tdr->component->part_number }}
                         SN: {{ $current_tdr->serial_number }}
                     </div>
+                    <div>
+                        <button type="button" class="btn btn-outline-primary" data-bs-toggle="modal" data-bs-target="#addVendorModal">
+                            <i class="fas fa-plus"></i> Add Vendor
+                        </button>
+                    </div>
                 </div>
             </div>
             <div class="card-body">
@@ -183,6 +188,31 @@
         </div>
     </div>
 
+    <!-- Модальное окно для добавления vendor -->
+    <div class="modal fade" id="addVendorModal" tabindex="-1" aria-labelledby="addVendorModalLabel" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="addVendorModalLabel">Add New Vendor</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="addVendorForm">
+                        @csrf
+                        <div class="mb-3">
+                            <label for="vendorName" class="form-label">Vendor Name</label>
+                            <input type="text" class="form-control" id="vendorName" name="name" required>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="button" class="btn btn-primary" id="saveVendorButton">Save Vendor</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- Скрипт для обработки подтверждения удаления -->
     <script>
         document.addEventListener('DOMContentLoaded', function () {
@@ -243,6 +273,62 @@
                         const separator = currentUrl.includes('?') ? '&' : '?';
                         this.href = currentUrl + separator + 'vendor_id=' + vendorSelect.value;
                     }
+                });
+            });
+
+            // Обработчик для добавления vendor
+            const saveVendorButton = document.getElementById('saveVendorButton');
+            const addVendorForm = document.getElementById('addVendorForm');
+            const vendorNameInput = document.getElementById('vendorName');
+
+            saveVendorButton.addEventListener('click', function() {
+                const vendorName = vendorNameInput.value.trim();
+                
+                if (!vendorName) {
+                    alert('Please enter vendor name');
+                    return;
+                }
+
+                // Отправляем AJAX запрос для создания vendor
+                fetch('{{ route("vendors.store") }}', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
+                        'Accept': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        name: vendorName
+                    })
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        // Добавляем новый vendor в дропдауны
+                        const newOption = document.createElement('option');
+                        newOption.value = data.vendor.id;
+                        newOption.textContent = data.vendor.name;
+                        
+                        // Добавляем во все дропдауны
+                        document.querySelectorAll('.vendor-select').forEach(select => {
+                            select.appendChild(newOption.cloneNode(true));
+                        });
+                        
+                        // Закрываем модальное окно
+                        const modal = bootstrap.Modal.getInstance(document.getElementById('addVendorModal'));
+                        modal.hide();
+                        
+                        // Очищаем форму
+                        addVendorForm.reset();
+                        
+                        alert('Vendor added successfully!');
+                    } else {
+                        alert('Error: ' + data.message);
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    alert('Error adding vendor');
                 });
             });
         });

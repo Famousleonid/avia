@@ -111,6 +111,9 @@ Route::group(['middleware' => ['auth', 'isAdmin'], 'prefix' => 'admin'], functio
     Route::get('/extra_processes/{id}/form/{processNameId}', [ExtraProcessController::class, 'showForm'])->name('extra_processes.show_form');
     Route::get('/extra_processes/{id}/group-forms/{processNameId}', [ExtraProcessController::class, 'showGroupForms'])->name('extra_processes.show_group_forms');
     Route::resource('/extra_processes', ExtraProcessController::class)->except(['create']);
+    
+    // Vendor routes
+    Route::post('/vendors', [\App\Http\Controllers\Admin\VendorController::class, 'store'])->name('vendors.store');
 
     Route::get('log_card/create/{id}', [LogCardController::class, 'create'])->name('log_card.create');
     Route::get('log_card/edit/{id}', [LogCardController::class, 'edit'])->name('log_card.edit');
