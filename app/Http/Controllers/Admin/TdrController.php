@@ -841,8 +841,6 @@ class TdrController extends Controller
                 throw new \RuntimeException('Manual not found for this workorder');
             }
 
-            $cadSum = $this->calcCadSums($workorder_id);
-
             // Получаем CSV-файл с process_type = 'cad'
             $csvMedia = $manual->getMedia('csv_files')->first(function ($media) {
                 return $media->getCustomProperty('process_type') === self::PROCESS_TYPE_CAD;
@@ -988,7 +986,7 @@ class TdrController extends Controller
                 ->get();
 
             // Рассчитываем общее количество деталей
-            $totalQuantities = $this->calcCadSums($workorder_id);
+            $cadSum = $this->calcCadSums($workorder_id);
 
             return view('admin.tdrs.cadFormStd', [
                 'current_wo' => $current_wo,
@@ -998,8 +996,7 @@ class TdrController extends Controller
                 'form_number' => $form_number,
                 'manuals' => [$manual],
                 'process_name' => ProcessName::where('name', 'Cad plate')->first(),
-                'total_quantities' => $totalQuantities,
-                    'cadSum' => $cadSum,
+                'cadSum' => $cadSum,
             ] + $cad_ids);
 
         } catch (\Exception $e) {
@@ -1522,6 +1519,7 @@ public function wo_Process_Form($id)
 
             foreach ($records as $record) {
                 $itemNo = trim($record['ITEM   No.']);
+                $qty = (int)($record['QTY'] ?? 1); // Получаем qty из CSV
 
                 // Если IPL номер есть в TDR - пропускаем
                 if (isset($tdrIplMap[$itemNo])) {
@@ -1531,10 +1529,10 @@ public function wo_Process_Form($id)
 
                 // Если IPL номер еще не был обработан
                 if (!in_array($itemNo, $processedIpls)) {
-                    $totalQty += 1; // Предполагаем qty = 1 для компонентов из CSV
+                    $totalQty += $qty; // Используем qty из CSV
                     $totalComponents++;
                     $processedIpls[] = $itemNo;
-                    \Log::info('Adding component from CSV:', ['ipl_num' => $itemNo]);
+                    \Log::info('Adding component from CSV:', ['ipl_num' => $itemNo, 'qty' => $qty]);
                 }
             }
 
