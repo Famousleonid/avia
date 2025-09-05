@@ -193,7 +193,7 @@
         }
 
         .process-text-long {
-            font-size: 0.9em;
+            font-size: 0.8rem;
             line-height: 1.1;
             letter-spacing: -0.3px;
             display: inline-block;
@@ -241,26 +241,26 @@
             </div>
         </div>
         <div class="row">
-            <div class="col-7">
+            <div class="col-6">
                 <div class="row" style="height: 32px">
                     <div class="col-6 pt-2 text-end"> <strong>COMPONENT NAME</strong> :</div>
-                    <div class="col-6 pt-2 border-b"> <strong>{{$current_wo->description}}</strong> </div>
+                    <div class="col-6 fs-7 pt-2 border-b"> <strong>{{$current_wo->description}}</strong> </div>
                 </div>
                 <div class="row" style="height: 32px">
                     <div class="col-6 pt-2 text-end"> <strong> PART NUMBER:</strong></div>
-                    <div class="col-6 pt-2 border-b"> <strong>{{$current_wo->unit->part_number}}</strong> </div>
+                    <div class="col-6 fs-7 pt-2 border-b"> <strong>{{$current_wo->unit->part_number}}</strong> </div>
                 </div>
                 <div class="row" style="height: 32px">
                     <div class="col-6 pt-2 text-end"> <strong>WORK ORDER No:</strong> </div>
-                    <div class="col-6 pt-2 border-b"><strong>W{{$current_wo->number}}</strong></div>
+                    <div class="col-6 fs-7 pt-2 border-b"><strong>W{{$current_wo->number}}</strong></div>
                 </div>
                 <div class="row" style="height: 32px">
                     <div class="col-6 pt-2 text-end"><strong>SERIAL No:</strong> </div>
-                    <div class="col-6 pt-2 border-b"><strong>{{$current_wo->serial_number}}</strong></div>
+                    <div class="col-6 fs-7 pt-2 border-b"><strong>{{$current_wo->serial_number}}</strong></div>
                 </div>
 
             </div>
-            <div class="col-5">
+            <div class="col-6">
                 <div class="row" style="height: 32px">
                     <div class="col-4 pt-2 text-end"><strong>DATE:</strong></div>
                     <div class="col-8 pt-2 border-b"></div>
@@ -410,26 +410,26 @@
                     </div>
                 </div>
                 <div class="row">
-                    <div class="col-7">
+                    <div class="col-6">
                         <div class="row" style="height: 32px">
                             <div class="col-6 pt-2 text-end"> <strong>COMPONENT NAME</strong> :</div>
-                            <div class="col-6 pt-2 border-b"> <strong>{{$current_wo->description}}</strong> </div>
+                            <div class="col-6 fs-7 pt-2 border-b"> <strong>{{$current_wo->description}}</strong> </div>
                         </div>
                         <div class="row" style="height: 32px">
                             <div class="col-6 pt-2 text-end"> <strong> PART NUMBER:</strong></div>
-                            <div class="col-6 pt-2 border-b"> <strong>{{$current_wo->unit->part_number}}</strong> </div>
+                            <div class="col-6 fs-7 pt-2 border-b"> <strong>{{$current_wo->unit->part_number}}</strong> </div>
                         </div>
                         <div class="row" style="height: 32px">
                             <div class="col-6 pt-2 text-end"> <strong>WORK ORDER No:</strong> </div>
-                            <div class="col-6 pt-2 border-b"><strong>W{{$current_wo->number}}</strong></div>
+                            <div class="col-6 fs-7 pt-2 border-b"><strong>W{{$current_wo->number}}</strong></div>
                         </div>
                         <div class="row" style="height: 32px">
                             <div class="col-6 pt-2 text-end"><strong>SERIAL No:</strong> </div>
-                            <div class="col-6 pt-2 border-b"><strong>{{$current_wo->serial_number}}</strong></div>
+                            <div class="col-6 fs-7 pt-2 border-b"><strong>{{$current_wo->serial_number}}</strong></div>
                         </div>
 
                     </div>
-                    <div class="col-5">
+                    <div class="col-6">
                         <div class="row" style="height: 32px">
                             <div class="col-4 pt-2 text-end"><strong>DATE:</strong></div>
                             <div class="col-8 pt-2 border-b"></div>
@@ -440,7 +440,7 @@
                         </div>
                         <div class="row" style="height: 32px">
                             <div class="col-4 pt-2 text-end"><strong>VENDOR:</strong></div>
-                            <div class="col-8 pt-2 border-b"></div>
+                            <div class="col-8 pt-2 border-b">Skyservice</div>
                         </div>
                     </div>
                 </div>
@@ -555,7 +555,7 @@
 
             @foreach($chunk as $component)
                 <div class="row fs-85">
-                    <div class="col-1 border-l-b details-row text-center" style="height: 32px">
+                    <div class="col-1 border-l-b fs-75 details-row text-center" style="height: 32px">
                         {{ $component->ipl_num }}
                     </div>
                     <div class="col-3 border-l-b details-row text-center" style="height: 32px">
