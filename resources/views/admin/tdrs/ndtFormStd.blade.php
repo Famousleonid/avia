@@ -271,7 +271,7 @@
                 </div>
                 <div class="row" style="height: 32px">
                     <div class="col-4 pt-2 text-end"><strong>VENDOR:</strong></div>
-                    <div class="col-8 pt-2 border-b"></div>
+                    <div class="col-8 pt-2 border-b">Skyservice</div>
                 </div>
             </div>
         </div>

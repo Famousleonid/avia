@@ -62,6 +62,116 @@
                 </div>
             </div>
 
+                <!-- Здесь будет отображаться список созданных записей -->
+                <div id="rmRecordsList">
+                    @if($rm_reports->count() > 0)
+                        {{-- Отображение текущих сохраненных записей - скрыто --}}
+                        {{-- @if($current_wo->rm_report)
+                            @php
+                                $savedData = json_decode($current_wo->rm_report, true);
+                            @endphp
+                            @if($savedData)
+                                <div class="alert alert-info mt-3">
+                                    <h6>{{ __('Currently Saved Data:') }}</h6>
+
+                                    @if(isset($savedData['rm_records']) && !empty($savedData['rm_records']))
+                                        <div class="mb-2">
+                                            <strong>{{ __('R&M Records:') }}</strong>
+                                            <ul class="mb-0">
+                                                @foreach($savedData['rm_records'] as $record)
+                                                    @php
+                                                        $rmRecord = \App\Models\RmReport::find($record['id']);
+                                                    @endphp
+                                                    @if($rmRecord)
+                                                        <li>{{ $rmRecord->part_description }} - {{ $rmRecord->mod_repair }}</li>
+                                                    @endif
+                                                @endforeach
+                                            </ul>
+                                        </div>
+                                    @endif
+
+                                    @if(isset($savedData['technical_notes']))
+                                        <div>
+                                            <strong>{{ __('Technical Notes:') }}</strong>
+                                            <ul class="mb-0">
+                                                @foreach($savedData['technical_notes'] as $noteKey => $noteValue)
+                                                    @if(!empty($noteValue))
+                                                        <li>{{ ucfirst(str_replace('note', 'Note ', $noteKey)) }}: {{ $noteValue }}</li>
+                                                    @endif
+                                                @endforeach
+                                            </ul>
+                                        </div>
+                                    @endif
+                                </div>
+                            @endif
+                        @endif --}}
+
+                        <!-- Кнопки для массовых операций -->
+                        <div class="row mt-3 mb-2">
+                            <div class="col-md-6">
+                                <button type="button" class="btn btn-outline-primary btn-sm" onclick="selectAllRecords()">
+                                    <i class="fas fa-check-square"></i> {{ __('Select All') }}
+                                </button>
+                                <button type="button" class="btn btn-outline-secondary btn-sm" onclick="deselectAllRecords()">
+                                    <i class="fas fa-square"></i> {{ __('Deselect All') }}
+                                </button>
+                            </div>
+                            <div class="col-md-6 text-end">
+                                <!-- Кнопка перенесена перед Technical Notes -->
+                            </div>
+                        </div>
+
+                        <div class="table-responsive mt-3">
+                            <table class="table table-striped">
+                                <thead>
+                                <tr>
+                                    <th>{{ __('Part Description') }}</th>
+                                    <th>{{ __('Modification or Repair #') }}</th>
+                                    <th>{{ __('Description') }}</th>
+                                    <th>{{ __('Identification Method') }}</th>
+                                    <th>{{ __('Select Record') }}</th>
+                                    <th>{{ __('Actions') }}</th>
+                                </tr>
+                                </thead>
+                                <tbody>
+                                @foreach($rm_reports as $report)
+                                    <tr>
+                                        <td>{{ $report->part_description }}</td>
+                                        <td>{{ $report->mod_repair }}</td>
+                                        <td>{{ $report->description }}</td>
+                                        <td>{{ $report->ident_method }}</td>
+                                        <td>
+                                            <div class="form-check">
+                                                <input class="form-check-input record-checkbox" type="checkbox"
+                                                       id="record_{{ $report->id }}"
+                                                       value="{{ $report->id }}"
+                                                       name="selected_records[]">
+                                                <label class="form-check-label" for="record_{{ $report->id }}">
+                                                    Select
+                                                </label>
+                                            </div>
+                                        </td>
+                                        <td>
+                                            <button class="btn btn-sm btn-outline-primary me-1" onclick="editRecord({{ $report->id }})" data-bs-toggle="modal" data-bs-target="#editRmRecordModal">
+                                                <i class="fas fa-edit"></i>
+                                            </button>
+                                            <button class="btn btn-sm btn-outline-danger" onclick="deleteRecord({{ $report->id }})">
+                                                <i class="fas fa-trash"></i>
+                                            </button>
+                                        </td>
+                                    </tr>
+                                @endforeach
+                                </tbody>
+                            </table>
+                        </div>
+                    @else
+                        <div class="alert alert-info mt-3">
+                            {{ __('No R&M records found for this work order.') }}
+                        </div>
+                    @endif
+                </div>
+
+
             <!-- Technical Notes Table -->
             <div class="card mt-3">
                 <div class="card-header">
@@ -92,114 +202,7 @@
                 </div>
             </div>
 
-            <!-- Здесь будет отображаться список созданных записей -->
-            <div id="rmRecordsList">
-                @if($rm_reports->count() > 0)
-                                {{-- Отображение текущих сохраненных записей - скрыто --}}
-                {{-- @if($current_wo->rm_report)
-                    @php
-                        $savedData = json_decode($current_wo->rm_report, true);
-                    @endphp
-                    @if($savedData)
-                        <div class="alert alert-info mt-3">
-                            <h6>{{ __('Currently Saved Data:') }}</h6>
 
-                            @if(isset($savedData['rm_records']) && !empty($savedData['rm_records']))
-                                <div class="mb-2">
-                                    <strong>{{ __('R&M Records:') }}</strong>
-                                    <ul class="mb-0">
-                                        @foreach($savedData['rm_records'] as $record)
-                                            @php
-                                                $rmRecord = \App\Models\RmReport::find($record['id']);
-                                            @endphp
-                                            @if($rmRecord)
-                                                <li>{{ $rmRecord->part_description }} - {{ $rmRecord->mod_repair }}</li>
-                                            @endif
-                                        @endforeach
-                                    </ul>
-                                </div>
-                            @endif
-
-                            @if(isset($savedData['technical_notes']))
-                                <div>
-                                    <strong>{{ __('Technical Notes:') }}</strong>
-                                    <ul class="mb-0">
-                                        @foreach($savedData['technical_notes'] as $noteKey => $noteValue)
-                                            @if(!empty($noteValue))
-                                                <li>{{ ucfirst(str_replace('note', 'Note ', $noteKey)) }}: {{ $noteValue }}</li>
-                                            @endif
-                                        @endforeach
-                                    </ul>
-                                </div>
-                            @endif
-                        </div>
-                    @endif
-                @endif --}}
-
-                <!-- Кнопки для массовых операций -->
-                <div class="row mt-3 mb-2">
-                        <div class="col-md-6">
-                            <button type="button" class="btn btn-outline-primary btn-sm" onclick="selectAllRecords()">
-                                <i class="fas fa-check-square"></i> {{ __('Select All') }}
-                            </button>
-                            <button type="button" class="btn btn-outline-secondary btn-sm" onclick="deselectAllRecords()">
-                                <i class="fas fa-square"></i> {{ __('Deselect All') }}
-                            </button>
-                        </div>
-                        <div class="col-md-6 text-end">
-                            <!-- Кнопка перенесена перед Technical Notes -->
-                        </div>
-                    </div>
-
-                    <div class="table-responsive mt-3">
-                        <table class="table table-striped">
-                            <thead>
-                                <tr>
-                                    <th>{{ __('Part Description') }}</th>
-                                    <th>{{ __('Modification or Repair #') }}</th>
-                                    <th>{{ __('Description') }}</th>
-                                    <th>{{ __('Identification Method') }}</th>
-                                    <th>{{ __('Select Record') }}</th>
-                                    <th>{{ __('Actions') }}</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                @foreach($rm_reports as $report)
-                                    <tr>
-                                        <td>{{ $report->part_description }}</td>
-                                        <td>{{ $report->mod_repair }}</td>
-                                        <td>{{ $report->description }}</td>
-                                        <td>{{ $report->ident_method }}</td>
-                                        <td>
-                                            <div class="form-check">
-                                                <input class="form-check-input record-checkbox" type="checkbox"
-                                                       id="record_{{ $report->id }}"
-                                                       value="{{ $report->id }}"
-                                                       name="selected_records[]">
-                                                <label class="form-check-label" for="record_{{ $report->id }}">
-                                                    Select
-                                                </label>
-                                            </div>
-                                        </td>
-                                        <td>
-                                            <button class="btn btn-sm btn-outline-primary me-1" onclick="editRecord({{ $report->id }})" data-bs-toggle="modal" data-bs-target="#editRmRecordModal">
-                                                <i class="fas fa-edit"></i>
-                                            </button>
-                                            <button class="btn btn-sm btn-outline-danger" onclick="deleteRecord({{ $report->id }})">
-                                                <i class="fas fa-trash"></i>
-                                            </button>
-                                        </td>
-                                    </tr>
-                                @endforeach
-                            </tbody>
-                        </table>
-                    </div>
-                @else
-                    <div class="alert alert-info mt-3">
-                        {{ __('No R&M records found for this work order.') }}
-                    </div>
-                @endif
-            </div>
         </div>
 
 
@@ -375,14 +378,14 @@
                 success: function(response) {
                     if (response.success) {
                         var record = response.data;
-                        
+
                         // Заполняем форму данными
                         $('#edit_record_id').val(record.id);
                         $('#edit_part_description').val(record.part_description);
                         $('#edit_mod_repair').val(record.mod_repair);
                         $('#edit_mod_repair_description').val(record.description);
                         $('#edit_ident_method').val(record.ident_method);
-                        
+
                         // Устанавливаем action для формы
                         $('#editRmRecordForm').attr('action', '{{ route("rm_reports.updateRecord", ":id") }}'.replace(':id', record.id));
                     } else {
