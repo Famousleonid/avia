@@ -25,6 +25,7 @@ use App\Http\Controllers\Admin\UserController;
 use App\Http\Controllers\Admin\MainController;
 use App\Http\Controllers\Admin\TrainingController;
 use App\Http\Controllers\Admin\UnitController;
+use App\Http\Controllers\Admin\VendorController;
 use App\Http\Controllers\Admin\WorkorderController;
 use App\Http\Controllers\Admin\WoBushingController;
 use App\Http\Controllers\Front\FrontController;
@@ -106,14 +107,12 @@ Route::group(['middleware' => ['auth', 'isAdmin'], 'prefix' => 'admin'], functio
     Route::get('/extra_processes/create_processes/{workorderId}/{componentId}', [ExtraProcessController::class, 'createProcesses'])->name('extra_processes.create_processes');
     Route::post('/extra_processes/store_processes', [ExtraProcessController::class, 'storeProcesses'])->name('extra_processes.store_processes');
     Route::get('/extra_processes/processes/{workorderId}/{componentId}', [ExtraProcessController::class, 'processes'])->name('extra_processes.processes');
+    Route::post('/extra_processes/update-order', [ExtraProcessController::class, 'updateOrder'])->name('extra_processes.update-order');
     Route::get('/extra_processes/show_all/{id}', [ExtraProcessController::class, 'showAll'])->name('extra_processes.show_all');
     Route::get('/extra_processes/{id}', [ExtraProcessController::class, 'show'])->name('extra_processes.show');
     Route::get('/extra_processes/{id}/form/{processNameId}', [ExtraProcessController::class, 'showForm'])->name('extra_processes.show_form');
     Route::get('/extra_processes/{id}/group-forms/{processNameId}', [ExtraProcessController::class, 'showGroupForms'])->name('extra_processes.show_group_forms');
     Route::resource('/extra_processes', ExtraProcessController::class)->except(['create']);
-    
-    // Vendor routes
-    Route::post('/vendors', [\App\Http\Controllers\Admin\VendorController::class, 'store'])->name('vendors.store');
 
     Route::get('log_card/create/{id}', [LogCardController::class, 'create'])->name('log_card.create');
     Route::get('log_card/edit/{id}', [LogCardController::class, 'edit'])->name('log_card.edit');
@@ -127,6 +126,9 @@ Route::group(['middleware' => ['auth', 'isAdmin'], 'prefix' => 'admin'], functio
 
     Route::get('processes/create/{manual_id}', [ProcessController::class, 'create'])->name('processes.create');
     Route::get('processes/edit/{id}', [ProcessController::class, 'edit'])->name('processes.edit');
+
+    // Vendors routes
+    Route::post('/vendors', [VendorController::class, 'store'])->name('vendors.store');
 
     //workorder route
     Route::get('workorders/create/{id}', [WorkorderController::class, 'create'])->name('workorders.create');
@@ -149,6 +151,7 @@ Route::group(['middleware' => ['auth', 'isAdmin'], 'prefix' => 'admin'], functio
     Route::get('/tdr/{tdrId}/create-processes', [TdrProcessController::class, 'createProcesses'])->name('tdr-processes.createProcesses');
     Route::get('/tdr/{tdrId}/processes', [TdrProcessController::class, 'processes'])->name('tdr-processes.processes');
     Route::get('/get-process/{processNameId}', [TdrProcessController::class, 'getProcess'])->name('tdr-processes.get-process');
+    Route::post('/tdr-processes/update-order', [TdrProcessController::class, 'updateOrder'])->name('tdr-processes.update-order');
 
     // WoBushings processesForm route
     Route::get('wo_bushings/processesForm/{id}/{processNameId}', [WoBushingController::class, 'processesForm'])->name('wo_bushings.processesForm');

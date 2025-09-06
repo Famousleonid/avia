@@ -266,6 +266,21 @@
 
 @section('scripts')
     <script>
+        // Инициализация select2 для выбора компонента
+        $(document).ready(function() {
+            // Инициализация select2 для выбора компонента
+            $('#i_component_id').select2({
+                placeholder: 'Select a component',
+                allowClear: true,
+                width: '100%',
+                language: {
+                    noResults: function() {
+                        return "No components found";
+                    }
+                }
+            });
+        });
+
         // Динамическое добавление новых строк
         document.getElementById('add-process').addEventListener('click', function () {
             const container = document.getElementById('processes-container');
@@ -312,7 +327,7 @@
             let hasSelectedRadio = false;
 
             processRows.forEach(row => {
-                const processNameSelect = row.querySelector('.select2-process');
+                const processNameSelect = row.querySelector('select[name*="[process_names_id]"]');
                 const processNameId = processNameSelect.value;
                 const processName = processNameSelect.options[processNameSelect.selectedIndex].text;
 
@@ -397,7 +412,7 @@
 
         // Обновление чекбоксов при изменении выбранного имени процесса
         document.addEventListener('change', function (event) {
-            if (event.target.classList.contains('select2-process')) {
+            if (event.target.name && event.target.name.includes('[process_names_id]')) {
                 const processNameId = event.target.value;
                 const processRow = event.target.closest('.process-row');
                 const processOptionsContainer = processRow.querySelector('.process-options');
@@ -457,7 +472,7 @@
             if (!btn) return;
 
             currentRow = btn.closest('.process-row');
-            const select = currentRow.querySelector('.select2-process');
+            const select = currentRow.querySelector('select[name*="[process_names_id]"]');
             const processNameId = select.value;
             const processNameText = select.options[select.selectedIndex].text;
             document.getElementById('modalProcessName').innerText = processNameText;

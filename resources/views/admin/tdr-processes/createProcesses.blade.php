@@ -338,6 +338,9 @@
                 // Устанавливаем заголовок модального окна и значение скрытого поля
                 document.getElementById('modalProcessName').innerText = processNameText;
                 document.getElementById('modalProcessNameId').value = processNameId;
+                
+                // Очищаем поле ввода нового процесса
+                document.getElementById('newProcessInput').value = '';
 
                 // Получаем manual_id (в данном примере из скрытого поля формы)
                 // const manualId = document.querySelector('input[name="manual_id"]').value;
@@ -387,6 +390,9 @@
             const processNameText = select.options[select.selectedIndex].text;
             document.getElementById('modalProcessName').innerText = processNameText;
             document.getElementById('modalProcessNameId').value = processNameId;
+            
+            // Очищаем поле ввода нового процесса
+            document.getElementById('newProcessInput').value = '';
 
             // Получаем manual_id через data-атрибут
             const manualId = document.getElementById('processes-container').dataset.manualId;
@@ -443,20 +449,19 @@
 
                 // Если введён новый процесс – отправляем AJAX-запрос для его создания
                 if (newProcess !== '') {
-                    const formData = new FormData();
-                    formData.append('_token', document.querySelector('meta[name="csrf-token"]').content);
-                    formData.append('process_names_id', processNameId);
-                    formData.append('process', newProcess);
-                    formData.append('manual_id', manualId);
-
                     fetch("{{ route('processes.store') }}", {
                         method: 'POST',
                         headers: {
                             'X-Requested-With': 'XMLHttpRequest',
                             'Accept': 'application/json',
+                            'Content-Type': 'application/json',
                             'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content
                         },
-                        body: formData
+                        body: JSON.stringify({
+                            process_names_id: processNameId,
+                            process: newProcess,
+                            manual_id: manualId
+                        })
                     })
                         .then(response => {
                             if (!response.ok) {
@@ -483,8 +488,39 @@
                                     noSpecLabel.remove();
                                 }
 
-                                // Очищаем поле ввода нового процесса
+                                                // Очищаем поле ввода нового процесса
                                 document.getElementById('newProcessInput').value = '';
+                                
+                                // Очищаем выбранные чекбоксы в модальном окне
+                                document.querySelectorAll('#existingProcessContainer input[type="checkbox"]:checked').forEach(checkbox => {
+                                    checkbox.checked = false;
+                                });
+                                
+                                // Показываем сообщение об успехе
+                                alert('Процесс успешно добавлен!');
+                                
+                                // Перезагружаем список существующих процессов в модальном окне
+                                const manualId = document.getElementById('processes-container').dataset.manualId;
+                                fetch(`{{ route('processes.getProcesses') }}?processNameId=${processNameId}&manualId=${manualId}`)
+                                    .then(response => response.json())
+                                    .then(data => {
+                                        const container = document.getElementById('existingProcessContainer');
+                                        container.innerHTML = '';
+                                        if (data.availableProcesses && data.availableProcesses.length > 0) {
+                                            data.availableProcesses.forEach(process => {
+                                                const div = document.createElement('div');
+                                                div.className = 'form-check';
+                                                div.innerHTML = `
+                                                    <input type="checkbox" class="form-check-input" name="modal_processes[]" value="${process.id}" id="modal_process_${process.id}">
+                                                    <label class="form-check-label" for="modal_process_${process.id}">${process.process}</label>
+                                                `;
+                                                container.appendChild(div);
+                                            });
+                                        }
+                                    })
+                                    .catch(error => {
+                                        console.error('Error reloading processes:', error);
+                                    });
                             } else {
                                 alert(data.message || "Ошибка при добавлении нового процесса.");
                             }

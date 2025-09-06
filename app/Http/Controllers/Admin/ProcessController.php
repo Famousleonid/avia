@@ -95,10 +95,11 @@ class ProcessController extends Controller
                 'processes_id' => $process->id,
             ]);
 
-            // Если это AJAX-запрос, возвращаем JSON
-            if ($request->ajax()) {
+            // Если это AJAX-запрос или JSON запрос, возвращаем JSON
+            if ($request->ajax() || $request->wantsJson()) {
                 return response()->json([
                     'success' => true,
+                    'message' => 'Process added successfully.',
                     'process' => $process
                 ]);
             }
@@ -110,7 +111,9 @@ class ProcessController extends Controller
 
             return redirect()->back()->with('success', 'Process added successfully.');
         } catch (\Exception $e) {
-            if ($request->ajax()) {
+            \Log::error('ProcessController::store - Error: ' . $e->getMessage());
+            
+            if ($request->ajax() || $request->wantsJson()) {
                 return response()->json([
                     'success' => false,
                     'message' => 'Error adding process: ' . $e->getMessage()

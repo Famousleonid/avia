@@ -16,6 +16,7 @@ use Illuminate\Contracts\Foundation\Application;
 use Illuminate\Contracts\View\Factory;
 use Illuminate\Contracts\View\View;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use JetBrains\PhpStorm\NoReturn;
 
 class TdrProcessController extends Controller
@@ -71,7 +72,7 @@ class TdrProcessController extends Controller
         })->get();
 
         // Получаем процессы, уже связанные с текущим Tdr
-        $tdrProcesses = TdrProcess::where('tdrs_id', $tdrId)->get();
+        $tdrProcesses = TdrProcess::where('tdrs_id', $tdrId)->orderBy('sort_order')->get();
 
         // Передаем данные в представление
         return view('admin.tdr-processes.createProcesses', compact(
@@ -156,12 +157,16 @@ class TdrProcessController extends Controller
             return response()->json(['error' => 'TDR not found.'], 404);
         }
 
+        // Получаем максимальный sort_order для данного tdr_id
+        $maxSortOrder = TdrProcess::where('tdrs_id', $tdrId)->max('sort_order') ?? 0;
+
         // Сохраняем каждый процесс
-        foreach ($processesData as $data) {
+        foreach ($processesData as $index => $data) {
             TdrProcess::create([
                 'tdrs_id' => $tdrId,
                 'process_names_id' => $data['process_names_id'],
                 'processes' => json_encode($data['processes']), // Сохраняем массив ID процессов
+                'sort_order' => $maxSortOrder + $index + 1, // Устанавливаем sort_order в конец списка
                 'date_start' => now(), // Пример даты начала
                 'date_finish' => now()->addDays(1), // Пример даты завершения
             ]);
@@ -170,7 +175,7 @@ class TdrProcessController extends Controller
         // Возвращаем JSON-ответ с URL для перенаправления
         return response()->json([
             'message' => 'Processes saved successfully!',
-            'redirect' => route('tdrs.processes', ['workorder_id' => $tdr->workorder->id])
+            'redirect' => route('tdr-processes.processes', ['tdrId' => $tdrId])
         ], 200);
     }
 
@@ -303,6 +308,7 @@ class TdrProcessController extends Controller
             $ndt_components = TdrProcess::whereIn('tdrs_id', $tdr_ids)
                 ->whereIn('process_names_id', $ndt_ids)
                 ->with(['tdr', 'processName'])
+                ->orderBy('sort_order')
                 ->get();
 
             return view('admin.tdr-processes.processesForm', array_merge([
@@ -324,6 +330,7 @@ class TdrProcessController extends Controller
         $process_tdr_components = TdrProcess::whereIn('tdrs_id', $tdr_ids)
             ->where('process_names_id', $processes_name_id)
             ->with(['tdr', 'processName'])
+            ->orderBy('sort_order')
             ->get();
 
         return view('admin.tdr-processes.processesForm', [
@@ -408,6 +415,7 @@ class TdrProcessController extends Controller
                 'ndt_components' => TdrProcess::where('tdrs_id', $current_tdr->id)
                     ->where('process_names_id', $process_name->id)
                     ->with(['tdr', 'processName'])
+                    ->orderBy('sort_order')
                     ->get(),
 
                 // Добавляем ID текущего процесса (а не всех NDT процессов)
@@ -429,6 +437,7 @@ class TdrProcessController extends Controller
                 'process_tdr_components' => TdrProcess::where('tdrs_id', $current_tdr->id)
                     ->where('process_names_id', $process_name->id)
                     ->with(['tdr', 'processName'])
+                    ->orderBy('sort_order')
                     ->get()
             ];
         }
@@ -447,7 +456,7 @@ class TdrProcessController extends Controller
         // Находим связанный Workorder
         $current_wo = Workorder::find($workorder_id);
 
-        $tdrProcesses = TdrProcess::all();
+        $tdrProcesses = TdrProcess::orderBy('sort_order')->get();
         $proces = Process::all();
         
         // Получаем всех поставщиков
@@ -597,5 +606,33 @@ class TdrProcessController extends Controller
         // Перенаправляем с сообщением об успехе
         return redirect()->route('tdrs.processes', ['workorder_id' => $tdr->workorder->id])
             ->with('success', 'Process removed successfully.');
+    }
+
+    /**
+     * Update the order of processes
+     *
+     * @param  \Illuminate\Http\Request  $request
+     * @return \Illuminate\Http\JsonResponse
+     */
+    public function updateOrder(Request $request)
+    {
+        try {
+            $processIds = $request->input('process_ids');
+            
+            if (!is_array($processIds)) {
+                return response()->json(['success' => false, 'message' => 'Invalid process IDs'], 400);
+            }
+
+            DB::transaction(function() use ($processIds) {
+                foreach ($processIds as $index => $processId) {
+                    TdrProcess::where('id', $processId)
+                             ->update(['sort_order' => $index + 1]);
+                }
+            });
+
+            return response()->json(['success' => true, 'message' => 'Order updated successfully']);
+        } catch (\Exception $e) {
+            return response()->json(['success' => false, 'message' => 'Error updating order: ' . $e->getMessage()], 500);
+        }
     }
 }

@@ -14,6 +14,7 @@ use Illuminate\Contracts\View\Factory;
 use Illuminate\Contracts\View\View;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Support\Facades\DB;
 
 class ExtraProcessController extends Controller
 {
@@ -238,12 +239,18 @@ class ExtraProcessController extends Controller
                 'processesJson' => $processesJson
             ]);
 
+            // Получаем максимальный sort_order для данного workorder_id и component_id
+            $maxSortOrder = ExtraProcess::where('workorder_id', $workorderId)
+                ->where('component_id', $componentId)
+                ->max('sort_order') ?? 0;
+
             // Создаем новую запись
             ExtraProcess::create([
                 'workorder_id' => $workorderId,
                 'component_id' => $componentId,
                 'qty' => $qty,
                 'processes' => $processesJson,
+                'sort_order' => $maxSortOrder + 1, // Устанавливаем sort_order в конец списка
             ]);
 
             return response()->json([
@@ -569,6 +576,7 @@ class ExtraProcessController extends Controller
         // Получаем все extra processes для этого work order
         $extra_processes = ExtraProcess::where('workorder_id', $current_wo->id)
             ->with(['component'])
+            ->orderBy('sort_order')
             ->get();
 
         // Группируем компоненты по process_name_id
@@ -1129,6 +1137,34 @@ class ExtraProcessController extends Controller
                 'success' => false,
                 'message' => 'Error deleting extra process: ' . $e->getMessage()
             ], 500);
+        }
+    }
+
+    /**
+     * Update the order of processes
+     *
+     * @param  \Illuminate\Http\Request  $request
+     * @return \Illuminate\Http\JsonResponse
+     */
+    public function updateOrder(Request $request)
+    {
+        try {
+            $processIds = $request->input('process_ids');
+            
+            if (!is_array($processIds)) {
+                return response()->json(['success' => false, 'message' => 'Invalid process IDs'], 400);
+            }
+
+            DB::transaction(function() use ($processIds) {
+                foreach ($processIds as $index => $processId) {
+                    ExtraProcess::where('id', $processId)
+                               ->update(['sort_order' => $index + 1]);
+                }
+            });
+
+            return response()->json(['success' => true, 'message' => 'Order updated successfully']);
+        } catch (\Exception $e) {
+            return response()->json(['success' => false, 'message' => 'Error updating order: ' . $e->getMessage()], 500);
         }
     }
 }

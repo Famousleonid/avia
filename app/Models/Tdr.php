@@ -55,7 +55,7 @@ class Tdr extends Model
     }
     public function tdrProcesses()
     {
-        return $this->hasMany(TdrProcess::class, 'tdrs_id');
+        return $this->hasMany(TdrProcess::class, 'tdrs_id')->orderBy('sort_order');
     }
     public function processName()
     {

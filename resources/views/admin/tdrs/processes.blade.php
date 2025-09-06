@@ -138,22 +138,24 @@
                                         <td class="text-center" > {{$tdr->component->name}}</td>
                                         <td class="ms-1">
 {{--                                            {{$tdr->id}}--}}
-                                            @foreach($tdrProcesses as $processes)
-                                                @if($processes->tdrs_id == $tdr->id)
-                                                    @php
-                                                        // Декодируем JSON-поле processes
-                                                        $processData = json_decode($processes->processes, true);
-                                                        // Получаем имя процесса из связанной модели ProcessName
-                                                        $processName = $processes->processName->name;
-                                                    @endphp
+                                            @php
+                                                // Получаем все процессы для этого компонента и сортируем по sort_order
+                                                $componentProcesses = $tdrProcesses->where('tdrs_id', $tdr->id)->sortBy('sort_order');
+                                            @endphp
+                                            @foreach($componentProcesses as $processes)
+                                                @php
+                                                    // Декодируем JSON-поле processes
+                                                    $processData = json_decode($processes->processes, true);
+                                                    // Получаем имя процесса из связанной модели ProcessName
+                                                    $processName = $processes->processName->name;
+                                                @endphp
 
-                                                    @foreach($processData as $processId)
-                                                        {{ $processName }} :
-                                                        @if(isset($proces[$processId]))
-                                                            {{ $proces[$processId]->process }}<br>
-                                                        @endif
-                                                    @endforeach
-                                                @endif
+                                                @foreach($processData as $processId)
+                                                    {{ $processName }} :
+                                                    @if(isset($proces[$processId]))
+                                                        {{ $proces[$processId]->process }}<br>
+                                                    @endif
+                                                @endforeach
                                             @endforeach
 
                                         </td>
@@ -235,7 +237,9 @@
                                          * Если такого свойства нет, можно применить преобразование, например, анализ значения process_sheet_name.
                                          */
                                         $globalGroupedProcesses = [];
-                                        foreach($tdrProcesses as $process) {
+                                        // Сортируем процессы по sort_order перед группировкой
+                                        $sortedProcesses = $tdrProcesses->sortBy('sort_order');
+                                        foreach($sortedProcesses as $process) {
                                             // Используем process_type, если оно есть, иначе можно взять, например, process_sheet_name
                                             $baseType = $process->processName->process_type ?? $process->processName->process_sheet_name;
 

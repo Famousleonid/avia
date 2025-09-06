@@ -324,7 +324,7 @@ class TdrController extends Controller
         // Извлекаем компоненты, которые связаны с этим manual_id
         $components = Component::where('manual_id', $manual_id)->get();
 
-        $tdrProcesses = TdrProcess::all();
+        $tdrProcesses = TdrProcess::orderBy('sort_order')->get();
 
         $proces = Process::all()->keyBy('id');
 
@@ -1049,7 +1049,9 @@ class TdrController extends Controller
         // Получаем Tdr, где use_process_form = true, с предварительной загрузкой TdrProcess
         $tdrs = Tdr::where('workorder_id', $current_wo->id)
             ->where('use_process_forms', true)
-            ->with('tdrProcesses') // Предварительная загрузка TdrProcess
+            ->with(['tdrProcesses' => function($query) {
+                $query->orderBy('sort_order');
+            }]) // Предварительная загрузка TdrProcess с сортировкой
             ->with('component')
             ->get();
 

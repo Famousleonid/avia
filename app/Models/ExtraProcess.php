@@ -13,6 +13,7 @@ class ExtraProcess extends Model
         'workorder_id',
         'component_id',
         'processes', // JSON-поле для хранения массива процессов
+        'sort_order', // Поле для сортировки
         'qty',
     ];
 
@@ -29,10 +30,5 @@ class ExtraProcess extends Model
     public function component()
     {
         return $this->belongsTo(Component::class, 'component_id');
-    }
-
-    public function vendor()
-    {
-        return $this->belongsTo(Vendor::class, 'vendor_id');
     }
 }

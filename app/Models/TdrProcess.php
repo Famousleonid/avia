@@ -14,6 +14,7 @@ class TdrProcess extends Model
         'tdrs_id',
         'process_names_id',
         'processes', // JSON-поле для хранения массива процессов
+        'sort_order', // Поле для сортировки
         'date_start',
         'date_finish',
     ];

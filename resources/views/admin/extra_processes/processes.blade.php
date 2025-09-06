@@ -65,6 +65,32 @@
             gap: 0.5rem !important;
             align-items: center;
         }
+
+        /* Стили для drag & drop */
+        .sortable-table tbody tr {
+            cursor: move;
+            transition: all 0.3s ease;
+        }
+
+        .sortable-table tbody tr:hover {
+            background-color: #f8f9fa;
+        }
+
+        .sortable-table tbody tr.dragging {
+            opacity: 0.5;
+            transform: rotate(5deg);
+            box-shadow: 0 5px 15px rgba(0,0,0,0.3);
+        }
+
+        .sortable-table tbody tr.drag-over {
+            border-top: 3px solid #007bff;
+            background-color: #e3f2fd;
+        }
+
+        .sortable-table tbody tr.drag-over-bottom {
+            border-bottom: 3px solid #007bff;
+            background-color: #e3f2fd;
+        }
     </style>
 
     <div class="container mt-3">
@@ -95,7 +121,7 @@
                 @if($extra_process && $extra_process->processes)
                     <div class="me-3">
                         <div class="table-wrapper me-3">
-                            <table class="display table table-sm table-hover align-middle table-bordered bg-gradient">
+                            <table class="display table table-sm table-hover align-middle table-bordered bg-gradient sortable-table">
                                 <thead>
                                 <tr>
                                     <th class="text-primary text-center">Process Name</th>
@@ -104,7 +130,7 @@
                                     <th class="text-primary text-center">Form</th>
                                 </tr>
                                 </thead>
-                                <tbody>
+                                <tbody id="sortable-tbody">
                                 @if(is_array($extra_process->processes) && array_keys($extra_process->processes) !== range(0, count($extra_process->processes) - 1))
                                     {{-- Старая структура: ассоциативный массив --}}
                                     @foreach($extra_process->processes as $processNameId => $processId)
@@ -113,7 +139,7 @@
                                             $process = \App\Models\Process::find($processId);
                                         @endphp
                                         @if($processName && $process)
-                                            <tr>
+                                            <tr data-id="{{ $extra_process->id }}">
                                                 <td class="text-center">{{ $processName->name }}</td>
                                                 <td class="ps-2">{{ $process->process }}</td>
                                                 <td class="text-center">
@@ -163,7 +189,7 @@
                                             $process = \App\Models\Process::find($processItem['process_id']);
                                         @endphp
                                         @if($processName && $process)
-                                            <tr>
+                                            <tr data-id="{{ $extra_process->id }}">
                                                 <td class="text-center">{{ $processName->name }}</td>
                                                 <td class="ps-2">{{ $process->process }}</td>
                                                 <td class="text-center">
@@ -267,9 +293,31 @@
         </div>
     </div>
 
+    <!-- Подключение библиотеки SortableJS -->
+    <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/Sortable.min.js"></script>
+
     <!-- Скрипт для обработки подтверждения удаления -->
     <script>
         document.addEventListener('DOMContentLoaded', function () {
+            // Инициализация drag & drop
+            const sortable = Sortable.create(document.getElementById('sortable-tbody'), {
+                animation: 150,
+                ghostClass: 'dragging',
+                dragClass: 'dragging',
+                onEnd: function(evt) {
+                    // Получаем новый порядок элементов
+                    const newOrder = Array.from(sortable.el.children).map((row, index) => {
+                        return {
+                            id: row.getAttribute('data-id'),
+                            sort_order: index + 1
+                        };
+                    });
+                    
+                    // Отправляем AJAX запрос для обновления порядка
+                    updateProcessOrder(newOrder);
+                }
+            });
+
             const deleteModal = document.getElementById('useConfirmDelete');
             const confirmDeleteButton = document.getElementById('confirmDeleteButton');
             let deleteForm = null;
@@ -418,6 +466,62 @@
                     alert('Error adding vendor');
                 });
             });
+
+            // Функция для обновления порядка процессов
+            function updateProcessOrder(newOrder) {
+                const processIds = newOrder.map(item => item.id);
+                
+                fetch('{{ route("extra_processes.update-order") }}', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
+                        'Accept': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        process_ids: processIds
+                    })
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        console.log('Order updated successfully');
+                        // Показываем уведомление пользователю
+                        showNotification('Порядок процессов обновлен', 'success');
+                    } else {
+                        console.error('Error updating order:', data.message);
+                        showNotification('Ошибка обновления порядка: ' + data.message, 'error');
+                        // Восстанавливаем предыдущий порядок
+                        location.reload();
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    showNotification('Ошибка сети при обновлении порядка', 'error');
+                    location.reload();
+                });
+            }
+
+            // Функция для показа уведомлений
+            function showNotification(message, type) {
+                // Создаем уведомление
+                const notification = document.createElement('div');
+                notification.className = `alert alert-${type === 'success' ? 'success' : 'danger'} alert-dismissible fade show position-fixed`;
+                notification.style.cssText = 'top: 20px; right: 20px; z-index: 9999; min-width: 300px;';
+                notification.innerHTML = `
+                    ${message}
+                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                `;
+                
+                document.body.appendChild(notification);
+                
+                // Автоматически убираем уведомление через 3 секунды
+                setTimeout(() => {
+                    if (notification.parentNode) {
+                        notification.remove();
+                    }
+                }, 3000);
+            }
         });
     </script>
 @endsection

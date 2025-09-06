@@ -83,8 +83,10 @@ class ManualController extends Controller
             'units.*' => 'required|string|max:255',
             'eff_codes' => 'nullable|array',
             'eff_codes.*' => 'nullable|string|max:255',
-            'csv_file' => 'nullable|file|mimes:csv,txt|max:10240', // 10MB max
-            'process_type' => 'nullable|in:ndt,cad,stress_relief,other',
+            'csv_files' => 'nullable|array',
+            'csv_files.*' => 'nullable|file|mimes:csv,txt|max:10240', // 10MB max
+            'csv_process_types' => 'nullable|array',
+            'csv_process_types.*' => 'nullable|in:ndt,cad,stress_relief,log,other',
         ]);
 
         DB::transaction(function () use ($request) {
@@ -98,13 +100,19 @@ class ManualController extends Controller
                 $manual->addMedia($request->file('img'))->toMediaCollection('manuals');
             }
 
-            if ($request->hasFile('csv_file')) {
-                $media = $manual->addMedia($request->file('csv_file'))
-                    ->toMediaCollection('csv_files');
-
-                if ($request->filled('process_type')) {
-                    $media->setCustomProperty('process_type', $request->process_type);
-                    $media->save();
+            // Обрабатываем множественные CSV файлы
+            if ($request->hasFile('csv_files') && $request->has('csv_process_types')) {
+                $csvFiles = $request->file('csv_files');
+                $processTypes = $request->input('csv_process_types', []);
+                
+                foreach ($csvFiles as $index => $file) {
+                    if ($file && isset($processTypes[$index])) {
+                        $media = $manual->addMedia($file)
+                            ->toMediaCollection('csv_files');
+                        
+                        $media->setCustomProperty('process_type', $processTypes[$index]);
+                        $media->save();
+                    }
                 }
             }
 
@@ -189,8 +197,9 @@ class ManualController extends Controller
             'units.*' => 'required|string|max:255',
             'eff_codes' => 'nullable|array',
             'eff_codes.*' => 'nullable|string|max:255',
-            'csv_files.*' => 'nullable|file|mimes:csv,txt|max:10240', // 10MB max
-            'process_type' => 'nullable|in:ndt,cad,stress_relief,other',
+            // CSV файлы теперь загружаются только через AJAX
+            // 'csv_files.*' => 'nullable|file|mimes:csv,txt|max:10240', // 10MB max
+            // 'process_type' => 'nullable|in:ndt,cad,stress_relief,other',
         ]);
 
         if ($request->hasFile('img')) {
@@ -200,17 +209,8 @@ class ManualController extends Controller
             $cmm->addMedia($request->file('img'))->toMediaCollection('manuals');
         }
 
-        if ($request->hasFile('csv_files')) {
-            foreach ($request->file('csv_files') as $file) {
-                $media = $cmm->addMedia($file)
-                    ->toMediaCollection('csv_files');
-
-                if ($request->filled('process_type')) {
-                    $media->setCustomProperty('process_type', $request->process_type);
-                    $media->save();
-                }
-            }
-        }
+        // CSV файлы теперь загружаются только через AJAX (ManualCsvController)
+        // Удаляем обработку csv_files из основной формы
 
         $cmm->update($validatedData);
 

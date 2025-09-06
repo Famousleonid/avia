@@ -5,6 +5,9 @@
         .container {
             max-width: 1200px;
         }
+        .fs-7{
+            font-size: .7rem;
+        }
     </style>
 
     <div class="container ">
@@ -46,12 +49,18 @@
 
                             <div class="col-xs-12 col-sm-12 col-md-12 mt-2">
                                 <div class="form-group">
-                                    <strong>{{__('CSV Files: ')}}</strong>
+                                    <div class="d-flex justify-content-between">
+                                        <strong class="pt-3 ">{{__('CSV Files: ')}}</strong>
+                                        <button type="button" class="btn btn-outline-primary mt-2" data-bs-toggle="modal" data-bs-target="#csvUploadModal">
+                                            <i class="fas fa-upload"></i> {{__('Add CSV Files')}}
+                                        </button>
+                                    </div>
+
                                     @php
                                         $csvFiles = $cmm->getMedia('csv_files');
                                     @endphp
                                     @if($csvFiles->count() > 0)
-                                        <div class="csv-files-list mt-2">
+                                        <div class="csv-files-list mt-2 mb-1">
                                             @foreach($csvFiles as $csvFile)
                                                 <div class="d-flex align-items-center mb-1" data-process-type="{{ $csvFile->getCustomProperty('process_type') }}">
                                                     <span class="badge bg-outline-info me-2">{{ $csvFile->file_name }}</span>
@@ -69,21 +78,12 @@
                                             @endforeach
                                         </div>
                                     @endif
-
-                                    <select name="process_type" class="form-control mb-2">
-                                        <option value="">{{ __('Select Process Type (Optional)') }}</option>
-                                        <option value="ndt">{{ __('NDT') }}</option>
-                                        <option value="cad">{{ __('Cad') }}</option>
-                                        <option value="stress_relief">{{ __('Stress Relief') }}</option>
-                                        <option value="log">{{ __('Log Card') }}</option>
-                                        <option value="other">{{ __('Other') }}</option>
-                                    </select>
-                                    <input type="file" name="csv_files[]" class="form-control" accept=".csv,.txt" multiple>
-                                    <small class="text-muted">{{__('Upload one or more CSV files with component process requirements')}}</small>
+                                    <small class="text-muted d-block ps-4 fs-7">{{__('Upload CSV files with component process
+                                    requirements')}}</small>
                                 </div>
                             </div>
 
-                            <div class="">
+                            <div class="mt-2">
                                 <label for="revision_date">{{ __('Revision Date') }}</label>
                                 <input id='revision_date' type="date" class="form-control" name="revision_date"
                                        value="{{ old('revision_date', $cmm->revision_date) }}" required>
@@ -281,6 +281,43 @@
         </div>
     </div>
 
+    <!-- Модальное окно для загрузки CSV файлов -->
+    <div class="modal fade" id="csvUploadModal" tabindex="-1" aria-labelledby="csvUploadModalLabel" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content bg-gradient">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="csvUploadModalLabel">{{ __('Add CSV Files') }}</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Закрыть"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="csvUploadForm" enctype="multipart/form-data">
+                        @csrf
+                        <div class="form-group mb-3">
+                            <label for="csvProcessType">{{ __('Process Type') }}</label>
+                            <select id="csvProcessType" name="process_type" class="form-control" required>
+                                <option value="">{{ __('Select Process Type') }}</option>
+                                <option value="ndt">{{ __('NDT') }}</option>
+                                <option value="cad">{{ __('CAD') }}</option>
+                                <option value="stress_relief">{{ __('Stress Relief') }}</option>
+                                <option value="log">{{ __('Log Card') }}</option>
+                                <option value="other">{{ __('Other') }}</option>
+                            </select>
+                        </div>
+                        <div class="form-group mb-3">
+                            <label for="csvFileInput">{{ __('CSV File') }}</label>
+                            <input type="file" id="csvFileInput" name="csv_file" class="form-control" accept=".csv,.txt" required>
+                            <small class="text-muted">{{__('Select CSV or TXT file to upload')}}</small>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">{{ __('Cancel') }}</button>
+                    <button type="button" class="btn btn-primary" onclick="uploadCsvFile()">{{ __('Upload') }}</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <script>
         // Функция для обработки отправки форм для самолетов, MFR и Scope
         function handleFormSubmission(formId, modalId, route, selectId, dataKey, dataValue) {
@@ -372,13 +409,13 @@
                 e.preventDefault();
                 return false;
             }
-            
+
             // Удаляем пустые поля units перед отправкой
             const unitFields = document.querySelectorAll('.unit-field');
             unitFields.forEach(function(field) {
                 const partNumberInput = field.querySelector('input[name="units[]"]');
                 const effCodeInput = field.querySelector('input[name="eff_codes[]"]');
-                
+
                 if (partNumberInput && partNumberInput.value.trim() === '') {
                     // Если part_number пустой, удаляем весь блок
                     field.remove();
@@ -386,13 +423,22 @@
             });
         });
 
-        // Функция для обработки загрузки файлов
-        function handleFileUpload(event) {
-            const fileInput = event.target;
-            const processType = document.querySelector('select[name="process_type"]').value;
+        // Функция для загрузки CSV файла через модальное окно
+        function uploadCsvFile() {
+            const fileInput = document.getElementById('csvFileInput');
+            const processType = document.getElementById('csvProcessType').value;
             const formData = new FormData();
 
-            if (fileInput.files.length > 0) {
+            if (!fileInput.files.length) {
+                alert('{{ __("Please select a file") }}');
+                return;
+            }
+
+            if (!processType) {
+                alert('{{ __("Please select a process type") }}');
+                return;
+            }
+
                 formData.append('csv_file', fileInput.files[0]);
                 formData.append('process_type', processType);
 
@@ -420,11 +466,23 @@
 
                             // Добавляем новый файл в список
                             const fileList = document.querySelector('.csv-files-list');
-                            const fileElement = createFileElement(data.file);
-                            fileList.appendChild(fileElement);
+                        if (!fileList) {
+                            // Создаем контейнер для файлов, если его нет
+                            const csvSection = document.querySelector('.form-group strong:contains("CSV Files")').parentElement;
+                            const newFileList = document.createElement('div');
+                            newFileList.className = 'csv-files-list mt-2';
+                            csvSection.appendChild(newFileList);
+                        }
 
-                            // Очищаем input
-                            fileInput.value = '';
+                            const fileElement = createFileElement(data.file);
+                        document.querySelector('.csv-files-list').appendChild(fileElement);
+
+                        // Очищаем форму и закрываем модальное окно
+                        document.getElementById('csvUploadForm').reset();
+                        const modal = bootstrap.Modal.getInstance(document.getElementById('csvUploadModal'));
+                        modal.hide();
+
+                        alert('{{ __("File uploaded successfully") }}');
                         } else {
                             throw new Error(data.error || '{{ __("Error uploading file") }}');
                         }
@@ -433,7 +491,6 @@
                         console.error('Error:', error);
                         alert(error.message || '{{ __("Error uploading file") }}');
                     });
-            }
         }
 
         // Функция для создания элемента файла
@@ -457,9 +514,6 @@
 
             return div;
         }
-
-        // Добавляем обработчик события для input файла
-        document.querySelector('input[name="csv_files[]"]').addEventListener('change', handleFileUpload);
 
         // Функциональность для управления полями units
         document.addEventListener('DOMContentLoaded', function () {
