@@ -784,15 +784,92 @@ class TdrController extends Controller
                         $cleanItemNo = preg_replace('/[^A-Za-z0-9]/', '', $itemNo);
                         $cleanIplNum = preg_replace('/[^A-Za-z0-9]/', '', $iplNum);
 
-                        // Если один номер содержит другой, пропускаем эту запись
-                        if (strpos($cleanItemNo, $cleanIplNum) !== false ||
-                            strpos($cleanIplNum, $cleanItemNo) !== false) {
-                            \Log::info('Skipping record due to existing IPL:', [
+                        // Если номера полностью совпадают, пропускаем
+                        if ($cleanItemNo === $cleanIplNum) {
+                            \Log::info('Skipping record due to exact IPL match:', [
                                 'item_no' => $itemNo,
                                 'existing_ipl' => $iplNum
                             ]);
                             $shouldSkip = true;
                             break;
+                        }
+
+                        // Проверяем совмещенные значения в CSV (например, 1-140/1-140A, 1-140/140А)
+                        if (strpos($itemNo, '/') !== false) {
+                            $csvParts = explode('/', $itemNo);
+                            foreach ($csvParts as $part) {
+                                $part = trim($part);
+                                $cleanPart = preg_replace('/[^A-Za-z0-9]/', '', $part);
+                                
+                                // Прямое сравнение
+                                if ($cleanPart === $cleanIplNum) {
+                                    \Log::info('Skipping record due to CSV combined value match:', [
+                                        'item_no' => $itemNo,
+                                        'csv_part' => $part,
+                                        'existing_ipl' => $iplNum
+                                    ]);
+                                    $shouldSkip = true;
+                                    break 2; // Выходим из обоих циклов
+                                }
+                                
+                                // Нормализация: если часть не содержит префикс, добавляем его из первой части
+                                if (preg_match('/^(\d+-\d+)/', $itemNo, $matches)) {
+                                    $prefix = $matches[1];
+                                    if (!preg_match('/^\d+-\d+/', $part)) {
+                                        $normalizedPart = $prefix . $part;
+                                        $cleanNormalizedPart = preg_replace('/[^A-Za-z0-9]/', '', $normalizedPart);
+                                        if ($cleanNormalizedPart === $cleanIplNum) {
+                                            \Log::info('Skipping record due to CSV normalized combined value match:', [
+                                                'item_no' => $itemNo,
+                                                'csv_part' => $part,
+                                                'normalized_part' => $normalizedPart,
+                                                'existing_ipl' => $iplNum
+                                            ]);
+                                            $shouldSkip = true;
+                                            break 2; // Выходим из обоих циклов
+                                        }
+                                    }
+                                }
+                            }
+                        }
+
+                        // Проверяем совмещенные значения в базе данных
+                        if (strpos($iplNum, '/') !== false) {
+                            $dbParts = explode('/', $iplNum);
+                            foreach ($dbParts as $part) {
+                                $part = trim($part);
+                                $cleanPart = preg_replace('/[^A-Za-z0-9]/', '', $part);
+                                
+                                // Прямое сравнение
+                                if ($cleanPart === $cleanItemNo) {
+                                    \Log::info('Skipping record due to DB combined value match:', [
+                                        'item_no' => $itemNo,
+                                        'existing_ipl' => $iplNum,
+                                        'db_part' => $part
+                                    ]);
+                                    $shouldSkip = true;
+                                    break 2; // Выходим из обоих циклов
+                                }
+                                
+                                // Нормализация: если часть не содержит префикс, добавляем его из первой части
+                                if (preg_match('/^(\d+-\d+)/', $iplNum, $matches)) {
+                                    $prefix = $matches[1];
+                                    if (!preg_match('/^\d+-\d+/', $part)) {
+                                        $normalizedPart = $prefix . $part;
+                                        $cleanNormalizedPart = preg_replace('/[^A-Za-z0-9]/', '', $normalizedPart);
+                                        if ($cleanNormalizedPart === $cleanItemNo) {
+                                            \Log::info('Skipping record due to DB normalized combined value match:', [
+                                                'item_no' => $itemNo,
+                                                'existing_ipl' => $iplNum,
+                                                'db_part' => $part,
+                                                'normalized_part' => $normalizedPart
+                                            ]);
+                                            $shouldSkip = true;
+                                            break 2; // Выходим из обоих циклов
+                                        }
+                                    }
+                                }
+                            }
                         }
                     }
 
@@ -1431,6 +1508,10 @@ public function wo_Process_Form($id)
 
                 // Пропуск, если номер элемента совпадает с существующим IPL
                 if ($this->shouldSkipItem($itemNo, $existingIplNums)) {
+                    \Log::info('Skipping NDT component due to existing IPL:', [
+                        'item_no' => $itemNo,
+                        'existing_ipls' => $existingIplNums
+                    ]);
                     continue;
                 }
 
@@ -1529,6 +1610,15 @@ public function wo_Process_Form($id)
                     continue;
                 }
 
+                // Проверяем совмещенные значения в CSV
+                if ($this->shouldSkipItem($itemNo, array_keys($tdrIplMap))) {
+                    \Log::info('Skipping CAD component due to combined value match:', [
+                        'item_no' => $itemNo,
+                        'existing_ipls' => array_keys($tdrIplMap)
+                    ]);
+                    continue;
+                }
+
                 // Если IPL номер еще не был обработан
                 if (!in_array($itemNo, $processedIpls)) {
                     $totalQty += $qty; // Используем qty из CSV
@@ -1563,6 +1653,7 @@ public function wo_Process_Form($id)
 
     /**
      * Проверяет, нужно ли пропустить элемент на основе существующих IPL номеров
+     * Учитывает совмещенные значения в CSV (например, 1-140/1-140A, 1-140/140А)
      */
     private function shouldSkipItem(string $itemNo, array $existingIplNums): bool
     {
@@ -1573,10 +1664,61 @@ public function wo_Process_Form($id)
             $cleanItemNo = preg_replace('/[^A-Za-z0-9]/', '', $itemNo);
             $cleanIplNum = preg_replace('/[^A-Za-z0-9]/', '', $iplNum);
 
-            // Если один номер содержит другой, пропускаем
-            if (strpos($cleanItemNo, $cleanIplNum) !== false ||
-                strpos($cleanIplNum, $cleanItemNo) !== false) {
+            // Если номера полностью совпадают, пропускаем
+            if ($cleanItemNo === $cleanIplNum) {
                 return true;
+            }
+
+            // Проверяем совмещенные значения в CSV (например, 1-140/1-140A, 1-140/140А)
+            if (strpos($itemNo, '/') !== false) {
+                $csvParts = explode('/', $itemNo);
+                foreach ($csvParts as $part) {
+                    $part = trim($part);
+                    $cleanPart = preg_replace('/[^A-Za-z0-9]/', '', $part);
+                    
+                    // Прямое сравнение
+                    if ($cleanPart === $cleanIplNum) {
+                        return true;
+                    }
+                    
+                    // Нормализация: если часть не содержит префикс, добавляем его из первой части
+                    if (preg_match('/^(\d+-\d+)/', $itemNo, $matches)) {
+                        $prefix = $matches[1];
+                        if (!preg_match('/^\d+-\d+/', $part)) {
+                            $normalizedPart = $prefix . $part;
+                            $cleanNormalizedPart = preg_replace('/[^A-Za-z0-9]/', '', $normalizedPart);
+                            if ($cleanNormalizedPart === $cleanIplNum) {
+                                return true;
+                            }
+                        }
+                    }
+                }
+            }
+
+            // Проверяем совмещенные значения в базе данных
+            if (strpos($iplNum, '/') !== false) {
+                $dbParts = explode('/', $iplNum);
+                foreach ($dbParts as $part) {
+                    $part = trim($part);
+                    $cleanPart = preg_replace('/[^A-Za-z0-9]/', '', $part);
+                    
+                    // Прямое сравнение
+                    if ($cleanPart === $cleanItemNo) {
+                        return true;
+                    }
+                    
+                    // Нормализация: если часть не содержит префикс, добавляем его из первой части
+                    if (preg_match('/^(\d+-\d+)/', $iplNum, $matches)) {
+                        $prefix = $matches[1];
+                        if (!preg_match('/^\d+-\d+/', $part)) {
+                            $normalizedPart = $prefix . $part;
+                            $cleanNormalizedPart = preg_replace('/[^A-Za-z0-9]/', '', $normalizedPart);
+                            if ($cleanNormalizedPart === $cleanItemNo) {
+                                return true;
+                            }
+                        }
+                    }
+                }
             }
         }
         return false;
