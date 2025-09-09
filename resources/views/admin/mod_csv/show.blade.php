@@ -22,11 +22,11 @@
             font-size: inherit;
         }
 
-        /* Select2 Dark Theme Support */
+        /* Select2 Theme Support */
         .select2-container--bootstrap-5 .select2-selection {
-            background-color: var(--bs-body-bg);
-            border-color: var(--bs-border-color);
-            color: var(--bs-body-color);
+            background-color: #ffffff;
+            border-color: #ced4da;
+            color: #212529;
         }
 
         .select2-container--bootstrap-5 .select2-selection--single {
@@ -35,13 +35,36 @@
         }
 
         .select2-container--bootstrap-5 .select2-selection--single .select2-selection__rendered {
-            color: var(--bs-body-color);
+            color: #212529 !important;
             padding-left: 0;
             padding-right: 0;
         }
 
         .select2-container--bootstrap-5 .select2-selection--single .select2-selection__placeholder {
-            color: var(--bs-secondary-color);
+            color: #6c757d;
+        }
+        
+        /* Убеждаемся, что выбранный текст виден */
+        .select2-container--bootstrap-5 .select2-selection--single .select2-selection__rendered .select2-selection__choice {
+            color: #212529 !important;
+        }
+        
+        .select2-container--bootstrap-5 .select2-selection--single .select2-selection__rendered .select2-selection__choice__display {
+            color: #212529 !important;
+        }
+        
+        /* Специально для дропдауна выбора компонента */
+        .select2-container--bootstrap-5 .select2-selection--single .select2-selection__rendered {
+            color: #212529 !important;
+        }
+        
+        .select2-container--bootstrap-5 .select2-selection--single .select2-selection__rendered * {
+            color: #212529 !important;
+        }
+        
+        /* Принудительно устанавливаем цвет для всех элементов внутри выбранного текста */
+        .select2-container--bootstrap-5 .select2-selection--single .select2-selection__rendered span {
+            color: #212529 !important;
         }
 
         .select2-container--bootstrap-5 .select2-selection--single .select2-selection__arrow {
@@ -49,29 +72,48 @@
         }
 
         .select2-container--bootstrap-5 .select2-dropdown {
-            background-color: var(--bs-body-bg);
-            border-color: var(--bs-border-color);
+            background-color: #ffffff;
+            border-color: #ced4da;
         }
 
         .select2-container--bootstrap-5 .select2-results__option {
-            background-color: var(--bs-body-bg);
-            color: var(--bs-body-color);
+            background-color: #ffffff;
+            color: #212529;
         }
 
         .select2-container--bootstrap-5 .select2-results__option--highlighted {
-            background-color: var(--bs-primary);
-            color: var(--bs-white);
+            background-color: #0d6efd;
+            color: #ffffff;
         }
 
         .select2-container--bootstrap-5 .select2-results__option--selected {
-            background-color: var(--bs-secondary);
-            color: var(--bs-white);
+            background-color: #6c757d;
+            color: #ffffff;
         }
 
         .select2-container--bootstrap-5 .select2-search--dropdown .select2-search__field {
-            background-color: var(--bs-body-bg);
-            border-color: var(--bs-border-color);
-            color: var(--bs-body-color);
+            background-color: #ffffff;
+            border-color: #ced4da;
+            color: #212529;
+        }
+        
+        /* Light mode for regular select elements */
+        .form-control {
+            background-color: #ffffff;
+            border-color: #ced4da;
+            color: #212529;
+        }
+        
+        .form-control:focus {
+            background-color: #ffffff;
+            border-color: #86b7fe;
+            color: #212529;
+            box-shadow: 0 0 0 0.25rem rgba(13, 110, 253, 0.25);
+        }
+        
+        .form-control option {
+            background-color: #ffffff;
+            color: #212529;
         }
 
         /* Dark mode specific overrides */
@@ -80,6 +122,31 @@
                 background-color: #212529;
                 border-color: #495057;
                 color: #ffffff;
+            }
+            
+            .select2-container--bootstrap-5 .select2-selection--single .select2-selection__rendered {
+                color: #ffffff !important;
+            }
+            
+            .select2-container--bootstrap-5 .select2-selection--single .select2-selection__rendered .select2-selection__choice {
+                color: #ffffff !important;
+            }
+            
+            .select2-container--bootstrap-5 .select2-selection--single .select2-selection__rendered .select2-selection__choice__display {
+                color: #ffffff !important;
+            }
+            
+            /* Специально для дропдауна выбора компонента в темной теме */
+            .select2-container--bootstrap-5 .select2-selection--single .select2-selection__rendered {
+                color: #ffffff !important;
+            }
+            
+            .select2-container--bootstrap-5 .select2-selection--single .select2-selection__rendered * {
+                color: #ffffff !important;
+            }
+            
+            .select2-container--bootstrap-5 .select2-selection--single .select2-selection__rendered span {
+                color: #ffffff !important;
             }
 
             .select2-container--bootstrap-5 .select2-dropdown {
