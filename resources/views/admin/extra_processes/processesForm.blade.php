@@ -133,10 +133,11 @@
         /* Стили для длинного текста процесса */
         .process-text-long {
             font-size: 0.9em;
-            line-height: 0.9;
+            line-height: 1.1;
             letter-spacing: -0.5px;
-            transform: scale(0.9);
+            /*transform: scale(0.9);*/
             transform-origin: left;
+
         }
         .border-t-r-b {
             border-top: 1px solid black;

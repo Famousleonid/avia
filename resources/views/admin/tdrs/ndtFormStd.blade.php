@@ -197,7 +197,7 @@
             line-height: 1.1;
             letter-spacing: -0.3px;
             display: inline-block;
-            vertical-align: top;
+            vertical-align: middle;
         }
 
         .details-row {

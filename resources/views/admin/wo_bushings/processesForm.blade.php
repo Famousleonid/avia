@@ -132,11 +132,13 @@
 
         /* Стили для длинного текста процесса */
         .process-text-long {
-            font-size: 0.7em;
-            line-height: 0.9;
+            font-size: 0.85em;
+            line-height: 1.1;
             letter-spacing: -0.5px;
-            transform: scale(0.9);
+            /*transform: scale(0.9);*/
             transform-origin: left;
+            display: inline-block;
+            vertical-align: middle;
         }
         .border-t-r-b {
             border-top: 1px solid black;
@@ -474,7 +476,7 @@
         </div>
         <div class="page data-page">
             @php
-                $totalRows = 18; // Общее количество строк
+                $totalRows = 16; // Общее количество строк
                 $dataRows = isset($table_data) ? count($table_data) : 0; // Количество строк с данными
                 $emptyRows = $totalRows - $dataRows; // Количество пустых строк
             @endphp
@@ -492,7 +494,9 @@
                             {{ $data['component']->name }}
                         </div>
                         <div class="col-3 border-l-b details-cell text-center process-cell"  style="min-height: 32px">
-                            {{ $data['process']->process }}
+                            <span @if(strlen($data['process']->process) > 40) class="process-text-long" @endif>{{$data['process']->process}}</span>
+
+{{--                            {{ $data['process']->process }}--}}
                         </div>
                         <div class="col-1 border-l-b details-cell text-center" style="min-height: 32px" >
                             {{ $data['qty'] ?? 1 }}

@@ -36,8 +36,14 @@ class WoBushingController extends Controller
         $bushingsQuery = Component::where('manual_id', $manual_id)
             ->where('is_bush', 1)
             ->orderBy('bush_ipl_num', 'asc')
-            ->orderBy('ipl_num', 'asc')
             ->get();
+
+        // Sort by numeric part of ipl_num
+        $bushingsQuery = $bushingsQuery->sortBy(function ($item) {
+            $parts = explode('-', $item->ipl_num);
+            $numericPart = preg_replace('/[^0-9]/', '', end($parts));
+            return (int)$numericPart;
+        });
 
         // Group bushings by bush_ipl_num
         $bushings = $bushingsQuery->groupBy('bush_ipl_num');
@@ -176,8 +182,14 @@ class WoBushingController extends Controller
         $bushingsQuery = Component::where('manual_id', $manual_id)
             ->where('is_bush', 1)
             ->orderBy('bush_ipl_num', 'asc')
-            ->orderBy('ipl_num', 'asc')
             ->get();
+
+        // Sort by numeric part of ipl_num
+        $bushingsQuery = $bushingsQuery->sortBy(function ($item) {
+            $parts = explode('-', $item->ipl_num);
+            $numericPart = preg_replace('/[^0-9]/', '', end($parts));
+            return (int)$numericPart;
+        });
 
         // Group bushings by bush_ipl_num
         $bushings = $bushingsQuery->groupBy('bush_ipl_num');
@@ -269,8 +281,14 @@ class WoBushingController extends Controller
         $bushingsQuery = Component::where('manual_id', $manual_id)
             ->where('is_bush', 1)
             ->orderBy('bush_ipl_num', 'asc')
-            ->orderBy('ipl_num', 'asc')
             ->get();
+
+        // Sort by numeric part of ipl_num
+        $bushingsQuery = $bushingsQuery->sortBy(function ($item) {
+            $parts = explode('-', $item->ipl_num);
+            $numericPart = preg_replace('/[^0-9]/', '', end($parts));
+            return (int)$numericPart;
+        });
 
         // Group bushings by bush_ipl_num
         $bushings = $bushingsQuery->groupBy('bush_ipl_num');

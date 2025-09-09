@@ -2,9 +2,9 @@
 
 @section('content')
     <style>
-        /*.container {*/
-        /*    max-width: 1100px;*/
-        /*}*/
+        .container {
+            max-width: 1200px;
+        }
         .text-center {
             text-align: center;
             align-content: center;
@@ -323,8 +323,7 @@
                                 }
                             @endphp
 
-
-                        @if($current_wo->instruction_id == 1 && $hasNdtCsv)
+                            @if($current_wo->instruction_id == 1 && $hasNdtCsv)
                                 <div class="me-2 ms-2">
                                     <a href="{{ route('tdrs.ndtStd', ['workorder_id' => $current_wo->id]) }}"
                                        class="btn btn-outline-warning" style="min-height: 60px; width: 80px"
@@ -333,6 +332,14 @@
                                     </a>
                                 </div>
                             @endif
+
+                            <div class="me-2 ms-2">
+                                <a href="{{ route('mod-csv.show', $current_wo->id) }}"
+                                   class="btn btn-outline-success" style="min-height: 40px; width: 100px">
+{{--                                    <i class="bi bi-gear"></i> --}}
+                                    MOD NDT/CAD
+                                </a>
+                            </div>
 
                             @if($current_wo->instruction_id == 1 && $hasCadCsv)
                                 <div class="me-2 ms-2">
