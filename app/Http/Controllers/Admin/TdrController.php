@@ -769,6 +769,26 @@ class TdrController extends Controller
 
             $ndt_components[] = $componentObj;
         }
+        
+        // Сортируем NDT компоненты по ipl_num
+        usort($ndt_components, function($a, $b) {
+            $aParts = explode('-', $a->ipl_num ?? '');
+            $bParts = explode('-', $b->ipl_num ?? '');
+            
+            // Сравниваем первую часть (до -)
+            $aFirst = (int)($aParts[0] ?? 0);
+            $bFirst = (int)($bParts[0] ?? 0);
+            
+            if ($aFirst !== $bFirst) {
+                return $aFirst - $bFirst;
+            }
+            
+            // Если первая часть одинаковая, сравниваем вторую часть (после -)
+            $aSecond = (int)($aParts[1] ?? 0);
+            $bSecond = (int)($bParts[1] ?? 0);
+            
+            return $aSecond - $bSecond;
+        });
 
         $form_number = 'NDT-STD';
 
@@ -899,6 +919,26 @@ class TdrController extends Controller
 
                 $cad_components[] = $componentObj;
             }
+            
+            // Сортируем CAD компоненты по ipl_num
+            usort($cad_components, function($a, $b) {
+                $aParts = explode('-', $a->ipl_num ?? '');
+                $bParts = explode('-', $b->ipl_num ?? '');
+                
+                // Сравниваем первую часть (до -)
+                $aFirst = (int)($aParts[0] ?? 0);
+                $bFirst = (int)($bParts[0] ?? 0);
+                
+                if ($aFirst !== $bFirst) {
+                    return $aFirst - $bFirst;
+                }
+                
+                // Если первая часть одинаковая, сравниваем вторую часть (после -)
+                $aSecond = (int)($aParts[1] ?? 0);
+                $bSecond = (int)($bParts[1] ?? 0);
+                
+                return $aSecond - $bSecond;
+            });
 
             $form_number = 'CAD-STD';
 
