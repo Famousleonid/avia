@@ -18,6 +18,7 @@ use App\Models\Process;
 use App\Models\ProcessName;
 use App\Models\Tdr;
 use App\Models\TdrProcess;
+use Illuminate\Support\Facades\Cache;
 use App\Models\Unit;
 //use App\Models\Wo_Code;
 //use App\Models\WoCode;
@@ -149,7 +150,6 @@ class TdrController extends Controller
         return view('admin.tdrs.component-inspection', compact('current_wo', 'component_conditions',
             'components', 'codes', 'necessaries'));
     }
-
 
     public function inspection_new($workorder_id, $type)
     {
@@ -749,7 +749,7 @@ class TdrController extends Controller
         $ndt_components = [];
         foreach ($modCsv->ndt_components as $component) {
             $itemNo = $component['ipl_num'];
-            
+
             // Используем унифицированную логику сравнения
             if ($this->shouldSkipItem($itemNo, $existingIplNums)) {
                 \Log::info('Skipping NDT component due to unified IPL comparison match', [
@@ -769,24 +769,24 @@ class TdrController extends Controller
 
             $ndt_components[] = $componentObj;
         }
-        
+
         // Сортируем NDT компоненты по ipl_num
         usort($ndt_components, function($a, $b) {
             $aParts = explode('-', $a->ipl_num ?? '');
             $bParts = explode('-', $b->ipl_num ?? '');
-            
+
             // Сравниваем первую часть (до -)
             $aFirst = (int)($aParts[0] ?? 0);
             $bFirst = (int)($bParts[0] ?? 0);
-            
+
             if ($aFirst !== $bFirst) {
                 return $aFirst - $bFirst;
             }
-            
+
             // Если первая часть одинаковая, сравниваем вторую часть (после -)
             $aSecond = (int)($aParts[1] ?? 0);
             $bSecond = (int)($bParts[1] ?? 0);
-            
+
             return $aSecond - $bSecond;
         });
 
@@ -856,13 +856,13 @@ class TdrController extends Controller
             $cad_components = [];
             foreach ($modCsv->cad_components as $component) {
                 $itemNo = $component['ipl_num'];
-                
+
                 if ($this->shouldSkipItem($itemNo, $existingIplNums)) {
                     continue;
                 }
 
                 $processName = $component['process'] ?? '';
-                
+
                 // Проверяем и создаем процесс, если его нет
                 if (!empty($processName)) {
                     // Проверяем существование процесса
@@ -919,24 +919,24 @@ class TdrController extends Controller
 
                 $cad_components[] = $componentObj;
             }
-            
+
             // Сортируем CAD компоненты по ipl_num
             usort($cad_components, function($a, $b) {
                 $aParts = explode('-', $a->ipl_num ?? '');
                 $bParts = explode('-', $b->ipl_num ?? '');
-                
+
                 // Сравниваем первую часть (до -)
                 $aFirst = (int)($aParts[0] ?? 0);
                 $bFirst = (int)($bParts[0] ?? 0);
-                
+
                 if ($aFirst !== $bFirst) {
                     return $aFirst - $bFirst;
                 }
-                
+
                 // Если первая часть одинаковая, сравниваем вторую часть (после -)
                 $aSecond = (int)($aParts[1] ?? 0);
                 $bSecond = (int)($bParts[1] ?? 0);
-                
+
                 return $aSecond - $bSecond;
             });
 
@@ -1328,7 +1328,7 @@ public function wo_Process_Form($id)
 
 
     /**
-     * Расчет сумм NDT из данных CSV для рабочего заказа
+     * Расчет сумм NDT из данных таблицы mod_csv для рабочего заказа
      *
      * @param int $workorder_id ID рабочего заказа
      * @return array{total: int, mpi: int, fpi: int} Массив с общими суммами,
@@ -1336,28 +1336,16 @@ public function wo_Process_Form($id)
      */
     private function calcNdtSums(int $workorder_id): array
     {
-
         // Инициализация счетчиков
         $total = 0;
         $mpi = 0;
         $fpi = 0;
 
         try {
-            // Получение рабочего заказа и связанных данных
-            $current_wo = Workorder::findOrFail($workorder_id);
-            $manual = $current_wo->unit->manuals;
+            // Получение или создание ModCsv для данного workorder
+            $modCsv = ModCsv::getOrCreateForWorkorder($workorder_id);
 
-            // Получение CSV файла NDT
-            $csvMedia = $manual->getMedia('csv_files')->first(function ($media) {
-                return $media->getCustomProperty('process_type') === self::PROCESS_TYPE_NDT;
-            });
-
-            // Если CSV файл не найден, возвращаем нулевые значения
-            if (!$csvMedia) {
-                return ['total' => 0, 'mpi' => 0, 'fpi' => 0];
-            }
-
-            // Получение существующих номеров IPL
+            // Получение существующих номеров IPL из TDR
             $existingIplNums = Tdr::where('workorder_id', $workorder_id)
                 ->whereNotNull('component_id')
                 ->with('component')
@@ -1367,29 +1355,9 @@ public function wo_Process_Form($id)
                 ->unique()
                 ->toArray();
 
-            // Обработка CSV файла
-            $csvPath = $csvMedia->getPath();
-            $csv = Reader::createFromPath($csvPath, 'r');
-            $csv->setHeaderOffset(0);
-
-            // Проверка заголовков CSV
-            $requiredHeaders = ['ITEM   No.', 'PART No.', 'DESCRIPTION', 'QTY', 'PROCESS No.'];
-            $headers = $csv->getHeader();
-            $missingHeaders = array_diff($requiredHeaders, $headers);
-
-            if (!empty($missingHeaders)) {
-                throw new \RuntimeException('Отсутствуют обязательные заголовки CSV: ' . implode(', ', $missingHeaders));
-            }
-
-            // Обработка записей
-            $ndt_components = [];
-            foreach ($csv->getRecords() as $row) {
-                if (!isset($row['ITEM   No.'])) {
-                    \Log::warning('Отсутствует номер элемента в строке:', $row);
-                    continue;
-                }
-
-                $itemNo = $row['ITEM   No.'];
+            // Обработка NDT компонентов из mod_csv
+            foreach ($modCsv->ndt_components as $component) {
+                $itemNo = $component['ipl_num'];
 
                 // Пропуск, если номер элемента совпадает с существующим IPL
                 if ($this->shouldSkipItem($itemNo, $existingIplNums)) {
@@ -1400,28 +1368,25 @@ public function wo_Process_Form($id)
                     continue;
                 }
 
-                // Создание объекта компонента
-                $component = new \stdClass();
-                $component->ipl_num = $itemNo;
-                $component->part_number = $row['PART No.'] ?? '';
-                $component->name = $row['DESCRIPTION'] ?? '';
-                $component->qty = (int)($row['QTY'] ?? self::DEFAULT_QTY);
-                $component->process_name = $row['PROCESS No.'] ?? self::DEFAULT_PROCESS;
+                $qty = (int)($component['qty'] ?? self::DEFAULT_QTY);
+                $processName = $component['process'] ?? self::DEFAULT_PROCESS;
 
-                $ndt_components[] = $component;
-            }
-
-            // Вычисление сумм за один проход
-            foreach ($ndt_components as $component) {
-                $qty = $component->qty;
                 $total += $qty;
 
-                if (strpos($component->process_name, '1') !== false) {
+                if (strpos($processName, '1') !== false) {
                     $mpi += $qty;
                 } else {
                     $fpi += $qty;
                 }
             }
+
+            \Log::info('NDT sums calculated from mod_csv:', [
+                'workorder_id' => $workorder_id,
+                'total' => $total,
+                'mpi' => $mpi,
+                'fpi' => $fpi,
+                'components_count' => count($modCsv->ndt_components)
+            ]);
 
             return [
                 'total' => $total,
@@ -1430,7 +1395,8 @@ public function wo_Process_Form($id)
             ];
 
         } catch (\Exception $e) {
-            \Log::error('Ошибка при обработке CSV файла:', [
+            \Log::error('Ошибка при обработке данных mod_csv:', [
+                'workorder_id' => $workorder_id,
                 'error' => $e->getMessage(),
                 'trace' => $e->getTraceAsString()
             ]);
@@ -1440,33 +1406,10 @@ public function wo_Process_Form($id)
     private function calcCadSums($workorder_id)
     {
         try {
-            // Получаем текущий workorder
-            $current_wo = Workorder::findOrFail($workorder_id);
-            $manual = $current_wo->unit->manuals;
+            // Получаем или создаем ModCsv для данного workorder
+            $modCsv = ModCsv::getOrCreateForWorkorder($workorder_id);
 
-            if (!$manual) {
-                throw new \RuntimeException('Manual not found for this workorder');
-            }
-
-            // 1. Чтение CSV файла
-            $csvMedia = $manual->getMedia('csv_files')->first(function ($media) {
-                return $media->getCustomProperty('process_type') === self::PROCESS_TYPE_CAD;
-            });
-
-            if (!$csvMedia) {
-                throw new \RuntimeException('CSV file not found');
-            }
-
-            // Читаем CSV файл
-            $csvPath = $csvMedia->getPath();
-            $csv = Reader::createFromPath($csvPath, 'r');
-            $csv->setHeaderOffset(0);
-
-            // Получаем все записи из CSV
-            $records = iterator_to_array($csv->getRecords());
-            \Log::info('Total CAD records in CSV:', ['count' => count($records)]);
-
-            // 2. Чтение TDR компонентов
+            // Получение существующих номеров IPL из TDR
             $tdrComponents = Tdr::where('workorder_id', $workorder_id)
                 ->whereNotNull('component_id')
                 ->with('component')
@@ -1480,14 +1423,14 @@ public function wo_Process_Form($id)
                 'ipl_numbers' => array_keys($tdrIplMap)
             ]);
 
-            // 3. Сравнение и подсчет
+            // Обработка CAD компонентов из mod_csv
             $totalQty = 0;
             $totalComponents = 0;
             $processedIpls = [];
 
-            foreach ($records as $record) {
-                $itemNo = trim($record['ITEM   No.']);
-                $qty = (int)($record['QTY'] ?? 1); // Получаем qty из CSV
+            foreach ($modCsv->cad_components as $component) {
+                $itemNo = trim($component['ipl_num']);
+                $qty = (int)($component['qty'] ?? 1);
 
                 // Если IPL номер есть в TDR - пропускаем
                 if (isset($tdrIplMap[$itemNo])) {
@@ -1495,7 +1438,7 @@ public function wo_Process_Form($id)
                     continue;
                 }
 
-                // Проверяем совмещенные значения в CSV
+                // Проверяем совмещенные значения
                 if ($this->shouldSkipItem($itemNo, array_keys($tdrIplMap))) {
                     \Log::info('Skipping CAD component due to combined value match:', [
                         'item_no' => $itemNo,
@@ -1506,17 +1449,19 @@ public function wo_Process_Form($id)
 
                 // Если IPL номер еще не был обработан
                 if (!in_array($itemNo, $processedIpls)) {
-                    $totalQty += $qty; // Используем qty из CSV
+                    $totalQty += $qty;
                     $totalComponents++;
                     $processedIpls[] = $itemNo;
-                    \Log::info('Adding component from CSV:', ['ipl_num' => $itemNo, 'qty' => $qty]);
+                    \Log::info('Adding component from mod_csv:', ['ipl_num' => $itemNo, 'qty' => $qty]);
                 }
             }
 
-            \Log::info('CAD calculation results:', [
+            \Log::info('CAD calculation results from mod_csv:', [
+                'workorder_id' => $workorder_id,
                 'total_qty' => $totalQty,
                 'total_components' => $totalComponents,
-                'processed_ipls' => $processedIpls
+                'processed_ipls' => $processedIpls,
+                'components_count' => count($modCsv->cad_components)
             ]);
 
             return [
@@ -1525,7 +1470,8 @@ public function wo_Process_Form($id)
             ];
 
         } catch (\Exception $e) {
-            \Log::error('Error in CAD sums calculation:', [
+            \Log::error('Error in CAD sums calculation from mod_csv:', [
+                'workorder_id' => $workorder_id,
                 'error' => $e->getMessage(),
                 'trace' => $e->getTraceAsString()
             ]);
@@ -1563,12 +1509,12 @@ public function wo_Process_Form($id)
                 foreach ($csvParts as $part) {
                     $part = trim($part);
                     $cleanPart = $this->normalizeAlphaNum($part);
-                    
+
                     // Прямое сравнение
                     if ($cleanPart === $cleanIplNum) {
                         return true;
                     }
-                    
+
                     // Нормализация: если часть не содержит префикс, добавляем его из первой части
                     if (preg_match('/^(\d+-)/', $itemNo, $matches)) {
                         $prefix = $matches[1]; // например, "1-"
@@ -1589,12 +1535,12 @@ public function wo_Process_Form($id)
                 foreach ($dbParts as $part) {
                     $part = trim($part);
                     $cleanPart = $this->normalizeAlphaNum($part);
-                    
+
                     // Прямое сравнение
                     if ($cleanPart === $cleanItemNo) {
                         return true;
                     }
-                    
+
                     // Нормализация: если часть не содержит префикс, добавляем его из первой части
                     if (preg_match('/^(\d+-)/', $iplNum, $matches)) {
                         $prefix = $matches[1];

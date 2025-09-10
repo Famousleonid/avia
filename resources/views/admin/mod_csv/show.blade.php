@@ -497,18 +497,14 @@
 </div>
 @endsection
 
-@push('scripts')
+@section('scripts')
 <script>
-console.log('Script section loaded');
-console.log('jQuery available:', typeof $ !== 'undefined');
-
-
 $(document).ready(function() {
-    console.log('Document ready fired');
     const workorderId = {{ $workorder->id }};
     console.log('ModCsv page loaded, workorderId:', workorderId);
     // Use server-generated route to avoid prefix mismatches (e.g., /admin)
     const componentsSearchUrl = "{{ route('mod-csv.components.search', ['workorderId' => $workorder->id]) }}";
+    console.log('Components search URL:', componentsSearchUrl);
 
     // Store selected component data
     let selectedNdtComponent = null;
@@ -630,22 +626,38 @@ $(document).ready(function() {
     function initNdtSelect2() {
         console.log('Initializing NDT Select2');
         console.log('Select2 available:', typeof $.fn.select2 !== 'undefined');
+        console.log('Components search URL:', componentsSearchUrl);
+
+        // Destroy existing Select2 if it exists
+        if ($('#ndt_component_select').hasClass('select2-hidden-accessible')) {
+            $('#ndt_component_select').select2('destroy');
+        }
 
         // First load all components
         $.ajax({
             url: componentsSearchUrl,
             dataType: 'json',
             data: { search: '' },
+            beforeSend: function() {
+                $('#ndt_component_select').html('<option value="">Loading components...</option>');
+            },
             success: function(data) {
-                console.log('Loaded NDT components:', data.components.length);
+                if (!data.success) {
+                    console.error('Server returned error:', data.message);
+                    $('#ndt_component_select').html('<option value="">Error loading components</option>');
+                    return;
+                }
+
+                const components = data.components || [];
+                console.log('Loaded NDT components:', components.length);
 
                 // Clear existing options
                 $('#ndt_component_select').empty();
                 // Add empty option to enable placeholder and avoid auto-select of first item
-                $('#ndt_component_select').append(new Option('', '', false, false));
+                $('#ndt_component_select').append(new Option('Search for component...', '', false, false));
 
                 // Add all components as options
-                data.components.forEach(function(component) {
+                components.forEach(function(component) {
                     const optionId = `${component.ipl_num || ''}|${component.part_number || ''}|${component.name || ''}`;
                     const optionText = `${component.ipl_num || ''} - ${component.part_number || ''} - ${component.name || ''}`;
 
@@ -654,50 +666,57 @@ $(document).ready(function() {
                     $('#ndt_component_select').append(option);
                 });
 
-                console.log('NDT Select2 options added:', data.components.length);
-
                 // Initialize Select2 with all options loaded
                 $('#ndt_component_select').select2({
-                    placeholder: 'Select a component...',
+                    placeholder: 'Search for component...',
                     allowClear: true,
                     width: '100%',
                     dropdownParent: $('#addNdtModal'),
                     theme: 'bootstrap-5'
                 });
 
-                console.log('NDT Select2 initialized with', data.components.length, 'components');
-                console.log('NDT Select2 element classes:', $('#ndt_component_select').attr('class'));
-                console.log('NDT Select2 is select2:', $('#ndt_component_select').hasClass('select2-hidden-accessible'));
+                console.log('NDT Select2 initialized with', components.length, 'components');
             },
             error: function(xhr, status, error) {
-                console.error('Error loading NDT components:', xhr);
-                console.error('Status:', status);
-                console.error('Error:', error);
-                console.error('Response:', xhr.responseText);
+                console.error('Error loading NDT components:', xhr.responseText);
+                $('#ndt_component_select').html('<option value="">Error loading components</option>');
+                alert('Ошибка загрузки компонентов. Проверьте консоль для подробностей.');
             }
         });
     }
 
     // Initialize Select2 for CAD component selection
     function initCadSelect2() {
-        console.log('Initializing CAD Select2');
-        console.log('Select2 available:', typeof $.fn.select2 !== 'undefined');
+        // Destroy existing Select2 if it exists
+        if ($('#cad_component_select').hasClass('select2-hidden-accessible')) {
+            $('#cad_component_select').select2('destroy');
+        }
 
         // First load all components
         $.ajax({
             url: componentsSearchUrl,
             dataType: 'json',
             data: { search: '' },
+            beforeSend: function() {
+                $('#cad_component_select').html('<option value="">Loading components...</option>');
+            },
             success: function(data) {
-                console.log('Loaded CAD components:', data.components.length);
+                if (!data.success) {
+                    console.error('Server returned error:', data.message);
+                    $('#cad_component_select').html('<option value="">Error loading components</option>');
+                    return;
+                }
+
+                const components = data.components || [];
+                console.log('Loaded CAD components:', components.length);
 
                 // Clear existing options
                 $('#cad_component_select').empty();
                 // Add empty option to enable placeholder and avoid auto-select of first item
-                $('#cad_component_select').append(new Option('', '', false, false));
+                $('#cad_component_select').append(new Option('Search for component...', '', false, false));
 
                 // Add all components as options
-                data.components.forEach(function(component) {
+                components.forEach(function(component) {
                     const optionId = `${component.ipl_num || ''}|${component.part_number || ''}|${component.name || ''}`;
                     const optionText = `${component.ipl_num || ''} - ${component.part_number || ''} - ${component.name || ''}`;
 
@@ -706,26 +725,21 @@ $(document).ready(function() {
                     $('#cad_component_select').append(option);
                 });
 
-                console.log('CAD Select2 options added:', data.components.length);
-
                 // Initialize Select2 with all options loaded
                 $('#cad_component_select').select2({
-                    placeholder: 'Select a component...',
+                    placeholder: 'Search for component...',
                     allowClear: true,
                     width: '100%',
                     dropdownParent: $('#addCadModal'),
                     theme: 'bootstrap-5'
                 });
 
-                console.log('CAD Select2 initialized with', data.components.length, 'components');
-                console.log('CAD Select2 element classes:', $('#cad_component_select').attr('class'));
-                console.log('CAD Select2 is select2:', $('#cad_component_select').hasClass('select2-hidden-accessible'));
+                console.log('CAD Select2 initialized with', components.length, 'components');
             },
             error: function(xhr, status, error) {
-                console.error('Error loading CAD components:', xhr);
-                console.error('Status:', status);
-                console.error('Error:', error);
-                console.error('Response:', xhr.responseText);
+                console.error('Error loading CAD components:', xhr.responseText);
+                $('#cad_component_select').html('<option value="">Error loading components</option>');
+                alert('Ошибка загрузки компонентов. Проверьте консоль для подробностей.');
             }
         });
     }
@@ -746,21 +760,43 @@ $(document).ready(function() {
     // Initialize Select2 when modals open
     $('#addNdtModal').on('show.bs.modal', function() {
         console.log('NDT Modal opening, workorderId:', workorderId);
+        
+        // Check if the select element exists
+        if ($('#ndt_component_select').length === 0) {
+            console.error('NDT component select element not found!');
+            return;
+        }
+        
         // Destroy existing Select2 if it exists
         if ($('#ndt_component_select').hasClass('select2-hidden-accessible')) {
             $('#ndt_component_select').select2('destroy');
         }
-        initNdtSelect2();
+        
+        // Small delay to ensure modal is fully shown
+        setTimeout(function() {
+            initNdtSelect2();
+        }, 100);
     });
 
     $('#addCadModal').on('show.bs.modal', function() {
         console.log('CAD Modal opening, workorderId:', workorderId);
+        
+        // Check if the select element exists
+        if ($('#cad_component_select').length === 0) {
+            console.error('CAD component select element not found!');
+            return;
+        }
+        
         // Destroy existing Select2 if it exists
         if ($('#cad_component_select').hasClass('select2-hidden-accessible')) {
             $('#cad_component_select').select2('destroy');
         }
-        initCadSelect2();
-        loadCadProcesses();
+        
+        // Small delay to ensure modal is fully shown
+        setTimeout(function() {
+            initCadSelect2();
+            loadCadProcesses();
+        }, 100);
     });
 
     // Load CAD processes
@@ -1123,19 +1159,20 @@ $(document).ready(function() {
     });
 });
 
-// Global error handler
-window.onerror = function(msg, url, lineNo, columnNo, error) {
-    console.error('JavaScript Error:', msg, 'at', url, ':', lineNo, ':', columnNo);
-    console.error('Error object:', error);
-    return false;
-};
 
-// Unhandled promise rejection handler
-window.addEventListener('unhandledrejection', function(event) {
-    console.error('Unhandled promise rejection:', event.reason);
-});
+    // Global error handler
+    window.onerror = function(msg, url, lineNo, columnNo, error) {
+        console.error('JavaScript Error:', msg, 'at', url, ':', lineNo, ':', columnNo);
+        console.error('Error object:', error);
+        return false;
+    };
+
+    // Unhandled promise rejection handler
+    window.addEventListener('unhandledrejection', function(event) {
+        console.error('Unhandled promise rejection:', event.reason);
+    });
 </script>
-@endpush
+@endsection
 
 
 

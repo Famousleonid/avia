@@ -229,48 +229,60 @@ class ModCsvController extends Controller
      */
     public function getComponents(Request $request, int $workorderId): JsonResponse
     {
-        $workorder = Workorder::with('unit')->findOrFail($workorderId);
+        try {
+            $workorder = Workorder::with('unit')->findOrFail($workorderId);
 
-        if (!$workorder->unit || !$workorder->unit->manual_id) {
+            if (!$workorder->unit || !$workorder->unit->manual_id) {
+                return response()->json([
+                    'success' => true,
+                    'components' => [],
+                    'message' => 'No manual found for this workorder'
+                ]);
+            }
+
+            $manualId = $workorder->unit->manual_id;
+            $query = Component::query()->where('manual_id', $manualId);
+
+            if ($request->filled('search')) {
+                $search = $request->string('search')->toString();
+                $query->where(function ($q) use ($search) {
+                    $q->where('ipl_num', 'like', "%{$search}%")
+                      ->orWhere('part_number', 'like', "%{$search}%")
+                      ->orWhere('name', 'like', "%{$search}%");
+                });
+            }
+
+            $rows = $query->select('ipl_num', 'part_number', 'name', 'units_assy')
+                ->orderByRaw("CAST(SUBSTRING_INDEX(ipl_num, '-', 1) AS UNSIGNED), CAST(SUBSTRING_INDEX(ipl_num, '-', -1) AS UNSIGNED)")
+                ->get();
+
+            $components = $rows->map(function ($row) {
+                return [
+                    'ipl_num' => $row->ipl_num,
+                    'part_number' => $row->part_number,
+                    'name' => $row->name,
+                    'units_assy' => $row->units_assy ?? 1,
+                    'process' => '',
+                    'qty' => 1,
+                ];
+            })->all();
+
             return response()->json([
                 'success' => true,
-                'components' => [],
-                'message' => 'No manual found for this workorder'
+                'components' => $components,
             ]);
+        } catch (\Exception $e) {
+            \Log::error('Error in getComponents:', [
+                'workorder_id' => $workorderId,
+                'error' => $e->getMessage()
+            ]);
+            
+            return response()->json([
+                'success' => false,
+                'components' => [],
+                'message' => 'Error: ' . $e->getMessage()
+            ], 500);
         }
-
-        $manualId = $workorder->unit->manual_id;
-
-        $query = Component::query()->where('manual_id', $manualId);
-
-        if ($request->filled('search')) {
-            $search = $request->string('search')->toString();
-            $query->where(function ($q) use ($search) {
-                $q->where('ipl_num', 'like', "%{$search}%")
-                  ->orWhere('part_number', 'like', "%{$search}%")
-                  ->orWhere('name', 'like', "%{$search}%");
-            });
-        }
-
-        $rows = $query->select('ipl_num', 'part_number', 'name', 'units_assy')
-            ->orderByRaw("CAST(SUBSTRING_INDEX(ipl_num, '-', 1) AS UNSIGNED), CAST(SUBSTRING_INDEX(ipl_num, '-', -1) AS UNSIGNED)")
-            ->get();
-
-        $components = $rows->map(function ($row) {
-            return [
-                'ipl_num' => $row->ipl_num,
-                'part_number' => $row->part_number,
-                'name' => $row->name,
-                'units_assy' => $row->units_assy ?? 1, // Используем реальное значение из базы
-                'process' => '',
-                'qty' => 1,
-            ];
-        })->all();
-
-        return response()->json([
-            'success' => true,
-            'components' => $components,
-        ]);
     }
 
     /**
@@ -292,8 +304,8 @@ class ModCsvController extends Controller
 
         // Получаем CAD процессы для данного мануала через промежуточную таблицу manual_processes
         $processes = \App\Models\Process::whereHas('manuals', function($query) use ($manualId) {
-                $query->where('manual_id', $manualId);
-            })
+            $query->where('manual_id', $manualId);
+        })
             ->where('process_names_id', 19) // ID для 'Cad plate'
             ->with('process_name') // Загружаем связанную таблицу process_names
             ->select('id', 'process_names_id', 'process')
@@ -302,8 +314,8 @@ class ModCsvController extends Controller
         // Если не найдено процессов с process_names_id = 19, берем все процессы для мануала
         if ($processes->isEmpty()) {
             $processes = \App\Models\Process::whereHas('manuals', function($query) use ($manualId) {
-                    $query->where('manual_id', $manualId);
-                })
+                $query->where('manual_id', $manualId);
+            })
                 ->with('process_name')
                 ->select('id', 'process_names_id', 'process')
                 ->get();

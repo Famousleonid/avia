@@ -72,7 +72,7 @@
                 <form id="createForm" class="createForm" role="form" method="POST"
                       action="{{route('tdrs.store')}}" enctype="multipart/form-data">
                     @csrf
-{{--                    <input type="hidden" name="use_tdr" value="true">--}}
+                    {{--                    <input type="hidden" name="use_tdr" value="true">--}}
 
                     <input type="hidden" name="workorder_id" value="{{$current_wo->id }}">
 
@@ -191,7 +191,7 @@
     </div>
 
     <!-- Модальные окна -->
-               <!-- Modal - Add component -->
+    <!-- Modal - Add component -->
     <div class="modal fade" id="addComponentModal" tabindex="-1" aria-labelledby="addComponentModalLabel"
          aria-hidden="true">
         <div class="modal-dialog">
@@ -214,16 +214,9 @@
 
                             <div class="d-flex">
                                 <div class="m-3">
-{{--                                    <div class="">--}}
-{{--                                        <label for="ipl_num">{{ __('IPL Number') }}</label>--}}
-{{--                                        <input id='ipl_num' type="text" class="form-control" name="ipl_num" required>--}}
-{{--                                    </div>--}}
                                     <div class="">
                                         <label for="ipl_num">{{ __('IPL Number') }}</label>
-                                        <input id='ipl_num' type="text" class="form-control" name="ipl_num"
-                                               pattern="^\d+-\d+[A-Za-z]?$"
-                                               title="The format should be: number-number (for example: 1-200A, 1001-100, 5-398B)"
-                                               required>
+                                        <input id='ipl_num' type="text" class="form-control" name="ipl_num" required>
                                     </div>
                                     <div class="col-xs-12 col-sm-12 col-md-12 mt-2">
                                         <div class="form-group">
@@ -236,24 +229,15 @@
                                         <input id='part_number' type="text" class="form-control"
                                                name="part_number" required>
                                     </div>
-                                    <div class="mt-2">
-                                        <label for="eff_code">{{ __('EFF Code') }}</label>
-                                        <input id='eff_code' type="text" class="form-control"
-                                               name="eff_code" placeholder="Enter EFF code (optional)">
-                                    </div>
 
                                 </div>
 
                                 <div class="m-3">
                                     <div class="">
                                         <label for="assy_ipl_num">{{ __('Assembly IPL Number') }}</label>
-                                        <input id='assy_ipl_num' type="text" class="form-control" name="assy_ipl_num"
-                                               pattern="^\d+-\d+[A-Za-z]?$"
-                                               title="The format should be: number-number (for example: 1-200A, 1001-100, 5-398B)"
-                                               >
+                                        <input id='assy_ipl_num' type="text" class="form-control" name="assy_ipl_num" >
                                     </div>
-
-                                    <div class=" col-xs-12 col-sm-12 col-md-12 mt-2" >
+                                    <div class="col-xs-12 col-sm-12 col-md-12 mt-2">
                                         <div class="form-group">
                                             <strong>{{__(' Assy Image:')}}</strong>
                                             <input type="file" name="assy_img" class="form-control" placeholder="Image">
@@ -264,48 +248,21 @@
                                         <input id='assy_part_number' type="text" class="form-control"
                                                name="assy_part_number" >
                                     </div>
-                                    <div class="mt-2">
-                                        <label for="units_assy">{{ __('Units per Assy') }}</label>
-                                        <input id='units_assy' type="text" class="form-control"
-                                               name="units_assy" placeholder="Enter units per assembly">
-                                    </div>
                                 </div>
                             </div>
                         </div>
                         <div class="d-flex justify-content-between">
-                            <div class="d-flex">
-                                <div class="form-check">
-                                    <input class="form-check-input" type="checkbox"  id="log_card" name="log_card">
-                                    <label class="form-check-label" for="log_card">
-                                        Log Card
-                                    </label>
-                                </div>
-                                <div class="form-check ms-3">
-                                    <input class="form-check-input" type="checkbox"  id="repair" name="repair">
-                                    <label class="form-check-label" for="repair">
-                                        Repair
-                                    </label>
-                                </div>
-                                <div class="form-check ms-3">
-                                    <input class="form-check-input" type="checkbox"  id="is_bush" name="is_bush" onchange="toggleBushIPL()">
-                                    <label class="form-check-label" for="is_bush">
-                                        Is Bush
-                                    </label>
-                                </div>
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox"  id="log_card" name="log_card">
+                                <label class="form-check-label" for="log_card">
+                                    Log Card
+                                </label>
                             </div>
                             <div class="text-end">
                                 <button type="submit" class="btn btn-primary">Save Component</button>
                             </div>
-                        </div>
 
-                        <!-- Bush IPL Number field - показывается только когда Is Bush отмечен -->
-                        <div class="form-group mt-3" id="bush_ipl_container" style="display: none;">
-                            <div class="d-flex">
-                                <label for="bush_ipl_num">{{ __('Initial Bushing IPL Number') }}</label>
-                                <input id='bush_ipl_num' type="text" class="form-control" name="bush_ipl_num"
-                                       pattern="^\d+-\d+[A-Za-z]?$"
-                                       title="The format should be: number-number (for example: 1-200A, 1001-100, 5-398B)">
-                            </div>
+
                         </div>
                     </div>
                 </form>
@@ -314,7 +271,7 @@
     </div>
 
     <!-- Добавьте перед вашим скриптом -->
-{{--    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>--}}
+    {{--    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>--}}
 
 
 
@@ -528,35 +485,19 @@
                 $('.select2-container .select2-dropdown').addClass('select2-light').removeClass('select2-dark');
             }
         }
-
-        // Функция для показа/скрытия поля Bush IPL Number
-        function toggleBushIPL() {
-            const isBushCheckbox = document.getElementById('is_bush');
-            const bushIPLContainer = document.getElementById('bush_ipl_container');
-            const bushIPLInput = document.getElementById('bush_ipl_num');
-
-            if (isBushCheckbox.checked) {
-                bushIPLContainer.style.display = 'block';
-                bushIPLInput.required = true;
-            } else {
-                bushIPLContainer.style.display = 'none';
-                bushIPLInput.required = false;
-                bushIPLInput.value = ''; // Очищаем поле при скрытии
-            }
-        }
     </script>
-{{--    <script>--}}
-{{--        // Выводим сохраненные логи при загрузке страницы--}}
-{{--        $(document).ready(function() {--}}
-{{--            var savedLogs = localStorage.getItem('debugLogs');--}}
-{{--            if (savedLogs) {--}}
-{{--                console.log('Сохраненные логи отладки:');--}}
-{{--                JSON.parse(savedLogs).forEach(function(log) {--}}
-{{--                    console.log(log);--}}
-{{--                });--}}
-{{--                // Очищаем логи после вывода--}}
-{{--                localStorage.removeItem('debugLogs');--}}
-{{--            }--}}
-{{--        });--}}
-{{--    </script>--}}
+    {{--    <script>--}}
+    {{--        // Выводим сохраненные логи при загрузке страницы--}}
+    {{--        $(document).ready(function() {--}}
+    {{--            var savedLogs = localStorage.getItem('debugLogs');--}}
+    {{--            if (savedLogs) {--}}
+    {{--                console.log('Сохраненные логи отладки:');--}}
+    {{--                JSON.parse(savedLogs).forEach(function(log) {--}}
+    {{--                    console.log(log);--}}
+    {{--                });--}}
+    {{--                // Очищаем логи после вывода--}}
+    {{--                localStorage.removeItem('debugLogs');--}}
+    {{--            }--}}
+    {{--        });--}}
+    {{--    </script>--}}
 @endsection

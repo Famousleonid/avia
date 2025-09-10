@@ -205,14 +205,14 @@ Route::group(['middleware' => ['auth'] ], function () {
     Route::resource('/conditions',ConditionController::class);
 
     Route::get('/extra_processes/create/{id}', [ExtraProcessController::class, 'create'])->name('extra_process.create');
-Route::get('/extra_processes/create_processes/{workorderId}/{componentId}', [ExtraProcessController::class, 'createProcesses'])->name('extra_processes.create_processes');
-Route::post('/extra_processes/store_processes', [ExtraProcessController::class, 'storeProcesses'])->name('extra_processes.store_processes');
-Route::get('/extra_processes/processes/{workorderId}/{componentId}', [ExtraProcessController::class, 'processes'])->name('extra_processes.processes');
-Route::get('/extra_processes/show_all/{id}', [ExtraProcessController::class, 'showAll'])->name('extra_processes.show_all');
-Route::get('/extra_processes/{id}', [ExtraProcessController::class, 'show'])->name('extra_processes.show');
-Route::get('/extra_processes/{id}/form/{processNameId}', [ExtraProcessController::class, 'showForm'])->name('extra_processes.show_form');
-Route::get('/extra_processes/{id}/group-forms/{processNameId}', [ExtraProcessController::class, 'showGroupForms'])->name('extra_processes.show_group_forms');
-Route::resource('/extra_processes', ExtraProcessController::class)->except(['create']);
+    Route::get('/extra_processes/create_processes/{workorderId}/{componentId}', [ExtraProcessController::class, 'createProcesses'])->name('extra_processes.create_processes');
+    Route::post('/extra_processes/store_processes', [ExtraProcessController::class, 'storeProcesses'])->name('extra_processes.store_processes');
+    Route::get('/extra_processes/processes/{workorderId}/{componentId}', [ExtraProcessController::class, 'processes'])->name('extra_processes.processes');
+    Route::get('/extra_processes/show_all/{id}', [ExtraProcessController::class, 'showAll'])->name('extra_processes.show_all');
+    Route::get('/extra_processes/{id}', [ExtraProcessController::class, 'show'])->name('extra_processes.show');
+    Route::get('/extra_processes/{id}/form/{processNameId}', [ExtraProcessController::class, 'showForm'])->name('extra_processes.show_form');
+    Route::get('/extra_processes/{id}/group-forms/{processNameId}', [ExtraProcessController::class, 'showGroupForms'])->name('extra_processes.show_group_forms');
+    Route::resource('/extra_processes', ExtraProcessController::class)->except(['create']);
 
     Route::get('/rm_reports/create/{id}',[RmReportController::class,'create'])->name('rm_reports.create');
     Route::resource('/rm_reports', RmReportController::class)->except('create');
