@@ -11,16 +11,19 @@ use App\Models\Customer;
 use App\Models\Instruction;
 use App\Models\Manual;
 use App\Models\ManualProcess;
+use App\Models\ModCsv;
 use App\Models\Necessary;
 use App\Models\Plane;
 use App\Models\Process;
 use App\Models\ProcessName;
 use App\Models\Tdr;
 use App\Models\TdrProcess;
+use Illuminate\Support\Facades\Cache;
 use App\Models\Unit;
 //use App\Models\Wo_Code;
 //use App\Models\WoCode;
 use App\Models\Workorder;
+use App\Models\NdtCadCsv;
 use Illuminate\Contracts\Foundation\Application;
 use Illuminate\Contracts\View\Factory;
 use Illuminate\Contracts\View\View;
@@ -148,7 +151,6 @@ class TdrController extends Controller
         return view('admin.tdrs.component-inspection', compact('current_wo', 'component_conditions',
             'components', 'codes', 'necessaries'));
     }
-
 
     public function inspection_new($workorder_id, $type)
     {
@@ -706,10 +708,11 @@ class TdrController extends Controller
         $current_wo = Workorder::findOrFail($workorder_id);
         $manual = $current_wo->unit->manuals;
 
-        // Получаем CSV-файл с process_type = 'ndt'
-        $csvMedia = $manual->getMedia('csv_files')->first(function ($media) {
-            return $media->getCustomProperty('process_type') === 'ndt';
-        });
+        // Получаем или создаем NdtCadCsv для данного workorder с автоматической загрузкой
+        $ndtCadCsv = $current_wo->ndtCadCsv;
+        if (!$ndtCadCsv) {
+            $ndtCadCsv = NdtCadCsv::createForWorkorder($workorder_id);
+        }
 
         // Получаем ID process names для NDT
         $processNames = ProcessName::whereIn('name', [
@@ -736,73 +739,62 @@ class TdrController extends Controller
             ->whereIn('process_names_id', $ndt_ids)
             ->get();
 
+        // Получаем все ipl_num из tdrs для этого workorder
+        $existingIplNums = Tdr::where('workorder_id', $workorder_id)
+            ->whereNotNull('component_id')
+            ->with('component')
+            ->get()
+            ->pluck('component.ipl_num')
+            ->filter()
+            ->unique()
+            ->toArray();
+
+        // Фильтруем компоненты из NdtCadCsv
         $ndt_components = [];
-        $form_number = 'NDT-STD';
+        foreach ($ndtCadCsv->ndt_components as $component) {
+            $itemNo = $component['ipl_num'];
 
-        if ($csvMedia) {
-            try {
-                $csvPath = $csvMedia->getPath();
-                $csv = Reader::createFromPath($csvPath, 'r');
-                $csv->setHeaderOffset(0);
-
-                // Получаем заголовки CSV файла
-                $headers = $csv->getHeader();
-                \Log::info('CSV Headers:', $headers);
-
-                // Получаем все записи из CSV
-                $records = iterator_to_array($csv->getRecords());
-                \Log::info('Total records in CSV:', ['count' => count($records)]);
-
-                // Получаем все ipl_num из tdrs для этого workorder
-                $existingIplNums = Tdr::where('workorder_id', $workorder_id)
-                    ->whereNotNull('component_id')
-                    ->with('component')
-                    ->get()
-                    ->pluck('component.ipl_num')
-                    ->filter()
-                    ->unique()
-                    ->toArray();
-
-                \Log::info('Existing IPL numbers:', $existingIplNums);
-
-                // Фильтруем и преобразуем записи из CSV
-                foreach ($records as $row) {
-                    // Проверяем наличие необходимых данных
-                    if (!isset($row['ITEM   No.'])) {
-                        \Log::warning('Missing item number in row:', $row);
-                        continue;
-                    }
-
-                    $itemNo = $row['ITEM   No.'];
-                    // Используем унифицированную логику сравнения
-                    if ($this->shouldSkipItem($itemNo, $existingIplNums)) {
-                        \Log::info('Skipping record due to unified IPL comparison match', [
-                            'item_no' => $itemNo,
-                            'existing_ipls' => $existingIplNums
-                        ]);
-                        continue;
-                    }
-
-                    // Если запись не была пропущена, создаем объект компонента
-                    $component = new \stdClass();
-                    $component->ipl_num = $itemNo;
-                    $component->part_number = $row['PART No.'] ?? '';
-                    $component->name = $row['DESCRIPTION'] ?? '';
-                    $component->qty = $row['QTY'] ?? 1;
-                    $component->process_name = $row['PROCESS No.'] ?? '1';
-
-                    $ndt_components[] = $component;
-                }
-
-                \Log::info('Total components after filtering:', ['count' => count($ndt_components)]);
-
-            } catch (\Exception $e) {
-                \Log::error('Error processing CSV file:', [
-                    'error' => $e->getMessage(),
-                    'trace' => $e->getTraceAsString()
+            // Используем унифицированную логику сравнения
+            if ($this->shouldSkipItem($itemNo, $existingIplNums)) {
+                \Log::info('Skipping NDT component due to unified IPL comparison match', [
+                    'item_no' => $itemNo,
+                    'existing_ipls' => $existingIplNums
                 ]);
+                continue;
             }
+
+            // Преобразуем в объект для совместимости с существующим кодом
+            $componentObj = new \stdClass();
+            $componentObj->ipl_num = $component['ipl_num'];
+            $componentObj->part_number = $component['part_number'] ?? '';
+            $componentObj->name = $component['description'] ?? '';
+            $componentObj->qty = $component['qty'] ?? 1;
+            $componentObj->process_name = $component['process'] ?? '1';
+
+            $ndt_components[] = $componentObj;
         }
+
+        // Сортируем NDT компоненты по ipl_num
+        usort($ndt_components, function($a, $b) {
+            $aParts = explode('-', $a->ipl_num ?? '');
+            $bParts = explode('-', $b->ipl_num ?? '');
+
+            // Сравниваем первую часть (до -)
+            $aFirst = (int)($aParts[0] ?? 0);
+            $bFirst = (int)($bParts[0] ?? 0);
+
+            if ($aFirst !== $bFirst) {
+                return $aFirst - $bFirst;
+            }
+
+            // Если первая часть одинаковая, сравниваем вторую часть (после -)
+            $aSecond = (int)($aParts[1] ?? 0);
+            $bSecond = (int)($bParts[1] ?? 0);
+
+            return $aSecond - $bSecond;
+        });
+
+        $form_number = 'NDT-STD';
 
         return view('admin.tdrs.ndtFormStd', [
                 'current_wo' => $current_wo,
@@ -820,16 +812,15 @@ class TdrController extends Controller
             $current_wo = Workorder::findOrFail($workorder_id);
             $manual = $current_wo->unit->manuals;
 
-
-
             if (!$manual) {
                 throw new \RuntimeException('Manual not found for this workorder');
             }
 
-            // Получаем CSV-файл с process_type = 'cad'
-            $csvMedia = $manual->getMedia('csv_files')->first(function ($media) {
-                return $media->getCustomProperty('process_type') === self::PROCESS_TYPE_CAD;
-            });
+            // Получаем или создаем NdtCadCsv для данного workorder с автоматической загрузкой
+            $ndtCadCsv = $current_wo->ndtCadCsv;
+            if (!$ndtCadCsv) {
+                $ndtCadCsv = NdtCadCsv::createForWorkorder($workorder_id);
+            }
 
             // Получаем ID process names для CAD
             $processNames = ProcessName::whereIn('name', ['Cad plate'])->pluck('id', 'name');
@@ -852,118 +843,111 @@ class TdrController extends Controller
                 ->whereIn('process_names_id', $cad_ids)
                 ->get();
 
+            // Получаем существующие IPL номера
+            $existingIplNums = Tdr::where('workorder_id', $workorder_id)
+                ->whereNotNull('component_id')
+                ->with('component')
+                ->get()
+                ->pluck('component.ipl_num')
+                ->filter()
+                ->unique()
+                ->toArray();
+
+            // Получаем все процессы для данного manual и process_name
+            $validProcesses = Process::whereIn('id', $manualProcesses)
+                ->where('process_names_id', $cad_ids['cad_name_id'])
+                ->pluck('process')
+                ->toArray();
+
+            // Фильтруем компоненты из NdtCadCsv
             $cad_components = [];
-            $form_number = 'CAD-STD';
+            foreach ($ndtCadCsv->cad_components as $component) {
+                $itemNo = $component['ipl_num'];
 
-            if ($csvMedia) {
-                $csvPath = $csvMedia->getPath();
-                $csv = Reader::createFromPath($csvPath, 'r');
-                $csv->setHeaderOffset(0);
-
-                // Проверяем обязательные заголовки
-                $requiredHeaders = ['ITEM   No.', 'PART No.', 'DESCRIPTION', 'QTY', 'PROCESS No.'];
-                $headers = $csv->getHeader();
-                $missingHeaders = array_diff($requiredHeaders, $headers);
-
-                if (!empty($missingHeaders)) {
-                    throw new \RuntimeException('Отсутствуют обязательные заголовки CSV: ' . implode(', ', $missingHeaders));
+                if ($this->shouldSkipItem($itemNo, $existingIplNums)) {
+                    continue;
                 }
 
-                // Получаем все записи из CSV
-                $records = iterator_to_array($csv->getRecords());
-                \Log::info('Total CAD records in CSV:', ['count' => count($records)]);
+                $processName = $component['process'] ?? '';
 
-                // Получаем существующие IPL номера
-                $existingIplNums = Tdr::where('workorder_id', $workorder_id)
-                    ->whereNotNull('component_id')
-                    ->with('component')
-                    ->get()
-                    ->pluck('component.ipl_num')
-                    ->filter()
-                    ->unique()
-                    ->toArray();
+                // Проверяем и создаем процесс, если его нет
+                if (!empty($processName)) {
+                    // Проверяем существование процесса
+                    $process = Process::where('process', $processName)
+                        ->where('process_names_id', $cad_ids['cad_name_id'])
+                        ->first();
 
-                // Получаем все процессы для данного manual и process_name
-                $validProcesses = Process::whereIn('id', $manualProcesses)
-                    ->where('process_names_id', $cad_ids['cad_name_id'])
-                    ->pluck('process')
-                    ->toArray();
-
-                \Log::info('Valid processes for CAD:', ['processes' => $validProcesses]);
-
-                // Обрабатываем записи
-                foreach ($records as $row) {
-                    if (!isset($row['ITEM   No.'])) {
-                        \Log::warning('Missing item number in CAD row:', $row);
-                        continue;
-                    }
-
-                    $itemNo = $row['ITEM   No.'];
-
-                    if ($this->shouldSkipItem($itemNo, $existingIplNums)) {
-                        continue;
-                    }
-
-                    // Проверяем и создаем процесс, если его нет
-                    $processName = $row['PROCESS No.'] ?? '';
-                    if (!empty($processName)) {
-                        // Проверяем существование процесса
-                        $process = Process::where('process', $processName)
-                            ->where('process_names_id', $cad_ids['cad_name_id'])
-                            ->first();
-
-                        if (!$process) {
-                            // Создаем новый процесс
-                            $process = Process::create([
-                                'process' => $processName,
-                                'process_names_id' => $cad_ids['cad_name_id']
-                            ]);
-                            \Log::info('Created new process:', ['process' => $processName]);
-                        }
-
-                        // Проверяем привязку к manual
-                        $manualProcess = ManualProcess::where('manual_id', $manual->id)
-                            ->where('processes_id', $process->id)
-                            ->first();
-
-                        if (!$manualProcess) {
-                            // Создаем привязку к manual
-                            ManualProcess::create([
-                                'manual_id' => $manual->id,
-                                'processes_id' => $process->id
-                            ]);
-                            \Log::info('Created manual-process binding:', [
-                                'manual_id' => $manual->id,
-                                'process_id' => $process->id
-                            ]);
-                        }
-
-                        // Обновляем список валидных процессов
-                        $validProcesses[] = $processName;
-                    }
-
-                    if (!in_array($processName, $validProcesses)) {
-                        \Log::warning('Invalid process found in CSV:', [
+                    if (!$process) {
+                        // Создаем новый процесс
+                        $process = Process::create([
                             'process' => $processName,
-                            'item_no' => $itemNo,
-                            'valid_processes' => $validProcesses
+                            'process_names_id' => $cad_ids['cad_name_id']
                         ]);
-                        continue;
+                        \Log::info('Created new process:', ['process' => $processName]);
                     }
 
-                    // Создаем объект компонента
-                    $component = new \stdClass();
-                    $component->ipl_num = $itemNo;
-                    $component->part_number = $row['PART No.'] ?? '';
-                    $component->name = $row['DESCRIPTION'] ?? '';
-                    $component->qty = (int)($row['QTY'] ?? self::DEFAULT_QTY);
-                    $component->process_name = $processName;
+                    // Проверяем привязку к manual
+                    $manualProcess = ManualProcess::where('manual_id', $manual->id)
+                        ->where('processes_id', $process->id)
+                        ->first();
 
-                    $cad_components[] = $component;
+                    if (!$manualProcess) {
+                        // Создаем привязку к manual
+                        ManualProcess::create([
+                            'manual_id' => $manual->id,
+                            'processes_id' => $process->id
+                        ]);
+                        \Log::info('Created manual-process binding:', [
+                            'manual_id' => $manual->id,
+                            'process_id' => $process->id
+                        ]);
+                    }
+
+                    // Обновляем список валидных процессов
+                    $validProcesses[] = $processName;
                 }
 
-                \Log::info('Total CAD components after filtering:', ['count' => count($cad_components)]);
+                if (!in_array($processName, $validProcesses)) {
+                    \Log::warning('Invalid process found in ModCsv:', [
+                        'process' => $processName,
+                        'item_no' => $itemNo,
+                        'valid_processes' => $validProcesses
+                    ]);
+                    continue;
+                }
+
+                // Преобразуем в объект для совместимости с существующим кодом
+                $componentObj = new \stdClass();
+                $componentObj->ipl_num = $component['ipl_num'];
+                $componentObj->part_number = $component['part_number'] ?? '';
+                $componentObj->name = $component['description'] ?? '';
+                $componentObj->qty = (int)($component['qty'] ?? self::DEFAULT_QTY);
+                $componentObj->process_name = $processName;
+
+                $cad_components[] = $componentObj;
             }
+
+            // Сортируем CAD компоненты по ipl_num
+            usort($cad_components, function($a, $b) {
+                $aParts = explode('-', $a->ipl_num ?? '');
+                $bParts = explode('-', $b->ipl_num ?? '');
+
+                // Сравниваем первую часть (до -)
+                $aFirst = (int)($aParts[0] ?? 0);
+                $bFirst = (int)($bParts[0] ?? 0);
+
+                if ($aFirst !== $bFirst) {
+                    return $aFirst - $bFirst;
+                }
+
+                // Если первая часть одинаковая, сравниваем вторую часть (после -)
+                $aSecond = (int)($aParts[1] ?? 0);
+                $bSecond = (int)($bParts[1] ?? 0);
+
+                return $aSecond - $bSecond;
+            });
+
+            $form_number = 'CAD-STD';
 
             // Обновляем список процессов после возможного добавления новых
             $cad_processes = Process::whereIn('id', $manualProcesses)
@@ -1586,12 +1570,12 @@ public function wo_Process_Form($id)
                 foreach ($csvParts as $part) {
                     $part = trim($part);
                     $cleanPart = $this->normalizeAlphaNum($part);
-                    
+
                     // Прямое сравнение
                     if ($cleanPart === $cleanIplNum) {
                         return true;
                     }
-                    
+
                     // Нормализация: если часть не содержит префикс, добавляем его из первой части
                     if (preg_match('/^(\d+-)/', $itemNo, $matches)) {
                         $prefix = $matches[1]; // например, "1-"
@@ -1612,12 +1596,12 @@ public function wo_Process_Form($id)
                 foreach ($dbParts as $part) {
                     $part = trim($part);
                     $cleanPart = $this->normalizeAlphaNum($part);
-                    
+
                     // Прямое сравнение
                     if ($cleanPart === $cleanItemNo) {
                         return true;
                     }
-                    
+
                     // Нормализация: если часть не содержит префикс, добавляем его из первой части
                     if (preg_match('/^(\d+-)/', $iplNum, $matches)) {
                         $prefix = $matches[1];

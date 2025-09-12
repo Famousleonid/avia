@@ -334,6 +334,14 @@
                                 </div>
                             @endif
 
+                            <div class="me-2 ms-2">
+                                <a href="{{ route('ndt-cad-csv.index', $current_wo->id) }}"
+                                   class="btn btn-outline-success" style="min-height: 40px; width: 100px">
+                                    {{--                                    <i class="bi bi-gear"></i> --}}
+                                    MOD NDT/CAD
+                                </a>
+                            </div>
+
                             @if($current_wo->instruction_id == 1 && $hasCadCsv)
                                 <div class="me-2 ms-2">
                                     <a href="{{ route('tdrs.cadStd', ['workorder_id' => $current_wo->id]) }}"

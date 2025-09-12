@@ -53,6 +53,11 @@ class Workorder extends Model implements HasMedia
         return $this->hasMany(Main::class);
     }
 
+    public function ndtCadCsv()
+    {
+        return $this->hasOne(NdtCadCsv::class);
+    }
+
     public function registerMediaConversions(\Spatie\MediaLibrary\MediaCollections\Models\Media $media = null): void
     {
         $this->addMediaConversion('thumb')
