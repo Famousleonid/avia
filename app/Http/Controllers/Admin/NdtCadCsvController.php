@@ -44,7 +44,32 @@ class NdtCadCsvController extends Controller
         }
 
         // Если записи нет или она пустая, создаем/обновляем с автоматической загрузкой из Manual CSV
-        if (!$ndtCadCsv || (empty($ndtCadCsv->ndt_components) && empty($ndtCadCsv->cad_components))) {
+        $shouldAutoLoad = false;
+        if (!$ndtCadCsv) {
+            $shouldAutoLoad = true;
+            \Log::info('No NdtCadCsv record found, will create with auto-loading');
+        } else {
+            $ndtEmpty = empty($ndtCadCsv->ndt_components) || (is_array($ndtCadCsv->ndt_components) && count($ndtCadCsv->ndt_components) == 0);
+            $cadEmpty = empty($ndtCadCsv->cad_components) || (is_array($ndtCadCsv->cad_components) && count($ndtCadCsv->cad_components) == 0);
+            
+            \Log::info('Checking if NdtCadCsv needs auto-loading', [
+                'has_ndtCadCsv' => true,
+                'ndt_empty' => $ndtEmpty,
+                'ndt_components' => $ndtCadCsv->ndt_components,
+                'ndt_count' => is_array($ndtCadCsv->ndt_components) ? count($ndtCadCsv->ndt_components) : 'not array',
+                'cad_empty' => $cadEmpty,
+                'cad_components' => $ndtCadCsv->cad_components,
+                'cad_count' => is_array($ndtCadCsv->cad_components) ? count($ndtCadCsv->cad_components) : 'not array',
+                'should_auto_load' => $ndtEmpty && $cadEmpty
+            ]);
+            
+            if ($ndtEmpty && $cadEmpty) {
+                $shouldAutoLoad = true;
+                \Log::info('NdtCadCsv is empty, will auto-load from manual');
+            }
+        }
+        
+        if ($shouldAutoLoad) {
             if (!$ndtCadCsv) {
                 \Log::info('Creating new NdtCadCsv with auto-loading');
                 $ndtCadCsv = NdtCadCsv::createForWorkorder($workorder->id);
@@ -52,6 +77,8 @@ class NdtCadCsvController extends Controller
                 \Log::info('Updating existing empty NdtCadCsv with auto-loading');
                 $ndtCadCsv = NdtCadCsv::loadComponentsFromManual($workorder->id, $ndtCadCsv);
             }
+        } else {
+            \Log::info('NdtCadCsv already has data, skipping auto-loading');
         }
 
         return view('admin.ndt-cad-csv.index', compact('workorder', 'ndtCadCsv'));

@@ -4,14 +4,14 @@
 
 <style>
     .container {
-        max-width: 10800px;
+        max-width: 1080px;
     }
     .text-center {
         text-align: center;
         align-content: center;
     }
     .card{
-        max-width: 1050px;
+        max-width: 1060px;
     }
 
     html[data-bs-theme="dark"]  .select2-selection--single {
@@ -99,14 +99,17 @@
         <div class="col-12">
             <div class="card">
                 <div class="card-header">
-                    <h3 class="card-title">
-                        Modification of NDT/CAD list Processes for W{{ $workorder->number }}
-                    </h3>
-                    <div class="card-tools">
-                        <a href="{{ route('tdrs.show', ['tdr'=>$workorder->id]) }}" class="btn btn-secondary">
-                            <i class="fas fa-arrow-left"></i> Back to Workorder
-                        </a>
+                    <div class="d-flex justify-content-between">
+                        <h3 class="card-title">
+                            Modification of NDT/CAD list Processes for W{{ $workorder->number }}
+                        </h3>
+                        <div class="card-tools">
+                            <a href="{{ route('tdrs.show', ['tdr'=>$workorder->id]) }}" class="btn btn-secondary">
+                                <i class="fas fa-arrow-left"></i> Back to Workorder
+                            </a>
+                        </div>
                     </div>
+
                 </div>
 
                 <div class="card-body">
@@ -182,7 +185,7 @@
                                          </tr>
                                          @empty
                                          <tr>
-                                             <td colspan="6" class="text-center text-muted">Нет NDT компонентов</td>
+                                             <td colspan="6" class="text-center text-muted">No NDT components</td>
                                          </tr>
                                          @endforelse
                                      </tbody>
@@ -193,20 +196,20 @@
                         <!-- CAD Компоненты -->
                         <div class="tab-pane fade" id="cad-pane" role="tabpanel">
                             <div class="d-flex justify-content-between align-items-center mb-3">
-                                <h5>CAD Компоненты</h5>
+                                <h5>CAD List</h5>
                                 <div>
                                     <button type="button" class="btn btn-success btn-sm" onclick="showAddCadModal()">
-                                        <i class="fas fa-plus"></i> Добавить компонент
+                                        <i class="fas fa-plus"></i> Add
                                     </button>
                                     <button type="button" class="btn btn-info btn-sm" onclick="importCadFromCsv()">
-                                        <i class="fas fa-file-import"></i> Импорт из CSV
+                                        <i class="fas fa-file-import"></i> Upload CSV
                                     </button>
                                     <button type="button" class="btn btn-warning btn-sm" onclick="reloadFromManual('cad')">
-                                        <i class="fas fa-sync"></i> Перезагрузить из Manual
+                                        <i class="fas fa-sync"></i> Reload CSV
                                     </button>
-                                    <button type="button" class="btn btn-secondary btn-sm" onclick="forceLoadFromManual('cad')">
-                                        <i class="fas fa-download"></i> Принудительная загрузка
-                                    </button>
+{{--                                    <button type="button" class="btn btn-secondary btn-sm" onclick="forceLoadFromManual('cad')">--}}
+{{--                                        <i class="fas fa-download"></i> Принудительная загрузка--}}
+{{--                                    </button>--}}
                                 </div>
                             </div>
 
@@ -216,10 +219,10 @@
                                         <tr>
                                             <th>IPL №</th>
                                             <th>Part Number</th>
-                                            <th>Описание</th>
-                                            <th>Процесс</th>
-                                            <th>Количество</th>
-                                            <th>Действия</th>
+                                            <th>Description</th>
+                                            <th>Process</th>
+                                            <th>QTY</th>
+                                            <th>Action</th>
                                         </tr>
                                     </thead>
                                      <tbody id="cad-tbody">
@@ -246,7 +249,7 @@
                                          </tr>
                                          @empty
                                          <tr>
-                                             <td colspan="6" class="text-center text-muted">Нет CAD компонентов</td>
+                                             <td colspan="6" class="text-center text-muted">No CAD components</td>
                                          </tr>
                                          @endforelse
                                      </tbody>
@@ -265,15 +268,15 @@
     <div class="modal-dialog">
         <div class="modal-content">
             <div class="modal-header">
-                <h5 class="modal-title" id="ndtModalTitle">Добавить NDT компонент</h5>
+                <h5 class="modal-title" id="ndtModalTitle">Add</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
             <form id="ndtForm">
                 <div class="modal-body">
                     <div class="mb-3">
-                        <label for="ndtComponent" class="form-label">Выбрать компонент *</label>
+                        <label for="ndtComponent" class="form-label">Select component *</label>
                         <select class="form-control select2" id="ndtComponent" name="component_id" required>
-                            <option value="">Выберите компонент...</option>
+                            <option value="">Select a component...</option>
                         </select>
                     </div>
                     <div class="mb-3">
@@ -286,8 +289,8 @@
                     </div>
                 </div>
                 <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Отмена</button>
-                    <button type="submit" class="btn btn-primary">Сохранить</button>
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Add</button>
                 </div>
             </form>
         </div>
@@ -299,15 +302,15 @@
     <div class="modal-dialog">
         <div class="modal-content">
             <div class="modal-header">
-                <h5 class="modal-title" id="cadModalTitle">Добавить CAD компонент</h5>
+                <h5 class="modal-title" id="cadModalTitle">Add</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
             <form id="cadForm">
                 <div class="modal-body">
                     <div class="mb-3">
-                        <label for="cadComponent" class="form-label">Выбрать компонент *</label>
+                        <label for="cadComponent" class="form-label">Select component *</label>
                         <select class="form-control select2" id="cadComponent" name="component_id" required>
-                            <option value="">Выберите компонент...</option>
+                            <option value="">Select a component...</option>
                         </select>
                     </div>
                     <div class="mb-3">
@@ -317,13 +320,13 @@
                     <div class="mb-3">
                         <label for="cadProcess" class="form-label">Process *</label>
                         <select class="form-control select2" id="cadProcess" name="process" required>
-                            <option value="">Выберите процесс...</option>
+                            <option value="">Select a process...</option>
                         </select>
                     </div>
                 </div>
                 <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Отмена</button>
-                    <button type="submit" class="btn btn-primary">Сохранить</button>
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Add</button>
                 </div>
             </form>
         </div>
@@ -335,27 +338,27 @@
     <div class="modal-dialog">
         <div class="modal-content">
             <div class="modal-header">
-                <h5 class="modal-title">Импорт компонентов из CSV</h5>
+                <h5 class="modal-title">Importing components from CSV</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
             <form id="csvImportForm" enctype="multipart/form-data">
                 <div class="modal-body">
                     <div class="mb-3">
-                        <label for="csvType" class="form-label">Тип компонентов *</label>
+                        <label for="csvType" class="form-label">Component type *</label>
                         <select class="form-control" id="csvType" required>
-                            <option value="">Выберите тип</option>
+                            <option value="">Select type</option>
                             <option value="ndt">NDT</option>
                             <option value="cad">CAD</option>
                         </select>
                     </div>
                     <div class="mb-3">
-                        <label for="csvFile" class="form-label">CSV файл *</label>
+                        <label for="csvFile" class="form-label">CSV file *</label>
                         <input type="file" class="form-control" id="csvFile" accept=".csv,.txt" required>
                     </div>
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Отмена</button>
-                    <button type="submit" class="btn btn-primary">Импортировать</button>
+                    <button type="submit" class="btn btn-primary">Import</button>
                 </div>
             </form>
         </div>
@@ -391,7 +394,7 @@ window.showAddNdtModal = function() {
         // Инициализируем Select2 для модального окна
         if (typeof $.fn.select2 !== 'undefined') {
             $('#ndtComponent').select2({
-                placeholder: 'Выберите компонент...',
+                placeholder: 'Select a component...',
                 allowClear: true,
                 width: '100%',
                 dropdownParent: $('#ndtModal')
@@ -419,13 +422,13 @@ window.showAddCadModal = function() {
         // Инициализируем Select2 для модального окна
         if (typeof $.fn.select2 !== 'undefined') {
             $('#cadComponent').select2({
-                placeholder: 'Выберите компонент...',
+                placeholder: 'Select a component...',
                 allowClear: true,
                 width: '100%',
                 dropdownParent: $('#cadModal')
             });
             $('#cadProcess').select2({
-                placeholder: 'Выберите процесс...',
+                placeholder: 'Select a process...',
                 allowClear: true,
                 width: '100%',
                 dropdownParent: $('#cadModal')
@@ -484,7 +487,7 @@ function initializeWhenReady() {
 
             const selectedComponent = $('#ndtComponent option:selected');
             if (!selectedComponent.val()) {
-                alert('Пожалуйста, выберите компонент');
+                alert('Please select a component');
                 return;
             }
 
@@ -503,7 +506,7 @@ function initializeWhenReady() {
                     $('#ndtModal').modal('hide');
                     location.reload();
                 } else {
-                    alert('Ошибка: ' + response.message);
+                    alert('Error: ' + response.message);
                 }
             });
         });
@@ -513,12 +516,12 @@ function initializeWhenReady() {
 
             const selectedComponent = $('#cadComponent option:selected');
             if (!selectedComponent.val()) {
-                alert('Пожалуйста, выберите компонент');
+                alert('Please select a component');
                 return;
             }
 
             if (!$('#cadProcess').val()) {
-                alert('Пожалуйста, выберите процесс');
+                alert('Please select a process');
                 return;
             }
 
@@ -537,7 +540,7 @@ function initializeWhenReady() {
                     $('#cadModal').modal('hide');
                     location.reload();
                 } else {
-                    alert('Ошибка: ' + response.message);
+                    alert('Error: ' + response.message);
                 }
             });
         });
@@ -558,10 +561,10 @@ function initializeWhenReady() {
                 success: function(response) {
                     if (response.success) {
                         $('#csvImportModal').modal('hide');
-                        alert(`Успешно импортировано ${response.count} компонентов`);
+                        alert(`Successfully imported ${response.count} components`);
                         location.reload();
                     } else {
-                        alert('Ошибка: ' + response.message);
+                        alert('Error: ' + response.message);
                     }
                 }
             });
@@ -588,7 +591,7 @@ function loadComponents() {
             }
         })
         .fail(function(xhr) {
-            console.error('Ошибка загрузки компонентов:', xhr.responseText);
+            console.error('Error loading components:', xhr.responseText);
         });
 }
 
@@ -601,7 +604,7 @@ function loadCadProcesses() {
             }
         })
         .fail(function(xhr) {
-            console.error('Ошибка загрузки CAD процессов:', xhr.responseText);
+            console.error('Error loading CAD processes:', xhr.responseText);
         });
 }
 
@@ -610,19 +613,19 @@ function updateComponentDropdowns() {
     const sortedComponents = allComponents.sort(function(a, b) {
         return a.ipl_num.localeCompare(b.ipl_num, undefined, {numeric: true, sensitivity: 'base'});
     });
-    
+
     // Обновляем NDT dropdown
     $('#ndtComponent').empty().append('<option value="">Выберите компонент...</option>');
     sortedComponents.forEach(function(component) {
         $('#ndtComponent').append(`<option value="${component.id}" data-ipl-num="${component.ipl_num}" data-part-number="${component.part_number}" data-description="${component.name}" data-units-assy="${component.units_assy}">${component.ipl_num} : ${component.part_number} - ${component.name}</option>`);
     });
-    
+
     // Обновляем CAD dropdown
     $('#cadComponent').empty().append('<option value="">Выберите компонент...</option>');
     sortedComponents.forEach(function(component) {
         $('#cadComponent').append(`<option value="${component.id}" data-ipl-num="${component.ipl_num}" data-part-number="${component.part_number}" data-description="${component.name}" data-units-assy="${component.units_assy}">${component.ipl_num} : ${component.part_number} - ${component.name}</option>`);
     });
-    
+
     // Обновляем Select2 если он инициализирован
     if (typeof $.fn.select2 !== 'undefined') {
         $('#ndtComponent').trigger('change.select2');
@@ -652,24 +655,24 @@ function updateCadProcessDropdown() {
 <script>
 // Определяем остальные функции в глобальной области видимости
 window.removeNdtComponent = function(index) {
-    console.log('Удаление NDT компонента с индексом:', index);
-    console.log('Текущие NDT компоненты:', ndtComponents);
+    console.log('Removing NDT component with index:', index);
+    console.log('Current NDT components:', ndtComponents);
 
-    if (confirm('Вы уверены, что хотите удалить этот компонент?')) {
+    if (confirm('Are you sure you want to remove this component?')) {
         if (typeof $ !== 'undefined') {
             $.post(`/admin/${workorderId}/ndt-cad-csv/remove-ndt`, {
                 index: index,
                 _token: $('meta[name="csrf-token"]').attr('content')
             }).done(function(response) {
-                console.log('Ответ сервера:', response);
+                console.log('Server response:', response);
                 if (response.success) {
                     location.reload();
                 } else {
-                    alert('Ошибка: ' + response.message);
+                    alert('Error: ' + response.message);
                 }
             }).fail(function(xhr) {
                 console.error('Ошибка AJAX:', xhr.responseText);
-                alert('Ошибка при удалении компонента');
+                alert('Error while deleting component');
             });
         } else {
             console.log('jQuery not loaded yet, using fallback');
@@ -680,24 +683,24 @@ window.removeNdtComponent = function(index) {
 };
 
 window.removeCadComponent = function(index) {
-    console.log('Удаление CAD компонента с индексом:', index);
-    console.log('Текущие CAD компоненты:', cadComponents);
+    console.log('Removing a CAD component with an index:', index);
+    console.log('Current CAD components:', cadComponents);
 
-    if (confirm('Вы уверены, что хотите удалить этот компонент?')) {
+    if (confirm('Are you sure you want to remove this component?')) {
         if (typeof $ !== 'undefined') {
             $.post(`/admin/${workorderId}/ndt-cad-csv/remove-cad`, {
                 index: index,
                 _token: $('meta[name="csrf-token"]').attr('content')
             }).done(function(response) {
-                console.log('Ответ сервера:', response);
+                console.log('Server response:', response);
                 if (response.success) {
                     location.reload();
                 } else {
-                    alert('Ошибка: ' + response.message);
+                    alert('Error: ' + response.message);
                 }
             }).fail(function(xhr) {
                 console.error('Ошибка AJAX:', xhr.responseText);
-                alert('Ошибка при удалении компонента');
+                alert('Error while deleting component');
             });
         } else {
             console.log('jQuery not loaded yet, using fallback');
@@ -708,14 +711,14 @@ window.removeCadComponent = function(index) {
 };
 
 window.reloadFromManual = function(type) {
-    if (confirm(`Вы уверены, что хотите перезагрузить ${type.toUpperCase()} компоненты из Manual CSV? Это заменит все существующие данные.`)) {
+    if (confirm(`Are you sure you want to reload ${type.toUpperCase()} components from Manual CSV? This will replace all existing data.`)) {
         if (typeof $ !== 'undefined') {
             $.post(`/admin/${workorderId}/ndt-cad-csv/reload-from-manual`, {
                 type: type,
                 _token: $('meta[name="csrf-token"]').attr('content')
             }).done(function(response) {
                 if (response.success) {
-                    alert(`Успешно перезагружено ${response.count} компонентов`);
+                    alert(`Successfully loaded ${response.count} components`);
                     location.reload();
                 } else {
                     alert('Ошибка: ' + response.message);
@@ -730,14 +733,14 @@ window.reloadFromManual = function(type) {
 };
 
 window.forceLoadFromManual = function(type) {
-    if (confirm(`Принудительно загрузить ${type.toUpperCase()} компоненты из Manual CSV?`)) {
+    if (confirm(`Force loading ${type.toUpperCase()} components from Manual CSV?`)) {
         if (typeof $ !== 'undefined') {
             $.post(`/admin/${workorderId}/ndt-cad-csv/force-load-from-manual`, {
                 type: type,
                 _token: $('meta[name="csrf-token"]').attr('content')
             }).done(function(response) {
                 if (response.success) {
-                    alert(`Успешно загружено ${response.count} компонентов`);
+                    alert(`Successfully loaded ${response.count} components`);
                     location.reload();
                 } else {
                     alert('Ошибка: ' + response.message);

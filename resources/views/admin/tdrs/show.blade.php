@@ -288,6 +288,19 @@
 
                             @php
                                 $manual = null;
+                                $hasNdtComponents = false;
+                                $hasCadComponents = false;
+
+                                // Проверяем наличие NDT компонентов в таблице ndt_cad_csv
+                                if ($current_wo && $current_wo->ndtCadCsv) {
+                                    $ndtComponents = $current_wo->ndtCadCsv->ndt_components;
+                                    $hasNdtComponents = !empty($ndtComponents) && is_array($ndtComponents) && count($ndtComponents) > 0;
+
+                                    $cadComponents = $current_wo->ndtCadCsv->cad_components;
+                                    $hasCadComponents = !empty($cadComponents) && is_array($cadComponents) && count($cadComponents) > 0;
+                                }
+
+                                // Оставляем старую логику для совместимости (если нужно)
                                 $hasNdtCsv = false;
                                 $hasCadCsv = false;
 
@@ -324,7 +337,7 @@
                             @endphp
 
 
-                        @if($current_wo->instruction_id == 1 && $hasNdtCsv)
+                        @if($current_wo->instruction_id == 1 && $hasNdtComponents)
                                 <div class="me-2 ms-2">
                                     <a href="{{ route('tdrs.ndtStd', ['workorder_id' => $current_wo->id]) }}"
                                        class="btn btn-outline-warning" style="min-height: 60px; width: 80px"
@@ -333,7 +346,7 @@
                                     </a>
                                 </div>
                             @endif
-
+                            @if($current_wo->instruction_id == 1 )
                             <div class="me-2 ms-2">
                                 <a href="{{ route('ndt-cad-csv.index', $current_wo->id) }}"
                                    class="btn btn-outline-success" style="min-height: 40px; width: 100px">
@@ -341,8 +354,9 @@
                                     MOD NDT/CAD
                                 </a>
                             </div>
+                            @endif
 
-                            @if($current_wo->instruction_id == 1 && $hasCadCsv)
+                            @if($current_wo->instruction_id == 1 && $hasCadComponents)
                                 <div class="me-2 ms-2">
                                     <a href="{{ route('tdrs.cadStd', ['workorder_id' => $current_wo->id]) }}"
                                        class="btn btn-outline-warning" style="min-height: 60px; width: 80px"

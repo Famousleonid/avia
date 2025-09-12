@@ -136,6 +136,19 @@
 
             console.log('Manual ID loaded:', manualId); // Добавляем для отладки
 
+            // Обработчик для поля ввода нового процесса
+            const processInput = document.getElementById('process');
+            if (processInput) {
+                processInput.addEventListener('input', function() {
+                    // Очищаем выбранный процесс при вводе нового
+                    document.getElementById('selected_process_id').value = '';
+                    // Снимаем выделение с выбранных элементов списка
+                    document.querySelectorAll('.process-item').forEach(item => {
+                        item.style.backgroundColor = '';
+                    });
+                });
+            }
+
             if (processNameSelect && processList && exProcessList) {
                 processNameSelect.addEventListener('change', function () {
                     const processNameId = this.value;
@@ -186,6 +199,8 @@
                                         // Обработка выбора процесса из списка
                                         processItem.addEventListener('click', function () {
                                             document.getElementById('selected_process_id').value = process.id;
+                                            // Очищаем поле ввода нового процесса при выборе существующего
+                                            document.getElementById('process').value = '';
                                             document.querySelectorAll('.process-item').forEach(item => {
                                                 item.style.backgroundColor = '';
                                             });

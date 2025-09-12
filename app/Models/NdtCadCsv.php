@@ -323,13 +323,20 @@ class NdtCadCsv extends Model
             
             $components = [];
             foreach ($records as $row) {
-                if (!empty($row['ITEM   No.'])) {
+                // Попробуем разные варианты названий колонок
+                $itemNo = $row['ITEM   No.'] ?? $row['ITEM No.'] ?? $row['ITEM'] ?? $row['item_no'] ?? '';
+                $partNo = $row['PART No.'] ?? $row['PART'] ?? $row['part_no'] ?? '';
+                $description = $row['DESCRIPTION'] ?? $row['description'] ?? '';
+                $process = $row['PROCESS No.'] ?? $row['PROCESS'] ?? $row['process'] ?? '1';
+                $qty = $row['QTY'] ?? $row['qty'] ?? '1';
+                
+                if (!empty($itemNo)) {
                     $components[] = [
-                        'ipl_num' => $row['ITEM   No.'],
-                        'part_number' => $row['PART No.'] ?? '',
-                        'description' => $row['DESCRIPTION'] ?? '',
-                        'process' => $row['PROCESS No.'] ?? '1',
-                        'qty' => (int)($row['QTY'] ?? 1),
+                        'ipl_num' => $itemNo,
+                        'part_number' => $partNo,
+                        'description' => $description,
+                        'process' => $process,
+                        'qty' => (int)$qty,
                     ];
                 }
             }
