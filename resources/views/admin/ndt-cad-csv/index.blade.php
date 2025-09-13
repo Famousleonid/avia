@@ -178,7 +178,10 @@
                                              <td>{{ $component['process'] }}</td>
                                              <td>{{ $component['qty'] }}</td>
                                              <td>
-                                                 <button class="btn btn-sm btn-danger" onclick="removeNdtComponent({{ $originalIndex }})">
+                                                 <button class="btn btn-sm btn-primary me-1" onclick="editNdtComponent({{ $originalIndex }})" title="Edit">
+                                                     <i class="fas fa-edit"></i>
+                                                 </button>
+                                                 <button class="btn btn-sm btn-danger" onclick="removeNdtComponent({{ $originalIndex }})" title="Delete">
                                                      <i class="fas fa-trash"></i>
                                                  </button>
                                              </td>
@@ -242,7 +245,10 @@
                                              <td>{{ $component['process'] }}</td>
                                              <td>{{ $component['qty'] }}</td>
                                              <td>
-                                                 <button class="btn btn-sm btn-danger" onclick="removeCadComponent({{ $originalIndex }})">
+                                                 <button class="btn btn-sm btn-primary me-1" onclick="editCadComponent({{ $originalIndex }})" title="Edit">
+                                                     <i class="fas fa-edit"></i>
+                                                 </button>
+                                                 <button class="btn btn-sm btn-danger" onclick="removeCadComponent({{ $originalIndex }})" title="Delete">
                                                      <i class="fas fa-trash"></i>
                                                  </button>
                                              </td>
@@ -263,12 +269,12 @@
     </div>
 </div>
 
-<!-- Модальное окно для добавления/редактирования NDT компонента -->
+<!-- Модальное окно для добавления NDT компонента -->
 <div class="modal fade" id="ndtModal" tabindex="-1">
     <div class="modal-dialog">
         <div class="modal-content">
             <div class="modal-header">
-                <h5 class="modal-title" id="ndtModalTitle">Add</h5>
+                <h5 class="modal-title">Add NDT Component</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
             <form id="ndtForm">
@@ -297,12 +303,12 @@
     </div>
 </div>
 
-<!-- Модальное окно для добавления/редактирования CAD компонента -->
+<!-- Модальное окно для добавления CAD компонента -->
 <div class="modal fade" id="cadModal" tabindex="-1">
     <div class="modal-dialog">
         <div class="modal-content">
             <div class="modal-header">
-                <h5 class="modal-title" id="cadModalTitle">Add</h5>
+                <h5 class="modal-title">Add CAD Component</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
             <form id="cadForm">
@@ -327,6 +333,118 @@
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
                     <button type="submit" class="btn btn-primary">Add</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Модальное окно для редактирования NDT компонента -->
+<div class="modal fade" id="ndtEditModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Edit NDT Component</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form id="ndtEditForm">
+                <div class="modal-body">
+                    <input type="hidden" id="ndtEditIndex" name="edit_index" value="">
+                    
+                    <!-- Информация из JSON -->
+                    <div class="alert alert-info">
+                        <h6>Component Information:</h6>
+                        <div class="row">
+                            <div class="col-md-6">
+                                <strong>IPL:</strong> <span id="ndtCurrentIpl"></span><br>
+                                <strong>Part Number:</strong> <span id="ndtCurrentPartNumber"></span>
+                            </div>
+                            <div class="col-md-6">
+                                <strong>Description:</strong> <span id="ndtCurrentDescription"></span><br>
+                                <strong>Process:</strong> <span id="ndtCurrentProcess"></span><br>
+                                <strong>QTY:</strong> <span id="ndtCurrentQty"></span>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Редактируемые поля -->
+                    <div class="mb-3">
+                        <label for="ndtEditPartNumber" class="form-label">Part Number *</label>
+                        <input type="text" class="form-control" id="ndtEditPartNumber" name="part_number" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="ndtEditDescription" class="form-label">Description *</label>
+                        <input type="text" class="form-control" id="ndtEditDescription" name="description" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="ndtEditProcess" class="form-label">Process *</label>
+                        <input type="text" class="form-control" id="ndtEditProcess" name="process" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="ndtEditQty" class="form-label">QTY *</label>
+                        <input type="number" class="form-control" id="ndtEditQty" name="qty" min="1" required>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Save Changes</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Модальное окно для редактирования CAD компонента -->
+<div class="modal fade" id="cadEditModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Edit CAD Component</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form id="cadEditForm">
+                <div class="modal-body">
+                    <input type="hidden" id="cadEditIndex" name="edit_index" value="">
+                    
+                    <!-- Информация из JSON -->
+                    <div class="alert alert-info">
+                        <h6>Component Information:</h6>
+                        <div class="row">
+                            <div class="col-md-6">
+                                <strong>IPL:</strong> <span id="cadCurrentIpl"></span><br>
+                                <strong>Part Number:</strong> <span id="cadCurrentPartNumber"></span>
+                            </div>
+                            <div class="col-md-6">
+                                <strong>Description:</strong> <span id="cadCurrentDescription"></span><br>
+                                <strong>Process:</strong> <span id="cadCurrentProcess"></span><br>
+                                <strong>QTY:</strong> <span id="cadCurrentQty"></span>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Редактируемые поля -->
+                    <div class="mb-3">
+                        <label for="cadEditPartNumber" class="form-label">Part Number *</label>
+                        <input type="text" class="form-control" id="cadEditPartNumber" name="part_number" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="cadEditDescription" class="form-label">Description *</label>
+                        <input type="text" class="form-control" id="cadEditDescription" name="description" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="cadEditProcess" class="form-label">Process *</label>
+                        <select class="form-control select2" id="cadEditProcess" name="process" required>
+                            <option value="">Select a process...</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label for="cadEditQty" class="form-label">QTY *</label>
+                        <input type="number" class="form-control" id="cadEditQty" name="qty" min="1" required>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Save Changes</button>
                 </div>
             </form>
         </div>
@@ -389,7 +507,15 @@ window.showAddNdtModal = function() {
     // Простая проверка jQuery
     if (typeof $ !== 'undefined') {
         $('#ndtForm')[0].reset();
+        $('#ndtEditIndex').val(''); // Сбрасываем индекс редактирования
         $('#ndtComponent').val('').trigger('change');
+        $('#ndtProcess').val('');
+        $('#ndtQty').val('');
+        $('#ndtModalTitle').text('Add NDT Component'); // Сбрасываем заголовок
+        $('#ndtSubmitBtn').text('Add'); // Меняем текст кнопки
+        $('#ndtJsonInfo').hide(); // Скрываем информацию из JSON
+        $('#ndtEditFields').hide(); // Скрываем поля редактирования
+        $('#ndtAddFields').show(); // Показываем поля добавления
 
         // Инициализируем Select2 для модального окна
         if (typeof $.fn.select2 !== 'undefined') {
@@ -406,6 +532,8 @@ window.showAddNdtModal = function() {
         console.log('jQuery not loaded yet, using fallback');
         // Fallback без jQuery
         document.getElementById('ndtForm').reset();
+        document.getElementById('ndtEditIndex').value = '';
+        document.getElementById('ndtModalTitle').textContent = 'Add NDT Component';
         document.getElementById('ndtModal').style.display = 'block';
         document.getElementById('ndtModal').classList.add('show');
     }
@@ -416,8 +544,15 @@ window.showAddCadModal = function() {
     // Простая проверка jQuery
     if (typeof $ !== 'undefined') {
         $('#cadForm')[0].reset();
+        $('#cadEditIndex').val(''); // Сбрасываем индекс редактирования
         $('#cadComponent').val('').trigger('change');
         $('#cadProcess').val('').trigger('change');
+        $('#cadQty').val('');
+        $('#cadModalTitle').text('Add CAD Component'); // Сбрасываем заголовок
+        $('#cadSubmitBtn').text('Add'); // Меняем текст кнопки
+        $('#cadJsonInfo').hide(); // Скрываем информацию из JSON
+        $('#cadEditFields').hide(); // Скрываем поля редактирования
+        $('#cadAddFields').show(); // Показываем поля добавления
 
         // Инициализируем Select2 для модального окна
         if (typeof $.fn.select2 !== 'undefined') {
@@ -440,6 +575,8 @@ window.showAddCadModal = function() {
         console.log('jQuery not loaded yet, using fallback');
         // Fallback без jQuery
         document.getElementById('cadForm').reset();
+        document.getElementById('cadEditIndex').value = '';
+        document.getElementById('cadModalTitle').textContent = 'Add CAD Component';
         document.getElementById('cadModal').style.display = 'block';
         document.getElementById('cadModal').classList.add('show');
     }
@@ -457,9 +594,36 @@ function initializeWhenReady() {
 
         // Инициализация Select2 (если доступен)
         if (typeof $.fn.select2 !== 'undefined') {
-            // Инициализируем Select2 для обычных элементов (не в модальных окнах)
-            // Модальные окна будут инициализированы отдельно при открытии
-            console.log('Select2 available, will be initialized for modals');
+            // Инициализируем Select2 для модальных окон
+            $('#ndtModal #ndtComponent').select2({
+                placeholder: 'Select a component...',
+                allowClear: true,
+                width: '100%',
+                dropdownParent: $('#ndtModal')
+            });
+            
+            $('#cadModal #cadComponent').select2({
+                placeholder: 'Select a component...',
+                allowClear: true,
+                width: '100%',
+                dropdownParent: $('#cadModal')
+            });
+            
+            $('#cadModal #cadProcess').select2({
+                placeholder: 'Select a process...',
+                allowClear: true,
+                width: '100%',
+                dropdownParent: $('#cadModal')
+            });
+            
+            $('#cadEditModal #cadEditProcess').select2({
+                placeholder: 'Select a process...',
+                allowClear: true,
+                width: '100%',
+                dropdownParent: $('#cadEditModal')
+            });
+            
+            console.log('Select2 initialized for all modals');
         } else {
             console.log('Select2 not available, using regular select');
         }
@@ -470,6 +634,8 @@ function initializeWhenReady() {
         $('#ndtComponent').on('change', function() {
             const selectedOption = $(this).find('option:selected');
             if (selectedOption.val()) {
+                $('#ndtPartNumber').val(selectedOption.data('part-number') || '');
+                $('#ndtDescription').val(selectedOption.data('description') || '');
                 $('#ndtQty').val(selectedOption.data('units-assy') || 1);
             }
         });
@@ -477,6 +643,8 @@ function initializeWhenReady() {
         $('#cadComponent').on('change', function() {
             const selectedOption = $(this).find('option:selected');
             if (selectedOption.val()) {
+                $('#cadPartNumber').val(selectedOption.data('part-number') || '');
+                $('#cadDescription').val(selectedOption.data('description') || '');
                 $('#cadQty').val(selectedOption.data('units-assy') || 1);
             }
         });
@@ -484,6 +652,7 @@ function initializeWhenReady() {
         // Обработчики форм
         $('#ndtForm').on('submit', function(e) {
             e.preventDefault();
+            console.log('NDT form submitted');
 
             const selectedComponent = $('#ndtComponent option:selected');
             if (!selectedComponent.val()) {
@@ -501,18 +670,25 @@ function initializeWhenReady() {
                 _token: $('meta[name="csrf-token"]').attr('content')
             };
 
+            console.log('Sending NDT add data:', data);
+
             $.post(`/admin/${workorderId}/ndt-cad-csv/add-ndt`, data).done(function(response) {
+                console.log('NDT add response:', response);
                 if (response.success) {
                     $('#ndtModal').modal('hide');
                     location.reload();
                 } else {
                     alert('Error: ' + response.message);
                 }
+            }).fail(function(xhr) {
+                console.error('NDT add error:', xhr.responseText);
+                alert('Error adding component');
             });
         });
 
         $('#cadForm').on('submit', function(e) {
             e.preventDefault();
+            console.log('CAD form submitted');
 
             const selectedComponent = $('#cadComponent option:selected');
             if (!selectedComponent.val()) {
@@ -535,13 +711,90 @@ function initializeWhenReady() {
                 _token: $('meta[name="csrf-token"]').attr('content')
             };
 
+            console.log('Sending CAD add data:', data);
+
             $.post(`/admin/${workorderId}/ndt-cad-csv/add-cad`, data).done(function(response) {
+                console.log('CAD add response:', response);
                 if (response.success) {
                     $('#cadModal').modal('hide');
                     location.reload();
                 } else {
                     alert('Error: ' + response.message);
                 }
+            }).fail(function(xhr) {
+                console.error('CAD add error:', xhr.responseText);
+                alert('Error adding component');
+            });
+        });
+
+        // Обработчики форм редактирования
+        $('#ndtEditForm').on('submit', function(e) {
+            e.preventDefault();
+            console.log('NDT Edit form submitted');
+
+            const editIndex = $('#ndtEditIndex').val();
+            if (!editIndex) {
+                alert('Edit index not found');
+                return;
+            }
+
+            const data = {
+                index: editIndex,
+                part_number: $('#ndtEditPartNumber').val(),
+                description: $('#ndtEditDescription').val(),
+                process: $('#ndtEditProcess').val(),
+                qty: parseInt($('#ndtEditQty').val()),
+                _token: $('meta[name="csrf-token"]').attr('content')
+            };
+
+            console.log('Sending NDT edit data:', data);
+
+            $.post(`/admin/${workorderId}/ndt-cad-csv/edit-ndt`, data).done(function(response) {
+                console.log('NDT edit response:', response);
+                if (response.success) {
+                    $('#ndtEditModal').modal('hide');
+                    location.reload();
+                } else {
+                    alert('Error: ' + response.message);
+                }
+            }).fail(function(xhr) {
+                console.error('NDT edit error:', xhr.responseText);
+                alert('Error saving changes');
+            });
+        });
+
+        $('#cadEditForm').on('submit', function(e) {
+            e.preventDefault();
+            console.log('CAD Edit form submitted');
+
+            const editIndex = $('#cadEditIndex').val();
+            if (!editIndex) {
+                alert('Edit index not found');
+                return;
+            }
+
+            const data = {
+                index: editIndex,
+                part_number: $('#cadEditPartNumber').val(),
+                description: $('#cadEditDescription').val(),
+                process: $('#cadEditProcess').val(),
+                qty: parseInt($('#cadEditQty').val()),
+                _token: $('meta[name="csrf-token"]').attr('content')
+            };
+
+            console.log('Sending CAD edit data:', data);
+
+            $.post(`/admin/${workorderId}/ndt-cad-csv/edit-cad`, data).done(function(response) {
+                console.log('CAD edit response:', response);
+                if (response.success) {
+                    $('#cadEditModal').modal('hide');
+                    location.reload();
+                } else {
+                    alert('Error: ' + response.message);
+                }
+            }).fail(function(xhr) {
+                console.error('CAD edit error:', xhr.responseText);
+                alert('Error saving changes');
             });
         });
 
@@ -583,11 +836,16 @@ console.log('showAddNdtModal defined:', typeof window.showAddNdtModal);
 console.log('showAddCadModal defined:', typeof window.showAddCadModal);
 
 function loadComponents() {
+    console.log('Loading components...');
     $.get(`/admin/${workorderId}/ndt-cad-csv/components`)
         .done(function(response) {
+            console.log('Components response:', response);
             if (response.success) {
                 allComponents = response.components;
+                console.log('Loaded components:', allComponents);
                 updateComponentDropdowns();
+            } else {
+                console.error('Failed to load components:', response.message);
             }
         })
         .fail(function(xhr) {
@@ -635,13 +893,16 @@ function updateComponentDropdowns() {
 
 function updateCadProcessDropdown() {
     $('#cadProcess').empty().append('<option value="">Выберите процесс...</option>');
+    $('#cadProcessEdit').empty().append('<option value="">Выберите процесс...</option>');
     cadProcesses.forEach(function(process) {
         $('#cadProcess').append(`<option value="${process.process}">${process.process}</option>`);
+        $('#cadProcessEdit').append(`<option value="${process.process}">${process.process}</option>`);
     });
 
     // Обновляем Select2 если он инициализирован
     if (typeof $.fn.select2 !== 'undefined') {
         $('#cadProcess').trigger('change.select2');
+        $('#cadProcessEdit').trigger('change.select2');
     }
 }
 
@@ -776,6 +1037,181 @@ window.importCadFromCsv = function() {
         document.getElementById('csvImportModal').style.display = 'block';
         document.getElementById('csvImportModal').classList.add('show');
     }
+};
+
+
+// Функции для открытия модальных окон добавления
+window.showAddNdtModal = function() {
+    console.log('showAddNdtModal called');
+    
+    if (typeof $ !== 'undefined') {
+        // Сбрасываем форму
+        $('#ndtForm')[0].reset();
+        
+        // Сбрасываем Select2 если он инициализирован
+        if (typeof $.fn.select2 !== 'undefined') {
+            $('#ndtComponent').val('').trigger('change');
+        }
+        
+        // Показываем модальное окно
+        $('#ndtModal').modal('show');
+    } else {
+        console.log('jQuery not loaded yet, using fallback');
+        // Fallback без jQuery
+        document.getElementById('ndtForm').reset();
+        document.getElementById('ndtModal').style.display = 'block';
+        document.getElementById('ndtModal').classList.add('show');
+    }
+};
+
+window.showAddCadModal = function() {
+    console.log('showAddCadModal called');
+    
+    if (typeof $ !== 'undefined') {
+        // Сбрасываем форму
+        $('#cadForm')[0].reset();
+        
+        // Сбрасываем Select2 если он инициализирован
+        if (typeof $.fn.select2 !== 'undefined') {
+            $('#cadComponent').val('').trigger('change');
+            $('#cadProcess').val('').trigger('change');
+        }
+        
+        // Показываем модальное окно
+        $('#cadModal').modal('show');
+    } else {
+        console.log('jQuery not loaded yet, using fallback');
+        // Fallback без jQuery
+        document.getElementById('cadForm').reset();
+        document.getElementById('cadModal').style.display = 'block';
+        document.getElementById('cadModal').classList.add('show');
+    }
+};
+
+// Функции для редактирования компонентов
+window.editNdtComponent = function(index) {
+    console.log('Editing NDT component with index:', index);
+    console.log('NDT Components array:', ndtComponents);
+    
+    const component = ndtComponents[index];
+    if (!component) {
+        console.error('NDT Component not found at index:', index);
+        alert('Component not found');
+        return;
+    }
+
+    console.log('Found NDT component:', component);
+
+    // Заполняем информацию из JSON
+    $('#ndtCurrentIpl').text(component.ipl_num);
+    $('#ndtCurrentPartNumber').text(component.part_number);
+    $('#ndtCurrentDescription').text(component.description);
+    $('#ndtCurrentProcess').text(component.process);
+    $('#ndtCurrentQty').text(component.qty);
+
+    // Заполняем редактируемые поля
+    $('#ndtEditIndex').val(index);
+    $('#ndtEditPartNumber').val(component.part_number);
+    $('#ndtEditDescription').val(component.description);
+    $('#ndtEditProcess').val(component.process);
+    $('#ndtEditQty').val(component.qty);
+
+    console.log('Filling NDT edit form with:', {
+        ipl_num: component.ipl_num,
+        part_number: component.part_number,
+        description: component.description,
+        process: component.process,
+        qty: component.qty
+    });
+
+    // Показываем модальное окно
+    $('#ndtEditModal').modal('show');
+};
+
+window.editCadComponent = function(index) {
+    console.log('Editing CAD component with index:', index);
+    console.log('CAD Components array:', cadComponents);
+    
+    const component = cadComponents[index];
+    if (!component) {
+        console.error('CAD Component not found at index:', index);
+        alert('Component not found');
+        return;
+    }
+
+    console.log('Found CAD component:', component);
+
+    // Заполняем информацию из JSON
+    $('#cadCurrentIpl').text(component.ipl_num);
+    $('#cadCurrentPartNumber').text(component.part_number);
+    $('#cadCurrentDescription').text(component.description);
+    $('#cadCurrentProcess').text(component.process);
+    $('#cadCurrentQty').text(component.qty);
+
+    // Заполняем редактируемые поля
+    $('#cadEditIndex').val(index);
+    $('#cadEditPartNumber').val(component.part_number);
+    $('#cadEditDescription').val(component.description);
+    $('#cadEditQty').val(component.qty);
+
+    // Загружаем и заполняем процессы для dropdown
+    if (cadProcesses && cadProcesses.length > 0) {
+        // Очищаем dropdown
+        $('#cadEditProcess').empty().append('<option value="">Select a process...</option>');
+        
+        // Добавляем процессы
+        cadProcesses.forEach(function(process) {
+            $('#cadEditProcess').append(`<option value="${process.process}">${process.process}</option>`);
+        });
+        
+        // Устанавливаем выбранный процесс
+        $('#cadEditProcess').val(component.process);
+        
+        // Обновляем Select2
+        if (typeof $.fn.select2 !== 'undefined') {
+            $('#cadEditProcess').trigger('change.select2');
+        }
+    } else {
+        // Если процессы еще не загружены, загружаем их
+        console.log('CAD processes not loaded, loading now...');
+        $.get(`/admin/${workorderId}/ndt-cad-csv/cad-processes`)
+            .done(function(response) {
+                if (response.success) {
+                    cadProcesses = response.processes;
+                    console.log('Loaded CAD processes:', cadProcesses);
+                    
+                    // Очищаем dropdown
+                    $('#cadEditProcess').empty().append('<option value="">Select a process...</option>');
+                    
+                    // Добавляем процессы
+                    cadProcesses.forEach(function(process) {
+                        $('#cadEditProcess').append(`<option value="${process.process}">${process.process}</option>`);
+                    });
+                    
+                    // Устанавливаем выбранный процесс
+                    $('#cadEditProcess').val(component.process);
+                    
+                    // Обновляем Select2
+                    if (typeof $.fn.select2 !== 'undefined') {
+                        $('#cadEditProcess').trigger('change.select2');
+                    }
+                }
+            })
+            .fail(function(xhr) {
+                console.error('Error loading CAD processes:', xhr.responseText);
+            });
+    }
+
+    console.log('Filling CAD edit form with:', {
+        ipl_num: component.ipl_num,
+        part_number: component.part_number,
+        description: component.description,
+        process: component.process,
+        qty: component.qty
+    });
+
+    // Показываем модальное окно
+    $('#cadEditModal').modal('show');
 };
 
 console.log('All global functions defined');

@@ -199,7 +199,13 @@
             display: inline-block;
             vertical-align: top;
         }
-
+        .description-text-long {
+            font-size: 0.9rem;
+            line-height: 1.1;
+            letter-spacing: -0.3px;
+            display: inline-block;
+            vertical-align: top;
+        }
         .details-row {
             display: flex;
             justify-content: center;
@@ -244,7 +250,12 @@
             <div class="col-6">
                 <div class="row" style="height: 32px">
                     <div class="col-6 pt-2 text-end"> <strong>COMPONENT NAME</strong> :</div>
-                    <div class="col-6 fs-7 pt-2 border-b"> <strong>{{$current_wo->description}}</strong> </div>
+                    <div class="col-6 fs-7 pt-2 border-b"> <strong>
+{{--                            {{$current_wo->description}}--}}
+                            <span @if(strlen($current_wo->description) > 30) class="description-text-long"
+                                @endif>{{$current_wo->description}}</span>
+                        </strong> </div>
+
                 </div>
                 <div class="row" style="height: 32px">
                     <div class="col-6 pt-2 text-end"> <strong> PART NUMBER:</strong></div>

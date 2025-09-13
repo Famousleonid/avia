@@ -177,6 +177,8 @@ Route::group(['middleware' => ['auth', 'isAdmin'], 'prefix' => 'admin'], functio
     Route::post('/{workorder}/ndt-cad-csv/add-cad', [NdtCadCsvController::class, 'addCadComponent'])->name('ndt-cad-csv.add-cad');
     Route::post('/{workorder}/ndt-cad-csv/remove-ndt', [NdtCadCsvController::class, 'removeNdtComponent'])->name('ndt-cad-csv.remove-ndt');
     Route::post('/{workorder}/ndt-cad-csv/remove-cad', [NdtCadCsvController::class, 'removeCadComponent'])->name('ndt-cad-csv.remove-cad');
+    Route::post('/{workorder}/ndt-cad-csv/edit-ndt', [NdtCadCsvController::class, 'editNdtComponent'])->name('ndt-cad-csv.edit-ndt');
+    Route::post('/{workorder}/ndt-cad-csv/edit-cad', [NdtCadCsvController::class, 'editCadComponent'])->name('ndt-cad-csv.edit-cad');
     Route::post('/{workorder}/ndt-cad-csv/import', [NdtCadCsvController::class, 'importFromCsv'])->name('ndt-cad-csv.import');
     Route::post('/{workorder}/ndt-cad-csv/reload-from-manual', [NdtCadCsvController::class, 'reloadFromManual'])->name('ndt-cad-csv.reload-from-manual');
     Route::post('/{workorder}/ndt-cad-csv/force-load-from-manual', [NdtCadCsvController::class, 'forceLoadFromManual'])->name('ndt-cad-csv.force-load-from-manual');

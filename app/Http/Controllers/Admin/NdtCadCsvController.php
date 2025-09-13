@@ -518,6 +518,98 @@ class NdtCadCsvController extends Controller
     }
 
     /**
+     * Редактировать NDT компонент
+     */
+    public function editNdtComponent(Request $request, Workorder $workorder): JsonResponse
+    {
+        $request->validate([
+            'index' => 'required|integer|min:0',
+            'part_number' => 'required|string',
+            'description' => 'required|string',
+            'process' => 'required|string',
+            'qty' => 'required|integer|min:1',
+        ]);
+
+        $ndtCadCsv = $workorder->ndtCadCsv;
+
+        if (!$ndtCadCsv) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Запись не найдена'
+            ], 404);
+        }
+
+        $components = $ndtCadCsv->ndt_components ?? [];
+        
+        if (!isset($components[$request->index])) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Компонент не найден'
+            ], 404);
+        }
+
+        // Обновляем только редактируемые поля, сохраняя остальные
+        $components[$request->index]['part_number'] = $request->part_number;
+        $components[$request->index]['description'] = $request->description;
+        $components[$request->index]['process'] = $request->process;
+        $components[$request->index]['qty'] = $request->qty;
+
+        $ndtCadCsv->ndt_components = $components;
+        $ndtCadCsv->save();
+
+        return response()->json([
+            'success' => true,
+            'message' => 'NDT компонент успешно обновлен'
+        ]);
+    }
+
+    /**
+     * Редактировать CAD компонент
+     */
+    public function editCadComponent(Request $request, Workorder $workorder): JsonResponse
+    {
+        $request->validate([
+            'index' => 'required|integer|min:0',
+            'part_number' => 'required|string',
+            'description' => 'required|string',
+            'process' => 'required|string',
+            'qty' => 'required|integer|min:1',
+        ]);
+
+        $ndtCadCsv = $workorder->ndtCadCsv;
+
+        if (!$ndtCadCsv) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Запись не найдена'
+            ], 404);
+        }
+
+        $components = $ndtCadCsv->cad_components ?? [];
+        
+        if (!isset($components[$request->index])) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Компонент не найден'
+            ], 404);
+        }
+
+        // Обновляем только редактируемые поля, сохраняя остальные
+        $components[$request->index]['part_number'] = $request->part_number;
+        $components[$request->index]['description'] = $request->description;
+        $components[$request->index]['process'] = $request->process;
+        $components[$request->index]['qty'] = $request->qty;
+
+        $ndtCadCsv->cad_components = $components;
+        $ndtCadCsv->save();
+
+        return response()->json([
+            'success' => true,
+            'message' => 'CAD компонент успешно обновлен'
+        ]);
+    }
+
+    /**
      * Принудительно загрузить компоненты из Manual CSV
      */
     public function forceLoadFromManual(Request $request, Workorder $workorder): JsonResponse

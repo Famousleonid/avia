@@ -1449,29 +1449,36 @@ public function wo_Process_Form($id)
         try {
             // Получаем текущий workorder
             $current_wo = Workorder::findOrFail($workorder_id);
-            $manual = $current_wo->unit->manuals;
 
-            if (!$manual) {
-                throw new \RuntimeException('Manual not found for this workorder');
+            \Log::info('Starting CAD sums calculation', [
+                'workorder_id' => $workorder_id
+            ]);
+
+            // 1. Получаем данные из таблицы ndt_cad_csv
+            $ndtCadCsv = $current_wo->ndtCadCsv;
+            if (!$ndtCadCsv) {
+                \Log::error('NdtCadCsv not found for workorder', ['workorder_id' => $workorder_id]);
+                return [
+                    'total_qty' => 0,
+                    'total_components' => 0
+                ];
             }
 
-            // 1. Чтение CSV файла
-            $csvMedia = $manual->getMedia('csv_files')->first(function ($media) {
-                return $media->getCustomProperty('process_type') === self::PROCESS_TYPE_CAD;
-            });
+            \Log::info('Found NdtCadCsv record', [
+                'ndt_cad_csv_id' => $ndtCadCsv->id,
+                'cad_components_count' => count($ndtCadCsv->cad_components ?? [])
+            ]);
 
-            if (!$csvMedia) {
-                throw new \RuntimeException('CSV file not found');
+            // Получаем CAD компоненты из JSON поля
+            $cadComponents = $ndtCadCsv->cad_components ?? [];
+            
+            if (empty($cadComponents)) {
+                \Log::warning('No CAD components found in NdtCadCsv');
+                return [
+                    'total_qty' => 0,
+                    'total_components' => 0
+                ];
             }
-
-            // Читаем CSV файл
-            $csvPath = $csvMedia->getPath();
-            $csv = Reader::createFromPath($csvPath, 'r');
-            $csv->setHeaderOffset(0);
-
-            // Получаем все записи из CSV
-            $records = iterator_to_array($csv->getRecords());
-            \Log::info('Total CAD records in CSV:', ['count' => count($records)]);
 
             // 2. Чтение TDR компонентов
             $tdrComponents = Tdr::where('workorder_id', $workorder_id)
@@ -1491,20 +1498,36 @@ public function wo_Process_Form($id)
             $totalQty = 0;
             $totalComponents = 0;
             $processedIpls = [];
+            $skippedCount = 0;
+            $combinedSkippedCount = 0;
 
-            foreach ($records as $record) {
-                $itemNo = trim($record['ITEM   No.']);
-                $qty = (int)($record['QTY'] ?? 1); // Получаем qty из CSV
+            \Log::info('Starting CAD calculation loop', [
+                'total_cad_components' => count($cadComponents),
+                'tdr_ipl_count' => count($tdrIplMap)
+            ]);
+
+            foreach ($cadComponents as $index => $component) {
+                $itemNo = trim($component['ipl_num'] ?? '');
+                $qty = (int)($component['qty'] ?? 1); // Получаем qty из JSON
+
+                \Log::debug('Processing CAD component', [
+                    'index' => $index,
+                    'item_no' => $itemNo,
+                    'qty' => $qty,
+                    'component' => $component
+                ]);
 
                 // Если IPL номер есть в TDR - пропускаем
                 if (isset($tdrIplMap[$itemNo])) {
-                    \Log::info('Skipping component as it exists in TDR:', ['ipl_num' => $itemNo]);
+                    $skippedCount++;
+                    \Log::debug('Skipping component as it exists in TDR:', ['ipl_num' => $itemNo]);
                     continue;
                 }
 
-                // Проверяем совмещенные значения в CSV
+                // Проверяем совмещенные значения
                 if ($this->shouldSkipItem($itemNo, array_keys($tdrIplMap))) {
-                    \Log::info('Skipping CAD component due to combined value match:', [
+                    $combinedSkippedCount++;
+                    \Log::debug('Skipping CAD component due to combined value match:', [
                         'item_no' => $itemNo,
                         'existing_ipls' => array_keys($tdrIplMap)
                     ]);
@@ -1513,12 +1536,20 @@ public function wo_Process_Form($id)
 
                 // Если IPL номер еще не был обработан
                 if (!in_array($itemNo, $processedIpls)) {
-                    $totalQty += $qty; // Используем qty из CSV
+                    $totalQty += $qty; // Используем qty из JSON
                     $totalComponents++;
                     $processedIpls[] = $itemNo;
-                    \Log::info('Adding component from CSV:', ['ipl_num' => $itemNo, 'qty' => $qty]);
+                    \Log::debug('Adding component from NdtCadCsv:', ['ipl_num' => $itemNo, 'qty' => $qty]);
                 }
             }
+
+            \Log::info('CAD calculation loop completed', [
+                'total_qty' => $totalQty,
+                'total_components' => $totalComponents,
+                'skipped_count' => $skippedCount,
+                'combined_skipped_count' => $combinedSkippedCount,
+                'processed_ipls' => $processedIpls
+            ]);
 
             \Log::info('CAD calculation results:', [
                 'total_qty' => $totalQty,
