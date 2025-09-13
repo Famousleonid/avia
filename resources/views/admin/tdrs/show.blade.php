@@ -242,7 +242,7 @@
 
                             {{--                                @endif--}}
                             {{--                            </div>--}}
-                            <div class=" d-flex " style=" height: 40px; width: 350px">
+                            <div class=" d-flex " style=" height: 40px; width: 380px">
                                 @if(count($tdrs))
 
                                     <a href="{{ route('tdrs.tdrForm', ['id'=> $current_wo->id]) }}"
@@ -252,11 +252,11 @@
                                         <i class="bi bi-file-earmark-excel"> TDR Form</i>
                                     </a>
 
-{{--                                    <a href="{{ route('tdrs.specProcessForm', ['id'=> $current_wo->id]) }}"--}}
+{{--                                    <a href="{{ route('tdrs.specProcessFormEmp', ['id'=> $current_wo->id]) }}"--}}
 {{--                                       class="btn btn-outline-warning  formLink "--}}
 {{--                                       target="_blank"--}}
-{{--                                       id="#" style=" height: 60px; width: 120px">--}}
-{{--                                        <i class="bi bi-file-earmark-excel"> Special Process Form </i>--}}
+{{--                                       id="#" style=" height: 60px; width: 70px">--}}
+{{--                                        <i class="bi bi-file-earmark-excel"> SP Form </i>--}}
 {{--                                    </a>--}}
                                     <a href="{{ route('tdrs.woProcessForm', ['id'=> $current_wo->id]) }}"
                                        class="btn btn-outline-warning me-1 formLink "

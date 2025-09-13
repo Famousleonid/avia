@@ -260,46 +260,16 @@
         Print Form
     </button>
 
-    <!-- Отладочная информация -->
-{{--    <div class="no-print mt-2 p-2 bg-light border">--}}
-{{--        <strong>Отладка NDT сумм:</strong><br>--}}
-{{--        <small>--}}
-{{--            Workorder ID: {{ $current_wo->id }}<br>--}}
-{{--            Workorder Number: {{ $current_wo->number }}<br>--}}
-{{--            <br>--}}
-{{--            <strong>NDT Sums:</strong><br>--}}
-{{--            Total: {{ $ndtSums['total'] ?? 'не установлено' }}<br>--}}
-{{--            MPI: {{ $ndtSums['mpi'] ?? 'не установлено' }}<br>--}}
-{{--            FPI: {{ $ndtSums['fpi'] ?? 'не установлено' }}<br>--}}
-{{--            <br>--}}
-{{--            <strong>NdtCadCsv данные:</strong><br>--}}
-{{--            @if($current_wo->ndtCadCsv)--}}
-{{--                NdtCadCsv ID: {{ $current_wo->ndtCadCsv->id }}<br>--}}
-{{--                NDT компонентов: {{ count($current_wo->ndtCadCsv->ndt_components ?? []) }}<br>--}}
-{{--                CAD компонентов: {{ count($current_wo->ndtCadCsv->cad_components ?? []) }}<br>--}}
-{{--                <br>--}}
-{{--                <strong>Детали NDT компонентов:</strong><br>--}}
-{{--                @foreach($current_wo->ndtCadCsv->ndt_components ?? [] as $index => $component)--}}
-{{--                    {{ $index + 1 }}. {{ $component['ipl_num'] ?? 'N/A' }} - --}}
-{{--                    qty: {{ $component['qty'] ?? 'N/A' }}, --}}
-{{--                    process: {{ $component['process'] ?? 'N/A' }}<br>--}}
-{{--                @endforeach--}}
-{{--            @else--}}
-{{--                ❌ NdtCadCsv запись не найдена<br>--}}
-{{--            @endif--}}
-{{--            <br>--}}
-{{--            <strong>Raw NDT data:</strong> {{ json_encode($ndtSums) }}--}}
-{{--        </small>--}}
-{{--    </div>--}}
+
 </div>
 
-@php
-    $componentsPerPage = 6;
-    // Если $tdr_ws — коллекция, можно воспользоваться chunk:
-    $componentChunks = $tdr_ws->chunk($componentsPerPage);
-@endphp
+{{--@php--}}
+{{--    $componentsPerPage = 6;--}}
+{{--    // Если $tdr_ws — коллекция, можно воспользоваться chunk:--}}
+{{--    $componentChunks = $tdr_ws->chunk($componentsPerPage);--}}
+{{--@endphp--}}
 
-@foreach($componentChunks as $chunk)
+{{--@foreach($componentChunks as $chunk)--}}
     <div class="container-fluid">
         <div class="row">
             <div class="col-1">
@@ -307,7 +277,7 @@
                      style="width: 160px; margin: 0px 6px 0;">
             </div>
             <div class="col-11">
-                <h5 class="  text-black text-center"><strong>Special Process Form</strong></h5>
+                <h5 class="  text-black text-center"><strong>Special Process Form EMP</strong></h5>
             </div>
         </div>
         <div>
@@ -380,26 +350,26 @@
             <div class="col-10">
                 <!-- Строка для имен компонентов -->
                 <div class="row g-0">
-                    @foreach($chunk as $index => $component)
-                        @php
-                            $localIndex = $index % 6;
-                        @endphp
-                        <div class="col {{ $localIndex < 5 ? 'border-l-t-b' : 'border-all' }} text-center" style="height:
-                        22px">
-                            @php
-                                $nameLength = mb_strlen($component->component->name);
-                                $fontSize = $nameLength > 20 ? round(20 / $nameLength, 2) . 'em' : '1em';
-                            @endphp
-                            <span style="font-size: {{ $fontSize }};">
-                                {{ $component->component->name }}
-                            </span>
-                        </div>
-                    @endforeach
+{{--                    @foreach($chunk as $index => $component)--}}
+{{--                        @php--}}
+{{--                            $localIndex = $index % 6;--}}
+{{--                        @endphp--}}
+{{--                        <div class="col {{ $localIndex < 5 ? 'border-l-t-b' : 'border-all' }} text-center" style="height:--}}
+{{--                        22px">--}}
+{{--                            @php--}}
+{{--                                $nameLength = mb_strlen($component->component->name);--}}
+{{--                                $fontSize = $nameLength > 20 ? round(20 / $nameLength, 2) . 'em' : '1em';--}}
+{{--                            @endphp--}}
+{{--                            <span style="font-size: {{ $fontSize }};">--}}
+{{--                                {{ $component->component->name }}--}}
+{{--                            </span>--}}
+{{--                        </div>--}}
+{{--                    @endforeach--}}
 
-                    @for($i = count($chunk); $i < $componentsPerPage; $i++)
-                        <div class="col {{ $i < 5 ? 'border-l-t-b' : 'border-all' }} text-center" style="height: 22px">
-                            {{__(' ')}}</div>
-                    @endfor
+{{--                    @for($i = count($chunk); $i < $componentsPerPage; $i++)--}}
+{{--                        <div class="col {{ $i < 5 ? 'border-l-t-b' : 'border-all' }} text-center" style="height: 22px">--}}
+{{--                            {{__(' ')}}</div>--}}
+{{--                    @endfor--}}
                 </div>
 
             </div>
@@ -414,18 +384,18 @@
             <!-- Данные Part No. -->
             <div class="col-10">
                 <div class="row g-0 ">
-                    @foreach($chunk as $index => $component)
-                        @php
-                            $localIndex = $index % 6;
-                        @endphp
-                        <div class="col {{ $localIndex < 5 ? 'border-l-b' : 'border-l-b-r'}} text-center" style="height: 22px">
-                            {{ $component->component->part_number }}
-                        </div>
-                    @endforeach
-                    @for($i = count($chunk); $i < $componentsPerPage; $i++)
-                        <div class="col {{ $i < 5 ? 'border-l-b' : 'border-l-b-r'}} text-center" style="height: 22px">
-                            {{__(' ')}}</div>
-                    @endfor
+{{--                    @foreach($chunk as $index => $component)--}}
+{{--                        @php--}}
+{{--                            $localIndex = $index % 6;--}}
+{{--                        @endphp--}}
+{{--                        <div class="col {{ $localIndex < 5 ? 'border-l-b' : 'border-l-b-r'}} text-center" style="height: 22px">--}}
+{{--                            {{ $component->component->part_number }}--}}
+{{--                        </div>--}}
+{{--                    @endforeach--}}
+{{--                    @for($i = count($chunk); $i < $componentsPerPage; $i++)--}}
+{{--                        <div class="col {{ $i < 5 ? 'border-l-b' : 'border-l-b-r'}} text-center" style="height: 22px">--}}
+{{--                            {{__(' ')}}</div>--}}
+{{--                    @endfor--}}
                 </div>
             </div>
         </div>
@@ -439,16 +409,16 @@
             <!-- Данные Serial No. -->
             <div class="col-10">
                 <div class="row g-0 ">
-                    @foreach($chunk as $index => $component)
-                        @php $localIndex = $index % 6; @endphp
-                        <div class="col {{ $localIndex < 5 ? 'border-l-b' : 'border-l-b-r'}} text-center" style="height: 22px">
-                            {{ $component->serial_number }}
-                        </div>
-                    @endforeach
-                    @for($i = count($chunk); $i < $componentsPerPage; $i++)
-                        <div class="col {{ $i < 5 ? 'border-l-b' : 'border-l-b-r'}} text-center" style="height: 22px">
-                            {{__(' ')}}</div>
-                    @endfor
+{{--                    @foreach($chunk as $index => $component)--}}
+{{--                        @php $localIndex = $index % 6; @endphp--}}
+{{--                        <div class="col {{ $localIndex < 5 ? 'border-l-b' : 'border-l-b-r'}} text-center" style="height: 22px">--}}
+{{--                            {{ $component->serial_number }}--}}
+{{--                        </div>--}}
+{{--                    @endforeach--}}
+{{--                    @for($i = count($chunk); $i < $componentsPerPage; $i++)--}}
+{{--                        <div class="col {{ $i < 5 ? 'border-l-b' : 'border-l-b-r'}} text-center" style="height: 22px">--}}
+{{--                            {{__(' ')}}</div>--}}
+{{--                    @endfor--}}
                 </div>
             </div>
         </div>
@@ -474,42 +444,42 @@
             </div>
             <div class="col-10">
                 <div class="row g-0">
-                    @php
-                        $componentIndex = 0;
-                    @endphp
+{{--                    @php--}}
+{{--                        $componentIndex = 0;--}}
+{{--                    @endphp--}}
 
-                    @foreach($chunk as $index => $component)
-                        @php
-                            $localIndex = $index % 6;
-                            $currentTdrId = $component->id;
-                            $ndtForCurrentTdr = collect($ndt_processes)
-                                ->where('tdrs_id', $currentTdrId)
-                                ->values();
-                        @endphp
+{{--                    @foreach($chunk as $index => $component)--}}
+{{--                        @php--}}
+{{--                            $localIndex = $index % 6;--}}
+{{--                            $currentTdrId = $component->id;--}}
+{{--                            $ndtForCurrentTdr = collect($ndt_processes)--}}
+{{--                                ->where('tdrs_id', $currentTdrId)--}}
+{{--                                ->values();--}}
+{{--                        @endphp--}}
 
-                        <div class="col {{ $localIndex < 5 ? 'border-l-t-b' : 'border-all' }} text-center" style="height:
-                     20px">
-                            @if($componentIndex < count($chunk) && isset($ndtForCurrentTdr[0]))
-                                <div class="border-r" style="height: 20px; width: 30px">
-                                    {{ $ndtForCurrentTdr[0]['number_line'] }}
-                                </div>
-                            @else
-                                <div class="border-r" style="height: 20px; width: 30px"></div>
-                            @endif
-                        </div>
+{{--                        <div class="col {{ $localIndex < 5 ? 'border-l-t-b' : 'border-all' }} text-center" style="height:--}}
+{{--                     20px">--}}
+{{--                            @if($componentIndex < count($chunk) && isset($ndtForCurrentTdr[0]))--}}
+{{--                                <div class="border-r" style="height: 20px; width: 30px">--}}
+{{--                                    {{ $ndtForCurrentTdr[0]['number_line'] }}--}}
+{{--                                </div>--}}
+{{--                            @else--}}
+{{--                                <div class="border-r" style="height: 20px; width: 30px"></div>--}}
+{{--                            @endif--}}
+{{--                        </div>--}}
 
-                        @php $componentIndex++; @endphp
-                    @endforeach
+{{--                        @php $componentIndex++; @endphp--}}
+{{--                    @endforeach--}}
 
-                    @for($i = count($chunk); $i < $componentsPerPage; $i++)
-                        <div class="col {{ $i < 5 ? 'border-l-t-b' : 'border-all' }} text-center" style="height: 20px;
-                    position: relative;">
-                            {{ __(' ') }}
-                            <!-- Граница внутри ячейки, отступ 30px от левого края -->
-                            <div style="position: absolute; left: 29px; top: 0; bottom: 0; width: 1px; border-left: 1px solid black;"></div>
+{{--                    @for($i = count($chunk); $i < $componentsPerPage; $i++)--}}
+{{--                        <div class="col {{ $i < 5 ? 'border-l-t-b' : 'border-all' }} text-center" style="height: 20px;--}}
+{{--                    position: relative;">--}}
+{{--                            {{ __(' ') }}--}}
+{{--                            <!-- Граница внутри ячейки, отступ 30px от левого края -->--}}
+{{--                            <div style="position: absolute; left: 29px; top: 0; bottom: 0; width: 1px; border-left: 1px solid black;"></div>--}}
 
-                        </div>
-                    @endfor
+{{--                        </div>--}}
+{{--                    @endfor--}}
 
 
                 </div>
@@ -522,42 +492,42 @@
             </div>
             <div class="col-10">
                 <div class="row g-0">
-                    @php
-                        $componentIndex = 0;
-                    @endphp
+{{--                    @php--}}
+{{--                        $componentIndex = 0;--}}
+{{--                    @endphp--}}
 
-                    @foreach($chunk as $index => $component)
-                        @php
-                            $localIndex = $index % 6;
-                            $currentTdrId = $component->id;
-                            $ndtForCurrentTdr = collect($ndt_processes)
-                                ->where('tdrs_id', $currentTdrId)
-                                ->values();
-                        @endphp
+{{--                    @foreach($chunk as $index => $component)--}}
+{{--                        @php--}}
+{{--                            $localIndex = $index % 6;--}}
+{{--                            $currentTdrId = $component->id;--}}
+{{--                            $ndtForCurrentTdr = collect($ndt_processes)--}}
+{{--                                ->where('tdrs_id', $currentTdrId)--}}
+{{--                                ->values();--}}
+{{--                        @endphp--}}
 
-                        <div class="col {{ $localIndex < 5 ? 'border-l-b' : 'border-l-b-r' }} text-center" style="height:
-                     20px">
-                            @if($componentIndex < count($chunk) && isset($ndtForCurrentTdr[1]))
-                                <div class="border-r" style="height: 20px; width: 30px">
-                                    {{ $ndtForCurrentTdr[1]['number_line'] }}
-                                </div>
-                            @else
-                                <div class="border-r" style="height: 20px; width: 30px"></div>
-                            @endif
-                        </div>
+{{--                        <div class="col {{ $localIndex < 5 ? 'border-l-b' : 'border-l-b-r' }} text-center" style="height:--}}
+{{--                     20px">--}}
+{{--                            @if($componentIndex < count($chunk) && isset($ndtForCurrentTdr[1]))--}}
+{{--                                <div class="border-r" style="height: 20px; width: 30px">--}}
+{{--                                    {{ $ndtForCurrentTdr[1]['number_line'] }}--}}
+{{--                                </div>--}}
+{{--                            @else--}}
+{{--                                <div class="border-r" style="height: 20px; width: 30px"></div>--}}
+{{--                            @endif--}}
+{{--                        </div>--}}
 
-                        @php $componentIndex++; @endphp
-                    @endforeach
+{{--                        @php $componentIndex++; @endphp--}}
+{{--                    @endforeach--}}
 
-                    @for($i = count($chunk); $i < $componentsPerPage; $i++)
-                        <div class="col {{ $i < 5 ? 'border-l-b' : 'border-l-b-r' }} text-center" style="height: 20px;
-                    position: relative;">
-                            {{ __(' ') }}
-                            <!-- Граница внутри ячейки, отступ 30px от левого края -->
-                            <div style="position: absolute; left: 29px; top: 0; bottom: 0; width: 1px; border-left: 1px solid black;"></div>
+{{--                    @for($i = count($chunk); $i < $componentsPerPage; $i++)--}}
+{{--                        <div class="col {{ $i < 5 ? 'border-l-b' : 'border-l-b-r' }} text-center" style="height: 20px;--}}
+{{--                    position: relative;">--}}
+{{--                            {{ __(' ') }}--}}
+{{--                            <!-- Граница внутри ячейки, отступ 30px от левого края -->--}}
+{{--                            <div style="position: absolute; left: 29px; top: 0; bottom: 0; width: 1px; border-left: 1px solid black;"></div>--}}
 
-                        </div>
-                    @endfor
+{{--                        </div>--}}
+{{--                    @endfor--}}
 
 
                 </div>
@@ -569,42 +539,42 @@
             </div>
             <div class="col-10">
                 <div class="row g-0">
-                    @php
-                        $componentIndex = 0;
-                    @endphp
+{{--                    @php--}}
+{{--                        $componentIndex = 0;--}}
+{{--                    @endphp--}}
 
-                    @foreach($chunk as $index => $component)
-                        @php
-                            $localIndex = $index % 6;
-                            $currentTdrId = $component->id;
-                            $ndtForCurrentTdr = collect($ndt_processes)
-                                ->where('tdrs_id', $currentTdrId)
-                                ->values();
-                        @endphp
+{{--                    @foreach($chunk as $index => $component)--}}
+{{--                        @php--}}
+{{--                            $localIndex = $index % 6;--}}
+{{--                            $currentTdrId = $component->id;--}}
+{{--                            $ndtForCurrentTdr = collect($ndt_processes)--}}
+{{--                                ->where('tdrs_id', $currentTdrId)--}}
+{{--                                ->values();--}}
+{{--                        @endphp--}}
 
-                        <div class="col {{ $localIndex < 5 ? 'border-l-b' : 'border-l-b-r' }} text-center" style="height:
-                     20px">
-                            @if($componentIndex < count($chunk) && isset($ndtForCurrentTdr[2]))
-                                <div class="border-r" style="height: 20px; width: 30px">
-                                    {{ $ndtForCurrentTdr[2]['number_line'] }}
-                                </div>
-                            @else
-                                <div class="border-r" style="height: 20px; width: 30px"></div>
-                            @endif
-                        </div>
+{{--                        <div class="col {{ $localIndex < 5 ? 'border-l-b' : 'border-l-b-r' }} text-center" style="height:--}}
+{{--                     20px">--}}
+{{--                            @if($componentIndex < count($chunk) && isset($ndtForCurrentTdr[2]))--}}
+{{--                                <div class="border-r" style="height: 20px; width: 30px">--}}
+{{--                                    {{ $ndtForCurrentTdr[2]['number_line'] }}--}}
+{{--                                </div>--}}
+{{--                            @else--}}
+{{--                                <div class="border-r" style="height: 20px; width: 30px"></div>--}}
+{{--                            @endif--}}
+{{--                        </div>--}}
 
-                        @php $componentIndex++; @endphp
-                    @endforeach
+{{--                        @php $componentIndex++; @endphp--}}
+{{--                    @endforeach--}}
 
-                    @for($i = count($chunk); $i < $componentsPerPage; $i++)
-                        <div class="col {{ $i < 5 ? 'border-l-b' : 'border-l-b-r' }} text-center" style="height: 20px;
-                    position: relative;">
-                            {{ __(' ') }}
-                            <!-- Граница внутри ячейки, отступ 30px от левого края -->
-                            <div style="position: absolute; left: 29px; top: 0; bottom: 0; width: 1px; border-left: 1px solid black;"></div>
+{{--                    @for($i = count($chunk); $i < $componentsPerPage; $i++)--}}
+{{--                        <div class="col {{ $i < 5 ? 'border-l-b' : 'border-l-b-r' }} text-center" style="height: 20px;--}}
+{{--                    position: relative;">--}}
+{{--                            {{ __(' ') }}--}}
+{{--                            <!-- Граница внутри ячейки, отступ 30px от левого края -->--}}
+{{--                            <div style="position: absolute; left: 29px; top: 0; bottom: 0; width: 1px; border-left: 1px solid black;"></div>--}}
 
-                        </div>
-                    @endfor
+{{--                        </div>--}}
+{{--                    @endfor--}}
 
 
                 </div>
@@ -618,45 +588,45 @@
                 </div>
                 <div class="col-10">
                     <div class="row g-0">
-                        @php
-                            $componentIndex = 0;
-                        @endphp
+{{--                        @php--}}
+{{--                            $componentIndex = 0;--}}
+{{--                        @endphp--}}
 
-                        @foreach($chunk as $index => $component)
-                            @php
-                                $localIndex = $index % 6;
-                                $currentTdrId = $component->id;
-                                $processForCurrentTdr = $processes
-                                    ->where('process_name_id', $name->id)
-                                    ->where('tdrs_id', $currentTdrId)
-                                    ->values();
-                                // Собираем все number_line через запятую
-                                $numberLines = $processForCurrentTdr->pluck('number_line')->implode(',');
-                            @endphp
-                            <div class="col {{ $localIndex < 5 ? 'border-l-b' : 'border-l-b-r' }} text-center" style="height: 20px">
-                                {{--                      Выводим все number_line через запятую --}}
-                                @if($numberLines)
-                                    <div class="border-r" style="height: 20px; width: 30px">
-                                        {{ $numberLines }}
-                                    </div>
-                                @else
-                                    <div class="border-r" style="height: 20px; width: 30px"></div>
-                                @endif
-                                @php $componentIndex++; @endphp
-                            </div>
-                        @endforeach
-                        @for($i = count($chunk); $i < $componentsPerPage; $i++)
-                            <div class="col {{ $i < 5 ? 'border-l-b' : 'border-l-b-r' }} text-center" style="height: 20px;
-                    position: relative;"> {{ __(' ') }}
-                                <!-- Граница внутри ячейки, отступ 30px от левого края -->
-                                <div style="position: absolute; left: 29px; top: 0; bottom: 0; width: 1px; border-left: 1px solid black;"></div>
-                            </div>
-                        @endfor
+{{--                        @foreach($chunk as $index => $component)--}}
+{{--                            @php--}}
+{{--                                $localIndex = $index % 6;--}}
+{{--                                $currentTdrId = $component->id;--}}
+{{--                                $processForCurrentTdr = $processes--}}
+{{--                                    ->where('process_name_id', $name->id)--}}
+{{--                                    ->where('tdrs_id', $currentTdrId)--}}
+{{--                                    ->values();--}}
+{{--                                // Собираем все number_line через запятую--}}
+{{--                                $numberLines = $processForCurrentTdr->pluck('number_line')->implode(',');--}}
+{{--                            @endphp--}}
+{{--                            <div class="col {{ $localIndex < 5 ? 'border-l-b' : 'border-l-b-r' }} text-center" style="height: 20px">--}}
+{{--                                --}}{{--                      Выводим все number_line через запятую --}}
+{{--                                @if($numberLines)--}}
+{{--                                    <div class="border-r" style="height: 20px; width: 30px">--}}
+{{--                                        {{ $numberLines }}--}}
+{{--                                    </div>--}}
+{{--                                @else--}}
+{{--                                    <div class="border-r" style="height: 20px; width: 30px"></div>--}}
+{{--                                @endif--}}
+{{--                                @php $componentIndex++; @endphp--}}
+{{--                            </div>--}}
+{{--                        @endforeach--}}
+{{--                        @for($i = count($chunk); $i < $componentsPerPage; $i++)--}}
+{{--                            <div class="col {{ $i < 5 ? 'border-l-b' : 'border-l-b-r' }} text-center" style="height: 20px;--}}
+{{--                    position: relative;"> {{ __(' ') }}--}}
+{{--                                <!-- Граница внутри ячейки, отступ 30px от левого края -->--}}
+{{--                                <div style="position: absolute; left: 29px; top: 0; bottom: 0; width: 1px; border-left: 1px solid black;"></div>--}}
+{{--                            </div>--}}
+{{--                        @endfor--}}
 
                     </div>
                 </div>
             </div>
-        @endforeach
+{{--        @endforeach--}}
 
 {{--        <div class="row g-0 fs-7">--}}
 {{--            <div class="col-2 border-l-b ps-1">--}}
@@ -706,9 +676,9 @@
     </footer>
 
 
-    @if(!$loop->last)
-        <div style="page-break-after: always;"></div>
-    @endif
+{{--    @if(!$loop->last)--}}
+{{--        <div style="page-break-after: always;"></div>--}}
+{{--    @endif--}}
 
 @endforeach
 

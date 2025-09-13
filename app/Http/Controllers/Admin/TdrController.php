@@ -1063,6 +1063,78 @@ class TdrController extends Controller
             'cadSum' => $cadSum,
         ], compact('tdrs', 'tdr_ws','processNames'));
     }
+    public function specProcessFormEmp(Request $request, $id)
+    {
+        // Загрузка Workorder по ID
+        $current_wo = Workorder::findOrFail($id);
+
+        // Получаем данные о manual_id, связанном с этим Workorder
+        $manual_id = $current_wo->unit->manual_id;
+
+        // Получаем NDT суммы
+        $ndtSums = $this->calcNdtSums($id);
+        $cadSum = $this->calcCadSums($id);
+
+        $tdr_ws = Tdr::where('workorder_id', $current_wo->id)
+            ->where('use_process_forms', true)
+            ->with('component')
+            ->get();
+        // Извлекаем компоненты, связанные с manual_id
+        $components = Component::where('manual_id', $manual_id)->get();
+
+        $processNames = ProcessName::where(function ($query) {
+            $query->where('name', 'NOT LIKE', '%NDT%');
+//                ->where('name', 'NOT LIKE', '%Paint%');
+        })->get();
+
+        // Получаем Tdr, где use_process_form = true, с предварительной загрузкой TdrProcess
+        $tdrs = Tdr::where('workorder_id', $current_wo->id)
+            ->where('use_process_forms', true)
+            ->with(['tdrProcesses' => function($query) {
+                $query->orderBy('sort_order');
+            }]) // Предварительная загрузка TdrProcess с сортировкой
+            ->with('component')
+            ->get();
+
+        // Создаем коллекцию для результата
+        $result = collect();
+
+        // Обрабатываем каждый Tdr
+        foreach ($tdrs as $tdr) {
+            // Получаем связанные процессы
+            $groupedProcesses = $tdr->tdrProcesses;
+
+            // Обрабатываем каждый процесс
+            $groupedProcesses->each(function ($process, $index) use (&$result, $tdr) {
+                $result->push([
+                    'tdrs_id' => $tdr->id,
+                    'process_name_id' => $process->process_names_id,
+                    'number_line' => $index + 1, // Номер строки
+                ]);
+            });
+        }
+// Получаем все ID процессов, где name содержит 'NDT'
+        $ndtIds = ProcessName::where('name', 'LIKE', '%NDT%')->pluck('id');
+
+// Фильтруем коллекцию processes, оставляя только те записи, где process_name_id есть в $ndtIds
+        $ndt_processes = $result->filter(function ($item) use ($ndtIds) {
+            return $ndtIds->contains($item['process_name_id']);
+        })->map(function ($item) {
+            // Преобразуем каждую запись в нужный формат
+            return [
+                'tdrs_id' => $item['tdrs_id'],
+                'number_line' => $item['number_line'],
+            ];
+        });
+        // Передаем данные в представление
+        return view('admin.tdrs.specProcessFormEmp', [
+            'current_wo' => $current_wo,
+            'processes' => $result, // Исходная коллекция
+            'ndt_processes' => $ndt_processes, // Отфильтрованная коллекция
+            'ndtSums' => $ndtSums, // Добавляем NDT суммы в представление
+            'cadSum' => $cadSum,
+        ], compact('tdrs', 'tdr_ws','processNames'));
+    }
 
     public function logCardForm(Request $request, $id)
 {
@@ -1343,7 +1415,6 @@ public function wo_Process_Form($id)
      */
     private function calcNdtSums(int $workorder_id): array
     {
-
         // Инициализация счетчиков
         $total = 0;
         $mpi = 0;
@@ -1352,19 +1423,38 @@ public function wo_Process_Form($id)
         try {
             // Получение рабочего заказа и связанных данных
             $current_wo = Workorder::findOrFail($workorder_id);
-            $manual = $current_wo->unit->manuals;
 
-            // Получение CSV файла NDT
-            $csvMedia = $manual->getMedia('csv_files')->first(function ($media) {
-                return $media->getCustomProperty('process_type') === self::PROCESS_TYPE_NDT;
-            });
+            // Получение данных из таблицы ndt_cad_csv
+            $ndtCadCsv = $current_wo->ndtCadCsv;
+            if (!$ndtCadCsv) {
+                \Log::info('NdtCadCsv not found for workorder, creating new record', [
+                    'workorder_id' => $workorder_id,
+                    'workorder_number' => $current_wo->number ?? 'unknown'
+                ]);
 
-            // Если CSV файл не найден, возвращаем нулевые значения
-            if (!$csvMedia) {
+                // Создаем новую запись NdtCadCsv с автоматической загрузкой из Manual
+                $ndtCadCsv = NdtCadCsv::createForWorkorder($workorder_id);
+
+                if (!$ndtCadCsv) {
+                    \Log::warning('Failed to create NdtCadCsv record', ['workorder_id' => $workorder_id]);
+                    return ['total' => 0, 'mpi' => 0, 'fpi' => 0];
+                }
+            }
+
+            \Log::info('Found NdtCadCsv record', [
+                'ndt_cad_csv_id' => $ndtCadCsv->id,
+                'workorder_id' => $workorder_id
+            ]);
+
+            // Получение NDT компонентов из JSON поля
+            $ndtComponents = $ndtCadCsv->ndt_components ?? [];
+
+            if (empty($ndtComponents)) {
+                \Log::info('No NDT components found in NdtCadCsv', ['workorder_id' => $workorder_id]);
                 return ['total' => 0, 'mpi' => 0, 'fpi' => 0];
             }
 
-            // Получение существующих номеров IPL
+            // Получение существующих номеров IPL из TDR
             $existingIplNums = Tdr::where('workorder_id', $workorder_id)
                 ->whereNotNull('component_id')
                 ->with('component')
@@ -1374,61 +1464,51 @@ public function wo_Process_Form($id)
                 ->unique()
                 ->toArray();
 
-            // Обработка CSV файла
-            $csvPath = $csvMedia->getPath();
-            $csv = Reader::createFromPath($csvPath, 'r');
-            $csv->setHeaderOffset(0);
+            \Log::info('Processing NDT components from ndt_cad_csv table', [
+                'workorder_id' => $workorder_id,
+                'components_count' => count($ndtComponents),
+                'existing_ipls' => $existingIplNums
+            ]);
 
-            // Проверка заголовков CSV
-            $requiredHeaders = ['ITEM   No.', 'PART No.', 'DESCRIPTION', 'QTY', 'PROCESS No.'];
-            $headers = $csv->getHeader();
-            $missingHeaders = array_diff($requiredHeaders, $headers);
-
-            if (!empty($missingHeaders)) {
-                throw new \RuntimeException('Отсутствуют обязательные заголовки CSV: ' . implode(', ', $missingHeaders));
-            }
-
-            // Обработка записей
-            $ndt_components = [];
-            foreach ($csv->getRecords() as $row) {
-                if (!isset($row['ITEM   No.'])) {
-                    \Log::warning('Отсутствует номер элемента в строке:', $row);
+            // Обработка NDT компонентов из JSON поля
+            foreach ($ndtComponents as $index => $component) {
+                // Проверяем наличие обязательных полей
+                if (!isset($component['ipl_num']) || empty($component['ipl_num'])) {
+                    \Log::warning('Missing ipl_num in NDT component:', $component);
                     continue;
                 }
 
-                $itemNo = $row['ITEM   No.'];
+                $iplNum = $component['ipl_num'];
 
                 // Пропуск, если номер элемента совпадает с существующим IPL
-                if ($this->shouldSkipItem($itemNo, $existingIplNums)) {
+                if ($this->shouldSkipItem($iplNum, $existingIplNums)) {
                     \Log::info('Skipping NDT component due to existing IPL:', [
-                        'item_no' => $itemNo,
+                        'ipl_num' => $iplNum,
                         'existing_ipls' => $existingIplNums
                     ]);
                     continue;
                 }
 
-                // Создание объекта компонента
-                $component = new \stdClass();
-                $component->ipl_num = $itemNo;
-                $component->part_number = $row['PART No.'] ?? '';
-                $component->name = $row['DESCRIPTION'] ?? '';
-                $component->qty = (int)($row['QTY'] ?? self::DEFAULT_QTY);
-                $component->process_name = $row['PROCESS No.'] ?? self::DEFAULT_PROCESS;
+                // Получение количества и процесса
+                $qty = (int)($component['qty'] ?? self::DEFAULT_QTY);
+                $process = $component['process'] ?? self::DEFAULT_PROCESS;
 
-                $ndt_components[] = $component;
-            }
-
-            // Вычисление сумм за один проход
-            foreach ($ndt_components as $component) {
-                $qty = $component->qty;
+                // Вычисление сумм
                 $total += $qty;
 
-                if (strpos($component->process_name, '1') !== false) {
+                if (strpos($process, '1') !== false) {
                     $mpi += $qty;
                 } else {
                     $fpi += $qty;
                 }
             }
+
+            \Log::info('NDT sums calculated from ndt_cad_csv table', [
+                'workorder_id' => $workorder_id,
+                'total' => $total,
+                'mpi' => $mpi,
+                'fpi' => $fpi
+            ]);
 
             return [
                 'total' => $total,
@@ -1437,7 +1517,8 @@ public function wo_Process_Form($id)
             ];
 
         } catch (\Exception $e) {
-            \Log::error('Ошибка при обработке CSV файла:', [
+            \Log::error('Ошибка при обработке NDT компонентов из таблицы ndt_cad_csv:', [
+                'workorder_id' => $workorder_id,
                 'error' => $e->getMessage(),
                 'trace' => $e->getTraceAsString()
             ]);
@@ -1471,7 +1552,7 @@ public function wo_Process_Form($id)
 
             // Получаем CAD компоненты из JSON поля
             $cadComponents = $ndtCadCsv->cad_components ?? [];
-            
+
             if (empty($cadComponents)) {
                 \Log::warning('No CAD components found in NdtCadCsv');
                 return [
