@@ -211,6 +211,7 @@
                                 {{__('Repair & Modification Record')}}
                             </a>
                         </div>
+
                         <div>
 
                         </div>
@@ -251,13 +252,15 @@
                                        id="#" style=" height: 60px; width: 80px">
                                         <i class="bi bi-file-earmark-excel"> TDR Form</i>
                                     </a>
+                                    @if(count($processParts)==0)
+                                        <a href="{{ route('tdrs.specProcessFormEmp', ['id'=> $current_wo->id]) }}"
+                                           class="btn btn-outline-warning  formLink "
+                                           target="_blank"
+                                           id="#" style=" height: 60px; width: 70px">
+                                            <i class="bi bi-file-earmark-excel"> SP Form </i>
+                                        </a>
+                                    @endif
 
-{{--                                    <a href="{{ route('tdrs.specProcessFormEmp', ['id'=> $current_wo->id]) }}"--}}
-{{--                                       class="btn btn-outline-warning  formLink "--}}
-{{--                                       target="_blank"--}}
-{{--                                       id="#" style=" height: 60px; width: 70px">--}}
-{{--                                        <i class="bi bi-file-earmark-excel"> SP Form </i>--}}
-{{--                                    </a>--}}
                                     <a href="{{ route('tdrs.woProcessForm', ['id'=> $current_wo->id]) }}"
                                        class="btn btn-outline-warning me-1 formLink "
                                        target="_blank"

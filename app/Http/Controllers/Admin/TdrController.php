@@ -1451,7 +1451,7 @@ public function wo_Process_Form($id)
 
             if (empty($ndtComponents)) {
                 \Log::info('No NDT components found in NdtCadCsv', ['workorder_id' => $workorder_id]);
-                return ['total' => 0, 'mpi' => 0, 'fpi' => 0];
+                return ['total' => 0, 'mpi' => 'N/A', 'fpi' => "N/A"];
             }
 
             // Получение существующих номеров IPL из TDR
@@ -1655,10 +1655,7 @@ public function wo_Process_Form($id)
         }
     }
 
-    /**
-     * Проверяет, нужно ли пропустить элемент на основе существующих IPL номеров
-     * Учитывает совмещенные значения в CSV (например, 1-140/1-140A, 1-140/140А)
-     */
+
     private function shouldSkipItem(string $itemNo, array $existingIplNums): bool
     {
         // Нормализация исходного значения из CSV (приведение кириллицы к латинице, верхний регистр)
