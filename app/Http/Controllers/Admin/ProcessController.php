@@ -76,23 +76,40 @@ class ProcessController extends Controller
     {
         \Log::info('ProcessController::store - Request data:', $request->all());
         
+        // Валидация с поддержкой двух сценариев: новый процесс или выбор существующего
         $validated = $request->validate([
             'process_names_id' => 'required|integer|exists:process_names,id',
-            'process' => 'required|string|max:255',
             'manual_id' => 'required|integer|exists:manuals,id',
         ]);
 
-        try {
+        // Проверяем, какой сценарий используется
+        if ($request->has('selected_process_id') && $request->selected_process_id) {
+            // Сценарий 1: Выбор существующего процесса
+            $validated['selected_process_id'] = $request->validate([
+                'selected_process_id' => 'required|integer|exists:processes,id'
+            ])['selected_process_id'];
+            
+            $processId = $validated['selected_process_id'];
+        } else {
+            // Сценарий 2: Создание нового процесса
+            $validated['process'] = $request->validate([
+                'process' => 'required|string|max:255'
+            ])['process'];
+            
             // Создаем новый процесс
             $process = Process::create([
                 'process_names_id' => $validated['process_names_id'],
                 'process' => $validated['process'],
             ]);
+            
+            $processId = $process->id;
+        }
 
+        try {
             // Добавляем запись в таблицу manual_processes
             DB::table('manual_processes')->insert([
                 'manual_id' => $validated['manual_id'],
-                'processes_id' => $process->id,
+                'processes_id' => $processId,
             ]);
 
             // Если это AJAX-запрос или JSON запрос, возвращаем JSON
@@ -100,7 +117,7 @@ class ProcessController extends Controller
                 return response()->json([
                     'success' => true,
                     'message' => 'Process added successfully.',
-                    'process' => $process
+                    'process' => $process ?? null
                 ]);
             }
 

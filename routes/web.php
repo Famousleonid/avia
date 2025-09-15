@@ -9,7 +9,6 @@ use App\Http\Controllers\Admin\ExtraProcessController;
 use App\Http\Controllers\Admin\GeneralTaskController;
 use App\Http\Controllers\Admin\LogCardController;
 use App\Http\Controllers\Admin\ManualProcessController;
-use App\Http\Controllers\Admin\ModCsvController;
 use App\Http\Controllers\Admin\PlaneController;
 use App\Http\Controllers\Admin\ProcessController;
 use App\Http\Controllers\Admin\ProcessNameController;
@@ -26,8 +25,10 @@ use App\Http\Controllers\Admin\UserController;
 use App\Http\Controllers\Admin\MainController;
 use App\Http\Controllers\Admin\TrainingController;
 use App\Http\Controllers\Admin\UnitController;
+use App\Http\Controllers\Admin\VendorController;
 use App\Http\Controllers\Admin\WorkorderController;
 use App\Http\Controllers\Admin\WoBushingController;
+use App\Http\Controllers\Admin\NdtCadCsvController;
 use App\Http\Controllers\Front\FrontController;
 use App\Http\Controllers\General\MediaController;
 use App\Http\Controllers\Mobile\MobileController;
@@ -82,7 +83,7 @@ Route::group(['middleware' => ['auth', 'isAdmin'], 'prefix' => 'admin'], functio
     Route::post('/units/{manualId}', [UnitController::class, 'update'])->name('units.update');
 
     Route::resource('/builders', BuilderController::class);
-    // Route::resource('/categories', CategoryController::class);
+    Route::resource('/categories', CategoryController::class);
     Route::resource('/codes', CodeController::class);
     Route::resource('/necessaries', NecessaryController::class);
     Route::resource('/components', ComponentController::class);
@@ -107,6 +108,7 @@ Route::group(['middleware' => ['auth', 'isAdmin'], 'prefix' => 'admin'], functio
     Route::get('/extra_processes/create_processes/{workorderId}/{componentId}', [ExtraProcessController::class, 'createProcesses'])->name('extra_processes.create_processes');
     Route::post('/extra_processes/store_processes', [ExtraProcessController::class, 'storeProcesses'])->name('extra_processes.store_processes');
     Route::get('/extra_processes/processes/{workorderId}/{componentId}', [ExtraProcessController::class, 'processes'])->name('extra_processes.processes');
+    Route::post('/extra_processes/update-order', [ExtraProcessController::class, 'updateOrder'])->name('extra_processes.update-order');
     Route::get('/extra_processes/show_all/{id}', [ExtraProcessController::class, 'showAll'])->name('extra_processes.show_all');
     Route::get('/extra_processes/{id}', [ExtraProcessController::class, 'show'])->name('extra_processes.show');
     Route::get('/extra_processes/{id}/form/{processNameId}', [ExtraProcessController::class, 'showForm'])->name('extra_processes.show_form');
@@ -125,6 +127,9 @@ Route::group(['middleware' => ['auth', 'isAdmin'], 'prefix' => 'admin'], functio
 
     Route::get('processes/create/{manual_id}', [ProcessController::class, 'create'])->name('processes.create');
     Route::get('processes/edit/{id}', [ProcessController::class, 'edit'])->name('processes.edit');
+
+    // Vendors routes
+    Route::post('/vendors', [VendorController::class, 'store'])->name('vendors.store');
 
     //workorder route
     Route::get('workorders/create/{id}', [WorkorderController::class, 'create'])->name('workorders.create');
@@ -147,6 +152,7 @@ Route::group(['middleware' => ['auth', 'isAdmin'], 'prefix' => 'admin'], functio
     Route::get('/tdr/{tdrId}/create-processes', [TdrProcessController::class, 'createProcesses'])->name('tdr-processes.createProcesses');
     Route::get('/tdr/{tdrId}/processes', [TdrProcessController::class, 'processes'])->name('tdr-processes.processes');
     Route::get('/get-process/{processNameId}', [TdrProcessController::class, 'getProcess'])->name('tdr-processes.get-process');
+    Route::post('/tdr-processes/update-order', [TdrProcessController::class, 'updateOrder'])->name('tdr-processes.update-order');
 
     // WoBushings processesForm route
     Route::get('wo_bushings/processesForm/{id}/{processNameId}', [WoBushingController::class, 'processesForm'])->name('wo_bushings.processesForm');
@@ -163,16 +169,21 @@ Route::group(['middleware' => ['auth', 'isAdmin'], 'prefix' => 'admin'], functio
     Route::get('tdrs/{workorder_id}/spec-process', [TdrController::class, 'specProcess'])->name('tdrs.specProcess');
     Route::post('tdrs/store-processes', [TdrController::class, 'storeProcesses'])->name('tdrs.storeProcesses');
 
-    Route::get('/{workorderId}', [ModCsvController::class, 'show'])->name('show');
-    Route::get('/{workorderId}/components/search', [ModCsvController::class, 'getComponents'])->name('components.search');
-    Route::post('/{workorderId}/ndt/add', [ModCsvController::class, 'addNdtComponent'])->name('ndt.add');
-    Route::post('/{workorderId}/cad/add', [ModCsvController::class, 'addCadComponent'])->name('cad.add');
-    Route::post('/{workorderId}/ndt/remove', [ModCsvController::class, 'removeNdtComponent'])->name('ndt.remove');
-    Route::post('/{workorderId}/cad/remove', [ModCsvController::class, 'removeCadComponent'])->name('cad.remove');
-    Route::post('/{workorderId}/ndt/update', [ModCsvController::class, 'updateNdtComponents'])->name('ndt.update');
-    Route::post('/{workorderId}/cad/update', [ModCsvController::class, 'updateCadComponents'])->name('cad.update');
-    Route::post('/{workorderId}/import', [ModCsvController::class, 'importFromCsv'])->name('import');
-
+    // NDT/CAD CSV Management Routes
+    Route::get('/{workorder}/ndt-cad-csv', [NdtCadCsvController::class, 'index'])->name('ndt-cad-csv.index');
+    Route::post('/{workorder}/ndt-cad-csv/ndt-components', [NdtCadCsvController::class, 'updateNdtComponents'])->name('.ndt-cad-csv.update-ndt');
+    Route::post('/{workorder}/ndt-cad-csv/cad-components', [NdtCadCsvController::class, 'updateCadComponents'])->name('ndt-cad-csv.update-cad');
+    Route::post('/{workorder}/ndt-cad-csv/add-ndt', [NdtCadCsvController::class, 'addNdtComponent'])->name('ndt-cad-csv.add-ndt');
+    Route::post('/{workorder}/ndt-cad-csv/add-cad', [NdtCadCsvController::class, 'addCadComponent'])->name('ndt-cad-csv.add-cad');
+    Route::post('/{workorder}/ndt-cad-csv/remove-ndt', [NdtCadCsvController::class, 'removeNdtComponent'])->name('ndt-cad-csv.remove-ndt');
+    Route::post('/{workorder}/ndt-cad-csv/remove-cad', [NdtCadCsvController::class, 'removeCadComponent'])->name('ndt-cad-csv.remove-cad');
+    Route::post('/{workorder}/ndt-cad-csv/edit-ndt', [NdtCadCsvController::class, 'editNdtComponent'])->name('ndt-cad-csv.edit-ndt');
+    Route::post('/{workorder}/ndt-cad-csv/edit-cad', [NdtCadCsvController::class, 'editCadComponent'])->name('ndt-cad-csv.edit-cad');
+    Route::post('/{workorder}/ndt-cad-csv/import', [NdtCadCsvController::class, 'importFromCsv'])->name('ndt-cad-csv.import');
+    Route::post('/{workorder}/ndt-cad-csv/reload-from-manual', [NdtCadCsvController::class, 'reloadFromManual'])->name('ndt-cad-csv.reload-from-manual');
+    Route::post('/{workorder}/ndt-cad-csv/force-load-from-manual', [NdtCadCsvController::class, 'forceLoadFromManual'])->name('ndt-cad-csv.force-load-from-manual');
+    Route::get('/{workorder}/ndt-cad-csv/components', [NdtCadCsvController::class, 'getComponents'])->name('ndt-cad-csv.components');
+    Route::get('/{workorder}/ndt-cad-csv/cad-processes', [NdtCadCsvController::class, 'getCadProcesses'])->name('ndt-cad-csv.cad-processes');
 });
 
 // ---------------------- Cabinet route ------------------------------------------------------------------------
@@ -205,14 +216,14 @@ Route::group(['middleware' => ['auth'] ], function () {
     Route::resource('/conditions',ConditionController::class);
 
     Route::get('/extra_processes/create/{id}', [ExtraProcessController::class, 'create'])->name('extra_process.create');
-    Route::get('/extra_processes/create_processes/{workorderId}/{componentId}', [ExtraProcessController::class, 'createProcesses'])->name('extra_processes.create_processes');
-    Route::post('/extra_processes/store_processes', [ExtraProcessController::class, 'storeProcesses'])->name('extra_processes.store_processes');
-    Route::get('/extra_processes/processes/{workorderId}/{componentId}', [ExtraProcessController::class, 'processes'])->name('extra_processes.processes');
-    Route::get('/extra_processes/show_all/{id}', [ExtraProcessController::class, 'showAll'])->name('extra_processes.show_all');
-    Route::get('/extra_processes/{id}', [ExtraProcessController::class, 'show'])->name('extra_processes.show');
-    Route::get('/extra_processes/{id}/form/{processNameId}', [ExtraProcessController::class, 'showForm'])->name('extra_processes.show_form');
-    Route::get('/extra_processes/{id}/group-forms/{processNameId}', [ExtraProcessController::class, 'showGroupForms'])->name('extra_processes.show_group_forms');
-    Route::resource('/extra_processes', ExtraProcessController::class)->except(['create']);
+Route::get('/extra_processes/create_processes/{workorderId}/{componentId}', [ExtraProcessController::class, 'createProcesses'])->name('extra_processes.create_processes');
+Route::post('/extra_processes/store_processes', [ExtraProcessController::class, 'storeProcesses'])->name('extra_processes.store_processes');
+Route::get('/extra_processes/processes/{workorderId}/{componentId}', [ExtraProcessController::class, 'processes'])->name('extra_processes.processes');
+Route::get('/extra_processes/show_all/{id}', [ExtraProcessController::class, 'showAll'])->name('extra_processes.show_all');
+Route::get('/extra_processes/{id}', [ExtraProcessController::class, 'show'])->name('extra_processes.show');
+Route::get('/extra_processes/{id}/form/{processNameId}', [ExtraProcessController::class, 'showForm'])->name('extra_processes.show_form');
+Route::get('/extra_processes/{id}/group-forms/{processNameId}', [ExtraProcessController::class, 'showGroupForms'])->name('extra_processes.show_group_forms');
+Route::resource('/extra_processes', ExtraProcessController::class)->except(['create']);
 
     Route::get('/rm_reports/create/{id}',[RmReportController::class,'create'])->name('rm_reports.create');
     Route::resource('/rm_reports', RmReportController::class)->except('create');
@@ -238,6 +249,8 @@ Route::group(['middleware' => ['auth'] ], function () {
     Route::get('tdrs/tdrForm/{id}', [TdrController::class, 'tdrForm'])->name('tdrs.tdrForm');
     Route::get('tdrs/prlForm/{id}', [TdrController::class, 'prlForm'])->name('tdrs.prlForm');
     Route::get('tdrs/specProcessForm/{id}', [TdrController::class, 'specProcessForm'])->name('tdrs.specProcessForm');
+    Route::get('tdrs/specProcessFormEmp/{id}', [TdrController::class, 'specProcessFormEmp'])->name('tdrs.specProcessFormEmp');
+//    Route::get('tdrs/specProcessForm_1/{id}', [TdrController::class, 'specProcessFormEmp'])->name('tdrs.specProcessForm_1');
     Route::get('tdrs/ndtForm/{id}', [TdrController::class, 'ndtForm'])->name('tdrs.ndtForm');
 
     Route::get('tdrs/logCardForm/{id}', [TdrController::class, 'logCardForm'])->name('tdrs.logCardForm');
@@ -271,20 +284,6 @@ Route::group(['middleware' => ['auth'] ], function () {
         Route::post('/', [ManualCsvController::class, 'store'])->name('store');
         Route::get('/{file}', [ManualCsvController::class, 'view'])->name('view');
         Route::delete('/{file}', [ManualCsvController::class, 'delete'])->name('delete');
-    });
-
-    // ModCsv управление компонентами
-    Route::prefix('mod-csv')->name('mod-csv.')->group(function () {
-        Route::get('/{workorderId}', [ModCsvController::class, 'show'])->name('show');
-        Route::get('/{workorderId}/components/search', [ModCsvController::class, 'getComponents'])->name('components.search');
-        Route::get('/{workorderId}/cad-processes', [ModCsvController::class, 'getCadProcesses'])->name('cad-processes');
-        Route::post('/{workorderId}/ndt/add', [ModCsvController::class, 'addNdtComponent'])->name('ndt.add');
-        Route::post('/{workorderId}/cad/add', [ModCsvController::class, 'addCadComponent'])->name('cad.add');
-        Route::post('/{workorderId}/ndt/remove', [ModCsvController::class, 'removeNdtComponent'])->name('ndt.remove');
-        Route::post('/{workorderId}/cad/remove', [ModCsvController::class, 'removeCadComponent'])->name('cad.remove');
-        Route::post('/{workorderId}/ndt/update', [ModCsvController::class, 'updateNdtComponents'])->name('ndt.update');
-        Route::post('/{workorderId}/cad/update', [ModCsvController::class, 'updateCadComponents'])->name('cad.update');
-        Route::post('/{workorderId}/import', [ModCsvController::class, 'importFromCsv'])->name('import');
     });
 
 });

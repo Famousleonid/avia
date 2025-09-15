@@ -260,6 +260,37 @@
         Print Form
     </button>
 
+    <!-- Отладочная информация -->
+{{--    <div class="no-print mt-2 p-2 bg-light border">--}}
+{{--        <strong>Отладка NDT сумм:</strong><br>--}}
+{{--        <small>--}}
+{{--            Workorder ID: {{ $current_wo->id }}<br>--}}
+{{--            Workorder Number: {{ $current_wo->number }}<br>--}}
+{{--            <br>--}}
+{{--            <strong>NDT Sums:</strong><br>--}}
+{{--            Total: {{ $ndtSums['total'] ?? 'не установлено' }}<br>--}}
+{{--            MPI: {{ $ndtSums['mpi'] ?? 'не установлено' }}<br>--}}
+{{--            FPI: {{ $ndtSums['fpi'] ?? 'не установлено' }}<br>--}}
+{{--            <br>--}}
+{{--            <strong>NdtCadCsv данные:</strong><br>--}}
+{{--            @if($current_wo->ndtCadCsv)--}}
+{{--                NdtCadCsv ID: {{ $current_wo->ndtCadCsv->id }}<br>--}}
+{{--                NDT компонентов: {{ count($current_wo->ndtCadCsv->ndt_components ?? []) }}<br>--}}
+{{--                CAD компонентов: {{ count($current_wo->ndtCadCsv->cad_components ?? []) }}<br>--}}
+{{--                <br>--}}
+{{--                <strong>Детали NDT компонентов:</strong><br>--}}
+{{--                @foreach($current_wo->ndtCadCsv->ndt_components ?? [] as $index => $component)--}}
+{{--                    {{ $index + 1 }}. {{ $component['ipl_num'] ?? 'N/A' }} - --}}
+{{--                    qty: {{ $component['qty'] ?? 'N/A' }}, --}}
+{{--                    process: {{ $component['process'] ?? 'N/A' }}<br>--}}
+{{--                @endforeach--}}
+{{--            @else--}}
+{{--                ❌ NdtCadCsv запись не найдена<br>--}}
+{{--            @endif--}}
+{{--            <br>--}}
+{{--            <strong>Raw NDT data:</strong> {{ json_encode($ndtSums) }}--}}
+{{--        </small>--}}
+{{--    </div>--}}
 </div>
 
 @php
@@ -305,11 +336,11 @@
                          style="width: 24px;height: 20px">
                 </div>
                 <div class="border-l-t-b text-center pt-0 fs-75" style="width: 25px;height: 20px">
-                    {{ empty($ndtSums['mpi']) ? 'N/A' : $ndtSums['mpi'] }}</div>
+                    {{ !isset($ndtSums['mpi']) || $ndtSums['mpi'] === null ? 'N/A' : $ndtSums['mpi'] }}</div>
                 <div class="border-l-t-b ps-2 fs-8 " style="width: 130px;height: 20px; color: lightgray; font-style: italic" >RO
                     No.</div>
                 <div class="border-all text-center pt-0 fs-75" style="width: 25px;height: 20px">
-                    {{ empty($ndtSums['fpi']) ? 'N/A' : $ndtSums['fpi'] }}</div>
+                    {{ !isset($ndtSums['fpi']) || $ndtSums['fpi'] === null ? 'N/A' : $ndtSums['fpi'] }}</div>
                 <div class=" text-center fs-8" style="width: 20px;height: 20px"></div>
                 <div class="border-l-t-b ps-2 fs-8 " style="width: 100px;height: 20px; color: lightgray; font-style:
                 italic" >RO

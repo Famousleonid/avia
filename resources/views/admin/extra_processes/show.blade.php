@@ -92,8 +92,8 @@
     <div class="card-shadow">
         <div class="card-header m-1 shadow">
             <div class="d-flex justify-content-between">
-                <div class="d-flex" style="width: 500px">
-                    <div style="width: 350px">
+                <div class="d-flex" style="width: 1080px">
+                    <div style="width: 550px">
                         <h4 class="text-primary  ms-2">{{__('Work Order: ')}} {{$current_wo->number}}</h4>
                         <div>
                             <h4 class="ps-2">{{__('Component Extra Processes')}}</h4>

@@ -292,7 +292,7 @@
 
                 rows.forEach(row => {
                     const rowText = row.innerText.toLowerCase();
-                    const technikName = row.querySelector('td:nth-child(10)').innerText.trim();
+                    const technikName = row.querySelector('td:nth-child(11)').innerText.trim();
                     const matchesSearch = rowText.includes(filter);
                     const matchesUser = showOnlyMyWorkorders ? technikName === currentUserName : true;
                     row.style.display = (matchesSearch && matchesUser) ? '' : 'none';

@@ -53,9 +53,9 @@ class Workorder extends Model implements HasMedia
         return $this->hasMany(Main::class);
     }
 
-    public function modCsv()
+    public function ndtCadCsv()
     {
-        return $this->hasOne(ModCsv::class);
+        return $this->hasOne(NdtCadCsv::class);
     }
 
     public function registerMediaConversions(\Spatie\MediaLibrary\MediaCollections\Models\Media $media = null): void

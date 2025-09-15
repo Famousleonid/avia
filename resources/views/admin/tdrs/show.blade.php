@@ -2,9 +2,9 @@
 
 @section('content')
     <style>
-        .container {
-            max-width: 1200px;
-        }
+        /*.container {*/
+        /*    max-width: 1100px;*/
+        /*}*/
         .text-center {
             text-align: center;
             align-content: center;
@@ -211,6 +211,7 @@
                                 {{__('Repair & Modification Record')}}
                             </a>
                         </div>
+
                         <div>
 
                         </div>
@@ -242,7 +243,7 @@
 
                             {{--                                @endif--}}
                             {{--                            </div>--}}
-                            <div class=" d-flex " style=" height: 40px; width: 350px">
+                            <div class=" d-flex " style=" height: 40px; width: 380px">
                                 @if(count($tdrs))
 
                                     <a href="{{ route('tdrs.tdrForm', ['id'=> $current_wo->id]) }}"
@@ -251,13 +252,15 @@
                                        id="#" style=" height: 60px; width: 80px">
                                         <i class="bi bi-file-earmark-excel"> TDR Form</i>
                                     </a>
+                                    @if(count($processParts)==0)
+                                        <a href="{{ route('tdrs.specProcessFormEmp', ['id'=> $current_wo->id]) }}"
+                                           class="btn btn-outline-warning  formLink "
+                                           target="_blank"
+                                           id="#" style=" height: 60px; width: 70px">
+                                            <i class="bi bi-file-earmark-excel"> SP Form </i>
+                                        </a>
+                                    @endif
 
-{{--                                    <a href="{{ route('tdrs.specProcessForm', ['id'=> $current_wo->id]) }}"--}}
-{{--                                       class="btn btn-outline-warning  formLink "--}}
-{{--                                       target="_blank"--}}
-{{--                                       id="#" style=" height: 60px; width: 120px">--}}
-{{--                                        <i class="bi bi-file-earmark-excel"> Special Process Form </i>--}}
-{{--                                    </a>--}}
                                     <a href="{{ route('tdrs.woProcessForm', ['id'=> $current_wo->id]) }}"
                                        class="btn btn-outline-warning me-1 formLink "
                                        target="_blank"
@@ -288,6 +291,19 @@
 
                             @php
                                 $manual = null;
+                                $hasNdtComponents = false;
+                                $hasCadComponents = false;
+
+                                // Проверяем наличие NDT компонентов в таблице ndt_cad_csv
+                                if ($current_wo && $current_wo->ndtCadCsv) {
+                                    $ndtComponents = $current_wo->ndtCadCsv->ndt_components;
+                                    $hasNdtComponents = !empty($ndtComponents) && is_array($ndtComponents) && count($ndtComponents) > 0;
+
+                                    $cadComponents = $current_wo->ndtCadCsv->cad_components;
+                                    $hasCadComponents = !empty($cadComponents) && is_array($cadComponents) && count($cadComponents) > 0;
+                                }
+
+                                // Оставляем старую логику для совместимости (если нужно)
                                 $hasNdtCsv = false;
                                 $hasCadCsv = false;
 
@@ -323,7 +339,8 @@
                                 }
                             @endphp
 
-                            @if($current_wo->instruction_id == 1 && $hasNdtCsv)
+
+                        @if($current_wo->instruction_id == 1 && $hasNdtComponents)
                                 <div class="me-2 ms-2">
                                     <a href="{{ route('tdrs.ndtStd', ['workorder_id' => $current_wo->id]) }}"
                                        class="btn btn-outline-warning" style="min-height: 60px; width: 80px"
@@ -332,16 +349,17 @@
                                     </a>
                                 </div>
                             @endif
-
+                            @if($current_wo->instruction_id == 1 )
                             <div class="me-2 ms-2">
-                                <a href="{{ route('mod-csv.show', $current_wo->id) }}"
+                                <a href="{{ route('ndt-cad-csv.index', $current_wo->id) }}"
                                    class="btn btn-outline-success" style="min-height: 40px; width: 100px">
-{{--                                    <i class="bi bi-gear"></i> --}}
+                                    {{--                                    <i class="bi bi-gear"></i> --}}
                                     MOD NDT/CAD
                                 </a>
                             </div>
+                            @endif
 
-                            @if($current_wo->instruction_id == 1 && $hasCadCsv)
+                            @if($current_wo->instruction_id == 1 && $hasCadComponents)
                                 <div class="me-2 ms-2">
                                     <a href="{{ route('tdrs.cadStd', ['workorder_id' => $current_wo->id]) }}"
                                        class="btn btn-outline-warning" style="min-height: 60px; width: 80px"
