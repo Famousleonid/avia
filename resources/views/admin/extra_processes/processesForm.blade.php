@@ -54,7 +54,7 @@
                 text-align: center;
                 font-size: 10px;
                 background-color: #fff;
-                padding: 3px 3px;
+                padding: 1px 1px;
             }
 
             /* Обрезка контента и размещение на одной странице */
@@ -133,11 +133,18 @@
         /* Стили для длинного текста процесса */
         .process-text-long {
             font-size: 0.9em;
-            line-height: 1.1;
-            letter-spacing: -0.5px;
-            /*transform: scale(0.9);*/
+            line-height: 1;
+            letter-spacing: -0.3px;
+            display: inline-block;
             transform-origin: left;
 
+        }
+        .description-text-long {
+            font-size: 0.9rem;
+            line-height: 1.1;
+            letter-spacing: -0.3px;
+            display: inline-block;
+            vertical-align: top;
         }
         .border-t-r-b {
             border-top: 1px solid black;
@@ -239,7 +246,9 @@
                     <div class="col-6 pt-2 text-end"> <strong>COMPONENT NAME</strong> :</div>
                     <div class="col-6 pt-2 border-b">
                         <strong>
-                            {{$current_wo->description}}
+                             <span @if(strlen($current_wo->description) > 30) class="description-text-long"
+                                @endif>{{$current_wo->description}}</span>
+
 {{--                            @if(isset($table_data) && count($table_data) > 1)--}}
 {{--                                Multiple Components ({{ count($table_data) }} items)--}}
 {{--                            @else--}}
@@ -295,26 +304,28 @@
         <div class="row mt-3">
             <div class="col-5">
                 <div class="text-start"><strong>MAGNETIC PARTICLE AS PER:</strong></div>
-                <div class="row " style="height: 26px">
+                <div class="row " style="min-height: 26px">
                     <div class="col-1">#1</div>
                     <div class="col-11 border-b">
                         @if(isset($ndt_processes))
                             @foreach($ndt_processes as $process)
                                 @if($process->process_names_id == ($ndt1_name_id ?? null))
-                                    <span @if(strlen($process->process) > 40) class="process-text-long" @endif>{{$process->process}}</span>
+                                    <span @if(strlen($process->process) > 30) class="process-text-long"
+                                        @endif>{{$process->process}}</span>
                                 @endif
                             @endforeach
                         @endif
                     </div>
                 </div>
                 <div class="text-start"><strong>LIQUID/FLUID PENETRANT AS PER:</strong></div>
-                <div class="row " style="height: 26px">
+                <div class="row " style="min-height: 26px">
                     <div class="col-1">#4</div>
                     <div class="col-11 border-b">
                         @if(isset($ndt_processes))
                             @foreach($ndt_processes as $process)
                                 @if($process->process_names_id == ($ndt4_name_id ?? null))
-                                    <span @if(strlen($process->process) > 40) class="process-text-long" @endif>{{$process->process}}</span>
+                                    <span @if(strlen($process->process) > 30) class="process-text-long"
+                                        @endif>{{$process->process}}</span>
                                 @endif
                             @endforeach
                         @endif
@@ -338,7 +349,8 @@
                         @if(isset($ndt_processes))
                             @foreach($ndt_processes as $process)
                                 @if($process->process_names_id == ($ndt5_name_id ?? null))
-                                    <span @if(strlen($process->process) > 40) class="process-text-long" @endif>{{$process->process}}</span>
+                                    <span @if(strlen($process->process) > 30) class="process-text-long"
+                                        @endif>{{$process->process}}</span>
                                 @endif
                             @endforeach
                         @endif
@@ -359,7 +371,8 @@
                         @if(isset($ndt_processes))
                             @foreach($ndt_processes as $process)
                                 @if($process->process_names_id == ($ndt6_name_id ?? null))
-                                    <span @if(strlen($process->process) > 40) class="process-text-long" @endif>{{$process->process}}</span>
+                                    <span @if(strlen($process->process) > 30) class="process-text-long"
+                                        @endif>{{$process->process}}</span>
                                 @endif
                             @endforeach
                         @endif
@@ -388,7 +401,7 @@
         </div>
         <div class="page ">
             @php
-                $totalRows = 17; // Общее количество строк
+                $totalRows = 16; // Общее количество строк
                 $dataRows = isset($table_data) ? count($table_data) : 0; // Количество строк с данными
                 $emptyRows = $totalRows - $dataRows; // Количество пустых строк
             @endphp
@@ -407,6 +420,7 @@
                         </div>
                         <div class="col-3 border-l-b details-row text-center" style="height: 32px">
                             {{ $data['component']->name }}
+
                         </div>
                         <div class="col-2 border-l-b details-row text-center" style="height: 32px">
                             {{ substr($data['process_name']->name, -1) }}
@@ -450,11 +464,36 @@
             @endfor
         </div>
     @else
+        @if($process_name->process_sheet_name == 'STRESS RELIEF')
+
+            <div class="row">
+                <div class="col-6"></div>
+                <div class="col-3 text-end pe-2 pt-3">
+                    <strong>
+                        MANUAL REF:
+                    </strong>
+
+                </div>
+                <div class="col-3 border-all text-center" style="height: 55px">
+                    @foreach($manuals as $manual)
+                        @if($manual->id == $current_wo->unit->manual_id)
+                                <h6 class="text-center mt-3"> <strong> {{$manual->number}} </strong></h6>
+                        @endif
+                    @endforeach
+                </div>
+            </div>
+
+        @endif
+
+
+
                         <h6 class="mt-3 ms-3"><strong>
                     Perform the {{ ucwords(strtolower($process_name->process_sheet_name ?? $process_name->name ?? 'Extra Process')) }}
                     as the specified under Process No. and in
                     accordance with CMM No
                 </strong>.</h6>
+
+
 
         <div class="page table-header">
             <div class="row mt-2 " >
@@ -468,13 +507,19 @@
                     </h6> </div>
                 <div class="col-1 border-l-t-b pt-2  details-row  text-center"><h6  class="fs-7" ><strong>QTY</strong> </h6>
                 </div>
+
+                @if($process_name->process_sheet_name == 'STRESS RELIEF')
+                    <div class="col-2 border-all pt-2  details-row  text-center"><h6  class="fs-7" ><strong>PERFORMED</strong>
+                        </h6>
+                @else
                 <div class="col-2 border-all pt-2  details-row  text-center"><h6  class="fs-7" ><strong>CMM No.</strong> </h6>
+                    @endif
                 </div>
             </div>
         </div>
         <div class="page data-page">
             @php
-                $totalRows = 18; // Общее количество строк
+                $totalRows = 20; // Общее количество строк
                 $dataRows = isset($table_data) ? count($table_data) : 0; // Количество строк с данными
                 $emptyRows = $totalRows - $dataRows; // Количество пустых строк
             @endphp
@@ -500,13 +545,19 @@
                         <div class="col-1 border-l-b details-cell text-center" style="min-height: 32px" >
                             {{ $data['extra_process']->qty ?? 1 }}
                         </div>
-                        <div class="col-2 border-l-b-r details-cell text-center"  style="min-height: 32px">
-                            @foreach($manuals as $manual)
-                                @if($manual->id == $current_wo->unit->manual_id)
-                                    <h6 class="text-center mt-3"> {{$manual->number}}</h6>
-                                @endif
-                            @endforeach
-                        </div>
+                        @if($process_name->process_sheet_name == 'STRESS RELIEF')
+                            <div class="col-2 border-l-b-r details-cell text-center"  style="min-height: 32px"></div>
+                        @else
+                            <div class="col-2 border-l-b-r details-cell text-center"  style="min-height: 32px">
+                                @foreach($manuals as $manual)
+                                    @if($manual->id == $current_wo->unit->manual_id)
+                                        <h6 class="text-center mt-2">
+                                                {{$manual->number}}
+                                        </h6>
+                                    @endif
+                                @endforeach
+                            </div>
+                        @endif
                     </div>
                 @endforeach
             @endif
@@ -537,12 +588,25 @@
     @endif
 </div>
 <footer>
+    @php
+        $totalQty = 0;
+        if(isset($table_data)){
+            foreach($table_data as $d){
+                $totalQty += (int)($d['extra_process']->qty ?? 0);
+            }
+        }
+    @endphp
     <div class="row fs-85" style="width: 100%; padding: 5px 0;">
-        <div class="col-6 text-start">
+        <div class="col-4 text-start">
             {{__('Form #')}} {{$process_name->form_number ?? 'EXTRA-001'}}
         </div>
-        <div class="col-6 text-end pe-4 ">
+        <div class="col-4 text-center">
+
+        </div>
+        <div class="col-4 text-end pe-4 ">
             {{__('Rev#0, 15/Dec/2012   ')}}
+            <p>
+            <strong>Total qty: {{ $totalQty }}</strong>
         </div>
     </div>
 </footer>

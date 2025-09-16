@@ -497,31 +497,56 @@ class ExtraProcessController extends Controller
 
         // Группируем процессы для создания кнопок групповых форм
         $processGroups = [];
+        $totalQty = 0;
+        
+        \Log::info('Starting process grouping', [
+            'extra_components_count' => $extra_components->count()
+        ]);
         
         foreach ($extra_components as $extra_component) {
-            if (!$extra_component->processes) {
+            if (!$extra_component->processes || !$extra_component->component) {
+                \Log::info('Skipping component', [
+                    'component_id' => $extra_component->component_id,
+                    'has_processes' => !is_null($extra_component->processes),
+                    'has_component' => !is_null($extra_component->component)
+                ]);
                 continue;
             }
+
+            // Суммируем общее количество по всем компонентам
+            $totalQty += (int)($extra_component->qty ?? 0);
+
+            \Log::info('Processing component', [
+                'component_id' => $extra_component->component->id,
+                'component_name' => $extra_component->component->name,
+                'processes' => $extra_component->processes
+            ]);
 
             // Проверяем старую и новую структуру данных
             if (is_array($extra_component->processes) && array_keys($extra_component->processes) !== range(0, count($extra_component->processes) - 1)) {
                 // Старая структура: ассоциативный массив
+                \Log::info('Using old structure (associative array)');
                 foreach ($extra_component->processes as $processNameId => $processId) {
                     $processName = ProcessName::find($processNameId);
                     if ($processName) {
                         if (!isset($processGroups[$processNameId])) {
                             $processGroups[$processNameId] = [
                                 'process_name' => $processName,
-                                'count' => 0,
-                                'components' => []
+                                'components_qty' => []
                             ];
                         }
-                        $processGroups[$processNameId]['count']++;
-                        $processGroups[$processNameId]['components'][] = $extra_component->component;
+                        // Добавляем/обновляем количество по компоненту
+                        $processGroups[$processNameId]['components_qty'][$extra_component->component->id] = (int)($extra_component->qty ?? 0);
+                        \Log::info('Added component to process group', [
+                            'process_name_id' => $processNameId,
+                            'process_name' => $processName->name,
+                            'component_id' => $extra_component->component->id
+                        ]);
                     }
                 }
             } else {
                 // Новая структура: массив объектов
+                \Log::info('Using new structure (array of objects)');
                 foreach ($extra_component->processes as $processItem) {
                     $processName = ProcessName::find($processItem['process_name_id']);
                     if ($processName) {
@@ -529,21 +554,42 @@ class ExtraProcessController extends Controller
                         if (!isset($processGroups[$processNameId])) {
                             $processGroups[$processNameId] = [
                                 'process_name' => $processName,
-                                'count' => 0,
-                                'components' => []
+                                'components_qty' => []
                             ];
                         }
-                        $processGroups[$processNameId]['count']++;
-                        $processGroups[$processNameId]['components'][] = $extra_component->component;
+                        // Добавляем/обновляем количество по компоненту
+                        $processGroups[$processNameId]['components_qty'][$extra_component->component->id] = (int)($extra_component->qty ?? 0);
+                        \Log::info('Added component to process group', [
+                            'process_name_id' => $processNameId,
+                            'process_name' => $processName->name,
+                            'component_id' => $extra_component->component->id
+                        ]);
                     }
                 }
             }
         }
 
+        // Подсчитываем уникальные компоненты и суммы qty для каждого процесса
+        foreach ($processGroups as $processNameId => &$group) {
+            $componentsQty = $group['components_qty'];
+            $uniqueComponents = array_keys($componentsQty);
+            $group['count'] = count($uniqueComponents);
+            $group['qty'] = array_sum($componentsQty);
+            \Log::info('Process group count', [
+                'process_name_id' => $processNameId,
+                'process_name' => $group['process_name']->name,
+                'unique_components' => $uniqueComponents,
+                'count' => $group['count'],
+                'qty' => $group['qty']
+            ]);
+            unset($group['components_qty']); // Удаляем техническое поле
+        }
+
         // Отладочная информация
-        \Log::info('ExtraProcess showAll method', [
+        \Log::info('ExtraProcess showAll method - Process Groups Count', [
             'workorder_id' => $id,
             'extra_components_count' => $extra_components->count(),
+            'process_groups_count' => count($processGroups),
             'process_groups' => $processGroups,
             'extra_components_data' => $extra_components->map(function($item) {
                 return [
@@ -553,12 +599,16 @@ class ExtraProcessController extends Controller
                         'id' => $item->component->id,
                         'name' => $item->component->name,
                         'ipl_num' => $item->component->ipl_num
-                    ] : null
+                    ] : null,
+                    'processes' => $item->processes
                 ];
             })
         ]);
 
-        return view('admin.extra_processes.show', compact('current_wo', 'extra_components', 'processGroups'));
+        // Получаем всех поставщиков
+        $vendors = Vendor::all();
+
+        return view('admin.extra_processes.show', compact('current_wo', 'extra_components', 'processGroups', 'vendors', 'totalQty'));
     }
 
     /**
@@ -566,9 +616,10 @@ class ExtraProcessController extends Controller
      *
      * @param  int  $id
      * @param  int  $processNameId
+     * @param  Request  $request
      * @return Application|Factory|View
      */
-    public function showGroupForms($id, $processNameId)
+    public function showGroupForms($id, $processNameId, Request $request)
     {
         $current_wo = Workorder::findOrFail($id);
         $processName = ProcessName::findOrFail($processNameId);
@@ -626,6 +677,13 @@ class ExtraProcessController extends Controller
         $manualProcesses = \App\Models\ManualProcess::where('manual_id', $manual_id)
             ->pluck('processes_id');
 
+        // Получаем выбранного vendor (если передан)
+        $selectedVendor = null;
+        $vendorId = $request->input('vendor_id');
+        if ($vendorId) {
+            $selectedVendor = Vendor::find($vendorId);
+        }
+
         // Базовые данные для представления
         $viewData = [
             'current_wo' => $current_wo,
@@ -633,7 +691,8 @@ class ExtraProcessController extends Controller
             'manuals' => \App\Models\Manual::where('id', $manual_id)->get(),
             'manual_id' => $manual_id,
             'process_name' => $processName,
-            'table_data' => $groupedComponents
+            'table_data' => $groupedComponents,
+            'selectedVendor' => $selectedVendor
         ];
 
         // Добавляем первый компонент для заголовка формы (если есть компоненты)

@@ -5,16 +5,15 @@
         .table-wrapper {
             height: calc(100vh - 180px);
             overflow-y: auto;
-            overflow-x: hidden;
-            width: 850px;
+            overflow-x: auto;
+            width: 100%;
+            max-width: 1080px;
         }
 
         .table th, .table td {
             white-space: nowrap;
             overflow: hidden;
             text-overflow: ellipsis;
-            min-width: 80px;
-            max-width: 500px;
             padding-left: 10px;
         }
 
@@ -27,26 +26,10 @@
             transform-origin: left;
         }
 
-        .table th:nth-child(1), .table td:nth-child(1) {
-            min-width: 80px;
-            max-width: 90px;
-        }
-
-        .table th:nth-child(2), .table td:nth-child(2) {
-            min-width: 50px;
-            max-width: 250px;
-        }
-
-        .table th:nth-child(3), .table td:nth-child(3) {
-            min-width: 50px;
-            max-width: 500px;
-        }
-
-        .table th:nth-child(4), .table td:nth-child(4) {
-            min-width: 100px;
-            max-width: 200px;
-
-        }
+        .table th:nth-child(1), .table td:nth-child(1) { width: 80px; }
+        .table th:nth-child(2), .table td:nth-child(2) { width: 260px; }
+        .table th:nth-child(3), .table td:nth-child(3) { width: 600px; }
+        .table th:nth-child(4), .table td:nth-child(4) { width: 140px; }
 
         .table thead th {
             position: sticky;
@@ -58,7 +41,7 @@
         }
 
         @media (max-width: 1200px) {
-            .table th:nth-child(5), .table td:nth-child(5),
+            .table th:nth-child(4), .table td:nth-child(4),
             .table th:nth-child(2), .table td:nth-child(2),
             .table th:nth-child(3), .table td:nth-child(3) {
                 display: none;
@@ -87,6 +70,26 @@
             border: none;
             cursor: pointer;
         }
+
+        /* Стили для модального окна Group Process Forms */
+        .group-form-link {
+            text-decoration: none;
+            transition: all 0.3s ease;
+        }
+
+        .group-form-link:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+        }
+
+        .vendor-select {
+            transition: all 0.3s ease;
+        }
+
+        .vendor-select:focus {
+            border-color: #0d6efd;
+            box-shadow: 0 0 0 0.2rem rgba(13, 110, 253, 0.25);
+        }
     </style>
 
     <div class="card-shadow">
@@ -101,23 +104,12 @@
 
                     </div>
                     @if(isset($processGroups) && count($processGroups) > 0)
-                        @php
-                            $hasMultipleComponents = false;
-                            foreach($processGroups as $group) {
-                                if($group['count'] > 1) {
-                                    $hasMultipleComponents = true;
-                                    break;
-                                }
-                            }
-                        @endphp
-                        @if($hasMultipleComponents)
-                            <button type="button" class="btn btn-outline-info me-2"
-                                    style="height: 60px; width: 150px"
-                                    data-bs-toggle="modal"
-                                    data-bs-target="#groupFormsModal">
-                                <i class="fas fa-print"></i> Group Process Forms
-                            </button>
-                        @endif
+                        <button type="button" class="btn btn-outline-info me-2"
+                                style="height: 60px; width: 150px"
+                                data-bs-toggle="modal"
+                                data-bs-target="#groupFormsModal">
+                            <i class="fas fa-print"></i> Group Process Forms
+                        </button>
                     @endif
 
 
@@ -144,23 +136,23 @@
                             <th class="text-primary text-center">IPL</th>
                             <th class="text-primary text-center">Name</th>
                             <th class="text-primary text-center" style="width: 400px">Processes</th>
-                            <th class="text-primary text-center" style="width: 150px">Action</th>
+                            <th class="text-primary text-center" style="width: 50px">Action</th>
                         </tr>
                         </thead>
                         <tbody>
                             @foreach($extra_components as $extra_component)
-                                @php
-                                    // Отладочная информация
-                                    \Log::info('Extra component in view', [
-                                        'extra_component_id' => $extra_component->id,
-                                        'component_id' => $extra_component->component_id,
-                                        'component_relation' => $extra_component->component ? [
-                                            'id' => $extra_component->component->id,
-                                            'name' => $extra_component->component->name,
-                                            'ipl_num' => $extra_component->component->ipl_num
-                                        ] : null
-                                    ]);
-                                @endphp
+{{--                                @php--}}
+{{--                                    // Отладочная информация--}}
+{{--                                    \Log::info('Extra component in view', [--}}
+{{--                                        'extra_component_id' => $extra_component->id,--}}
+{{--                                        'component_id' => $extra_component->component_id,--}}
+{{--                                        'component_relation' => $extra_component->component ? [--}}
+{{--                                            'id' => $extra_component->component->id,--}}
+{{--                                            'name' => $extra_component->component->name,--}}
+{{--                                            'ipl_num' => $extra_component->component->ipl_num--}}
+{{--                                        ] : null--}}
+{{--                                    ]);--}}
+{{--                                @endphp--}}
                                 <tr>
                                     <td class="text-center">{{ $extra_component->component ? $extra_component->component->ipl_num : 'N/A' }}</td>
                                     <td class="text-center">{{ $extra_component->component ? $extra_component->component->name : 'N/A' }}</td>
@@ -241,30 +233,122 @@
                         <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                     </div>
                     <div class="modal-body">
+{{--                        <!-- Временная отладочная информация -->--}}
+{{--                        <div class="alert alert-info mb-3">--}}
+{{--                            <strong>Debug Info:</strong><br>--}}
+{{--                            Total process groups: {{ count($processGroups) }}<br>--}}
+{{--                            Total extra components: {{ $extra_components->count() }}<br>--}}
+{{--                            <hr>--}}
+{{--                            @foreach($processGroups as $processNameId => $group)--}}
+{{--                                <strong>Process ID {{ $processNameId }}:</strong> {{ $group['process_name']->name }} - qty: {{ $group['qty'] }}, components: {{ $group['count'] }}<br>--}}
+{{--                            @endforeach--}}
+{{--                            <hr>--}}
+{{--                            <strong>All Extra Components:</strong><br>--}}
+{{--                            @foreach($extra_components as $extra_component)--}}
+{{--                                Component ID: {{ $extra_component->component_id }} --}}
+{{--                                @if($extra_component->component)--}}
+{{--                                    ({{ $extra_component->component->name }})--}}
+{{--                                @endif--}}
+{{--                                - Processes: {{ json_encode($extra_component->processes) }}<br>--}}
+{{--                            @endforeach--}}
+{{--                        </div>--}}
+
                         <div class="row">
                             <div class="col-12">
                                 <p class="text-muted mb-3">
                                     <i class="fas fa-info-circle"></i>
-                                    Select a process type to generate a grouped form with all components that have the same process.
+                                    Select a process type to generate a grouped form with all components that have the same process. Each process can have its own vendor.
                                 </p>
                             </div>
                         </div>
-                        <div class="d-grid gap-2">
+
+                        <div class="d-grid gap-3">
                             @foreach($processGroups as $processNameId => $group)
-                                <a href="{{ route('extra_processes.show_group_forms', ['id' => $current_wo->id, 'processNameId' => $processNameId]) }}"
-                                   class="btn btn-outline-warning btn-lg" target="_blank">
-                                    <i class="fas fa-print me-2"></i>
-                                    {{ $group['process_name']->name }}
-                                    <span class="badge bg-primary ms-2">{{ $group['count'] }} component(s)</span>
-                                </a>
+                                <div class="row align-items-center">
+                                    <div class="col-8">
+                                        <a href="{{ route('extra_processes.show_group_forms', ['id' => $current_wo->id, 'processNameId' => $processNameId]) }}"
+                                           class="btn btn-outline-warning btn-lg w-100 group-form-link"
+                                           data-process-name-id="{{ $processNameId }}"
+                                           target="_blank">
+                                            <i class="fas fa-print me-2"></i>
+                                            {{ $group['process_name']->name }}
+                                            <span class="badge bg-primary ms-2">{{ $group['qty'] }} pcs</span>
+                                        </a>
+                                        <!-- Временная отладочная информация -->
+{{--                                        <small class="text-muted">Debug: Process ID {{ $processNameId }}, Qty: {{ $group['qty'] }}, Components: {{ $group['count'] }}</small>--}}
+                                    </div>
+                                    <div class="col-4">
+                                        <select class="form-select vendor-select"
+                                                data-process-name-id="{{ $processNameId }}"
+                                                style="font-size: 0.9rem;">
+                                            <option value="">No vendor</option>
+                                            @foreach($vendors as $vendor)
+                                                <option value="{{ $vendor->id }}">{{ $vendor->name }}</option>
+                                            @endforeach
+                                        </select>
+                                    </div>
+                                </div>
                             @endforeach
                         </div>
                     </div>
-                    <div class="modal-footer">
-                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
-                    </div>
+{{--                    <div class="modal-footer d-flex justify-content-between">--}}
+{{--                        <div class="text-muted">Total qty: {{ $totalQty ?? ($extra_components->sum('qty') ?? 0) }}</div>--}}
+{{--                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>--}}
+{{--                    </div>--}}
                 </div>
             </div>
         </div>
     @endif
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const vendorSelects = document.querySelectorAll('.vendor-select');
+            const groupFormLinks = document.querySelectorAll('.group-form-link');
+
+            // Обработчик изменения выбора vendor для каждого дропдауна
+            vendorSelects.forEach(vendorSelect => {
+                vendorSelect.addEventListener('change', function() {
+                    const processNameId = this.getAttribute('data-process-name-id');
+                    const selectedVendorId = this.value;
+
+                    // Находим соответствующую кнопку процесса
+                    const correspondingLink = document.querySelector(`.group-form-link[data-process-name-id="${processNameId}"]`);
+
+                    if (correspondingLink) {
+                        const originalUrl = correspondingLink.getAttribute('href');
+                        const url = new URL(originalUrl, window.location.origin);
+
+                        if (selectedVendorId) {
+                            url.searchParams.set('vendor_id', selectedVendorId);
+                        } else {
+                            url.searchParams.delete('vendor_id');
+                        }
+
+                        correspondingLink.setAttribute('href', url.toString());
+                    }
+                });
+            });
+
+            // Обработчик клика по кнопкам форм
+            groupFormLinks.forEach(link => {
+                link.addEventListener('click', function(e) {
+                    const processNameId = this.getAttribute('data-process-name-id');
+
+                    // Находим соответствующий дропдаун vendor
+                    const correspondingVendorSelect = document.querySelector(`.vendor-select[data-process-name-id="${processNameId}"]`);
+
+                    if (correspondingVendorSelect) {
+                        const selectedVendorId = correspondingVendorSelect.value;
+
+                        if (selectedVendorId) {
+                            const originalUrl = this.getAttribute('href');
+                            const url = new URL(originalUrl, window.location.origin);
+                            url.searchParams.set('vendor_id', selectedVendorId);
+                            this.setAttribute('href', url.toString());
+                        }
+                    }
+                });
+            });
+        });
+    </script>
 @endsection

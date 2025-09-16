@@ -27,6 +27,10 @@
 
 <body class="p-0 m-0 g-0">
 
+<div id="spinner-load" class="spinner-border text-warning spinner-win d-none" role="status">
+    <span class="visually-hidden">Loading...</span>
+</div>
+
 <div class="row vh-100 g-0">
 
     <div class="col-lg-2 ">
@@ -46,6 +50,7 @@
 <script src="{{asset('assets/dataTables/datatables.min.js')}}"></script>
 <script src="{{asset('assets/select2/js/select2.min.js')}}"></script>
 <script src="{{ asset('assets/jquery/jquery.fancybox.min.js') }}"></script>
+<script src="{{ asset('js/main.js') }}"></script>
 
 @yield('scripts')
 
