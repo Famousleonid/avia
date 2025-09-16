@@ -18,6 +18,7 @@ use App\Models\Process;
 use App\Models\ProcessName;
 use App\Models\Tdr;
 use App\Models\TdrProcess;
+use App\Models\Vendor;
 use Illuminate\Support\Facades\Cache;
 use App\Models\Unit;
 //use App\Models\Wo_Code;
@@ -329,6 +330,7 @@ class TdrController extends Controller
         $tdrProcesses = TdrProcess::orderBy('sort_order')->get();
 
         $proces = Process::all()->keyBy('id');
+        $vendors = Vendor::all();
 
         $tdrs = Tdr::where('workorder_id', $current_wo->id)
             ->where('component_id', '!=',null)
@@ -343,7 +345,7 @@ class TdrController extends Controller
 
         return view('admin.tdrs.processes', compact('current_wo',
             'tdrs','components',
-            'manuals','tdrProcesses','proces'
+            'manuals','tdrProcesses','proces','vendors'
         ));
     }
 

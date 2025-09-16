@@ -268,6 +268,10 @@ class TdrProcessController extends Controller
         $processes_name_id = $request->input('process_name_id');
         $process_name = ProcessName::findOrFail($processes_name_id);
 
+        // Получаем выбранного Vendor (если передан)
+        $vendorId = $request->input('vendor_id');
+        $selectedVendor = $vendorId ? Vendor::find($vendorId) : null;
+
         // Получаем компоненты и TDRs
         $components = Component::where('manual_id', $manual_id)->get();
         $tdr_ids = Tdr::where('workorder_id', $current_wo->id)->pluck('id');
@@ -318,7 +322,8 @@ class TdrProcessController extends Controller
                 'manuals' => Manual::where('id', $manual_id)->get(),
                 'process_name' => $process_name,
                 'ndt_processes' => $ndt_processes,
-                'ndt_components' => $ndt_components
+                'ndt_components' => $ndt_components,
+                'selectedVendor' => $selectedVendor
             ], $ndt_ids));
         }
 
@@ -341,7 +346,8 @@ class TdrProcessController extends Controller
             'process_name' => $process_name,
             'process_components' => $process_components,
             'process_tdr_components' => $process_tdr_components,
-            'manual_id' => $manual_id
+            'manual_id' => $manual_id,
+            'selectedVendor' => $selectedVendor
         ]);
     }
     /**

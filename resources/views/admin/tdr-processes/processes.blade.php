@@ -315,15 +315,20 @@
                 link.addEventListener('click', function(e) {
                     const tdrProcessId = this.getAttribute('data-tdr-process-id');
                     const process = this.getAttribute('data-process');
-                    
-                    // Находим соответствующий дропдаун vendor
-                    const vendorSelect = document.querySelector(`select[data-tdr-process-id="${tdrProcessId}"][data-process="${process}"]`);
-                    
+                    const processNameId = this.getAttribute('data-process-name-id');
+
+                    let vendorSelect = null;
+                    if (tdrProcessId && process) {
+                        vendorSelect = document.querySelector(`select[data-tdr-process-id="${tdrProcessId}"][data-process="${process}"]`);
+                    }
+                    if (!vendorSelect && processNameId) {
+                        vendorSelect = document.querySelector(`select.vendor-select[data-process-name-id="${processNameId}"]`);
+                    }
+
                     if (vendorSelect && vendorSelect.value) {
-                        // Добавляем vendor_id к URL
-                        const currentUrl = this.href;
-                        const separator = currentUrl.includes('?') ? '&' : '?';
-                        this.href = currentUrl + separator + 'vendor_id=' + vendorSelect.value;
+                        const currentUrl = new URL(this.href, window.location.origin);
+                        currentUrl.searchParams.set('vendor_id', vendorSelect.value);
+                        this.href = currentUrl.toString();
                     }
                 });
             });

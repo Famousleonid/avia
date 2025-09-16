@@ -540,7 +540,12 @@
                             {{ $data['component']->name }}
                         </div>
                         <div class="col-4 border-l-b details-cell text-center process-cell"  style="min-height: 32px">
-                            {{ $data['process']->process }}
+                            @foreach($process_components as $component_process)
+                                @if($component_process->id == $process)
+                                    <span @if(strlen($component_process->process) > 40) class="process-text-long" @endif>{{$component_process->process}}</span>
+                                @endif
+                            @endforeach
+
                         </div>
                         <div class="col-1 border-l-b details-cell text-center" style="min-height: 32px" >
                             {{ $data['extra_process']->qty ?? 1 }}

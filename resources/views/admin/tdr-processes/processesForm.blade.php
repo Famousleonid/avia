@@ -138,6 +138,13 @@
             transform: scale(0.95);
             transform-origin: left;
         }
+        .description-text-long {
+            font-size: 0.9rem;
+            line-height: 1.1;
+            letter-spacing: -0.3px;
+            display: inline-block;
+            vertical-align: top;
+        }
         .border-t-r-b {
             border-top: 1px solid black;
             border-right: 1px solid black;
@@ -243,7 +250,11 @@
             <div class="col-7">
                 <div class="row" style="height: 32px">
                     <div class="col-6 pt-2 text-end"> <strong>COMPONENT NAME</strong> :</div>
-                    <div class="col-6 pt-2 border-b"> <strong>{{$current_wo->description}}</strong> </div>
+                    <div class="col-6 pt-2 border-b"> <strong>
+                      <span @if(strlen($current_wo->description) > 30) class="description-text-long"
+                                @endif>{{$current_wo->description}}</span>
+{{--                            {{$current_wo->description}}--}}
+                        </strong> </div>
                 </div>
                 <div class="row" style="height: 32px">
                     <div class="col-6 pt-2 text-end"> <strong> PART NUMBER:</strong></div>
@@ -290,7 +301,8 @@
                     <div class="col-11 border-b">
                         @foreach($ndt_processes as $process)
                             @if($process->process_names_id == $ndt1_name_id)
-                                <span @if(strlen($process->process) > 40) class="process-text-long" @endif>{{$process->process}}</span>
+                                <span @if(strlen($process->process) > 30) class="process-text-long"
+                                    @endif>{{$process->process}}</span>
                             @endif
                         @endforeach
                     </div>
@@ -302,7 +314,8 @@
                     <div class="col-11 border-b">
                         @foreach($ndt_processes as $process)
                             @if($process->process_names_id == $ndt4_name_id)
-                                <span @if(strlen($process->process) > 40) class="process-text-long" @endif>{{$process->process}}</span>
+                                <span @if(strlen($process->process) > 30) class="process-text-long"
+                                    @endif>{{$process->process}}</span>
                             @endif
                         @endforeach
                     </div>
@@ -447,7 +460,30 @@
 
 
 @else
-<h6 class="mt-3 ms-3"><strong>
+
+            @if($process_name->process_sheet_name == 'STRESS RELIEF')
+
+                <div class="row">
+                    <div class="col-6"></div>
+                    <div class="col-3 text-end pe-2 pt-3">
+                        <strong>
+                            MANUAL REF:
+                        </strong>
+
+                    </div>
+                    <div class="col-3 border-all text-center" style="height: 55px">
+                        @foreach($manuals as $manual)
+                            @if($manual->id == $current_wo->unit->manual_id)
+                                <h6 class="text-center mt-3"> <strong> {{$manual->number}} </strong></h6>
+                            @endif
+                        @endforeach
+                    </div>
+                </div>
+
+            @endif
+
+
+            <h6 class="mt-3 ms-3"><strong>
 Perform the {{ ucwords(strtolower($process_name->process_sheet_name)) }}
 as the specified under Process No. and in
 accordance with CMM No
@@ -465,8 +501,14 @@ accordance with CMM No
     </h6> </div>
 <div class="col-1 border-l-t-b pt-2  details-row  text-center"><h6  class="fs-7" ><strong>QTY</strong> </h6>
 </div>
-<div class="col-2 border-all pt-2  details-row  text-center"><h6  class="fs-7" ><strong>CMM No.</strong> </h6>
-</div>
+
+    @if($process_name->process_sheet_name == 'STRESS RELIEF')
+        <div class="col-2 border-all pt-2  details-row  text-center"><h6  class="fs-7" ><strong>PERFORMED</strong>
+            </h6>
+    @else
+         <div class="col-2 border-all pt-2  details-row  text-center"><h6  class="fs-7" ><strong>CMM No.</strong> </h6>
+    @endif
+        </div>
 </div>
 </div>
 <div class="page data-page">
@@ -511,18 +553,24 @@ $emptyRows = $totalRows - $dataRows; // Количество пустых стр
     <div class="col-1 border-l-b details-cell text-center" style="min-height: 32px" >
         {{ $component->tdr->qty }}
     </div>
-    <div class="col-2 border-l-b-r details-cell text-center"  style="min-height: 32px">
-        @foreach($manuals as $manual)
-            @if($manual->id == $current_wo->unit->manual_id)
-                <h6 class="text-center mt-3"> {{$manual->number}}</h6>
-            @endif
-        @endforeach
-
-    </div>
+    @if($process_name->process_sheet_name == 'STRESS RELIEF')
+        <div class="col-2 border-l-b-r details-cell text-center"  style="min-height: 32px"></div>
+    @else
+        <div class="col-2 border-l-b-r details-cell text-center"  style="min-height: 32px">
+            @foreach($manuals as $manual)
+                @if($manual->id == $current_wo->unit->manual_id)
+                    <h6 class="text-center mt-2">
+                        {{$manual->number}}
+                    </h6>
+                @endif
+            @endforeach
+        </div>
+    @endif
 
 </div>
 @endforeach
 @endforeach
+
 @for ($i = 0; $i < $emptyRows; $i++)
 <div class="row  empty-row">
     <div class="col-1 border-l-b  text-center" style="height: 34px">

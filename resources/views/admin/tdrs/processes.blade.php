@@ -255,13 +255,25 @@
 
                                     <div class="row ">
                                         @foreach($globalGroupedProcesses as $type => $data)
-                                            <div class=" mb-3 text-center">
-                                                <a href="{{ route('tdr-processes.processesForm', [
+                                            <div class="mb-3 d-flex align-items-center justify-content-between">
+                                                <div class="flex-grow-1 me-2 text-center">
+                                                    <a href="{{ route('tdr-processes.processesForm', [
                                                                'id' => $current_wo->id,
                                                  'process_name_id'  => $data['process_name_id']
-                                                         ]) }}" target="_blank" class="btn btn-outline-primary btn-block">
-                                                    {{ $type }}
-                                                </a>
+                                                         ]) }}" target="_blank" class="btn btn-outline-primary w-100 form-link"
+                                                       data-process-name-id="{{ $data['process_name_id'] }}">
+                                                        {{ $type }}
+                                                    </a>
+                                                </div>
+                                                <div style="width: 160px;">
+                                                    <select class="form-select form-select-sm vendor-select"
+                                                            data-process-name-id="{{ $data['process_name_id'] }}">
+                                                        <option value="">Vendor</option>
+                                                        @foreach($vendors ?? [] as $vendor)
+                                                            <option value="{{ $vendor->id }}">{{ $vendor->name }}</option>
+                                                        @endforeach
+                                                    </select>
+                                                </div>
                                             </div>
                                         @endforeach
                                     </div>
@@ -277,4 +289,29 @@
         </div>
 
     </div>
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            const formsModal = document.getElementById('formsModal');
+            if (!formsModal) return;
+
+            formsModal.addEventListener('click', function (e) {
+                const target = e.target;
+                if (!(target instanceof HTMLElement)) return;
+
+                if (target.matches('a.form-link')) {
+                    const processNameId = target.getAttribute('data-process-name-id');
+                    if (!processNameId) return;
+
+                    const vendorSelect = formsModal.querySelector(`select.vendor-select[data-process-name-id="${processNameId}"]`);
+                    if (vendorSelect && vendorSelect.value) {
+                        try {
+                            const url = new URL(target.href, window.location.origin);
+                            url.searchParams.set('vendor_id', vendorSelect.value);
+                            target.href = url.toString();
+                        } catch (_) {}
+                    }
+                }
+            });
+        });
+    </script>
 @endsection
