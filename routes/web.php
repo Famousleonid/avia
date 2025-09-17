@@ -161,6 +161,7 @@ Route::group(['middleware' => ['auth', 'isAdmin'], 'prefix' => 'admin'], functio
     Route::get('wo_bushings/specProcessForm/{id}', [WoBushingController::class, 'specProcessForm'])->name('wo_bushings.specProcessForm');
     Route::get('tdrs/{workorder_id}/ndt-std', [TdrController::class, 'ndtStd'])->name('tdrs.ndtStd');
     Route::get('tdrs/{workorder_id}/cad-std', [TdrController::class, 'cadStd'])->name('tdrs.cadStd');
+    Route::get('tdrs/{workorder_id}/stress-std', [TdrController::class, 'stressStd'])->name('tdrs.stressStd');
     Route::get('tdrs/{workorder_id}/machining-form', [TdrController::class, 'machiningForm'])->name('tdrs.machiningForm');
     Route::get('tdrs/{workorder_id}/ndt-form', [TdrController::class, 'ndtForm'])->name('tdrs.ndtForm');
     Route::get('tdrs/{workorder_id}/passivation-form', [TdrController::class, 'passivationForm'])->name('tdrs.passivationForm');
@@ -173,17 +174,22 @@ Route::group(['middleware' => ['auth', 'isAdmin'], 'prefix' => 'admin'], functio
     Route::get('/{workorder}/ndt-cad-csv', [NdtCadCsvController::class, 'index'])->name('ndt-cad-csv.index');
     Route::post('/{workorder}/ndt-cad-csv/ndt-components', [NdtCadCsvController::class, 'updateNdtComponents'])->name('.ndt-cad-csv.update-ndt');
     Route::post('/{workorder}/ndt-cad-csv/cad-components', [NdtCadCsvController::class, 'updateCadComponents'])->name('ndt-cad-csv.update-cad');
+    Route::post('/{workorder}/ndt-cad-csv/stress-components', [NdtCadCsvController::class, 'updateStressComponents'])->name('ndt-cad-csv.update-stress');
     Route::post('/{workorder}/ndt-cad-csv/add-ndt', [NdtCadCsvController::class, 'addNdtComponent'])->name('ndt-cad-csv.add-ndt');
     Route::post('/{workorder}/ndt-cad-csv/add-cad', [NdtCadCsvController::class, 'addCadComponent'])->name('ndt-cad-csv.add-cad');
+    Route::post('/{workorder}/ndt-cad-csv/add-stress', [NdtCadCsvController::class, 'addStressComponent'])->name('ndt-cad-csv.add-stress');
     Route::post('/{workorder}/ndt-cad-csv/remove-ndt', [NdtCadCsvController::class, 'removeNdtComponent'])->name('ndt-cad-csv.remove-ndt');
     Route::post('/{workorder}/ndt-cad-csv/remove-cad', [NdtCadCsvController::class, 'removeCadComponent'])->name('ndt-cad-csv.remove-cad');
+    Route::post('/{workorder}/ndt-cad-csv/remove-stress', [NdtCadCsvController::class, 'removeStressComponent'])->name('ndt-cad-csv.remove-stress');
     Route::post('/{workorder}/ndt-cad-csv/edit-ndt', [NdtCadCsvController::class, 'editNdtComponent'])->name('ndt-cad-csv.edit-ndt');
     Route::post('/{workorder}/ndt-cad-csv/edit-cad', [NdtCadCsvController::class, 'editCadComponent'])->name('ndt-cad-csv.edit-cad');
+    Route::post('/{workorder}/ndt-cad-csv/edit-stress', [NdtCadCsvController::class, 'editStressComponent'])->name('ndt-cad-csv.edit-stress');
     Route::post('/{workorder}/ndt-cad-csv/import', [NdtCadCsvController::class, 'importFromCsv'])->name('ndt-cad-csv.import');
     Route::post('/{workorder}/ndt-cad-csv/reload-from-manual', [NdtCadCsvController::class, 'reloadFromManual'])->name('ndt-cad-csv.reload-from-manual');
     Route::post('/{workorder}/ndt-cad-csv/force-load-from-manual', [NdtCadCsvController::class, 'forceLoadFromManual'])->name('ndt-cad-csv.force-load-from-manual');
     Route::get('/{workorder}/ndt-cad-csv/components', [NdtCadCsvController::class, 'getComponents'])->name('ndt-cad-csv.components');
     Route::get('/{workorder}/ndt-cad-csv/cad-processes', [NdtCadCsvController::class, 'getCadProcesses'])->name('ndt-cad-csv.cad-processes');
+    Route::get('/{workorder}/ndt-cad-csv/stress-processes', [NdtCadCsvController::class, 'getStressProcesses'])->name('ndt-cad-csv.stress-processes');
 });
 
 // ---------------------- Cabinet route ------------------------------------------------------------------------
@@ -273,6 +279,7 @@ Route::resource('/extra_processes', ExtraProcessController::class)->except(['cre
     Route::get('/get-process/{processNameId}', [TdrProcessController::class, 'getProcess'])->name('tdr-processes.get-process');
     Route::get('tdrs/{workorder_id}/ndt-std', [TdrController::class, 'ndtStd'])->name('tdrs.ndtStd');
     Route::get('tdrs/{workorder_id}/cad-std', [TdrController::class, 'cadStd'])->name('tdrs.cadStd');
+    Route::get('tdrs/{workorder_id}/stress-std', [TdrController::class, 'stressStd'])->name('tdrs.stressStd');
 
     Route::get('trainings/form112/{id}', [TrainingController::class, 'showForm112'])->name('trainings.form112');
     Route::get('trainings/form132/{id}', [TrainingController::class, 'showForm132'])->name('trainings.form132');

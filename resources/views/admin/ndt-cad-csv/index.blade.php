@@ -126,6 +126,11 @@
                                  []) }}</span>
                             </button>
                         </li>
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link" id="stress-tab" data-bs-toggle="tab" data-bs-target="#stress-pane" type="button" role="tab">
+                                Stress  <span class="badge bg-warning ms-2" id="stress-count">{{ count($ndtCadCsv->stress_components ?? []) }}</span>
+                            </button>
+                        </li>
                     </ul>
 
                     <div class="tab-content" id="componentTabsContent">
@@ -262,6 +267,73 @@
                                 </table>
                             </div>
                         </div>
+
+                        <!-- Stress Компоненты -->
+                        <div class="tab-pane fade" id="stress-pane" role="tabpanel">
+                            <div class="d-flex justify-content-between align-items-center mb-3">
+                                <h5>Stress List</h5>
+                                <div>
+                                    <button type="button" class="btn btn-success btn-sm" onclick="showAddStressModal()">
+                                        <i class="fas fa-plus"></i> Add
+                                    </button>
+                                    <button type="button" class="btn btn-info btn-sm" onclick="importStressFromCsv()">
+                                        <i class="fas fa-file-import"></i> Upload CSV
+                                    </button>
+                                    <button type="button" class="btn btn-warning btn-sm" onclick="reloadFromManual('stress')">
+                                        <i class="fas fa-sync"></i> Reload CSV
+                                    </button>
+{{--                                    <button type="button" class="btn btn-secondary btn-sm" onclick="forceLoadFromManual('stress')">--}}
+{{--                                        <i class="fas fa-download"></i> Принудительная загрузка--}}
+{{--                                    </button>--}}
+                                </div>
+                            </div>
+
+                            <div class="table-responsive">
+                                <table class="table table-striped table-hover" id="stress-table">
+                                    <thead>
+                                        <tr>
+                                            <th>IPL №</th>
+                                            <th>Part Number</th>
+                                            <th>Description</th>
+                                            <th>Process</th>
+                                            <th>QTY</th>
+                                            <th>Action</th>
+                                        </tr>
+                                    </thead>
+                                     <tbody id="stress-tbody">
+                                         @php
+                                             $stressComponents = $ndtCadCsv->stress_components ?? [];
+                                             $sortedStressComponents = collect($stressComponents)->sortBy('ipl_num', SORT_NATURAL)->values();
+                                         @endphp
+                                         @forelse($sortedStressComponents as $displayIndex => $component)
+                                         @php
+                                             // Находим оригинальный индекс в исходном массиве
+                                             $originalIndex = array_search($component, $stressComponents);
+                                         @endphp
+                                         <tr data-index="{{ $originalIndex }}" data-display-index="{{ $displayIndex }}">
+                                             <td>{{ $component['ipl_num'] }}</td>
+                                             <td>{{ $component['part_number'] }}</td>
+                                             <td>{{ $component['description'] }}</td>
+                                             <td>{{ $component['process'] }}</td>
+                                             <td>{{ $component['qty'] }}</td>
+                                             <td>
+                                                 <button class="btn btn-sm btn-primary me-1" onclick="editStressComponent({{ $originalIndex }})" title="Edit">
+                                                     <i class="fas fa-edit"></i>
+                                                 </button>
+                                                 <button class="btn btn-sm btn-danger" onclick="removeStressComponent({{ $originalIndex }})" title="Delete">
+                                                     <i class="fas fa-trash"></i>
+                                                 </button>
+                                             </td>
+                                         </tr>
+                                         @empty
+                                         <tr>
+                                             <td colspan="6" class="text-center text-muted">No Stress components</td>
+                                         </tr>
+                                         @endforelse
+                                     </tbody>
+                                </table>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -326,6 +398,42 @@
                     <div class="mb-3">
                         <label for="cadProcess" class="form-label">Process *</label>
                         <select class="form-control select2" id="cadProcess" name="process" required>
+                            <option value="">Select a process...</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Add</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Модальное окно для добавления Stress компонента -->
+<div class="modal fade" id="stressModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Add Stress Component</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form id="stressForm">
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label for="stressComponent" class="form-label">Select component *</label>
+                        <select class="form-control select2" id="stressComponent" name="component_id" required>
+                            <option value="">Select a component...</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label for="stressQty" class="form-label">QTY *</label>
+                        <input type="number" class="form-control" id="stressQty" name="qty" min="1" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="stressProcess" class="form-label">Process *</label>
+                        <select class="form-control select2" id="stressProcess" name="process" required>
                             <option value="">Select a process...</option>
                         </select>
                     </div>
@@ -451,6 +559,63 @@
     </div>
 </div>
 
+<!-- Модальное окно для редактирования Stress компонента -->
+<div class="modal fade" id="stressEditModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Edit Stress Component</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form id="stressEditForm">
+                <div class="modal-body">
+                    <input type="hidden" id="stressEditIndex" name="edit_index" value="">
+                    
+                    <!-- Информация из JSON -->
+                    <div class="alert alert-info">
+                        <h6>Component Information:</h6>
+                        <div class="row">
+                            <div class="col-md-6">
+                                <strong>IPL:</strong> <span id="stressCurrentIpl"></span><br>
+                                <strong>Part Number:</strong> <span id="stressCurrentPartNumber"></span>
+                            </div>
+                            <div class="col-md-6">
+                                <strong>Description:</strong> <span id="stressCurrentDescription"></span><br>
+                                <strong>Process:</strong> <span id="stressCurrentProcess"></span><br>
+                                <strong>QTY:</strong> <span id="stressCurrentQty"></span>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Редактируемые поля -->
+                    <div class="mb-3">
+                        <label for="stressEditPartNumber" class="form-label">Part Number *</label>
+                        <input type="text" class="form-control" id="stressEditPartNumber" name="part_number" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="stressEditDescription" class="form-label">Description *</label>
+                        <input type="text" class="form-control" id="stressEditDescription" name="description" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="stressEditProcess" class="form-label">Process *</label>
+                        <select class="form-control select2" id="stressEditProcess" name="process" required>
+                            <option value="">Select a process...</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label for="stressEditQty" class="form-label">QTY *</label>
+                        <input type="number" class="form-control" id="stressEditQty" name="qty" min="1" required>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Save Changes</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
 <!-- Модальное окно для импорта CSV -->
 <div class="modal fade" id="csvImportModal" tabindex="-1">
     <div class="modal-dialog">
@@ -467,6 +632,7 @@
                             <option value="">Select type</option>
                             <option value="ndt">NDT</option>
                             <option value="cad">CAD</option>
+                            <option value="stress">Stress</option>
                         </select>
                     </div>
                     <div class="mb-3">
@@ -498,8 +664,10 @@ window.waitForJQuery = function(callback) {
 const workorderId = {{ $workorder->id }};
 let ndtComponents = @json($ndtCadCsv->ndt_components ?? []);
 let cadComponents = @json($ndtCadCsv->cad_components ?? []);
+let stressComponents = @json($ndtCadCsv->stress_components ?? []);
 let allComponents = [];
 let cadProcesses = [];
+let stressProcesses = [];
 
 // Определяем функции сразу в глобальной области видимости
 window.showAddNdtModal = function() {
@@ -582,6 +750,49 @@ window.showAddCadModal = function() {
     }
 };
 
+window.showAddStressModal = function() {
+    console.log('showAddStressModal called');
+    // Простая проверка jQuery
+    if (typeof $ !== 'undefined') {
+        $('#stressForm')[0].reset();
+        $('#stressEditIndex').val(''); // Сбрасываем индекс редактирования
+        $('#stressComponent').val('').trigger('change');
+        $('#stressProcess').val('');
+        $('#stressQty').val('');
+        $('#stressModalTitle').text('Add Stress Component'); // Сбрасываем заголовок
+        $('#stressSubmitBtn').text('Add'); // Меняем текст кнопки
+        $('#stressJsonInfo').hide(); // Скрываем информацию из JSON
+        $('#stressEditFields').hide(); // Скрываем поля редактирования
+        $('#stressAddFields').show(); // Показываем поля добавления
+
+        // Инициализируем Select2 для модального окна
+        if (typeof $.fn.select2 !== 'undefined') {
+            $('#stressComponent').select2({
+                placeholder: 'Select a component...',
+                allowClear: true,
+                width: '100%',
+                dropdownParent: $('#stressModal')
+            });
+            $('#stressProcess').select2({
+                placeholder: 'Select a process...',
+                allowClear: true,
+                width: '100%',
+                dropdownParent: $('#stressModal')
+            });
+        }
+
+        $('#stressModal').modal('show');
+    } else {
+        console.log('jQuery not loaded yet, using fallback');
+        // Fallback без jQuery
+        document.getElementById('stressForm').reset();
+        document.getElementById('stressEditIndex').value = '';
+        document.getElementById('stressModalTitle').textContent = 'Add Stress Component';
+        document.getElementById('stressModal').style.display = 'block';
+        document.getElementById('stressModal').classList.add('show');
+    }
+};
+
 // Загрузка данных при инициализации - ждем загрузки jQuery
 function initializeWhenReady() {
     if (typeof $ !== 'undefined') {
@@ -591,6 +802,7 @@ function initializeWhenReady() {
 
         loadComponents();
         loadCadProcesses();
+        loadStressProcesses();
 
         // Инициализация Select2 (если доступен)
         if (typeof $.fn.select2 !== 'undefined') {
@@ -623,6 +835,27 @@ function initializeWhenReady() {
                 dropdownParent: $('#cadEditModal')
             });
             
+            $('#stressModal #stressComponent').select2({
+                placeholder: 'Select a component...',
+                allowClear: true,
+                width: '100%',
+                dropdownParent: $('#stressModal')
+            });
+            
+            $('#stressModal #stressProcess').select2({
+                placeholder: 'Select a process...',
+                allowClear: true,
+                width: '100%',
+                dropdownParent: $('#stressModal')
+            });
+            
+            $('#stressEditModal #stressEditProcess').select2({
+                placeholder: 'Select a process...',
+                allowClear: true,
+                width: '100%',
+                dropdownParent: $('#stressEditModal')
+            });
+            
             console.log('Select2 initialized for all modals');
         } else {
             console.log('Select2 not available, using regular select');
@@ -646,6 +879,15 @@ function initializeWhenReady() {
                 $('#cadPartNumber').val(selectedOption.data('part-number') || '');
                 $('#cadDescription').val(selectedOption.data('description') || '');
                 $('#cadQty').val(selectedOption.data('units-assy') || 1);
+            }
+        });
+
+        $('#stressComponent').on('change', function() {
+            const selectedOption = $(this).find('option:selected');
+            if (selectedOption.val()) {
+                $('#stressPartNumber').val(selectedOption.data('part-number') || '');
+                $('#stressDescription').val(selectedOption.data('description') || '');
+                $('#stressQty').val(selectedOption.data('units-assy') || 1);
             }
         });
 
@@ -727,6 +969,47 @@ function initializeWhenReady() {
             });
         });
 
+        $('#stressForm').on('submit', function(e) {
+            e.preventDefault();
+            console.log('Stress form submitted');
+
+            const selectedComponent = $('#stressComponent option:selected');
+            if (!selectedComponent.val()) {
+                alert('Please select a component');
+                return;
+            }
+
+            if (!$('#stressProcess').val()) {
+                alert('Please select a process');
+                return;
+            }
+
+            const data = {
+                component_id: selectedComponent.val(),
+                ipl_num: selectedComponent.data('ipl-num'),
+                part_number: selectedComponent.data('part-number'),
+                description: selectedComponent.data('description'),
+                process: $('#stressProcess').val(),
+                qty: parseInt($('#stressQty').val()),
+                _token: $('meta[name="csrf-token"]').attr('content')
+            };
+
+            console.log('Sending Stress add data:', data);
+
+            $.post(`/admin/${workorderId}/ndt-cad-csv/add-stress`, data).done(function(response) {
+                console.log('Stress add response:', response);
+                if (response.success) {
+                    $('#stressModal').modal('hide');
+                    location.reload();
+                } else {
+                    alert('Error: ' + response.message);
+                }
+            }).fail(function(xhr) {
+                console.error('Stress add error:', xhr.responseText);
+                alert('Error adding component');
+            });
+        });
+
         // Обработчики форм редактирования
         $('#ndtEditForm').on('submit', function(e) {
             e.preventDefault();
@@ -794,6 +1077,41 @@ function initializeWhenReady() {
                 }
             }).fail(function(xhr) {
                 console.error('CAD edit error:', xhr.responseText);
+                alert('Error saving changes');
+            });
+        });
+
+        $('#stressEditForm').on('submit', function(e) {
+            e.preventDefault();
+            console.log('Stress Edit form submitted');
+
+            const editIndex = $('#stressEditIndex').val();
+            if (!editIndex) {
+                alert('Edit index not found');
+                return;
+            }
+
+            const data = {
+                index: editIndex,
+                part_number: $('#stressEditPartNumber').val(),
+                description: $('#stressEditDescription').val(),
+                process: $('#stressEditProcess').val(),
+                qty: parseInt($('#stressEditQty').val()),
+                _token: $('meta[name="csrf-token"]').attr('content')
+            };
+
+            console.log('Sending Stress edit data:', data);
+
+            $.post(`/admin/${workorderId}/ndt-cad-csv/edit-stress`, data).done(function(response) {
+                console.log('Stress edit response:', response);
+                if (response.success) {
+                    $('#stressEditModal').modal('hide');
+                    location.reload();
+                } else {
+                    alert('Error: ' + response.message);
+                }
+            }).fail(function(xhr) {
+                console.error('Stress edit error:', xhr.responseText);
                 alert('Error saving changes');
             });
         });
@@ -866,6 +1184,19 @@ function loadCadProcesses() {
         });
 }
 
+function loadStressProcesses() {
+    $.get(`/admin/${workorderId}/ndt-cad-csv/stress-processes`)
+        .done(function(response) {
+            if (response.success) {
+                stressProcesses = response.processes;
+                updateStressProcessDropdown();
+            }
+        })
+        .fail(function(xhr) {
+            console.error('Error loading Stress processes:', xhr.responseText);
+        });
+}
+
 function updateComponentDropdowns() {
     // Сортируем компоненты по ipl_num
     const sortedComponents = allComponents.sort(function(a, b) {
@@ -884,10 +1215,17 @@ function updateComponentDropdowns() {
         $('#cadComponent').append(`<option value="${component.id}" data-ipl-num="${component.ipl_num}" data-part-number="${component.part_number}" data-description="${component.name}" data-units-assy="${component.units_assy}">${component.ipl_num} : ${component.part_number} - ${component.name}</option>`);
     });
 
+    // Обновляем Stress dropdown
+    $('#stressComponent').empty().append('<option value="">Выберите компонент...</option>');
+    sortedComponents.forEach(function(component) {
+        $('#stressComponent').append(`<option value="${component.id}" data-ipl-num="${component.ipl_num}" data-part-number="${component.part_number}" data-description="${component.name}" data-units-assy="${component.units_assy}">${component.ipl_num} : ${component.part_number} - ${component.name}</option>`);
+    });
+
     // Обновляем Select2 если он инициализирован
     if (typeof $.fn.select2 !== 'undefined') {
         $('#ndtComponent').trigger('change.select2');
         $('#cadComponent').trigger('change.select2');
+        $('#stressComponent').trigger('change.select2');
     }
 }
 
@@ -903,6 +1241,21 @@ function updateCadProcessDropdown() {
     if (typeof $.fn.select2 !== 'undefined') {
         $('#cadProcess').trigger('change.select2');
         $('#cadProcessEdit').trigger('change.select2');
+    }
+}
+
+function updateStressProcessDropdown() {
+    $('#stressProcess').empty().append('<option value="">Выберите процесс...</option>');
+    $('#stressEditProcess').empty().append('<option value="">Выберите процесс...</option>');
+    stressProcesses.forEach(function(process) {
+        $('#stressProcess').append(`<option value="${process.process}">${process.process}</option>`);
+        $('#stressEditProcess').append(`<option value="${process.process}">${process.process}</option>`);
+    });
+
+    // Обновляем Select2 если он инициализирован
+    if (typeof $.fn.select2 !== 'undefined') {
+        $('#stressProcess').trigger('change.select2');
+        $('#stressEditProcess').trigger('change.select2');
     }
 }
 
@@ -950,6 +1303,34 @@ window.removeCadComponent = function(index) {
     if (confirm('Are you sure you want to remove this component?')) {
         if (typeof $ !== 'undefined') {
             $.post(`/admin/${workorderId}/ndt-cad-csv/remove-cad`, {
+                index: index,
+                _token: $('meta[name="csrf-token"]').attr('content')
+            }).done(function(response) {
+                console.log('Server response:', response);
+                if (response.success) {
+                    location.reload();
+                } else {
+                    alert('Error: ' + response.message);
+                }
+            }).fail(function(xhr) {
+                console.error('Ошибка AJAX:', xhr.responseText);
+                alert('Error while deleting component');
+            });
+        } else {
+            console.log('jQuery not loaded yet, using fallback');
+            // Fallback без jQuery - просто перезагружаем страницу
+            location.reload();
+        }
+    }
+};
+
+window.removeStressComponent = function(index) {
+    console.log('Removing a Stress component with an index:', index);
+    console.log('Current Stress components:', stressComponents);
+
+    if (confirm('Are you sure you want to remove this component?')) {
+        if (typeof $ !== 'undefined') {
+            $.post(`/admin/${workorderId}/ndt-cad-csv/remove-stress`, {
                 index: index,
                 _token: $('meta[name="csrf-token"]').attr('content')
             }).done(function(response) {
@@ -1034,6 +1415,18 @@ window.importCadFromCsv = function() {
     } else {
         console.log('jQuery not loaded yet, using fallback');
         document.getElementById('csvType').value = 'cad';
+        document.getElementById('csvImportModal').style.display = 'block';
+        document.getElementById('csvImportModal').classList.add('show');
+    }
+};
+
+window.importStressFromCsv = function() {
+    if (typeof $ !== 'undefined') {
+        $('#csvType').val('stress');
+        $('#csvImportModal').modal('show');
+    } else {
+        console.log('jQuery not loaded yet, using fallback');
+        document.getElementById('csvType').value = 'stress';
         document.getElementById('csvImportModal').style.display = 'block';
         document.getElementById('csvImportModal').classList.add('show');
     }
@@ -1212,6 +1605,92 @@ window.editCadComponent = function(index) {
 
     // Показываем модальное окно
     $('#cadEditModal').modal('show');
+};
+
+window.editStressComponent = function(index) {
+    console.log('Editing Stress component with index:', index);
+    console.log('Stress Components array:', stressComponents);
+    
+    const component = stressComponents[index];
+    if (!component) {
+        console.error('Stress Component not found at index:', index);
+        alert('Component not found');
+        return;
+    }
+
+    console.log('Found Stress component:', component);
+
+    // Заполняем информацию из JSON
+    $('#stressCurrentIpl').text(component.ipl_num);
+    $('#stressCurrentPartNumber').text(component.part_number);
+    $('#stressCurrentDescription').text(component.description);
+    $('#stressCurrentProcess').text(component.process);
+    $('#stressCurrentQty').text(component.qty);
+
+    // Заполняем редактируемые поля
+    $('#stressEditIndex').val(index);
+    $('#stressEditPartNumber').val(component.part_number);
+    $('#stressEditDescription').val(component.description);
+    $('#stressEditQty').val(component.qty);
+
+    // Загружаем и заполняем процессы для dropdown
+    if (stressProcesses && stressProcesses.length > 0) {
+        // Очищаем dropdown
+        $('#stressEditProcess').empty().append('<option value="">Select a process...</option>');
+        
+        // Добавляем процессы
+        stressProcesses.forEach(function(process) {
+            $('#stressEditProcess').append(`<option value="${process.process}">${process.process}</option>`);
+        });
+        
+        // Устанавливаем выбранный процесс
+        $('#stressEditProcess').val(component.process);
+        
+        // Обновляем Select2
+        if (typeof $.fn.select2 !== 'undefined') {
+            $('#stressEditProcess').trigger('change.select2');
+        }
+    } else {
+        // Если процессы еще не загружены, загружаем их
+        console.log('Stress processes not loaded, loading now...');
+        $.get(`/admin/${workorderId}/ndt-cad-csv/stress-processes`)
+            .done(function(response) {
+                if (response.success) {
+                    stressProcesses = response.processes;
+                    console.log('Loaded Stress processes:', stressProcesses);
+                    
+                    // Очищаем dropdown
+                    $('#stressEditProcess').empty().append('<option value="">Select a process...</option>');
+                    
+                    // Добавляем процессы
+                    stressProcesses.forEach(function(process) {
+                        $('#stressEditProcess').append(`<option value="${process.process}">${process.process}</option>`);
+                    });
+                    
+                    // Устанавливаем выбранный процесс
+                    $('#stressEditProcess').val(component.process);
+                    
+                    // Обновляем Select2
+                    if (typeof $.fn.select2 !== 'undefined') {
+                        $('#stressEditProcess').trigger('change.select2');
+                    }
+                }
+            })
+            .fail(function(xhr) {
+                console.error('Error loading Stress processes:', xhr.responseText);
+            });
+    }
+
+    console.log('Filling Stress edit form with:', {
+        ipl_num: component.ipl_num,
+        part_number: component.part_number,
+        description: component.description,
+        process: component.process,
+        qty: component.qty
+    });
+
+    // Показываем модальное окно
+    $('#stressEditModal').modal('show');
 };
 
 console.log('All global functions defined');

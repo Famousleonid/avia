@@ -509,8 +509,9 @@
                 </div>
 
                 @if($process_name->process_sheet_name == 'STRESS RELIEF')
-                    <div class="col-2 border-all pt-2  details-row  text-center"><h6  class="fs-7" ><strong>PERFORMED</strong>
-                        </h6>
+                    <div class="col-2 border-all pt-2  details-row  text-center">
+                        <h6  class="fs-7" ><strong>PERFORMED</strong> </h6>
+                    </div>
                 @else
                 <div class="col-2 border-all pt-2  details-row  text-center"><h6  class="fs-7" ><strong>CMM No.</strong> </h6>
                     @endif

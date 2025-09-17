@@ -979,6 +979,178 @@ class TdrController extends Controller
         }
     }
 
+    public function stressStd($workorder_id)
+    {
+        try {
+            // Получаем рабочий заказ и связанные данные
+            $current_wo = Workorder::findOrFail($workorder_id);
+            $manual = $current_wo->unit->manuals;
+
+            if (!$manual) {
+                throw new \RuntimeException('Manual not found for this workorder');
+            }
+
+            // Получаем или создаем NdtCadCsv для данного workorder с автоматической загрузкой
+            $ndtCadCsv = $current_wo->ndtCadCsv;
+            if (!$ndtCadCsv) {
+                $ndtCadCsv = NdtCadCsv::createForWorkorder($workorder_id);
+            }
+
+            // Получаем ID process names для Stress (Bake Stress Realive)
+            $processNames = ProcessName::where('id', 3)->pluck('id', 'name');
+
+            if (!$processNames->count()) {
+                throw new \RuntimeException('Stress process name not found');
+            }
+
+            // Извлекаем ID по именам
+            $stress_ids = [
+                'stress_name_id' => 3 // Bake (Stress Realive)
+            ];
+
+            // Получаем manual processes
+            $manualProcesses = ManualProcess::where('manual_id', $manual->id)
+                ->pluck('processes_id');
+
+            // Получаем Stress processes
+            $stress_processes = Process::whereIn('id', $manualProcesses)
+                ->whereIn('process_names_id', $stress_ids)
+                ->get();
+
+            // Получаем существующие IPL номера
+            $existingIplNums = Tdr::where('workorder_id', $workorder_id)
+                ->whereNotNull('component_id')
+                ->with('component')
+                ->get()
+                ->pluck('component.ipl_num')
+                ->filter()
+                ->unique()
+                ->toArray();
+
+            // Получаем все процессы для данного manual и process_name
+            $validProcesses = Process::whereIn('id', $manualProcesses)
+                ->where('process_names_id', $stress_ids['stress_name_id'])
+                ->pluck('process')
+                ->toArray();
+
+            // Фильтруем компоненты из NdtCadCsv
+            $stress_components = [];
+            foreach ($ndtCadCsv->stress_components as $component) {
+                $itemNo = $component['ipl_num'];
+
+                if ($this->shouldSkipItem($itemNo, $existingIplNums)) {
+                    continue;
+                }
+
+                $processName = $component['process'] ?? '';
+
+                // Проверяем и создаем процесс, если его нет
+                if (!empty($processName)) {
+                    // Проверяем существование процесса
+                    $process = Process::where('process', $processName)
+                        ->where('process_names_id', $stress_ids['stress_name_id'])
+                        ->first();
+
+                    if (!$process) {
+                        // Создаем новый процесс
+                        $process = Process::create([
+                            'process' => $processName,
+                            'process_names_id' => $stress_ids['stress_name_id']
+                        ]);
+                        \Log::info('Created new stress process:', ['process' => $processName]);
+                    }
+
+                    // Проверяем привязку к manual
+                    $manualProcess = ManualProcess::where('manual_id', $manual->id)
+                        ->where('processes_id', $process->id)
+                        ->first();
+
+                    if (!$manualProcess) {
+                        // Создаем привязку к manual
+                        ManualProcess::create([
+                            'manual_id' => $manual->id,
+                            'processes_id' => $process->id
+                        ]);
+                        \Log::info('Created manual-stress process binding:', [
+                            'manual_id' => $manual->id,
+                            'process_id' => $process->id
+                        ]);
+                    }
+
+                    // Обновляем список валидных процессов
+                    $validProcesses[] = $processName;
+                }
+
+                if (!in_array($processName, $validProcesses)) {
+                    \Log::warning('Invalid stress process found in ModCsv:', [
+                        'process' => $processName,
+                        'item_no' => $itemNo,
+                        'valid_processes' => $validProcesses
+                    ]);
+                    continue;
+                }
+
+                // Преобразуем в объект для совместимости с существующим кодом
+                $componentObj = new \stdClass();
+                $componentObj->ipl_num = $component['ipl_num'];
+                $componentObj->part_number = $component['part_number'] ?? '';
+                $componentObj->name = $component['description'] ?? '';
+                $componentObj->qty = (int)($component['qty'] ?? self::DEFAULT_QTY);
+                $componentObj->process_name = $processName;
+
+                $stress_components[] = $componentObj;
+            }
+
+            // Сортируем Stress компоненты по ipl_num
+            usort($stress_components, function($a, $b) {
+                $aParts = explode('-', $a->ipl_num ?? '');
+                $bParts = explode('-', $b->ipl_num ?? '');
+
+                // Сравниваем первую часть (до -)
+                $aFirst = (int)($aParts[0] ?? 0);
+                $bFirst = (int)($bParts[0] ?? 0);
+
+                if ($aFirst !== $bFirst) {
+                    return $aFirst - $bFirst;
+                }
+
+                // Если первая часть одинаковая, сравниваем вторую часть (после -)
+                $aSecond = (int)($aParts[1] ?? 0);
+                $bSecond = (int)($bParts[1] ?? 0);
+
+                return $aSecond - $bSecond;
+            });
+
+            $form_number = 'STRESS-STD';
+
+            // Обновляем список процессов после возможного добавления новых
+            $stress_processes = Process::whereIn('id', $manualProcesses)
+                ->whereIn('process_names_id', $stress_ids)
+                ->get();
+
+            // Рассчитываем общее количество деталей
+            $stressSum = $this->calcStressSums($workorder_id);
+
+            return view('admin.tdrs.stressFormStd', [
+                'current_wo' => $current_wo,
+                'manual' => $manual,
+                'stress_components' => $stress_components,
+                'stress_processes' => $stress_processes,
+                'form_number' => $form_number,
+                'manuals' => [$manual],
+                'process_name' => ProcessName::where('id', 3)->first(),
+                'stressSum' => $stressSum,
+            ] + $stress_ids);
+
+        } catch (\Exception $e) {
+            \Log::error('Error in Stress processing:', [
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+            throw $e;
+        }
+    }
+
     /**
      * Находит индекс колонки по возможным названиям
      */
@@ -1647,6 +1819,136 @@ public function wo_Process_Form($id)
 
         } catch (\Exception $e) {
             \Log::error('Error in CAD sums calculation:', [
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+            return [
+                'total_qty' => 0,
+                'total_components' => 0
+            ];
+        }
+    }
+
+    private function calcStressSums($workorder_id)
+    {
+        try {
+            // Получаем текущий workorder
+            $current_wo = Workorder::findOrFail($workorder_id);
+
+            \Log::info('Starting Stress sums calculation', [
+                'workorder_id' => $workorder_id
+            ]);
+
+            // 1. Получаем данные из таблицы ndt_cad_csv
+            $ndtCadCsv = $current_wo->ndtCadCsv;
+            if (!$ndtCadCsv) {
+                \Log::error('NdtCadCsv not found for workorder', ['workorder_id' => $workorder_id]);
+                return [
+                    'total_qty' => 0,
+                    'total_components' => 0
+                ];
+            }
+
+            \Log::info('Found NdtCadCsv record', [
+                'ndt_cad_csv_id' => $ndtCadCsv->id,
+                'stress_components_count' => count($ndtCadCsv->stress_components ?? [])
+            ]);
+
+            // Получаем Stress компоненты из JSON поля
+            $stressComponents = $ndtCadCsv->stress_components ?? [];
+
+            if (empty($stressComponents)) {
+                \Log::warning('No Stress components found in NdtCadCsv');
+                return [
+                    'total_qty' => 0,
+                    'total_components' => 0
+                ];
+            }
+
+            // 2. Чтение TDR компонентов
+            $tdrComponents = Tdr::where('workorder_id', $workorder_id)
+                ->whereNotNull('component_id')
+                ->with('component')
+                ->get();
+
+            // Создаем мапу IPL номеров из TDR
+            $tdrIplMap = $tdrComponents->pluck('qty', 'component.ipl_num')->toArray();
+
+            \Log::info('TDR Components:', [
+                'count' => count($tdrIplMap),
+                'ipl_numbers' => array_keys($tdrIplMap)
+            ]);
+
+            // 3. Сравнение и подсчет
+            $totalQty = 0;
+            $totalComponents = 0;
+            $processedIpls = [];
+            $skippedCount = 0;
+            $combinedSkippedCount = 0;
+
+            \Log::info('Starting Stress calculation loop', [
+                'total_stress_components' => count($stressComponents),
+                'tdr_ipl_count' => count($tdrIplMap)
+            ]);
+
+            foreach ($stressComponents as $index => $component) {
+                $itemNo = trim($component['ipl_num'] ?? '');
+                $qty = (int)($component['qty'] ?? 1); // Получаем qty из JSON
+
+                \Log::debug('Processing Stress component', [
+                    'index' => $index,
+                    'item_no' => $itemNo,
+                    'qty' => $qty,
+                    'component' => $component
+                ]);
+
+                // Если IPL номер есть в TDR - пропускаем
+                if (isset($tdrIplMap[$itemNo])) {
+                    $skippedCount++;
+                    \Log::debug('Skipping component as it exists in TDR:', ['ipl_num' => $itemNo]);
+                    continue;
+                }
+
+                // Проверяем совмещенные значения
+                if ($this->shouldSkipItem($itemNo, array_keys($tdrIplMap))) {
+                    $combinedSkippedCount++;
+                    \Log::debug('Skipping Stress component due to combined value match:', [
+                        'item_no' => $itemNo,
+                        'existing_ipls' => array_keys($tdrIplMap)
+                    ]);
+                    continue;
+                }
+
+                // Если IPL номер еще не был обработан
+                if (!in_array($itemNo, $processedIpls)) {
+                    $totalQty += $qty; // Используем qty из JSON
+                    $totalComponents++;
+                    $processedIpls[] = $itemNo;
+                    \Log::debug('Adding component from NdtCadCsv:', ['ipl_num' => $itemNo, 'qty' => $qty]);
+                }
+            }
+
+            \Log::info('Stress calculation loop completed', [
+                'total_qty' => $totalQty,
+                'total_components' => $totalComponents,
+                'skipped_count' => $skippedCount,
+                'combined_skipped_count' => $combinedSkippedCount,
+                'processed_ipls' => $processedIpls
+            ]);
+
+            \Log::info('Stress calculation results:', [
+                'total_qty' => $totalQty,
+                'total_components' => $totalComponents,
+                'processed_ipls' => $processedIpls
+            ]);
+
+            return [
+                'total_qty' => $totalQty,
+                'total_components' => $totalComponents
+            ];
+
+        } catch (\Exception $e) {
+            \Log::error('Error in Stress sums calculation:', [
                 'error' => $e->getMessage(),
                 'trace' => $e->getTraceAsString()
             ]);

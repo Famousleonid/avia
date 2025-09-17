@@ -173,7 +173,7 @@
                         @if(count($processParts))
                             <div class="me-2">
                                 <a href="{{route('tdrs.processes',['workorder_id' => $current_wo->id])}}"
-                                   class="btn  btn-outline-primary " style="height: 60px;width: 120px"
+                                   class="btn  btn-outline-primary " style="height: 60px;width: 110px"
                                    onclick="showLoadingSpinner
                                    ()">
                                     {{__('Component Processes')}}
@@ -182,14 +182,14 @@
                         @endif
                             <div class="me-2">
                                 <a href="{{route('extra_processes.show_all',['id'=>$current_wo->id])}}"
-                                   class="btn  btn-outline-primary " style="height: 60px;width: 180px" onclick="showLoadingSpinner
+                                   class="btn  btn-outline-primary " style="height: 60px;width: 160px" onclick="showLoadingSpinner
                                        ()">
                                     {{__('Extra Component Processes')}}
                                 </a>
                             </div>
                             <div>
                                 <a href="{{route('log_card.show',['log_card' => $current_wo->id])}}"
-                                   class="btn  btn-outline-primary " style="min-height: 60px;width: 80px"
+                                   class="btn  btn-outline-primary " style="min-height: 60px;width: 70px"
                                    onclick="showLoadingSpinner
                                    ()">
                                     {{__('Log Card')}}
@@ -197,7 +197,7 @@
                             </div>
                         <div>
                             <a href="{{route('wo_bushings.show',['wo_bushing' => $current_wo->id])}}"
-                               class="btn  btn-outline-primary ms-2" style="min-height: 60px;width: 100px"
+                               class="btn  btn-outline-primary ms-2" style="min-height: 60px;width: 95px"
                                onclick="showLoadingSpinner
                                    ()">
                                 {{__('Bushing Processes')}}
@@ -205,7 +205,7 @@
                         </div>
                         <div>
                             <a href="{{route('rm_reports.show',['rm_report' => $current_wo->id])}}"
-                               class="btn  btn-outline-primary ms-2 " style="height: 60px;width: 180px"
+                               class="btn  btn-outline-primary ms-2 " style="height: 60px;width: 175px"
                                onclick="showLoadingSpinner
                                    ()">
                                 {{__('Repair & Modification Record')}}
@@ -249,23 +249,26 @@
                                     <a href="{{ route('tdrs.tdrForm', ['id'=> $current_wo->id]) }}"
                                        class="btn btn-outline-warning me-1 formLink "
                                        target="_blank"
-                                       id="#" style=" height: 60px; width: 80px">
-                                        <i class="bi bi-file-earmark-excel"> TDR Form</i>
+                                       id="#" style=" height: 60px; width: 70px">
+{{--                                        <i class="bi bi-file-earmark-excel"> TDR Form</i>--}}
+                                        TDR Form
                                     </a>
                                     @if(count($processParts)==0)
                                         <a href="{{ route('tdrs.specProcessFormEmp', ['id'=> $current_wo->id]) }}"
                                            class="btn btn-outline-warning  formLink "
                                            target="_blank"
                                            id="#" style=" height: 60px; width: 70px">
-                                            <i class="bi bi-file-earmark-excel"> SP Form </i>
+{{--                                            <i class="bi bi-file-earmark-excel"> SP Form </i>--}}
+                                        SP Form
                                         </a>
                                     @endif
 
                                     <a href="{{ route('tdrs.woProcessForm', ['id'=> $current_wo->id]) }}"
                                        class="btn btn-outline-warning me-1 formLink "
                                        target="_blank"
-                                       id="#" style=" height: 60px; width: 120px">
-                                        <i class="bi bi-file-earmark-excel"> WO Process Sheet </i>
+                                       id="#" style=" height: 60px; width: 115px">
+{{--                                        <i class="bi bi-file-earmark-excel"> WO Process Sheet </i>--}}
+                                        WO Process Sheet
                                     </a>
 {{--                                    <a href="#"--}}
 {{--                                       class="btn btn-outline-warning  formLink "--}}
@@ -283,8 +286,9 @@
                                     <a href="{{ route('tdrs.prlForm', ['id'=> $current_wo->id]) }}"
                                        class="btn btn-outline-warning me-1 formLink align-content-center "
                                        target="_blank"
-                                       id="#" style=" height: 60px; width: 80px">
-                                        <i class="bi bi-file-earmark-excel"> PRL </i>
+                                       id="#" style=" height: 60px; width: 60px">
+{{--                                        <i class="bi bi-file-earmark-excel"> PRL </i>--}}
+                                        PRL
                                     </a>
                                 @endif
                             </div>
@@ -293,6 +297,7 @@
                                 $manual = null;
                                 $hasNdtComponents = false;
                                 $hasCadComponents = false;
+                                $hasStressComponents = false;
 
                                 // Проверяем наличие NDT компонентов в таблице ndt_cad_csv
                                 if ($current_wo && $current_wo->ndtCadCsv) {
@@ -301,11 +306,17 @@
 
                                     $cadComponents = $current_wo->ndtCadCsv->cad_components;
                                     $hasCadComponents = !empty($cadComponents) && is_array($cadComponents) && count($cadComponents) > 0;
+
+                                    $stressComponents = $current_wo->ndtCadCsv->stress_components;
+                                    $hasStressComponents = !empty($stressComponents) && is_array($stressComponents) && count
+                                    ($stressComponents) > 0;
+
                                 }
 
                                 // Оставляем старую логику для совместимости (если нужно)
                                 $hasNdtCsv = false;
                                 $hasCadCsv = false;
+                                $hasStressCsv = false;
 
                                 if ($current_wo && $current_wo->unit && $current_wo->unit->manuals) {
                                     $manual = $current_wo->unit->manuals;
@@ -340,31 +351,42 @@
                             @endphp
 
 
+
+                            @if($current_wo->instruction_id == 1 )
+                                <div class="me-1 ">
+                                    <a href="{{ route('ndt-cad-csv.index', $current_wo->id) }}"
+                                       class="btn btn-outline-success" style="min-height: 40px; width: 100px">
+                                        {{--                                    <i class="bi bi-gear"></i> --}}
+                                        MOD NDT/CAD
+                                    </a>
+                                </div>
+                            @endif
                         @if($current_wo->instruction_id == 1 && $hasNdtComponents)
-                                <div class="me-2 ms-2">
+                                <div class="me-1">
                                     <a href="{{ route('tdrs.ndtStd', ['workorder_id' => $current_wo->id]) }}"
-                                       class="btn btn-outline-warning" style="min-height: 60px; width: 80px"
+                                       class="btn btn-outline-warning" style="min-height: 60px; width: 60px"
                                        target="_blank">
                                         NDT STD
                                     </a>
                                 </div>
                             @endif
-                            @if($current_wo->instruction_id == 1 )
-                            <div class="me-2 ms-2">
-                                <a href="{{ route('ndt-cad-csv.index', $current_wo->id) }}"
-                                   class="btn btn-outline-success" style="min-height: 40px; width: 100px">
-                                    {{--                                    <i class="bi bi-gear"></i> --}}
-                                    MOD NDT/CAD
-                                </a>
-                            </div>
-                            @endif
+
 
                             @if($current_wo->instruction_id == 1 && $hasCadComponents)
-                                <div class="me-2 ms-2">
+                                <div class="me-1 ">
                                     <a href="{{ route('tdrs.cadStd', ['workorder_id' => $current_wo->id]) }}"
-                                       class="btn btn-outline-warning" style="min-height: 60px; width: 80px"
+                                       class="btn btn-outline-warning" style="min-height: 60px; width: 60px"
                                        target="_blank">
                                         CAD STD
+                                    </a>
+                                </div>
+                            @endif
+                            @if($current_wo->instruction_id == 1 && $hasStressComponents)
+                                <div class="me-1 ">
+                                    <a href="{{ route('tdrs.stressStd', ['workorder_id' => $current_wo->id]) }}"
+                                       class="btn btn-outline-warning" style="min-height: 60px; width: 70px"
+                                       target="_blank">
+                                        Stress STD
                                     </a>
                                 </div>
                             @endif

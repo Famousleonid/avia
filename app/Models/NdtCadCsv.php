@@ -13,11 +13,13 @@ class NdtCadCsv extends Model
         'workorder_id',
         'ndt_components',
         'cad_components',
+        'stress_components',
     ];
 
     protected $casts = [
         'ndt_components' => 'array',
         'cad_components' => 'array',
+        'stress_components' => 'array',
     ];
 
     /**
@@ -45,6 +47,14 @@ class NdtCadCsv extends Model
     }
 
     /**
+     * Получить Stress компоненты в структурированном виде
+     */
+    public function getStressComponentsAttribute($value)
+    {
+        return $value ? json_decode($value, true) : [];
+    }
+
+    /**
      * Установить NDT компоненты
      */
     public function setNdtComponentsAttribute($value)
@@ -58,6 +68,14 @@ class NdtCadCsv extends Model
     public function setCadComponentsAttribute($value)
     {
         $this->attributes['cad_components'] = is_array($value) ? json_encode($value) : $value;
+    }
+
+    /**
+     * Установить Stress компоненты
+     */
+    public function setStressComponentsAttribute($value)
+    {
+        $this->attributes['stress_components'] = is_array($value) ? json_encode($value) : $value;
     }
 
     /**
@@ -78,6 +96,16 @@ class NdtCadCsv extends Model
         $components = $this->cad_components;
         $components[] = $component;
         $this->cad_components = $components;
+    }
+
+    /**
+     * Добавить Stress компонент
+     */
+    public function addStressComponent(array $component): void
+    {
+        $components = $this->stress_components;
+        $components[] = $component;
+        $this->stress_components = $components;
     }
 
     /**
@@ -141,6 +169,36 @@ class NdtCadCsv extends Model
     }
 
     /**
+     * Удалить Stress компонент по индексу
+     */
+    public function removeStressComponent(int $index): void
+    {
+        $components = $this->stress_components;
+        \Log::info('NdtCadCsv::removeStressComponent', [
+            'index' => $index,
+            'components_before' => $components,
+            'count_before' => count($components ?? [])
+        ]);
+        
+        if (isset($components[$index])) {
+            $removedComponent = $components[$index];
+            unset($components[$index]);
+            $this->stress_components = array_values($components);
+            
+            \Log::info('Stress компонент удален из модели', [
+                'removed_component' => $removedComponent,
+                'components_after' => $this->stress_components,
+                'count_after' => count($this->stress_components ?? [])
+            ]);
+        } else {
+            \Log::warning('Stress компонент не найден по индексу', [
+                'index' => $index,
+                'available_indices' => array_keys($components ?? [])
+            ]);
+        }
+    }
+
+    /**
      * Обновить NDT компонент по индексу
      */
     public function updateNdtComponent(int $index, array $component): void
@@ -165,6 +223,18 @@ class NdtCadCsv extends Model
     }
 
     /**
+     * Обновить Stress компонент по индексу
+     */
+    public function updateStressComponent(int $index, array $component): void
+    {
+        $components = $this->stress_components;
+        if (isset($components[$index])) {
+            $components[$index] = $component;
+            $this->stress_components = $components;
+        }
+    }
+
+    /**
      * Создать NdtCadCsv для workorder с автоматической загрузкой из Manual CSV
      */
     public static function createForWorkorder($workorderId)
@@ -181,7 +251,8 @@ class NdtCadCsv extends Model
         $ndtCadCsv = new self([
             'workorder_id' => $workorderId,
             'ndt_components' => [],
-            'cad_components' => []
+            'cad_components' => [],
+            'stress_components' => []
         ]);
         
         // Автоматическая загрузка из Manual CSV файлов
@@ -239,6 +310,27 @@ class NdtCadCsv extends Model
                     $ndtCadCsv->cad_components = self::loadComponentsFromCsv($secondCsv->getPath(), 'cad');
                 }
             }
+            
+            // Загружаем Stress компоненты
+            $stressCsvMedia = $manual->getMedia('csv_files')->first(function ($media) {
+                return $media->getCustomProperty('process_type') === 'stress';
+            });
+            
+            \Log::info('Stress CSV media found', [
+                'found' => $stressCsvMedia ? true : false,
+                'path' => $stressCsvMedia ? $stressCsvMedia->getPath() : null
+            ]);
+            
+            if ($stressCsvMedia) {
+                $ndtCadCsv->stress_components = self::loadComponentsFromCsv($stressCsvMedia->getPath(), 'stress');
+            } else {
+                // Если Stress файл не найден, попробуем загрузить третий доступный CSV
+                $thirdCsv = $manual->getMedia('csv_files')->skip(2)->first();
+                if ($thirdCsv) {
+                    \Log::info('Loading third available CSV as Stress', ['file' => $thirdCsv->name]);
+                    $ndtCadCsv->stress_components = self::loadComponentsFromCsv($thirdCsv->getPath(), 'stress');
+                }
+            }
         } else {
             \Log::warning('No manual found for workorder', ['workorder_id' => $workorderId]);
         }
@@ -247,7 +339,8 @@ class NdtCadCsv extends Model
         
         \Log::info('NdtCadCsv created', [
             'ndt_components_count' => count($ndtCadCsv->ndt_components),
-            'cad_components_count' => count($ndtCadCsv->cad_components)
+            'cad_components_count' => count($ndtCadCsv->cad_components),
+            'stress_components_count' => count($ndtCadCsv->stress_components)
         ]);
         
         return $ndtCadCsv;
@@ -299,13 +392,24 @@ class NdtCadCsv extends Model
                 \Log::info('Loading CAD components from CSV', ['file' => $cadCsvMedia->name]);
                 $ndtCadCsv->cad_components = self::loadComponentsFromCsv($cadCsvMedia->getPath(), 'cad');
             }
+            
+            // Загружаем Stress компоненты
+            $stressCsvMedia = $manual->getMedia('csv_files')->first(function ($media) {
+                return $media->getCustomProperty('process_type') === 'stress';
+            });
+            
+            if ($stressCsvMedia) {
+                \Log::info('Loading Stress components from CSV', ['file' => $stressCsvMedia->name]);
+                $ndtCadCsv->stress_components = self::loadComponentsFromCsv($stressCsvMedia->getPath(), 'stress');
+            }
         }
         
         $ndtCadCsv->save();
         
         \Log::info('NdtCadCsv updated with components', [
             'ndt_components_count' => count($ndtCadCsv->ndt_components),
-            'cad_components_count' => count($ndtCadCsv->cad_components)
+            'cad_components_count' => count($ndtCadCsv->cad_components),
+            'stress_components_count' => count($ndtCadCsv->stress_components)
         ]);
         
         return $ndtCadCsv;

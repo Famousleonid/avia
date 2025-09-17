@@ -51,6 +51,7 @@ class NdtCadCsvController extends Controller
         } else {
             $ndtEmpty = empty($ndtCadCsv->ndt_components) || (is_array($ndtCadCsv->ndt_components) && count($ndtCadCsv->ndt_components) == 0);
             $cadEmpty = empty($ndtCadCsv->cad_components) || (is_array($ndtCadCsv->cad_components) && count($ndtCadCsv->cad_components) == 0);
+            $stressEmpty = empty($ndtCadCsv->stress_components) || (is_array($ndtCadCsv->stress_components) && count($ndtCadCsv->stress_components) == 0);
             
             \Log::info('Checking if NdtCadCsv needs auto-loading', [
                 'has_ndtCadCsv' => true,
@@ -60,10 +61,13 @@ class NdtCadCsvController extends Controller
                 'cad_empty' => $cadEmpty,
                 'cad_components' => $ndtCadCsv->cad_components,
                 'cad_count' => is_array($ndtCadCsv->cad_components) ? count($ndtCadCsv->cad_components) : 'not array',
-                'should_auto_load' => $ndtEmpty && $cadEmpty
+                'stress_empty' => $stressEmpty,
+                'stress_components' => $ndtCadCsv->stress_components,
+                'stress_count' => is_array($ndtCadCsv->stress_components) ? count($ndtCadCsv->stress_components) : 'not array',
+                'should_auto_load' => $ndtEmpty && $cadEmpty && $stressEmpty
             ]);
             
-            if ($ndtEmpty && $cadEmpty) {
+            if ($ndtEmpty && $cadEmpty && $stressEmpty) {
                 $shouldAutoLoad = true;
                 \Log::info('NdtCadCsv is empty, will auto-load from manual');
             }
@@ -137,7 +141,8 @@ class NdtCadCsvController extends Controller
             $ndtCadCsv = NdtCadCsv::create([
                 'workorder_id' => $workorder->id,
                 'ndt_components' => [],
-                'cad_components' => []
+                'cad_components' => [],
+                'stress_components' => []
             ]);
         }
 
@@ -147,6 +152,40 @@ class NdtCadCsvController extends Controller
         return response()->json([
             'success' => true,
             'message' => 'CAD компоненты успешно обновлены'
+        ]);
+    }
+
+    /**
+     * Обновить Stress компоненты
+     */
+    public function updateStressComponents(Request $request, Workorder $workorder): JsonResponse
+    {
+        $request->validate([
+            'components' => 'required|array',
+            'components.*.ipl_num' => 'required|string',
+            'components.*.part_number' => 'required|string',
+            'components.*.description' => 'required|string',
+            'components.*.process' => 'required|string',
+            'components.*.qty' => 'required|integer|min:1',
+        ]);
+
+        $ndtCadCsv = $workorder->ndtCadCsv;
+
+        if (!$ndtCadCsv) {
+            $ndtCadCsv = NdtCadCsv::create([
+                'workorder_id' => $workorder->id,
+                'ndt_components' => [],
+                'cad_components' => [],
+                'stress_components' => []
+            ]);
+        }
+
+        $ndtCadCsv->stress_components = $request->components;
+        $ndtCadCsv->save();
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Stress компоненты успешно обновлены'
         ]);
     }
 
@@ -212,7 +251,8 @@ class NdtCadCsvController extends Controller
             $ndtCadCsv = NdtCadCsv::create([
                 'workorder_id' => $workorder->id,
                 'ndt_components' => [],
-                'cad_components' => []
+                'cad_components' => [],
+                'stress_components' => []
             ]);
         }
 
@@ -231,6 +271,49 @@ class NdtCadCsvController extends Controller
         return response()->json([
             'success' => true,
             'message' => 'CAD компонент успешно добавлен'
+        ]);
+    }
+
+    /**
+     * Добавить Stress компонент
+     */
+    public function addStressComponent(Request $request, Workorder $workorder): JsonResponse
+    {
+        $request->validate([
+            'component_id' => 'required|integer|exists:components,id',
+            'ipl_num' => 'required|string',
+            'part_number' => 'required|string',
+            'description' => 'required|string',
+            'process' => 'required|string',
+            'qty' => 'required|integer|min:1',
+        ]);
+
+        $ndtCadCsv = $workorder->ndtCadCsv;
+
+        if (!$ndtCadCsv) {
+            $ndtCadCsv = NdtCadCsv::create([
+                'workorder_id' => $workorder->id,
+                'ndt_components' => [],
+                'cad_components' => [],
+                'stress_components' => []
+            ]);
+        }
+
+        $component = [
+            'component_id' => $request->component_id,
+            'ipl_num' => $request->ipl_num,
+            'part_number' => $request->part_number,
+            'description' => $request->description,
+            'process' => $request->process,
+            'qty' => $request->qty,
+        ];
+
+        $ndtCadCsv->addStressComponent($component);
+        $ndtCadCsv->save();
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Stress компонент успешно добавлен'
         ]);
     }
 
@@ -315,12 +398,52 @@ class NdtCadCsvController extends Controller
     }
 
     /**
+     * Удалить Stress компонент
+     */
+    public function removeStressComponent(Request $request, Workorder $workorder): JsonResponse
+    {
+        $request->validate([
+            'index' => 'required|integer|min:0',
+        ]);
+
+        $ndtCadCsv = $workorder->ndtCadCsv;
+
+        if (!$ndtCadCsv) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Запись не найдена'
+            ], 404);
+        }
+
+        // Логирование для отладки
+        \Log::info('Удаление Stress компонента', [
+            'workorder_id' => $workorder->id,
+            'index' => $request->index,
+            'components_before' => $ndtCadCsv->stress_components,
+            'count_before' => count($ndtCadCsv->stress_components ?? [])
+        ]);
+
+        $ndtCadCsv->removeStressComponent($request->index);
+        $ndtCadCsv->save();
+
+        \Log::info('Stress компонент удален', [
+            'components_after' => $ndtCadCsv->stress_components,
+            'count_after' => count($ndtCadCsv->stress_components ?? [])
+        ]);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Stress компонент успешно удален'
+        ]);
+    }
+
+    /**
      * Импортировать компоненты из CSV файла
      */
     public function importFromCsv(Request $request, Workorder $workorder): JsonResponse
     {
         $request->validate([
-            'type' => 'required|in:ndt,cad',
+            'type' => 'required|in:ndt,cad,stress',
             'csv_file' => 'required|file|mimes:csv,txt',
         ]);
 
@@ -353,14 +476,17 @@ class NdtCadCsvController extends Controller
                 $ndtCadCsv = NdtCadCsv::create([
                     'workorder_id' => $workorder->id,
                     'ndt_components' => [],
-                    'cad_components' => []
+                    'cad_components' => [],
+                    'stress_components' => []
                 ]);
             }
 
             if ($request->type === 'ndt') {
                 $ndtCadCsv->ndt_components = $components;
-            } else {
+            } elseif ($request->type === 'cad') {
                 $ndtCadCsv->cad_components = $components;
+            } else {
+                $ndtCadCsv->stress_components = $components;
             }
 
             $ndtCadCsv->save();
@@ -385,7 +511,7 @@ class NdtCadCsvController extends Controller
     public function reloadFromManual(Request $request, Workorder $workorder): JsonResponse
     {
         $request->validate([
-            'type' => 'required|in:ndt,cad',
+            'type' => 'required|in:ndt,cad,stress',
         ]);
 
         try {
@@ -425,8 +551,10 @@ class NdtCadCsvController extends Controller
             // Обновляем соответствующие компоненты
             if ($type === 'ndt') {
                 $ndtCadCsv->ndt_components = $components;
-            } else {
+            } elseif ($type === 'cad') {
                 $ndtCadCsv->cad_components = $components;
+            } else {
+                $ndtCadCsv->stress_components = $components;
             }
             
             $ndtCadCsv->save();
@@ -513,6 +641,45 @@ class NdtCadCsvController extends Controller
             return response()->json([
                 'success' => false,
                 'message' => 'Ошибка при получении CAD процессов: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Получить Stress процессы для дропдауна
+     */
+    public function getStressProcesses(Request $request, Workorder $workorder): JsonResponse
+    {
+        try {
+            $manual = $workorder->unit->manuals;
+            
+            if (!$manual) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Manual не найден для данного workorder'
+                ], 404);
+            }
+
+            // Получаем Stress процессы для данного мануала (process_names_id = 3)
+            $stressProcesses = Process::whereHas('manuals', function($query) use ($manual) {
+                $query->where('manual_id', $manual->id);
+            })
+            ->whereHas('process_name', function($query) {
+                $query->where('id', 3); // Bake (Stress Realive)
+            })
+            ->select('id', 'process')
+            ->orderBy('process')
+            ->get();
+
+            return response()->json([
+                'success' => true,
+                'processes' => $stressProcesses
+            ]);
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Ошибка при получении Stress процессов: ' . $e->getMessage()
             ], 500);
         }
     }
@@ -610,12 +777,58 @@ class NdtCadCsvController extends Controller
     }
 
     /**
+     * Редактировать Stress компонент
+     */
+    public function editStressComponent(Request $request, Workorder $workorder): JsonResponse
+    {
+        $request->validate([
+            'index' => 'required|integer|min:0',
+            'part_number' => 'required|string',
+            'description' => 'required|string',
+            'process' => 'required|string',
+            'qty' => 'required|integer|min:1',
+        ]);
+
+        $ndtCadCsv = $workorder->ndtCadCsv;
+
+        if (!$ndtCadCsv) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Запись не найдена'
+            ], 404);
+        }
+
+        $components = $ndtCadCsv->stress_components ?? [];
+        
+        if (!isset($components[$request->index])) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Компонент не найден'
+            ], 404);
+        }
+
+        // Обновляем только редактируемые поля, сохраняя остальные
+        $components[$request->index]['part_number'] = $request->part_number;
+        $components[$request->index]['description'] = $request->description;
+        $components[$request->index]['process'] = $request->process;
+        $components[$request->index]['qty'] = $request->qty;
+
+        $ndtCadCsv->stress_components = $components;
+        $ndtCadCsv->save();
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Stress компонент успешно обновлен'
+        ]);
+    }
+
+    /**
      * Принудительно загрузить компоненты из Manual CSV
      */
     public function forceLoadFromManual(Request $request, Workorder $workorder): JsonResponse
     {
         $request->validate([
-            'type' => 'required|in:ndt,cad',
+            'type' => 'required|in:ndt,cad,stress',
         ]);
 
         try {
@@ -653,8 +866,10 @@ class NdtCadCsvController extends Controller
             // Обновляем соответствующие компоненты
             if ($type === 'ndt') {
                 $ndtCadCsv->ndt_components = $components;
-            } else {
+            } elseif ($type === 'cad') {
                 $ndtCadCsv->cad_components = $components;
+            } else {
+                $ndtCadCsv->stress_components = $components;
             }
             
             $ndtCadCsv->save();
