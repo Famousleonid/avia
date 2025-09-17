@@ -3,26 +3,43 @@
 <head>
     <meta charset="utf-8">
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
-    <link rel="icon" href="{{asset('img/favicon_old.png')}}" type="image/png">
-    <title>Personal page</title>
+    <link rel="icon" href="{{asset('img/favicon.webp')}}" type="image/png">
+    <title>Admin page</title>
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="csrf-token" content="{{ csrf_token() }}"/>
     <link rel="stylesheet" href="{{asset('assets/Bootstrap 5/bootstrap.min.css')}}">
     <link href="{{asset('assets/Bootstrap 5/bootstrap-icons.css')}}" rel="stylesheet">
     <link rel="stylesheet" href="{{asset('assets/jquery/jquery.fancybox.min.css')}}">
-    <link href="{{asset('assets/dataTables/datatables.css')}}" rel="stylesheet">
     <link href="{{asset('assets/select2/css/select2.min.css')}}" rel="stylesheet"/>
     <link rel="stylesheet" href="{{asset('css/custom_bootstrap.css')}}">
     <link rel="stylesheet" href="{{asset('css/main.css')}}">
 
-    @yield('links')
+    <script>
+        (function () {
+            const savedTheme = localStorage.getItem('theme') || 'light';
+            document.documentElement.setAttribute('data-bs-theme', savedTheme);
+        })();
+    </script>
+
+    @yield('style')
 
     <style>
-        .firm-border {
-            border-top: 5px solid #F8C50E;
+        .content {
+            height: 100vh;
+            overflow-y: auto;
+            padding-right: 12px; /* для компенсации скролла */
+            padding-bottom: 5vh;
         }
-    </style>
 
+        .content-inner {
+            min-height: 100%;
+            display: flex;
+            flex-direction: column;
+            position: relative;
+        }
+
+
+    </style>
 </head>
 
 <body class="p-0 m-0 g-0">
@@ -31,14 +48,19 @@
     <span class="visually-hidden">Loading...</span>
 </div>
 
+
 <div class="row vh-100 g-0">
 
-    <div class="col-lg-2 ">
+    <div class="col-lg-2 bg-body">
         @include('components.sidebar')
     </div>
 
-    <div class="content col-12 col-lg-10">
-        @yield('content')
+    <div class="content col-12 col-lg-10 bg-body pt-2">
+        <div class="content-inner px-2">
+            @include('components.status')
+            @yield('content')
+            @include('components.footer')
+        </div>
     </div>
 
     @include('components.footer')
@@ -47,75 +69,97 @@
 
 <script src="{{asset('assets/jquery/jquery371min.js')}}"></script>
 <script src="{{asset('assets/Bootstrap 5/bootstrap.bundle.min.js')}}"></script>
-<script src="{{asset('assets/dataTables/datatables.min.js')}}"></script>
 <script src="{{asset('assets/select2/js/select2.min.js')}}"></script>
 <script src="{{ asset('assets/jquery/jquery.fancybox.min.js') }}"></script>
 <script src="{{ asset('js/main.js') }}"></script>
 
-@yield('scripts')
+@stack('scripts')
 
 <script>
-    const themeToggle = document.getElementById('themeToggle');
-    const themeToggleMobile = document.getElementById('themeToggleMobile');
 
-    function updateThemeIcon(theme) {
-        const iconClass = theme === 'dark' ? 'bi-sun' : 'bi-moon';
+    window.addEventListener('load', function () {
+        hideLoadingSpinner();
+        const themeToggle = document.getElementById('themeToggle');
+        const themeToggleMobile = document.getElementById('themeToggleMobile');
+
+        function updateThemeIcon(theme) {
+            const iconClass = theme === 'dark' ? 'bi-sun' : 'bi-moon';
+            if (themeToggle) {
+                const icon = themeToggle.querySelector('i');
+                if (icon) {
+                    icon.className = `bi ${iconClass}`;
+                }
+            }
+            if (themeToggleMobile) {
+                const icon = themeToggleMobile.querySelector('i');
+                if (icon) {
+                    icon.className = `bi ${iconClass}`;
+                }
+            }
+        }
+
+        function toggleTheme() {
+            let currentTheme = document.documentElement.getAttribute('data-bs-theme');
+            let newTheme = currentTheme === 'light' ? 'dark' : 'light';
+            document.documentElement.setAttribute('data-bs-theme', newTheme);
+            localStorage.setItem('theme', newTheme);
+            updateThemeIcon(newTheme);
+        }
+
         if (themeToggle) {
-            const icon = themeToggle.querySelector('i');
-            if (icon) {
-                icon.className = `bi ${iconClass}`;
-            }
+            themeToggle.addEventListener('click', function (e) {
+                e.preventDefault();
+                toggleTheme();
+            });
+            hideLoadingSpinner();
         }
+
         if (themeToggleMobile) {
-            const icon = themeToggleMobile.querySelector('i');
-            if (icon) {
-                icon.className = `bi ${iconClass}`;
-            }
+            themeToggleMobile.addEventListener('click', function (e) {
+                e.preventDefault();
+                toggleTheme();
+            });
+            hideLoadingSpinner();
         }
-    }
 
-    function toggleTheme() {
-        let currentTheme = document.documentElement.getAttribute('data-bs-theme');
-        let newTheme = currentTheme === 'light' ? 'dark' : 'light';
-        document.documentElement.setAttribute('data-bs-theme', newTheme);
-        localStorage.setItem('theme', newTheme);
-        updateThemeIcon(newTheme);
-    }
+        let storedTheme = localStorage.getItem('theme') || 'light';
+        document.documentElement.setAttribute('data-bs-theme', storedTheme);
+        updateThemeIcon(storedTheme);
 
-    if (themeToggle) {
-        themeToggle.addEventListener('click', function (e) {
-            e.preventDefault();
-            toggleTheme();
+
+        $(function () {
+            $('[data-toggle="tooltip"]').tooltip()
+        })
+
+        //------------------------------------------------------------------------------------------------------------------------
+
+        $('#sidebarMenu a').each(function () {
+            let location = window.location.protocol + '//' + window.location.host + window.location.pathname;
+            let link = this.href;
+            if (link === location) {
+                $(this).addClass('text-white bg-primary');
+            }
         });
-    }
+    });
+</script>
 
-    if (themeToggleMobile) {
-        themeToggleMobile.addEventListener('click', function (e) {
+<!-- Обработка ошибок MetaMask -->
+<script>
+    // Подавляем ошибки MetaMask
+    window.addEventListener('error', function(e) {
+        if (e.message && e.message.includes('MetaMask')) {
             e.preventDefault();
-            toggleTheme();
-        });
-    }
-
-    let storedTheme = localStorage.getItem('theme') || 'light';
-    document.documentElement.setAttribute('data-bs-theme', storedTheme);
-    updateThemeIcon(storedTheme);
-
-
-    $(function () {
-        $('[data-toggle="tooltip"]').tooltip()
-    })
-
-    $('.nav-sidebar a').each(function () {
-        let location = window.location.protocol + '//' + window.location.host + window.location.pathname;
-
-        let link = this.href;
-
-        if (link === location) {
-            $(this).addClass('active');
-            $(this).closest('.has-treeview').addClass('menu-open');
+            return false;
         }
     });
 
+    // Подавляем необработанные промисы
+    window.addEventListener('unhandledrejection', function(e) {
+        if (e.reason && e.reason.message && e.reason.message.includes('MetaMask')) {
+            e.preventDefault();
+            return false;
+        }
+    });
 </script>
 
 </body>

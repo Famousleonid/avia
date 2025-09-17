@@ -15,16 +15,27 @@
         .table-wrapper {
             flex: 1 1 auto;
             overflow-y: auto;
-            overflow-x: hidden;
+            overflow-x: auto;
         }
-
+        #show-workorder {
+            table-layout: fixed; /* ИЗМЕНЕНИЕ 2: Заставляем таблицу уважать ширину колонок */
+            width: 100%;
+        }
         .table th, .table td {
             white-space: nowrap;
             overflow: hidden;
-            text-overflow: ellipsis;
+            text-overflow: ellipsis; /* Это будет обрезать длинный текст многоточием "..." */
             padding-left: 10px;
-
+            vertical-align: middle; /* Выравнивание по центру по вертикали */
         }
+        .col-number { width: 100px; font-size: 0.9rem; }
+        .col-approve { width: 60px; font-size: 0.7rem; font-weight: normal; }
+        .col-tdr { width: 70px; font-size: 0.8rem; font-weight: normal;}
+        .col-photos { width: 60px; font-size: 0.8rem; font-weight: normal;}
+        .col-edit { width: 60px;font-size: 0.8rem; font-weight: normal; }
+        .col-delete { width: 60px; font-size: 0.8rem; font-weight: normal;}
+        .col-date { width: 100px; font-size: 0.8rem; font-weight: normal;}
+
 
         .table thead th {
             position: sticky;
@@ -79,6 +90,14 @@
         [data-bs-theme="dark"] .table-hover tbody tr:hover {
             background-color: rgba(255, 255, 255, 0.1) !important;
         }
+        .photo-thumbnail {
+            width: 100%;
+            aspect-ratio: 1 / 1; /* Делает контейнер для изображения квадратным */
+            object-fit: cover;   /* Масштабирует изображение, чтобы оно полностью заполнило контейнер, сохраняя пропорции и обрезая лишнее */
+        }
+
+
+
     </style>
 
 @endsection
@@ -118,21 +137,21 @@
                 <table id="show-workorder" class="table table-sm table-bordered table-striped table-hover w-100">
                     <thead class="bg-gradient">
                     <tr>
-                        <th class="text-center text-primary sortable">Number <i class="bi bi-chevron-expand ms-1"></i></th>
-                        <th class="text-center text-primary">Approve</th>
+                        <th class="text-center text-primary sortable col-number">Number <i class="bi bi-chevron-expand ms-1"></i></th>
+                        <th class="text-center text-primary col-approve">Approve</th>
                         <th class="text-center text-primary">Unit</th>
                         <th class="text-center text-primary">Description</th>
                         <th class="text-center text-primary">Serial number</th>
-                        <th class="text-center text-primary">WO TDR</th>
+                        <th class="text-center text-primary col-tdr">WO TDR</th>
                         <th class="text-center text-primary">Manual</th>
                         <th class="text-center text-primary sortable">Customer <i class="bi bi-chevron-expand ms-1"></i></th>
                         <th class="text-center text-primary sortable">Instruction <i class="bi bi-chevron-expand ms-1"></i></th>
-                        <th class="text-center text-primary">Photos</th>
+                        <th class="text-center text-primary col-photos">Photos</th>
                         <th class="text-center text-primary sortable">Technik <i class="bi bi-chevron-expand ms-1"></i></th>
-                        <th class="text-center text-primary">Edit</th>
-                        <th class="text-center text-primary">Open Date</th>
+                        <th class="text-center text-primary col-edit">Edit</th>
+                        <th class="text-center text-primary col-date">Open Date</th>
                         @if (is_admin())
-                            <th class="text-center text-primary">Delete</th>
+                            <th class="text-center text-primary col-delete">Delete</th>
                         @endif
                     </tr>
                     </thead>
@@ -154,15 +173,15 @@
                                 </a>
                             </td>
                             <td class="text-center">{{ $workorder->unit->part_number }}</td>
-                            <td class="text-center">{{ $workorder->unit->manuals->title }}</td>
+                            <td class="text-center" data-bs-toggle="tooltip" title="{{ $workorder->unit->manuals->title }}">{{ $workorder->unit->manuals->title }} </td>
                             <td class="text-center">{{ $workorder->serial_number }} @if($workorder->amdt > 0) Amdt {{ $workorder->amdt }} @endif</td>
                             <td class="text-center">
                                 <a href="{{ route('tdrs.show', $workorder->id) }}" class="btn btn-outline-primary btn-sm">
                                     <i class="bi bi-journal-richtext"></i>
                                 </a>
                             </td>
-                            <td class="text-center">{{ $workorder->unit->manuals->number }}</td>
-                            <td class="text-center">{{ $workorder->customer->name }}</td>
+                            <td class="text-center">{{ $workorder->unit->manuals->number }}  &nbsp; <span class="text-white-50">({{$workorder->unit->manuals->lib}})</span></td>
+                            <td class="text-center" data-bs-toggle="tooltip" title="{{ $workorder->customer->name }}">{{ $workorder->customer->name }}</td>
                             <td class="text-center">{{ $workorder->instruction->name }}</td>
 
                             <td class="text-center">
@@ -263,6 +282,12 @@
 
             const searchInput = document.getElementById('searchInput');
             const clearSearchBtn = document.getElementById('clearSearch');
+
+            const tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+            const tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
+                return new bootstrap.Tooltip(tooltipTriggerEl);
+            });
+
 
             // показать/скрыть крестик в зависимости от наличия текста
             searchInput.addEventListener('input', function () {
@@ -401,26 +426,27 @@
                     let html = '';
                     ['photos', 'damages', 'logs'].forEach(group => {
                         html += `
-                <div class="col-12">
-                    <h6 class="text-primary text-uppercase mt-2">${group}</h6>
-                    <div class="row g-2">
-            `;
+            <div class="col-12">
+                <h6 class="text-primary text-uppercase mt-2">${group}</h6>
+                <div class="row g-2">  {{-- ИЗМЕНЕНИЕ 1: Уменьшен отступ --}}
+                        `;
 
                         data[group].forEach(media => {
                             html += `
-                    <div class="col-4 col-md-2 p-1">
-                        <div class="position-relative d-inline-block">
-                            <a data-fancybox="${group}" href="${media.big}" data-caption="${group}">
-                                <img src="${media.thumb}" class="img-fluid border border-primary rounded" />
-                            </a>
-                            <button class="btn btn-danger btn-sm rounded-circle p-0 d-flex align-items-center justify-content-center position-absolute delete-photo-btn"
-                                  style="top: -6px; right: -6px; width: 20px; height: 20px; z-index: 10;"
-                                    data-id="${media.id}" title="Delete">
-                                    <i class="bi bi-x" style="font-size: 12px;"></i>
-                            </button>
-                        </div>
+                <div class="col-4 col-md-2 col-lg-1"> {{-- ИЗМЕНЕНИЕ 2: Убран внутренний отступ p-1 --}}
+                            <div class="position-relative d-inline-block w-100">
+                                <a data-fancybox="${group}" href="${media.big}" data-caption="${group}">
+                            {{-- ИЗМЕНЕНИЕ 3: Класс img-fluid заменен на photo-thumbnail --}}
+                            <img src="${media.thumb}" class="photo-thumbnail border border-primary rounded" />
+                        </a>
+                        <button class="btn btn-danger btn-sm rounded-circle p-0 d-flex align-items-center justify-content-center position-absolute delete-photo-btn"
+                              style="top: -6px; right: -6px; width: 20px; height: 20px; z-index: 10;"
+                                data-id="${media.id}" title="Delete">
+                                <i class="bi bi-x" style="font-size: 12px;"></i>
+                        </button>
                     </div>
-                `;
+                </div>
+            `;
                         });
 
                         html += `</div></div>`;

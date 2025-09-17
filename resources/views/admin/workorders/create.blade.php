@@ -114,7 +114,7 @@
                                                 @foreach ($units as $unit)
                                                     <option
                                                         value="{{$unit->id}}"
-                                                        data-title="{{ $unit->manuals->title }}">
+                                                        data-title="{{ $unit->manuals?->title }}">
                                                         {{$unit->part_number}}
                                                     </option>
                                                 @endforeach
