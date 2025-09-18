@@ -267,7 +267,7 @@ Route::resource('/extra_processes', ExtraProcessController::class)->except(['cre
     Route::get('/tdrs/inspection/unit/{workorder_id}', [TdrController::class, 'inspectionUnit'])->name('tdrs.inspection.unit');
 
     // Для unit inspection
-    Route::get('/tdrs/inspection/component/{workorder_id}', [TdrController::class, 'inspectionComponent'])->name('tdrs.inspection.component');
+    // Duplicate removed
 
     Route::post('/components/store_from_inspection', [ComponentController::class, 'storeFromInspection'])->name('components.storeFromInspection');
     Route::post('/components/store_from_extra', [ComponentController::class, 'storeFromExtra'])->name('components.storeFromExtra');

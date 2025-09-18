@@ -276,14 +276,23 @@
 
 
 @endsection
-@section('scripts')
+@push('scripts')
     <script>
-        $(document).ready(function () {
+        function initComponentInspectionSelects() {
             // Инициализация Select2
+            // Сначала удаляем предыдущую инициализацию (если была)
+            ['#i_component_id', '#codes_id', '#necessaries_id', '#c_conditions_id', '#order_component_id'].forEach(function(sel){
+                try { if ($(sel).data('select2')) { $(sel).select2('destroy'); } } catch(e) {}
+            });
+
             $('#i_component_id, #codes_id, #necessaries_id, #c_conditions_id').select2({
                 placeholder: '---',
                 theme: 'bootstrap-5',
                 allowClear: true,
+                minimumResultsForSearch: 0,
+                width: 'resolve',
+                dropdownAutoWidth: true,
+                dropdownParent: $('body'),
                 sorter: function(data) {
                     return data.sort(function(a, b) {
                         // Извлекаем IPL номер из текста (всё до первого ":")
@@ -325,7 +334,11 @@
             $('#order_component_id').select2({
                 placeholder: '---',
                 theme: 'bootstrap-5',
-                allowClear: true
+                allowClear: true,
+                minimumResultsForSearch: 0,
+                width: 'resolve',
+                dropdownAutoWidth: true,
+                dropdownParent: $('body')
             });
 
             // Функция скрытия всех дополнительных групп
@@ -339,11 +352,14 @@
             // Основная функция обновления видимости полей
             function updateFieldVisibility() {
                 const selectedCode = $('#codes_id').find('option:selected');
-                const codeName = selectedCode.data('title');
+                const codeName = (selectedCode.attr('data-title') || '').toString();
                 const selectedNecessary = $('#necessaries_id').find('option:selected');
-                const necessaryName = selectedNecessary.data('title');
+                const necessaryName = (selectedNecessary.attr('data-title') || '').toString();
                 const selectedComponent = $('#i_component_id').find('option:selected');
-                const hasAssy = selectedComponent.data('has_assy') === true;
+                const hasAssy = String(selectedComponent.attr('data-has_assy')) === 'true';
+
+                const codeKey = codeName.trim().toLowerCase();
+                const necKey = necessaryName.trim().toLowerCase();
 
                 // Ничего не показываем до выбора кода
                 if (!codeName) {
@@ -352,13 +368,18 @@
                 }
 
                 // 1. Поле количества (qty)
-                $('#qty').toggle(codeName === "Missing" || necessaryName === "Order New");
+                $('#qty').toggle(codeKey === 'missing' || necKey === 'order new');
 
                 // 2. Группа необходимых действий (necessary)
-                $('#necessary').toggle(codeName && codeName !== "Missing");
+                // Для 'Missing' скрывать блок Necessary to Do и Description
+                if (codeKey === 'missing') {
+                    $('#necessary').hide();
+                } else {
+                    $('#necessary').toggle(codeKey !== '');
+                }
 
                 // 3. Группа серийных номеров (sns-group)
-                if (codeName && codeName !== "Missing" && necessaryName && necessaryName !== "Order New") {
+                if (codeKey !== '' && codeKey !== 'missing' && necKey !== '' && necKey !== 'order new') {
                     $('#sns-group').show();
 
                     if (hasAssy) {
@@ -373,7 +394,7 @@
                 }
 
                 // Показать/скрыть select для заказа компонента
-                if (necessaryName === 'Order New') {
+                if (necKey === 'order new') {
                     $('#order_component_group').show();
                     // По умолчанию выбрать текущий компонент
                     const currentComponentId = $('#i_component_id').val();
@@ -393,14 +414,21 @@
             });
 
             $('#codes_id').on('change', function() {
-                updateFieldVisibility();
+                // Сначала сбрасываем necessaries, затем обновляем видимость полей
                 $('#necessaries_id').val(null).trigger('change');
+                updateFieldVisibility();
             });
 
             $('#necessaries_id').on('change', updateFieldVisibility);
 
             // Инициализация при загрузке - скрываем все группы кроме основных
             hideAllGroups();
+        }
+
+        // Инициализация, полагаемся на подключение jQuery/Select2 через master layout
+
+        $(document).ready(function () {
+            initComponentInspectionSelects();
         });
 
         $('#createForm').on('submit', function(e) {
@@ -438,8 +466,32 @@
             if (codeName === 'missing') {
                 setHiddenInput('use_tdr', '0');
                 setHiddenInput('use_process_forms', '0');
-                setHiddenInput('necessaries_id', '2');
-                setHiddenInput('conditions_id', '1');
+
+                // Найти ID "Order New" динамически
+                var orderNewId = null;
+                $('#necessaries_id option').each(function() {
+                    var title = ($(this).attr('data-title') || '').toString().trim().toLowerCase();
+                    if (title === 'order new') {
+                        orderNewId = $(this).val();
+                        return false;
+                    }
+                });
+                if (orderNewId) {
+                    setHiddenInput('necessaries_id', orderNewId);
+                }
+
+                // Найти ID условия "PARTS MISSING UPON ARRIVAL AS INDICATED ON PARTS LIST" динамически
+                var missingCondId = null;
+                $('#c_conditions_id option').each(function() {
+                    var title = ($(this).attr('data-title') || '').toString().trim().toLowerCase();
+                    if (title === 'parts missing upon arrival as indicated on parts list') {
+                        missingCondId = $(this).val();
+                        return false;
+                    }
+                });
+                if (missingCondId) {
+                    setHiddenInput('conditions_id', missingCondId);
+                }
             } else if (codeName !== 'missing' && necessaryName === 'order new') {
                 setHiddenInput('use_tdr', '1');
                 setHiddenInput('use_process_forms', '0');
@@ -463,8 +515,6 @@
 
                 if (conditionId) {
                     setHiddenInput('conditions_id', conditionId);
-                } else {
-                    setHiddenInput('conditions_id', '39');
                 }
             } else if (codeName !== 'missing' && necessaryName !== 'order new') {
                 setHiddenInput('use_tdr', '1');
@@ -500,4 +550,4 @@
     {{--            }--}}
     {{--        });--}}
     {{--    </script>--}}
-@endsection
+@endpush

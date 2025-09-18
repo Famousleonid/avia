@@ -137,6 +137,7 @@ class TdrController extends Controller
         $current_wo = Workorder::findOrFail($workorder_id);
         $manual_id = $current_wo->unit->manual_id;
 
+        // Компоненты для данного manual
         $components = Component::where('manual_id', $manual_id)
             ->select('id', 'part_number', 'assy_part_number', 'name', 'ipl_num')
             ->get();
@@ -144,8 +145,7 @@ class TdrController extends Controller
         // Условия для Component - без фильтрации
         $component_conditions = Condition::where('unit', false)->get();
 
-        // Получаем компоненты, коды, necessaries и т.п.
-        $components = Component::where('manual_id', $manual_id)->get();
+        // Получаем коды и necessaries
         $codes = Code::all();
         $necessaries = Necessary::all();
 
@@ -741,14 +741,31 @@ class TdrController extends Controller
             ->whereIn('process_names_id', $ndt_ids)
             ->get();
 
-        // Получаем все ipl_num из tdrs для этого workorder
-        $existingIplNums = Tdr::where('workorder_id', $workorder_id)
+        // Подготовка данных TDR для последующего сопоставления (учитываем совмещённые/нормализованные IPL)
+        $tdrItems = Tdr::where('workorder_id', $workorder_id)
             ->whereNotNull('component_id')
-            ->with('component')
+            ->with('component:id,ipl_num')
             ->get()
-            ->pluck('component.ipl_num')
-            ->filter()
-            ->unique()
+            ->map(function ($tdr) {
+                return [
+                    'ipl_num' => $tdr->component->ipl_num ?? null,
+                    'qty' => (int)($tdr->qty ?? 0),
+                ];
+            })
+            ->filter(function ($item) {
+                return !empty($item['ipl_num']) && $item['qty'] > 0;
+            })
+            ->values()
+            ->toArray();
+
+        // 2) Мапа units_assy по IPL из Components текущего manual
+        $unitsAssyByIpl = Component::where('manual_id', $manual->id)
+            ->get(['ipl_num', 'units_assy'])
+            ->pluck('units_assy', 'ipl_num')
+            ->map(function ($value) {
+                $num = (int) ($value ?? 1);
+                return $num > 0 ? $num : 1;
+            })
             ->toArray();
 
         // Фильтруем компоненты из NdtCadCsv
@@ -756,11 +773,28 @@ class TdrController extends Controller
         foreach ($ndtCadCsv->ndt_components as $component) {
             $itemNo = $component['ipl_num'];
 
-            // Используем унифицированную логику сравнения
-            if ($this->shouldSkipItem($itemNo, $existingIplNums)) {
-                \Log::info('Skipping NDT component due to unified IPL comparison match', [
+            // Рассчитываем остаток по количеству: units_assy - сумма qty в TDR (по всем совпадающим IPL)
+            $unitsAssy = $unitsAssyByIpl[$itemNo] ?? (int)($component['qty'] ?? self::DEFAULT_QTY);
+
+            // Суммируем TDR qty, если IPL из TDR совпадает с текущим itemNo с учётом правил shouldSkipItem
+            $tdrQty = 0;
+            foreach ($tdrItems as $tdrItem) {
+                $tdrIpl = $tdrItem['ipl_num'];
+
+                // Совпадение в любую сторону (учёт объединённых значений и нормализации)
+                $matches = $this->shouldSkipItem($itemNo, [$tdrIpl]) || $this->shouldSkipItem($tdrIpl, [$itemNo]);
+                if ($matches) {
+                    $tdrQty += (int)$tdrItem['qty'];
+                }
+            }
+            $remaining = $unitsAssy - $tdrQty;
+
+            // Если остаток <= 0, полностью скрываем позицию
+            if ($remaining <= 0) {
+                \Log::info('Skipping NDT component due to qty fully covered by TDR Missing', [
                     'item_no' => $itemNo,
-                    'existing_ipls' => $existingIplNums
+                    'units_assy' => $unitsAssy,
+                    'tdr_qty' => $tdrQty
                 ]);
                 continue;
             }
@@ -770,7 +804,8 @@ class TdrController extends Controller
             $componentObj->ipl_num = $component['ipl_num'];
             $componentObj->part_number = $component['part_number'] ?? '';
             $componentObj->name = $component['description'] ?? '';
-            $componentObj->qty = $component['qty'] ?? 1;
+            // Количество в форме = рассчитанный остаток
+            $componentObj->qty = (int) $remaining;
             $componentObj->process_name = $component['process'] ?? '1';
 
             $ndt_components[] = $componentObj;
@@ -876,15 +911,36 @@ class TdrController extends Controller
                 ->pluck('process')
                 ->toArray();
 
+            // Подготовка данных TDR и units_assy для расчёта остатков (CAD)
+            $tdrItemsCad = Tdr::where('workorder_id', $workorder_id)
+                ->whereNotNull('component_id')
+                ->with('component:id,ipl_num')
+                ->get()
+                ->map(function ($tdr) {
+                    return [
+                        'ipl_num' => $tdr->component->ipl_num ?? null,
+                        'qty' => (int)($tdr->qty ?? 0),
+                    ];
+                })
+                ->filter(function ($item) {
+                    return !empty($item['ipl_num']) && $item['qty'] > 0;
+                })
+                ->values()
+                ->toArray();
+
+            $unitsAssyByIplCad = Component::where('manual_id', $manual->id)
+                ->get(['ipl_num', 'units_assy'])
+                ->pluck('units_assy', 'ipl_num')
+                ->map(function ($value) {
+                    $num = (int) ($value ?? 1);
+                    return $num > 0 ? $num : 1;
+                })
+                ->toArray();
+
             // Фильтруем компоненты из NdtCadCsv
             $cad_components = [];
             foreach ($ndtCadCsv->cad_components as $component) {
                 $itemNo = $component['ipl_num'];
-
-                if ($this->shouldSkipItem($itemNo, $existingIplNums)) {
-                    continue;
-                }
-
                 $processName = $component['process'] ?? '';
 
                 // Проверяем и создаем процесс, если его нет
@@ -933,12 +989,33 @@ class TdrController extends Controller
                     continue;
                 }
 
+                // Рассчитываем остаток количества: units_assy - сумма qty из TDR по совпадающим IPL
+                $unitsAssy = $unitsAssyByIplCad[$itemNo] ?? (int)($component['qty'] ?? self::DEFAULT_QTY);
+                $tdrQty = 0;
+                foreach ($tdrItemsCad as $tdrItem) {
+                    $tdrIpl = $tdrItem['ipl_num'];
+                    $matches = $this->shouldSkipItem($itemNo, [$tdrIpl]) || $this->shouldSkipItem($tdrIpl, [$itemNo]);
+                    if ($matches) {
+                        $tdrQty += (int)$tdrItem['qty'];
+                    }
+                }
+                $remaining = (int)$unitsAssy - (int)$tdrQty;
+
+                if ($remaining <= 0) {
+                    \Log::debug('Skipping CAD component due to qty fully covered by TDR', [
+                        'item_no' => $itemNo,
+                        'units_assy' => $unitsAssy,
+                        'tdr_qty' => $tdrQty
+                    ]);
+                    continue;
+                }
+
                 // Преобразуем в объект для совместимости с существующим кодом
                 $componentObj = new \stdClass();
                 $componentObj->ipl_num = $component['ipl_num'];
                 $componentObj->part_number = $component['part_number'] ?? '';
                 $componentObj->name = $component['description'] ?? '';
-                $componentObj->qty = (int)($component['qty'] ?? self::DEFAULT_QTY);
+                $componentObj->qty = (int)$remaining;
                 $componentObj->process_name = $processName;
 
                 $cad_components[] = $componentObj;
@@ -1048,15 +1125,36 @@ class TdrController extends Controller
                 ->pluck('process')
                 ->toArray();
 
+            // Подготовка данных TDR и units_assy для расчёта остатков (STRESS)
+            $tdrItemsStress = Tdr::where('workorder_id', $workorder_id)
+                ->whereNotNull('component_id')
+                ->with('component:id,ipl_num')
+                ->get()
+                ->map(function ($tdr) {
+                    return [
+                        'ipl_num' => $tdr->component->ipl_num ?? null,
+                        'qty' => (int)($tdr->qty ?? 0),
+                    ];
+                })
+                ->filter(function ($item) {
+                    return !empty($item['ipl_num']) && $item['qty'] > 0;
+                })
+                ->values()
+                ->toArray();
+
+            $unitsAssyByIplStress = Component::where('manual_id', $manual->id)
+                ->get(['ipl_num', 'units_assy'])
+                ->pluck('units_assy', 'ipl_num')
+                ->map(function ($value) {
+                    $num = (int) ($value ?? 1);
+                    return $num > 0 ? $num : 1;
+                })
+                ->toArray();
+
             // Фильтруем компоненты из NdtCadCsv
             $stress_components = [];
             foreach ($ndtCadCsv->stress_components as $component) {
                 $itemNo = $component['ipl_num'];
-
-                if ($this->shouldSkipItem($itemNo, $existingIplNums)) {
-                    continue;
-                }
-
                 $processName = $component['process'] ?? '';
 
                 // Проверяем и создаем процесс, если его нет
@@ -1105,12 +1203,33 @@ class TdrController extends Controller
                     continue;
                 }
 
+                // Рассчитываем остаток количества: units_assy - сумма qty из TDR по совпадающим IPL
+                $unitsAssy = $unitsAssyByIplStress[$itemNo] ?? (int)($component['qty'] ?? self::DEFAULT_QTY);
+                $tdrQty = 0;
+                foreach ($tdrItemsStress as $tdrItem) {
+                    $tdrIpl = $tdrItem['ipl_num'];
+                    $matches = $this->shouldSkipItem($itemNo, [$tdrIpl]) || $this->shouldSkipItem($tdrIpl, [$itemNo]);
+                    if ($matches) {
+                        $tdrQty += (int)$tdrItem['qty'];
+                    }
+                }
+                $remaining = (int)$unitsAssy - (int)$tdrQty;
+
+                if ($remaining <= 0) {
+                    \Log::debug('Skipping STRESS component due to qty fully covered by TDR', [
+                        'item_no' => $itemNo,
+                        'units_assy' => $unitsAssy,
+                        'tdr_qty' => $tdrQty
+                    ]);
+                    continue;
+                }
+
                 // Преобразуем в объект для совместимости с существующим кодом
                 $componentObj = new \stdClass();
                 $componentObj->ipl_num = $component['ipl_num'];
                 $componentObj->part_number = $component['part_number'] ?? '';
                 $componentObj->name = $component['description'] ?? '';
-                $componentObj->qty = (int)($component['qty'] ?? self::DEFAULT_QTY);
+                $componentObj->qty = (int)$remaining;
                 $componentObj->process_name = $processName;
 
                 $stress_components[] = $componentObj;
