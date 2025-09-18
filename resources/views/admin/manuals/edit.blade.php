@@ -298,7 +298,7 @@
                                 <option value="">{{ __('Select Process Type') }}</option>
                                 <option value="ndt">{{ __('NDT') }}</option>
                                 <option value="cad">{{ __('CAD') }}</option>
-                                <option value="stress_relief">{{ __('Stress Relief') }}</option>
+                                <option value="stress">{{ __('Stress Relief') }}</option>
                                 <option value="log">{{ __('Log Card') }}</option>
                                 <option value="other">{{ __('Other') }}</option>
                             </select>

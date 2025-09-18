@@ -401,6 +401,15 @@ class NdtCadCsv extends Model
             if ($stressCsvMedia) {
                 \Log::info('Loading Stress components from CSV', ['file' => $stressCsvMedia->name]);
                 $ndtCadCsv->stress_components = self::loadComponentsFromCsv($stressCsvMedia->getPath(), 'stress');
+            } else {
+                // Если Stress файл не найден, попробуем загрузить третий доступный CSV (по аналогии с createForWorkorder)
+                $thirdCsv = $manual->getMedia('csv_files')->skip(2)->first();
+                if ($thirdCsv) {
+                    \Log::info('Stress CSV not found; loading third available CSV as Stress', ['file' => $thirdCsv->name]);
+                    $ndtCadCsv->stress_components = self::loadComponentsFromCsv($thirdCsv->getPath(), 'stress');
+                } else {
+                    \Log::warning('No Stress CSV and no third CSV available for fallback');
+                }
             }
         }
         

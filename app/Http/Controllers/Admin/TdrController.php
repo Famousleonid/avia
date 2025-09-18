@@ -824,6 +824,21 @@ class TdrController extends Controller
                 $ndtCadCsv = NdtCadCsv::createForWorkorder($workorder_id);
             }
 
+            // Автозагрузка Stress компонентов из Manual CSV при их отсутствии
+            $stressEmpty = empty($ndtCadCsv->stress_components)
+                || (is_array($ndtCadCsv->stress_components) && count($ndtCadCsv->stress_components) === 0);
+
+            if ($stressEmpty) {
+                \Log::info('Stress components are empty. Attempting auto-load from Manual CSV', [
+                    'workorder_id' => $workorder_id,
+                    'before_count' => is_array($ndtCadCsv->stress_components) ? count($ndtCadCsv->stress_components) : 0,
+                ]);
+                $ndtCadCsv = NdtCadCsv::loadComponentsFromManual($workorder_id, $ndtCadCsv);
+                \Log::info('Auto-load completed', [
+                    'after_count' => is_array($ndtCadCsv->stress_components) ? count($ndtCadCsv->stress_components) : 0,
+                ]);
+            }
+
             // Получаем ID process names для CAD
             $processNames = ProcessName::whereIn('name', ['Cad plate'])->pluck('id', 'name');
 

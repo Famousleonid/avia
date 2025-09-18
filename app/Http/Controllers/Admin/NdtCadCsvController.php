@@ -83,6 +83,42 @@ class NdtCadCsvController extends Controller
             }
         } else {
             \Log::info('NdtCadCsv already has data, skipping auto-loading');
+
+            // Точечная авто‑загрузка только Stress, если он пустой
+            if ($ndtCadCsv) {
+                $stressEmpty = empty($ndtCadCsv->stress_components)
+                    || (is_array($ndtCadCsv->stress_components) && count($ndtCadCsv->stress_components) == 0);
+
+                if ($stressEmpty && $manual) {
+                    \Log::info('Stress is empty while NDT/CAD exist. Attempting targeted auto-load for Stress');
+                    $stressCsv = $manual->getMedia('csv_files')->first(function ($media) {
+                        return $media->getCustomProperty('process_type') === 'stress';
+                    });
+
+                    if ($stressCsv) {
+                        $components = NdtCadCsv::loadComponentsFromCsv($stressCsv->getPath(), 'stress');
+                        $ndtCadCsv->stress_components = $components;
+                        $ndtCadCsv->save();
+                        \Log::info('Targeted Stress auto-load completed', [
+                            'loaded_count' => count($components)
+                        ]);
+                    } else {
+                        // fallback: взять третий файл, как в createForWorkorder
+                        $thirdCsv = $manual->getMedia('csv_files')->skip(2)->first();
+                        if ($thirdCsv) {
+                            \Log::info('Stress CSV not found; using third CSV as fallback for Stress', ['file' => $thirdCsv->name]);
+                            $components = NdtCadCsv::loadComponentsFromCsv($thirdCsv->getPath(), 'stress');
+                            $ndtCadCsv->stress_components = $components;
+                            $ndtCadCsv->save();
+                            \Log::info('Targeted Stress fallback load completed', [
+                                'loaded_count' => count($components)
+                            ]);
+                        } else {
+                            \Log::warning('No Stress CSV and no third CSV available for targeted load');
+                        }
+                    }
+                }
+            }
         }
 
         return view('admin.ndt-cad-csv.index', compact('workorder', 'ndtCadCsv'));
