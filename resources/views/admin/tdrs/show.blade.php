@@ -298,6 +298,7 @@
                                 $hasNdtComponents = false;
                                 $hasCadComponents = false;
                                 $hasStressComponents = false;
+                                $hasPaintComponents = false;
 
                                 // Проверяем наличие NDT компонентов в таблице ndt_cad_csv
                                 if ($current_wo && $current_wo->ndtCadCsv) {
@@ -311,12 +312,17 @@
                                     $hasStressComponents = !empty($stressComponents) && is_array($stressComponents) && count
                                     ($stressComponents) > 0;
 
+                                    $paintComponents = $current_wo->ndtCadCsv->paint_components;
+                                    $hasPaintComponents = !empty($paintComponents) && is_array($paintComponents) && count
+                                    ($paintComponents) > 0;
+
                                 }
 
                                 // Оставляем старую логику для совместимости (если нужно)
                                 $hasNdtCsv = false;
                                 $hasCadCsv = false;
                                 $hasStressCsv = false;
+                                $hasPaintCsv = false;
 
                                 if ($current_wo && $current_wo->unit && $current_wo->unit->manuals) {
                                     $manual = $current_wo->unit->manuals;
@@ -335,12 +341,38 @@
                                     }
 
                                     try {
-                                        $cad_media = $manual->getMedia('csv_files')->first(function($media) {
+                                        $csv_media = $manual->getMedia('csv_files')->first(function($media) {
                                             return $media->getCustomProperty('process_type') === 'cad';
                                         });
                                         $hasCadCsv = $cad_media !== null;
                                     } catch (\Exception $e) {
                                         \Log::error('Error checking CAD CSV:', [
+                                            'message' => $e->getMessage(),
+                                            'workorder_id' => $current_wo->id ?? null,
+                                            'unit_id' => $current_wo->unit->id ?? null,
+                                            'manual_id' => $current_wo->unit->manual_id ?? null
+                                        ]);
+                                    }
+                                    try {
+                                        $stress_media = $manual->getMedia('csv_files')->first(function($media) {
+                                            return $media->getCustomProperty('process_type') === 'stress';
+                                        });
+                                        $hasStressCsv = $stress_media !== null;
+                                    } catch (\Exception $e) {
+                                        \Log::error('Error checking Stress CSV:', [
+                                            'message' => $e->getMessage(),
+                                            'workorder_id' => $current_wo->id ?? null,
+                                            'unit_id' => $current_wo->unit->id ?? null,
+                                            'manual_id' => $current_wo->unit->manual_id ?? null
+                                        ]);
+                                    }
+                                    try {
+                                        $paint_media = $manual->getMedia('csv_files')->first(function($media) {
+                                            return $media->getCustomProperty('process_type') === 'paint';
+                                        });
+                                        $hasPaintCsv = $paint_media !== null;
+                                    } catch (\Exception $e) {
+                                        \Log::error('Error checking Paint CSV:', [
                                             'message' => $e->getMessage(),
                                             'workorder_id' => $current_wo->id ?? null,
                                             'unit_id' => $current_wo->unit->id ?? null,
@@ -357,7 +389,7 @@
                                     <a href="{{ route('ndt-cad-csv.index', $current_wo->id) }}"
                                        class="btn btn-outline-success" style="min-height: 40px; width: 100px">
                                         {{--                                    <i class="bi bi-gear"></i> --}}
-                                        NDT CAD STRESS
+                                        STD Processes
                                     </a>
                                 </div>
                             @endif
@@ -391,6 +423,15 @@
                                 </div>
                             @endif
 
+                            @if($hasPaintComponents)
+                                <div class="me-1 ">
+                                    <a href="{{ route('tdrs.paintStd', ['workorder_id' => $current_wo->id]) }}"
+                                       class="btn btn-outline-warning" style="min-height: 60px; width: 70px"
+                                       target="_blank">
+                                        Paint STD
+                                    </a>
+                                </div>
+                            @endif
                         </div>
 
                         <!--  Missing Modal -->

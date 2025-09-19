@@ -1071,6 +1071,84 @@ class TdrController extends Controller
         }
     }
 
+    public function paintStd($workorder_id)
+    {
+        try {
+            // Получаем рабочий заказ и связанные данные
+            $current_wo = Workorder::findOrFail($workorder_id);
+            $manual = $current_wo->unit->manuals;
+
+            if (!$manual) {
+                throw new \RuntimeException('Manual not found for this workorder');
+            }
+
+            // Получаем или создаем NdtCadCsv для данного workorder с автоматической загрузкой
+            $ndtCadCsv = $current_wo->ndtCadCsv;
+            if (!$ndtCadCsv) {
+                $ndtCadCsv = NdtCadCsv::createForWorkorder($workorder_id);
+            }
+
+            // Получаем ID process names для Paint (ID = 25)
+            $paintProcessName = ProcessName::find(25);
+
+            if (!$paintProcessName) {
+                throw new \RuntimeException('Paint process name not found (ID 25)');
+            }
+
+            // Извлекаем ID по именам
+            $paint_ids = [
+                'paint_name_id' => 25
+            ];
+
+            // Получаем manual processes через связь с processes
+            $paint_processes = ManualProcess::where('manual_id', $manual->id)
+                ->whereHas('process', function($query) use ($paint_ids) {
+                    $query->where('process_names_id', $paint_ids['paint_name_id']);
+                })
+                ->with('process')
+                ->get();
+
+            // Получаем paint компоненты из NdtCadCsv
+            $paint_components = collect($ndtCadCsv->paint_components ?? [])->map(function ($component) use ($paint_processes) {
+                $process = $paint_processes->first(function ($p) use ($component) {
+                    return $p->process->id == $component['process'];
+                });
+
+                return (object) [
+                    'ipl_num' => $component['ipl_num'] ?? '',
+                    'part_number' => $component['part_number'] ?? '',
+                    'name' => $component['description'] ?? '',
+                    'process_name' => $process ? $process->process->name : 'Process ' . $component['process'],
+                    'qty' => $component['qty'] ?? 1,
+                ];
+            });
+
+            // Генерируем номер формы
+            $form_number = '014';
+
+            // Рассчитываем общее количество деталей
+            $paintSum = $this->calcPaintSums($workorder_id);
+
+            return view('admin.tdrs.paintFormStd', [
+                'current_wo' => $current_wo,
+                'manual' => $manual,
+                'paint_components' => $paint_components,
+                'paint_processes' => $paint_processes,
+                'form_number' => $form_number,
+                'manuals' => [$manual],
+                'process_name' => $paintProcessName,
+                'paintSum' => $paintSum,
+            ] + $paint_ids);
+
+        } catch (\Exception $e) {
+            \Log::error('Error in Paint processing:', [
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+            throw $e;
+        }
+    }
+
     public function stressStd($workorder_id)
     {
         try {
@@ -2083,6 +2161,136 @@ public function wo_Process_Form($id)
 
         } catch (\Exception $e) {
             \Log::error('Error in Stress sums calculation:', [
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+            return [
+                'total_qty' => 0,
+                'total_components' => 0
+            ];
+        }
+    }
+
+    private function calcPaintSums($workorder_id)
+    {
+        try {
+            // Получаем текущий workorder
+            $current_wo = Workorder::findOrFail($workorder_id);
+
+            \Log::info('Starting Paint sums calculation', [
+                'workorder_id' => $workorder_id
+            ]);
+
+            // 1. Получаем данные из таблицы ndt_cad_csv
+            $ndtCadCsv = $current_wo->ndtCadCsv;
+            if (!$ndtCadCsv) {
+                \Log::error('NdtCadCsv not found for workorder', ['workorder_id' => $workorder_id]);
+                return [
+                    'total_qty' => 0,
+                    'total_components' => 0
+                ];
+            }
+
+            \Log::info('Found NdtCadCsv record', [
+                'ndt_cad_csv_id' => $ndtCadCsv->id,
+                'paint_components_count' => count($ndtCadCsv->paint_components ?? [])
+            ]);
+
+            // Получаем Paint компоненты из JSON поля
+            $paintComponents = $ndtCadCsv->paint_components ?? [];
+
+            if (empty($paintComponents)) {
+                \Log::warning('No Paint components found in NdtCadCsv');
+                return [
+                    'total_qty' => 0,
+                    'total_components' => 0
+                ];
+            }
+
+            // 2. Чтение TDR компонентов
+            $tdrComponents = Tdr::where('workorder_id', $workorder_id)
+                ->whereNotNull('component_id')
+                ->with('component')
+                ->get();
+
+            // Создаем мапу IPL номеров из TDR
+            $tdrIplMap = $tdrComponents->pluck('qty', 'component.ipl_num')->toArray();
+
+            \Log::info('TDR Components:', [
+                'count' => count($tdrIplMap),
+                'ipl_numbers' => array_keys($tdrIplMap)
+            ]);
+
+            // 3. Сравнение и подсчет
+            $totalQty = 0;
+            $totalComponents = 0;
+            $processedIpls = [];
+            $skippedCount = 0;
+            $combinedSkippedCount = 0;
+
+            \Log::info('Starting Paint calculation loop', [
+                'total_paint_components' => count($paintComponents),
+                'tdr_ipl_count' => count($tdrIplMap)
+            ]);
+
+            foreach ($paintComponents as $index => $component) {
+                $itemNo = trim($component['ipl_num'] ?? '');
+                $qty = (int)($component['qty'] ?? 1); // Получаем qty из JSON
+
+                \Log::debug('Processing Paint component', [
+                    'index' => $index,
+                    'item_no' => $itemNo,
+                    'qty' => $qty,
+                    'component' => $component
+                ]);
+
+                // Если IPL номер есть в TDR - пропускаем
+                if (isset($tdrIplMap[$itemNo])) {
+                    $skippedCount++;
+                    \Log::debug('Skipping component as it exists in TDR:', ['ipl_num' => $itemNo]);
+                    continue;
+                }
+
+                // Проверяем совмещенные значения
+                if ($this->shouldSkipItem($itemNo, array_keys($tdrIplMap))) {
+                    $combinedSkippedCount++;
+                    \Log::debug('Skipping Paint component due to combined value match:', [
+                        'item_no' => $itemNo,
+                        'existing_ipls' => array_keys($tdrIplMap)
+                    ]);
+                    continue;
+                }
+
+                // Если IPL номер еще не был обработан
+                if (!in_array($itemNo, $processedIpls)) {
+                    $totalQty += $qty; // Используем qty из JSON
+                    $totalComponents++;
+                    $processedIpls[] = $itemNo;
+                    \Log::debug('Adding component from NdtCadCsv:', ['ipl_num' => $itemNo, 'qty' => $qty]);
+                }
+            }
+
+            \Log::info('Paint calculation loop completed', [
+                'total_qty' => $totalQty,
+                'total_components' => $totalComponents,
+                'skipped_count' => $skippedCount,
+                'combined_skipped_count' => $combinedSkippedCount,
+                'processed_ipls' => $processedIpls
+            ]);
+
+            \Log::info('Paint calculation results:', [
+                'total_qty' => $totalQty,
+                'total_components' => $totalComponents,
+                'processed_ipls' => $processedIpls
+            ]);
+
+            return [
+                'total_qty' => $totalQty,
+                'total_components' => $totalComponents
+            ];
+
+        } catch (\Exception $e) {
+            \Log::error('Error in Paint sums calculation:', [
                 'error' => $e->getMessage(),
                 'trace' => $e->getTraceAsString()
             ]);

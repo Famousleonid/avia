@@ -45,7 +45,7 @@
                                     <div id="csvFilesList" class="csv-files-list mt-2" style="display: none;">
                                         <!-- Здесь будут отображаться загруженные файлы -->
                                     </div>
-                                    
+
                                     <button type="button" class="btn btn-outline-primary mt-2" data-bs-toggle="modal" data-bs-target="#csvUploadModal">
                                         <i class="fas fa-upload"></i> {{__('Add CSV Files')}}
                                     </button>
@@ -250,6 +250,7 @@
                                 <option value="cad">{{ __('CAD') }}</option>
                                 <option value="stress_relief">{{ __('Stress Relief') }}</option>
                                 <option value="log">{{ __('Log Card') }}</option>
+                                <option value="paint">{{ __('Paint') }}</option>
                                 <option value="other">{{ __('Other') }}</option>
                             </select>
                         </div>
@@ -369,14 +370,14 @@
             document.getElementById('csvUploadForm').reset();
             const modal = bootstrap.Modal.getInstance(document.getElementById('csvUploadModal'));
             modal.hide();
-            
+
             alert('{{ __("File added successfully") }}');
         }
 
         // Функция для обновления отображения CSV файлов
         function updateCsvFilesDisplay() {
             const csvFilesList = document.getElementById('csvFilesList');
-            
+
             if (tempCsvFiles.length === 0) {
                 csvFilesList.style.display = 'none';
                 return;
@@ -412,7 +413,7 @@
         // Функция для добавления CSV файлов к форме перед отправкой
         function addCsvFilesToForm() {
             const form = document.getElementById('createCMMForm');
-            
+
             // Удаляем старые скрытые поля CSV файлов
             const oldCsvInputs = form.querySelectorAll('input[name^="csv_files"]');
             oldCsvInputs.forEach(input => input.remove());
@@ -423,12 +424,12 @@
                 fileInput.type = 'file';
                 fileInput.name = 'csv_files[]';
                 fileInput.style.display = 'none';
-                
+
                 // Создаем DataTransfer для установки файла
                 const dataTransfer = new DataTransfer();
                 dataTransfer.items.add(file.file);
                 fileInput.files = dataTransfer.files;
-                
+
                 form.appendChild(fileInput);
 
                 // Добавляем скрытое поле для process_type

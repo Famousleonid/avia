@@ -300,6 +300,7 @@
                                 <option value="cad">{{ __('CAD') }}</option>
                                 <option value="stress">{{ __('Stress Relief') }}</option>
                                 <option value="log">{{ __('Log Card') }}</option>
+                                <option value="paint">{{ __('Paint') }}</option>
                                 <option value="other">{{ __('Other') }}</option>
                             </select>
                         </div>

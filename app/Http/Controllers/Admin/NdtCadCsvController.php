@@ -104,8 +104,9 @@ class NdtCadCsvController extends Controller
                         ]);
                     } else {
                         // fallback: взять третий файл, как в createForWorkorder
+                        // но только если это не paint файл
                         $thirdCsv = $manual->getMedia('csv_files')->skip(2)->first();
-                        if ($thirdCsv) {
+                        if ($thirdCsv && $thirdCsv->getCustomProperty('process_type') !== 'paint') {
                             \Log::info('Stress CSV not found; using third CSV as fallback for Stress', ['file' => $thirdCsv->name]);
                             $components = NdtCadCsv::loadComponentsFromCsv($thirdCsv->getPath(), 'stress');
                             $ndtCadCsv->stress_components = $components;
@@ -114,7 +115,7 @@ class NdtCadCsvController extends Controller
                                 'loaded_count' => count($components)
                             ]);
                         } else {
-                            \Log::warning('No Stress CSV and no third CSV available for targeted load');
+                            \Log::info('No suitable CSV found for Stress fallback, leaving empty');
                         }
                     }
                 }
@@ -354,6 +355,50 @@ class NdtCadCsvController extends Controller
     }
 
     /**
+     * Добавить Paint компонент
+     */
+    public function addPaintComponent(Request $request, Workorder $workorder): JsonResponse
+    {
+        $request->validate([
+            'component_id' => 'required|integer|exists:components,id',
+            'ipl_num' => 'required|string',
+            'part_number' => 'required|string',
+            'description' => 'required|string',
+            'process' => 'required|string',
+            'qty' => 'required|integer|min:1',
+        ]);
+
+        $ndtCadCsv = $workorder->ndtCadCsv;
+
+        if (!$ndtCadCsv) {
+            $ndtCadCsv = NdtCadCsv::create([
+                'workorder_id' => $workorder->id,
+                'ndt_components' => [],
+                'cad_components' => [],
+                'stress_components' => [],
+                'paint_components' => []
+            ]);
+        }
+
+        $component = [
+            'component_id' => $request->component_id,
+            'ipl_num' => $request->ipl_num,
+            'part_number' => $request->part_number,
+            'description' => $request->description,
+            'process' => $request->process,
+            'qty' => $request->qty,
+        ];
+
+        $ndtCadCsv->addPaintComponent($component);
+        $ndtCadCsv->save();
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Paint компонент успешно добавлен'
+        ]);
+    }
+
+    /**
      * Удалить NDT компонент
      */
     public function removeNdtComponent(Request $request, Workorder $workorder): JsonResponse
@@ -474,12 +519,52 @@ class NdtCadCsvController extends Controller
     }
 
     /**
+     * Удалить Paint компонент
+     */
+    public function removePaintComponent(Request $request, Workorder $workorder): JsonResponse
+    {
+        $request->validate([
+            'index' => 'required|integer|min:0',
+        ]);
+
+        $ndtCadCsv = $workorder->ndtCadCsv;
+
+        if (!$ndtCadCsv) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Запись не найдена'
+            ], 404);
+        }
+
+        // Логирование для отладки
+        \Log::info('Удаление Paint компонента', [
+            'workorder_id' => $workorder->id,
+            'index' => $request->index,
+            'components_before' => $ndtCadCsv->paint_components,
+            'count_before' => count($ndtCadCsv->paint_components ?? [])
+        ]);
+
+        $ndtCadCsv->removePaintComponent($request->index);
+        $ndtCadCsv->save();
+
+        \Log::info('Paint компонент удален', [
+            'components_after' => $ndtCadCsv->paint_components,
+            'count_after' => count($ndtCadCsv->paint_components ?? [])
+        ]);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Paint компонент успешно удален'
+        ]);
+    }
+
+    /**
      * Импортировать компоненты из CSV файла
      */
     public function importFromCsv(Request $request, Workorder $workorder): JsonResponse
     {
         $request->validate([
-            'type' => 'required|in:ndt,cad,stress',
+            'type' => 'required|in:ndt,cad,stress,paint',
             'csv_file' => 'required|file|mimes:csv,txt',
         ]);
 
@@ -513,7 +598,8 @@ class NdtCadCsvController extends Controller
                     'workorder_id' => $workorder->id,
                     'ndt_components' => [],
                     'cad_components' => [],
-                    'stress_components' => []
+                    'stress_components' => [],
+                    'paint_components' => []
                 ]);
             }
 
@@ -521,6 +607,8 @@ class NdtCadCsvController extends Controller
                 $ndtCadCsv->ndt_components = $components;
             } elseif ($request->type === 'cad') {
                 $ndtCadCsv->cad_components = $components;
+            } elseif ($request->type === 'paint') {
+                $ndtCadCsv->paint_components = $components;
             } else {
                 $ndtCadCsv->stress_components = $components;
             }
@@ -530,7 +618,9 @@ class NdtCadCsvController extends Controller
             return response()->json([
                 'success' => true,
                 'message' => 'Компоненты успешно импортированы из CSV',
-                'count' => count($components)
+                'count' => count($components),
+                'type' => $request->type,
+                'components' => $components
             ]);
 
         } catch (\Exception $e) {
@@ -547,7 +637,7 @@ class NdtCadCsvController extends Controller
     public function reloadFromManual(Request $request, Workorder $workorder): JsonResponse
     {
         $request->validate([
-            'type' => 'required|in:ndt,cad,stress',
+            'type' => 'required|in:ndt,cad,stress,paint',
         ]);
 
         try {
@@ -589,6 +679,8 @@ class NdtCadCsvController extends Controller
                 $ndtCadCsv->ndt_components = $components;
             } elseif ($type === 'cad') {
                 $ndtCadCsv->cad_components = $components;
+            } elseif ($type === 'paint') {
+                $ndtCadCsv->paint_components = $components;
             } else {
                 $ndtCadCsv->stress_components = $components;
             }
@@ -716,6 +808,45 @@ class NdtCadCsvController extends Controller
             return response()->json([
                 'success' => false,
                 'message' => 'Ошибка при получении Stress процессов: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Получить Paint процессы для дропдауна
+     */
+    public function getPaintProcesses(Request $request, Workorder $workorder): JsonResponse
+    {
+        try {
+            $manual = $workorder->unit->manuals;
+            
+            if (!$manual) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Manual не найден для данного workorder'
+                ], 404);
+            }
+
+            // Получаем Paint процессы для данного мануала (process_names_id = 25)
+            $paintProcesses = Process::whereHas('manuals', function($query) use ($manual) {
+                $query->where('manual_id', $manual->id);
+            })
+            ->whereHas('process_name', function($query) {
+                $query->where('id', 25); // Paint
+            })
+            ->select('id', 'process')
+            ->orderBy('process')
+            ->get();
+
+            return response()->json([
+                'success' => true,
+                'processes' => $paintProcesses
+            ]);
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Ошибка при получении Paint процессов: ' . $e->getMessage()
             ], 500);
         }
     }
@@ -859,12 +990,57 @@ class NdtCadCsvController extends Controller
     }
 
     /**
+     * Редактировать Paint компонент
+     */
+    public function editPaintComponent(Request $request, Workorder $workorder): JsonResponse
+    {
+        $request->validate([
+            'index' => 'required|integer|min:0',
+            'part_number' => 'required|string',
+            'description' => 'required|string',
+            'process' => 'required|string',
+            'qty' => 'required|integer|min:1',
+        ]);
+
+        $ndtCadCsv = $workorder->ndtCadCsv;
+
+        if (!$ndtCadCsv) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Запись не найдена'
+            ], 404);
+        }
+
+        $components = $ndtCadCsv->paint_components;
+        if (!isset($components[$request->index])) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Компонент не найден'
+            ], 404);
+        }
+
+        // Обновляем только редактируемые поля, сохраняя остальные
+        $components[$request->index]['part_number'] = $request->part_number;
+        $components[$request->index]['description'] = $request->description;
+        $components[$request->index]['process'] = $request->process;
+        $components[$request->index]['qty'] = $request->qty;
+
+        $ndtCadCsv->paint_components = $components;
+        $ndtCadCsv->save();
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Paint компонент успешно обновлен'
+        ]);
+    }
+
+    /**
      * Принудительно загрузить компоненты из Manual CSV
      */
     public function forceLoadFromManual(Request $request, Workorder $workorder): JsonResponse
     {
         $request->validate([
-            'type' => 'required|in:ndt,cad,stress',
+            'type' => 'required|in:ndt,cad,stress,paint',
         ]);
 
         try {
@@ -904,6 +1080,8 @@ class NdtCadCsvController extends Controller
                 $ndtCadCsv->ndt_components = $components;
             } elseif ($type === 'cad') {
                 $ndtCadCsv->cad_components = $components;
+            } elseif ($type === 'paint') {
+                $ndtCadCsv->paint_components = $components;
             } else {
                 $ndtCadCsv->stress_components = $components;
             }
