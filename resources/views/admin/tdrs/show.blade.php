@@ -357,7 +357,7 @@
                                     <a href="{{ route('ndt-cad-csv.index', $current_wo->id) }}"
                                        class="btn btn-outline-success" style="min-height: 40px; width: 100px">
                                         {{--                                    <i class="bi bi-gear"></i> --}}
-                                        MOD NDT/CAD
+                                        NDT CAD STRESS
                                     </a>
                                 </div>
                             @endif
