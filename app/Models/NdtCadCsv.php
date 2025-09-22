@@ -8,7 +8,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 class NdtCadCsv extends Model
 {
     protected $table = 'ndt_cad_csv';
-    
+
     protected $fillable = [
         'workorder_id',
         'ndt_components',
@@ -147,12 +147,12 @@ class NdtCadCsv extends Model
             'components_before' => $components,
             'count_before' => count($components ?? [])
         ]);
-        
+
         if (isset($components[$index])) {
             $removedComponent = $components[$index];
             unset($components[$index]);
             $this->ndt_components = array_values($components);
-            
+
             \Log::info('NDT компонент удален из модели', [
                 'removed_component' => $removedComponent,
                 'components_after' => $this->ndt_components,
@@ -177,12 +177,12 @@ class NdtCadCsv extends Model
             'components_before' => $components,
             'count_before' => count($components ?? [])
         ]);
-        
+
         if (isset($components[$index])) {
             $removedComponent = $components[$index];
             unset($components[$index]);
             $this->cad_components = array_values($components);
-            
+
             \Log::info('CAD компонент удален из модели', [
                 'removed_component' => $removedComponent,
                 'components_after' => $this->cad_components,
@@ -207,12 +207,12 @@ class NdtCadCsv extends Model
             'components_before' => $components,
             'count_before' => count($components ?? [])
         ]);
-        
+
         if (isset($components[$index])) {
             $removedComponent = $components[$index];
             unset($components[$index]);
             $this->stress_components = array_values($components);
-            
+
             \Log::info('Stress компонент удален из модели', [
                 'removed_component' => $removedComponent,
                 'components_after' => $this->stress_components,
@@ -237,12 +237,12 @@ class NdtCadCsv extends Model
             'components_before' => $components,
             'count_before' => count($components ?? [])
         ]);
-        
+
         if (isset($components[$index])) {
             $removedComponent = $components[$index];
             unset($components[$index]);
             $this->paint_components = array_values($components);
-            
+
             \Log::info('Paint компонент удален из модели', [
                 'removed_component' => $removedComponent,
                 'components_after' => $this->paint_components,
@@ -311,13 +311,13 @@ class NdtCadCsv extends Model
     {
         $workorder = Workorder::findOrFail($workorderId);
         $manual = $workorder->unit->manuals;
-        
+
         \Log::info('Creating NdtCadCsv for workorder', [
             'workorder_id' => $workorderId,
             'has_manual' => $manual ? true : false,
             'manual_id' => $manual ? $manual->id : null
         ]);
-        
+
         $ndtCadCsv = new self([
             'workorder_id' => $workorderId,
             'ndt_components' => [],
@@ -325,7 +325,7 @@ class NdtCadCsv extends Model
             'stress_components' => [],
             'paint_components' => []
         ]);
-        
+
         // Автоматическая загрузка из Manual CSV файлов
         if ($manual) {
             $csvFiles = $manual->getMedia('csv_files');
@@ -339,17 +339,17 @@ class NdtCadCsv extends Model
                     ];
                 })->toArray()
             ]);
-            
+
             // Загружаем NDT компоненты
             $ndtCsvMedia = $manual->getMedia('csv_files')->first(function ($media) {
                 return $media->getCustomProperty('process_type') === 'ndt';
             });
-            
+
             \Log::info('NDT CSV media found', [
                 'found' => $ndtCsvMedia ? true : false,
                 'path' => $ndtCsvMedia ? $ndtCsvMedia->getPath() : null
             ]);
-            
+
             if ($ndtCsvMedia) {
                 $ndtCadCsv->ndt_components = self::loadComponentsFromCsv($ndtCsvMedia->getPath(), 'ndt');
             } else {
@@ -360,17 +360,17 @@ class NdtCadCsv extends Model
                     $ndtCadCsv->ndt_components = self::loadComponentsFromCsv($firstCsv->getPath(), 'ndt');
                 }
             }
-            
+
             // Загружаем CAD компоненты
             $cadCsvMedia = $manual->getMedia('csv_files')->first(function ($media) {
                 return $media->getCustomProperty('process_type') === 'cad';
             });
-            
+
             \Log::info('CAD CSV media found', [
                 'found' => $cadCsvMedia ? true : false,
                 'path' => $cadCsvMedia ? $cadCsvMedia->getPath() : null
             ]);
-            
+
             if ($cadCsvMedia) {
                 $ndtCadCsv->cad_components = self::loadComponentsFromCsv($cadCsvMedia->getPath(), 'cad');
             } else {
@@ -381,17 +381,17 @@ class NdtCadCsv extends Model
                     $ndtCadCsv->cad_components = self::loadComponentsFromCsv($secondCsv->getPath(), 'cad');
                 }
             }
-            
+
             // Загружаем Stress компоненты
             $stressCsvMedia = $manual->getMedia('csv_files')->first(function ($media) {
                 return $media->getCustomProperty('process_type') === 'stress';
             });
-            
+
             \Log::info('Stress CSV media found', [
                 'found' => $stressCsvMedia ? true : false,
                 'path' => $stressCsvMedia ? $stressCsvMedia->getPath() : null
             ]);
-            
+
             if ($stressCsvMedia) {
                 $ndtCadCsv->stress_components = self::loadComponentsFromCsv($stressCsvMedia->getPath(), 'stress');
             } else {
@@ -405,17 +405,17 @@ class NdtCadCsv extends Model
                     \Log::info('No suitable CSV found for Stress, leaving empty');
                 }
             }
-            
+
             // Загружаем Paint компоненты
             $paintCsvMedia = $manual->getMedia('csv_files')->first(function ($media) {
                 return $media->getCustomProperty('process_type') === 'paint';
             });
-            
+
             \Log::info('Paint CSV media found', [
                 'found' => $paintCsvMedia ? true : false,
                 'path' => $paintCsvMedia ? $paintCsvMedia->getPath() : null
             ]);
-            
+
             if ($paintCsvMedia) {
                 $ndtCadCsv->paint_components = self::loadComponentsFromCsv($paintCsvMedia->getPath(), 'paint');
             } else {
@@ -429,16 +429,16 @@ class NdtCadCsv extends Model
         } else {
             \Log::warning('No manual found for workorder', ['workorder_id' => $workorderId]);
         }
-        
+
         $ndtCadCsv->save();
-        
+
         \Log::info('NdtCadCsv created', [
             'ndt_components_count' => count($ndtCadCsv->ndt_components),
             'cad_components_count' => count($ndtCadCsv->cad_components),
             'stress_components_count' => count($ndtCadCsv->stress_components),
             'paint_components_count' => count($ndtCadCsv->paint_components)
         ]);
-        
+
         return $ndtCadCsv;
     }
 
@@ -449,13 +449,13 @@ class NdtCadCsv extends Model
     {
         $workorder = Workorder::findOrFail($workorderId);
         $manual = $workorder->unit->manuals;
-        
+
         \Log::info('Loading components from manual for existing NdtCadCsv', [
             'workorder_id' => $workorderId,
             'has_manual' => $manual ? true : false,
             'manual_id' => $manual ? $manual->id : null
         ]);
-        
+
         if ($manual) {
             $csvFiles = $manual->getMedia('csv_files');
             \Log::info('Available CSV files in manual', [
@@ -468,32 +468,32 @@ class NdtCadCsv extends Model
                     ];
                 })->toArray()
             ]);
-            
+
             // Загружаем NDT компоненты
             $ndtCsvMedia = $manual->getMedia('csv_files')->first(function ($media) {
                 return $media->getCustomProperty('process_type') === 'ndt';
             });
-            
+
             if ($ndtCsvMedia) {
                 \Log::info('Loading NDT components from CSV', ['file' => $ndtCsvMedia->name]);
                 $ndtCadCsv->ndt_components = self::loadComponentsFromCsv($ndtCsvMedia->getPath(), 'ndt');
             }
-            
+
             // Загружаем CAD компоненты
             $cadCsvMedia = $manual->getMedia('csv_files')->first(function ($media) {
                 return $media->getCustomProperty('process_type') === 'cad';
             });
-            
+
             if ($cadCsvMedia) {
                 \Log::info('Loading CAD components from CSV', ['file' => $cadCsvMedia->name]);
                 $ndtCadCsv->cad_components = self::loadComponentsFromCsv($cadCsvMedia->getPath(), 'cad');
             }
-            
+
             // Загружаем Stress компоненты
             $stressCsvMedia = $manual->getMedia('csv_files')->first(function ($media) {
                 return $media->getCustomProperty('process_type') === 'stress';
             });
-            
+
             if ($stressCsvMedia) {
                 \Log::info('Loading Stress components from CSV', ['file' => $stressCsvMedia->name]);
                 $ndtCadCsv->stress_components = self::loadComponentsFromCsv($stressCsvMedia->getPath(), 'stress');
@@ -508,12 +508,12 @@ class NdtCadCsv extends Model
                     \Log::warning('No Stress CSV and no suitable third CSV available for fallback');
                 }
             }
-            
+
             // Загружаем Paint компоненты
             $paintCsvMedia = $manual->getMedia('csv_files')->first(function ($media) {
                 return $media->getCustomProperty('process_type') === 'paint';
             });
-            
+
             if ($paintCsvMedia) {
                 \Log::info('Loading Paint components from CSV', ['file' => $paintCsvMedia->name]);
                 $ndtCadCsv->paint_components = self::loadComponentsFromCsv($paintCsvMedia->getPath(), 'paint');
@@ -528,16 +528,16 @@ class NdtCadCsv extends Model
                 }
             }
         }
-        
+
         $ndtCadCsv->save();
-        
+
         \Log::info('NdtCadCsv updated with components', [
             'ndt_components_count' => count($ndtCadCsv->ndt_components),
             'cad_components_count' => count($ndtCadCsv->cad_components),
             'stress_components_count' => count($ndtCadCsv->stress_components),
             'paint_components_count' => count($ndtCadCsv->paint_components)
         ]);
-        
+
         return $ndtCadCsv;
     }
 
@@ -550,7 +550,7 @@ class NdtCadCsv extends Model
             $csv = \League\Csv\Reader::createFromPath($csvPath, 'r');
             $csv->setHeaderOffset(0);
             $records = iterator_to_array($csv->getRecords());
-            
+
             $components = [];
             foreach ($records as $row) {
                 // Попробуем разные варианты названий колонок
@@ -559,7 +559,7 @@ class NdtCadCsv extends Model
                 $description = $row['DESCRIPTION'] ?? $row['description'] ?? '';
                 $process = $row['PROCESS No.'] ?? $row['PROCESS'] ?? $row['process'] ?? '1';
                 $qty = $row['QTY'] ?? $row['qty'] ?? '1';
-                
+
                 if (!empty($itemNo)) {
                     $components[] = [
                         'ipl_num' => $itemNo,
@@ -570,12 +570,12 @@ class NdtCadCsv extends Model
                     ];
                 }
             }
-            
+
             \Log::info("Loaded {$type} components from CSV", [
                 'file' => $csvPath,
                 'count' => count($components)
             ]);
-            
+
             return $components;
         } catch (\Exception $e) {
             \Log::error("Error loading {$type} components from CSV: " . $e->getMessage(), [
@@ -586,3 +586,6 @@ class NdtCadCsv extends Model
         }
     }
 }
+
+
+

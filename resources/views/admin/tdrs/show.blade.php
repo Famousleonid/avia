@@ -180,21 +180,21 @@
                                 </a>
                             </div>
                         @endif
-                            <div class="me-2">
-                                <a href="{{route('extra_processes.show_all',['id'=>$current_wo->id])}}"
-                                   class="btn  btn-outline-primary " style="height: 60px;width: 160px" onclick="showLoadingSpinner
+                        <div class="me-2">
+                            <a href="{{route('extra_processes.show_all',['id'=>$current_wo->id])}}"
+                               class="btn  btn-outline-primary " style="height: 60px;width: 160px" onclick="showLoadingSpinner
                                        ()">
-                                    {{__('Extra Component Processes')}}
-                                </a>
-                            </div>
-                            <div>
-                                <a href="{{route('log_card.show',['log_card' => $current_wo->id])}}"
-                                   class="btn  btn-outline-primary " style="min-height: 60px;width: 70px"
-                                   onclick="showLoadingSpinner
+                                {{__('Extra Component Processes')}}
+                            </a>
+                        </div>
+                        <div>
+                            <a href="{{route('log_card.show',['log_card' => $current_wo->id])}}"
+                               class="btn  btn-outline-primary " style="min-height: 60px;width: 70px"
+                               onclick="showLoadingSpinner
                                    ()">
-                                    {{__('Log Card')}}
-                                </a>
-                            </div>
+                                {{__('Log Card')}}
+                            </a>
+                        </div>
                         <div>
                             <a href="{{route('wo_bushings.show',['wo_bushing' => $current_wo->id])}}"
                                class="btn  btn-outline-primary ms-2" style="min-height: 60px;width: 95px"
@@ -250,7 +250,7 @@
                                        class="btn btn-outline-warning me-1 formLink "
                                        target="_blank"
                                        id="#" style=" height: 60px; width: 70px">
-{{--                                        <i class="bi bi-file-earmark-excel"> TDR Form</i>--}}
+                                        {{--                                        <i class="bi bi-file-earmark-excel"> TDR Form</i>--}}
                                         TDR Form
                                     </a>
                                     @if(count($processParts)==0)
@@ -258,8 +258,8 @@
                                            class="btn btn-outline-warning  formLink "
                                            target="_blank"
                                            id="#" style=" height: 60px; width: 70px">
-{{--                                            <i class="bi bi-file-earmark-excel"> SP Form </i>--}}
-                                        SP Form
+                                            {{--                                            <i class="bi bi-file-earmark-excel"> SP Form </i>--}}
+                                            SP Form
                                         </a>
                                     @endif
 
@@ -267,27 +267,27 @@
                                        class="btn btn-outline-warning me-1 formLink "
                                        target="_blank"
                                        id="#" style=" height: 60px; width: 115px">
-{{--                                        <i class="bi bi-file-earmark-excel"> WO Process Sheet </i>--}}
+                                        {{--                                        <i class="bi bi-file-earmark-excel"> WO Process Sheet </i>--}}
                                         WO Process Sheet
                                     </a>
-{{--                                    <a href="#"--}}
-{{--                                       class="btn btn-outline-warning  formLink "--}}
-{{--                                       target="_blank"--}}
-{{--                                       id="#" style=" height: 60px; width: 80px">--}}
-{{--                                        <i class="bi bi-file-earmark-excel">  </i>--}}
-{{--                                    </a>--}}
-{{--                                    <a href="{{ route('log_card.logCardForm', ['id'=> $current_wo->id]) }}"--}}
-{{--                                       class="btn btn-outline-warning  formLink "--}}
-{{--                                       target="_blank"--}}
-{{--                                       id="#" style=" height: 60px; width: 80px">--}}
-{{--                                        <i class="bi bi-file-earmark-excel"> Log Card </i>--}}
-{{--                                    </a>--}}
+                                    {{--                                    <a href="#"--}}
+                                    {{--                                       class="btn btn-outline-warning  formLink "--}}
+                                    {{--                                       target="_blank"--}}
+                                    {{--                                       id="#" style=" height: 60px; width: 80px">--}}
+                                    {{--                                        <i class="bi bi-file-earmark-excel">  </i>--}}
+                                    {{--                                    </a>--}}
+                                    {{--                                    <a href="{{ route('log_card.logCardForm', ['id'=> $current_wo->id]) }}"--}}
+                                    {{--                                       class="btn btn-outline-warning  formLink "--}}
+                                    {{--                                       target="_blank"--}}
+                                    {{--                                       id="#" style=" height: 60px; width: 80px">--}}
+                                    {{--                                        <i class="bi bi-file-earmark-excel"> Log Card </i>--}}
+                                    {{--                                    </a>--}}
 
                                     <a href="{{ route('tdrs.prlForm', ['id'=> $current_wo->id]) }}"
                                        class="btn btn-outline-warning me-1 formLink align-content-center "
                                        target="_blank"
                                        id="#" style=" height: 60px; width: 60px">
-{{--                                        <i class="bi bi-file-earmark-excel"> PRL </i>--}}
+                                        {{--                                        <i class="bi bi-file-earmark-excel"> PRL </i>--}}
                                         PRL
                                     </a>
                                 @endif
@@ -393,7 +393,7 @@
                                     </a>
                                 </div>
                             @endif
-                        @if($current_wo->instruction_id == 1 && $hasNdtComponents)
+                            @if($current_wo->instruction_id == 1 && $hasNdtComponents)
                                 <div class="me-1">
                                     <a href="{{ route('tdrs.ndtStd', ['workorder_id' => $current_wo->id]) }}"
                                        class="btn btn-outline-warning" style="min-height: 60px; width: 60px"
@@ -678,7 +678,7 @@
                                             </td>
                                             <td class="p-2 text-center">
 
-                                            @foreach($inspectsUnit as $unit)<!-- inspection unit delete -->
+                                                @foreach($inspectsUnit as $unit)<!-- inspection unit delete -->
 
                                                 @if($unit->id == $tdr->id)
                                                     <form action="{{ route('tdrs.destroy', $unit->id) }}" method="POST"

@@ -828,6 +828,10 @@ const workorderId = {{ $workorder->id }};
 let ndtComponents = @json($ndtCadCsv->ndt_components ?? []);
 let cadComponents = @json($ndtCadCsv->cad_components ?? []);
 let stressComponents = @json($ndtCadCsv->stress_components ?? []);
+let paintComponents = @json($ndtCadCsv->paint_components ?? []);
+
+paintComponents = (paintComponents || []).map((c, i) => ({ ...c, __i: i }));
+
 let allComponents = [];
 let cadProcesses = [];
 let stressProcesses = [];
