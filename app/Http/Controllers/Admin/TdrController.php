@@ -1123,6 +1123,46 @@ class TdrController extends Controller
                 ];
             });
 
+            // Получаем записи TDR с missing + order new для корректировки количества
+            $tdrAdjustments = Tdr::where('workorder_id', $workorder_id)
+                ->whereNotNull('component_id')
+                ->whereHas('codes', function($q) {
+                    $q->where('name', 'missing');
+                })
+                ->whereHas('necessaries', function($q) {
+                    $q->where('name', 'order new');
+                })
+                ->with('component:id,ipl_num,units_assy')
+                ->get()
+                ->mapWithKeys(function($tdr) {
+                    return [
+                        trim($tdr->component->ipl_num) => [
+                            'qty' => $tdr->qty,
+                            'units_assy' => $tdr->component->units_assy
+                        ]
+                    ];
+                });
+
+            // Корректируем количество компонентов с учетом TDR записей
+            $paint_components = $paint_components->map(function($component) use ($tdrAdjustments) {
+                $ipl_num = trim($component->ipl_num);
+                
+                if ($tdrAdjustments->has($ipl_num)) {
+                    $adjustment = $tdrAdjustments[$ipl_num];
+                    $original_qty = $component->qty;
+                    $tdr_qty = $adjustment['qty'];
+                    $units_assy = $adjustment['units_assy'];
+                    
+                    // Если units_assy больше чем qty в TDR, корректируем количество
+                    if ($units_assy > $tdr_qty) {
+                        $component->qty = $tdr_qty;
+                        $component->original_qty = $original_qty; // Сохраняем оригинальное количество для отображения
+                    }
+                }
+                
+                return $component;
+            });
+
             // Генерируем номер формы
             $form_number = '014';
 
