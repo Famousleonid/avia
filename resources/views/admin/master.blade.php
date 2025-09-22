@@ -73,7 +73,7 @@
 <script src="{{ asset('assets/jquery/jquery.fancybox.min.js') }}"></script>
 <script src="{{ asset('js/main.js') }}"></script>
 
-@stack('scripts')
+@yield('scripts')
 
 <script>
 

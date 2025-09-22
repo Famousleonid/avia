@@ -7,60 +7,32 @@
 
 
         @media (max-width: 1100px) {
-            .table th:nth-child(2),
-            .table td:nth-child(2) {
-                display: none;
-            }
+            .table th:nth-child(2), .table td:nth-child(2) { display: none; }
         }
 
         @media (max-width: 770px) {
-            .table th:nth-child(2),
-            .table td:nth-child(2), /* Revision Date */
-            .table th:nth-child(4), /* Revision Date */
-            .table td:nth-child(4),
-            .table th:nth-child(5),
-            .table td:nth-child(5) {
-                display: none;
-            }
+            .table th:nth-child(2), .table td:nth-child(2),
+            .table th:nth-child(4), .table td:nth-child(4),
+            .table th:nth-child(5), .table td:nth-child(5) { display: none; }
         }
 
         @media (max-width: 590px) {
-            .table th:nth-child(2), /* Image */
-            .table td:nth-child(2),
-            .table th:nth-child(4), /* Revision Date */
-            .table td:nth-child(4),
-            .table th:nth-child(5), /* Revision Date */
-            .table td:nth-child(5),
-            .table th:nth-child(6),
-            .table td:nth-child(6) {
-                display: none;
-            }
-
-            @media (max-width: 490px) {
-                .table th:nth-child(2), /* Image */
-                .table td:nth-child(2),
-                .table th:nth-child(4), /* Revision Date */
-                .table td:nth-child(4),
-                .table th:nth-child(5), /* Revision Date */
-                .table td:nth-child(5),
-                .table th:nth-child(6), /* Revision Date */
-                .table td:nth-child(6),
-                .table th:nth-child(7),
-                .table td:nth-child(7) {
-                    display: none;
-                }
-
-                /*.form-switch {*/
-                /*    display: none;*/
-                /*}*/
-
-                /*.table {*/
-                /*    display: none;*/
-                /*}*/
-            }
-
+            .table th:nth-child(2), .table td:nth-child(2),
+            .table th:nth-child(4), .table td:nth-child(4),
+            .table th:nth-child(5), .table td:nth-child(5),
+            .table th:nth-child(6), .table td:nth-child(6) { display: none; }
+            /* ВАЖНО: 7-й столбец (Actions) НЕ скрываем */
         }
 
+        .actions-cell { white-space: nowrap; }
+        .actions-cell .btn {
+            padding: .25rem .5rem;
+            line-height: 1.1;
+        }
+        /* На очень узких экранах ещё ужмёмся */
+        @media (max-width: 576px) {
+            .actions-cell .btn { padding: .2rem .4rem; font-size: .85rem; }
+        }
     </style>
 
 
@@ -145,19 +117,24 @@
                                 {{ isset($trainingList['last_training']) ? Carbon::parse($trainingList['last_training']->date_training)->format('m-d-Y') : 'N/A' }}
                             </td>
                             <td class="text-center">
-                                <!-- Кнопка для вызова модального окна -->
-                                <button class="btn btn-primary" data-bs-toggle="modal"
-                                        data-bs-target="#trainingModal{{$trainingList['first_training']->manuals_id }}">
-                                    {{__('View Training')}}
-                                </button>
+                                <div class="actions-cell d-inline-flex align-items-center justify-content-center gap-2 flex-nowrap">
 
-                                <!-- Кнопка удаления -->
-                                <button class="btn btn-danger ms-2 delete-training-btn"
-                                        data-user-id="{{ auth()->id() }}"
-                                        data-manual-id="{{ $trainingList['first_training']->manuals_id }}"
-                                        data-title="{{ $trainingList['first_training']->manual->title ?? 'N/A' }}">
-                                    {{__('DELETE Training')}}
-                                </button>
+                                    <button class="btn btn-primary btn-sm d-inline-flex align-items-center gap-1"
+                                            data-bs-toggle="modal"
+                                            data-bs-target="#trainingModal{{ $trainingList['first_training']->manuals_id }}">
+                                        <i class="bi bi-journal-text"></i>
+                                        <span class="d-none d-sm-inline">{{ __('View') }}</span>
+                                    </button>
+
+                                    <button class="btn btn-danger btn-sm d-inline-flex align-items-center gap-1 delete-training-btn"
+                                            data-user-id="{{ auth()->id() }}"
+                                            data-manual-id="{{ $trainingList['first_training']->manuals_id }}"
+                                            data-title="{{ $trainingList['first_training']->manual->title ?? 'N/A' }}">
+                                        <i class="bi bi-trash"></i>
+                                        <span class="d-none d-sm-inline">{{ __('DELETE') }}</span>
+                                    </button>
+
+                                </div>
                             </td>
                                 <!-- Модальное окно -->
                                 <div class="modal fade" id="trainingModal{{ $trainingList['first_training']->manuals_id }}" tabindex="-1"

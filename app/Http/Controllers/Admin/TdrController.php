@@ -235,8 +235,8 @@ class TdrController extends Controller
         // Установка значений по умолчанию для флагов
 //        $use_tdr = $request->has('use_tdr');
 //        $use_process_forms = $request->has('use_process_forms');
-        $use_tdr = $request->input('use_tdr');
-        $use_process_forms = $request->input('use_process_forms');
+        $use_tdr = $request->boolean('use_tdr');
+        $use_process_forms = $request->boolean('use_process_forms');
 
         $use_log_card = $request->has('use_log_card');
         $use_extra_forms = $request->has('use_extra_forms');

@@ -157,7 +157,7 @@
                     </thead>
                     <tbody>
                     @foreach ($workorders as $workorder)
-                        <tr>
+                        <tr data-tech-id="{{ $workorder->user_id }}">
                             <td class="text-center">
                                 <a href="{{ route('mains.show', $workorder->id) }}" class="text-decoration-none">
                                     <span style="font-size: 16px; color: #0DDDFD;">w&nbsp;{{ $workorder->number }}</span>
@@ -189,7 +189,7 @@
                                     <i class="bi bi-images text-decoration-none"></i>
                                 </button>
                             </td>
-                            <td class="text-center">{{ $workorder->user->name }}</td>
+                            <td class="text-center td-technik">{{ $workorder->user->name }}</td>
                             <td class="text-center">
                                 <a href="{{ route('workorders.edit', $workorder->id) }}">
                                     <img src="{{ asset('img/set.png') }}" width="30" alt="Edit">
@@ -276,7 +276,9 @@
 
 @section('scripts')
     <script>
-        const currentUserName = "{{ auth()->user()->name }}";
+        const currentUserId = {{ auth()->id() }};
+        const currentUserName = @json(trim(auth()->user()->name));
+        const currentUserNameLC = currentUserName.toLowerCase();
 
         document.addEventListener('DOMContentLoaded', function () {
 
@@ -313,17 +315,19 @@
                 const showOnlyMyWorkorders = checkbox.checked;
                 const rows = table.querySelectorAll('tbody tr');
 
-                showLoadingSpinner();
+                if (typeof showLoadingSpinner === 'function') showLoadingSpinner();
 
                 rows.forEach(row => {
+
                     const rowText = row.innerText.toLowerCase();
-                    const technikName = row.querySelector('td:nth-child(11)').innerText.trim();
+                    const technikId = row.getAttribute('data-tech-id'); // ← берем ID из <tr>
                     const matchesSearch = rowText.includes(filter);
-                    const matchesUser = showOnlyMyWorkorders ? technikName === currentUserName : true;
+                    const matchesUser = showOnlyMyWorkorders ? String(technikId) === String(currentUserId) : true;
+
                     row.style.display = (matchesSearch && matchesUser) ? '' : 'none';
                 });
 
-                hideLoadingSpinner();
+                if (typeof hideLoadingSpinner === 'function') hideLoadingSpinner();
             }
 
             headers.forEach(header => {

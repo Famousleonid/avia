@@ -30,6 +30,7 @@ class MainController extends Controller
             'user_id' => $request->user_id,
             'description' => $request->description,
             'date_start' => $request->date_start,
+            'date_finish' => $request->date_finish,
         ]);
 
         $main->save();
