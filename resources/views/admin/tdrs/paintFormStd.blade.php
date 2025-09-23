@@ -15,10 +15,10 @@
 
         .container-fluid {
             max-width: 920px;
-            height: 98%;
+            height: 95%;
             padding: 5px;
-            margin-left: 10px;
-            margin-right: 10px;
+            margin-left: 5px;
+            margin-right: 5px;
         }
 
         @media print {
@@ -28,7 +28,7 @@
             }
 
             html, body {
-                height: 99%;
+                height: 95%;
                 width: 98%;
                 margin-left: 2px;
                 padding: 0;
@@ -136,8 +136,8 @@
             height: 36px;
         }
         .description-text-long {
-            font-size: 0.9rem;
-            line-height: 1.1;
+            font-size: 0.8rem;
+            line-height: 1.0;
             letter-spacing: -0.3px;
             display: inline-block;
             vertical-align: top;
@@ -244,32 +244,40 @@
 
     <div class="page data-page">
         @php
-            $totalRows = 18;
+            $totalRows = 19;
             $dataRows = count($paint_components);
             $emptyRows = $totalRows - $dataRows;
         @endphp
 
         @foreach($paint_components as $component)
             <div class="row fs-85 data-row">
-                <div class="col-1 border-l-b details-cell text-center" style="min-height: 32px">
+                <div class="col-1 border-l-b details-cell text-center" style="min-height: 34px">
                     {{ $component->ipl_num }}
                 </div>
-                <div class="col-2 border-l-b details-cell text-center" style="min-height: 32px">
+                <div class="col-2 border-l-b details-cell text-center" style="min-height: 34px">
                     {{ $component->part_number }}
                 </div>
-                <div class="col-2 border-l-b details-cell text-center" style="min-height: 32px">
-                    {{ $component->name }}
+                <div class="col-2 border-l-b details-cell text-center" style="min-height: 34px">
+{{--                    {{ $component->name }}--}}
+                    <span @if(strlen($component->name) > 15) class="description-text-long"
+                                @endif>{{$component->name}}</span>
                 </div>
-                <div class="col-4 border-l-b details-cell text-center process-cell" style="min-height: 32px">
-                    {{ $component->process_name }}
+                <div class="col-4 border-l-b details-cell text-center process-cell" style="min-height: 34px">
+{{--                    {{ $component->process_name }}--}}
+                    <span @if(strlen($component->process_name) > 30) class="description-text-long"
+                                @endif>{{$component->process_name}}</span>
                 </div>
-                <div class="col-1 border-l-b details-cell text-center" style="min-height: 32px">
-                    {{ $component->qty }}
+                <div class="col-1 border-l-b details-cell text-center" style="min-height: 34px">
+                    @if(isset($component->original_qty) && $component->original_qty != $component->qty)
+                        <span title="Original: {{ $component->original_qty }}, Adjusted to: {{ $component->qty }}">{{ $component->qty }}</span>
+                    @else
+                        {{ $component->qty }}
+                    @endif
                 </div>
-                <div class="col-2 border-l-b-r details-cell text-center" style="min-height: 32px">
+                <div class="col-2 border-l-b-r details-cell text-center" style="min-height: 34px">
                     @foreach($manuals as $manual)
                         @if($manual->id == $current_wo->unit->manual_id)
-                            <h6 class="text-center mt-3">{{$manual->number}}</h6>
+                            <h6 class="text-center ">{{$manual->number}}</h6>
                         @endif
                     @endforeach
                 </div>
@@ -278,12 +286,12 @@
 
         @for ($i = 0; $i < $emptyRows; $i++)
             <div class="row empty-row">
-                <div class="col-1 border-l-b text-center" style="height: 34px"></div>
-                <div class="col-2 border-l-b text-center" style="height: 34px"></div>
-                <div class="col-2 border-l-b text-center" style="height: 34px"></div>
-                <div class="col-4 border-l-b text-center" style="height: 34px"></div>
-                <div class="col-1 border-l-b text-center" style="height: 34px"></div>
-                <div class="col-2 border-l-b-r text-center" style="height: 34px"></div>
+                <div class="col-1 border-l-b text-center" style="height: 30px"></div>
+                <div class="col-2 border-l-b text-center" style="height: 30px"></div>
+                <div class="col-2 border-l-b text-center" style="height: 30px"></div>
+                <div class="col-4 border-l-b text-center" style="height: 30px"></div>
+                <div class="col-1 border-l-b text-center" style="height: 30px"></div>
+                <div class="col-2 border-l-b-r text-center" style="height: 30px"></div>
             </div>
         @endfor
     </div>

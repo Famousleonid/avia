@@ -1118,7 +1118,7 @@ class TdrController extends Controller
                     'ipl_num' => $component['ipl_num'] ?? '',
                     'part_number' => $component['part_number'] ?? '',
                     'name' => $component['description'] ?? '',
-                    'process_name' => $process ? $process->process->name : 'Process ' . $component['process'],
+                    'process_name' => $process ? $process->process->name :  $component['process'],
                     'qty' => $component['qty'] ?? 1,
                 ];
             });
@@ -1146,20 +1146,20 @@ class TdrController extends Controller
             // Корректируем количество компонентов с учетом TDR записей
             $paint_components = $paint_components->map(function($component) use ($tdrAdjustments) {
                 $ipl_num = trim($component->ipl_num);
-                
+
                 if ($tdrAdjustments->has($ipl_num)) {
                     $adjustment = $tdrAdjustments[$ipl_num];
                     $original_qty = $component->qty;
                     $tdr_qty = $adjustment['qty'];
                     $units_assy = $adjustment['units_assy'];
-                    
+
                     // Если units_assy больше чем qty в TDR, корректируем количество
                     if ($units_assy > $tdr_qty) {
                         $component->qty = $tdr_qty;
                         $component->original_qty = $original_qty; // Сохраняем оригинальное количество для отображения
                     }
                 }
-                
+
                 return $component;
             });
 
