@@ -1,12 +1,26 @@
 @extends('admin.master')
 
-@section('link')
+@section('style')
     <style>
         .sf {
             font-size: 12px;
         }
     </style>
+    <style>
+        .select-task {
+            border: 0;
+            width: 100%;
+            text-align: left;
+            padding: .5rem .75rem;
+            background: transparent;
+            border-radius: .5rem;
+        }
 
+        .select-task:hover {
+            background: blue;
+            cursor: pointer;
+        }
+    </style>
 @endsection
 
 @section('content')
@@ -34,104 +48,84 @@
                         @csrf
                         <input type="text" hidden name="workorder_id" value="{{$current_workorder->id}}">
 
-                        <div class="col-12 col-md">
-                            <label class="sf" for="general_task_id">General Task <span style="color:red; font-size: x-small">(required)</span></label>
-                            <select name="general_task_id" id="general_task_id" class="form-control">
-                                <option disabled selected value=""> -- select an option --</option>
-                                @foreach ($general_tasks as $general_task)
-                                    <option value="{{$general_task->id}}">{{$general_task->name}}</option>
-                                @endforeach
-                            </select>
+
+                        {{-- скрытые поля для формы --}}
+                        <input type="hidden" name="general_task_id" id="general_task_id" value="{{ old('general_task_id') }}">
+                        <input type="hidden" name="task_id" id="task_id" value="{{ old('task_id') }}">
+
+                        <div class="mb-2">
+                            <span class="text-muted">Selected:</span>
+                            <span id="sel_general" class="badge bg-secondary">—</span>
+                            <span class="mx-1">/</span>
+                            <span id="sel_task" class="badge bg-secondary">—</span>
                         </div>
 
-                        <div class="col-12 col-md">
-                            <label class="sf" for="user_id">Technik</label>
-                            <select name="user_id" id="user_id" class="form-control">
-                                <option selected value="{{ Auth::user()->id }}">{{ Auth::user()->name }}</option>
-                                @foreach ($users as $user)
-                                    <option value="{{$user->id}}">{{$user->name}}</option>
-                                @endforeach
-                            </select>
+                        <div class="dropdown">
+                            <button id="taskPickerBtn"
+                                    class="btn btn-outline-primary dropdown-toggle"
+                                    type="button"
+                                    data-bs-toggle="dropdown"
+                                    data-bs-auto-close="outside"
+                                    aria-expanded="false">
+                                Choose task
+                            </button>
+
+                            <div class="dropdown-menu p-3" style="min-width: 600px;">
+                                <div class="row g-3">
+                                    {{-- Левое меню: General Tasks --}}
+                                    <div class="col-5">
+                                        <ul class="nav nav-pills flex-column" id="generalTab" role="tablist">
+                                            @foreach ($general_tasks as $general)
+                                                <li class="nav-item">
+                                                    <button class="nav-link @if($loop->first) active @endif w-100 text-start"
+                                                            id="tab-g-{{ $general->id }}"
+                                                            data-bs-toggle="pill"
+                                                            data-bs-target="#pane-g-{{ $general->id }}"
+                                                            type="button"
+                                                            role="tab"
+                                                            aria-controls="pane-g-{{ $general->id }}"
+                                                            aria-selected="{{ $loop->first ? 'true' : 'false' }}"
+                                                            data-general-id="{{ $general->id }}">
+                                                        {{ $general->name }}
+                                                    </button>
+                                                </li>
+                                            @endforeach
+                                        </ul>
+                                    </div>
+
+                                    {{-- Правое подменю: Tasks --}}
+                                    <div class="col-7">
+                                        <div class="tab-content" id="taskTabContent" style="max-height: 50vh; overflow:auto;">
+                                            @foreach ($general_tasks as $general)
+                                                <div class="tab-pane fade @if($loop->first) show active @endif"
+                                                     id="pane-g-{{ $general->id }}"
+                                                     role="tabpanel"
+                                                     aria-labelledby="tab-g-{{ $general->id }}">
+                                                    @php $group = $tasks->where('general_task_id', $general->id); @endphp
+                                                    @forelse ($group as $task)
+                                                        <button type="button"
+                                                                class="select-task list-group-item list-group-item-action mb-1"
+                                                                data-task-id="{{ $task->id }}"
+                                                                data-task-name="{{ $task->name }}"
+                                                                data-general-id="{{ $general->id }}">
+                                                            {{ $task->name }}
+                                                        </button>
+                                                    @empty
+                                                        <div class="text-muted small">No tasks</div>
+                                                    @endforelse
+                                                </div>
+                                            @endforeach
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
                         </div>
 
-                        <div class="col-12 col-md">
-                            <label class="sf" for="description">Description:</label>
-                            <input id="description" class="form-control" name="description" maxlength="256" size="20"/>
-                        </div>
 
-                        <div class="col-12 col-md">
-                            <label class="sf" for="date_start">Date Start</label>
-                            <input type="date" id="date_start" class="form-control" name="date_start" value="{{ date('Y-m-d') }}"/>
-                        </div>
-
-                        <div class="col-12 col-md">
-                            <label class="sf" for="date_finish">Date Finish</label>
-                            <input type="date" id="date_finish" class="form-control" name="date_finish" />
-                        </div>
-
-                        <div class="col-12 col-md-auto mt-4 mt-md-0">
-                            <button id="general_task_confirm" name="btn_main" type="submit" class="btn btn-outline-info w-100" style="margin-top: 5px">Add</button>
-                        </div>
                     </form>
                 </div>
             </div>
 
-            <!-- Таблица или сообщение -->
-            <div class="row mt-5">
-                <div class="col-12 bg-gradient">
-                    @if(count($mains))
-                        <table id="main-index" class="display table-sm table-bordered table-striped table-hover w-100">
-                            <thead>
-                            <tr>
-                                <th hidden>*</th>
-                                <th class="" style="background: #646464">General Task</th>
-                                <th class="" style="background: #646464">Technik</th>
-                                <th class="" data-orderable="false" style="background: #646464">Description</th>
-                                <th class="text-center " style="background: #646464">Date Start</th>
-                                <th class="text-center " style="background: #646464">Date Finish</th>
-                                <th class="text-center " data-orderable="false" style="background: #646464">Delete</th>
-                            </tr>
-                            </thead>
-                            <tbody>
-                            @foreach ($mains as $index => $main)
-                                <tr>
-                                    <td hidden>{{$main->created_at}}</td>
-                                    <td>{{$main->generaltask->name}}</td>
-                                    <td>{{$main->user->name}}</td>
-                                    <td>{{$main->description}}</td>
-                                    <td class="text-center">
-                                        @if ($main->date_start)<span>{{date('d-M-Y', strtotime($main->date_start))}}</span> @endif
-                                    </td>
-                                    @if($main->date_finish)
-                                        <td class="text-center"><span>{{date('d-M-Y', strtotime($main->date_finish))}}</span></td>
-                                    @else
-                                        <td class="text-center">
-                                            <form id="form_date_finish_{{$index}}" name="form_date_finish_{{$index}}" action="{{route('mains.update', ['main' => $main->id])}}" method="post">
-                                                @csrf
-                                                @method('PUT')
-                                                <input type="date" class="task_date_finish form-control border-primary" name="date_finish">
-                                                <input type="hidden" name="form_index" value="{{ $index }}">
-                                            </form>
-                                        </td>
-                                    @endif
-                                    <td class="text-center">
-                                        <form action="{{route('mains.destroy', ['main' => $main->id])}}" method="post">
-                                            @csrf
-                                            @method('DELETE')
-                                            <button class="btn btn-xs btn-danger" type="button" name="btn_delete" data-toggle="modal" data-target="#confirmDelete" data-title="Delete general task row" data-message="Are you sure you want to delete this row?">
-                                                <i class="glyphicon glyphicon-trash"></i> x
-                                            </button>
-                                        </form>
-                                    </td>
-                                </tr>
-                            @endforeach
-                            </tbody>
-                        </table>
-                    @else
-                        <p class="mt-3 ps-2 text-info">Workorders has no general tasks</p>
-                    @endif
-                </div>
-            </div>
         </div>
     </div>
 
@@ -144,42 +138,72 @@
 
     <script>
         document.addEventListener('DOMContentLoaded', function () {
+            const generalInput = document.getElementById('general_task_id');
+            const taskInput    = document.getElementById('task_id');
+            const selGeneral   = document.getElementById('sel_general');
+            const selTask      = document.getElementById('sel_task');
+            const pickerBtn    = document.getElementById('taskPickerBtn');
 
+            const tabButtons = Array.from(document.querySelectorAll('#generalTab .nav-link[data-general-id]'));
+            const panes      = Array.from(document.querySelectorAll('#taskTabContent .tab-pane'));
 
-            //----------------------------- Ajax date_finish Geberal Task Update ---------------------
+            function showPaneFor(btn) {
+                const gid = btn.dataset.generalId;
 
-            let dateInputs = document.querySelectorAll('.task_date_finish');
-            dateInputs.forEach(function (input) {
-                input.addEventListener('change', function (event) {
-                    showLoadingSpinner()
-                    let formIndex = event.target.parentNode.querySelector('[name="form_index"]').value;
-                    document.getElementById('form_date_finish_' + formIndex).submit();
+                // снять активность со всех
+                tabButtons.forEach(b => b.classList.remove('active'));
+                panes.forEach(p => p.classList.remove('show', 'active'));
+
+                // активировать нужные
+                btn.classList.add('active');
+                const pane = document.getElementById('pane-g-' + gid);
+                if (pane) {
+                    pane.classList.add('active', 'show');
+                }
+
+                // обновить выбранный general, сбросить task
+                generalInput.value = gid;
+                selGeneral.textContent = btn.textContent.trim();
+                taskInput.value = '';
+                selTask.textContent = '—';
+            }
+
+            // Переключаем ПАНЕЛИ по наведению на General
+            tabButtons.forEach(btn => {
+                btn.addEventListener('mouseenter', () => showPaneFor(btn));
+                // отключаем клик, чтобы не было «режима по клику»
+                btn.addEventListener('click', (e) => e.preventDefault());
+            });
+
+            // Клик по Task — зафиксировать выбор и закрыть dropdown
+            document.querySelectorAll('.select-task').forEach(item => {
+                item.addEventListener('click', () => {
+                    const taskId   = item.dataset.taskId;
+                    const taskName = item.dataset.taskName;
+                    const gid      = item.dataset.generalId;
+
+                    generalInput.value = gid;
+                    taskInput.value    = taskId;
+                    selGeneral.textContent = (document.getElementById('tab-g-' + gid)?.textContent || '').trim();
+                    selTask.textContent    = taskName;
+
+                    // закрыть дропдаун
+                    const dd = bootstrap.Dropdown.getOrCreateInstance(pickerBtn);
+                    dd.hide();
                 });
             });
 
-            // delete form mainConfirm ------------------------------------------------------------------------------
-
-            $('#confirmDelete').on('show.bs.modal', function (e) {
-                let form = $(e.relatedTarget).closest('form');
-                let message = $(e.relatedTarget).attr('data-message');
-                $(this).find('.modal-body p').text(message);
-                let title = $(e.relatedTarget).attr('data-title');
-                $(this).find('.modal-title').text(title);
-                $(this).find('.modal-footer #buttonConfirm').data('form', form);
-                $('#buttonConfirm').on('click', function () {
-                    $(this).data('form').submit();
-                });
-            });
-
-            document.getElementById('general_task_form').addEventListener('submit', function (event) {
-                let submitButton = document.getElementById('general_task_confirm');
-                submitButton.disabled = true; // Отключаем кнопку отправки
-
-            });
-
-
+            // Инициализация: если уже что-то выбрано (old())
+            const initG = generalInput.value;
+            if (initG) {
+                const initBtn = document.getElementById('tab-g-' + initG);
+                if (initBtn) showPaneFor(initBtn);
+            } else if (tabButtons[0]) {
+                // иначе показываем первую группу при открытии
+                showPaneFor(tabButtons[0]);
+            }
         });
-
     </script>
+
 
 @endsection

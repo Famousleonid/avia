@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\GeneralTask;
 use App\Models\Main;
+use App\Models\Task;
 use App\Models\User;
 use App\Models\Workorder;
 use Illuminate\Http\Request;
@@ -41,13 +42,15 @@ class MainController extends Controller
     public function show($workorder_id)
     {
         $users = User::all();
-        $general_tasks = GeneralTask::all();
+        $general_tasks = GeneralTask::orderBy('id')->get();
+        $tasks = Task::orderBy('name')->get();
+        $tasksByGeneral = $tasks->groupBy('general_task_id');
         $mains = Main::where('workorder_id', $workorder_id)->get();
         $current_workorder = Workorder::find($workorder_id);
 
 
 
-        return view('admin.mains.main', compact('users', 'current_workorder', 'mains', 'general_tasks'));
+        return view('admin.mains.main', compact('users', 'current_workorder', 'mains', 'general_tasks','tasks','tasksByGeneral'));
 
     }
 

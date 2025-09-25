@@ -16,21 +16,7 @@ return new class extends Migration
 
         });
 
-        $dataTask = [
-            ['name' => 'machining'],
-            ['name' => 'NDT'],
-            ['name' => 'CAD'],
-            ['name' => 'rechrome'],
-            ['name' => 'shot peen'],
-            ['name' => 'anodaizing'],
-            ['name' => 'nickel'],
-            ['name' => 'stress relief'],
-            ['name' => 'paint'],
-        ];
-
-        Task::insert($dataTask);
     }
-
 
     public function down()
     {

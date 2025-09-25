@@ -16,21 +16,13 @@ return new class extends Migration {
         });
 
         $dataGeneralTask = [
-            ['name' => 'start'],
-            ['name' => 'clean'],
-            ['name' => 'disassembly'],
-            ['name' => 'Submitted Wo Disassembly'],
-            ['name' => 'NDT List'],
-            ['name' => 'CAD List'],
-            ['name' => 'stress relief'],
-            ['name' => 'check bushing'],
-            ['name' => 'insert bushing'],
-            ['name' => 'promote'],
-            ['name' => 'assembly'],
-            ['name' => 'paint'],
-            ['name' => 'test'],
-            ['name' => 'done'],
-            ['name' => 'Submitted Wo Assembly'],
+            ['name' => 'Start'],
+            ['name' => 'Disassembly'],
+            ['name' => 'Standard processes'],
+            ['name' => 'Assembly'],
+            ['name' => 'Final Test'],
+            ['name' => 'Done.'],
+
         ];
 
         GeneralTask::insert($dataGeneralTask);
