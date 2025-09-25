@@ -214,11 +214,11 @@
                 </div>
                 <div class="row" style="height: 32px">
                     <div class="col-4 pt-2 text-end"><strong>RO No:</strong></div>
-                    <div class="col-8 pt-2 border-b"></div>
+                    <div class="col-8 pt-2 border-b">INTERNAL</div>
                 </div>
                 <div class="row" style="height: 32px">
                     <div class="col-4 pt-2 text-end"><strong>VENDOR:</strong></div>
-                    <div class="col-8 pt-2 border-b"><strong> Micro Custom</strong></div>
+                    <div class="col-8 pt-2 border-b"><strong> AVIATECHNIK</strong></div>
                 </div>
                 <div class="row" style="height: 32px">
 {{--                    <div class="col-4 pt-2 text-end"><strong>TOTAL QTY:</strong></div>--}}
