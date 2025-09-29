@@ -10,9 +10,9 @@ use Illuminate\Support\Facades\Log;
 use Spatie\MediaLibrary\HasMedia;
 use Spatie\MediaLibrary\InteractsWithMedia;
 
-class Manual extends Model implements  hasMedia
+class Manual extends Model implements  HasMedia
 {
-    use softDeletes, InteractsWithMedia, HasMediaHelpers;
+    use SoftDeletes, InteractsWithMedia, HasMediaHelpers;
 
     protected $fillable = [
         'number',
@@ -34,7 +34,7 @@ class Manual extends Model implements  hasMedia
 
     public $mediaUrlName = 'manuals';
 
-    // Отношение с моделью AirCraft
+
     public function plane()
     {
         return $this->belongsTo(Plane::class, 'planes_id');
@@ -84,7 +84,7 @@ class Manual extends Model implements  hasMedia
     {
         $this->addMediaCollection('csv_files')
             ->acceptsMimeTypes(['text/csv', 'application/csv', 'text/plain']);
-            
+
         $this->addMediaCollection('component_csv_files')
             ->acceptsMimeTypes(['text/csv', 'application/csv', 'text/plain']);
     }

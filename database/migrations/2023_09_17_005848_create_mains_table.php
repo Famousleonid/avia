@@ -17,6 +17,8 @@ return new class extends Migration {
             $table->foreignId('user_id')->constrained()->onDelete('cascade');
             $table->foreignId('workorder_id')->constrained()->onDelete('cascade');
             $table->foreignId('general_task_id')->constrained()->onDelete('cascade');
+            $table->unsignedBigInteger('task_id')->nullable()->after('workorder_id');
+            $table->foreign('task_id')->references('id')->on('tasks')->nullOnDelete();
             $table->date('date_start')->nullable();
             $table->date('date_finish')->nullable();;
             $table->string('description')->nullable();

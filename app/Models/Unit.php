@@ -18,14 +18,20 @@ class Unit extends Model
 
 
 
-    public function manuals()
+    public function manual()
     {
-        return $this->belongsTo(Manual::class,'manual_id');
+
+        return $this->belongsTo(\App\Models\Manual::class, 'manual_id', 'id');
     }
 
-    public function workorder()
+    public function manuals()
     {
-        return $this->hasMany(Workorder::class);
+        return $this->manual();
+    }
+
+    public function workorders()
+    {
+        return $this->hasMany(\App\Models\Workorder::class, 'unit_id', 'id');
     }
 
 }
