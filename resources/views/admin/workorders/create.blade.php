@@ -121,7 +121,11 @@
                                             </select>
                                         </div>
                                         <div class="form-group col-lg-4 mb-1">
-                                            <label for="customer_id">Customer <span style="color:red; font-size: x-small">(required)</span></label>
+                                            <label for="customer_id">Customer <span style="color:red; font-size: x-small">(required)</span>
+                                                <a id="new_customer_create" class="ms-3" data-bs-toggle="modal" data-bs-target="#addCustomerModal">
+                                                    <img class="mb-1" src="{{asset('img/plus.png')}}" width="20px" alt="" data-toggle="tooltip" data-placement="top" title="Add new customer">
+                                                </a>
+                                            </label>
                                             <select name="customer_id" id="customer_id" class="form-select">
                                                 <option disabled selected value>---</option>
                                                 @foreach ($customers as $customer)
@@ -245,6 +249,28 @@
                 <div class="modal-footer">
                     <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Close</button>
                     <button type="button" id="createUnitBtn" class="btn btn-outline-primary">Add Unit</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Модальное окно add Customer -->
+    <div class="modal fade" id="addCustomerModal" tabindex="-1" aria-labelledby="addCustomerLabel" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="addCustomerLabel">Add Customer</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Закрыть"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label for="customerNameInput" class="form-label">Customer name</label>
+                        <input type="text" class="form-control" placeholder="Enter customer name" name="customer_name" id="customerNameInput">
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Close</button>
+                    <button type="button" id="createCustomerBtn" class="btn btn-outline-primary">Add Customer</button>
                 </div>
             </div>
         </div>
@@ -397,6 +423,48 @@
                         // Очистить поля
                         pnInput.value = '';
                         document.getElementById('cmmSelect').value = '';
+                    })
+                    .catch(error => {
+                        hideLoadingSpinner();
+                        alert("Error: " + error.message);
+                    });
+            });
+
+        // ---------------------   Save Customer --------------------------------------------------------------
+            document.getElementById('createCustomerBtn').addEventListener('click', function () {
+                const nameInput = document.getElementById('customerNameInput');
+                const name = nameInput.value.trim();
+
+                if (!name) {
+                    alert("Please enter a Customer name.");
+                    return;
+                }
+
+                showLoadingSpinner();
+
+                fetch("{{ route('customers.store') }}", {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json",
+                        "Accept": "application/json",
+                        "X-Requested-With": "XMLHttpRequest",
+                        "X-CSRF-TOKEN": document.querySelector('meta[name="csrf-token"]').content
+                    },
+                    body: JSON.stringify({
+                        name: name
+                    })
+                })
+                    .then(res => {
+                        hideLoadingSpinner();
+                        if (!res.ok) throw new Error("Failed to create customer");
+                        return res.json();
+                    })
+                    .then(data => {
+                        const option = new Option(data.name, data.id, true, true);
+                        $('#customer_id').append(option).trigger('change');
+
+                        bootstrap.Modal.getInstance(document.getElementById('addCustomerModal')).hide();
+                        nameInput.value = '';
                     })
                     .catch(error => {
                         hideLoadingSpinner();

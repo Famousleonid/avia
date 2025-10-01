@@ -27,7 +27,14 @@ class CustomerController extends Controller
             'name' => 'required|string|max:250'
         ]);
 
-       Customer::create($validated);
+        $customer = Customer::create($validated);
+
+        if ($request->expectsJson() || $request->wantsJson() || $request->ajax()) {
+            return response()->json([
+                'id' => $customer->id,
+                'name' => $customer->name,
+            ], 201);
+        }
 
         return redirect()->route('customers.index')->with('success', 'Customer created successfully.');
     }
