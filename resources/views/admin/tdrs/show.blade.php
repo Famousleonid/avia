@@ -9,6 +9,10 @@
             text-align: center;
             align-content: center;
         }
+        .fs-8 {
+            font-size: 0.8rem;
+        }
+
     </style>
 
     @if($current_wo->unit->manuals->builder )
@@ -38,16 +42,14 @@
                                             @php
                                                 $manual = $current_wo->unit->manual; // Вызываем метод в единственном числе
                                             @endphp
-                                            @if ($current_wo->unit && $manual)
+                                            @if ($current_wo->unit && $current_wo->unit->manuals)
                                                 <div>
-                                                    @foreach ($current_wo->unit->manuals as $manual)
-                                                        <div class="m-2">
-                                                            <a href="{{ $manual->getFirstMediaBigUrl('manuals') }}" data-fancybox="gallery">
-                                                                <img class="" src="{{ $manual->getFirstMediaThumbnailUrl('manuals')}}"
-                                                                     width="150" height="150" alt="Image"/>
-                                                            </a>
-                                                        </div>
-                                                    @endforeach
+                                                    <div class="m-2">
+                                                        <a href="{{ $current_wo->unit->manuals->getFirstMediaBigUrl('manuals') }}" data-fancybox="gallery">
+                                                            <img class="" src="{{ $current_wo->unit->manuals->getFirstMediaThumbnailUrl('manuals')}}"
+                                                                 width="150" height="150" alt="Image"/>
+                                                        </a>
+                                                    </div>
                                                 </div>
                                             @else
                                                 {{-- TODO: не находит картинку --}}
@@ -655,26 +657,23 @@
                                     @if($tdr->use_tdr == true and $tdr->use_process_forms != true)
                                         <tr>
                                             <td
-                                                class="text-center fs-7">
+                                                class="text-center fs-8">
                                                 @foreach($conditions as $condition)
                                                     @if($condition->id == $tdr->conditions_id)
                                                         {{$condition ->name}}
                                                     @endif
                                                 @endforeach
 
-                                                @foreach($components as $component)
-                                                    @if($component->id == $tdr->component_id)
-                                                        <fs-6 class="" style="color: #5897fb">(scrap)</fs-6>
+                                                @if($tdr->component)
+                                                    <fs-8 class="" style="color: #5897fb">(scrap)</fs-8>
 
-                                                        {{$component -> name}}
-                                                        @if ($tdr->qty == 1)
-                                                            ({{$component -> ipl_num}})
-                                                        @else
-                                                             ({{$component -> ipl_num}}, {{$tdr->qty}} pcs)
-                                                        @endif
-
+                                                    {{ $tdr->component->name }}
+                                                    @if ($tdr->qty == 1)
+                                                        ({{ $tdr->component->ipl_num }})
+                                                    @else
+                                                         ({{ $tdr->component->ipl_num }}, {{$tdr->qty}} pcs)
                                                     @endif
-                                                @endforeach
+                                                @endif
                                             </td>
                                             <td class="p-2 text-center">
 
@@ -751,25 +750,13 @@
                                     @if($tdr->use_tdr == true and $tdr->use_process_forms == true)
                                         <tr>
                                             <td class="text-center"> <!-- IPL Number -->
-                                                @foreach($components as $component)
-                                                    @if($component->id == $tdr->component_id)
-                                                        {{$component -> ipl_num}}
-                                                    @endif
-                                                @endforeach
+                                                {{ $tdr->component->ipl_num ?? '' }}
                                             </td>
                                             <td class="text-center"><!--  Part Description -->
-                                                @foreach($components as $component)
-                                                    @if($component->id == $tdr->component_id)
-                                                        {{$component -> name}}
-                                                    @endif
-                                                @endforeach
+                                                {{ $tdr->component->name ?? '' }}
                                             </td>
                                             <td class="text-center"><!--  Part Number -->
-                                                @foreach($components as $component)
-                                                    @if($component->id == $tdr->component_id)
-                                                        {{$component ->part_number}}
-                                                    @endif
-                                                @endforeach
+                                                {{ $tdr->component->part_number ?? '' }}
                                             </td>
                                             <td class="text-center"> <!--  Serial Number -->
                                                 {{$tdr->serial_number}}

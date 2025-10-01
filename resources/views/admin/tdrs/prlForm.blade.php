@@ -356,13 +356,16 @@
                     if ($i < $totalParts) {
                         $component = $ordersParts[$i]->orderComponent ?? $ordersParts[$i]->component;
                         if ($component) {
-                            $ipl_num = $component->ipl_num ?? $component->assy_ipl_num ?? '';
+//                            $ipl_num = $component->ipl_num ?? $component->assy_ipl_num ?? '';
+                             // Используем assy_ipl_num если он есть и не пустой, иначе ipl_num
+                            $ipl_num = (isset($component->assy_ipl_num) && $component->assy_ipl_num !== null && $component->assy_ipl_num !== '') ? $component->assy_ipl_num : ($component->ipl_num ?? '');
+
                             $ipl_parts = explode('-', $ipl_num);
                             $first_part = $ipl_parts[0] ?? '';
                             $second_part = $ipl_parts[1] ?? '';
-                            
+
                             // Отладочная информация
-                            // dd("i: $i, Component exists: " . ($component ? 'YES' : 'NO') . 
+                            // dd("i: $i, Component exists: " . ($component ? 'YES' : 'NO') .
                             //    ", assy_ipl_num: '" . ($component->assy_ipl_num ?? 'NULL') . "'" .
                             //    ", ipl_num: '" . ($component->ipl_num ?? 'NULL') . "'" .
                             //    ", IPL: '$ipl_num', First: '$first_part', Second: '$second_part'" .

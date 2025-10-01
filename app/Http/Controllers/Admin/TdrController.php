@@ -148,10 +148,27 @@ class TdrController extends Controller
         // Получаем коды и necessaries
         $codes = Code::all();
         $necessaries = Necessary::all();
+        $manuals=Manual::all();
 
         return view('admin.tdrs.component-inspection', compact('current_wo', 'component_conditions',
-            'components', 'codes', 'necessaries'));
+            'components', 'codes', 'necessaries', 'manual_id', 'manuals'));
     }
+
+    public function getComponentsByManual(Request $request)
+    {
+        $manual_id = $request->get('manual_id');
+
+        if (!$manual_id) {
+            return response()->json(['components' => []]);
+        }
+
+        $components = Component::where('manual_id', $manual_id)
+            ->select('id', 'part_number', 'assy_part_number', 'name', 'ipl_num')
+            ->get();
+
+        return response()->json(['components' => $components]);
+    }
+
 
     public function inspection_new($workorder_id, $type)
     {
