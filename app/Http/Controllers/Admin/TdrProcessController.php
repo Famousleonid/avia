@@ -22,6 +22,46 @@ use JetBrains\PhpStorm\NoReturn;
 class TdrProcessController extends Controller
 {
     /**
+     * Получает manual_id для TDR записи
+     * Сначала пытается получить из компонента, затем из workorder
+     */
+    private function getManualIdForTdr($tdrId)
+    {
+        $tdr = Tdr::with('component')->findOrFail($tdrId);
+        
+        // Если есть компонент, используем его manual_id
+        if ($tdr->component && $tdr->component->manual_id) {
+            return $tdr->component->manual_id;
+        }
+        
+        // Иначе используем manual_id из workorder (fallback)
+        return $tdr->workorder->unit->manual_id ?? null;
+    }
+    
+    /**
+     * Получает все manual_id для workorder (включая manual'ы компонентов)
+     */
+    private function getManualIdsForWorkorder($workorderId)
+    {
+        $workorder = Workorder::findOrFail($workorderId);
+        $manualIds = collect();
+        
+        // Добавляем основной manual_id из workorder
+        if ($workorder->unit && $workorder->unit->manual_id) {
+            $manualIds->push($workorder->unit->manual_id);
+        }
+        
+        // Добавляем manual_id из всех компонентов TDR записей
+        $tdrs = Tdr::with('component')->where('workorder_id', $workorderId)->get();
+        foreach ($tdrs as $tdr) {
+            if ($tdr->component && $tdr->component->manual_id) {
+                $manualIds->push($tdr->component->manual_id);
+            }
+        }
+        
+        return $manualIds->unique()->values()->toArray();
+    }
+    /**
      * Display a listing of the resource.
      *
      * @return Application|Factory|View
@@ -46,8 +86,8 @@ class TdrProcessController extends Controller
 
     public function createProcesses(Request $request, $tdrId)
     {
-        // Находим запись Tdr по ID
-        $current_tdr = Tdr::findOrFail($tdrId);
+        // Находим запись Tdr по ID с загруженным компонентом
+        $current_tdr = Tdr::with('component')->findOrFail($tdrId);
 
         // Получаем workorder_id из текущей записи Tdr
         $workorder_id = $current_tdr->workorder_id;
@@ -60,8 +100,13 @@ class TdrProcessController extends Controller
             abort(404, 'Workorder not found');
         }
 
-        // Получаем manual_id из Workorder (если такая связь существует)
-        $manual_id = $current_wo->unit->manual_id ?? null;
+        // Получаем manual_id для данного TDR
+        $manual_id = $this->getManualIdForTdr($tdrId);
+        
+        // Если manual_id не найден, выбрасываем ошибку
+        if (!$manual_id) {
+            abort(404, 'Manual not found for component or workorder');
+        }
 
         // Получаем имена процессов
         $processNames = ProcessName::all();
@@ -261,8 +306,11 @@ class TdrProcessController extends Controller
         // Загрузка Workorder с необходимыми отношениями
         $current_wo = Workorder::findOrFail($id);
 
-        // Получаем manual_id через отношения
-        $manual_id = $current_wo->unit->manual_id;
+        // Получаем все manual_id для данного workorder
+        $manualIds = $this->getManualIdsForWorkorder($id);
+        
+        // Для обратной совместимости оставляем первый manual_id
+        $manual_id = $manualIds[0] ?? null;
 
         // Получаем ID процесса из запроса
         $processes_name_id = $request->input('process_name_id');
@@ -272,12 +320,12 @@ class TdrProcessController extends Controller
         $vendorId = $request->input('vendor_id');
         $selectedVendor = $vendorId ? Vendor::find($vendorId) : null;
 
-        // Получаем компоненты и TDRs
-        $components = Component::where('manual_id', $manual_id)->get();
+        // Получаем компоненты из всех manual'ов
+        $components = Component::whereIn('manual_id', $manualIds)->get();
         $tdr_ids = Tdr::where('workorder_id', $current_wo->id)->pluck('id');
 
-        // Получаем manual processes
-        $manualProcesses = ManualProcess::where('manual_id', $manual_id)
+        // Получаем manual processes из всех manual'ов
+        $manualProcesses = ManualProcess::whereIn('manual_id', $manualIds)
             ->pluck('processes_id');
 
         // Обработка NDT формы

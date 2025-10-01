@@ -3,7 +3,7 @@
 @section('content')
     <style>
         .container {
-            max-width: 850px;
+            max-width: 950px;
         }
 
         /* Стили для Select2 (темная и светлая темы) */
@@ -338,7 +338,7 @@
                 // Устанавливаем заголовок модального окна и значение скрытого поля
                 document.getElementById('modalProcessName').innerText = processNameText;
                 document.getElementById('modalProcessNameId').value = processNameId;
-                
+
                 // Очищаем поле ввода нового процесса
                 document.getElementById('newProcessInput').value = '';
 
@@ -390,7 +390,7 @@
             const processNameText = select.options[select.selectedIndex].text;
             document.getElementById('modalProcessName').innerText = processNameText;
             document.getElementById('modalProcessNameId').value = processNameId;
-            
+
             // Очищаем поле ввода нового процесса
             document.getElementById('newProcessInput').value = '';
 
@@ -490,15 +490,15 @@
 
                                                 // Очищаем поле ввода нового процесса
                                 document.getElementById('newProcessInput').value = '';
-                                
+
                                 // Очищаем выбранные чекбоксы в модальном окне
                                 document.querySelectorAll('#existingProcessContainer input[type="checkbox"]:checked').forEach(checkbox => {
                                     checkbox.checked = false;
                                 });
-                                
+
                                 // Показываем сообщение об успехе
                                 alert('Процесс успешно добавлен!');
-                                
+
                                 // Перезагружаем список существующих процессов в модальном окне
                                 const manualId = document.getElementById('processes-container').dataset.manualId;
                                 fetch(`{{ route('processes.getProcesses') }}?processNameId=${processNameId}&manualId=${manualId}`)

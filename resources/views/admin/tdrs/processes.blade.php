@@ -30,7 +30,7 @@
 
         .table th:nth-child(3), .table td:nth-child(3) {
             min-width: 50px;
-            max-width: 500px;
+            max-width: 400px;
         }
 
         .table th:nth-child(4), .table td:nth-child(4) {
@@ -90,7 +90,7 @@
                     </div>
 
 
-                    <div class="ps-2 d-flex" style="width: 440px">
+                    <div class="ps-2 d-flex" style="width: 540px">
                         <button class="btn btn-outline-primary" data-bs-toggle="modal"
                                 data-bs-target="#formsModal" style=" height: 60px">
                             {{__('Forms')}}
