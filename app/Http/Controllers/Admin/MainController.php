@@ -13,7 +13,6 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Auth;
 
-
 class MainController extends Controller
 {
     public function index()
@@ -67,9 +66,9 @@ class MainController extends Controller
             'unit.manual.media', // <— важно
         ])->findOrFail($workorder_id);
 
+
         $manual = optional($current_workorder->unit)->manual; // может быть null
 
-        // Готовим URL-ы для Blade (ТОЛЬКО из Manual.manuals)
         if ($manual) {
             if (method_exists($manual, 'getFirstMediaThumbnailUrl')) {
                 $imgThumb = $manual->getFirstMediaThumbnailUrl('manuals');   // из HasMediaHelpers
@@ -83,10 +82,8 @@ class MainController extends Controller
         $imgThumb = $imgThumb ?? asset('img/placeholder-160x160.png');
         // $imgFull может остаться null — учтём в Blade
 
-        return view('admin.mains.main', compact(
-            'users', 'current_workorder', 'mains',
-            'general_tasks','tasks','tasksByGeneral',
-            'imgThumb','imgFull'
+        return view('admin.mains.main', compact('users', 'current_workorder', 'mains',
+            'general_tasks','tasks','tasksByGeneral','imgThumb','imgFull','manual'
         ));
     }
 

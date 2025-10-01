@@ -1,4 +1,3 @@
-{{-- resources/views/admin/workorders/show.blade.php --}}
 @extends('admin.master')
 
 @section('style')
@@ -10,35 +9,32 @@
             color: #f8f9fa;
         }
 
-        /* ====== ВЕРХ/НИЗ ВЕРСТКА ПО ВЫСОТЕ ЭКРАНА ====== */
         .vh-layout {
-            /* подгони отступ, если сверху есть фикс-хедер/браузерные панели */
             height: calc(100vh - 120px);
             display: flex;
             flex-direction: column;
             gap: 0.75rem;
         }
         .top-pane {
-            flex: 0 0 25%;           /* 25% высоты экрана */
-            min-height: 160px;       /* чтобы не было слишком мелко на низких экранах */
+            flex: 0 0 25%;
+            min-height: 210px;
             border: 1px solid rgba(0,0,0,.125);
             border-radius: .5rem;
             padding: 1rem;
-            overflow: auto;          /* если данных больше — внутри будет скролл */
+            overflow: auto;
         }
         .bottom-row {
-            flex: 1 1 auto;          /* остальная высота (≈75%) */
+            flex: 1 1 auto;
             display: flex;
             gap: 0.75rem;
             min-height: 260px;
         }
 
-        /* на ≥LG — две колонки; на мобильных — стекаются */
         .bottom-col {
             border: 1px solid rgba(0,0,0,.125);
             border-radius: .5rem;
             padding: 1rem;
-            overflow: hidden;        /* содержимое внутри само прокручивается */
+            overflow: hidden;
             display: flex;
             flex-direction: column;
             min-height: 200px;
@@ -52,7 +48,6 @@
             .bottom-col { width: 100%; }
         }
 
-        /* ====== содержимое левой панели (выбор + таблица) ====== */
         .select-task {
             border: 0; width: 100%; text-align: left;
             padding: .5rem .75rem; background: transparent; border-radius: .5rem;
@@ -60,24 +55,20 @@
         .select-task:hover { background: rgba(0, 123, 255, .15); cursor: pointer; }
         #taskTabContent { max-height: 40vh; overflow:auto; } /* ограничение списка задач */
 
-        /* единая высота контролов в строке */
         .eqh-sm { height: calc(1.8125rem + 2px); } /* высота под form-control-sm */
         .is-valid { box-shadow: 0 0 0 .2rem rgba(25,135,84,.25); }
         #taskPickerBtn.eqh { height: calc(1.8125rem + 2px); }
 
-        /* левая колонка — вертикальный флекс: сверху форма, снизу таблица со скроллом */
         .left-pane { display: flex; flex-direction: column; gap: .75rem; height: 100%; }
         .table-wrap { flex: 1 1 auto; min-height: 180px; }
         .table-wrap .table-responsive { height: 100%; max-height: 100%; overflow: auto; }
 
-        /* мобильные улучшения */
         @media (max-width: 991.98px) {
             #taskTabContent { max-height: 50vh; }
             .table-wrap .table-responsive { max-height: 50vh; }
             .table td, .table th { white-space: nowrap; }
         }
 
-        /* колонка general->task */
         .task-cell {
             background: linear-gradient(90deg, rgba(0,123,255,.1), rgba(0,200,255,.05));
             border-radius: .25rem;
@@ -95,7 +86,7 @@
         }
         .gradient-table {
             background: linear-gradient(135deg, #212529 0%, #2c3035 100%);
-            color: #f8f9fa; /* светлый текст */
+            color: #f8f9fa;
             border-radius: .5rem;
             overflow: hidden;
         }
@@ -112,7 +103,6 @@
             vertical-align: middle;
         }
 
-        /* колонка General → Task */
         .task-col {
             font-size: 0.8rem;
             font-weight: 500;
@@ -120,13 +110,12 @@
         }
         .task-col .arrow {
             margin: 0 .25rem;
-            color: #adb5bd; /* посветлее для стрелки */
+            color: #adb5bd;
         }
 
         .finish-input.has-finish {
-            background-color: rgba(25,135,84,.1); /* нежно-зелёный фон, как у даты начала */
-
-            color: #f8f9fa;                       /* светлый текст под градиентную таблицу */
+            background-color: rgba(25,135,84,.1);
+            color: #f8f9fa;
             font-weight: 500;
             background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='%23198754' viewBox='0 0 16 16'%3E%3Cpath d='M13.485 1.929a.75.75 0 010 1.06L6.818 9.657a.75.75 0 01-1.06 0L2.515 6.414a.75.75 0 111.06-1.06L6 7.778l6.425-6.425a.75.75 0 011.06 0z'/%3E%3C/svg%3E");
             background-repeat: no-repeat;
@@ -162,25 +151,12 @@
         #addBtn.btn-success:focus{
             box-shadow: 0 0 0 .2rem rgba(25,135,84,.35);
         }
-        /* Когда кнопка была disabled, Bootstrap делает её бледной — после включения уберём эффект: */
         #addBtn:not(:disabled){ opacity: 1; }
 
     </style>
 @endsection
 
 @section('content')
-
-    {{-- <div class="d-flex align-items-center">
-                            <h5 class="modal-title text-info fw-bold mb-0 me-3">w {{ $current_workorder->number }}</h5>
-                            @if($current_workorder->approve_at)
-                                <div class="d-flex align-items-center">
-                                    <img class="ms-1" src="{{ asset('img/ok.png') }}" width="20" alt="">
-                                    <span class="sf ms-1" style="color:#8AF466">approved</span>
-                                </div>
-                            @else
-                                <span class="sf" style="color:#ff7676">not approved</span>
-                            @endif
-                        </div>--}}
 
     <div class="card shadow">
         <div class="card-body">
@@ -195,7 +171,7 @@
                             <div class="card h-100 w-100 bg-dark text-light border-secondary d-flex align-items-center justify-content-center p-3">
                                 @if($imgFull)
                                     <a href="{{ $imgFull }}" data-fancybox="wo-manual" title="Manual">
-                                        <img class="rounded-circle" src="{{ $imgThumb }}" width="80" height="80" alt="Manual preview">
+                                        <img class="rounded-circle" src="{{ $imgThumb }}" width="100" height="100" alt="Manual preview">
                                     </a>
                                 @else
                                     <img class="rounded-circle" src="{{ $imgThumb }}" width="80" height="80" alt="No image">
@@ -209,7 +185,7 @@
                                 <div class="card-body py-3 d-flex flex-column">
                                     <div class="d-flex flex-wrap align-items-center justify-content-between mb-3">
                                         <div class="d-flex align-items-center gap-3">
-                                            <h5 class="mb-0 text-info">WO: {{ $current_workorder->number }}</h5>
+                                            <h5 class="mb-0 text-info">w {{ $current_workorder->number }}</h5>
                                             @if($current_workorder->approve_at)
                                                 <span class="badge bg-success">
                                     Approved {{ $current_workorder->approve_at?->format('d-M-y') ?? '—' }}
@@ -217,38 +193,31 @@
                                             @else
                                                 <span class="badge bg-warning text-dark">Not approved</span>
                                             @endif
+                                            <span
+                                                class="ms-2 fs-4"
+                                                title="{{ $current_workorder->description }}"
+                                                style="cursor: help;"
+                                            >&#9432;</span>
                                         </div>
-                                        <div class="text-muted small">
-                                            Open: <span class="text-light">{{ $current_workorder->open_at?->format('d-M-y') ?? '—' }}</span>
-                                            @if($current_workorder->created_at)
-                                                <span class="mx-2">•</span>
-                                                Created: <span class="text-light">{{ $current_workorder->created_at?->format('d-M-y') ?? '—' }}</span>
-                                            @endif
-                                            @if($current_workorder->amdt)
-                                                <span class="mx-2">•</span>
-                                                AMDT: <span class="text-light">{{ e($current_workorder->amdt) }}</span>
-                                            @endif
+                                        <div class="">
+                                            <span class="text-light"> {{ $current_workorder->instruction->name ?? '—' }}</span>
+                                            <span class="mx-2 text-primary">•</span>
+                                            <span class="text-light"> {{ $manual->number ?? '—' }}</span>
+                                            <span class="mx-2 text-primary">•</span>
+                                            <span class="text-light"> {{ $manual->title ?? '—' }}</span>
+                                            <span class="mx-2 text-primary">•</span>
+                                            <span class="text-muted small">Lib:</span> <span class="text-light"> {{ $manual->lib ?? '—' }}</span>
+                                            <span class="mx-2 text-primary">•</span>
+                                            <span class="text-muted small">Open: </span><span class="text-light">{{ $current_workorder->open_at?->format('d-M-y') ?? '—' }}</span>
                                         </div>
                                     </div>
 
                                     <div class="row g-3 flex-fill">
-                                        {{-- CUSTOMER --}}
                                         <div class="col-12 col-lg-4 d-flex">
                                             <div class="border rounded p-2 h-100 w-100">
                                                 <div class="fw-semibold text-info mb-1">Customer</div>
                                                 <div class="small">
                                                     <div><span class="text-secondary">Name:</span> {{ $current_workorder->customer->name ?? '—' }}</div>
-                                                    @if(optional($current_workorder->customer)->email)
-                                                        <div><span class="text-secondary">Email:</span>
-                                                            <a class="link-info" href="mailto:{{ $current_workorder->customer->email }}">{{ $current_workorder->customer->email }}</a>
-                                                        </div>
-                                                    @endif
-                                                    @if(optional($current_workorder->customer)->phone)
-                                                        <div><span class="text-secondary">Phone:</span> {{ $current_workorder->customer->phone }}</div>
-                                                    @endif
-                                                    @if(optional($current_workorder->customer)->address)
-                                                        <div><span class="text-secondary">Address:</span> {{ $current_workorder->customer->address }}</div>
-                                                    @endif
                                                 </div>
                                             </div>
                                         </div>
@@ -256,7 +225,12 @@
                                         {{-- UNIT --}}
                                         <div class="col-12 col-lg-4 d-flex">
                                             <div class="border rounded p-2 h-100 w-100">
-                                                <div class="fw-semibold text-info mb-1">Unit</div>
+
+                                                <div class="fw-semibold text-info mb-1 d-inline-flex align-items-center">
+                                                    Unit
+
+                                                </div>
+
                                                 <div class="small">
                                                     <div><span class="text-secondary">Part number:</span> {{ $current_workorder->unit->part_number ?? '—' }}</div>
                                                     @if(optional($current_workorder->unit)->model)
@@ -272,37 +246,20 @@
                                             </div>
                                         </div>
 
-                                        {{-- DETAILS --}}
                                         <div class="col-12 col-lg-4 d-flex">
                                             <div class="border rounded p-2 h-100 w-100">
                                                 <div class="fw-semibold text-info mb-1">Details</div>
                                                 <div class="small">
-                                                    <div><span class="text-secondary">Owner:</span> {{ $current_workorder->user->name ?? '—' }}</div>
-                                                    <div><span class="text-secondary">Instruction:</span>
-                                                        {{ $current_workorder->instruction->name ?? '—' }}
-                                                        @if(optional($current_workorder->instruction)->code)
-                                                            <span class="text-secondary">({{ $current_workorder->instruction->code }})</span>
-                                                        @endif
-                                                    </div>
-
-
+                                                    <div><span class="text-secondary">Technik:</span> {{ $current_workorder->user->name ?? '—' }}</div>
                                                 </div>
                                             </div>
                                         </div>
                                     </div>
-
-                                    @if($current_workorder->description)
-                                        <div class="mt-3 small">
-                                            <div class="fw-semibold text-info mb-1">Description</div>
-                                            <div class="text-light">{{ $current_workorder->description }}</div>
-                                        </div>
-                                    @endif
                                 </div>
                             </div>
                         </div>
                     </div>
                 </div>
-
 
                 {{------------------------------------------------------------------------------------------}}
 
@@ -373,7 +330,6 @@
 
                                 </div>
 
-                                {{-- одна строка: User / Start / Finish / Add --}}
                                 <div class="row g-2 align-items-stretch ">
                                     <div class="col-12 col-sm-6 col-xl-4 border-secondary">
                                         <select name="user_id" class="form-select-sm eqh-sm">
@@ -652,7 +608,7 @@
             initTaskPicker();
             bindFormSubmit();
             initFinishInlineEditing();
-            initDeleteModal();
+           // initDeleteModal();
         });
     </script>
 @endsection
