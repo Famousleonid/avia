@@ -16,8 +16,8 @@
             gap: 0.75rem;
         }
         .top-pane {
-            flex: 0 0 25%;
-            min-height: 210px;
+            flex: 0 0 20%;
+            min-height: 165px;
             border: 1px solid rgba(0,0,0,.125);
             border-radius: .5rem;
             padding: 1rem;
@@ -171,7 +171,7 @@
                             <div class="card h-100 w-100 bg-dark text-light border-secondary d-flex align-items-center justify-content-center p-3">
                                 @if($imgFull)
                                     <a href="{{ $imgFull }}" data-fancybox="wo-manual" title="Manual">
-                                        <img class="rounded-circle" src="{{ $imgThumb }}" width="100" height="100" alt="Manual preview">
+                                        <img class="rounded-circle" src="{{ $imgThumb }}" width="90" height="90" alt="Manual preview">
                                     </a>
                                 @else
                                     <img class="rounded-circle" src="{{ $imgThumb }}" width="80" height="80" alt="No image">
@@ -213,45 +213,34 @@
                                     </div>
 
                                     <div class="row g-3 flex-fill">
+
                                         <div class="col-12 col-lg-4 d-flex">
                                             <div class="border rounded p-2 h-100 w-100">
-                                                <div class="fw-semibold text-info mb-1">Customer</div>
-                                                <div class="small">
-                                                    <div><span class="text-secondary">Name:</span> {{ $current_workorder->customer->name ?? '—' }}</div>
-                                                </div>
-                                            </div>
-                                        </div>
+                                                <div class="small d-flex flex-wrap align-items-center gap-2">
+                                                    <span class="text-info">Unit Part number:</span>
+                                                    <span>{{ $current_workorder->unit->part_number ?? '—' }}</span>
 
-                                        {{-- UNIT --}}
-                                        <div class="col-12 col-lg-4 d-flex">
-                                            <div class="border rounded p-2 h-100 w-100">
-
-                                                <div class="fw-semibold text-info mb-1 d-inline-flex align-items-center">
-                                                    Unit
-
-                                                </div>
-
-                                                <div class="small">
-                                                    <div><span class="text-secondary">Part number:</span> {{ $current_workorder->unit->part_number ?? '—' }}</div>
-                                                    @if(optional($current_workorder->unit)->model)
-                                                        <div><span class="text-secondary">Model:</span> {{ $current_workorder->unit->model }}</div>
-                                                    @endif
-                                                    <div><span class="text-secondary">Serial:</span>
-                                                        {{ $current_workorder->serial_number ?? ($current_workorder->unit->serial_number ?? '—') }}
-                                                    </div>
-                                                    @if($current_workorder->place)
-                                                        <div><span class="text-secondary">Place:</span> {{ $current_workorder->place }}</div>
-                                                    @endif
+                                                    <span class="text-info">Serial:</span>
+                                                    <span>{{ $current_workorder->serial_number ?? ($current_workorder->unit->serial_number ?? '—') }}</span>
                                                 </div>
                                             </div>
                                         </div>
 
                                         <div class="col-12 col-lg-4 d-flex">
                                             <div class="border rounded p-2 h-100 w-100">
-                                                <div class="fw-semibold text-info mb-1">Details</div>
-                                                <div class="small">
-                                                    <div><span class="text-secondary">Technik:</span> {{ $current_workorder->user->name ?? '—' }}</div>
+                                                <div class="small d-flex align-items-center">
+                                                    <span class="text-info small me-1">Customer:</span>
+                                                    <span>{{ $current_workorder->customer->name ?? '—' }}</span>
                                                 </div>
+                                            </div>
+                                        </div>
+
+
+
+                                        <div class="col-12 col-lg-4 d-flex">
+                                            <div class="border rounded p-2 h-100 w-100">
+
+                                                <div><span class="text-info small">Technik:</span> {{ $current_workorder->user->name ?? '—' }}</div>
                                             </div>
                                         </div>
                                     </div>
@@ -407,9 +396,58 @@
 
                 {{------------------------------------------------------------------------------------------}}
 
-                    <div class="bottom-col right border-info gradient-pane ">
-                        <div class="text-muted">Right panel  — под компоненты</div>
+                    <div class="bottom-col right border-info gradient-pane">
+                        <div class="d-flex align-items-center justify-content-between mb-2">
+                            <h6 class="mb-0 text-primary">Components & Processes</h6>
+                            <span class="badge bg-secondary">{{ $components->count() }}</span>
+                        </div>
+
+                        @if($components->isEmpty())
+                            <div class="text-muted small">No components found for manual.</div>
+                        @else
+                            <div class="list-group list-group-flush" style="overflow:auto;">
+                                @foreach($components as $cmp)
+                                    <div class="list-group-item bg-transparent text-light border-secondary">
+                                        <div class="d-flex align-items-center justify-content-between">
+                                            <div class="fw-semibold text-info">{{ $cmp->name ?? ('#'.$cmp->id) }}</div>
+
+                                        </div>
+
+                                        @forelse($cmp->tdrs as $tdr)
+                                            <div class="mt-2 ps-2">
+
+                                                @if($tdr->tdrprocesses->isNotEmpty())
+                                                    <table class="table table-sm table-dark table-bordered mb-2 align-middle">
+                                                        <thead>
+                                                        <tr>
+                                                            <th style="width:40%;">Process</th>
+                                                            <th style="width:30%;">Sent</th>
+                                                            <th style="width:30%;">Returned</th>
+                                                        </tr>
+                                                        </thead>
+                                                        <tbody>
+                                                        @foreach($tdr->tdrprocesses as $pr)
+                                                            <tr>
+                                                                <td>{{ $pr->processName->name ?? '—' }}</td>
+                                                                <td>{{ $pr->date_start?->format('d-M-y') ?? '—' }}</td>
+                                                                <td>{{ $pr->date_finish?->format('d-M-y') ?? '—' }}</td>
+                                                            </tr>
+                                                        @endforeach
+                                                        </tbody>
+                                                    </table>
+                                                @else
+                                                    <div class="text-muted small">No processes for this TDR.</div>
+                                                @endif
+                                            </div>
+                                        @empty
+                                            <div class="text-muted small">No TDRs for this component on this workorder.</div>
+                                        @endforelse
+                                    </div>
+                                @endforeach
+                            </div>
+                        @endif
                     </div>
+
 
                 </div>
 

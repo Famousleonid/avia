@@ -18,11 +18,12 @@ class TdrProcess extends Model
         'date_start',
         'date_finish',
     ];
-
-    // Автоматическое преобразование JSON в массив
     protected $casts = [
-        'processes' => 'array',
+        'processes'   => 'array',
+        'date_start'  => 'date',   // <-- важно
+        'date_finish' => 'date',   // <-- важно
     ];
+
 
     // Отношение к модели Tdr
     public function tdr()

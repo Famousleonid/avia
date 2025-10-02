@@ -34,6 +34,11 @@ class Component extends Model implements  hasMedia
         return $this->belongsTo(Manual::class,'manual_id');
     }
 
+    public function tdrs()
+    {
+        return $this->hasMany(\App\Models\Tdr::class, 'component_id', 'id');
+    }
+
     public function registerAllMediaConversions(): void
     {
         $this->addMediaConversion('thumb')

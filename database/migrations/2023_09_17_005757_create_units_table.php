@@ -25,18 +25,6 @@ return new class extends Migration
         });
 
 
-//        $csvFile = public_path('data/unit_n.csv');
-//        $file = fopen($csvFile, 'r');
-//        $headers = fgetcsv($file);
-//        while (($row = fgetcsv($file)) !== false) {
-//            DB::table('units')->insert([
-//                'part_number' => $row[2],
-//                'verified' => $row[3],
-//                'manual_id' => $row[4],
-//            ]);
-//        }
-//        fclose($file);
-
     }
 
     /**

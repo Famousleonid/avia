@@ -64,8 +64,22 @@ class MainController extends Controller
         $current_workorder = Workorder::with([
             'customer','user','instruction',
             'unit.manual.media', // <— важно
+            'unit.manual.components',
         ])->findOrFail($workorder_id);
 
+        $components = collect();
+        if ($current_workorder->unit && $current_workorder->unit->manual) {
+            $components = $current_workorder->unit->manual
+                ->components()
+                ->with(['tdrs' => function ($q) use ($workorder_id) {
+                    $q->where('workorder_id', $workorder_id)
+                        ->with(['tdrprocesses' => function ($qq) {
+                            $qq->with('processName'); // ← имя процесса берём из ProcessName
+                        }]);
+                }])
+                ->orderBy('name') // при необходимости поменяй сортировку
+                ->get();
+        }
 
         $manual = optional($current_workorder->unit)->manual; // может быть null
 
@@ -83,7 +97,7 @@ class MainController extends Controller
         // $imgFull может остаться null — учтём в Blade
 
         return view('admin.mains.main', compact('users', 'current_workorder', 'mains',
-            'general_tasks','tasks','tasksByGeneral','imgThumb','imgFull','manual'
+            'general_tasks','tasks','tasksByGeneral','imgThumb','imgFull','manual','components'
         ));
     }
 
