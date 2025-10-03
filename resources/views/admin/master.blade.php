@@ -59,12 +59,10 @@
         <div class="content-inner px-2">
             @include('components.status')
             @yield('content')
-            @include('components.footer')
+
         </div>
     </div>
-
     @include('components.footer')
-
 </div>
 
 <script src="{{asset('assets/jquery/jquery371min.js')}}"></script>

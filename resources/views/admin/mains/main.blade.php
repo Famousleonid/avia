@@ -396,49 +396,68 @@
 
                 {{------------------------------------------------------------------------------------------}}
 
+                    {{-- Правая колонка: компоненты и процессы (из tdr_processes) --}}
                     <div class="bottom-col right border-info gradient-pane">
                         <div class="d-flex align-items-center justify-content-between mb-2">
                             <h6 class="mb-0 text-primary">Components & Processes</h6>
-                            <span class="badge bg-secondary">{{ $components->count() }}</span>
+
+                            <form method="get" action="{{ route('mains.show', $current_workorder->id) }}" class="d-flex align-items-center gap-2">
+                                <div class="form-check form-switch">
+                                    <input class="form-check-input" type="checkbox" id="onlyOpen" name="only_open" value="1"
+                                           onchange="this.form.submit()" {{ $onlyOpen ? 'checked' : '' }}>
+                                    <label class="form-check-label small" for="onlyOpen">Only open</label>
+                                </div>
+                            </form>
                         </div>
 
                         @if($components->isEmpty())
-                            <div class="text-muted small">No components found for manual.</div>
+                            <div class="text-muted small">No components with processes {{ $onlyOpen ? '(open only)' : '' }}.</div>
                         @else
                             <div class="list-group list-group-flush" style="overflow:auto;">
                                 @foreach($components as $cmp)
                                     <div class="list-group-item bg-transparent text-light border-secondary">
                                         <div class="d-flex align-items-center justify-content-between">
                                             <div class="fw-semibold text-info">{{ $cmp->name ?? ('#'.$cmp->id) }}</div>
-
                                         </div>
 
                                         @forelse($cmp->tdrs as $tdr)
-                                            <div class="mt-2 ps-2">
-
-                                                @if($tdr->tdrprocesses->isNotEmpty())
+                                            @php $prs = $tdr->tdrProcesses; @endphp
+                                            @if($prs->isNotEmpty())
+                                                <div class="mt-2 ps-2">
                                                     <table class="table table-sm table-dark table-bordered mb-2 align-middle">
                                                         <thead>
                                                         <tr>
-                                                            <th style="width:40%;">Process</th>
+                                                            <th style="width:40%;"></th>
                                                             <th style="width:30%;">Sent</th>
                                                             <th style="width:30%;">Returned</th>
                                                         </tr>
                                                         </thead>
                                                         <tbody>
-                                                        @foreach($tdr->tdrprocesses as $pr)
+                                                        @foreach($prs as $pr)
                                                             <tr>
                                                                 <td>{{ $pr->processName->name ?? '—' }}</td>
-                                                                <td>{{ $pr->date_start?->format('d-M-y') ?? '—' }}</td>
-                                                                <td>{{ $pr->date_finish?->format('d-M-y') ?? '—' }}</td>
+                                                                <td>
+                                                                    <form method="POST" action="{{ route('tdrprocesses.updateDate', $pr) }}" class="auto-submit-form">
+                                                                        @csrf @method('PATCH')
+                                                                        <input type="date" name="date_start"
+                                                                               class="form-control form-control-sm"
+                                                                               value="{{ $pr->date_start?->format('Y-m-d') }}">
+                                                                    </form>
+                                                                </td>
+                                                                <td>
+                                                                    <form method="POST" action="{{ route('tdrprocesses.updateDate', $pr) }}" class="auto-submit-form">
+                                                                        @csrf @method('PATCH')
+                                                                        <input type="date" name="date_finish"
+                                                                               class="form-control form-control-sm"
+                                                                               value="{{ $pr->date_finish?->format('Y-m-d') }}">
+                                                                    </form>
+                                                                </td>
                                                             </tr>
                                                         @endforeach
                                                         </tbody>
                                                     </table>
-                                                @else
-                                                    <div class="text-muted small">No processes for this TDR.</div>
-                                                @endif
-                                            </div>
+                                                </div>
+                                            @endif
                                         @empty
                                             <div class="text-muted small">No TDRs for this component on this workorder.</div>
                                         @endforelse
@@ -449,8 +468,10 @@
                     </div>
 
 
-                </div>
 
+
+
+                </div>
             </div>
         </div>
     </div>
@@ -469,6 +490,8 @@
 @section('scripts')
     <script>
         document.addEventListener('DOMContentLoaded', () => {
+
+            hideLoadingSpinner();
 
             function getCsrfToken() {
                 return document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '{{ csrf_token() }}';
@@ -647,6 +670,19 @@
             bindFormSubmit();
             initFinishInlineEditing();
            // initDeleteModal();
+
+
+            (function(){
+                function debounce(fn, ms){ let t; return (...a)=>{ clearTimeout(t); t=setTimeout(()=>fn.apply(null,a), ms); }; }
+                document.querySelectorAll('.auto-submit-form input[type="date"]').forEach(inp=>{
+                    const submitDebounced = debounce(function(form){ form.submit(); }, 250);
+                    inp.addEventListener('change', function(){ submitDebounced(this.form); });
+                    showLoadingSpinner();
+                });
+            })();
+
+
+
         });
     </script>
 @endsection

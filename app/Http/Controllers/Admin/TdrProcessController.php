@@ -28,16 +28,16 @@ class TdrProcessController extends Controller
     private function getManualIdForTdr($tdrId)
     {
         $tdr = Tdr::with('component')->findOrFail($tdrId);
-        
+
         // Если есть компонент, используем его manual_id
         if ($tdr->component && $tdr->component->manual_id) {
             return $tdr->component->manual_id;
         }
-        
+
         // Иначе используем manual_id из workorder (fallback)
         return $tdr->workorder->unit->manual_id ?? null;
     }
-    
+
     /**
      * Получает все manual_id для workorder (включая manual'ы компонентов)
      */
@@ -45,12 +45,12 @@ class TdrProcessController extends Controller
     {
         $workorder = Workorder::findOrFail($workorderId);
         $manualIds = collect();
-        
+
         // Добавляем основной manual_id из workorder
         if ($workorder->unit && $workorder->unit->manual_id) {
             $manualIds->push($workorder->unit->manual_id);
         }
-        
+
         // Добавляем manual_id из всех компонентов TDR записей
         $tdrs = Tdr::with('component')->where('workorder_id', $workorderId)->get();
         foreach ($tdrs as $tdr) {
@@ -58,7 +58,7 @@ class TdrProcessController extends Controller
                 $manualIds->push($tdr->component->manual_id);
             }
         }
-        
+
         return $manualIds->unique()->values()->toArray();
     }
     /**
@@ -102,7 +102,7 @@ class TdrProcessController extends Controller
 
         // Получаем manual_id для данного TDR
         $manual_id = $this->getManualIdForTdr($tdrId);
-        
+
         // Если manual_id не найден, выбрасываем ошибку
         if (!$manual_id) {
             abort(404, 'Manual not found for component or workorder');
@@ -212,8 +212,8 @@ class TdrProcessController extends Controller
                 'process_names_id' => $data['process_names_id'],
                 'processes' => json_encode($data['processes']), // Сохраняем массив ID процессов
                 'sort_order' => $maxSortOrder + $index + 1, // Устанавливаем sort_order в конец списка
-                'date_start' => now(), // Пример даты начала
-                'date_finish' => now()->addDays(1), // Пример даты завершения
+                'date_start' => null,
+                'date_finish' => null,
             ]);
         }
 
@@ -308,7 +308,7 @@ class TdrProcessController extends Controller
 
         // Получаем все manual_id для данного workorder
         $manualIds = $this->getManualIdsForWorkorder($id);
-        
+
         // Для обратной совместимости оставляем первый manual_id
         $manual_id = $manualIds[0] ?? null;
 
@@ -512,7 +512,7 @@ class TdrProcessController extends Controller
 
         $tdrProcesses = TdrProcess::orderBy('sort_order')->get();
         $proces = Process::all();
-        
+
         // Получаем всех поставщиков
         $vendors = Vendor::all();
 
@@ -672,7 +672,7 @@ class TdrProcessController extends Controller
     {
         try {
             $processIds = $request->input('process_ids');
-            
+
             if (!is_array($processIds)) {
                 return response()->json(['success' => false, 'message' => 'Invalid process IDs'], 400);
             }
@@ -688,5 +688,18 @@ class TdrProcessController extends Controller
         } catch (\Exception $e) {
             return response()->json(['success' => false, 'message' => 'Error updating order: ' . $e->getMessage()], 500);
         }
+    }
+
+
+    public function updateDate(Request $request, TdrProcess $tdrProcess)
+    {
+        $data = $request->validate([
+            'date_start'  => ['nullable','date'],
+            'date_finish' => ['nullable','date','after_or_equal:date_start'],
+        ]);
+
+        $tdrProcess->fill($data)->save();
+
+        return back()->with('success', 'Process dates updated');
     }
 }

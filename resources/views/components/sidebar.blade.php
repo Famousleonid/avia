@@ -114,9 +114,9 @@
                 <img src="{{ asset('img/favicon.webp') }}" width="30" alt="Logo">
             </div>
             <div class="col-8">
-                <a href="{{ url('/') }}" target="_blank" class="brand-link">
-                    @include('components.logo')
-                </a>
+{{--                <a href="{{ url('/') }}" target="_blank" class="brand-link">--}}
+{{--                    @include('components.logo')--}}
+{{--                </a>--}}
             </div>
         </div>
         <button type="button" class="btn-close btn-close-white" data-bs-dismiss="offcanvas"></button>
@@ -135,11 +135,11 @@
         </div>
     </div>
 
-    <div class="flex-grow-1 d-flex flex-column">
-        @if(Auth()->user())
-            @include('components.admin_menu_sidebar', ['themeToggleId' => 'themeToggle'])
-        @endif
-    </div>
+{{--    <div class="flex-grow-1 d-flex flex-column">--}}
+{{--        @if(Auth()->user())--}}
+{{--            @include('components.admin_menu_sidebar', ['themeToggleId' => 'themeToggle'])--}}
+{{--        @endif--}}
+{{--    </div>--}}
 
     <div class="p-3 mt-auto border-top border-bottom border-1">
         <a class="nav-link" href="{{ route('logout') }}"

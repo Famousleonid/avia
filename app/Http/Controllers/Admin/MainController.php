@@ -63,25 +63,42 @@ class MainController extends Controller
         // Подтянем unit.manual и медиа manual заодно
         $current_workorder = Workorder::with([
             'customer','user','instruction',
-            'unit.manual.media', // <— важно
+            'unit.manual.media',
             'unit.manual.components',
         ])->findOrFail($workorder_id);
 
+        $onlyOpen = (bool) request('only_open'); // чекбокс «только без возврата»
+
         $components = collect();
-        if ($current_workorder->unit && $current_workorder->unit->manual) {
+        if ($current_workorder->unit?->manual) {
             $components = $current_workorder->unit->manual
                 ->components()
-                ->with(['tdrs' => function ($q) use ($workorder_id) {
+                // оставить только компоненты, у которых есть TDR этого WO и есть процессы
+                ->whereHas('tdrs', function ($q) use ($workorder_id, $onlyOpen) {
                     $q->where('workorder_id', $workorder_id)
-                        ->with(['tdrprocesses' => function ($qq) {
-                            $qq->with('processName'); // ← имя процесса берём из ProcessName
-                        }]);
+                        ->whereHas('tdrProcesses', function ($qq) use ($onlyOpen) {
+                            if ($onlyOpen) {
+                                $qq->whereNull('date_finish');
+                            }
+                        });
+                })
+                // и сразу всё догружаем чтобы не было N+1
+                ->with(['tdrs' => function ($q) use ($workorder_id, $onlyOpen) {
+                    $q->where('workorder_id', $workorder_id)
+                        ->with(['tdrProcesses' => function ($qq) use ($onlyOpen) {
+                            if ($onlyOpen) {
+                                $qq->whereNull('date_finish');
+                            }
+                            $qq->with('processName')->orderBy('id');
+                        }])
+                        ->orderBy('id');
                 }])
-                ->orderBy('name') // при необходимости поменяй сортировку
+                ->orderBy('name')
                 ->get();
         }
 
-        $manual = optional($current_workorder->unit)->manual; // может быть null
+
+        $manual = optional($current_workorder->unit)->manual;
 
         if ($manual) {
             if (method_exists($manual, 'getFirstMediaThumbnailUrl')) {
@@ -94,12 +111,13 @@ class MainController extends Controller
         }
 
         $imgThumb = $imgThumb ?? asset('img/placeholder-160x160.png');
-        // $imgFull может остаться null — учтём в Blade
 
         return view('admin.mains.main', compact('users', 'current_workorder', 'mains',
-            'general_tasks','tasks','tasksByGeneral','imgThumb','imgFull','manual','components'
-        ));
+            'general_tasks','tasks','tasksByGeneral','imgThumb','imgFull','manual','components', 'onlyOpen' ));
     }
+
+
+
 
     public function edit($id)
     {

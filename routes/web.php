@@ -272,6 +272,9 @@ Route::resource('/extra_processes', ExtraProcessController::class)->except(['cre
     Route::get('tdrs/woProcessForm/{id}', [TdrController::class, 'wo_Process_Form'])->name('tdrs.woProcessForm');
     // Для component inspection
     Route::get('/tdrs/inspection/unit/{workorder_id}', [TdrController::class, 'inspectionUnit'])->name('tdrs.inspection.unit');
+    Route::patch('/tdr-processes/{tdrProcess}', [TdrProcessController::class, 'updateDate'])->name('tdrprocesses.updateDate');
+
+
 
     // Для unit inspection
     // Duplicate removed
