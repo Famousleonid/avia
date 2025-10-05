@@ -17,6 +17,7 @@ use Illuminate\Contracts\View\Factory;
 use Illuminate\Contracts\View\View;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use JetBrains\PhpStorm\NoReturn;
 
 class TdrProcessController extends Controller
@@ -693,12 +694,34 @@ class TdrProcessController extends Controller
 
     public function updateDate(Request $request, TdrProcess $tdrProcess)
     {
+
+   // Log::channel('avia')->info($request->date_start  . $request->date_finish );
+
+
         $data = $request->validate([
-            'date_start'  => ['nullable','date'],
-            'date_finish' => ['nullable','date','after_or_equal:date_start'],
+            'date_start'  => ['nullable', 'date'],
+            'date_finish' => ['nullable', 'date'],
         ]);
 
-        $tdrProcess->fill($data)->save();
+
+        $effectiveStart = $data['date_start'] ?? $tdrProcess->date_start;
+
+
+        if (array_key_exists('date_finish', $data) && $data['date_finish']) {
+            if (!$effectiveStart) {
+                return back()->withErrors([
+                    'date_finish' => 'The start date must be filled in before setting the end date.'
+                ]);
+            }
+
+            if (\Carbon\Carbon::parse($data['date_finish'])->lt(\Carbon\Carbon::parse($effectiveStart))) {
+                return back()->withErrors([
+                    'date_finish' => 'The end date cannot be earlier than the start date.'
+                ]);
+            }
+        }
+
+        $tdrProcess->update($data);
 
         return back()->with('success', 'Process dates updated');
     }

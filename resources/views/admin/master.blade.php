@@ -8,6 +8,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="csrf-token" content="{{ csrf_token() }}"/>
     <link rel="stylesheet" href="{{asset('assets/Bootstrap 5/bootstrap.min.css')}}">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
     <link href="{{asset('assets/Bootstrap 5/bootstrap-icons.css')}}" rel="stylesheet">
     <link rel="stylesheet" href="{{asset('assets/jquery/jquery.fancybox.min.css')}}">
     <link href="{{asset('assets/select2/css/select2.min.css')}}" rel="stylesheet"/>
@@ -69,6 +70,7 @@
 <script src="{{asset('assets/Bootstrap 5/bootstrap.bundle.min.js')}}"></script>
 <script src="{{asset('assets/select2/js/select2.min.js')}}"></script>
 <script src="{{ asset('assets/jquery/jquery.fancybox.min.js') }}"></script>
+<script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
 <script src="{{ asset('js/main.js') }}"></script>
 
 @yield('scripts')

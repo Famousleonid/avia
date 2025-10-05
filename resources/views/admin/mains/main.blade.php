@@ -4,169 +4,100 @@
     <style>
         .sf { font-size: 12px; }
 
+        [data-fp]{
+            opacity: 0;
+        }
+        .flatpickr-input[readonly]{
+            opacity: 1 !important;
+        }
+
+        .flatpickr-calendar{
+            z-index: 2000 !important;
+        }
+
+        input::placeholder,
+        .flatpickr-input::placeholder { color:#6c757d; opacity:1; }
+
         .gradient-pane{
-            background: linear-gradient(135deg, #212529 0%, #2c3035 100%);
-            color: #f8f9fa;
+            background: linear-gradient(135deg,#212529 0%,#2c3035 100%);
+            color:#f8f9fa;
         }
 
-        .vh-layout {
-            height: calc(100vh - 120px);
-            display: flex;
-            flex-direction: column;
-            gap: 0.75rem;
-        }
-        .top-pane {
-            flex: 0 0 20%;
-            min-height: 165px;
-            border: 1px solid rgba(0,0,0,.125);
-            border-radius: .5rem;
-            padding: 1rem;
-            overflow: auto;
-        }
-        .bottom-row {
-            flex: 1 1 auto;
-            display: flex;
-            gap: 0.75rem;
-            min-height: 260px;
+        .vh-layout{ height:calc(100vh - 120px); display:flex; flex-direction:column; gap:.75rem; }
+        .top-pane{ flex:0 0 20%; min-height:165px; border:1px solid rgba(0,0,0,.125); border-radius:.5rem; padding:1rem; overflow:auto; }
+        .bottom-row{ flex:1 1 auto; display:flex; gap:.75rem; min-height:260px; }
+        .bottom-col{ border:1px solid rgba(0,0,0,.125); border-radius:.5rem; padding:1rem; overflow:hidden; display:flex; flex-direction:column; min-height:200px; }
+        @media (min-width: 992px){ .bottom-col.left{width:50%} .bottom-col.right{width:50%} }
+        @media (max-width: 991.98px){ .bottom-row{flex-direction:column} .bottom-col{width:100%} }
+
+        .select-task{ border:0; width:100%; text-align:left; padding:.5rem .75rem; background:transparent; border-radius:.5rem; }
+        .select-task:hover{ background:rgba(0,123,255,.15); cursor:pointer; }
+        #taskTabContent{ max-height:40vh; overflow:auto; }
+
+        .eqh-sm{ height:calc(1.8125rem + 2px); }
+        .is-valid{ box-shadow:0 0 0 .2rem rgba(25,135,84,.25); }
+        #taskPickerBtn.eqh{ height:calc(1.8125rem + 2px); }
+
+        .left-pane{ display:flex; flex-direction:column; gap:.75rem; height:100%; }
+        .table-wrap{ flex:1 1 auto; min-height:180px; }
+        .table-wrap .table-responsive{ height:100%; max-height:100%; overflow:auto; }
+
+        @media (max-width: 991.98px){
+            #taskTabContent{ max-height:50vh; }
+            .table-wrap .table-responsive{ max-height:50vh; }
+            .table td,.table th{ white-space:nowrap; }
         }
 
-        .bottom-col {
-            border: 1px solid rgba(0,0,0,.125);
-            border-radius: .5rem;
-            padding: 1rem;
-            overflow: hidden;
-            display: flex;
-            flex-direction: column;
-            min-height: 200px;
+        .task-cell{ background:linear-gradient(90deg, rgba(0,123,255,.1), rgba(0,200,255,.05)); border-radius:.25rem; padding:.25rem .5rem; font-size:.8rem; line-height:1.2; }
+        .task-cell .general-name{ font-weight:600; color:#0d6efd; }
+        .task-cell .task-name{ font-weight:400; color:#333; }
+
+        .gradient-table{ background:linear-gradient(135deg,#212529 0%,#2c3035 100%); color:#f8f9fa; border-radius:.5rem; overflow:hidden; }
+        .gradient-table th{ background-color:rgba(0,0,0,.25); color:#dee2e6; font-size:.8rem; }
+        .gradient-table td{ background-color:rgba(255,255,255,.02); font-size:.85rem; vertical-align:middle; }
+
+        .task-col{ font-size:.8rem; font-weight:500; color:#f8f9fa; }
+        .task-col .arrow{ margin:0 .25rem; color:#adb5bd; }
+
+        /* Календарик + галочка */
+        .finish-input{
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='%236c757d' viewBox='0 0 16 16'%3E%3Cpath d='M3 0a1 1 0 0 0-1 1v1H1.5A1.5 1.5 0 0 0 0 3.5v11A1.5 1.5 0 0 0 1.5 16h13a1.5 1.5 0 0 0 1.5-1.5v-11A1.5 1.5 0 0 0 14.5 2H14V1a1 1 0 0 0-2 0v1H4V1a1 1 0 0 0-1-1zM1 5h14v9.5a.5.5 0 0 1-.5.5h-13a.5.5 0 0 1-.5-.5V5z'/%3E%3C/svg%3E");
+            background-repeat:no-repeat;
+            background-position:right .5rem center;
+            background-size:1rem 1rem;
+            padding-right:3.5rem;
         }
-        @media (min-width: 992px) {
-            .bottom-col.left  { width: 50%; }
-            .bottom-col.right { width: 50%; }
-        }
-        @media (max-width: 991.98px) {
-            .bottom-row { flex-direction: column; }
-            .bottom-col { width: 100%; }
+        .finish-input.has-finish{
+            background-color:rgba(25,135,84,.1);
+            background-image:
+                url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='%236c757d' viewBox='0 0 16 16'%3E%3Cpath d='M3 0a1 1 0 0 0-1 1v1H1.5A1.5 1.5 0 0 0 0 3.5v11A1.5 1.5 0 0 0 1.5 16h13a1.5 1.5 0 0 0 1.5-1.5v-11A1.5 1.5 0 0 0 14.5 2H14V1a1 1 0 0 0-2 0v1H4V1a1 1 0 0 0-1-1zM1 5h14v9.5a.5.5 0 0 1-.5.5h-13a.5.5 0 0 1-.5-.5V5z'/%3E%3C/svg%3E"),
+                url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='%23198754' viewBox='0 0 16 16'%3E%3Cpath d='M13.485 1.929a.75.75 0 010 1.06L6.818 9.657a.75.75 0 01-1.06 0L2.515 6.414a.75.75 0 111.06-1.06L6 7.778l6.425-6.425a.75.75 0 011.06 0z'/%3E%3C/svg%3E");
+            background-repeat:no-repeat,no-repeat;
+            background-position:right .5rem center, right 2rem center;
+            background-size:1rem 1rem,1rem 1rem;
         }
 
-        .select-task {
-            border: 0; width: 100%; text-align: left;
-            padding: .5rem .75rem; background: transparent; border-radius: .5rem;
-        }
-        .select-task:hover { background: rgba(0, 123, 255, .15); cursor: pointer; }
-        #taskTabContent { max-height: 40vh; overflow:auto; } /* ограничение списка задач */
+        #taskPickerBtn .picked{ max-width:55%; font-size:.8rem; opacity:.95; text-align:right; direction:rtl; unicode-bidi:plaintext; color:var(--bs-info); }
+        @media (max-width:575.98px){ #taskPickerBtn .picked{ max-width:60%; font-size:.8rem; } }
+        .gradient-top{ background:linear-gradient(135deg,#212529 0%,#2c3035 100%); color:#f8f9fa; }
 
-        .eqh-sm { height: calc(1.8125rem + 2px); } /* высота под form-control-sm */
-        .is-valid { box-shadow: 0 0 0 .2rem rgba(25,135,84,.25); }
-        #taskPickerBtn.eqh { height: calc(1.8125rem + 2px); }
+        #addBtn.btn-success{ background-color:var(--bs-success)!important; border-color:var(--bs-success)!important; color:#fff!important; border-width:1px; }
+        #addBtn.btn-success:focus{ box-shadow:0 0 0 .2rem rgba(25,135,84,.35); }
+        #addBtn:not(:disabled){ opacity:1; }
 
-        .left-pane { display: flex; flex-direction: column; gap: .75rem; height: 100%; }
-        .table-wrap { flex: 1 1 auto; min-height: 180px; }
-        .table-wrap .table-responsive { height: 100%; max-height: 100%; overflow: auto; }
-
-        @media (max-width: 991.98px) {
-            #taskTabContent { max-height: 50vh; }
-            .table-wrap .table-responsive { max-height: 50vh; }
-            .table td, .table th { white-space: nowrap; }
-        }
-
-        .task-cell {
-            background: linear-gradient(90deg, rgba(0,123,255,.1), rgba(0,200,255,.05));
-            border-radius: .25rem;
-            padding: .25rem .5rem;
-            font-size: 0.8rem;
-            line-height: 1.2;
-        }
-        .task-cell .general-name {
-            font-weight: 600;
-            color: #0d6efd; /* синий */
-        }
-        .task-cell .task-name {
-            font-weight: 400;
-            color: #333;
-        }
-        .gradient-table {
-            background: linear-gradient(135deg, #212529 0%, #2c3035 100%);
-            color: #f8f9fa;
-            border-radius: .5rem;
-            overflow: hidden;
-        }
-
-        .gradient-table th {
-            background-color: rgba(0,0,0,.25);
-            color: #dee2e6;
-            font-size: 0.8rem;
-        }
-
-        .gradient-table td {
-            background-color: rgba(255,255,255,.02);
-            font-size: 0.85rem;
-            vertical-align: middle;
-        }
-
-        .task-col {
-            font-size: 0.8rem;
-            font-weight: 500;
-            color: #f8f9fa;
-        }
-        .task-col .arrow {
-            margin: 0 .25rem;
-            color: #adb5bd;
-        }
-
-        .finish-input.has-finish {
-            background-color: rgba(25,135,84,.1);
-            color: #f8f9fa;
-            font-weight: 500;
-            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='%23198754' viewBox='0 0 16 16'%3E%3Cpath d='M13.485 1.929a.75.75 0 010 1.06L6.818 9.657a.75.75 0 01-1.06 0L2.515 6.414a.75.75 0 111.06-1.06L6 7.778l6.425-6.425a.75.75 0 011.06 0z'/%3E%3C/svg%3E");
-            background-repeat: no-repeat;
-            background-position: right .5rem center;
-            background-size: 1rem 1rem;
-            padding-right: 2rem;
-        }
-
-        #taskPickerBtn .picked{
-            max-width: 55%;
-            font-size: .8rem;
-            opacity: .95;
-            text-align: right;
-            direction: rtl;
-            unicode-bidi: plaintext;
-            color: var(--bs-info);
-        }
-
-        @media (max-width: 575.98px){
-            #taskPickerBtn .picked{ max-width: 60%; font-size: .8rem; }
-        }
-        .gradient-top{
-            background: linear-gradient(135deg, #212529 0%, #2c3035 100%);
-            color: #f8f9fa;
-        }
-
-        #addBtn.btn-success{
-            background-color: var(--bs-success) !important;
-            border-color: var(--bs-success) !important;
-            color: #fff !important;
-            border-width: 1px;
-        }
-        #addBtn.btn-success:focus{
-            box-shadow: 0 0 0 .2rem rgba(25,135,84,.35);
-        }
-        #addBtn:not(:disabled){ opacity: 1; }
+        .fp-alt, .finish-input.fp-alt{ cursor:pointer; }
 
     </style>
 @endsection
 
 @section('content')
-
     <div class="card shadow">
         <div class="card-body">
-            <div class="vh-layout ">
+            <div class="vh-layout">
 
-                {{------------------------------------------------------------------------------------------}}
-
+                {{-- Top --}}
                 <div class="top-pane border-info gradient-pane">
                     <div class="row g-3 align-items-stretch">
-
                         <div class="col-12 col-md-3 col-lg-2 d-flex">
                             <div class="card h-100 w-100 bg-dark text-light border-secondary d-flex align-items-center justify-content-center p-3">
                                 @if($imgFull)
@@ -179,7 +110,6 @@
                             </div>
                         </div>
 
-
                         <div class="col-12 col-md-9 col-lg-10">
                             <div class="card bg-dark text-light border-secondary h-100">
                                 <div class="card-body py-3 d-flex flex-column">
@@ -187,33 +117,26 @@
                                         <div class="d-flex align-items-center gap-3">
                                             <h5 class="mb-0 text-info">w {{ $current_workorder->number }}</h5>
                                             @if($current_workorder->approve_at)
-                                                <span class="badge bg-success">
-                                    Approved {{ $current_workorder->approve_at?->format('d-M-y') ?? '—' }}
-                                </span>
+                                                <span class="badge bg-success">Approved {{ $current_workorder->approve_at?->format('d-M-y') ?? '—' }}</span>
                                             @else
                                                 <span class="badge bg-warning text-dark">Not approved</span>
                                             @endif
-                                            <span
-                                                class="ms-2 fs-4"
-                                                title="{{ $current_workorder->description }}"
-                                                style="cursor: help;"
-                                            >&#9432;</span>
+                                            <span class="ms-2 fs-4" title="{{ $current_workorder->description }}" style="cursor:help;">&#9432;</span>
                                         </div>
-                                        <div class="">
-                                            <span class="text-light"> {{ $current_workorder->instruction->name ?? '—' }}</span>
+                                        <div>
+                                            <span class="text-light">{{ $current_workorder->instruction->name ?? '—' }}</span>
                                             <span class="mx-2 text-primary">•</span>
-                                            <span class="text-light"> {{ $manual->number ?? '—' }}</span>
+                                            <span class="text-light">{{ $manual->number ?? '—' }}</span>
                                             <span class="mx-2 text-primary">•</span>
-                                            <span class="text-light"> {{ $manual->title ?? '—' }}</span>
+                                            <span class="text-light">{{ $manual->title ?? '—' }}</span>
                                             <span class="mx-2 text-primary">•</span>
-                                            <span class="text-muted small">Lib:</span> <span class="text-light"> {{ $manual->lib ?? '—' }}</span>
+                                            <span class="text-muted small">Lib:</span> <span class="text-light">{{ $manual->lib ?? '—' }}</span>
                                             <span class="mx-2 text-primary">•</span>
-                                            <span class="text-muted small">Open: </span><span class="text-light">{{ $current_workorder->open_at?->format('d-M-y') ?? '—' }}</span>
+                                            <span class="text-muted small">Open:</span> <span class="text-light">{{ $current_workorder->open_at?->format('d-M-y') ?? '—' }}</span>
                                         </div>
                                     </div>
 
                                     <div class="row g-3 flex-fill">
-
                                         <div class="col-12 col-lg-4 d-flex">
                                             <div class="border rounded p-2 h-100 w-100">
                                                 <div class="small d-flex flex-wrap align-items-center gap-2">
@@ -235,34 +158,31 @@
                                             </div>
                                         </div>
 
-
-
                                         <div class="col-12 col-lg-4 d-flex">
                                             <div class="border rounded p-2 h-100 w-100">
-
                                                 <div><span class="text-info small">Technik:</span> {{ $current_workorder->user->name ?? '—' }}</div>
                                             </div>
                                         </div>
                                     </div>
+
                                 </div>
                             </div>
                         </div>
+
                     </div>
                 </div>
 
-                {{------------------------------------------------------------------------------------------}}
+                {{-- Bottom --}}
+                <div class="bottom-row">
 
-                <div class="bottom-row ">
-
+                    {{-- Left panel --}}
                     <div class="bottom-col left gradient-pane border-info">
                         <div class="left-pane">
-
 
                             <form id="general_task_form" method="POST" action="{{ route('mains.store') }}" class="w-100">
                                 @csrf
                                 <input type="hidden" name="workorder_id" value="{{ $current_workorder->id }}">
                                 <input type="hidden" name="task_id" id="task_id" value="{{ old('task_id') }}">
-
 
                                 <div class="dropdown mb-2">
                                     <button id="taskPickerBtn"
@@ -316,10 +236,9 @@
                                             </div>
                                         </div>
                                     </div>
-
                                 </div>
 
-                                <div class="row g-2 align-items-stretch ">
+                                <div class="row g-2 align-items-stretch">
                                     <div class="col-12 col-sm-6 col-xl-4 border-secondary">
                                         <select name="user_id" class="form-select-sm eqh-sm">
                                             <option value="">Current ({{ auth()->user()->name ?? 'You' }})</option>
@@ -329,17 +248,20 @@
                                         </select>
                                     </div>
                                     <div class="col-6 col-xl-3">
-                                        <input type="date" name="date_start" class="form-control eqh"
-                                               value="{{ old('date_start', now()->format('Y-m-d')) }}">
+                                        <input type="text" data-fp name="date_start"
+                                               class="form-control-sm eqh-sm"
+                                               value="{{ old('date_start', now()->format('Y-m-d')) }}"
+                                               placeholder="...">
                                     </div>
                                     <div class="col-6 col-xl-3">
-                                        <input type="date" name="date_finish" class="form-control-sm eqh-sm"
-                                               value="{{ old('date_finish') }}">
+                                        <input type="text" data-fp name="date_finish"
+                                               class="form-control-sm eqh-sm"
+                                               value="{{ old('date_finish') }}"
+                                               placeholder="...">
                                     </div>
                                     <div class="col-12 col-xl-2 d-grid">
-                                        <button type="submit" id="addBtn" class="btn btn-success" disabled>Add</button>
+                                        <button type="submit" id="addBtn" class="btn-sm btn-success" disabled>Add</button>
                                     </div>
-
                                 </div>
                             </form>
 
@@ -348,11 +270,11 @@
                                     <table class="table table-sm align-middle gradient-table table-striped table-hover">
                                         <thead>
                                         <tr>
-                                            <th>Technik</th>
-                                            <th>Task</th>
-                                            <th>Start</th>
-                                            <th>Finish (edit)</th>
-                                            <th class="text-end">Actions</th>
+                                            <th class="fw-normal">Technik</th>
+                                            <th class="fw-normal">Task</th>
+                                            <th class="fw-normal">Start</th>
+                                            <th class="fw-normal">Finish (edit)</th>
+                                            <th class="text-end fw-normal">Actions</th>
                                         </tr>
                                         </thead>
                                         <tbody>
@@ -360,17 +282,21 @@
                                             <tr id="main-row-{{ $m->id }}">
                                                 <td>{{ $m->user->name ?? '—' }}</td>
                                                 <td class="task-col text-info">
-                                                    {{ $m->task->generalTask->name ?? '—' }}
-                                                    <span class="arrow">→</span>
-                                                    {{ $m->task->name ?? '—' }}
+                                                    {{ $m->task->generalTask->name ?? '—' }} <span class="arrow">→</span> {{ $m->task->name ?? '—' }}
                                                 </td>
                                                 <td>{{ optional($m->date_start)->format('d-M-y') }}</td>
-                                                <td style="min-width:180px;">
-                                                    <input type="date"
-                                                           class="form-control form-control-sm finish-input {{ $m->date_finish ? 'has-finish' : '' }}"
-                                                           data-id="{{ $m->id }}"
-                                                           data-update-url="{{ route('mains.update', $m) }}"
-                                                           value="{{ optional($m->date_finish)->format('Y-m-d') }}">
+                                                <td style="min-width:220px;">
+                                                    {{-- ЛЕВАЯ ПАНЕЛЬ: теперь тоже форма с автосабмитом --}}
+                                                    <form method="POST" action="{{ route('mains.update', $m) }}" class="auto-submit-form">
+                                                        @csrf
+                                                        @method('PATCH')
+                                                        <input type="text"
+                                                               name="date_finish"
+                                                               class="form-control form-control-sm finish-input"
+                                                               value="{{ optional($m->date_finish)->format('Y-m-d') }}"
+                                                               placeholder="..."
+                                                               data-fp>
+                                                    </form>
                                                 </td>
                                                 <td class="text-end">
                                                     <button type="button"
@@ -394,32 +320,27 @@
                         </div>
                     </div>
 
-                {{------------------------------------------------------------------------------------------}}
-
-                    {{-- Правая колонка: компоненты и процессы (из tdr_processes) --}}
+                    {{-- Right panel --}}
                     <div class="bottom-col right border-info gradient-pane">
                         <div class="d-flex align-items-center justify-content-between mb-2">
                             <h6 class="mb-0 text-primary">Components & Processes</h6>
 
                             <form method="get" action="{{ route('mains.show', $current_workorder->id) }}" class="d-flex align-items-center gap-2">
                                 <div class="form-check form-switch">
-                                    <input class="form-check-input" type="checkbox" id="onlyOpen" name="only_open" value="1"
-                                           onchange="this.form.submit()" {{ $onlyOpen ? 'checked' : '' }}>
-                                    <label class="form-check-label small" for="onlyOpen">Only open</label>
+                                    <input class="form-check-input" type="checkbox"
+                                           id="showAll" name="show_all" value="1"
+                                           {{ $showAll ? 'checked' : '' }} autocomplete="off">
+                                    <label class="form-check-label small" for="showAll">Show all</label>
                                 </div>
                             </form>
                         </div>
 
                         @if($components->isEmpty())
-                            <div class="text-muted small">No components with processes {{ $onlyOpen ? '(open only)' : '' }}.</div>
+                            <div class="text-muted small"> No components with processes {{ $showAll ? '(all)' : '(open only)' }}.</div>
                         @else
                             <div class="list-group list-group-flush" style="overflow:auto;">
                                 @foreach($components as $cmp)
                                     <div class="list-group-item bg-transparent text-light border-secondary">
-                                        <div class="d-flex align-items-center justify-content-between">
-                                            <div class="fw-semibold text-info">{{ $cmp->name ?? ('#'.$cmp->id) }}</div>
-                                        </div>
-
                                         @forelse($cmp->tdrs as $tdr)
                                             @php $prs = $tdr->tdrProcesses; @endphp
                                             @if($prs->isNotEmpty())
@@ -427,9 +348,9 @@
                                                     <table class="table table-sm table-dark table-bordered mb-2 align-middle">
                                                         <thead>
                                                         <tr>
-                                                            <th style="width:40%;"></th>
-                                                            <th style="width:30%;">Sent</th>
-                                                            <th style="width:30%;">Returned</th>
+                                                            <th style="width:40%;"><div class="fw-semibold text-info">{{ $cmp->name ?? ('#'.$cmp->id) }}</div></th>
+                                                            <th style="width:30%;" class="fw-normal text-muted">Sent (edit)</th>
+                                                            <th style="width:30%;" class="fw-normal text-muted">Returned (edit)</th>
                                                         </tr>
                                                         </thead>
                                                         <tbody>
@@ -438,18 +359,22 @@
                                                                 <td>{{ $pr->processName->name ?? '—' }}</td>
                                                                 <td>
                                                                     <form method="POST" action="{{ route('tdrprocesses.updateDate', $pr) }}" class="auto-submit-form">
-                                                                        @csrf @method('PATCH')
-                                                                        <input type="date" name="date_start"
+                                                                        @csrf
+                                                                        @method('PATCH')
+                                                                        <input type="text" data-fp name="date_start"
                                                                                class="form-control form-control-sm"
-                                                                               value="{{ $pr->date_start?->format('Y-m-d') }}">
+                                                                               value="{{ $pr->date_start?->format('Y-m-d') }}"
+                                                                               placeholder="...">
                                                                     </form>
                                                                 </td>
                                                                 <td>
                                                                     <form method="POST" action="{{ route('tdrprocesses.updateDate', $pr) }}" class="auto-submit-form">
-                                                                        @csrf @method('PATCH')
-                                                                        <input type="date" name="date_finish"
-                                                                               class="form-control form-control-sm"
-                                                                               value="{{ $pr->date_finish?->format('Y-m-d') }}">
+                                                                        @csrf
+                                                                        @method('PATCH')
+                                                                        <input type="text" data-fp name="date_finish"
+                                                                               class="form-control form-control-sm finish-input"
+                                                                               value="{{ $pr->date_finish?->format('Y-m-d') }}"
+                                                                               placeholder="...">
                                                                     </form>
                                                                 </td>
                                                             </tr>
@@ -467,10 +392,6 @@
                         @endif
                     </div>
 
-
-
-
-
                 </div>
             </div>
         </div>
@@ -482,45 +403,17 @@
     </form>
 
     @include('components.delete')
-
-
 @endsection
-
 
 @section('scripts')
     <script>
         document.addEventListener('DOMContentLoaded', () => {
+            hideLoadingSpinner?.();
 
-            hideLoadingSpinner();
+            const safeShowSpinner = () => { try{ if(typeof showLoadingSpinner==='function') showLoadingSpinner(); }catch(_){} };
+            const safeHideSpinner = () => { try{ if(typeof hideLoadingSpinner==='function') hideLoadingSpinner(); }catch(_){} };
 
-            function getCsrfToken() {
-                return document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '{{ csrf_token() }}';
-            }
-            const CSRF = getCsrfToken();
-
-            function safeShowSpinner() {
-                try { if (typeof showLoadingSpinner === 'function') showLoadingSpinner(); } catch(_) {}
-            }
-            function safeHideSpinner() {
-                try { if (typeof hideLoadingSpinner === 'function') hideLoadingSpinner(); } catch(_) {}
-            }
-
-            function debounce(fn, ms) {
-                let t; return (...args) => { clearTimeout(t); t = setTimeout(() => fn.apply(this, args), ms); };
-            }
-
-            async function fetchJSON(url, options = {}) {
-                const res = await fetch(url, {
-                    headers: {
-                        'X-CSRF-TOKEN': CSRF,
-                        'X-Requested-With': 'XMLHttpRequest',
-                        'Accept': 'application/json',
-                        ...options.headers
-                    },
-                    ...options
-                });
-                return res;
-            }
+            const debounce = (fn,ms)=>{ let t; return (...a)=>{ clearTimeout(t); t=setTimeout(()=>fn.apply(null,a),ms); }};
 
             window.addEventListener('pageshow', safeHideSpinner);
 
@@ -534,157 +427,134 @@
             const taskPanes   = Array.from(document.querySelectorAll('#taskTabContent .tab-pane'));
             const taskButtons = Array.from(document.querySelectorAll('.select-task'));
 
-
-            function showPaneForGeneral(btn) {
+            function showPaneForGeneral(btn){
                 const gid = btn.dataset.generalId;
-                generalTabs.forEach(b => b.classList.remove('active'));
-                taskPanes.forEach(p => p.classList.remove('show', 'active'));
+                generalTabs.forEach(b=>b.classList.remove('active'));
+                taskPanes.forEach(p=>p.classList.remove('show','active'));
                 btn.classList.add('active');
-                const pane = document.getElementById('pane-g-' + gid);
-                if (pane) pane.classList.add('active', 'show');
+                const pane = document.getElementById('pane-g-'+gid);
+                if(pane) pane.classList.add('active','show');
             }
-
-            function generalNameById(gid) {
-                const b = document.getElementById('tab-g-' + gid);
-                return (b ? b.textContent : '').trim();
+            function generalNameById(gid){
+                const b = document.getElementById('tab-g-'+gid);
+                return (b?b.textContent:'').trim();
             }
-
-            function updatePickedSummary(gName, tName) {
-                if (!pickedSummary) return;
+            function updatePickedSummary(gName,tName){
+                if(!pickedSummary) return;
                 pickedSummary.textContent = (gName && tName) ? `${gName} → ${tName}` : (tName || '');
             }
+            function activateAddButton(){ if(!addBtn) return; addBtn.removeAttribute('disabled'); addBtn.classList.remove('disabled'); }
 
-            function activateAddButton() {
-                if (!addBtn) return;
-                addBtn.removeAttribute('disabled');
-                addBtn.classList.remove('disabled');
-            }
-
-            function initTaskPicker() {
-                // Переключение панелей по hover
-                generalTabs.forEach(btn => {
-                    btn.addEventListener('mouseenter', () => showPaneForGeneral(btn));
-                    btn.addEventListener('click', e => e.preventDefault());
+            function initTaskPicker(){
+                generalTabs.forEach(btn=>{
+                    btn.addEventListener('mouseenter',()=>showPaneForGeneral(btn));
+                    btn.addEventListener('click',e=>e.preventDefault());
                 });
-
-                taskButtons.forEach(item => {
-                    item.addEventListener('click', () => {
-                        const taskId   = item.dataset.taskId;
-                        const taskName = item.dataset.taskName;
-                        const gid      = item.dataset.generalId;
-
-                        if (taskInput) taskInput.value = taskId;
-                        updatePickedSummary(generalNameById(gid), taskName);
+                taskButtons.forEach(item=>{
+                    item.addEventListener('click',()=>{
+                        const taskId=item.dataset.taskId, taskName=item.dataset.taskName, gid=item.dataset.generalId;
+                        if(taskInput) taskInput.value=taskId;
+                        updatePickedSummary(generalNameById(gid),taskName);
                         activateAddButton();
-
-                        if (pickerBtn && window.bootstrap?.Dropdown) {
-                            const dd = bootstrap.Dropdown.getOrCreateInstance(pickerBtn);
-                            dd?.hide();
+                        if(pickerBtn && window.bootstrap?.Dropdown){
+                            const dd=bootstrap.Dropdown.getOrCreateInstance(pickerBtn); dd?.hide();
                         }
                     });
                 });
-
-                if (generalTabs[0]) showPaneForGeneral(generalTabs[0]);
-                if (taskInput?.value) activateAddButton();
+                if(generalTabs[0]) showPaneForGeneral(generalTabs[0]);
+                if(taskInput?.value) activateAddButton();
             }
 
-            /**
-             * Подключает обработчик сабмита формы добавления — проверка task_id, спиннер, анти-двойной клик.
-             */
-            function bindFormSubmit() {
-                if (!form) return;
-                form.addEventListener('submit', (e) => {
-                    if (!taskInput?.value) {
+            function bindFormSubmit(){
+                if(!form) return;
+                form.addEventListener('submit',(e)=>{
+                    if(!taskInput?.value){
                         e.preventDefault();
                         alert('Please choose a task first');
                         return;
                     }
                     safeShowSpinner();
-                    if (addBtn) {
-                        addBtn.setAttribute('disabled', 'disabled');
-                        addBtn.classList.add('disabled');
-                    }
+                    if(addBtn){ addBtn.setAttribute('disabled','disabled'); addBtn.classList.add('disabled'); }
                 });
             }
 
-            /**
-             * Навешивает обработчик на все инпуты .finish-input
-             * По изменению отправляет PATCH { date_finish } на data-update-url.
-             * Подсвечивает сохранение и добавляет/снимает класс has-finish.
-             */
-            function initFinishInlineEditing() {
-                document.querySelectorAll('.finish-input').forEach(inp => {
-                    inp.addEventListener('change', debounce(async (e) => {
-                        const url   = e.target.dataset.updateUrl;
-                        const value = e.target.value || null;
+            // Flatpickr на всех input[data-fp]
+            function initDatePickers(){
+                document.querySelectorAll('input[data-fp]').forEach(src=>{
+                    flatpickr(src,{
+                        altInput:true,
+                        altFormat:"d-M-y",
+                        dateFormat:"Y-m-d",
+                        allowInput:true,
+                        disableMobile:true,
+                        onChange(selectedDates,dateStr,instance){
+                            instance.altInput?.dispatchEvent(new Event('change',{bubbles:true}));
+                        },
 
-                        try {
-                            const res = await fetchJSON(url, {
-                                method: 'PATCH',
-                                headers: { 'Content-Type': 'application/json' },
-                                body: JSON.stringify({ date_finish: value })
-                            });
-
-                            if (!res.ok) {
-                                safeHideSpinner();
-                                let msg = `Failed to update (HTTP ${res.status})`;
-                                try { const j = await res.json(); if (j?.message) msg = j.message; } catch(_) {}
-                                alert(msg);
-                                return;
+                        onReady(selectedDates, dateStr, instance){
+                            if (src.getAttribute('placeholder')){
+                                instance.altInput.setAttribute('placeholder', src.getAttribute('placeholder'));
                             }
-
-                            e.target.classList.add('is-valid');
-                            value ? e.target.classList.add('has-finish') : e.target.classList.remove('has-finish');
-                            setTimeout(() => e.target.classList.remove('is-valid'), 800);
-
-                        } catch (err) {
-                            safeHideSpinner();
-                            console.error(err);
-                            alert('Network error while updating');
+                            instance.altInput.classList.add('fp-alt');
+                            if (src.classList.contains('finish-input')) instance.altInput.classList.add('finish-input');
+                            if ((src.name === 'date_finish' || src.classList.contains('finish-input')) && src.value){
+                                instance.altInput.classList.add('has-finish');
+                            }
+                            src.style.display = 'none';
+                            instance.altInput.style.opacity = '1';
                         }
-                    }, 250));
+
+
+
+                    });
                 });
             }
 
-            const modalEl   = document.getElementById('useConfirmDelete');
-            const confirmBt = document.getElementById('confirmDeleteBtn');
-            const delForm   = document.getElementById('deleteForm'); // <- было form
+            // Автосабмит для обеих панелей (левая и правая)
+            function initAutoSubmit(){
+                document.querySelectorAll('.auto-submit-form .fp-alt').forEach(inp=>{
+                    const submitDebounced = debounce(form=>form.submit(),250);
+                    inp.addEventListener('change', function(){
+                        if(this.name==='date_finish' || this.classList.contains('finish-input')){
+                            if(this.value) this.classList.add('has-finish','is-valid');
+                            else { this.classList.remove('has-finish'); this.classList.add('is-valid'); }
+                            setTimeout(()=>this.classList.remove('is-valid'),800);
+                        }
+                        safeShowSpinner();
+                        submitDebounced(this.form);
+                    });
+                });
+            }
 
-            let pendingAction = null;
+            // Init
+            initTaskPicker();
+            bindFormSubmit();
+            initDatePickers();
+            initAutoSubmit();
 
-            modalEl.addEventListener('show.bs.modal', function (event) {
-                const trigger = event.relatedTarget;
-                pendingAction = trigger?.getAttribute('data-action') || null;
+            // Модал удаления
+            const modalEl=document.getElementById('useConfirmDelete');
+            const confirmBt=document.getElementById('confirmDeleteBtn');
+            const delForm=document.getElementById('deleteForm');
+            let pendingAction=null;
+
+            modalEl?.addEventListener('show.bs.modal', function (event) {
+                const trigger=event.relatedTarget;
+                pendingAction=trigger?.getAttribute('data-action')||null;
             });
-
-            confirmBt.addEventListener('click', function () {
-                if (!pendingAction) return;
-                delForm.setAttribute('action', pendingAction); // <- используем delForm
-                // опционально: покажем спиннер на всякий случай (если не вызываешь в onclick)
-                try { if (typeof showLoadingSpinner === 'function') showLoadingSpinner(); } catch(_) {}
+            confirmBt?.addEventListener('click', function(){
+                if(!pendingAction) return;
+                delForm.setAttribute('action', pendingAction);
+                try{ if(typeof showLoadingSpinner==='function') showLoadingSpinner(); }catch(_){}
                 delForm.submit();
             });
 
-
-            initTaskPicker();
-            bindFormSubmit();
-            initFinishInlineEditing();
-           // initDeleteModal();
-
-
-            (function(){
-                function debounce(fn, ms){ let t; return (...a)=>{ clearTimeout(t); t=setTimeout(()=>fn.apply(null,a), ms); }; }
-                document.querySelectorAll('.auto-submit-form input[type="date"]').forEach(inp=>{
-                    const submitDebounced = debounce(function(form){ form.submit(); }, 250);
-                    inp.addEventListener('change', function(){ submitDebounced(this.form); });
-                    showLoadingSpinner();
-                });
-            })();
-
+            document.getElementById('showAll')?.addEventListener('change', function () {
+                try { if (typeof showLoadingSpinner === 'function') showLoadingSpinner(); } catch {}
+                if (this.form?.requestSubmit) this.form.requestSubmit(); else this.form?.submit();
+            });
 
 
         });
     </script>
 @endsection
-
-

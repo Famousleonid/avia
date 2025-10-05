@@ -97,6 +97,8 @@ Route::group(['middleware' => ['auth', 'isAdmin'], 'prefix' => 'admin'], functio
     Route::resource('/processes', ProcessController::class);
     Route::get('/get-processes', [ProcessController::class, 'getProcesses'])->name('processes.getProcesses');
     Route::resource('/tdr-processes',TdrProcessController::class);
+    Route::patch('/tdr-processes/{tdrProcess}/dates', [TdrProcessController::class, 'updateDate'])->name('tdrprocesses.updateDate');
+
     Route::resource('/manual_processes', ManualProcessController::class);
 
     Route::resource('/wo_bushings', WoBushingController::class)->except(['create']);
@@ -272,7 +274,7 @@ Route::resource('/extra_processes', ExtraProcessController::class)->except(['cre
     Route::get('tdrs/woProcessForm/{id}', [TdrController::class, 'wo_Process_Form'])->name('tdrs.woProcessForm');
     // Для component inspection
     Route::get('/tdrs/inspection/unit/{workorder_id}', [TdrController::class, 'inspectionUnit'])->name('tdrs.inspection.unit');
-    Route::patch('/tdr-processes/{tdrProcess}', [TdrProcessController::class, 'updateDate'])->name('tdrprocesses.updateDate');
+
 
 
 

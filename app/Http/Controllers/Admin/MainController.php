@@ -47,12 +47,13 @@ class MainController extends Controller
         return redirect()->back()->with('success', 'Created success');
     }
 
-    public function show($workorder_id)
+    public function show($workorder_id, Request $request)
     {
         $users = User::all();
         $general_tasks = GeneralTask::orderBy('id')->get();
         $tasks = Task::orderBy('name')->get();
         $tasksByGeneral = $tasks->groupBy('general_task_id');
+        $showAll = $request->boolean('show_all', false);
 
         $mains = Main::with(['user','task.generalTask'])
             ->where('workorder_id', $workorder_id)
@@ -60,33 +61,28 @@ class MainController extends Controller
             ->orderBy('id')
             ->get();
 
-        // Подтянем unit.manual и медиа manual заодно
         $current_workorder = Workorder::with([
             'customer','user','instruction',
             'unit.manual.media',
             'unit.manual.components',
         ])->findOrFail($workorder_id);
 
-        $onlyOpen = (bool) request('only_open'); // чекбокс «только без возврата»
-
         $components = collect();
         if ($current_workorder->unit?->manual) {
             $components = $current_workorder->unit->manual
                 ->components()
-                // оставить только компоненты, у которых есть TDR этого WO и есть процессы
-                ->whereHas('tdrs', function ($q) use ($workorder_id, $onlyOpen) {
+                ->whereHas('tdrs', function ($q) use ($workorder_id, $showAll) {
                     $q->where('workorder_id', $workorder_id)
-                        ->whereHas('tdrProcesses', function ($qq) use ($onlyOpen) {
-                            if ($onlyOpen) {
+                        ->whereHas('tdrProcesses', function ($qq) use ($showAll) {
+                            if (!$showAll) {
                                 $qq->whereNull('date_finish');
                             }
                         });
                 })
-                // и сразу всё догружаем чтобы не было N+1
-                ->with(['tdrs' => function ($q) use ($workorder_id, $onlyOpen) {
+                ->with(['tdrs' => function ($q) use ($workorder_id, $showAll) {
                     $q->where('workorder_id', $workorder_id)
-                        ->with(['tdrProcesses' => function ($qq) use ($onlyOpen) {
-                            if ($onlyOpen) {
+                        ->with(['tdrProcesses' => function ($qq) use ($showAll) {
+                            if (!$showAll) {
                                 $qq->whereNull('date_finish');
                             }
                             $qq->with('processName')->orderBy('id');
@@ -112,8 +108,10 @@ class MainController extends Controller
 
         $imgThumb = $imgThumb ?? asset('img/placeholder-160x160.png');
 
-        return view('admin.mains.main', compact('users', 'current_workorder', 'mains',
-            'general_tasks','tasks','tasksByGeneral','imgThumb','imgFull','manual','components', 'onlyOpen' ));
+        return view('admin.mains.main', compact(
+            'users','current_workorder','mains','general_tasks','tasks','tasksByGeneral',
+            'imgThumb','imgFull','manual','components','showAll'
+        ));
     }
 
 
@@ -126,32 +124,83 @@ class MainController extends Controller
 
     public function update(Request $request, Main $main)
     {
-        // 1) Базовая валидация формата
+        // 1) Базовая валидация формата (flatpickr присылает Y-m-d)
         $data = $request->validate([
-            'date_finish' => ['nullable','date'],
+            'date_start'  => ['nullable', 'date'],
+            'date_finish' => ['nullable', 'date'],
         ]);
 
-        // 2) Бизнес-проверка: finish >= start (если обе заданы)
-        if (!empty($data['date_finish']) && $main->date_start) {
-            $finish = Carbon::parse($data['date_finish'])->startOfDay();
-            $start  = Carbon::parse($main->date_start)->startOfDay();
+        // Преобразуем строки в Carbon (если пришли)
+        $newStart  = isset($data['date_start'])  && $data['date_start']  !== null ? Carbon::parse($data['date_start'])  : null;
+        $newFinish = isset($data['date_finish']) && $data['date_finish'] !== null ? Carbon::parse($data['date_finish']) : null;
 
-            if ($finish->lt($start)) {
-                return response()->json([
-                    'ok'      => false,
-                    'message' => 'Finish date must be after or equal to start date',
-                ], 422);
+        // Текущие значения из БД
+        $dbStart  = $main->date_start ? Carbon::parse($main->date_start) : null;
+        $dbFinish = $main->date_finish ? Carbon::parse($main->date_finish) : null;
+
+        /**
+         * 2) Правила:
+         * - Нельзя ставить дату финиша раньше старта.
+         * - Если меняем только финиш (start не прислали), сравниваем с БД.
+         * - Если финиш прислали, а старта нет ни в запросе, ни в БД — запретить (нужен старт).
+         */
+
+        // Меняем ТОЛЬКО финиш?
+        $onlyFinishChanging = $request->has('date_finish') && !$request->has('date_start');
+
+        if ($onlyFinishChanging) {
+            if ($newFinish) {
+                if (!$dbStart) {
+                    return back()
+                        ->withErrors(['date_finish' => 'Set the start date before the finish date.'])
+                        ->withInput();
+                }
+                if ($newFinish->lt($dbStart)) {
+                    return back()
+                        ->withErrors(['date_finish' => 'Finish date cannot be earlier than the start date ('. $dbStart->format('d-M-y') .').'])
+                        ->withInput();
+                }
             }
+
+            // Валидно — обновляем только финиш
+            $main->date_finish = $newFinish;
+            $main->save();
+
+            return back()->with('success', 'Finish date updated.');
         }
 
-        // 3) Сохранение
-        $main->date_finish = $data['date_finish'] ?? null;
+        // Меняем обе даты ИЛИ только старт
+        // Если обе пришли — проверяем порядок
+        if ($newStart && $newFinish && $newFinish->lt($newStart)) {
+            return back()
+                ->withErrors(['date_finish' => 'Finish date cannot be earlier than the start date ('. $newStart->format('d-M-y') .').'])
+                ->withInput();
+        }
+
+        // Если пришёл финиш, но старт НЕ пришёл, используем БД для сравнения
+        if ($newFinish && !$newStart && $dbStart && $newFinish->lt($dbStart)) {
+            return back()
+                ->withErrors(['date_finish' => 'Finish date cannot be earlier than the start date ('. $dbStart->format('d-M-y') .').'])
+                ->withInput();
+        }
+
+        // Если пришёл финиш, а старта нет ни в запросе, ни в БД — не даём сохранить
+        if ($newFinish && !$newStart && !$dbStart) {
+            return back()
+                ->withErrors(['date_finish' => 'Set the start date before the finish date.'])
+                ->withInput();
+        }
+
+        // 3) Обновляем то, что пришло
+        if ($request->has('date_start')) {
+            $main->date_start = $newStart;
+        }
+        if ($request->has('date_finish')) {
+            $main->date_finish = $newFinish;
+        }
         $main->save();
 
-        return response()->json([
-            'ok'          => true,
-            'date_finish' => optional($main->date_finish)->format('Y-m-d'),
-        ]);
+        return back()->with('success', 'Record updated.');
     }
 
     public function destroy($id)
