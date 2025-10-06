@@ -542,7 +542,7 @@
                         </div>
                         <div class="col-4 border-l-b details-cell text-center process-cell"  style="min-height: 32px">
                             @foreach($process_components as $component_process)
-                                @if($component_process->id == $process)
+                                @if($component_process->id == ($data['process']->id ?? null))
                                     <span @if(strlen($component_process->process) > 40) class="process-text-long" @endif>{{$component_process->process}}</span>
                                 @endif
                             @endforeach

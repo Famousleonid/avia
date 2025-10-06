@@ -23,6 +23,7 @@
                 <div class="d-flex ">
                     <div style="width: 160px;">
                         <h5 class="text-primary  ps-1">{{__('Work Order')}}
+
                             <a class="text-success-emphasis  ps-3" href="#" data-bs-toggle="modal"
                                data-bs-target=#infoModal{{$current_wo->number}}>{{$current_wo->number}}
                             </a>
