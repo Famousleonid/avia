@@ -7,11 +7,14 @@ use App\Models\GeneralTask;
 use App\Models\Main;
 use App\Models\Manual;
 use App\Models\Task;
+use App\Models\Tdr;
+use App\Models\TdrProcess;
 use App\Models\User;
 use App\Models\Workorder;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Auth;
+
 
 class MainController extends Controller
 {
@@ -49,6 +52,7 @@ class MainController extends Controller
 
     public function show($workorder_id, Request $request)
     {
+
         $users = User::all();
         $general_tasks = GeneralTask::orderBy('id')->get();
         $tasks = Task::orderBy('name')->get();
@@ -108,9 +112,21 @@ class MainController extends Controller
 
         $imgThumb = $imgThumb ?? asset('img/placeholder-160x160.png');
 
+        $tdrIds = Tdr::where('workorder_id', $workorder_id)
+            ->whereNull('deleted_at')
+            ->pluck('id');
+
+        $tdrProcessesTotal = TdrProcess::whereIn('tdrs_id', $tdrIds)->count();
+        $tdrProcessesOpen  = TdrProcess::whereIn('tdrs_id', $tdrIds)
+            ->whereNull('date_finish')
+            ->count();
+
+    //    dd($components);
+
+
         return view('admin.mains.main', compact(
             'users','current_workorder','mains','general_tasks','tasks','tasksByGeneral',
-            'imgThumb','imgFull','manual','components','showAll'
+            'imgThumb','imgFull','manual','components','showAll','tdrProcessesTotal','tdrProcessesOpen'
         ));
     }
 

@@ -14,4 +14,9 @@ class GeneralTask extends Model
     {
         return $this->hasMany(Main::class);
     }
+
+    public function tasks()
+    {
+        return $this->hasMany(Task::class);
+    }
 }

@@ -322,8 +322,14 @@
 
                     {{-- Right panel --}}
                     <div class="bottom-col right border-info gradient-pane">
+
                         <div class="d-flex align-items-center justify-content-between mb-2">
-                            <h6 class="mb-0 text-primary">Components & Processes</h6>
+                            <div class="d-flex align-items-center gap-2">
+                                <h6 class="mb-0 text-primary">Components</h6><span class="text-info">({{ $components->count()}})</span><h6 class="mb-0 text-primary"> & Processes</h6>
+                                <span class="badge text-info">{{ $tdrProcessesTotal }} total</span>
+                                <span class="badge text-info">{{ $tdrProcessesOpen }} open</span>
+
+                            </div>
 
                             <form method="get" action="{{ route('mains.show', $current_workorder->id) }}" class="d-flex align-items-center gap-2">
                                 <div class="form-check form-switch">
