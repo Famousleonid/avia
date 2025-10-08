@@ -78,7 +78,7 @@
             z-index: 10;
         }
 
-        #currentUserCheckbox {
+        #currentUserCheckbox, #woDone {
             cursor: pointer;
         }
         [data-bs-theme="dark"] #show-workorder {
@@ -126,6 +126,11 @@
             </div>
 
             <div class="form-check d-flex align-items-center mb-0">
+                <input class="form-check-input" type="checkbox" id="woDone" style="width: 1.2em; height: 1.2em;">
+                <label class="form-check-label ms-2" for="woDone">WO active</label>
+            </div>
+
+            <div class="form-check d-flex align-items-center mb-0">
                 <input class="form-check-input" type="checkbox" id="currentUserCheckbox" checked style="width: 1.2em; height: 1.2em;">
                 <label class="form-check-label ms-2" for="currentUserCheckbox">My workorders</label>
             </div>
@@ -157,11 +162,22 @@
                     </thead>
                     <tbody>
                     @foreach ($workorders as $workorder)
-                        <tr data-tech-id="{{ $workorder->user_id }}">
+                        <tr
+                            data-tech-id="{{ $workorder->user_id }}"
+                            data-done="{{ $workorder->main->whereIn('task.name', ['Submitted Wo Assembly', 'Done'])->isNotEmpty() ? '1' : '0' }}"
+                        >
                             <td class="text-center">
-                                <a href="{{ route('mains.show', $workorder->id) }}" class="text-decoration-none">
-                                    <span style="font-size: 16px; color: #0DDDFD;">w&nbsp;{{ $workorder->number }}</span>
-                                </a>
+
+                                @if ($workorder->main->whereIn('task.name', ['Submitted Wo Assembly', 'Done'])->isNotEmpty())
+                                    <a href="{{ route('mains.show', $workorder->id) }}" class="text-decoration-none">
+                                        <span class="text-muted">{{ $workorder->number }}</span>
+                                    </a>
+                                @else
+                                    <a href="{{ route('mains.show', $workorder->id) }}" class="text-decoration-none">
+                                        <span style="font-size: 16px; color: #0DDDFD;">w&nbsp;{{ $workorder->number }}</span>
+                                    </a>
+                                @endif
+
                             </td>
                             <td class="text-center">
                                 <a href="{{ route('workorders.approve', $workorder->id) }}" class="change_approve" onclick="showLoadingSpinner()">
@@ -303,16 +319,24 @@
             const table = document.getElementById('show-workorder');
             const tableWrapper = document.querySelector('.table-wrapper');
             const headers = document.querySelectorAll('.sortable');
-            const checkbox = document.getElementById('currentUserCheckbox');
 
-            // Восстановление состояния чекбокса из localStorage
-            const savedCheckboxState = localStorage.getItem('myWorkordersCheckbox');
-            checkbox.checked = savedCheckboxState !== null ? savedCheckboxState === 'true' : true;
-            localStorage.setItem('myWorkordersCheckbox', checkbox.checked);
+            const checkboxMy = document.getElementById('currentUserCheckbox');
+            const checkboxDone = document.getElementById('woDone');
+
+            // --- Восстановление состояний из localStorage ---
+            const savedMy = localStorage.getItem('myWorkordersCheckbox');
+            checkboxMy.checked = savedMy !== null ? savedMy === 'true' : true;
+            localStorage.setItem('myWorkordersCheckbox', checkboxMy.checked);
+
+            const savedDone = localStorage.getItem('doneCheckbox');
+            checkboxDone.checked = savedDone !== null ? savedDone === 'true' : false; // по умолчанию выключен
+            localStorage.setItem('doneCheckbox', checkboxDone.checked);
 
             function filterTable() {
                 const filter = searchInput.value.toLowerCase();
-                const showOnlyMyWorkorders = checkbox.checked;
+                const onlyMy = checkboxMy.checked;
+                const onlyDone = checkboxDone.checked;
+
                 const rows = table.querySelectorAll('tbody tr');
 
                 if (typeof showLoadingSpinner === 'function') showLoadingSpinner();
@@ -321,10 +345,13 @@
 
                     const rowText = row.innerText.toLowerCase();
                     const technikId = row.getAttribute('data-tech-id'); // ← берем ID из <tr>
-                    const matchesSearch = rowText.includes(filter);
-                    const matchesUser = showOnlyMyWorkorders ? String(technikId) === String(currentUserId) : true;
+                    const isDone = row.getAttribute('data-done') === '0';
 
-                    row.style.display = (matchesSearch && matchesUser) ? '' : 'none';
+                    const matchesSearch = rowText.includes(filter);
+                    const matchesUser = onlyMy ? String(technikId) === String(currentUserId) : true;
+                    const matchesDone = onlyDone ? isDone : true;
+
+                    row.style.display = (matchesSearch && matchesUser && matchesDone) ? '' : 'none';
                 });
 
                 if (typeof hideLoadingSpinner === 'function') hideLoadingSpinner();
@@ -355,8 +382,14 @@
             });
 
             searchInput.addEventListener('input', filterTable);
-            checkbox.addEventListener('change', () => {
-                localStorage.setItem('myWorkordersCheckbox', checkbox.checked);
+
+            checkboxMy.addEventListener('change', () => {
+                localStorage.setItem('myWorkordersCheckbox', checkboxMy.checked);
+                filterTable();
+            });
+
+            checkboxDone.addEventListener('change', () => {
+                localStorage.setItem('doneCheckbox', checkboxDone.checked);
                 filterTable();
             });
 

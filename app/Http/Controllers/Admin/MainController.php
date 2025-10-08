@@ -121,7 +121,10 @@ class MainController extends Controller
             ->whereNull('date_finish')
             ->count();
 
-    //    dd($components);
+
+
+
+ //     dd($total);
 
 
         return view('admin.mains.main', compact(
