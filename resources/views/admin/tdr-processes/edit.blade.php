@@ -30,7 +30,7 @@
                     <div id="processes-container">
                         <div class="process-row mb-3">
                             <div class="row" >
-                                <div class="col-md-6" style="width: 200px">
+                                <div class="col-md-5" style="width: 200px">
                                     <label for="process_names">Process Name:</label>
                                     <select name="processes[0][process_names_id]" class="form-control select2-process" required>
                                         <option value="">Select Process Name</option>
@@ -41,7 +41,7 @@
                                         @endforeach
                                     </select>
                                 </div>
-                                <div class="col-md-6">
+                                <div class="col-md-5">
                                     <label for="process">Processes:</label>
                                     <div class="process-options">
                                         @foreach ($processes as $process)
@@ -51,6 +51,16 @@
                                                 <label class="form-check-label">{{ $process->process }}</label>
                                             </div>
                                         @endforeach
+                                    </div>
+                                </div>
+                                <div class="col-md-2">
+                                    <label for="ec">EC:</label>
+                                    <div class="form-check mt-2">
+                                        <input type="checkbox" name="processes[0][ec]" value="1" class="form-check-input" id="ec_edit"
+                                            {{ $current_tdr_processes->ec ? 'checked' : '' }}>
+                                        <label class="form-check-label" for="ec_edit">
+                                            EC
+                                        </label>
                                     </div>
                                 </div>
                             </div>

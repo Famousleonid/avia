@@ -67,8 +67,11 @@
                 <div class="d-flex justify-content-between">
                     <div>
                         {{ $current_tdr->component->name }}
-                        PN: {{ $current_tdr->component->part_number }}
-                        SN: {{ $current_tdr->serial_number }}
+                        <div>
+                            PN: {{ $current_tdr->component->part_number }}
+                            SN: {{ $current_tdr->serial_number }}
+                        </div>
+
                     </div>
                     <button class="btn btn-outline-primary" type="button" style="width: 120px" id="add-process">
                         Add Process
@@ -85,7 +88,7 @@
                         <!-- Начальная строка -->
                         <div class="process-row mb-3">
                             <div class="row">
-                                <div class="col-md-6">
+                                <div class="col-md-5">
                                     <label for="process_names">Process Name:</label>
                                     <select name="processes[0][process_names_id]" class="form-control select2-process" required>
                                         <option value="">Select Process Name</option>
@@ -94,7 +97,7 @@
                                         @endforeach
                                     </select>
                                 </div>
-                                <div class="col-md-6">
+                                <div class="col-md-5">
                                     <label for="process">Processes (Specification):</label>
 
                                     <button type="button" class="btn btn-link mb-1" data-bs-toggle="modal"
@@ -107,6 +110,15 @@
 
                                     <div class="process-options">
                                         <!-- Здесь будут чекбоксы для выбранного имени процесса -->
+                                    </div>
+                                </div>
+                                <div class="col-md-2">
+{{--                                    <label for="ec">EC:</label>--}}
+                                    <div class="form-check mt-2">
+                                        <input type="checkbox" name="processes[0][ec]" value="1" class="form-check-input" id="ec_0">
+                                        <label class="form-check-label" for="ec_0">
+                                            EC
+                                        </label>
                                     </div>
                                 </div>
                             </div>
@@ -170,7 +182,7 @@
             newRow.classList.add('process-row', 'mb-3');
             newRow.innerHTML = `
                 <div class="row ">
-                    <div class="col-md-6">
+                    <div class="col-md-5">
                         <label for="process_names">Process Name:</label>
                         <select name="processes[${index}][process_names_id]" class="form-control select2-process" required>
                             <option value="">Select Process Name</option>
@@ -179,7 +191,7 @@
                             @endforeach
             </select>
         </div>
-        <div class="col-md-6">
+        <div class="col-md-5">
             <label for="process">Processes:</label>
 
              <button type="button" class="btn btn-link mb-1" data-bs-toggle="modal"
@@ -189,6 +201,15 @@
                                     </button>
             <div class="process-options">
                 <!-- Здесь будут чекбоксы для выбранного имени процесса -->
+            </div>
+        </div>
+        <div class="col-md-2">
+             {{--                                    <label for="ec">EC:</label>--}}
+            <div class="form-check mt-2">
+                <input type="checkbox" name="processes[${index}][ec]" value="1" class="form-check-input" id="ec_${index}">
+                <label class="form-check-label" for="ec_${index}">
+                    EC
+                </label>
             </div>
         </div>
     </div>`;
@@ -222,10 +243,15 @@
                     hasCheckedCheckbox = true; // Хотя бы один чекбокс отмечен
                 });
 
+                // Получаем значение чекбокса EC
+                const ecCheckbox = row.querySelector('input[name*="[ec]"]');
+                const ecValue = ecCheckbox ? ecCheckbox.checked : false;
+
                 if (selectedProcessIds.length > 0) {
                     processesData.push({
                         process_names_id: processNameId,
-                        processes: selectedProcessIds // Сохраняем массив ID процессов
+                        processes: selectedProcessIds, // Сохраняем массив ID процессов
+                        ec: ecValue // Добавляем значение EC
                     });
                 }
             });

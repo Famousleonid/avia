@@ -215,6 +215,7 @@ class TdrProcessController extends Controller
                 'sort_order' => $maxSortOrder + $index + 1, // Устанавливаем sort_order в конец списка
                 'date_start' => null,
                 'date_finish' => null,
+                'ec' => $data['ec'] ?? false, // Добавляем поле EC
             ]);
         }
 
@@ -415,8 +416,9 @@ class TdrProcessController extends Controller
             'tdr.workorder'                 // Рабочий заказ
         ])->findOrFail($id);
 
-        // Получаем vendor_id из запроса
+        // Получаем vendor_id и (опционально) конкретный process_id из запроса
         $vendorId = $request->input('vendor_id');
+        $specificProcessId = $request->input('process_id');
         $selectedVendor = null;
         if ($vendorId) {
             $selectedVendor = Vendor::find($vendorId);
@@ -467,11 +469,8 @@ class TdrProcessController extends Controller
             $viewData += [
                 'ndt_processes' => $ndt_processes,
 
-                'ndt_components' => TdrProcess::where('tdrs_id', $current_tdr->id)
-                    ->where('process_names_id', $process_name->id)
-                    ->with(['tdr', 'processName'])
-                    ->orderBy('sort_order')
-                    ->get(),
+                // Показываем строго одну выбранную запись
+                'ndt_components' => collect([$current_tdrs_process->load(['tdr', 'processName'])]),
 
                 // Добавляем ID текущего процесса (а не всех NDT процессов)
                 'current_ndt_id' => $process_name->id,
@@ -485,15 +484,24 @@ class TdrProcessController extends Controller
 
         } else {
             // Обработка обычных процессов
+            // Базовый набор доступных процессов для данного имени
+            $processComponents = Process::whereIn('id', $manualProcesses)
+                ->where('process_names_id', $process_name->id)
+                ->get();
+
+            // Если передан конкретный process_id (элемент из JSON-массива), фильтруем JSON «processes» у текущей записи
+            if ($specificProcessId !== null) {
+                $currentProcesses = json_decode($current_tdrs_process->processes, true) ?: [];
+                $currentProcesses = array_values(array_filter($currentProcesses, function($pid) use ($specificProcessId) {
+                    return (int)$pid === (int)$specificProcessId;
+                }));
+                $current_tdrs_process->processes = json_encode($currentProcesses);
+            }
+
             $viewData += [
-                'process_components' => Process::whereIn('id', $manualProcesses)
-                    ->where('process_names_id', $process_name->id)
-                    ->get(),
-                'process_tdr_components' => TdrProcess::where('tdrs_id', $current_tdr->id)
-                    ->where('process_names_id', $process_name->id)
-                    ->with(['tdr', 'processName'])
-                    ->orderBy('sort_order')
-                    ->get()
+                'process_components' => $processComponents,
+                // Строго одна выбранная запись (возможно с отфильтрованным одним process_id)
+                'process_tdr_components' => collect([$current_tdrs_process->load(['tdr', 'processName'])])
             ];
         }
 
@@ -580,6 +588,7 @@ class TdrProcessController extends Controller
             'processes.*.process_names_id' => 'required|integer|exists:process_names,id',
             'processes.*.process' => 'required|array',
             'processes.*.process.*' => 'integer|exists:processes,id',
+            'processes.*.ec' => 'nullable|boolean',
         ]);
 
         // Извлекаем данные из запроса
@@ -593,6 +602,7 @@ class TdrProcessController extends Controller
             'tdrs_id' => $validated['tdrs_id'],
             'process_names_id' => $processData['process_names_id'],
             'processes' => json_encode($processesArray), // Преобразуем массив в JSON
+            'ec' => $processData['ec'] ?? false, // Добавляем поле EC
         ];
 
         // Обновляем запись

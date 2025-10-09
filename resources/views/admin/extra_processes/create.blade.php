@@ -82,7 +82,7 @@
                     <div class="form-group d-flex mb-3">
                         <label for="i_component_id" class="form-label pe-2">Component</label>
 
-                        <select name="component_id" id="i_component_id" class="form-control" style="width: 550px" required>
+                        <select name="component_id" id="i_component_id" class="form-control" style="width: 300px" required>
                             <option selected value="">---</option>
                             @foreach($components as $component)
                                 <option value="{{ $component->id }}"
@@ -96,6 +96,8 @@
                                 data-bs-target="#addComponentModal">{{ __('Add Component') }}
                         </button>
                     </div>
+
+
 
                     <div class="form-group mb-3">
                         <label for="qty" class="form-label">Quantity</label>

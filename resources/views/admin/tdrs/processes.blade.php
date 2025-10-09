@@ -153,7 +153,7 @@
                                                 @foreach($processData as $processId)
                                                     {{ $processName }} :
                                                     @if(isset($proces[$processId]))
-                                                        {{ $proces[$processId]->process }}<br>
+                                                        {{ $proces[$processId]->process }}@if($processes->ec) ( EC )@endif<br>
                                                     @endif
                                                 @endforeach
                                             @endforeach
@@ -244,9 +244,11 @@
                                             $baseType = $process->processName->process_type ?? $process->processName->process_sheet_name;
 
                                             // Если базовый тип определён и для него ещё не выбрана запись, сохраняем данные:
-                                            if($baseType && !isset($globalGroupedProcesses[$baseType])) {
-                                                $globalGroupedProcesses[$baseType] = [
-                                                    'tdrId'           => $process->tdrs_id,
+                                            if($baseType) {
+                                                // Сохраняем КОНКРЕТНУЮ запись для открытия одиночной формы
+                                                $globalGroupedProcesses[] = [
+                                                    'label'           => $baseType,
+                                                    'tdr_process_id'  => $process->id,
                                                     'process_name_id' => $process->process_names_id
                                                 ];
                                             }
@@ -254,20 +256,21 @@
                                     @endphp
 
                                     <div class="row ">
-                                        @foreach($globalGroupedProcesses as $type => $data)
+                                        @foreach($globalGroupedProcesses as $data)
                                             <div class="mb-3 d-flex align-items-center justify-content-between">
                                                 <div class="flex-grow-1 me-2 text-center">
-                                                    <a href="{{ route('tdr-processes.processesForm', [
-                                                               'id' => $current_wo->id,
-                                                 'process_name_id'  => $data['process_name_id']
+                                                    <a href="{{ route('tdr-processes.show', [
+                                                               'tdr_process' => $data['tdr_process_id']
                                                          ]) }}" target="_blank" class="btn btn-outline-primary w-100 form-link"
+                                                       data-tdr-process-id="{{ $data['tdr_process_id'] }}"
                                                        data-process-name-id="{{ $data['process_name_id'] }}">
-                                                        {{ $type }}
+                                                        {{ $data['label'] }}
                                                     </a>
                                                 </div>
                                                 <div style="width: 160px;">
                                                     <select class="form-select form-select-sm vendor-select"
-                                                            data-process-name-id="{{ $data['process_name_id'] }}">
+                                                            data-process-name-id="{{ $data['process_name_id'] }}"
+                                                            data-tdr-process-id="{{ $data['tdr_process_id'] }}">
                                                         <option value="">Vendor</option>
                                                         @foreach($vendors ?? [] as $vendor)
                                                             <option value="{{ $vendor->id }}">{{ $vendor->name }}</option>

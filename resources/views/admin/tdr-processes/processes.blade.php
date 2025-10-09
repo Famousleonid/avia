@@ -103,11 +103,12 @@
                 <div class="d-flex justify-content-between">
                     <div>
                         {{ $current_tdr->component->name }}
+                        <p>
                         PN: {{ $current_tdr->component->part_number }}
-                        SN: {{ $current_tdr->serial_number }}
+                        SN: {{ $current_tdr->serial_number }}</p>
                     </div>
                     <div>
-                        <a href="{{ route('tdr-processes.createProcesses', ['tdrId' => $current_tdr->id]) }}" 
+                        <a href="{{ route('tdr-processes.createProcesses', ['tdrId' => $current_tdr->id]) }}"
                            class="btn btn-outline-success me-2">
                             <i class="fas fa-plus"></i> Add Process
                         </a>
@@ -146,7 +147,7 @@
 
                                                 @foreach($proces as $proc)
                                                     @if($proc->id ==$process  )
-                                                        {{$proc->process}}
+                                                        {{$proc->process}}@if($processes->ec) ( EC )@endif
                                                     @endif
                                                 @endforeach
 
@@ -179,7 +180,7 @@
                                                         @endforeach
                                                     </select>
                                                     <a href="{{ route('tdr-processes.show', ['tdr_process' =>
-                                                    $processes->id]) }}" class="btn btn-sm btn-outline-primary form-link"
+                                                    $processes->id, 'process_id' => $process]) }}" class="btn btn-sm btn-outline-primary form-link"
                                                        style="width: 60px"
                                                        data-tdr-process-id="{{ $processes->id }}"
                                                        data-process="{{ $process }}"
@@ -262,7 +263,7 @@
                             sort_order: index + 1
                         };
                     });
-                    
+
                     // Отправляем AJAX запрос для обновления порядка
                     updateProcessOrder(newOrder);
                 }
@@ -297,7 +298,7 @@
                     const process = this.getAttribute('data-process');
                     const vendorId = this.value;
                     const vendorName = this.options[this.selectedIndex].text;
-                    
+
                     if (vendorId) {
                         console.log('Selected vendor:', {
                             tdrProcessId: tdrProcessId,
@@ -340,7 +341,7 @@
 
             saveVendorButton.addEventListener('click', function() {
                 const vendorName = vendorNameInput.value.trim();
-                
+
                 if (!vendorName) {
                     alert('Please enter vendor name');
                     return;
@@ -365,19 +366,19 @@
                         const newOption = document.createElement('option');
                         newOption.value = data.vendor.id;
                         newOption.textContent = data.vendor.name;
-                        
+
                         // Добавляем во все дропдауны
                         document.querySelectorAll('.vendor-select').forEach(select => {
                             select.appendChild(newOption.cloneNode(true));
                         });
-                        
+
                         // Закрываем модальное окно
                         const modal = bootstrap.Modal.getInstance(document.getElementById('addVendorModal'));
                         modal.hide();
-                        
+
                         // Очищаем форму
                         addVendorForm.reset();
-                        
+
                         alert('Vendor added successfully!');
                     } else {
                         alert('Error: ' + data.message);
@@ -392,7 +393,7 @@
             // Функция для обновления порядка процессов
             function updateProcessOrder(newOrder) {
                 const processIds = newOrder.map(item => item.id);
-                
+
                 fetch('{{ route("tdr-processes.update-order") }}', {
                     method: 'POST',
                     headers: {
@@ -434,9 +435,9 @@
                     ${message}
                     <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
                 `;
-                
+
                 document.body.appendChild(notification);
-                
+
                 // Автоматически убираем уведомление через 3 секунды
                 setTimeout(() => {
                     if (notification.parentNode) {

@@ -17,6 +17,7 @@ class TdrProcess extends Model
         'sort_order', // Поле для сортировки
         'date_start',
         'date_finish',
+        'ec', // Boolean поле для EC
     ];
     protected $casts = [
         'processes'   => 'array',

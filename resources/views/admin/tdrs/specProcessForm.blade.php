@@ -260,37 +260,6 @@
         Print Form
     </button>
 
-    <!-- Отладочная информация -->
-{{--    <div class="no-print mt-2 p-2 bg-light border">--}}
-{{--        <strong>Отладка NDT сумм:</strong><br>--}}
-{{--        <small>--}}
-{{--            Workorder ID: {{ $current_wo->id }}<br>--}}
-{{--            Workorder Number: {{ $current_wo->number }}<br>--}}
-{{--            <br>--}}
-{{--            <strong>NDT Sums:</strong><br>--}}
-{{--            Total: {{ $ndtSums['total'] ?? 'не установлено' }}<br>--}}
-{{--            MPI: {{ $ndtSums['mpi'] ?? 'не установлено' }}<br>--}}
-{{--            FPI: {{ $ndtSums['fpi'] ?? 'не установлено' }}<br>--}}
-{{--            <br>--}}
-{{--            <strong>NdtCadCsv данные:</strong><br>--}}
-{{--            @if($current_wo->ndtCadCsv)--}}
-{{--                NdtCadCsv ID: {{ $current_wo->ndtCadCsv->id }}<br>--}}
-{{--                NDT компонентов: {{ count($current_wo->ndtCadCsv->ndt_components ?? []) }}<br>--}}
-{{--                CAD компонентов: {{ count($current_wo->ndtCadCsv->cad_components ?? []) }}<br>--}}
-{{--                <br>--}}
-{{--                <strong>Детали NDT компонентов:</strong><br>--}}
-{{--                @foreach($current_wo->ndtCadCsv->ndt_components ?? [] as $index => $component)--}}
-{{--                    {{ $index + 1 }}. {{ $component['ipl_num'] ?? 'N/A' }} - --}}
-{{--                    qty: {{ $component['qty'] ?? 'N/A' }}, --}}
-{{--                    process: {{ $component['process'] ?? 'N/A' }}<br>--}}
-{{--                @endforeach--}}
-{{--            @else--}}
-{{--                ❌ NdtCadCsv запись не найдена<br>--}}
-{{--            @endif--}}
-{{--            <br>--}}
-{{--            <strong>Raw NDT data:</strong> {{ json_encode($ndtSums) }}--}}
-{{--        </small>--}}
-{{--    </div>--}}
 </div>
 
 @php
@@ -625,15 +594,29 @@
                         @foreach($chunk as $index => $component)
                             @php
                                 $localIndex = $index % 6;
-                                $currentTdrId = $component->id;
-                                $processForCurrentTdr = $processes
-                                    ->where('process_name_id', $name->id)
-                                    ->where('tdrs_id', $currentTdrId)
-                                    ->values();
-                                // Собираем все number_line через запятую
-                                $numberLines = $processForCurrentTdr->pluck('number_line')->implode(',');
+                                $currentTdrId = isset($component) && isset($component->id) ? $component->id : null;
+
+                                // Проверяем наличие необходимых переменных
+                                if (isset($processes) && isset($name) && isset($name->id) && $currentTdrId) {
+                                    // Фильтруем только процессы данного компонента с данным именем процесса
+                                    $processForCurrentTdr = $processes
+                                        ->where('process_name_id', $name->id)
+                                        ->where('tdrs_id', $currentTdrId)
+                                        ->values();
+
+
+                                    // Собираем все number_line через запятую с проверкой
+                                    $numberLines = '';
+                                    if ($processForCurrentTdr->isNotEmpty()) {
+                                        $numberLines = $processForCurrentTdr->pluck('number_line')->filter()->implode(',');
+                                    }
+                                } else {
+                                    $processForCurrentTdr = collect();
+                                    $numberLines = '';
+
+                                }
                             @endphp
-                            <div class="col {{ $localIndex < 5 ? 'border-l-b' : 'border-l-b-r' }} text-center" style="height: 20px">
+                            <div class="col {{ $localIndex < 5 ? 'border-l-b' : 'border-l-b-r' }} text-center" style="height: 20px; position: relative;">
                                 {{--                      Выводим все number_line через запятую --}}
                                 @if($numberLines)
                                     <div class="border-r" style="height: 20px; width: 30px">
@@ -642,6 +625,22 @@
                                 @else
                                     <div class="border-r" style="height: 20px; width: 30px"></div>
                                 @endif
+{{--                                место для ЕС для компанента--}}
+                                {{-- Проверяем, есть ли процессы с ec = 1 для данного компонента и имени процесса --}}
+                                @php
+                                    $hasEcProcess = false;
+                                    if (isset($processForCurrentTdr) && $processForCurrentTdr->isNotEmpty()) {
+                                        $hasEcProcess = $processForCurrentTdr->where('ec', 1)->isNotEmpty();
+
+                                    }
+                                @endphp
+                                @if($hasEcProcess)
+                                    <div class="" style="height: 20px; width: 30px;
+                                    position: absolute; right: 45px; top: 0;"
+                                    >
+                                        EC
+                                    </div>
+                                @endif
                                 @php $componentIndex++; @endphp
                             </div>
                         @endforeach
@@ -649,7 +648,10 @@
                             <div class="col {{ $i < 5 ? 'border-l-b' : 'border-l-b-r' }} text-center" style="height: 20px;
                     position: relative;"> {{ __(' ') }}
                                 <!-- Граница внутри ячейки, отступ 30px от левого края -->
-                                <div style="position: absolute; left: 29px; top: 0; bottom: 0; width: 1px; border-left: 1px solid black;"></div>
+                                <div style="position: absolute; left: 29px; top: 0; bottom: 0; width: 1px; border-left: 1px
+                                solid black;">
+
+                                </div>
                             </div>
                         @endfor
 

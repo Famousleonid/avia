@@ -344,7 +344,15 @@ class TdrController extends Controller
         // Извлекаем компоненты, которые связаны с этим manual_id
         $components = Component::where('manual_id', $manual_id)->get();
 
-        $tdrProcesses = TdrProcess::orderBy('sort_order')->get();
+        // Ограничиваем процессы только текущим Workorder: берём id связанных TDR
+        $tdrIds = Tdr::where('workorder_id', $current_wo->id)
+            ->pluck('id');
+
+        // Загружаем только процессы для этих TDR, с сортировкой и названием процесса
+        $tdrProcesses = TdrProcess::whereIn('tdrs_id', $tdrIds)
+            ->with('processName')
+            ->orderBy('sort_order')
+            ->get();
 
         $proces = Process::all()->keyBy('id');
         $vendors = Vendor::all();
@@ -1481,6 +1489,7 @@ class TdrController extends Controller
                     'tdrs_id' => $tdr->id,
                     'process_name_id' => $process->process_names_id,
                     'number_line' => $index + 1, // Номер строки
+                    'ec' => $process->ec, // Добавляем поле EC
                 ]);
             });
         }
