@@ -646,6 +646,7 @@
                                 $isThisYear = $trainingDate->isCurrentYear();
                             @endphp
                         @if($monthsDiff<12)
+                            <div class="d-flex justify-content-center">
                                 <div class="fs-9" style="color: lawngreen">
                                     @if($monthsDiff == 0)
                                         @if($isThisMonth)
@@ -659,6 +660,15 @@
                                         Last training {{ $monthsDiff }} months ago ({{ $trainingDate->format('M d') }})
                                     @endif
                                 </div>
+                                @if($monthsDiff > 8 && $user->id == $user_wo)
+                                    <div class="text-center ms-2">
+                                        <button class="btn btn-success btn-sm" onclick="updateTrainingToToday({{ $manual_id }}, '{{ $trainings->date_training }}')">
+                                            <i class="bi bi-calendar-check"></i> Update to Today
+                                        </button>
+                                    </div>
+                                @endif
+                            </div>
+
                             @else
                                 <div class="fs-9 d-flex justify-content-center" style="color: red">
                                     Last training {{ $monthsDiff }} months ago ({{ $trainingDate->format('M d, Y') }}). Need Update
@@ -667,11 +677,6 @@
                                         <button class="btn btn-warning btn-sm" onclick="updateTrainings({{ $manual_id }}, '{{ $trainings->date_training }}')">
                                             <i class="bi bi-arrow-clockwise"></i> Update Trainings
                                         </button>
-                                        @if($monthsDiff > 9)
-                                            <button class="btn btn-success btn-sm ms-1" onclick="updateTrainingToToday({{ $manual_id }}, '{{ $trainings->date_training }}')">
-                                                <i class="bi bi-calendar-check"></i> Update to Today
-                                            </button>
-                                        @endif
                                     </div>
                                 @endif
                     </div>
@@ -1029,7 +1034,7 @@
                 // Генерируем данные для создания тренингов за следующие годы
                 for (let year = lastTrainingYear + 1; year <= currentYear; year++) {
                     const trainingDate = getDateFromWeekAndYear(lastTrainingWeek, year);
-                    
+
                     // Проверяем, что дата тренировки не в будущем
                     if (trainingDate <= currentDate) {
                         trainingData.manuals_id.push(manualId);
@@ -1050,7 +1055,7 @@
                         `This will create ${trainingData.manuals_id.length} training records.\n\n` +
                         `Are you sure you want to create trainings for such a long period?\n\n` +
                         `Consider if this is correct or if you need to create new initial training instead.`;
-                    
+
                     if (!confirm(warningMessage)) {
                         return;
                     }
@@ -1065,7 +1070,7 @@
                     confirmationMessage += `Date: ${dateStr}\n`;
                     confirmationMessage += `Form: 112\n`;
                 });
-                
+
                 // Добавляем информацию о форме 132
                 confirmationMessage += `\nNote: Form 132 will be created only if it doesn't exist for this unit.`;
 
@@ -1118,12 +1123,12 @@
             const todayStr = today.toISOString().split('T')[0];
             const lastTraining = new Date(lastTrainingDate);
             const monthsDiff = Math.floor((today - lastTraining) / (1000 * 60 * 60 * 24 * 30));
-            
+
             const confirmationMessage = `Update training to today's date?\n\n` +
                 `Last training: ${lastTrainingDate} (${monthsDiff} months ago)\n` +
                 `New training date: ${todayStr} (today)\n\n` +
                 `This will create a new training record for today and update the training status.`;
-            
+
             if (confirm(confirmationMessage)) {
                 const trainingData = {
                     manuals_id: [manualId],
