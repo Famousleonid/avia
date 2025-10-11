@@ -297,6 +297,7 @@ Route::resource('/extra_processes', ExtraProcessController::class)->except(['cre
     Route::get('trainings/form112/{id}', [TrainingController::class, 'showForm112'])->name('trainings.form112');
     Route::get('trainings/form132/{id}', [TrainingController::class, 'showForm132'])->name('trainings.form132');
     Route::post('/trainings/createTraining', [TrainingController::class, 'createTraining'])->name('trainings.createTraining');
+    Route::post('/trainings/updateToToday', [TrainingController::class, 'updateToToday'])->name('trainings.updateToToday');
     Route::post('/trainings/delete-all', [TrainingController::class, 'deleteAll'])->name('trainings.deleteAll');
 
     // CSV файлы для мануалов

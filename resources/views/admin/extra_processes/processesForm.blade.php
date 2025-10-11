@@ -237,7 +237,9 @@
                      style="width: 180px; margin: 6px 10px 0;">
             </div>
             <div class="col-9">
-                <h2 class=" mt-3 text-black text-"><strong>{{$process_name->process_sheet_name ?? $process_name->name ?? 'EXTRA PROCESS'}} PROCESS SHEET</strong></h2>
+                <h3 class="ms-4 mt-3 text-black text-"><strong>{{$process_name->process_sheet_name ?? $process_name->name ??
+                'EXTRA
+                 PROCESS'}} PROCESS SHEET</strong></h3>
             </div>
         </div>
         <div class="row">
