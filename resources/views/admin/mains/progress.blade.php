@@ -1,161 +1,197 @@
 @extends('admin.master')
 
 @section('links')
-
-    <!-- jQuery UI Datepicker -->
-    <link rel="stylesheet" href="https://code.jquery.com/ui/1.13.2/themes/base/jquery-ui.css">
-
     <style>
-        [data-bs-theme="dark"] #progress-index {
+
+        [data-bs-theme="dark"] #stats-by-wo {
             background: linear-gradient(to bottom, #131313, #2E2E2E) !important;
         }
-        [data-bs-theme="dark"] #progress-index th,
-        [data-bs-theme="dark"] #progress-index td {
+
+        [data-bs-theme="dark"] #stats-by-wo th,
+        [data-bs-theme="dark"] #stats-by-wo td {
             background: transparent !important;
             color: #fff !important;
         }
-        [data-bs-theme="dark"] #progress-index thead th {
+
+        [data-bs-theme="dark"] #stats-by-wo thead th {
             background: linear-gradient(to bottom, #131313, #2E2E2E) !important;
             color: #0DDDFD !important;
             position: sticky;
-            height: 50px;
             top: 0;
-            vertical-align: middle;
-            border-top: 1px;
             z-index: 1020;
         }
-        [data-bs-theme="dark"] .table-hover tbody tr:hover,
-        [data-bs-theme="dark"] #progress-index.table-hover tbody tr:hover {
-            background-color: rgba(255,255,255,0.1) !important;
-        }
-        /* Жёсткое ограничение высоты строк и input */
-        #progress-index tr, #progress-index td, #progress-index th {
-            height: 40px !important;
-            max-height: 40px !important;
-            min-height: 40px !important;
+
+        #stats-by-wo tr, #stats-by-wo td, #stats-by-wo th {
+            height: 44px !important;
+            max-height: 44px !important;
+            min-height: 44px !important;
             overflow: hidden !important;
             line-height: 1 !important;
             vertical-align: middle !important;
             padding-top: 0 !important;
             padding-bottom: 0 !important;
         }
-        #progress-index td.td-date input[type="text"],
-        #progress-index td.td-date input.datepicker {
-            height: 28px !important;
-            min-height: 28px !important;
-            max-height: 28px !important;
-            font-size: 0.85rem;
-            padding: 0 4px !important;
-            margin: 0 !important;
-            box-sizing: border-box;
-            display: block;
+
+        .stat-badge {
+            font-weight: 600;
         }
+
+        @media (max-width: 768px) {
+            #stats-by-wo th:nth-child(3), #stats-by-wo td:nth-child(3) {
+                display: none;
+            }
+
+            /* User */
+            #stats-by-wo th:nth-child(6), #stats-by-wo td:nth-child(6) {
+                display: none;
+            }
+
+            /* Closed */
+        }
+
     </style>
 @endsection
 
 @section('content')
+    <section class="container-fluid pl-5 pr-5">
+        <div class="card shadow">
+            <div class="card-body p-3">
 
-    <section class="container-fluid pl-5 pr-5 ">
-        <div class="card firm-border px-2 shadow">
-            <div class="card-body p-0 pt-2">
+                <form method="get" action="{{ route('progress.index') }}" id="progress-filters" class="row g-3 align-items-end mb-3">
+                    <div class="col-12 col-md-4">
+                        <label for="sl_technik" class="form-label mb-1">Technician</label>
+                        <select name="technik" id="sl_technik" class="form-control">
+                            <option value="">— All users —</option>
+                            @foreach ($team_techniks as $t)
+                                <option value="{{ $t->id }}" @selected((int)$technikId === (int)$t->id)>{{ $t->name }}</option>
+                            @endforeach
+                        </select>
+                    </div>
 
-                <div class="row mb-3">
-                    <div class="ml-2 col-3  pt-1 ">
-                        <span class="h5">For technik: </span> <span class="text-primary h5" id="orders_count" style="display:inline-block; min-width:4ch">{{$user->name }}</span>
+                    <div class="col-12 col-md-4">
+                        <label for="sl_customer" class="form-label mb-1">Customer</label>
+                        <select name="customer" id="sl_customer" class="form-control">
+                            <option value="">— All customers —</option>
+                            @foreach ($customers as $c)
+                                <option value="{{ $c->id }}" @selected((int)$customerId === (int)$c->id)>{{ $c->name }}</option>
+                            @endforeach
+                        </select>
                     </div>
-                    <div class="col-3">
-                        <form action="" name="form_technik" method="get">
-                            <select name="technik" id="sl_technik" class="form-control">
-                                <option value="" selected disabled>--Select a technician from your team--</option>
-                                @foreach ($team_techniks as $team_technik)
-                                    <option value="{{$team_technik->id}}">{{$team_technik->name}}</option>
-                                @endforeach
-                            </select>
-                        </form>
+
+                    <div class="col-12 col-md-4 d-flex gap-3 align-items-center">
+                        <div class="form-check form-switch">
+                            <input class="form-check-input" type="checkbox" role="switch" id="hide_done" name="hide_done"
+                                   value="1" @checked($hideDone)>
+                            <label class="form-check-label" for="hide_done">Hide Done</label>
+                        </div>
+
+                        <div class="flex-fill p-2 border rounded text-center">
+                            <div class="text-secondary small">Total</div>
+                            <div class="h5 mb-0 stat-badge">{{ $totals->total ?? 0 }}</div>
+                        </div>
+                        <div class="flex-fill p-2 border rounded text-center">
+                            <div class="text-secondary small">Open</div>
+                            <div class="h5 mb-0 stat-badge text-warning">{{ $totals->open ?? 0 }}</div>
+                        </div>
+                        <div class="flex-fill p-2 border rounded text-center">
+                            <div class="text-secondary small">Closed</div>
+                            <div class="h5 mb-0 stat-badge text-success">{{ $totals->closed ?? 0 }}</div>
+                        </div>
                     </div>
+                </form>
+
+                {{-- Таблица сводки по воркдрам --}}
+                <div class="table-responsive mt-2">
+                    <table class="table table-bordered table-hover table-striped w-100" id="stats-by-wo">
+                        <thead>
+                        <tr>
+                            <th class="text-primary text-center">Wo Number</th>
+                            <th class="text-primary">Customer</th>
+                            <th class="text-primary">User</th>
+                            <th class="text-primary text-center">Total</th>
+                            <th class="text-primary text-center">Open</th>
+                            <th class="text-primary text-center">Closed</th>
+                            <th class="text-primary text-center">% Done</th>
+                        </tr>
+                        </thead>
+                        <tbody>
+                        @forelse($byWorkorder as $row)
+                            <tr>
+                                <td class="text-center">
+                                    <a href="{{ route('mains.show', $row->any_main_id) }}" class="text-decoration-none">
+
+                                        @if($row->has_done)
+                                            <span class="text-muted">{{ $row->number }}</span>
+                                        @else
+                                            <span>w&nbsp;{{ $row->number }}</span>
+                                        @endif
+                                    </a>
+                                </td>
+                                <td>{{ $row->customer_name }}</td>
+                                <td>{{ $row->user_names ?: '—' }}</td>
+                                <td class="text-center">
+                                    <span data-bs-toggle="tooltip" data-bs-placement="top" data-bs-html="true"
+                                          title="{{ $row->task_names ?? '' }}">{{ $row->total_tasks }}</span>
+                                </td>
+
+                                <td class="text-center text-warning">{{ $row->open_tasks }}</td>
+                                <td class="text-center text-success">{{ $row->closed_tasks }}</td>
+                                <td class="text-center">{{ $row->percent_done }}%</td>
+                            </tr>
+                        @empty
+                            <tr>
+                                <td colspan="7" class="text-center text-muted">No data</td>
+                            </tr>
+                        @endforelse
+                        </tbody>
+                    </table>
                 </div>
 
-                @if(count($mains))
-                    <table id="progress-index" class="table table-bordered table-hover w-100">
-                        @foreach($wos as $wo)
-                            <thead class="bg-gradient">
-                            <tr>
-                                <th class="text-center text-primary bg-gradient"> W {{$wo->workorder->number}} @if($wo->workorder->approve) <img src="{{asset('img/ok.png')}}" data-toggle="tooltip" title='Approved' width="20px" alt=""> @endif</th>
-                                <th class="text-center text-primary bg-gradient">General Task</th>
-                                <th class="text-center text-primary bg-gradient">Description</th>
-                                <th class="text-center text-primary bg-gradient">Date Start</th>
-                                <th class="text-center text-primary bg-gradient">Date Finish</th>
-                            </tr>
-                            </thead>
-                            <tbody>
-                            @foreach ($mains as $index =>$main)
-                                @if($main->workorder == $wo->workorder)
-                                    <tr>
-                                        <td></td>
-                                        <td>{{$main->generaltask->name}}</td>
-                                        <td>{{$main->description}}</td>
-                                        <td class="text-center">@if ($main->date_start)<span>{{date('d-M-Y', strtotime($main->date_start))}}</span> @endif</td>
-                                        @if($main->date_finish)
-                                            <td class="text-center"><span>{{date('d-M-Y', strtotime($main->date_finish))}}</span></td>
-                                        @else
-                                            <td class="td-date text-center">
-                                                <form id="form_date_finish_{{$index}}" name="form_date_finish_{{$index}}" action="{{route('mains.update', ['main' => $main->id])}}" method="post">
-                                                    @csrf
-                                                    @method('PUT')
-                                                    <input id="date_finish_input" type="text" class="task_date_finish form-control border-primary datepicker" name="date_finish" autocomplete="off">
-                                                    <input type="hidden" name="form_index" value="{{ $index }}">
-                                                </form>
-                                            </td>
-                                        @endif
-                                    </tr>
-                                @endif
-                            @endforeach
-                            </tbody>
-                        @endforeach
-                    </table>
-                @else
-                    <p style="color:red">No current job</p>
-                @endif
             </div>
         </div>
     </section>
-
-
 @endsection
 
 @section('scripts')
-    <script src="https://code.jquery.com/ui/1.13.2/jquery-ui.min.js"></script>
     <script>
         document.addEventListener('DOMContentLoaded', function () {
-            $('input[name="date_finish"]').change(function () {
-                $(this).closest('form').submit();
+
+            try {
+                if (typeof window.hideLoadingSpinner === 'function') hideLoadingSpinner();
+            } catch (e) {
+            }
+
+            const tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+            tooltipTriggerList.map(function (el) {
+                return new bootstrap.Tooltip(el, {trigger: 'hover focus'});
             });
-            $('select[name="technik"]').change(function () {
-                $(this).closest('form').submit();
-            });
+
+            const form = document.getElementById('progress-filters');
+            const hideDone = document.getElementById('hide_done');
+            const selUser = document.getElementById('sl_technik');
+            const selCustomer = document.getElementById('sl_customer');
+
+            function submitWithSpinner() {
+                try {
+                    if (typeof window.showLoadingSpinner === 'function') showLoadingSpinner();
+                } catch (e) {
+                }
+                form.submit();
+            }
+
+            hideDone?.addEventListener('change', submitWithSpinner);
+            selUser?.addEventListener('change', submitWithSpinner);
+            selCustomer?.addEventListener('change', submitWithSpinner);
         });
-        // jQuery-скрипт для выравнивания высоты строк таблицы
-        $(document).ready(function () {
-            $('#progress-index tr').each(function () {
-                $(this).css('height', '40px');
-            });
-            $('#progress-index th, #progress-index td').css({
-                'height': '40px',
-                'min-height': '40px',
-                'max-height': '40px',
-                'vertical-align': 'middle',
-                'padding-top': '0',
-                'padding-bottom': '0',
-                'box-sizing': 'border-box',
-                'line-height': '1'
-            });
-            // Инициализация datepicker
-            $('.datepicker').datepicker({
-                dateFormat: 'dd-M-yy'
-            });
+
+        window.addEventListener('pageshow', function (e) {
+            if (e.persisted) {
+                try {
+                    if (typeof window.hideLoadingSpinner === 'function') hideLoadingSpinner();
+                } catch (e) {
+                }
+            }
         });
     </script>
-
-
 
 @endsection

@@ -9,7 +9,7 @@
 
     <li class="nav-item">
         <a class="nav-link press-spinner" href="{{route('progress.index')}}" onclick="showLoadingSpinner()">
-            <i class="bi bi-graph-up-arrow me-2"></i> Work in Progress
+            <i class="bi bi-graph-up-arrow me-2"></i> Statistics
         </a>
     </li>
     <li class="nav-item press-spinner">

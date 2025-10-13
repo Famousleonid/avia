@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Models\Customer;
 use App\Models\GeneralTask;
 use App\Models\Main;
 use App\Models\Manual;
@@ -14,6 +15,7 @@ use App\Models\Workorder;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 
 
 class MainController extends Controller
@@ -231,20 +233,80 @@ class MainController extends Controller
     }
 
 
-    public function progress()
+    public function progress(Request $request)
     {
-
-        $user = Auth::user()->load('team');
-
-        $mains = Main::where(['user_id' => $user->id])->with('workorder')->get();
-        $wos = $mains->unique('workorder_id')->sortByDesc('workorder_id');
-        $team_techniks = collect();
-        if ($user->team) {
-            $team_techniks = User::where('team_id', $user->team->id)->get();
+        // Если параметр technik пришёл (даже пустой) — уважаем его.
+        // Если параметра нет вообще (первый заход) — по умолчанию текущий пользователь.
+        if ($request->has('technik')) {
+            $technikId = $request->filled('technik') ? (int) $request->input('technik') : null; // All users -> null (без фильтра)
+        } else {
+            $technikId = auth()->id() ?? null; // первый заход
         }
 
-        return view('admin.mains.progress', compact('mains', 'wos', 'team_techniks', 'user'));
+        $customerId = $request->integer('customer');
+        $hideDone   = $request->boolean('hide_done'); // переключатель: скрывать финальные
 
+        // Списки для селектов
+        $team_techniks = User::orderBy('name')->get(['id','name']);
+        $customers     = Customer::orderBy('name')->get(['id','name']);
+
+        // Только воркдры, у которых есть задачи (INNER JOIN mains)
+        $q = Main::query()
+            ->when($technikId,  fn($q) => $q->where('mains.user_id', $technikId))
+            ->when($customerId, fn($q) => $q->whereHas('workorder', fn($qq) => $qq->where('customer_id', $customerId)))
+            ->join('workorders', 'workorders.id', '=', 'mains.workorder_id')
+            ->leftJoin('customers', 'customers.id', '=', 'workorders.customer_id')
+            ->leftJoin('tasks', 'tasks.id', '=', 'mains.task_id')
+            ->leftJoin('users', 'users.id', '=', 'mains.user_id')
+            ->groupBy('workorders.id','workorders.number','customers.name')
+            ->orderBy('workorders.number')
+            ->selectRaw('
+            workorders.id   as wo_id,
+            workorders.number as number,
+            COALESCE(customers.name, "—") as customer_name,
+            COUNT(mains.id) as total_tasks,
+            SUM(CASE WHEN mains.date_finish IS NULL THEN 1 ELSE 0 END)     as open_tasks,
+            SUM(CASE WHEN mains.date_finish IS NOT NULL THEN 1 ELSE 0 END) as closed_tasks,
+            MIN(mains.id) as any_main_id,
+            GROUP_CONCAT(DISTINCT users.name  ORDER BY users.name  SEPARATOR ", ") as user_names,
+            GROUP_CONCAT(DISTINCT tasks.name  ORDER BY tasks.name  SEPARATOR " • ") as task_names,
+            MAX(CASE
+                 WHEN LOWER(TRIM(tasks.name)) IN (\'done\', \'submitted\', \'submitted wo assembly\')
+                      OR LOWER(TRIM(tasks.name)) LIKE \'submitted%\'
+                 THEN 1 ELSE 0
+            END) as has_done
+        ');
+
+        // Скрывать воркдры с финальной задачей — по переключателю
+        if ($hideDone) {
+            $q->havingRaw("
+            MAX(CASE
+                 WHEN LOWER(TRIM(tasks.name)) IN ('done','submitted','submitted wo assembly')
+                      OR LOWER(TRIM(tasks.name)) LIKE 'submitted%'
+                 THEN 1 ELSE 0
+            END) = 0
+        ");
+        }
+
+        $byWorkorder = $q->get()->map(function ($r) {
+            $total  = (int)$r->total_tasks;
+            $closed = (int)$r->closed_tasks;
+            $r->percent_done = $total ? (int) round($closed * 100 / $total) : 0;
+            return $r;
+        });
+
+        // Итоги по текущей выборке
+        $totals = (object)[
+            'total'  => $byWorkorder->sum('total_tasks'),
+            'open'   => $byWorkorder->sum('open_tasks'),
+            'closed' => $byWorkorder->sum('closed_tasks'),
+        ];
+
+        return view('admin.mains.progress', compact(
+            'team_techniks','customers','technikId','customerId','hideDone','byWorkorder','totals'
+        ));
     }
+
+
 
 }
