@@ -53,11 +53,6 @@ class TrainingController extends Controller
             'planes', 'builders', 'scopes'));
     }
 
-
-
-
-
-
     /**
      * Show the form for creating a new resource.
      */
@@ -107,31 +102,113 @@ class TrainingController extends Controller
 
         // Устанавливаем дату тренировки для формы 132
         $dateTraining132 = $validatedData['date_training'];
+        $manualId = $validatedData['manuals_id'];
+
+        // Проверяем, есть ли уже форма 132 для этого юнита
+        $existingForm132 = Training::where('user_id', $userId)
+            ->where('manuals_id', $manualId)
+            ->where('form_type', 132)
+            ->first();
 
         // Если тип формы не 132, создаем еще одну запись для формы 132
-        if ($form_type != 132) {
+        if ($form_type != 132 && !$existingForm132) {
             Training::create([
                 'user_id' => $userId, // Текущий пользователь
-                'manuals_id' => $validatedData['manuals_id'],
+                'manuals_id' => $manualId,
                 'date_training' => $dateTraining132,
                 'form_type' => 132,
             ]);
         }
 
-        // Вычисление даты для формы 112
-        $dateTraining112 = \Carbon\Carbon::parse($dateTraining132)
-            ->next(\Carbon\Carbon::FRIDAY); // Находим следующую пятницу
+        // Создаем первую форму 112 с правильной датой (следующая пятница)
+        $dateTraining112 = \Carbon\Carbon::parse($dateTraining132)->next(\Carbon\Carbon::FRIDAY);
+        
+        // Проверяем существование формы 112 для первой даты
+        $existingTraining112 = Training::where('user_id', $userId)
+            ->where('manuals_id', $manualId)
+            ->where('date_training', $dateTraining112->format('Y-m-d'))
+            ->where('form_type', '112')
+            ->first();
+        
+        if (!$existingTraining112) {
+            Training::create([
+                'user_id' => $userId,
+                'manuals_id' => $manualId,
+                'date_training' => $dateTraining112->format('Y-m-d'),
+                'form_type' => '112',
+            ]);
+        }
 
-        // Создаем запись для формы 112
-        Training::create([
-            'user_id' => $userId, // Текущий пользователь
-            'manuals_id' => $validatedData['manuals_id'],
-            'date_training' => $dateTraining112,
-            'form_type' => 112,
-        ]);
+        // Создаем тренировки за все пропущенные годы (начиная со следующего года)
+        $this->createMissingTrainings($userId, $manualId, $dateTraining132);
 
+        // Проверяем, есть ли URL для возврата в запросе
+        $returnUrl = $request->input('return_url');
+        
+        // Если есть URL возврата и он содержит TDR, используем его
+        if ($returnUrl && str_contains($returnUrl, '/tdrs/')) {
+            return redirect($returnUrl)->with('success', 'Unit added for trainings.');
+        }
+        
+        // Проверяем referer как fallback
+        $referer = request()->header('referer');
+        if ($referer && str_contains($referer, '/tdrs/')) {
+            return redirect()->back()->with('success', 'Unit added for trainings.');
+        }
+        
         return redirect()->route('trainings.index')->with('success', 'Unit added for trainings.');
     }
+
+    /**
+     * Создает недостающие тренировки за все пропущенные годы
+     */
+    private function createMissingTrainings($userId, $manualId, $firstTrainingDate)
+    {
+        $firstTraining = \Carbon\Carbon::parse($firstTrainingDate);
+        $firstTrainingYear = $firstTraining->year;
+        $firstTrainingWeek = $firstTraining->weekOfYear;
+        $currentYear = now()->year;
+        $currentDate = now();
+
+        // Создаем тренировки за все годы начиная со следующего года после первой тренировки
+        for ($year = $firstTrainingYear + 1; $year <= $currentYear; $year++) {
+            // Для формы 112 используем ту же неделю, но в следующем году
+            $trainingDate = $this->getDateFromWeekAndYear($firstTrainingWeek, $year);
+            
+            // Проверяем, что дата тренировки не в будущем
+            if ($trainingDate <= $currentDate) {
+                // Проверяем существование формы 112 для этого года
+                $existingTraining112 = Training::where('user_id', $userId)
+                    ->where('manuals_id', $manualId)
+                    ->where('date_training', $trainingDate->format('Y-m-d'))
+                    ->where('form_type', '112')
+                    ->first();
+                
+                if (!$existingTraining112) {
+                    Training::create([
+                        'user_id' => $userId,
+                        'manuals_id' => $manualId,
+                        'date_training' => $trainingDate->format('Y-m-d'),
+                        'form_type' => '112',
+                    ]);
+                }
+            }
+        }
+    }
+
+    /**
+     * Получает дату из номера недели и года
+     */
+    private function getDateFromWeekAndYear($week, $year)
+    {
+        $firstJan = \Carbon\Carbon::create($year, 1, 1);
+        $days = ($week - 1) * 7 - $firstJan->dayOfWeek + 1;
+        $monday = $firstJan->addDays($days);
+        
+        // Возвращаем пятницу той же недели
+        return $monday->addDays(4);
+    }
+
     public function createTraining(Request $request)
     {
 
@@ -143,21 +220,134 @@ class TrainingController extends Controller
             ]);
 
             $userId = auth()->id();
+            $createdCount = 0;
+            $skippedCount = 0;
+
+            // Проверяем, есть ли уже форма 132 для этого юнита
+            $manualId = $validatedData['manuals_id'][0]; // Берем первый manual_id (они все одинаковые)
+            $existingForm132 = Training::where('user_id', $userId)
+                ->where('manuals_id', $manualId)
+                ->where('form_type', '132')
+                ->first();
 
             foreach ($validatedData['manuals_id'] as $key => $manualId) {
+                $trainingDate = $validatedData['date_training'][$key];
+                
+                // Проверяем существование тренировки формы 112
+                $existingTraining112 = Training::where('user_id', $userId)
+                    ->where('manuals_id', $manualId)
+                    ->where('date_training', $trainingDate)
+                    ->where('form_type', '112')
+                    ->first();
+                
+                if (!$existingTraining112) {
+                    // Создаем тренировку формы 112
+                    Training::create([
+                        'user_id' => $userId,
+                        'manuals_id' => $manualId,
+                        'date_training' => $trainingDate,
+                        'form_type' => '112',
+                    ]);
+                    $createdCount++;
+                } else {
+                    $skippedCount++;
+                }
+            }
+
+            // Создаем форму 132 только если её еще нет для этого юнита
+            if (!$existingForm132) {
+                // Берем дату первой тренировки для формы 132
+                $firstTrainingDate = $validatedData['date_training'][0];
+                
                 Training::create([
                     'user_id' => $userId,
                     'manuals_id' => $manualId,
-                    'date_training' => $validatedData['date_training'][$key],
-                    'form_type' => $validatedData['form_type'][$key],
+                    'date_training' => $firstTrainingDate,
+                    'form_type' => '132',
                 ]);
+                $createdCount++;
+            } else {
+                $skippedCount++;
             }
 
-            return response()->json(['success' => true, 'message' => 'The trainings have been successfully created.']);
-        } catch (\Exception $e) {
-            return response()->json(['success' => false, 'message' => 'Ошибка: ' . $e->getMessage()], 500);
-        }
+            $message = "Created {$createdCount} new trainings";
+            if ($skippedCount > 0) {
+                $message .= ", skipped {$skippedCount} existing trainings";
+            }
+            
+            // Добавляем информацию о форме 132
+            if (!$existingForm132) {
+                $message .= " (including Form 132)";
+            } else {
+                $message .= " (Form 132 already exists)";
+            }
+
+        return response()->json([
+            'success' => true, 
+            'message' => $message,
+            'created' => $createdCount,
+            'skipped' => $skippedCount
+        ]);
+    } catch (\Exception $e) {
+        return response()->json(['success' => false, 'message' => 'Ошибка: ' . $e->getMessage()], 500);
     }
+}
+
+/**
+ * Обновляет тренировку на сегодняшнюю дату
+ */
+public function updateToToday(Request $request)
+{
+    try {
+        $validatedData = $request->validate([
+            'manuals_id.*' => 'required',
+            'date_training.*' => 'required|date',
+            'form_type.*' => 'required|in:112'
+        ]);
+
+        $userId = auth()->id();
+        $createdCount = 0;
+        $skippedCount = 0;
+
+        foreach ($validatedData['manuals_id'] as $key => $manualId) {
+            $trainingDate = $validatedData['date_training'][$key];
+            
+            // Проверяем существование тренировки формы 112 на сегодняшнюю дату
+            $existingTraining112 = Training::where('user_id', $userId)
+                ->where('manuals_id', $manualId)
+                ->where('date_training', $trainingDate)
+                ->where('form_type', '112')
+                ->first();
+            
+            if (!$existingTraining112) {
+                // Создаем тренировку формы 112 на сегодняшнюю дату
+                Training::create([
+                    'user_id' => $userId,
+                    'manuals_id' => $manualId,
+                    'date_training' => $trainingDate,
+                    'form_type' => '112',
+                ]);
+                $createdCount++;
+            } else {
+                $skippedCount++;
+            }
+        }
+
+        $message = "Updated training to today";
+        if ($skippedCount > 0) {
+            $message .= ", skipped {$skippedCount} existing training(s)";
+        }
+
+        return response()->json([
+            'success' => true, 
+            'message' => $message,
+            'created' => $createdCount,
+            'skipped' => $skippedCount
+        ]);
+    } catch (\Exception $e) {
+        return response()->json(['success' => false, 'message' => 'Ошибка: ' . $e->getMessage()], 500);
+    }
+}
 
 
     public function showForm112($id, Request $request)

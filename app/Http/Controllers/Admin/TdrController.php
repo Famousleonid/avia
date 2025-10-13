@@ -18,6 +18,7 @@ use App\Models\Process;
 use App\Models\ProcessName;
 use App\Models\Tdr;
 use App\Models\TdrProcess;
+use App\Models\Training;
 use App\Models\Vendor;
 use Illuminate\Support\Facades\Cache;
 use App\Models\Unit;
@@ -379,10 +380,20 @@ class TdrController extends Controller
         $current_wo = Workorder::with(['unit.manuals.builder', 'instruction'])->findOrFail($id);
         $units = Unit::all();
         $user = Auth::user();
+//        $userId = auth()->id();
+        $user_wo = $current_wo->user_id;
         $customers = Customer::all();
+
 
         // Получаем manual_id из связанного unit
         $manual_id = $current_wo->unit->manual_id;
+
+        $form_type = 112;
+        $trainings = Training::where('manuals_id', $manual_id)
+            ->where('user_id',$user_wo)
+            ->where('form_type',$form_type)
+            ->orderBy('date_training', 'desc')  // Сортирует по id по убыванию
+            ->first();  // Получает первую (самую последнюю) запись
 
         // Извлекаем все manuals для отображения
         $manuals = Manual::all();
@@ -457,7 +468,7 @@ class TdrController extends Controller
             'manuals', 'builders', 'planes', 'instruction', 'necessary',
             'necessaries', 'unit_conditions', 'component_conditions',
             'codes', 'conditions', 'missingParts', 'ordersParts', 'inspectsUnit',
-            'processParts', 'ordersPartsNew'
+            'processParts', 'ordersPartsNew','trainings','user_wo', 'manual_id'
         ));
     }
     public function show_($id)

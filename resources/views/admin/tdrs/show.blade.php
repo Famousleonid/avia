@@ -12,6 +12,13 @@
         .fs-8 {
             font-size: 0.8rem;
         }
+        .fs-7 {
+            font-size: 0.7rem;
+        }
+
+        .fs-75 {
+            font-size: 0.75rem;
+        }
 
     </style>
 
@@ -20,14 +27,19 @@
         <div class="card bg-gradient">
             <div class="card-header  m-1 shadow">
 
-                <div class="d-flex ">
-                    <div style="width: 160px;">
+                <div class="d-flex  text-center">
+                    <div style="width: 200px;">
                         <h5 class="text-primary  ps-1">{{__('Work Order')}}
 
-                            <a class="text-success-emphasis  ps-3" href="#" data-bs-toggle="modal"
+                            <a class="text-success-emphasis " href="#" data-bs-toggle="modal"
                                data-bs-target=#infoModal{{$current_wo->number}}>{{$current_wo->number}}
                             </a>
                         </h5>
+
+
+
+
+
                         <div class="modal fade" id="infoModal{{$current_wo->number}}" tabindex="-1"
                              role="dialog" aria-labelledby="infoModalLabel{{$current_wo->number}}" aria-hidden="true">
                             <div class="modal-dialog modal-dialog-centered" role="document">
@@ -624,6 +636,68 @@
 
             <div class="">
                 {{--                WorkOrder ID :{{$current_wo->id}}. Count TDR Records: {{count($tdrs)}}--}}
+                    <div class="text-center">
+                        @if($trainings && $trainings->date_training)
+                            @php
+                                $trainingDate = \Carbon\Carbon::parse($trainings->date_training);
+                                $monthsDiff = $trainingDate->diffInMonths(now());
+                                $daysDiff = $trainingDate->diffInDays(now());
+                                $isThisMonth = $trainingDate->isCurrentMonth();
+                                $isThisYear = $trainingDate->isCurrentYear();
+                            @endphp
+                        @if($monthsDiff<12)
+                            <div class="d-flex justify-content-center">
+                                <div class="fs-9" style="color: lawngreen">
+                                    @if($monthsDiff == 0)
+                                        @if($isThisMonth)
+                                            Last training this month ({{ $trainingDate->format('M d') }})
+                                        @else
+                                            Last training {{ $monthsDiff }} months ago ({{ $trainingDate->format('M d, Y') }})
+                                        @endif
+                                    @elseif($monthsDiff == 1)
+                                        Last training {{ $monthsDiff }} month ago ({{ $trainingDate->format('M d') }})
+                                    @else
+                                        Last training {{ $monthsDiff }} months ago ({{ $trainingDate->format('M d') }})
+                                    @endif
+                                </div>
+                                @if($monthsDiff > 8 && $user->id == $user_wo)
+                                    <div class="text-center ms-2">
+                                        <button class="btn btn-success btn-sm" onclick="updateTrainingToToday({{ $manual_id }}, '{{ $trainings->date_training }}')">
+                                            <i class="bi bi-calendar-check"></i> Update to Today
+                                        </button>
+                                    </div>
+                                @endif
+                            </div>
+
+                            @else
+                                <div class="fs-9 d-flex justify-content-center" style="color: red">
+                                    Last training {{ $monthsDiff }} months ago ({{ $trainingDate->format('M d, Y') }}). Need Update
+                                @if($user->id == $user_wo)
+                                    <div class="ms-2">
+                                        <button class="btn btn-warning btn-sm" onclick="updateTrainings({{ $manual_id }}, '{{ $trainings->date_training }}')">
+                                            <i class="bi bi-arrow-clockwise"></i> Update Trainings
+                                        </button>
+                                    </div>
+                                @endif
+                    </div>
+                        @endif
+
+                        @else
+                            @if($user->id == $user_wo)
+                                <div class="fs-9 d-flex justify-content-center" style="color: red">
+                                    There are no trainings for this unit.
+
+                                <div class="ms-2">
+                                    <button class="btn btn-primary btn-sm" onclick="createTrainings({{ $manual_id }})">
+                                        <i class="bi bi-plus-circle"></i> Create Trainings
+                                    </button>
+                                </div>
+                    </div>
+                            @endif
+                        @endif
+                    </div>
+
+
                 <div class="d-flex justify-content-center">
 
                     <div class="me-3" style="width: 450px"> <!- Inspection Unit ->
@@ -932,6 +1006,159 @@
                     alert('An error occurred.');
                 });
         });
+
+        // Функции для работы с тренировками
+        function createTrainings(manualId) {
+            if (confirm('Create new trainings for this unit?')) {
+                // Перенаправляем на страницу создания тренировок с предзаполненным manual_id и URL возврата
+                const currentUrl = window.location.href;
+                window.location.href = `{{ route('trainings.create') }}?manual_id=${manualId}&return_url=${encodeURIComponent(currentUrl)}`;
+            }
+        }
+
+        function updateTrainings(manualId, lastTrainingDate) {
+            if (confirm('Update trainings for this unit? This will create missing trainings based on the last training date.')) {
+                // Используем ту же логику, что и в trainings.index
+                const lastTraining = new Date(lastTrainingDate);
+                const lastTrainingYear = lastTraining.getFullYear();
+                const lastTrainingWeek = getWeekNumber(lastTraining);
+                const currentYear = new Date().getFullYear();
+                const currentDate = new Date();
+
+                let trainingData = {
+                    manuals_id: [],
+                    date_training: [],
+                    form_type: []
+                };
+
+                // Генерируем данные для создания тренингов за следующие годы
+                for (let year = lastTrainingYear + 1; year <= currentYear; year++) {
+                    const trainingDate = getDateFromWeekAndYear(lastTrainingWeek, year);
+
+                    // Проверяем, что дата тренировки не в будущем
+                    if (trainingDate <= currentDate) {
+                        trainingData.manuals_id.push(manualId);
+                        trainingData.date_training.push(trainingDate.toISOString().split('T')[0]);
+                        trainingData.form_type.push('112');
+                    }
+                }
+
+                if (trainingData.manuals_id.length === 0) {
+                    alert('No missing trainings to create. All possible training dates are in the future.');
+                    return;
+                }
+
+                // Проверяем, сколько лет пропущено
+                const yearsMissed = currentYear - lastTrainingYear;
+                if (yearsMissed > 3) {
+                    const warningMessage = `WARNING: ${yearsMissed} years have passed since last training!\n\n` +
+                        `This will create ${trainingData.manuals_id.length} training records.\n\n` +
+                        `Are you sure you want to create trainings for such a long period?\n\n` +
+                        `Consider if this is correct or if you need to create new initial training instead.`;
+
+                    if (!confirm(warningMessage)) {
+                        return;
+                    }
+                }
+
+                // Подготовка сообщения для подтверждения
+                let confirmationMessage = "Will create trainings:\n";
+                trainingData.manuals_id.forEach((id, index) => {
+                    const year = lastTrainingYear + index + 1;
+                    const dateStr = trainingData.date_training[index];
+                    confirmationMessage += `\nTraining for ${year}:\n`;
+                    confirmationMessage += `Date: ${dateStr}\n`;
+                    confirmationMessage += `Form: 112\n`;
+                });
+
+                // Добавляем информацию о форме 132
+                confirmationMessage += `\nNote: Form 132 will be created only if it doesn't exist for this unit.`;
+
+                if (confirm(confirmationMessage + "\nContinue?")) {
+                    fetch('{{ route('trainings.createTraining') }}', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-CSRF-TOKEN': '{{ csrf_token() }}'
+                        },
+                        body: JSON.stringify(trainingData)
+                    })
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.success) {
+                            let message = `Trainings processed!\nCreated: ${data.created}`;
+                            if (data.skipped > 0) {
+                                message += `\nSkipped (already exist): ${data.skipped}`;
+                            }
+                            alert(message);
+                            location.reload();
+                        } else {
+                            alert('Error creating trainings: ' + (data.message || 'Unknown error'));
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Error:', error);
+                        alert('An error occurred: ' + error.message);
+                    });
+                }
+            }
+        }
+
+        // Вспомогательные функции для расчета дат
+        function getWeekNumber(d) {
+            const oneJan = new Date(d.getFullYear(), 0, 1);
+            const numberOfDays = Math.floor((d - oneJan) / (24 * 60 * 60 * 1000));
+            return Math.ceil((numberOfDays + oneJan.getDay() + 1) / 7);
+        }
+
+        function getDateFromWeekAndYear(week, year) {
+            const firstJan = new Date(year, 0, 1);
+            const days = (week - 1) * 7 - firstJan.getDay() + 1;
+            return new Date(year, 0, 1 + days);
+        }
+
+        // Функция обновления тренировки на сегодняшнюю дату
+        function updateTrainingToToday(manualId, lastTrainingDate) {
+            const today = new Date();
+            const todayStr = today.toISOString().split('T')[0];
+            const lastTraining = new Date(lastTrainingDate);
+            const monthsDiff = Math.floor((today - lastTraining) / (1000 * 60 * 60 * 24 * 30));
+
+            const confirmationMessage = `Update training to today's date?\n\n` +
+                `Last training: ${lastTrainingDate} (${monthsDiff} months ago)\n` +
+                `New training date: ${todayStr} (today)\n\n` +
+                `This will create a new training record for today and update the training status.`;
+
+            if (confirm(confirmationMessage)) {
+                const trainingData = {
+                    manuals_id: [manualId],
+                    date_training: [todayStr],
+                    form_type: ['112']
+                };
+
+                fetch('{{ route('trainings.updateToToday') }}', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRF-TOKEN': '{{ csrf_token() }}'
+                    },
+                    body: JSON.stringify(trainingData)
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        alert(`Training updated to today!\nCreated: ${data.created} training record(s)`);
+                        location.reload();
+                    } else {
+                        alert('Error updating training: ' + (data.message || 'Unknown error'));
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    alert('An error occurred: ' + error.message);
+                });
+            }
+        }
 
     </script>
 

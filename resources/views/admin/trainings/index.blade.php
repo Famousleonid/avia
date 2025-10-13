@@ -86,7 +86,7 @@
                                            ->diffInDays(Carbon::now()) < 340)
                                                disabled
                                            @endif
-                                           onchange="handleCheckboxChange(this, '{{ $trainingList['first_training']->manuals_id }}', '{{ $trainingList['first_training']->date_training }}', '{{ $trainingList['first_training']->manual->title ?? 'N/A' }}')">
+                                           onchange="handleCheckboxChange(this, '{{ $trainingList['first_training']->manuals_id }}', '{{ $trainingList['last_training']->date_training ?? $trainingList['first_training']->date_training }}', '{{ $trainingList['first_training']->manual->title ?? 'N/A' }}')">
                                     <label class="form-check-label justify-content-center" for="flexSwitchCheckChecked"></label>
                                 </div>
                             </td>
@@ -315,11 +315,15 @@
 
                         .then(data => {
                             if (data.success) {
-                                alert('Тренинги успешно созданы!');
+                                let message = `Тренинги обработаны!\nСоздано: ${data.created}`;
+                                if (data.skipped > 0) {
+                                    message += `\nПропущено (уже существуют): ${data.skipped}`;
+                                }
+                                alert(message);
                                 location.reload();
                                 checkbox.checked = false;
                             } else {
-                                alert('Ошибка при создании тренингов.');
+                                alert('Ошибка при создании тренингов: ' + (data.message || 'Неизвестная ошибка'));
                             }
                         })
 

@@ -69,15 +69,17 @@
                 <h4>{{ __('Select Unit') }}</h4>
             </div>
             <div class="card-body">
-                <form method="POST" action="{{ route('trainings.store') }}">
+                <form method="POST" action="{{ route('trainings.store') }}" onsubmit="return validateTrainingDate()">
                     @csrf
+                    <input type="hidden" name="return_url" value="{{ request()->get('return_url', url()->previous()) }}">
                     <div class="form-group mt-2">
                         <label for="manuals_id">{{ __('Unit PN') }}</label>
                         <select id="manuals_id" name="manuals_id" class="form-control" required>
                             <option value="">{{ __('Select Unit PN') }}</option>
                             @foreach ($manuals as $manual)
                                 @if(!empty($manual->unit_name_training))
-                                    <option value="{{ $manual->id }}">
+                                    <option value="{{ $manual->id }}" 
+                                            @if(request('manual_id') == $manual->id) selected @endif>
                                         {{ $manual->unit_name_training }}
                                         ({{ $manual->title }})
                                     </option>
@@ -89,11 +91,20 @@
                     <div class="form-group mt-3">
                         <label for="date_training">{{ __('First Training Date') }}</label>
                         <input type="date" id="date_training" name="date_training" class="form-control" required>
+                        <small class="form-text text-muted">
+                            <i class="bi bi-info-circle"></i> 
+                            If the date is more than 2 years ago, trainings will be created for all missing years.
+                        </small>
                     </div>
                     <div class="text-end">
                         <button type="submit" class="btn btn-primary mt-3">{{ __('Add Unit') }}</button>
-                    <a href="{{ route('trainings.index') }}"
-                       class="btn btn-outline-secondary mt-3">{{ __('Cancel') }} </a>
+                        @if(request('manual_id'))
+                            <a href="{{ request()->get('return_url', url()->previous()) }}" class="btn btn-outline-info mt-3">
+                                <i class="bi bi-arrow-left"></i> Back to TDR
+                            </a>
+                        @endif
+                        <a href="{{ route('trainings.index') }}"
+                           class="btn btn-outline-secondary mt-3">{{ __('Cancel') }} </a>
                     </div>
                 </form>
             </div>

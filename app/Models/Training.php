@@ -13,6 +13,7 @@ class Training extends Model
         'date_training', 'form_type',
     ];
 
+
     public function manual()
     {
         return $this->belongsTo(Manual::class, 'manuals_id'); // Связь через поле manuals_id

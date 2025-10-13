@@ -100,16 +100,20 @@ class ManualController extends Controller
                 $manual->addMedia($request->file('img'))->toMediaCollection('manuals');
             }
 
+            if ($request->hasFile('log_img')) {
+                $manual->addMedia($request->file('img'))->toMediaCollection('manuals_log');
+            }
+
             // Обрабатываем множественные CSV файлы
             if ($request->hasFile('csv_files') && $request->has('csv_process_types')) {
                 $csvFiles = $request->file('csv_files');
                 $processTypes = $request->input('csv_process_types', []);
-                
+
                 foreach ($csvFiles as $index => $file) {
                     if ($file && isset($processTypes[$index])) {
                         $media = $manual->addMedia($file)
                             ->toMediaCollection('csv_files');
-                        
+
                         $media->setCustomProperty('process_type', $processTypes[$index]);
                         $media->save();
                     }
@@ -207,6 +211,12 @@ class ManualController extends Controller
                 $cmm->getMedia('manuals')->first()->delete();
             }
             $cmm->addMedia($request->file('img'))->toMediaCollection('manuals');
+        }
+        if ($request->hasFile('log_img')) {
+            if ($cmm->getMedia('manuals_log')->isNotEmpty()) {
+                $cmm->getMedia('manuals_log')->first()->delete();
+            }
+            $cmm->addMedia($request->file('log_img'))->toMediaCollection('manuals_log');
         }
 
         // CSV файлы теперь загружаются только через AJAX (ManualCsvController)
