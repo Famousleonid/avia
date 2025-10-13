@@ -125,6 +125,13 @@
                                 <input id='lib' type="text" class="form-control" name="lib" required>
                             </div>
 
+                            <div class="col-xs-12 col-sm-12 col-md-12 mt-2">
+                                <div class="form-group">
+                                    <strong>{{__('Log Card Image:')}}</strong>
+                                    <input type="file" name="log_img" class="form-control" placeholder="Image">
+                                </div>
+                            </div>
+
                         </div>
                         <div style="width: 400px" class="m-3 p-1 ">
                             <div class="mt-1">

@@ -120,7 +120,26 @@ class TrainingController extends Controller
             ]);
         }
 
-        // Создаем тренировки за все пропущенные годы
+        // Создаем первую форму 112 с правильной датой (следующая пятница)
+        $dateTraining112 = \Carbon\Carbon::parse($dateTraining132)->next(\Carbon\Carbon::FRIDAY);
+        
+        // Проверяем существование формы 112 для первой даты
+        $existingTraining112 = Training::where('user_id', $userId)
+            ->where('manuals_id', $manualId)
+            ->where('date_training', $dateTraining112->format('Y-m-d'))
+            ->where('form_type', '112')
+            ->first();
+        
+        if (!$existingTraining112) {
+            Training::create([
+                'user_id' => $userId,
+                'manuals_id' => $manualId,
+                'date_training' => $dateTraining112->format('Y-m-d'),
+                'form_type' => '112',
+            ]);
+        }
+
+        // Создаем тренировки за все пропущенные годы (начиная со следующего года)
         $this->createMissingTrainings($userId, $manualId, $dateTraining132);
 
         // Проверяем, есть ли URL для возврата в запросе
@@ -151,8 +170,9 @@ class TrainingController extends Controller
         $currentYear = now()->year;
         $currentDate = now();
 
-        // Создаем тренировки за все годы от первой тренировки до текущего года
-        for ($year = $firstTrainingYear; $year <= $currentYear; $year++) {
+        // Создаем тренировки за все годы начиная со следующего года после первой тренировки
+        for ($year = $firstTrainingYear + 1; $year <= $currentYear; $year++) {
+            // Для формы 112 используем ту же неделю, но в следующем году
             $trainingDate = $this->getDateFromWeekAndYear($firstTrainingWeek, $year);
             
             // Проверяем, что дата тренировки не в будущем
@@ -183,7 +203,10 @@ class TrainingController extends Controller
     {
         $firstJan = \Carbon\Carbon::create($year, 1, 1);
         $days = ($week - 1) * 7 - $firstJan->dayOfWeek + 1;
-        return $firstJan->addDays($days);
+        $monday = $firstJan->addDays($days);
+        
+        // Возвращаем пятницу той же недели
+        return $monday->addDays(4);
     }
 
     public function createTraining(Request $request)

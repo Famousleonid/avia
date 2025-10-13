@@ -100,7 +100,7 @@
                                        name="unit_name_training"
                                        value="{{ old ('unit_name_training', $cmm->unit_name_training) }}" required>
                             </div>
-                            <div class="mt-2">
+                            <div class="mt-2 mb-2">
                                 <label for="training_hours">{{ __('Unit First Training Hours') }}</label>
                                 <input id='training_hours' type="text"
                                        class="form-control"
@@ -108,15 +108,15 @@
                                        value="{{ old('training_hours', $cmm->training_hours) }}" required>
                             </div>
                         </div>
-                        <div style="width: 300px" class="m-3 p-2 border">
-                            <div class="mb-3">
+                        <div style="width: 300px" class="m-2 p-2 border">
+                            <div class="mb-1">
                                 <label for="ovh_life">{{ __('Overhaul Life') }}</label>
                                 <input id='ovh_life' type="text"
                                        class="form-control"
                                        name="ovh_life"
                                        value="{{ old('ovh_life', $cmm->ovh_life) }}" required>
                             </div>
-                            <div class="mb-3">
+                            <div class="mb-1">
                                 <label for="reg_sb">{{ __('Inspection Req.SB') }}</label>
                                 <input id='reg_sb' type="text"
                                        class="form-control"
@@ -135,7 +135,7 @@
                                         data-bs-target="#addAirCraftModal">{{ __('Add AirCraft') }}</button>
                             </div>
 
-                            <div class="form-group mt-2 ">
+                            <div class="form-group  ">
                                 <label for="builders_id">{{ __('MFR') }}</label>
                                 <select id="builders_id" name="builders_id" class="form-control" required>
                                     <option value="">{{ __('Select MFR') }}</option>
@@ -147,7 +147,7 @@
                                         data-bs-target="#addMFRModal">{{ __('Add MFR') }}</button>
                             </div>
 
-                            <div class="form-group mt-2">
+                            <div class="form-group ">
                                 <label for="scopes_id">{{ __('Scope') }}</label>
                                 <select id="scopes_id" name="scopes_id" class="form-control" required>
                                     <option value="">{{ __('Select Scope') }}</option>
@@ -162,6 +162,13 @@
                                 <label for="lib">{{ __('Library Number') }}</label>
                                 <input id='lib' type="text" class="form-control" name="lib"
                                        value="{{ old('lib', $cmm->lib) }}" required>
+                            </div>
+
+                            <div class="col-xs-12 col-sm-12 col-md-12 mt-2">
+                                <div class="form-group">
+                                    <strong>{{__('Log Card Image:')}}</strong>
+                                    <input type="file" name="log_img" class="form-control" placeholder="Image">
+                                </div>
                             </div>
 
                         </div>

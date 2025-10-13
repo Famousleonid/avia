@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Log Card</title>
+    <title>Log Card </title>
     <link rel="stylesheet" href="{{asset('assets/Bootstrap 5/bootstrap.min.css')}}">
 
     <style>
@@ -443,19 +443,15 @@
     </button>
 </div>
 <div class="container-fluid">
-    <div class="row" style="height: 60px">
-        <div class="col-1">
-            <img src="{{ asset('img/icons/AT_logo-rb.svg') }}" alt="Logo"
-                 style="width: 160px; margin: 6px 10px 0;">
-        </div>
-        <div class="col-11">
-            <h5 class="pt-1  text-black text-center"><strong>LANDING GEAR LOG CARD </strong></h5>
-        </div>
-    </div>
+    <div class="row " style="height: 80px">
+        <div class="col-4">
+            <div>
+                <img src="{{ asset('img/icons/AT_logo-rb.svg') }}" alt="Logo"
+                     style="width: 160px; margin: 0px 3px 0;">
+            </div>
 
-    <div class="row">
-        <div class="col-6">
-            <div class="d-flex fs-75">
+
+            <div class="d-flex fs-75 mt-2">
                 <h7>UNIT:</h7>
                 <div class="ms-1">
                     @foreach($manuals as $manual)
@@ -475,22 +471,32 @@
                     @endforeach
                 </div>
             </div>
+
         </div>
-        <div class="col-6">
+        <div class="col-4">
+            <h5 class="pt-1  text-black "><strong>LANDING GEAR LOG CARD </strong></h5>
+
             <div class="row">
-                <div class="d-flex fs-75">
+                <div class="d-flex fs-75 mt-2">
                     <div class="col-3 "><h7>PART NO:</h7></div>
-                    <div class="col"><h7 class="ps-2 "> {{$current_wo->unit->part_number}}</h7></div>
+                    <div class="col"><h7 class="2 "> {{$current_wo->unit->part_number}}</h7></div>
                 </div>
             </div>
             <div class="row">
                 <div class="d-flex fs-75">
                     <div class="col-3 "><h7>SERIAL NO:</h7></div>
-                    <div class="col"> <h7 class="ps-2 "> {{$current_wo->serial_number}}</h7></div>
+                    <div class="col"> <h7 class=" "> {{$current_wo->serial_number}}</h7></div>
                 </div>
             </div>
+
+        </div>
+        <div class="col-4">
+            <!-- Log Image -->
+
         </div>
     </div>
+
+
     <div class="border-l-t-r">
         <div class="text-center pt-2 fs-75" style="height: 32px">
             <strong>AIRCRAFT INSTALLATION RECORDS</strong>
