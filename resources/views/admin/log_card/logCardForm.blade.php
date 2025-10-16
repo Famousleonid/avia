@@ -492,8 +492,35 @@
         </div>
         <div class="col-4">
             <!-- Log Image -->
+{{--            @foreach($manuals as $manual)--}}
+{{--                @if($manual->id == $current_wo->unit->manual_id)--}}
+{{--                    <div class=" " style="height: 70px; width: 160px;margin-left: 100px">--}}
+
+{{--                        @if($manual->getFirstMediaThumbnailUrl('manuals_log') )--}}
+
+
+{{--                            <img class="" src="{{ $manual->getFirstMediaThumbnailUrl('manuals_log') }}"--}}
+{{--                                 width="160" height="70"--}}
+{{--                                 alt="Image Log"/>--}}
+{{--                        @endif--}}
+
+{{--                    </div>--}}
+{{--                @endif--}}
+{{--            @endforeach--}}
+
+
+
+            @foreach($manuals as $manual)
+                @if($manual->id == $current_wo->unit->manual_id && $manual->hasMedia('manuals_log'))
+                    <div class=" " style="height: 70px; width: 160px;margin-left: 100px">
+                        <img class="" src="{{ $manual->getFirstMediaThumbnailUrl('manuals_log') }}"
+                             width="160" height="70" alt="Image Log"/>
+                    </div>
+                @endif
+            @endforeach
 
         </div>
+
     </div>
 
 

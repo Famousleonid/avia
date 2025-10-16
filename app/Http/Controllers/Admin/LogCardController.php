@@ -69,6 +69,7 @@ class LogCardController extends Controller
         }
         $log_count_1= count($componentData_1);
         $log_count_2= count($componentData_2);
+
 //// Получаем CSV-файл с process_type = 'log'
 //        $csvMedia = $manual_wo->getMedia('csv_files')->first(function ($media) {
 //            return $media->getCustomProperty('process_type') === self::PROCESS_TYPE_LOG;
