@@ -30,13 +30,17 @@
                 <div class="d-flex  text-center">
                     <div style="width: 200px;">
                         <h5 class="text-primary  ps-1">{{__('Work Order')}}
+                            <a href="{{ route('mains.show', $current_wo->id) }}" class="text-decoration-none">
+                            <span style="font-size: 16px; color: #0DDDFD;">
+{{--                                {{__('WO Tasks')}}--}}
+                                <i class="bi bi-list-task" title="{{ __('WO Tasks') }}"></i>
+                            </span>
+                            </a>
 
                             <a class="text-success-emphasis " href="#" data-bs-toggle="modal"
                                data-bs-target=#infoModal{{$current_wo->number}}>{{$current_wo->number}}
                             </a>
                         </h5>
-
-
 
 
 
