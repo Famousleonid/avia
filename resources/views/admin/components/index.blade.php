@@ -132,7 +132,10 @@
                     <tbody>
                         @foreach($manuals as $manual)
                             <tr>
-                                <td class="text-center">{{$manual->number}}</td>
+                                <td class="text-center ">{{$manual->number}}
+                                    <span class="text-white-50">({{ $manual->lib ?? '—' }})</span>
+
+                                </td>
                                 <td class="text-center">{{$manual->title}}</td>
                                 <td class="text-center" style="width: 120px;">
                                     @if($manual->getMedia('manuals')->isNotEmpty())

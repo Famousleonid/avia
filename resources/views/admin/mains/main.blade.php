@@ -123,8 +123,8 @@
                                             @endif
                                             <span class="ms-2 fs-4" title="{{ $current_workorder->description }}" style="cursor:help;">&#9432;</span>
                                             <a href="{{ route('tdrs.show', $current_workorder->id) }}" class="btn
-                                            btn-outline-primary " title="{{ __('TDR Report') }}">
-                                                <i class="bi bi-journal-richtext"></i>
+                                            btn-outline-success " title="{{ __('TDR Report') }}" onclick="showLoadingSpinner()">
+                                                <i class="bi bi-journal-richtext" style="font-size: 16px"></i>
                                             </a>
                                         </div>
                                         <div>

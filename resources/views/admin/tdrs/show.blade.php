@@ -182,7 +182,8 @@
                     <div class="ps-2 d-flex" style="width: 850px;">
                         <div class="me-2">
                             <a href="{{ route('mains.show', $current_wo->id) }}" class="btn
-                                            btn-outline-primary " title="{{ __('WO Tasks') }}">
+                                            btn-outline-success " title="{{ __('WO Tasks') }}"
+                               onclick="showLoadingSpinner()">
                                 <i class="bi bi-list-task " style="font-size: 28px;"></i>
 
                             </a>
@@ -192,8 +193,7 @@
                             <div class="me-2">
                                 <a href="{{route('tdrs.processes',['workorder_id' => $current_wo->id])}}"
                                    class="btn fs-8 btn-outline-primary " style="height: 55px;width: 100px"
-                                   onclick="showLoadingSpinner
-                                   ()">
+                                   onclick="showLoadingSpinner()">
                                     {{__('Component Processes')}}
                                 </a>
                             </div>
@@ -650,7 +650,7 @@
                             @endphp
                         @if($monthsDiff<12)
                             <div class="d-flex justify-content-center">
-                                <div class="fs-9" style="color: lawngreen">
+                                <div class="fs-9 pt-1" style="color: lawngreen">
                                     @if($monthsDiff == 0)
                                         @if($isThisMonth)
                                             Last training this month ({{ $trainingDate->format('M d') }})
