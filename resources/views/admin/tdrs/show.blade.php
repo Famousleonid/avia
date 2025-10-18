@@ -28,19 +28,17 @@
             <div class="card-header  m-1 shadow">
 
                 <div class="d-flex  text-center">
-                    <div style="width: 200px;">
+                    <div style="width: 150px;">
                         <h5 class="text-primary  ps-1">{{__('Work Order')}}
-                            <a href="{{ route('mains.show', $current_wo->id) }}" class="text-decoration-none">
-                            <span style="font-size: 16px; color: #0DDDFD;">
-{{--                                {{__('WO Tasks')}}--}}
-                                <i class="bi bi-list-task" title="{{ __('WO Tasks') }}"></i>
-                            </span>
-                            </a>
+
 
                             <a class="text-success-emphasis " href="#" data-bs-toggle="modal"
                                data-bs-target=#infoModal{{$current_wo->number}}>{{$current_wo->number}}
                             </a>
                         </h5>
+
+
+
 
 
 
@@ -182,17 +180,18 @@
                         </div>
                     </div>
                     <div class="ps-2 d-flex" style="width: 850px;">
-                        {{--                        <div class="me-2" >--}}
-                        {{--                            <a href="{{route('tdrs.inspection',['workorder_id' => $current_wo->id])}}"--}}
-                        {{--                               class="btn  btn-outline-primary " style="height: 60px;align-content: center"--}}
-                        {{--                               onclick="showLoadingSpinner()">--}}
-                        {{--                                {{__('Add Inspection')}}--}}
-                        {{--                            </a>--}}
-                        {{--                        </div>--}}
+                        <div class="me-2">
+                            <a href="{{ route('mains.show', $current_wo->id) }}" class="btn
+                                            btn-outline-primary " title="{{ __('WO Tasks') }}">
+                                <i class="bi bi-list-task " style="font-size: 28px;"></i>
+
+                            </a>
+                        </div>
+
                         @if(count($processParts))
                             <div class="me-2">
                                 <a href="{{route('tdrs.processes',['workorder_id' => $current_wo->id])}}"
-                                   class="btn  btn-outline-primary " style="height: 60px;width: 110px"
+                                   class="btn fs-8 btn-outline-primary " style="height: 55px;width: 100px"
                                    onclick="showLoadingSpinner
                                    ()">
                                     {{__('Component Processes')}}
@@ -201,14 +200,14 @@
                         @endif
                         <div class="me-2">
                             <a href="{{route('extra_processes.show_all',['id'=>$current_wo->id])}}"
-                               class="btn  btn-outline-primary " style="height: 60px;width: 160px" onclick="showLoadingSpinner
+                               class="btn fs-8 btn-outline-primary " style="height: 55px;width: 140px" onclick="showLoadingSpinner
                                        ()">
                                 {{__('Extra Component Processes')}}
                             </a>
                         </div>
                         <div>
                             <a href="{{route('log_card.show',['log_card' => $current_wo->id])}}"
-                               class="btn  btn-outline-primary " style="min-height: 60px;width: 70px"
+                               class="btn  fs-8 btn-outline-primary " style="min-height: 55px;width: 55px"
                                onclick="showLoadingSpinner
                                    ()">
                                 {{__('Log Card')}}
@@ -216,7 +215,7 @@
                         </div>
                         <div>
                             <a href="{{route('wo_bushings.show',['wo_bushing' => $current_wo->id])}}"
-                               class="btn  btn-outline-primary ms-2" style="min-height: 60px;width: 95px"
+                               class="btn  fs-8 btn-outline-primary ms-2" style="min-height: 55px;width: 85px"
                                onclick="showLoadingSpinner
                                    ()">
                                 {{__('Bushing Processes')}}
@@ -224,7 +223,7 @@
                         </div>
                         <div>
                             <a href="{{route('rm_reports.show',['rm_report' => $current_wo->id])}}"
-                               class="btn  btn-outline-primary ms-2 " style="height: 60px;width: 175px"
+                               class="btn  fs-8 btn-outline-primary ms-2 " style="height: 55px;width: 150px"
                                onclick="showLoadingSpinner
                                    ()">
                                 {{__('Repair & Modification Record')}}
@@ -266,26 +265,26 @@
                                 @if(count($tdrs))
 
                                     <a href="{{ route('tdrs.tdrForm', ['id'=> $current_wo->id]) }}"
-                                       class="btn btn-outline-warning me-1 formLink "
+                                       class="btn fs-8 btn-outline-warning me-1 formLink "
                                        target="_blank"
-                                       id="#" style=" height: 60px; width: 70px">
+                                       id="#" style=" height: 55px; width: 60px">
                                         {{--                                        <i class="bi bi-file-earmark-excel"> TDR Form</i>--}}
                                         TDR Form
                                     </a>
                                     @if(count($processParts)==0)
                                         <a href="{{ route('tdrs.specProcessFormEmp', ['id'=> $current_wo->id]) }}"
-                                           class="btn btn-outline-warning  formLink "
+                                           class="btn fs-8 btn-outline-warning me-1 formLink "
                                            target="_blank"
-                                           id="#" style=" height: 60px; width: 70px">
+                                           id="#" style=" height: 55px; width: 60px">
                                             {{--                                            <i class="bi bi-file-earmark-excel"> SP Form </i>--}}
                                             SP Form
                                         </a>
                                     @endif
 
                                     <a href="{{ route('tdrs.woProcessForm', ['id'=> $current_wo->id]) }}"
-                                       class="btn btn-outline-warning me-1 formLink "
+                                       class="btn fs-8 btn-outline-warning me-1 formLink "
                                        target="_blank"
-                                       id="#" style=" height: 60px; width: 115px">
+                                       id="#" style=" height: 55px; width: 100px">
                                         {{--                                        <i class="bi bi-file-earmark-excel"> WO Process Sheet </i>--}}
                                         WO Process Sheet
                                     </a>
@@ -303,9 +302,9 @@
                                     {{--                                    </a>--}}
 
                                     <a href="{{ route('tdrs.prlForm', ['id'=> $current_wo->id]) }}"
-                                       class="btn btn-outline-warning me-1 formLink align-content-center "
+                                       class="btn fs-8 btn-outline-warning me-1 formLink align-content-center "
                                        target="_blank"
-                                       id="#" style=" height: 60px; width: 60px">
+                                       id="#" style=" height: 55px; width: 55px">
                                         {{--                                        <i class="bi bi-file-earmark-excel"> PRL </i>--}}
                                         PRL
                                     </a>
@@ -406,7 +405,7 @@
                             @if($current_wo->instruction_id == 1 )
                                 <div class="me-1 ">
                                     <a href="{{ route('ndt-cad-csv.index', $current_wo->id) }}"
-                                       class="btn btn-outline-success" style="min-height: 40px; width: 100px">
+                                       class="btn fs-8 btn-outline-success" style="min-height: 55px; width: 90px">
                                         {{--                                    <i class="bi bi-gear"></i> --}}
                                         STD Processes
                                     </a>
@@ -415,7 +414,7 @@
                             @if($current_wo->instruction_id == 1 && $hasNdtComponents)
                                 <div class="me-1">
                                     <a href="{{ route('tdrs.ndtStd', ['workorder_id' => $current_wo->id]) }}"
-                                       class="btn btn-outline-warning" style="min-height: 60px; width: 60px"
+                                       class="btn fs-8 btn-outline-warning" style="min-height: 55px; width: 55px"
                                        target="_blank">
                                         NDT STD
                                     </a>
@@ -426,7 +425,7 @@
                             @if($current_wo->instruction_id == 1 && $hasCadComponents)
                                 <div class="me-1 ">
                                     <a href="{{ route('tdrs.cadStd', ['workorder_id' => $current_wo->id]) }}"
-                                       class="btn btn-outline-warning" style="min-height: 60px; width: 60px"
+                                       class="btn fs-8 btn-outline-warning" style="min-height: 55px; width: 55px"
                                        target="_blank">
                                         CAD STD
                                     </a>
@@ -435,7 +434,7 @@
                             @if($current_wo->instruction_id == 1 && $hasStressComponents)
                                 <div class="me-1 ">
                                     <a href="{{ route('tdrs.stressStd', ['workorder_id' => $current_wo->id]) }}"
-                                       class="btn btn-outline-warning" style="min-height: 60px; width: 70px"
+                                       class="btn fs-8 btn-outline-warning" style="min-height: 55px; width: 60px"
                                        target="_blank">
                                         Stress STD
                                     </a>
@@ -445,7 +444,7 @@
                             @if($hasPaintComponents)
                                 <div class="me-1 ">
                                     <a href="{{ route('tdrs.paintStd', ['workorder_id' => $current_wo->id]) }}"
-                                       class="btn btn-outline-warning" style="min-height: 60px; width: 70px"
+                                       class="btn fs-8 btn-outline-warning" style="min-height: 55px; width: 55px"
                                        target="_blank">
                                         Paint STD
                                     </a>
@@ -640,7 +639,7 @@
 
             <div class="">
                 {{--                WorkOrder ID :{{$current_wo->id}}. Count TDR Records: {{count($tdrs)}}--}}
-                    <div class="text-center">
+                    <div class="text-center mt-1">
                         @if($trainings && $trainings->date_training)
                             @php
                                 $trainingDate = \Carbon\Carbon::parse($trainings->date_training);
