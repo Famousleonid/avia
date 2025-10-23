@@ -67,48 +67,7 @@ class TdrController extends Controller
      *
      * @return Application|Factory|View
      */
-    public function inspection($workorder_id)
-    {
-        $current_wo = Workorder::findOrFail($workorder_id);
-        $manual_id = $current_wo->unit->manual_id;
 
-        // Получаем ID уже введенных условий для этого workorder
-        $existing_condition_ids = Tdr::where('workorder_id', $workorder_id)
-            ->pluck('conditions_id')
-            ->filter()
-            ->unique()
-            ->toArray();
-
-        // Получаем условия для unit, исключая уже введенные
-        $unit_conditions = Condition::where('unit', true)
-            ->whereNotIn('id', $existing_condition_ids)
-            ->get();
-
-        // Получаем условия для компонентов, исключая уже введенные
-        $component_conditions = Condition::where('unit', false)
-            ->whereNotIn('id', $existing_condition_ids)
-            ->get();
-
-        // Остальной код остается без изменений
-        $components = Component::where('manual_id', $manual_id)->get();
-        $manuals = Manual::all();
-        $units = Unit::all();
-        $user = Auth::user();
-        $customers = Customer::all();
-        $planes = Plane::all();
-        $builders = Builder::all();
-        $instruction = Instruction::all();
-        $necessaries = Necessary::all();
-        $conditions = Condition::all();
-        $codes = Code::all();
-
-        return view('admin.tdrs.inspection', compact(
-            'current_wo', 'manual_id',
-            'manuals', 'components', 'units', 'user', 'customers',
-            'planes', 'builders', 'instruction',
-            'necessaries', 'conditions', 'codes', 'unit_conditions', 'component_conditions'
-        ));
-    }
 
     public function inspectionUnit($workorder_id)
     {
@@ -171,64 +130,7 @@ class TdrController extends Controller
     }
 
 
-    public function inspection_new($workorder_id, $type)
-    {
-//        dd($type,$workorder_id);
-
-        $current_wo = Workorder::findOrFail($workorder_id);
-        $manual_id = $current_wo->unit->manual_id;
-
-        // Получаем ID уже введенных условий для этого workorder
-        $existing_condition_ids = Tdr::where('workorder_id', $workorder_id)
-            ->pluck('conditions_id')
-            ->filter()
-            ->unique()
-            ->toArray();
-
-        // Получаем условия для unit, исключая уже введенные
-        $unit_conditions = Condition::where('unit', true)
-            ->whereNotIn('id', $existing_condition_ids)
-            ->get();
-
-        // Получаем условия для компонентов, исключая уже введенные
-        $component_conditions = Condition::where('unit', false)
-            ->whereNotIn('id', $existing_condition_ids)
-            ->get();
-
-        $components = Component::where('manual_id', $manual_id)->get();
-        $manuals = Manual::all();
-        $units = Unit::all();
-        $user = Auth::user();
-        $customers = Customer::all();
-        $planes = Plane::all();
-        $builders = Builder::all();
-        $instruction = Instruction::all();
-        $necessaries = Necessary::all();
-        $conditions = Condition::all();
-        $codes = Code::all();
-
-        // Определяем какую страницу показывать
-        if ($type === 'component') {
-            return view('admin.tdrs.component-inspection', compact(
-                'current_wo', 'manual_id', 'components', 'codes',
-                'necessaries', 'component_conditions'
-            ));
-        } elseif ($type === 'unit') {
-            return view('admin.tdrs.unit-inspection', compact(
-                'current_wo', 'manual_id', 'unit_conditions'
-            ));
-        }
-
-        // Старая страница с выбором (можно оставить или удалить)
-        return view('admin.tdrs.inspection', compact(
-            'current_wo', 'manual_id', 'manuals', 'components', 'units', 'user',
-            'customers', 'planes', 'builders', 'instruction', 'necessaries',
-            'conditions', 'codes', 'unit_conditions', 'component_conditions'
-        ));
-    }
-
-
-    /**
+       /**
      * Store a newly created resource in storage.
      *
      * @param \Illuminate\Http\Request $request
@@ -471,82 +373,7 @@ class TdrController extends Controller
             'processParts', 'ordersPartsNew','trainings','user_wo', 'manual_id'
         ));
     }
-    public function show_($id)
-    {
-        // Основной запрос с жадной загрузкой всех необходимых отношений
-        $current_wo = Workorder::with([
-            'unit.manuals.builder',
-            'instruction',
-            'tdrs' => function($query) {
-                $query->with([
-                    'component',
-                    'conditions',
-                    'necessaries',
-                    'codes'
-                ]);
-            }
-        ])->findOrFail($id);
 
-        // Проверка наличия связанных данных
-        if (!$current_wo->unit || !$current_wo->unit->manual_id) {
-            abort(404, 'Unit or Manual not found for this Workorder');
-        }
-
-        // Получаем специальные записи
-        $code = Code::where('name', 'Missing')->first();
-        $missingCondition = Condition::where('name', 'PARTS MISSING UPON ARRIVAL AS INDICATED ON PARTS LIST')->first();
-        $necessary = Necessary::where('name', 'Order New')->first();
-
-        // Фильтрация данных через коллекции (меньше запросов к БД)
-        $components = Component::where('manual_id', $current_wo->unit->manual_id)->get();
-
-        $processParts = $current_wo->tdrs
-            ->where('component_id', '!=', null)
-            ->when($necessary, fn($collection) => $collection->where('necessaries_id', '!=', $necessary->id));
-
-        $inspectsUnit = $current_wo->tdrs
-            ->where('component_id', null)
-            ->when($missingCondition, fn($collection) => $collection->where('conditions_id', '!=', $missingCondition->id));
-
-        $missingParts = $current_wo->tdrs->where('codes_id', $code->id ?? null);
-
-        $ordersParts = Tdr::where('workorder_id', $current_wo->id)
-            ->where('codes_id', '!=', $code->id)
-            ->where('necessaries_id', $necessary->id)
-            ->with('codes')
-            ->with('component')  // Используем связь, а не коллекцию компонентов
-            ->get();
-
-        // Справочные данные (можно оптимизировать, если они используются редко)
-        $data = [
-            'units' => Unit::all(),
-            'customers' => Customer::all(),
-            'manuals' => Manual::all(),
-            'planes' => Plane::all(),
-            'builders' => Builder::all(),
-            'instruction' => Instruction::all(),
-            'necessaries' => Necessary::all(),
-            'codes' => Code::all(),
-            'conditions' => Condition::all(),
-            'unit_conditions' => Condition::where('unit', true)->get(),
-            'component_conditions' => Condition::where('unit', false)->get(),
-        ];
-
-        return view('admin.tdrs.show', array_merge(
-            [
-                'current_wo' => $current_wo,
-                'user' => Auth::user(),
-                'necessary' => $necessary,
-                'components' => $components,
-                'processParts' => $processParts,
-                'inspectsUnit' => $inspectsUnit,
-                'missingParts' => $missingParts,
-                'ordersParts' => $ordersParts,
-                'tdrs' => $current_wo->tdrs
-            ],
-            $data
-        ));
-    }
     /**
      * Show the form for editing the specified resource.
      *
@@ -1442,16 +1269,6 @@ class TdrController extends Controller
     /**
      * Находит индекс колонки по возможным названиям
      */
-    private function findColumnIndex($headers, $possibleNames)
-    {
-        foreach ($possibleNames as $name) {
-            $index = array_search($name, $headers);
-            if ($index !== false) {
-                return $name;
-            }
-        }
-        return null;
-    }
 
     public function specProcessForm(Request $request, $id)
     {

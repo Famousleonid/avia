@@ -288,8 +288,8 @@
                                                 <td class="task-col text-info">
                                                     {{ $m->task->generalTask->name ?? '—' }} <span class="arrow">→</span> {{ $m->task->name ?? '—' }}
                                                 </td>
-                                                <td>{{ optional($m->date_start)->format('d-M-y') }}</td>
-                                                <td style="min-width:220px;">
+                                                <td style="width: 80px">{{ optional($m->date_start)->format('d-M-y') }}</td>
+                                                <td style="width:150px;">
                                                     {{-- ЛЕВАЯ ПАНЕЛЬ: теперь тоже форма с автосабмитом --}}
                                                     <form method="POST" action="{{ route('mains.update', $m) }}" class="auto-submit-form">
                                                         @csrf
@@ -358,9 +358,11 @@
                                                     <table class="table table-sm table-dark table-bordered mb-2 align-middle">
                                                         <thead>
                                                         <tr>
-                                                            <th style="width:40%;"><div class="fw-semibold text-info">{{ $cmp->name ?? ('#'.$cmp->id) }}</div></th>
-                                                            <th style="width:30%;" class="fw-normal text-muted">Sent (edit)</th>
-                                                            <th style="width:30%;" class="fw-normal text-muted">Returned (edit)</th>
+                                                            <th style="width:40%;"><div class="fw-semibold text-info">{{$cmp->name  ?? ('#'.$cmp->id) }}</div></th>
+                                                            <th style="width:30%; text-align: center" class="fw-normal text-muted">Sent (edit)
+                                                            </th>
+                                                            <th style="width:30%; text-align: center" class="fw-normal text-muted">Returned
+                                                                (edit)</th>
                                                         </tr>
                                                         </thead>
                                                         <tbody>

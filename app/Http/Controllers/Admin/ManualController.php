@@ -101,7 +101,7 @@ class ManualController extends Controller
             }
 
             if ($request->hasFile('log_img')) {
-                $manual->addMedia($request->file('img'))->toMediaCollection('manuals_log');
+                $manual->addMedia($request->file('log_img'))->toMediaCollection('manuals_log');
             }
 
             // Обрабатываем множественные CSV файлы
