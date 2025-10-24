@@ -218,8 +218,8 @@
     <!-- Модальные окна -->
     <!-- Modal - Add component -->
     <div class="modal fade" id="addComponentModal" tabindex="-1" aria-labelledby="addComponentModalLabel"
-         aria-hidden="true">
-        <div class="modal-dialog">
+         aria-hidden="true" >
+        <div class="modal-dialog modal-xl" >
             <div class="modal-content bg-gradient">
                 <div class="modal-header">
                     <h5 class="modal-title" id="addComponentModalLabel">{{ __('Add Component') }}</h5>
@@ -228,7 +228,7 @@
                 <form action="{{ route('components.storeFromInspection') }}" method="POST" id="addComponentForm">
                     @csrf
 
-                    <div class="modal-body">
+                    <div class="modal-body" >
                         <input type="hidden" name="manual_id" value="{{$current_wo->unit->manual_id}}">
                         <input type="hidden" name="current_wo" value="{{$current_wo->id}}">
                         <div class="form-group">
@@ -255,6 +255,11 @@
                                                name="part_number" required>
                                     </div>
 
+                                    <div class="mt-2">
+                                        <label for="eff_code">{{ __('EFF Code') }}</label>
+                                        <input id='eff_code' type="text" class="form-control"
+                                               name="eff_code" placeholder="Enter EFF code (optional)">
+                                    </div>
                                 </div>
 
                                 <div class="m-3">
@@ -273,22 +278,49 @@
                                         <input id='assy_part_number' type="text" class="form-control"
                                                name="assy_part_number" >
                                     </div>
+                                    <div class="mt-2">
+                                        <label for="units_assy">{{ __('Units per Assy') }}</label>
+                                        <input id='units_assy' type="text" class="form-control"
+                                               name="units_assy" placeholder="Enter units per assembly">
+                                    </div>
                                 </div>
                             </div>
                         </div>
-                        <div class="d-flex justify-content-between">
+                        <div class="d-flex ">
                             <div class="form-check">
                                 <input class="form-check-input" type="checkbox"  id="log_card" name="log_card">
                                 <label class="form-check-label" for="log_card">
                                     Log Card
                                 </label>
                             </div>
+                            <div class="form-check ms-3">
+                                <input class="form-check-input" type="checkbox"  id="repair" name="repair">
+                                <label class="form-check-label" for="repair">
+                                    Repair
+                                </label>
+                            </div>
+                            <div class="form-check ms-3">
+                                <input class="form-check-input" type="checkbox"  id="is_bush" name="is_bush">
+                                <label class="form-check-label" for="is_bush">
+                                    Is Bush
+                                </label>
+                            </div>
+                            <!-- Bush IPL Number field - показывается только когда Is Bush отмечен -->
+                            <div class="form-group ms-3" id="bush_ipl_container" style="display: none;">
+                                <div class="d-flex">
+                                    <label for="bush_ipl_num">{{ __('Initial Bushing IPL Number') }}</label>
+                                    <input id='bush_ipl_num' type="text" class="form-control" name="bush_ipl_num"
+                                           pattern="^\d+-\d+[A-Za-z]?$"
+                                           title="The format should be: number-number (for example: 1-200A, 1001-100, 5-398B)">
+                                </div>
+                            </div>
+                        </div>
                             <div class="text-end">
                                 <button type="submit" class="btn btn-primary">Save Component</button>
                             </div>
 
 
-                        </div>
+
                     </div>
                 </form>
             </div>
@@ -310,6 +342,9 @@
             if (defaultManualId) {
                 $('#i_manual_id').val(defaultManualId).trigger('change');
             }
+
+
+
 
             // Инициализация Select2
             $('#i_component_id, #codes_id, #necessaries_id, #c_conditions_id').select2({
@@ -365,6 +400,26 @@
                 theme: 'bootstrap-5',
                 allowClear: true
             });
+
+            // Функция для показа/скрытия поля Bush IPL Number
+            function toggleBushIPL() {
+                const isBushCheckbox = document.getElementById('is_bush');
+                const bushIPLContainer = document.getElementById('bush_ipl_container');
+                const bushIPLInput = document.getElementById('bush_ipl_num');
+
+                if (isBushCheckbox.checked) {
+                    bushIPLContainer.style.display = 'block';
+                    bushIPLInput.required = true;
+                } else {
+                    bushIPLContainer.style.display = 'none';
+                    bushIPLInput.required = false;
+                    bushIPLInput.value = ''; // Очищаем поле при скрытии
+                }
+            }
+
+            // Привязываем обработчик события к чекбоксу Is Bush
+            $('#is_bush').on('change', toggleBushIPL);
+
 
             // Функция скрытия всех дополнительных групп
             function hideAllGroups() {
@@ -515,7 +570,7 @@
         function loadComponentsByManual(manualId) {
             const ajaxUrl = '{{ route("api.get-components-by-manual") }}';
             console.log('Loading components for manual_id:', manualId);
-            
+
             $.ajax({
                 url: ajaxUrl,
                 method: 'GET',
@@ -526,7 +581,7 @@
                 success: function(response) {
                     // Очищаем текущие опции в основном дропдауне компонентов
                     $('#i_component_id').empty().append('<option value="">---</option>');
-                    
+
                     // Очищаем текущие опции в дропдауне заказа компонентов
                     $('#order_component_id').empty().append('<option value="">---</option>');
 
@@ -539,7 +594,7 @@
                             component.ipl_num + ' : ' + component.part_number + ' - ' + component.name +
                             '</option>'
                         );
-                        
+
                         // Добавляем те же опции в дропдаун заказа компонентов
                         // Используем assy_part_number если есть, иначе part_number
                         const displayPartNumber = component.assy_part_number || component.part_number;

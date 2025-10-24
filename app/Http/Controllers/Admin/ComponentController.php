@@ -104,6 +104,7 @@ class ComponentController extends Controller
                 'part_number' => 'required|string|max:50',
                 'ipl_num' => 'nullable|string|max:10',
                 'assy_ipl_num' => 'nullable|string|max:10|regex:/^\d+-\d+[A-Za-z]?$/',
+                'bush_ipl_num' => 'nullable|string|max:10|regex:/^\d+-\d+[A-Za-z]?$/',
                 'eff_code' => 'nullable|string|max:100',
                 'units_assy' => 'nullable|string|max:100',
 //                'img' => 'nullable|image|mimes:jpeg,png,jpg,gif,svg|max:2048',
@@ -114,6 +115,8 @@ class ComponentController extends Controller
             $validated['units_assy'] = $request->units_assy;
             $validated['log_card'] = $request->has('log_card') ? 1 : 0;
             $validated['repair'] = $request->has('repair') ? 1 : 0;
+            $validated['is_bush'] = $request->has('is_bush') ? 1 : 0;
+            $validated['bush_ipl_num'] = $request->bush_ipl_num;
 
             // Создание нового компонента
             $component = Component::create($validated);
