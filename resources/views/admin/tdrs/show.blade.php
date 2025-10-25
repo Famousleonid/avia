@@ -39,9 +39,6 @@
 
 
 
-
-
-
                         <div class="modal fade" id="infoModal{{$current_wo->number}}" tabindex="-1"
                              role="dialog" aria-labelledby="infoModalLabel{{$current_wo->number}}" aria-hidden="true">
                             <div class="modal-dialog modal-dialog-centered" role="document">
@@ -651,16 +648,20 @@
                         @if($monthsDiff<12)
                             <div class="d-flex justify-content-center">
                                 <div class="fs-9 pt-1" style="color: lawngreen">
-                                    @if($monthsDiff == 0)
+                                    @if($monthsDiff == 0  && $user->id == $user_wo)
                                         @if($isThisMonth)
                                             Last training this month ({{ $trainingDate->format('M d') }})
                                         @else
                                             Last training {{ $monthsDiff }} months ago ({{ $trainingDate->format('M d, Y') }})
                                         @endif
                                     @elseif($monthsDiff == 1)
-                                        Last training {{ $monthsDiff }} month ago ({{ $trainingDate->format('M d') }})
+                                        @if($user->id == $user_wo)
+                                            Last training {{ $monthsDiff }} month ago ({{ $trainingDate->format('M d') }})
+                                        @endif
                                     @else
-                                        Last training {{ $monthsDiff }} months ago ({{ $trainingDate->format('M d') }})
+                                        @if($user->id == $user_wo)
+                                         Last training {{ $monthsDiff }} months ago ({{ $trainingDate->format('M d') }})
+                                        @endif
                                     @endif
                                 </div>
                                 @if($monthsDiff > 8 && $user->id == $user_wo)
