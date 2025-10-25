@@ -219,7 +219,7 @@
     <!-- Modal - Add component -->
     <div class="modal fade" id="addComponentModal" tabindex="-1" aria-labelledby="addComponentModalLabel"
          aria-hidden="true" >
-        <div class="modal-dialog modal-xl" >
+        <div class="modal-dialog modal-l" >
             <div class="modal-content bg-gradient">
                 <div class="modal-header">
                     <h5 class="modal-title" id="addComponentModalLabel">{{ __('Add Component') }}</h5>
@@ -311,7 +311,8 @@
                                     <label for="bush_ipl_num">{{ __('Initial Bushing IPL Number') }}</label>
                                     <input id='bush_ipl_num' type="text" class="form-control" name="bush_ipl_num"
                                            pattern="^\d+-\d+[A-Za-z]?$"
-                                           title="The format should be: number-number (for example: 1-200A, 1001-100, 5-398B)">
+                                           title="The format should be: number-number (for example: 1-200A, 1001-100, 5-398B)"
+                                    style="width: 100px">
                                 </div>
                             </div>
                         </div>
