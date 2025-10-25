@@ -809,16 +809,14 @@
                                     <th class=" text-center   text-primary sortable">{{__('Serial number')}}</th>
                                     <th class=" text-center  text-primary " style="width: 200px">{{__('Necessary')}}</th>
                                     <th class=" text-center  text-primary " style="width: 120px">{{__('Code')}}</th>
-                                    <th class=" text-primary text-center">
-                                        Action
+                                    <th class=" text-primary text-center" style="width: 150px"> {{__('Action')}}
                                         {{--                                        <a href="{{ route('tdrs.component-inspection', ['workorder_id' => $current_wo->id,--}}
                                         {{--                                        'type' => 'component']) }}"--}}
                                         {{--                                           class="btn btn-outline-info btn-sm" style="height: 32px"  >--}}
                                         {{--                                            {{ __('Add_D') }}--}}
                                         {{--                                        </a>--}}
-                                        <a href="{{ route('tdrs.inspection.component', ['workorder_id' => $current_wo->id])
-                                         }}"
-                                           class="btn btn-outline-info btn-sm" style="height: 32px">
+                                        <a href="{{ route('tdrs.inspection.component', ['workorder_id' => $current_wo->id])}}"
+                                           class="btn btn-outline-info btn-sm ms-3" style="height: 32px">
                                             {{ __('Add') }}
                                         </a>
                                     </th>
@@ -857,10 +855,16 @@
                                                 @endforeach
                                             </td>
 
-                                            <td class="d-flex justify-content-center" style="width: 100px">
+                                            <td class="d-flex justify-content-center" style="width: 150px">
+
+
+                                                <a href="{{ route('tdr-processes.processes',['tdrId'=>$tdr->id])}}"
+                                                   class="btn btn-outline-primary btn-sm me-2">
+                                                    <i class="bi bi-bar-chart-steps" title="Component Processes"></i>
+                                                </a>
                                                 <a href="{{ route('tdrs.edit',['tdr' => $tdr->id]) }}"
-                                                   class="btn btn-outline-primary btn-sm me-1">
-                                                    <i class="bi bi-pencil-square"></i>
+                                                   class="btn btn-outline-primary btn-sm me-2">
+                                                    <i class="bi bi-pencil-square" title="Component Inspection Edit"></i>
                                                 </a>
                                                 <form action="{{ route('tdrs.destroy', ['tdr' => $tdr->id]) }}" method="POST"
                                                       onsubmit="return confirm('Are you sure you want to delete this item?');">
