@@ -26,7 +26,7 @@
                     </div>
 
                     <button type="submit" class="btn btn-outline-primary">Update</button>
-                    <a href="{{ route('processes.edit',['process' => $manualId]) }}" class="btn
+                    <a href="{{ route('admin.processes.edit',['process' => $manualId]) }}" class="btn
                     btn-outline-secondary">Cancel</a>
                 </form>
             </div>

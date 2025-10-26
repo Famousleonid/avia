@@ -8,7 +8,7 @@
 
         /* ----------------------------------- Select 2 Dark Theme -------------------------------------*/
 
-        html[data-bs-theme="dark"]  .select2-selection--single {
+        html[data-bs-theme="dark"] .select2-selection--single {
             background-color: #121212 !important;
             color: gray !important;
             height: 38px !important;
@@ -482,7 +482,7 @@
 
             const manualId = document.getElementById('processes-container').dataset.manualId;
 
-            fetch(`{{ route('processes.getProcesses') }}?processNameId=${processNameId}&manualId=${manualId}`)
+            fetch(`{{ route('admin.processes.getProcesses') }}?processNameId=${processNameId}&manualId=${manualId}`)
                 .then(response => {
                     if (!response.ok) {
                         throw new Error('Network response was not ok');
@@ -536,7 +536,7 @@
                     formData.append('process', newProcess);
                     formData.append('manual_id', manualId);
 
-                    fetch("{{ route('processes.store') }}", {
+                    fetch("{{ route('admin.processes.store') }}", {
                         method: 'POST',
                         headers: {
                             'X-Requested-With': 'XMLHttpRequest',

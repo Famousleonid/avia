@@ -42,6 +42,11 @@
                 </div>
             @endif
 
+            @php
+                // Получаем сохраненные данные из текущего workorder
+                $savedData = $current_wo->rm_report ? json_decode($current_wo->rm_report, true) : null;
+            @endphp
+
             <form id="editForm" class="editForm" role="form" method="POST" action="#"
                   enctype="multipart/form-data">
                 @csrf
@@ -143,7 +148,6 @@
                         <table class="table table-bordered">
                             <tbody>
                                 @php
-                                    $savedData = $current_wo->rm_report ? json_decode($current_wo->rm_report, true) : null;
                                     $technicalNotes = $savedData['technical_notes'] ?? [];
                                 @endphp
                                 @for($i = 1; $i <= 7; $i++)
@@ -186,8 +190,27 @@
                                 <input type="text" class="form-control" id="part_description" name="part_description" required>
                             </div>
                             <div class="form-group mt-3">
-                                <label for="mod_repair">{{ __('Modification or Repair #') }}</label>
-                                <input type="text" class="form-control" id="mod_repair" name="mod_repair" required>
+                                <label>{{ __('Modification or Repair') }}</label>
+                                <div class="d-flex gap-3 mt-2">
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="radio" name="mod_repair" id="mod_repair_mod" value="Mod" required>
+                                        <label class="form-check-label" for="mod_repair_mod">
+                                            Mod
+                                        </label>
+                                    </div>
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="radio" name="mod_repair" id="mod_repair_repair" value="Repair" required>
+                                        <label class="form-check-label" for="mod_repair_repair">
+                                            Repair
+                                        </label>
+                                    </div>
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="radio" name="mod_repair" id="mod_repair_sb" value="SB" required>
+                                        <label class="form-check-label" for="mod_repair_sb">
+                                            SB
+                                        </label>
+                                    </div>
+                                </div>
                             </div>
                             <div class="form-group mt-3">
                                 <label for="mod_repair_description">{{ __('Description of Modification or Repair') }}</label>
@@ -227,8 +250,27 @@
                                 <input type="text" class="form-control" id="edit_part_description" name="part_description" required>
                             </div>
                             <div class="form-group mt-3">
-                                <label for="edit_mod_repair">{{ __('Modification or Repair #') }}</label>
-                                <input type="text" class="form-control" id="edit_mod_repair" name="mod_repair" required>
+                                <label>{{ __('Modification or Repair') }}</label>
+                                <div class="d-flex gap-3 mt-2">
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="radio" name="mod_repair" id="edit_mod_repair_mod" value="Mod" required>
+                                        <label class="form-check-label" for="edit_mod_repair_mod">
+                                            Mod
+                                        </label>
+                                    </div>
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="radio" name="mod_repair" id="edit_mod_repair_repair" value="Repair" required>
+                                        <label class="form-check-label" for="edit_mod_repair_repair">
+                                            Repair
+                                        </label>
+                                    </div>
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="radio" name="mod_repair" id="edit_mod_repair_sb" value="SB" required>
+                                        <label class="form-check-label" for="edit_mod_repair_sb">
+                                            SB
+                                        </label>
+                                    </div>
+                                </div>
                             </div>
                             <div class="form-group mt-3">
                                 <label for="edit_mod_repair_description">{{ __('Description of Modification or Repair') }}</label>
@@ -332,9 +374,18 @@
                         // Заполняем форму данными
                         $('#edit_record_id').val(record.id);
                         $('#edit_part_description').val(record.part_description);
-                        $('#edit_mod_repair').val(record.mod_repair);
                         $('#edit_mod_repair_description').val(record.description);
                         $('#edit_ident_method').val(record.ident_method);
+
+                        // Устанавливаем выбранную радиокнопку
+                        var modRepairValue = record.mod_repair;
+                        if (modRepairValue === 'Mod') {
+                            $('#edit_mod_repair_mod').prop('checked', true);
+                        } else if (modRepairValue === 'Repair') {
+                            $('#edit_mod_repair_repair').prop('checked', true);
+                        } else if (modRepairValue === 'SB') {
+                            $('#edit_mod_repair_sb').prop('checked', true);
+                        }
 
                         // Устанавливаем action для формы
                         $('#editRmRecordForm').attr('action', '{{ route("rm_reports.updateRecord", ":id") }}'.replace(':id', record.id));

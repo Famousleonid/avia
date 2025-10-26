@@ -373,7 +373,7 @@
                 const manualId = document.getElementById('processes-container').dataset.manualId;
 
                 // Загружаем availableProcesses для выбранного process_name_id и manualId
-                fetch(`{{ route('processes.getProcesses') }}?processNameId=${processNameId}&manualId=${manualId}`)
+                fetch(`{{ route('admin.processes.getProcesses') }}?processNameId=${processNameId}&manualId=${manualId}`)
                     .then(response => {
                         if (!response.ok) {
                             throw new Error('Network response was not ok');
@@ -423,7 +423,7 @@
             // Получаем manual_id через data-атрибут
             const manualId = document.getElementById('processes-container').dataset.manualId;
 
-            fetch(`{{ route('processes.getProcesses') }}?processNameId=${processNameId}&manualId=${manualId}`)
+            fetch(`{{ route('admin.processes.getProcesses') }}?processNameId=${processNameId}&manualId=${manualId}`)
                 .then(response => {
                     if (!response.ok) {
                         throw new Error('Network response was not ok');
@@ -475,7 +475,7 @@
 
                 // Если введён новый процесс – отправляем AJAX-запрос для его создания
                 if (newProcess !== '') {
-                    fetch("{{ route('processes.store') }}", {
+                    fetch("{{ route('admin.processes.store') }}", {
                         method: 'POST',
                         headers: {
                             'X-Requested-With': 'XMLHttpRequest',
@@ -527,7 +527,7 @@
 
                                 // Перезагружаем список существующих процессов в модальном окне
                                 const manualId = document.getElementById('processes-container').dataset.manualId;
-                                fetch(`{{ route('processes.getProcesses') }}?processNameId=${processNameId}&manualId=${manualId}`)
+                                fetch(`{{ route('admin.processes.getProcesses') }}?processNameId=${processNameId}&manualId=${manualId}`)
                                     .then(response => response.json())
                                     .then(data => {
                                         const container = document.getElementById('existingProcessContainer');

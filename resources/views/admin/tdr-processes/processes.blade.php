@@ -97,10 +97,13 @@
         <div class="card bg-gradient">
             <div class="card-header">
                 <div class="d-flex justify-content-between">
-                    <h4 class="text-primary">{{ __('Component Processes') }}</h4>
-                    <h4 class="pe-3">{{ __('W') }}{{ $current_tdr->workorder->number }}</h4>
+                    <div class="d-flex align-items-center gap-3">
+
+                        <h4 class="text-primary mb-0">{{ __('Component Processes') }}</h4>
+                    </div>
+                    <h4 class="pe-3 mb-0">{{ __('W') }}{{ $current_tdr->workorder->number }}</h4>
                 </div>
-                <div class="d-flex justify-content-between">
+                <div class="d-flex justify-content-between mt-2">
                     <div>
                         {{ $current_tdr->component->name }}
                         <p>
@@ -116,6 +119,14 @@
                             <i class="fas fa-plus"></i> Add Vendor
                         </button>
                     </div>
+                    <div class="me-4">
+                        <button type="button"
+                                class="btn btn-outline-secondary btn-sm"
+                                onclick="window.history.back();">
+                            <i class="bi bi-arrow-left"></i> {{ __('Back') }}
+                        </button>
+                    </div>
+
                 </div>
             </div>
             <div class="card-body">

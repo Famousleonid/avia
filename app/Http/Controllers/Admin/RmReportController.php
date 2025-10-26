@@ -52,7 +52,7 @@ class RmReportController extends Controller
     {
         $validated = $request->validate([
             'part_description' => 'required|string|max:255',
-            'mod_repair' => 'required|string|max:255',
+            'mod_repair' => 'required|in:Mod,Repair,SB',
             'mod_repair_description' => 'required|string|max:255',
             'ident_method' => 'nullable|string|max:255',
             'workorder_id' => 'required|exists:workorders,id',
@@ -121,7 +121,7 @@ public function rmRecordForm(Request $request, $id)
     // Получаем сохраненные данные R&M
     $savedData = null;
     $technicalNotes = [];
-    $rmRecords = [];
+    $rmRecords = collect(); // Инициализируем как пустую коллекцию
     
     if ($current_wo->rm_report) {
         $savedData = json_decode($current_wo->rm_report, true);
@@ -487,7 +487,7 @@ public function rmRecordForm(Request $request, $id)
     {
         $validated = $request->validate([
             'part_description' => 'required|string|max:255',
-            'mod_repair' => 'required|string|max:255',
+            'mod_repair' => 'required|in:Mod,Repair,SB',
             'mod_repair_description' => 'required|string|max:255',
             'ident_method' => 'nullable|string|max:255',
             'workorder_id' => 'required|exists:workorders,id',

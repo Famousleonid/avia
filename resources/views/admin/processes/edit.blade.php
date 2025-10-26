@@ -116,7 +116,7 @@
                 <div class="d-flex justify-content-between">
                     <h4 class="text-primary">{{ __('Edit Manual Processes') }}</h4>
                     <h4 class="pe-3">{{$manual->number}} ({{$manual->title}})</h4>
-                    <a href="{{ route('processes.index') }}" class="btn btn-outline-secondary">{{ __('Back') }}
+                    <a href="{{ route('admin.processes.index') }}" class="btn btn-outline-secondary">{{ __('Back') }}
                     </a>
 
                 </div>

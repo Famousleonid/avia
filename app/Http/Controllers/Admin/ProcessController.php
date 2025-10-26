@@ -112,12 +112,15 @@ class ProcessController extends Controller
                 'processes_id' => $processId,
             ]);
 
+            // Загружаем процесс для возврата (независимо от того, новый он или существующий)
+            $processToReturn = $process ?? Process::find($processId);
+
             // Если это AJAX-запрос или JSON запрос, возвращаем JSON
             if ($request->ajax() || $request->wantsJson()) {
                 return response()->json([
                     'success' => true,
                     'message' => 'Process added successfully.',
-                    'process' => $process ?? null
+                    'process' => $processToReturn
                 ]);
             }
 

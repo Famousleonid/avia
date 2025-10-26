@@ -94,8 +94,8 @@ Route::group(['middleware' => ['auth', 'isAdmin'], 'prefix' => 'admin'], functio
     Route::resource('/log_card', LogCardController::class);
 
     Route::resource('/process-names',ProcessNameController::class);
-    Route::resource('/processes', ProcessController::class);
-    Route::get('/get-processes', [ProcessController::class, 'getProcesses'])->name('processes.getProcesses');
+    Route::resource('/processes', ProcessController::class)->names(['create' => 'admin.processes.create', 'store' => 'admin.processes.store', 'edit' => 'admin.processes.edit', 'update' => 'admin.processes.update', 'destroy' => 'admin.processes.destroy', 'show' => 'admin.processes.show', 'index' => 'admin.processes.index']);
+    Route::get('/get-processes', [ProcessController::class, 'getProcesses'])->name('admin.processes.getProcesses');
     Route::resource('/tdr-processes',TdrProcessController::class);
     Route::patch('/tdr-processes/{tdrProcess}/dates', [TdrProcessController::class, 'updateDate'])->name('tdrprocesses.updateDate');
 
@@ -127,8 +127,8 @@ Route::group(['middleware' => ['auth', 'isAdmin'], 'prefix' => 'admin'], functio
     Route::get('tdrs/show/{id}', [TdrController::class, 'show'])->name('tdrs.show');
     Route::get('tdrs/processes/{workorder_id}',[TdrController::class, 'processes'])->name('tdrs.processes');
 
-    Route::get('processes/create/{manual_id}', [ProcessController::class, 'create'])->name('processes.create');
-    Route::get('processes/edit/{id}', [ProcessController::class, 'edit'])->name('processes.edit');
+    Route::get('processes/create/{manual_id}', [ProcessController::class, 'create'])->name('admin.processes.create');
+    Route::get('processes/edit/{id}', [ProcessController::class, 'edit'])->name('admin.processes.edit');
 
     // Vendors routes
     Route::post('/vendors', [VendorController::class, 'store'])->name('vendors.store');

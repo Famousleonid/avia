@@ -49,7 +49,7 @@
             </a>
         </li>
         <li class="nav-item">
-            <a class="nav-link press-spinner" href="{{route('processes.index')}}">
+            <a class="nav-link press-spinner" href="{{route('admin.processes.index')}}">
                 <i class="bi bi-bar-chart-steps me-2"></i> Processes
             </a>
         </li>

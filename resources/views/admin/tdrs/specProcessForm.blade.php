@@ -660,24 +660,7 @@
             </div>
         @endforeach
 
-{{--        <div class="row g-0 fs-7">--}}
-{{--            <div class="col-2 border-l-b ps-1">--}}
-{{--                <div style="height: 18px"><strong></strong></div>--}}
-{{--            </div>--}}
-{{--            <div class="col-10">--}}
-{{--                <div class="row g-0">--}}
-{{--                    @php $componentIndex = 0; @endphp--}}
-{{--                    @for($i = 0; $i < 6; $i++)--}}
-{{--                        <div class="col {{ $i < 5 ? 'border-l-b' : 'border-l-b-r'}} text-center" style="height: 20px">--}}
 
-{{--                            <div class="border-r" style="height: 20px; width: 30px"></div>--}}
-
-{{--                        </div>--}}
-{{--                    @endfor--}}
-{{--                </div>--}}
-
-{{--            </div>--}}
-{{--        </div>--}}
         <div class="parent mt-1">
             <div class="div2 text-end pe-4 mt-2" style="height: 24px">Quality Assurance Acceptance</div>
             <div class="div3 border-all text-center  fs-75" style="width: 45px; align-content: center; height: 42px;
