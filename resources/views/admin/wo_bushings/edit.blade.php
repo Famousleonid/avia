@@ -123,7 +123,7 @@
                     </div>
                 </div>
                 <div>
-                    <a href="{{ route('admin.processes.create', ['manual' => $current_wo->unit->manual_id, 'return_to' => route('wo_bushings.edit', $woBushing->id)]) }}"
+                    <a href="{{ route('processes.create', ['manual' => $current_wo->unit->manual_id, 'return_to' => route('wo_bushings.edit', $woBushing->id)]) }}"
                        class="btn btn-outline-primary me-2" style="height: 60px;width: 100px">
                         <i class="fas fa-cogs"></i> {{ __('Add Processes') }}
                     </a>
@@ -133,12 +133,6 @@
                     </a>
                 </div>
                 <div class="">
-
-                    <!-- Debug info -->
-{{--                    <div class="text-muted small">--}}
-{{--                        Manual ID: {{ $current_wo->unit->manual_id ?? 'Not set' }} | --}}
-{{--                        Manual: {{ $current_wo->unit->manual_id ?? 'Not set' }}--}}
-{{--                    </div>--}}
                     <a href="{{ route('wo_bushings.show', $current_wo->id) }}"
                        class="btn btn-outline-secondary me-2" style="height: 60px;width: 110px">
                         {{ __('Back to Bushings') }}
@@ -146,21 +140,6 @@
                 </div>
             </div>
         </div>
-
-{{--        --}}{{-- Success/Error Messages --}}
-{{--        @if(session('success'))--}}
-{{--            <div class="alert alert-success alert-dismissible fade show mx-3 mt-3" role="alert">--}}
-{{--                {{ session('success') }}--}}
-{{--                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>--}}
-{{--            </div>--}}
-{{--        @endif--}}
-
-{{--        @if(session('error'))--}}
-{{--            <div class="alert alert-danger alert-dismissible fade show mx-3 mt-3" role="alert">--}}
-{{--                {{ session('error') }}--}}
-{{--                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>--}}
-{{--            </div>--}}
-{{--        @endif--}}
 
         @if($bushings->flatten()->count() > 0)
             <div class="d-flex justify-content-center mt-3">

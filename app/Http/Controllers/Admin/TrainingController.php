@@ -97,11 +97,41 @@ class TrainingController extends Controller
         // Валидация входных данных
         $validatedData = $request->validate([
             'manuals_id' => 'required',
-            'date_training' => 'nullable|date'
+            'date_training' => 'required|date',
+            'last_training_date' => 'nullable|date|after:date_training|before:today'
         ]);
 
+        // Проверяем, если First Training Date больше чем 2 года назад
+        $dateTraining132 = \Carbon\Carbon::parse($validatedData['date_training']);
+        $twoYearsAgo = now()->subYears(2);
+        $isMoreThanTwoYears = $dateTraining132->lt($twoYearsAgo);
+        
+        // Если больше 2 лет, проверяем наличие last_training_date
+        if ($isMoreThanTwoYears) {
+            if (empty($validatedData['last_training_date'])) {
+                return redirect()->back()
+                    ->withInput()
+                    ->withErrors(['last_training_date' => 'Last Existing Training Date is required when First Training Date is more than 2 years ago.']);
+            }
+            
+            $lastTrainingDate = \Carbon\Carbon::parse($validatedData['last_training_date']);
+            
+            // Проверяем что last_training_date после first_training_date
+            if ($lastTrainingDate->lte($dateTraining132)) {
+                return redirect()->back()
+                    ->withInput()
+                    ->withErrors(['last_training_date' => 'Last Training Date must be after First Training Date.']);
+            }
+            
+            // Проверяем что last_training_date до сегодня
+            if ($lastTrainingDate->gte(now()->startOfDay())) {
+                return redirect()->back()
+                    ->withInput()
+                    ->withErrors(['last_training_date' => 'Last Training Date must be before today.']);
+            }
+        }
+
         // Устанавливаем дату тренировки для формы 132
-        $dateTraining132 = $validatedData['date_training'];
         $manualId = $validatedData['manuals_id'];
 
         // Проверяем, есть ли уже форма 132 для этого юнита
@@ -139,8 +169,41 @@ class TrainingController extends Controller
             ]);
         }
 
-        // Создаем тренировки за все пропущенные годы (начиная со следующего года)
-        $this->createMissingTrainings($userId, $manualId, $dateTraining132);
+        // Если First Training Date больше чем 2 года назад и есть last_training_date
+        if ($isMoreThanTwoYears && !empty($validatedData['last_training_date'])) {
+            $lastTrainingDate = \Carbon\Carbon::parse($validatedData['last_training_date']);
+            
+            // Создаем тренировки между First Training Date и Last Training Date
+            $this->createMissingTrainingsBetweenDates($userId, $manualId, $dateTraining132, $lastTrainingDate);
+            
+            // Создаем новый тренинг с сегодняшней датой или последней прошедшей пятницей
+            $todayDate = now()->startOfDay();
+            
+            // Если сегодня пятница - используем сегодня, иначе последнюю прошедшую пятницу
+            if ($todayDate->dayOfWeek == \Carbon\Carbon::FRIDAY) {
+                $trainingDate = $todayDate;
+            } else {
+                $trainingDate = $todayDate->copy()->previous(\Carbon\Carbon::FRIDAY);
+            }
+            
+            $existingTodayTraining = Training::where('user_id', $userId)
+                ->where('manuals_id', $manualId)
+                ->where('date_training', $trainingDate->format('Y-m-d'))
+                ->where('form_type', '112')
+                ->first();
+            
+            if (!$existingTodayTraining) {
+                Training::create([
+                    'user_id' => $userId,
+                    'manuals_id' => $manualId,
+                    'date_training' => $trainingDate->format('Y-m-d'),
+                    'form_type' => '112',
+                ]);
+            }
+        } else {
+            // Создаем тренировки за все пропущенные годы (начиная со следующего года)
+            $this->createMissingTrainings($userId, $manualId, $dateTraining132);
+        }
 
         // Проверяем, есть ли URL для возврата в запросе
         $returnUrl = $request->input('return_url');
@@ -207,6 +270,43 @@ class TrainingController extends Controller
         
         // Возвращаем пятницу той же недели
         return $monday->addDays(4);
+    }
+
+    /**
+     * Создает недостающие тренировки между двумя датами
+     */
+    private function createMissingTrainingsBetweenDates($userId, $manualId, $firstTrainingDate, $lastTrainingDate)
+    {
+        $firstTraining = \Carbon\Carbon::parse($firstTrainingDate);
+        $lastTraining = \Carbon\Carbon::parse($lastTrainingDate);
+        $firstTrainingYear = $firstTraining->year;
+        $firstTrainingWeek = $firstTraining->weekOfYear;
+        $lastTrainingYear = $lastTraining->year;
+
+        // Создаем тренировки за все годы начиная со следующего года после первой тренировки до года последнего тренинга
+        for ($year = $firstTrainingYear + 1; $year <= $lastTrainingYear; $year++) {
+            // Для формы 112 используем ту же неделю, но в следующем году
+            $trainingDate = $this->getDateFromWeekAndYear($firstTrainingWeek, $year);
+            
+            // Проверяем, что дата тренировки не позже последнего тренинга
+            if ($trainingDate <= $lastTraining) {
+                // Проверяем существование формы 112 для этого года
+                $existingTraining112 = Training::where('user_id', $userId)
+                    ->where('manuals_id', $manualId)
+                    ->where('date_training', $trainingDate->format('Y-m-d'))
+                    ->where('form_type', '112')
+                    ->first();
+                
+                if (!$existingTraining112) {
+                    Training::create([
+                        'user_id' => $userId,
+                        'manuals_id' => $manualId,
+                        'date_training' => $trainingDate->format('Y-m-d'),
+                        'form_type' => '112',
+                    ]);
+                }
+            }
+        }
     }
 
     public function createTraining(Request $request)

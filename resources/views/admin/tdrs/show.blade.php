@@ -234,30 +234,6 @@
 
                     <div class="ms-3">
                         <div class="d-flex ">
-                            {{--                            <div class="me-2">--}}
-                            {{--                                @if(count($inspectsUnit)>0)--}}
-                            {{--                                    <button class="btn btn-outline-info btn-sm" style="height: 40px"--}}
-                            {{--                                            data-bs-toggle="modal"--}}
-                            {{--                                            data-bs-target="#inspectModal{{$current_wo->number}}">--}}
-                            {{--                                        {{ __('Inspect Unit') }}</button>--}}
-                            {{--                                @endif--}}
-                            {{--                            </div>--}}
-                            {{--                            <div class="me-2">--}}
-                            {{--                                  @if($current_wo->part_missing )--}}
-                            {{--                                    <button class="btn btn-outline-info btn-sm" style="height: 40px"--}}
-                            {{--                                            data-bs-toggle="modal"--}}
-                            {{--                                            data-bs-target="#missingModal{{$current_wo->number}}">--}}
-                            {{--                                        {{ __('Missing Part') }}</button>--}}
-                            {{--                                  @endif--}}
-                            {{--                            </div>--}}
-                            {{--                            <div class="me-2">--}}
-                            {{--                                @if($current_wo->new_parts)--}}
-                            {{--                                    <button class="btn btn-outline-info btn-sm" style="height: 40px" href="#"--}}
-                            {{--                                            data-bs-toggle="modal" data-bs-target="#orderModal{{$current_wo->number}}">--}}
-                            {{--                                        {{ __('Ordered Parts') }}</button>--}}
-
-                            {{--                                @endif--}}
-                            {{--                            </div>--}}
                             <div class=" d-flex " style=" height: 40px; width: 380px">
                                 @if(count($tdrs))
 
@@ -265,7 +241,6 @@
                                        class="btn fs-8 btn-outline-warning me-1 formLink "
                                        target="_blank"
                                        id="#" style=" height: 55px; width: 60px">
-                                        {{--                                        <i class="bi bi-file-earmark-excel"> TDR Form</i>--}}
                                         TDR Form
                                     </a>
                                     @if(count($processParts)==0)
@@ -285,18 +260,6 @@
                                         {{--                                        <i class="bi bi-file-earmark-excel"> WO Process Sheet </i>--}}
                                         WO Process Sheet
                                     </a>
-                                    {{--                                    <a href="#"--}}
-                                    {{--                                       class="btn btn-outline-warning  formLink "--}}
-                                    {{--                                       target="_blank"--}}
-                                    {{--                                       id="#" style=" height: 60px; width: 80px">--}}
-                                    {{--                                        <i class="bi bi-file-earmark-excel">  </i>--}}
-                                    {{--                                    </a>--}}
-                                    {{--                                    <a href="{{ route('log_card.logCardForm', ['id'=> $current_wo->id]) }}"--}}
-                                    {{--                                       class="btn btn-outline-warning  formLink "--}}
-                                    {{--                                       target="_blank"--}}
-                                    {{--                                       id="#" style=" height: 60px; width: 80px">--}}
-                                    {{--                                        <i class="bi bi-file-earmark-excel"> Log Card </i>--}}
-                                    {{--                                    </a>--}}
 
                                     <a href="{{ route('tdrs.prlForm', ['id'=> $current_wo->id]) }}"
                                        class="btn fs-8 btn-outline-warning me-1 formLink align-content-center "
@@ -632,74 +595,79 @@
 
             <! --- Body --- ->
 
-            {{--        @if(count($tdrs))--}}
 
             <div class="">
-                {{--                WorkOrder ID :{{$current_wo->id}}. Count TDR Records: {{count($tdrs)}}--}}
-                    <div class="text-center mt-1">
-                        @if($trainings && $trainings->date_training)
-                            @php
-                                $trainingDate = \Carbon\Carbon::parse($trainings->date_training);
-                                $monthsDiff = $trainingDate->diffInMonths(now());
-                                $daysDiff = $trainingDate->diffInDays(now());
-                                $isThisMonth = $trainingDate->isCurrentMonth();
-                                $isThisYear = $trainingDate->isCurrentYear();
-                            @endphp
-                        @if($monthsDiff<12)
-                            <div class="d-flex justify-content-center">
-                                <div class="fs-9 pt-1" style="color: lawngreen">
-                                    @if($monthsDiff == 0  && $user->id == $user_wo)
-                                        @if($isThisMonth)
-                                            Last training this month ({{ $trainingDate->format('M d') }})
-                                        @else
-                                            Last training {{ $monthsDiff }} months ago ({{ $trainingDate->format('M d, Y') }})
+                <div class="row">
+                    <div class="col-5">
+                        <div class=" mt-1 ">
+                            @if($trainings && $trainings->date_training && $user->id == $user_wo)
+                                @php
+                                    $trainingDate = \Carbon\Carbon::parse($trainings->date_training);
+                                    $monthsDiff = $trainingDate->diffInMonths(now());
+                                    $daysDiff = $trainingDate->diffInDays(now());
+                                    $isThisMonth = $trainingDate->isCurrentMonth();
+                                    $isThisYear = $trainingDate->isCurrentYear();
+                                @endphp
+                                @if($monthsDiff<=12)
+                                    <div class="d-flex  justify-content-center">
+                                        <div class="fs-9 pt-1" style="color: lawngreen">
+                                            @if($monthsDiff == 0  && $user->id == $user_wo)
+                                                @if($isThisMonth)
+                                                    Last training this month ({{ $trainingDate->format('M d') }})
+                                                @else
+                                                    Last training {{ $monthsDiff }} months ago ({{ $trainingDate->format('M d, Y') }})
+                                                @endif
+                                            @elseif($monthsDiff == 1)
+                                                @if($user->id == $user_wo)
+                                                    Last training {{ $monthsDiff }} month ago ({{ $trainingDate->format('M d') }})
+                                                @endif
+                                            @else
+                                                @if($user->id == $user_wo)
+                                                    Last training {{ $monthsDiff }} months ago ({{ $trainingDate->format('M d') }})
+                                                @endif
+                                            @endif
+                                        </div>
+                                        @if($monthsDiff >= 6 && $user->id == $user_wo)
+                                            <div class="text-center ms-2">
+                                                <button class="btn btn-success btn-sm" onclick="updateTrainingToToday({{ $manual_id }}, '{{ $trainings->date_training }}')">
+                                                    <i class="bi bi-calendar-check"></i> Update to Today
+                                                </button>
+                                            </div>
                                         @endif
-                                    @elseif($monthsDiff == 1)
+                                    </div>
+
+                                @else
+                                    <div class="fs-9 d-flex justify-content-center" style="color: red">
+                                        Last training {{ $monthsDiff }} months ago ({{ $trainingDate->format('M d, Y') }}). Need Update
                                         @if($user->id == $user_wo)
-                                            Last training {{ $monthsDiff }} month ago ({{ $trainingDate->format('M d') }})
+                                            <div class="ms-2">
+                                                <button class="btn btn-warning btn-sm" onclick="updateTrainings({{ $manual_id }}, '{{ $trainings->date_training }}')">
+                                                    <i class="bi bi-arrow-clockwise"></i> Update Trainings
+                                                </button>
+                                            </div>
                                         @endif
-                                    @else
-                                        @if($user->id == $user_wo)
-                                         Last training {{ $monthsDiff }} months ago ({{ $trainingDate->format('M d') }})
-                                        @endif
-                                    @endif
-                                </div>
-                                @if($monthsDiff > 8 && $user->id == $user_wo)
-                                    <div class="text-center ms-2">
-                                        <button class="btn btn-success btn-sm" onclick="updateTrainingToToday({{ $manual_id }}, '{{ $trainings->date_training }}')">
-                                            <i class="bi bi-calendar-check"></i> Update to Today
-                                        </button>
                                     </div>
                                 @endif
-                            </div>
-
                             @else
-                                <div class="fs-9 d-flex justify-content-center" style="color: red">
-                                    Last training {{ $monthsDiff }} months ago ({{ $trainingDate->format('M d, Y') }}). Need Update
                                 @if($user->id == $user_wo)
-                                    <div class="ms-2">
-                                        <button class="btn btn-warning btn-sm" onclick="updateTrainings({{ $manual_id }}, '{{ $trainings->date_training }}')">
-                                            <i class="bi bi-arrow-clockwise"></i> Update Trainings
-                                        </button>
+                                    <div class="fs-9 d-flex justify-content-center" style="color: red">
+                                        There are no trainings for this unit.
+                                        <div class="ms-2">
+                                            <button class="btn btn-primary btn-sm" onclick="createTrainings({{ $manual_id }})">
+                                                <i class="bi bi-plus-circle"></i> Create Trainings
+                                            </button>
+                                        </div>
                                     </div>
                                 @endif
-                    </div>
-                        @endif
-
-                        @else
-                            @if($user->id == $user_wo)
-                                <div class="fs-9 d-flex justify-content-center" style="color: red">
-                                    There are no trainings for this unit.
-
-                                <div class="ms-2">
-                                    <button class="btn btn-primary btn-sm" onclick="createTrainings({{ $manual_id }})">
-                                        <i class="bi bi-plus-circle"></i> Create Trainings
-                                    </button>
-                                </div>
-                    </div>
                             @endif
-                        @endif
+                        </div>
                     </div>
+                    <div class="col-7">
+
+                    </div>
+
+                </div>
+
 
 
                 <div class="d-flex justify-content-center">
@@ -714,12 +682,6 @@
                                     Inspection')
                                     }}</th>
                                     <th class=" text-primary text-center " style="width: 150px;">
-
-                                        {{--                                        <a href="{{ route('tdrs.unit-inspection', ['workorder_id' => $current_wo->id,--}}
-                                        {{--                                        'type' => 'unit']) }}"--}}
-                                        {{--                                           class="btn btn-outline-info btn-sm" style="height: 32px"  >--}}
-                                        {{--                                            {{ __('Add_D') }}--}}
-                                        {{--                                        </a>--}}
                                         <a href="{{ route('tdrs.inspection.unit', ['workorder_id' => $current_wo->id]) }}"
                                            class="btn btn-outline-info btn-sm" style="height: 32px">
                                             {{ __('Add') }}
@@ -786,9 +748,6 @@
                                                     @endif
                                                 @endif
 
-
-                                                {{--{{$tdr->necessaries}}--}}
-
                                             </td>
                                         </tr>
                                     @endif
@@ -810,11 +769,6 @@
                                     <th class=" text-center  text-primary " style="width: 200px">{{__('Necessary')}}</th>
                                     <th class=" text-center  text-primary " style="width: 120px">{{__('Code')}}</th>
                                     <th class=" text-primary text-center" style="width: 150px"> {{__('Action')}}
-                                        {{--                                        <a href="{{ route('tdrs.component-inspection', ['workorder_id' => $current_wo->id,--}}
-                                        {{--                                        'type' => 'component']) }}"--}}
-                                        {{--                                           class="btn btn-outline-info btn-sm" style="height: 32px"  >--}}
-                                        {{--                                            {{ __('Add_D') }}--}}
-                                        {{--                                        </a>--}}
                                         <a href="{{ route('tdrs.inspection.component', ['workorder_id' => $current_wo->id])}}"
                                            class="btn btn-outline-info btn-sm ms-3" style="height: 32px">
                                             {{ __('Add') }}

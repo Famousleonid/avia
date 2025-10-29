@@ -177,6 +177,11 @@
 
     @php
         $earliestTrainingDate = $training->manual->trainings()->where('form_type', 112)->min('date_training');
+        $previousTrainingDate = $training->manual->trainings()
+            ->where('form_type', 112)
+            ->where('date_training', '<', $training->date_training)
+            ->where('id', '!=', $training->id)
+            ->max('date_training');
     @endphp
 
 
@@ -204,7 +209,7 @@
             <h6>2. Testing and Fault Isolation;</h6>
         </div>
         <div class="col-2 border-t-b pt-3 text-center hrs-topic-1">
-            <h5>{{ $training->form_type == 112 && $training->date_training == $earliestTrainingDate ? $training->manual->training_hours : 2 }}</h5>
+            <h5>{{ $training->form_type == 112 && ($training->date_training == $earliestTrainingDate || ($previousTrainingDate && \Carbon\Carbon::parse($training->date_training)->diffInDays(\Carbon\Carbon::parse($previousTrainingDate)) >= 365)) ? $training->manual->training_hours : 2 }}</h5>
         </div>
         <div class="col-1 border-all pt-3 text-center trainer-init">
             <h5>{{ __('V.N.') }}</h5>
@@ -236,7 +241,7 @@
             <h6>5. Check;</h6>
         </div>
         <div class="col-2 border-t-b pt-4 text-center hrs-topic-1">
-            <h5>{{ $training->form_type == 112 && $training->date_training == $earliestTrainingDate ? $training->manual->training_hours : 2 }}</h5>
+            <h5>{{ $training->form_type == 112 && ($training->date_training == $earliestTrainingDate || ($previousTrainingDate && \Carbon\Carbon::parse($training->date_training)->diffInDays(\Carbon\Carbon::parse($previousTrainingDate)) >= 365)) ? $training->manual->training_hours : 2 }}</h5>
         </div>
         <div class="col-1 border-all pt-4 text-center trainer-init">
             <h5>{{ __('V.N.') }}</h5>
@@ -267,7 +272,7 @@
             <h6>7. Repair;</h6>
         </div>
         <div class="col-2 border-t-b pt-3 text-center hrs-topic">
-            <h5>{{ $training->form_type == 112 && $training->date_training == $earliestTrainingDate ?
+            <h5>{{ $training->form_type == 112 && ($training->date_training == $earliestTrainingDate || ($previousTrainingDate && \Carbon\Carbon::parse($training->date_training)->diffInDays(\Carbon\Carbon::parse($previousTrainingDate)) >= 365)) ?
             $training->manual->training_hours
             : 2 }}</h5>
         </div>
@@ -295,7 +300,7 @@
             <h6>9. Assembly;</h6>
         </div>
         <div class="col-2 border-t-b pt-3 text-center hrs-topic">
-            <h5>{{ $training->form_type == 112 && $training->date_training == $earliestTrainingDate ? $training->manual->training_hours : 2 }}</h5>
+            <h5>{{ $training->form_type == 112 && ($training->date_training == $earliestTrainingDate || ($previousTrainingDate && \Carbon\Carbon::parse($training->date_training)->diffInDays(\Carbon\Carbon::parse($previousTrainingDate)) >= 365)) ? $training->manual->training_hours : 2 }}</h5>
         </div>
         <div class="col-1 border-all pt-3 text-center trainer-init">
             <h5>{{ __('V.N.') }}</h5>
@@ -321,7 +326,7 @@
             <h6>11. Final Check.</h6>
         </div>
         <div class="col-2 border-t-b pt-3 text-center hrs-topic">
-            <h5>{{ $training->form_type == 112 && $training->date_training == $earliestTrainingDate ? $training->manual->training_hours : 2 }}</h5>
+            <h5>{{ $training->form_type == 112 && ($training->date_training == $earliestTrainingDate || ($previousTrainingDate && \Carbon\Carbon::parse($training->date_training)->diffInDays(\Carbon\Carbon::parse($previousTrainingDate)) >= 365)) ? $training->manual->training_hours : 2 }}</h5>
         </div>
         <div class="col-1 border-all pt-3 text-center trainer-init">
             <h5>{{ __('V.N.') }}</h5>
