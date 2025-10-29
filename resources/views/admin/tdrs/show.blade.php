@@ -641,8 +641,8 @@
                                         Last training {{ $monthsDiff }} months ago ({{ $trainingDate->format('M d, Y') }}). Need Update
                                         @if($user->id == $user_wo)
                                             <div class="ms-2">
-                                                <button class="btn btn-warning btn-sm" onclick="updateTrainings({{ $manual_id }}, '{{ $trainings->date_training }}')">
-                                                    <i class="bi bi-arrow-clockwise"></i> Update Trainings
+                                                <button class="btn btn-warning btn-sm" onclick="updateTrainingToToday({{ $manual_id }}, '{{ $trainings->date_training }}')">
+                                                    <i class="bi bi-calendar-check"></i> Update to Today
                                                 </button>
                                             </div>
                                         @endif
@@ -1080,47 +1080,118 @@
         }
 
         // Функция обновления тренировки на сегодняшнюю дату
-        function updateTrainingToToday(manualId, lastTrainingDate) {
+        function updateTrainingToToday(manualId, lastTrainingDate, autoUpdate = false) {
             const today = new Date();
-            const todayStr = today.toISOString().split('T')[0];
+            today.setHours(0, 0, 0, 0);
+            
+            // Если сегодня пятница - используем сегодня, иначе последнюю прошедшую пятницу
+            let trainingDate;
+            if (today.getDay() === 5) { // 5 = пятница
+                trainingDate = today;
+            } else {
+                // Находим последнюю прошедшую пятницу
+                const dayOfWeek = today.getDay();
+                let daysToSubtract;
+                if (dayOfWeek === 0) { // Воскресенье - пятница была вчера (1 день назад)
+                    daysToSubtract = 1;
+                } else if (dayOfWeek === 6) { // Суббота - пятница была вчера (1 день назад)
+                    daysToSubtract = 1;
+                } else { // Понедельник-четверг - пятница была (dayOfWeek + 2) дней назад
+                    daysToSubtract = dayOfWeek + 2;
+                }
+                trainingDate = new Date(today);
+                trainingDate.setDate(today.getDate() - daysToSubtract);
+            }
+            
+            const todayStr = trainingDate.toISOString().split('T')[0];
             const lastTraining = new Date(lastTrainingDate);
             const monthsDiff = Math.floor((today - lastTraining) / (1000 * 60 * 60 * 24 * 30));
 
-            const confirmationMessage = `Update training to today's date?\n\n` +
-                `Last training: ${lastTrainingDate} (${monthsDiff} months ago)\n` +
-                `New training date: ${todayStr} (today)\n\n` +
-                `This will create a new training record for today and update the training status.`;
+            // Если автоматическое обновление, не показываем подтверждение
+            if (!autoUpdate) {
+                const confirmationMessage = `Update training to today's date?\n\n` +
+                    `Last training: ${lastTrainingDate} (${monthsDiff} months ago)\n` +
+                    `New training date: ${todayStr}\n\n` +
+                    `This will create a new training record and update the training status.`;
 
-            if (confirm(confirmationMessage)) {
-                const trainingData = {
-                    manuals_id: [manualId],
-                    date_training: [todayStr],
-                    form_type: ['112']
-                };
+                if (!confirm(confirmationMessage)) {
+                    return;
+                }
+            }
 
-                fetch('{{ route('trainings.updateToToday') }}', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'X-CSRF-TOKEN': '{{ csrf_token() }}'
-                    },
-                    body: JSON.stringify(trainingData)
-                })
-                .then(response => response.json())
-                .then(data => {
-                    if (data.success) {
+            const trainingData = {
+                manuals_id: [manualId],
+                date_training: [todayStr],
+                form_type: ['112']
+            };
+
+            fetch('{{ route('trainings.updateToToday') }}', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN': '{{ csrf_token() }}'
+                },
+                body: JSON.stringify(trainingData)
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    if (!autoUpdate) {
                         alert(`Training updated to today!\nCreated: ${data.created} training record(s)`);
-                        location.reload();
-                    } else {
+                    }
+                    location.reload();
+                } else {
+                    if (!autoUpdate) {
                         alert('Error updating training: ' + (data.message || 'Unknown error'));
                     }
-                })
-                .catch(error => {
-                    console.error('Error:', error);
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                if (!autoUpdate) {
                     alert('An error occurred: ' + error.message);
-                });
-            }
+                }
+            });
         }
+
+        // Предложение обновить тренинг при загрузке страницы, если больше 12 месяцев
+        @if($trainings && $trainings->date_training && $user->id == $user_wo)
+            @php
+                $trainingDate = \Carbon\Carbon::parse($trainings->date_training);
+                $monthsDiff = $trainingDate->diffInMonths(now());
+            @endphp
+            @if($monthsDiff > 12)
+                document.addEventListener('DOMContentLoaded', function() {
+                    // Предлагаем обновить тренинг на сегодняшнюю дату
+                    const today = new Date();
+                    today.setHours(0, 0, 0, 0);
+                    
+                    let trainingDateStr;
+                    if (today.getDay() === 5) {
+                        trainingDateStr = today.toISOString().split('T')[0];
+                    } else {
+                        const dayOfWeek = today.getDay();
+                        let daysToSubtract;
+                        if (dayOfWeek === 0 || dayOfWeek === 6) {
+                            daysToSubtract = 1;
+                        } else {
+                            daysToSubtract = dayOfWeek + 2;
+                        }
+                        const lastFriday = new Date(today);
+                        lastFriday.setDate(today.getDate() - daysToSubtract);
+                        trainingDateStr = lastFriday.toISOString().split('T')[0];
+                    }
+                    
+                    const confirmationMessage = `Last training was ${monthsDiff} months ago ({{ $trainings->date_training }}).\n\n` +
+                        `Would you like to update training to ${trainingDateStr}?\n\n` +
+                        `This will create a new training record and update the training status.`;
+                    
+                    if (confirm(confirmationMessage)) {
+                        updateTrainingToToday({{ $manual_id }}, '{{ $trainings->date_training }}', false);
+                    }
+                });
+            @endif
+        @endif
 
     </script>
 
