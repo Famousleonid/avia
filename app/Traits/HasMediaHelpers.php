@@ -15,9 +15,13 @@ trait HasMediaHelpers
      */
     public function getFirstMediaFromCollection(string $collection): ?Media
     {
-        // Используем встроенную ленивую загрузку отношений Laravel
-        // Если медиа уже были загружены через ->with('media'), нового запроса не будет.
-        return $this->media->where('collection_name', $collection)->first();
+        // если отношение media загружено — берём из памяти
+        if ($this->relationLoaded('media')) {
+            return $this->media->where('collection_name', $collection)->first();
+        }
+
+        // иначе – надёжный fallback через Spatie
+        return $this->getFirstMedia($collection);
     }
 
     /**
