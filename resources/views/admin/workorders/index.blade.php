@@ -18,7 +18,7 @@
             overflow-x: auto;
         }
         #show-workorder {
-            table-layout: fixed; /* ИЗМЕНЕНИЕ 2: Заставляем таблицу уважать ширину колонок */
+            table-layout: fixed;
             width: 100%;
         }
         .table th, .table td {
@@ -92,8 +92,8 @@
         }
         .photo-thumbnail {
             width: 100%;
-            aspect-ratio: 1 / 1; /* Делает контейнер для изображения квадратным */
-            object-fit: cover;   /* Масштабирует изображение, чтобы оно полностью заполнило контейнер, сохраняя пропорции и обрезая лишнее */
+            aspect-ratio: 1 / 1;
+            object-fit: cover;
         }
 
 
@@ -164,8 +164,7 @@
                     @foreach ($workorders as $workorder)
                         <tr
                             data-tech-id="{{ $workorder->user_id }}"
-                            data-done="{{ $workorder->main->whereIn('task.name', ['Submitted Wo Assembly', 'Done'])->isNotEmpty() ? '1' : '0' }}"
-                        >
+                            data-done="{{ $workorder->main->whereIn('task.name', ['Submitted Wo Assembly', 'Done'])->isNotEmpty() ? '1' : '0' }}">
                             <td class="text-center">
 
                                 @if ($workorder->main->whereIn('task.name', ['Submitted Wo Assembly', 'Done'])->isNotEmpty())

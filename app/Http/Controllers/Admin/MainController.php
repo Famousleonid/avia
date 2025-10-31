@@ -115,7 +115,7 @@ class MainController extends Controller
         $imgThumb = $imgThumb ?? asset('img/placeholder-160x160.png');
 
         $tdrIds = Tdr::where('workorder_id', $workorder_id)
-            ->whereNull('deleted_at')
+
             ->pluck('id');
 
         $tdrProcessesTotal = TdrProcess::whereIn('tdrs_id', $tdrIds)->count();

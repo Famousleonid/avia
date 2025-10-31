@@ -482,7 +482,7 @@
 
             const manualId = document.getElementById('processes-container').dataset.manualId;
 
-            fetch(`{{ route('admin.processes.getProcesses') }}?processNameId=${processNameId}&manualId=${manualId}`)
+            fetch(`{{ route('processes.getProcesses') }}?processNameId=${processNameId}&manualId=${manualId}`)
                 .then(response => {
                     if (!response.ok) {
                         throw new Error('Network response was not ok');
@@ -536,7 +536,7 @@
                     formData.append('process', newProcess);
                     formData.append('manual_id', manualId);
 
-                    fetch("{{ route('admin.processes.store') }}", {
+                    fetch("{{ route('processes.store') }}", {
                         method: 'POST',
                         headers: {
                             'X-Requested-With': 'XMLHttpRequest',

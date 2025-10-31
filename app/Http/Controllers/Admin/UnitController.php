@@ -10,7 +10,6 @@ use App\Models\Scope;
 use App\Models\Unit;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Throwable;
 
@@ -23,7 +22,7 @@ class UnitController extends Controller
     public function index()
     {
         // Получаем все units и связанные с ними manuals
-        $units = Unit::with('manuals')->get();
+        $units = Unit::with('manual')->get();
         $units_all = $units;
 
         // Проверка загруженных данных
@@ -53,27 +52,10 @@ class UnitController extends Controller
         $builders = Builder::pluck('name', 'id');
         $scopes = Scope::pluck('scope', 'id');
 
-        // Передаем данные в представление
         return view('admin.units.index', compact('groupedUnits', 'restManuals', 'manuals', 'planes', 'builders', 'scopes','units_all'));
     }
 
 
-    /**
-     * Show the forms for creating a new resource.
-     */
-//    public function create()
-//    {
-//        $manuals = Manual::all();
-//        $planes = Plane::all(); // Получить все объекты AirCraft
-//        $builders = Builder::all(); // Получить все объекты MFR
-//        $scopes = Scope::all(); // Получить все объекты Scope
-//
-//        return view('admin.units.create', compact('manuals','planes', 'builders', 'scopes'));
-//    }
-
-    /**
-     * Store a newly created resource in storage.
-     */
     public function store(Request $request): JsonResponse
     {
         try {
@@ -82,79 +64,74 @@ class UnitController extends Controller
                 return response()->json(['error' => 'Invalid request type'], 400);
             }
 
-            Log::channel('avia')->debug('Incoming request to UnitController@store', $request->all());
+            Log::channel('avia')->info('Unit store raw payload', $request->all());
 
+            // Ветка 1: фронт прислал ОДИН юнит (manual_id + part_number)
+            if ($request->has(['manual_id', 'part_number'])) {
+                $data = $request->validate([
+                    'manual_id'   => 'required|exists:manuals,id',
+                    'part_number' => 'required|string|max:255',
+                    'eff_code'    => 'nullable|string|max:255',
+                ]);
+
+                $unit = Unit::create([
+                    'manual_id'   => $data['manual_id'],
+                    'part_number' => $data['part_number'],
+                    'eff_code'    => $data['eff_code'] ?? null,
+                    'verified'    => false,
+                ]);
+
+                Log::channel('avia')->info('Unit created (single)', ['id' => $unit->id]);
+
+                // Отдаём то, что ожидает фронт при добавлении опции в селект
+                return response()->json([
+                    'id'           => $unit->id,
+                    'part_number'  => $unit->part_number,
+                    'manual_title' => optional($unit->manual)->title,
+                ], 201);
+            }
+
+            // Ветка 2: батч-формат (cmm_id + units[])
             $validated = $request->validate([
-                'cmm_id' => 'required|exists:manuals,id',
-                'units' => 'required|array|min:1',
+                'cmm_id'            => 'required|exists:manuals,id',
+                'units'             => 'required|array|min:1',
                 'units.*.part_number' => 'required|string|max:255',
-                'units.*.eff_code' => 'nullable|string|max:255',
+                'units.*.eff_code'    => 'nullable|string|max:255',
             ]);
 
-            Log::channel('avia')->debug('Validated data', $validated);
+            Log::channel('avia')->info('Unit batch validated', $validated);
 
             $createdUnits = [];
             foreach ($validated['units'] as $unitData) {
-                $unit = Unit::create([
+                $createdUnits[] = Unit::create([
                     'part_number' => $unitData['part_number'],
-                    'manual_id' => $validated['cmm_id'],
-                    'eff_code' => $unitData['eff_code'] ?? null,
-                    'verified' => false,
+                    'manual_id'   => $validated['cmm_id'],
+                    'eff_code'    => $unitData['eff_code'] ?? null,
+                    'verified'    => false,
                 ]);
-                $createdUnits[] = $unit;
             }
 
-            Log::channel('avia')->info('Units created', ['count' => count($createdUnits), 'manual_id' => $validated['cmm_id']]);
+            Log::channel('avia')->info('Units created (batch)', [
+                'count'     => count($createdUnits),
+                'manual_id' => $validated['cmm_id'],
+            ]);
 
             return response()->json([
                 'success' => true,
                 'message' => count($createdUnits) . ' unit(s) created successfully',
-                'units' => $createdUnits,
-            ]);
+                'units'   => $createdUnits,
+            ], 201);
+
         } catch (Throwable $e) {
             Log::channel('avia')->error('Unit store exception', [
                 'message' => $e->getMessage(),
-                'trace' => $e->getTraceAsString(),
+                'trace'   => $e->getTraceAsString(),
             ]);
             return response()->json(['error' => 'Server error'], 500);
         }
     }
 
-//    public function storeWorkorder(Request $request)
-//    {
-//        // Валидация данных
-//        $request->validate([
-//            'manual_id' => 'required|exists:manuals,id',
-//            'part_number' => 'required|string|distinct',
-//        ]);
-//
-//        try {
-//            // Сохранение нового юнита
-//            $unit = Unit::create([
-//                'manual_id' => $request->manual_id,
-//                'part_number' => $request->part_number,
-//                'verified' => false,
-//            ]);
-//
-//            return response()->json(['success' => true, 'id' => $unit->id, 'part_number' => $unit->part_number]);
-//        } catch (\Exception $e) {
-//            \Log::error('Error saving unit: ' . $e->getMessage());
-//            return response()->json(['success' => false, 'error' => 'An error occurred while saving the unit.'], 500);
-//        }
-//    }
 
-//    public function toggleVerified(Request $request, Unit $unit)
-//    {
-//        try {
-//            $unit->verified = $request->input('verified');
-//            $unit->save();
-//
-//            return response()->json(['success' => true]);
-//        } catch (\Exception $e) {
-//            \Log::error('Error toggling verified status: ' . $e->getMessage());
-//            return response()->json(['success' => false, 'error' => 'An error occurred while updating verified status.'], 500);
-//        }
-//    }
 
 
     /**
@@ -162,10 +139,7 @@ class UnitController extends Controller
      */
     public function show(string $manualId)
     {
-        // Убедитесь, что вы правильно получаете юниты
         $units = Unit::where('manual_id', $manualId)->get();
-
-        // Возвращаем данные в формате JSON
         return response()->json(['units' => $units]);
     }
 
@@ -189,7 +163,7 @@ class UnitController extends Controller
 
     public function getUnitsByManual($manualId)
     {
-        $units = Unit::where('manuals_id', $manualId)->get();
+        $units = Unit::where('manual_id', $manualId)->get();
 
         return response()->json([
             'units' => $units,
@@ -198,21 +172,11 @@ class UnitController extends Controller
 
     public function update($manualId, Request $request)
     {
-        \Log::info('Request received:', [
-            'manual_id' => $manualId,
-            'part_numbers' => $request->input('part_numbers'),
-            'request_all' => $request->all(),
-            'content_type' => $request->header('Content-Type'),
-            'url' => $request->url(),
-            'method' => $request->method(),
-        ]);
 
         try {
             $manual = Manual::findOrFail($manualId);
-            \Log::info('Manual found:', ['manual_id' => $manual->id, 'manual_number' => $manual->number]);
 
             if (!$request->has('part_numbers') || !is_array($request->input('part_numbers'))) {
-                \Log::error('Invalid part_numbers format');
                 return response()->json(['success' => false, 'error' => 'Invalid part_numbers format'], 400);
             }
 
@@ -222,16 +186,12 @@ class UnitController extends Controller
 
             $existingPartNumbers = $manual->units()->pluck('part_number')->toArray();
 
-            \Log::info('Existing part numbers:', $existingPartNumbers);
-            \Log::info('New part numbers:', $newPartNumbersArray);
-
             Unit::where('manual_id', $manualId)
                 ->whereNotIn('part_number', $newPartNumbersArray)
                 ->delete();
 
             foreach ($request->input('part_numbers') as $unit) {
-                \Log::info('Processing unit:', $unit);
-                
+
                 $result = Unit::updateOrCreate(
                     ['manual_id' => $manualId, 'part_number' => $unit['part_number']],
                     [
@@ -239,22 +199,11 @@ class UnitController extends Controller
                         'eff_code' => $unit['eff_code'] ?? null
                     ]
                 );
-                
-                \Log::info('Unit processed:', [
-                    'id' => $result->id,
-                    'part_number' => $result->part_number,
-                    'eff_code' => $result->eff_code,
-                    'verified' => $result->verified
-                ]);
             }
 
             return response()->json(['success' => true]);
         } catch (\Exception $e) {
-            \Log::error('Error updating units:', [
-                'error_message' => $e->getMessage(),
-                'manual_id' => $manualId,
-                'request_data' => $request->all(),
-            ]);
+
             return response()->json(['success' => false, 'error' => 'An error occurred while updating units'], 500);
         }
     }

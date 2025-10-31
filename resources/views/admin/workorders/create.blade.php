@@ -114,7 +114,7 @@
                                                 @foreach ($units as $unit)
                                                     <option
                                                         value="{{$unit->id}}"
-                                                        data-title="{{ $unit->manuals?->title }}">
+                                                        data-title="{{ $unit->manual?->title }}">
                                                         {{$unit->part_number}}
                                                     </option>
                                                 @endforeach
@@ -407,8 +407,10 @@
                     })
                 })
                     .then(res => {
+                        console.log(res);
                         hideLoadingSpinner();
                         if (!res.ok) throw new Error("Failed to create unit");
+
                         return res.json();
                     })
                     .then(data => {
