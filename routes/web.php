@@ -95,7 +95,7 @@ Route::group(['middleware' => ['auth', 'isAdmin'], 'prefix' => 'admin'], functio
 
     Route::resource('/process-names',ProcessNameController::class);
     Route::resource('/processes', ProcessController::class);
-    Route::get('/get-processes', [ProcessController::class, 'getProcesses'])->name('admin.processes.getProcesses');
+    Route::get('/get-processes', [ProcessController::class, 'getProcesses'])->name('processes.getProcesses');
     Route::resource('/tdr-processes',TdrProcessController::class);
     Route::patch('/tdr-processes/{tdrProcess}/dates', [TdrProcessController::class, 'updateDate'])->name('tdrprocesses.updateDate');
 
