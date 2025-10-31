@@ -83,9 +83,9 @@ Route::group(['middleware' => ['auth', 'isAdmin'], 'prefix' => 'admin'], functio
     Route::post('/units/{manualId}', [UnitController::class, 'update'])->name('units.update');
 
     Route::resource('/builders', BuilderController::class);
-    Route::resource('/categories', CategoryController::class);
-    Route::resource('/codes', CodeController::class);
-    Route::resource('/necessaries', NecessaryController::class);
+//    Route::resource('/categories', CategoryController::class);
+//    Route::resource('/codes', CodeController::class);
+//    Route::resource('/necessaries', NecessaryController::class);
     Route::resource('/components', ComponentController::class);
 
     Route::post('/components/upload-csv', [ComponentController::class, 'uploadCsv'])->name('components.upload-csv');
@@ -94,8 +94,8 @@ Route::group(['middleware' => ['auth', 'isAdmin'], 'prefix' => 'admin'], functio
     Route::resource('/log_card', LogCardController::class);
 
     Route::resource('/process-names',ProcessNameController::class);
-    Route::resource('/processes', ProcessController::class)->names(['create' => 'admin.processes.create', 'store' => 'admin.processes.store', 'edit' => 'admin.processes.edit', 'update' => 'admin.processes.update', 'destroy' => 'admin.processes.destroy', 'show' => 'admin.processes.show', 'index' => 'admin.processes.index']);
-    Route::get('/get-processes', [ProcessController::class, 'getProcesses'])->name('admin.processes.getProcesses');
+    Route::resource('/processes', ProcessController::class);
+    Route::get('/get-processes', [ProcessController::class, 'getProcesses'])->name('processes.getProcesses');
     Route::resource('/tdr-processes',TdrProcessController::class);
     Route::patch('/tdr-processes/{tdrProcess}/dates', [TdrProcessController::class, 'updateDate'])->name('tdrprocesses.updateDate');
 

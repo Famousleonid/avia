@@ -24,11 +24,12 @@
             letter-spacing: -0.3px;
             transform: scale(0.9);
             transform-origin: left;
+            margin-top: 5px;
         }
 
         .table th:nth-child(1), .table td:nth-child(1) { width: 80px; }
         .table th:nth-child(2), .table td:nth-child(2) { width: 260px; }
-        .table th:nth-child(3), .table td:nth-child(3) { width: 600px; }
+        .table th:nth-child(3), .table td:nth-child(3) { width: 500px; }
         .table th:nth-child(4), .table td:nth-child(4) { width: 140px; }
 
         .table thead th {
@@ -40,7 +41,7 @@
             z-index: 1020;
         }
 
-        @media (max-width: 1200px) {
+        @media (max-width: 600px) {
             .table th:nth-child(4), .table td:nth-child(4),
             .table th:nth-child(2), .table td:nth-child(2),
             .table th:nth-child(3), .table td:nth-child(3) {
@@ -90,6 +91,55 @@
             border-color: #0d6efd;
             box-shadow: 0 0 0 0.2rem rgba(13, 110, 253, 0.25);
         }
+
+        /* Стили для модального окна Group Process Forms */
+        #groupFormsModal .table {
+            margin-bottom: 0;
+        }
+
+        #groupFormsModal .table th {
+            font-weight: 600;
+        }
+
+        #groupFormsModal .table td {
+            vertical-align: middle;
+            padding: 1rem;
+        }
+
+        .component-checkboxes {
+            max-height: 200px;
+            overflow-y: auto;
+            padding: 0.5rem;
+            color: inherit;
+        }
+
+        .component-checkbox:checked + .form-check-label {
+            font-weight: 500;
+            color: inherit;
+        }
+
+        .component-checkboxes .form-check {
+            margin-bottom: 0.5rem;
+            padding: 0.25rem;
+            border-radius: 4px;
+            transition: background-color 0.2s;
+            color: inherit;
+        }
+
+        .component-checkboxes .form-check:hover {
+            background-color: rgba(128, 128, 128, 0.1);
+        }
+
+        .component-checkboxes .form-check-label {
+            font-size: 0.9rem;
+            cursor: pointer;
+            margin-left: 0.5rem;
+            color: inherit;
+        }
+
+        .component-checkboxes strong {
+            color: inherit;
+        }
     </style>
 
     <div class="card-shadow">
@@ -133,26 +183,15 @@
                     <table class="display table table-hover table-bordered bg-gradient shadow">
                         <thead>
                         <tr>
-                            <th class="text-primary text-center">IPL</th>
-                            <th class="text-primary text-center">Name</th>
-                            <th class="text-primary text-center" style="width: 400px">Processes</th>
-                            <th class="text-primary text-center" style="width: 50px">Action</th>
+                            <th class="text-primary text-center" style="width: 10%">IPL</th>
+                            <th class="text-primary text-center"  style="width:15%">Name</th>
+                            <th class="text-primary text-center" style="width: 60%">Processes</th>
+                            <th class="text-primary text-center" style="width: 15%">Action</th>
                         </tr>
                         </thead>
                         <tbody>
                             @foreach($extra_components as $extra_component)
-{{--                                @php--}}
-{{--                                    // Отладочная информация--}}
-{{--                                    \Log::info('Extra component in view', [--}}
-{{--                                        'extra_component_id' => $extra_component->id,--}}
-{{--                                        'component_id' => $extra_component->component_id,--}}
-{{--                                        'component_relation' => $extra_component->component ? [--}}
-{{--                                            'id' => $extra_component->component->id,--}}
-{{--                                            'name' => $extra_component->component->name,--}}
-{{--                                            'ipl_num' => $extra_component->component->ipl_num--}}
-{{--                                        ] : null--}}
-{{--                                    ]);--}}
-{{--                                @endphp--}}
+
                                 <tr>
                                     <td class="text-center">{{ $extra_component->component ? $extra_component->component->ipl_num : 'N/A' }}</td>
                                     <td class="text-center">{{ $extra_component->component ? $extra_component->component->name : 'N/A' }}</td>
@@ -168,7 +207,7 @@
                                                     @if($processName && $process)
                                                         <div class="mb-2  d-flex">
                                                             <strong>{{ $processName->name }}:</strong><br>
-                                                            <span class="badge bg-primary me-1 @if(strlen($process->process) > 50) process-text-long @endif">{{ $process->process }}</span>
+                                                            <span class=" me-1 @if(strlen($process->process) > 50) process-text-long @endif">{{ $process->process }}</span>
                                                         </div>
                                                     @endif
                                                 @endforeach
@@ -182,7 +221,8 @@
                                                     @if($processName && $process)
                                                         <div class="mb-2  d-flex">
                                                             <strong>{{ $processName->name }}:</strong><br>
-                                                            <span class="badge bg-gradient ms-2 @if(strlen($process->process) > 40) process-text-long @endif">{{ $process->process
+                                                            <span class="  ms-2 @if(strlen($process->process) > 80)
+                                                            process-text-long @endif">{{ $process->process
                                                             }}</span>
                                                         </div>
                                                     @endif
@@ -224,7 +264,7 @@
     <!-- Modal - Group Process Forms -->
     @if(isset($processGroups) && count($processGroups) > 0)
         <div class="modal fade" id="groupFormsModal" tabindex="-1" aria-labelledby="groupFormsModalLabel" aria-hidden="true">
-            <div class="modal-dialog">
+            <div class="modal-dialog modal-lg">
                 <div class="modal-content">
                     <div class="modal-header">
                         <h5 class="modal-title" id="groupFormsModalLabel">
@@ -233,51 +273,82 @@
                         <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                     </div>
                     <div class="modal-body">
-{{--                        <!-- Временная отладочная информация -->--}}
-{{--                        <div class="alert alert-info mb-3">--}}
-{{--                            <strong>Debug Info:</strong><br>--}}
-{{--                            Total process groups: {{ count($processGroups) }}<br>--}}
-{{--                            Total extra components: {{ $extra_components->count() }}<br>--}}
-{{--                            <hr>--}}
-{{--                            @foreach($processGroups as $processNameId => $group)--}}
-{{--                                <strong>Process ID {{ $processNameId }}:</strong> {{ $group['process_name']->name }} - qty: {{ $group['qty'] }}, components: {{ $group['count'] }}<br>--}}
-{{--                            @endforeach--}}
-{{--                            <hr>--}}
-{{--                            <strong>All Extra Components:</strong><br>--}}
-{{--                            @foreach($extra_components as $extra_component)--}}
-{{--                                Component ID: {{ $extra_component->component_id }} --}}
-{{--                                @if($extra_component->component)--}}
-{{--                                    ({{ $extra_component->component->name }})--}}
-{{--                                @endif--}}
-{{--                                - Processes: {{ json_encode($extra_component->processes) }}<br>--}}
-{{--                            @endforeach--}}
-{{--                        </div>--}}
-
                         <div class="row">
                             <div class="col-12">
                                 <p class="text-muted mb-3">
                                     <i class="fas fa-info-circle"></i>
-                                    Select a process type to generate a grouped form with all components that have the same process. Each process can have its own vendor.
+                                    Select a process type to generate a grouped form with all components that have the same process. Each process can have its own vendor and component selection.
                                 </p>
                             </div>
                         </div>
 
-                        <div class="d-grid gap-3">
+                        <div class="table-responsive">
+                            <table class="table table-hover table-bordered bg-gradient shadow">
+                                <thead>
+                                    <tr>
+                                        <th class="text-primary text-center" style="width: 25%;">Process</th>
+                                        <th class="text-primary text-center" style="width: 25%;">Components</th>
+                                        <th class="text-primary text-center" style="width: 25%;">Vendor</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
                             @foreach($processGroups as $processNameId => $group)
-                                <div class="row align-items-center">
-                                    <div class="col-8">
+                                        <tr>
+                                            <td class="align-middle">
                                         <a href="{{ route('extra_processes.show_group_forms', ['id' => $current_wo->id, 'processNameId' => $processNameId]) }}"
-                                           class="btn btn-outline-warning btn-lg w-100 group-form-link"
+                                                   class="btn btn-outline-warning w-100 group-form-link"
                                            data-process-name-id="{{ $processNameId }}"
                                            target="_blank">
                                             <i class="fas fa-print me-2"></i>
                                             {{ $group['process_name']->name }}
-                                            <span class="badge bg-primary ms-2">{{ $group['qty'] }} pcs</span>
-                                        </a>
-                                        <!-- Временная отладочная информация -->
-{{--                                        <small class="text-muted">Debug: Process ID {{ $processNameId }}, Qty: {{ $group['qty'] }}, Components: {{ $group['count'] }}</small>--}}
+                                                    <br>
+                                                    <span class="badge bg-primary mt-1 ms-1 process-qty-badge"
+                                                          data-process-name-id="{{ $processNameId }}">
+                                                        {{ $group['qty'] }} pcs
+                                                    </span>
+                                                </a>
+                                            </td>
+                                            <td class="align-middle">
+                                                <div class="component-checkboxes" data-process-name-id="{{ $processNameId }}">
+                                                    @if($group['count'] > 1)
+                                                        @foreach($group['components'] as $component)
+                                                            <div class="form-check">
+                                                                <input class=" ms-1 form-check-input component-checkbox"
+                                                                       type="checkbox"
+                                                                       value="{{ $component['id'] }}"
+                                                                       id="component_{{ $processNameId }}_{{ $component['id'] }}"
+                                                                       data-process-name-id="{{ $processNameId }}"
+                                                                       data-qty="{{ $component['qty'] }}"
+                                                                       checked>
+                                                                <label class="form-check-label" for="component_{{ $processNameId }}_{{ $component['id'] }}">
+                                                                    <strong>{{ $component['ipl_num'] }}</strong> -
+                                                                    {{ Str::limit($component['name'], 40) }}
+                                                                    <span class="">Qty: {{ $component['qty'] }}</span>
+                                                                </label>
+                                                            </div>
+                                                        @endforeach
+                                                    @else
+                                                        @foreach($group['components'] as $component)
+                                                            <div class="form-check">
+                                                                <input class="ms-1 form-check-input component-checkbox"
+                                                                       type="checkbox"
+                                                                       value="{{ $component['id'] }}"
+                                                                       id="component_{{ $processNameId }}_{{ $component['id'] }}"
+                                                                       data-process-name-id="{{ $processNameId }}"
+                                                                       data-qty="{{ $component['qty'] }}"
+                                                                       checked
+                                                                       disabled>
+                                                                <label class="form-check-label" for="component_{{ $processNameId }}_{{ $component['id'] }}">
+                                                                    <strong>{{ $component['ipl_num'] }}</strong> -
+                                                                    {{ Str::limit($component['name'], 40) }}
+                                                                    <span class="">Qty: {{ $component['qty'] }}</span>
+                                                                </label>
+                                                            </div>
+                                                        @endforeach
+                                                    @endif
                                     </div>
-                                    <div class="col-4">
+                                            </td>
+                                            <td class="align-middle">
                                         <select class="form-select vendor-select"
                                                 data-process-name-id="{{ $processNameId }}"
                                                 style="font-size: 0.9rem;">
@@ -286,9 +357,11 @@
                                                 <option value="{{ $vendor->id }}">{{ $vendor->name }}</option>
                                             @endforeach
                                         </select>
-                                    </div>
-                                </div>
+                                            </td>
+                                        </tr>
                             @endforeach
+                                </tbody>
+                            </table>
                         </div>
                     </div>
 {{--                    <div class="modal-footer d-flex justify-content-between">--}}
@@ -304,28 +377,71 @@
         document.addEventListener('DOMContentLoaded', function() {
             const vendorSelects = document.querySelectorAll('.vendor-select');
             const groupFormLinks = document.querySelectorAll('.group-form-link');
+            const componentCheckboxes = document.querySelectorAll('.component-checkbox');
+
+            // Функция для обновления URL с учетом vendor и компонентов
+            function updateLinkUrl(processNameId) {
+                const link = document.querySelector(`.group-form-link[data-process-name-id="${processNameId}"]`);
+                if (!link) return;
+
+                const originalUrl = link.getAttribute('href');
+                const url = new URL(originalUrl, window.location.origin);
+
+                // Добавляем vendor_id если выбран
+                const vendorSelect = document.querySelector(`.vendor-select[data-process-name-id="${processNameId}"]`);
+                if (vendorSelect && vendorSelect.value) {
+                    url.searchParams.set('vendor_id', vendorSelect.value);
+                } else {
+                    url.searchParams.delete('vendor_id');
+                }
+
+                // Добавляем component_ids из выбранных чекбоксов
+                const checkedBoxes = document.querySelectorAll(
+                    `.component-checkbox[data-process-name-id="${processNameId}"]:checked`
+                );
+                if (checkedBoxes.length > 0) {
+                    const selectedComponents = Array.from(checkedBoxes).map(checkbox => checkbox.value);
+                    url.searchParams.set('component_ids', selectedComponents.join(','));
+                } else {
+                    url.searchParams.delete('component_ids');
+                }
+
+                link.setAttribute('href', url.toString());
+            }
+
+            // Функция для обновления badge с количеством
+            function updateQuantityBadge(processNameId) {
+                const checkedBoxes = document.querySelectorAll(
+                    `.component-checkbox[data-process-name-id="${processNameId}"]:checked:not([disabled])`
+                );
+                const badge = document.querySelector(
+                    `.process-qty-badge[data-process-name-id="${processNameId}"]`
+                );
+
+                if (badge && checkedBoxes.length > 0) {
+                    let totalQty = 0;
+                    checkedBoxes.forEach(checkbox => {
+                        const qty = parseInt(checkbox.getAttribute('data-qty')) || 0;
+                        totalQty += qty;
+                    });
+                    badge.textContent = `${totalQty} pcs`;
+                }
+            }
 
             // Обработчик изменения выбора vendor для каждого дропдауна
             vendorSelects.forEach(vendorSelect => {
                 vendorSelect.addEventListener('change', function() {
                     const processNameId = this.getAttribute('data-process-name-id');
-                    const selectedVendorId = this.value;
+                    updateLinkUrl(processNameId);
+                });
+            });
 
-                    // Находим соответствующую кнопку процесса
-                    const correspondingLink = document.querySelector(`.group-form-link[data-process-name-id="${processNameId}"]`);
-
-                    if (correspondingLink) {
-                        const originalUrl = correspondingLink.getAttribute('href');
-                        const url = new URL(originalUrl, window.location.origin);
-
-                        if (selectedVendorId) {
-                            url.searchParams.set('vendor_id', selectedVendorId);
-                        } else {
-                            url.searchParams.delete('vendor_id');
-                        }
-
-                        correspondingLink.setAttribute('href', url.toString());
-                    }
+            // Обработчик изменения чекбоксов компонентов
+            componentCheckboxes.forEach(checkbox => {
+                checkbox.addEventListener('change', function() {
+                    const processNameId = this.getAttribute('data-process-name-id');
+                    updateLinkUrl(processNameId);
+                    updateQuantityBadge(processNameId);
                 });
             });
 
@@ -333,21 +449,15 @@
             groupFormLinks.forEach(link => {
                 link.addEventListener('click', function(e) {
                     const processNameId = this.getAttribute('data-process-name-id');
-
-                    // Находим соответствующий дропдаун vendor
-                    const correspondingVendorSelect = document.querySelector(`.vendor-select[data-process-name-id="${processNameId}"]`);
-
-                    if (correspondingVendorSelect) {
-                        const selectedVendorId = correspondingVendorSelect.value;
-
-                        if (selectedVendorId) {
-                            const originalUrl = this.getAttribute('href');
-                            const url = new URL(originalUrl, window.location.origin);
-                            url.searchParams.set('vendor_id', selectedVendorId);
-                            this.setAttribute('href', url.toString());
-                        }
-                    }
+                    updateLinkUrl(processNameId);
                 });
+            });
+
+            // Инициализация URL и badge при загрузке страницы
+            document.querySelectorAll('.group-form-link').forEach(link => {
+                const processNameId = link.getAttribute('data-process-name-id');
+                updateLinkUrl(processNameId);
+                updateQuantityBadge(processNameId);
             });
         });
     </script>

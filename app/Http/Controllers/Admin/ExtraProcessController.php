@@ -532,11 +532,21 @@ class ExtraProcessController extends Controller
                         if (!isset($processGroups[$processNameId])) {
                             $processGroups[$processNameId] = [
                                 'process_name' => $processName,
-                                'components_qty' => []
+                                'components_qty' => [],
+                                'components' => []
                             ];
                         }
                         // Добавляем/обновляем количество по компоненту
                         $processGroups[$processNameId]['components_qty'][$extra_component->component->id] = (int)($extra_component->qty ?? 0);
+                        // Сохраняем информацию о компоненте
+                        if (!isset($processGroups[$processNameId]['components'][$extra_component->component->id])) {
+                            $processGroups[$processNameId]['components'][$extra_component->component->id] = [
+                                'id' => $extra_component->component->id,
+                                'name' => $extra_component->component->name,
+                                'ipl_num' => $extra_component->component->ipl_num,
+                                'qty' => (int)($extra_component->qty ?? 0)
+                            ];
+                        }
                         \Log::info('Added component to process group', [
                             'process_name_id' => $processNameId,
                             'process_name' => $processName->name,
@@ -554,11 +564,21 @@ class ExtraProcessController extends Controller
                         if (!isset($processGroups[$processNameId])) {
                             $processGroups[$processNameId] = [
                                 'process_name' => $processName,
-                                'components_qty' => []
+                                'components_qty' => [],
+                                'components' => []
                             ];
                         }
                         // Добавляем/обновляем количество по компоненту
                         $processGroups[$processNameId]['components_qty'][$extra_component->component->id] = (int)($extra_component->qty ?? 0);
+                        // Сохраняем информацию о компоненте
+                        if (!isset($processGroups[$processNameId]['components'][$extra_component->component->id])) {
+                            $processGroups[$processNameId]['components'][$extra_component->component->id] = [
+                                'id' => $extra_component->component->id,
+                                'name' => $extra_component->component->name,
+                                'ipl_num' => $extra_component->component->ipl_num,
+                                'qty' => (int)($extra_component->qty ?? 0)
+                            ];
+                        }
                         \Log::info('Added component to process group', [
                             'process_name_id' => $processNameId,
                             'process_name' => $processName->name,
@@ -575,6 +595,8 @@ class ExtraProcessController extends Controller
             $uniqueComponents = array_keys($componentsQty);
             $group['count'] = count($uniqueComponents);
             $group['qty'] = array_sum($componentsQty);
+            // Преобразуем массив компонентов в обычный массив для удобства в представлении
+            $group['components'] = array_values($group['components']);
             \Log::info('Process group count', [
                 'process_name_id' => $processNameId,
                 'process_name' => $group['process_name']->name,
@@ -682,6 +704,22 @@ class ExtraProcessController extends Controller
         $vendorId = $request->input('vendor_id');
         if ($vendorId) {
             $selectedVendor = Vendor::find($vendorId);
+        }
+
+        // Фильтруем компоненты по выбранным component_ids (если переданы)
+        $componentIds = $request->input('component_ids');
+        if ($componentIds) {
+            // Разбиваем строку с ID на массив
+            $filteredComponentIds = is_array($componentIds) 
+                ? array_map('intval', $componentIds) 
+                : array_map('intval', explode(',', $componentIds));
+            
+            // Фильтруем groupedComponents по выбранным component_id
+            $groupedComponents = array_filter($groupedComponents, function($item) use ($filteredComponentIds) {
+                return in_array($item['component']->id, $filteredComponentIds);
+            });
+            // Переиндексируем массив после фильтрации
+            $groupedComponents = array_values($groupedComponents);
         }
 
         // Базовые данные для представления

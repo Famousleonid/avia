@@ -58,13 +58,10 @@
             color: black;
         }
 
-        /* --- Новые и измененные стили для макета --- */
-
-        /* Обертка для всей таблицы (заголовок + тело) */
         .table-wrapper {
             display: flex;
             flex-direction: column;
-            overflow: hidden; /* Важно для правильной работы дочернего скролла */
+            overflow: hidden;
         }
 
         /* Блок, содержащий прокручиваемое тело таблицы */
@@ -75,12 +72,10 @@
             box-sizing: border-box;
         }
 
-        /* Классы для синхронизации ширины колонок */
         .col-workorder { width: 20%; }
-        .col-media { width: 20%; } /* Для Photo, Log, Dam&corr */
+        .col-media { width: 20%; }
         .col-camera { width: 20%; }
 
-        /* Убираем верхнюю границу у второй таблицы, чтобы они слились в одну */
         .table-body-scrollable .table-bordered {
             border-top: none;
         }
@@ -93,10 +88,8 @@
 
 @section('content')
 
-    {{-- Главный контейнер страницы, занимающий 100% высоты родителя (.app-content) --}}
     <div class="container-fluid d-flex flex-column bg-dark p-0" style="height: 100%;">
 
-        {{-- 1. БЛОК ПОИСКА (прилипает к верху) --}}
         <div class="position-sticky bg-dark shadow-sm" style="top: 0; z-index: 10; flex-shrink: 0;">
             <div class="px-3 py-2 border-bottom border-secondary">
                 <div class="position-relative">
@@ -112,10 +105,8 @@
             </div>
         </div>
 
-        {{-- 2. ОБЕРТКА ДЛЯ ТАБЛИЦЫ (растягивается на все оставшееся место) --}}
         <div class="table-wrapper" style="flex-grow: 1; min-height: 0;">
 
-            {{-- 2.1 ЗАГОЛОВОК ТАБЛИЦЫ (статичный, не прокручивается) --}}
             <div class="table-header-sticky">
                 <table class="table-sm table-dark m-0 w-100 table-bordered">
                     <thead>
@@ -189,26 +180,20 @@
         </div>
     </div>
 
-    {{-- Скрытая форма для загрузки фото --}}
     <form id="photo-upload-form" data-url-template="/mobile/workorders/photo/WORKORDER_ID" method="POST" enctype="multipart/form-data" style="display: none;"></form>
 
 @endsection
 
-{{--
-    Секцию @section('scripts') можно вставить сюда без изменений.
---}}
 
 @section('scripts')
     <script>
         document.addEventListener('DOMContentLoaded', () => {
 
-            // ===== Глобальные переменные для хранения состояния =====
             let currentPhotoCategory = 'photos';
             let currentWorkorderId = null;
             let currentWorkorderNumber = null;
 
             // ===== Утилита для HTTP-запросов (POST/DELETE и т.п.) через fetch =====
-            // ИСПРАВЛЕНИЕ: Добавлена проверка response.ok для корректной обработки HTTP-ошибок (4xx, 5xx).
             async function makeRequest(url, method, body = null) {
                 const headers = {
                     'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
@@ -264,8 +249,6 @@
 
 
             // ===== ЕДИНЫЙ ОБРАБОТЧИК КЛИКОВ (ДЕЛЕГИРОВАНИЕ СОБЫТИЙ) =====
-            // УЛУЧШЕНИЕ: Вместо множества querySelectorAll().forEach() используется один обработчик.
-            // Это производительнее и работает для динамически добавленных элементов.
             document.body.addEventListener('click', (event) => {
                 const target = event.target;
 
@@ -354,7 +337,7 @@
                 const cell = document.querySelector(`td[data-workorder-id="${workorderId}"][data-category="${category}"]`);
                 if (!cell) return;
 
-                cell.innerHTML = ''; // Очищаем ячейку
+                cell.innerHTML = '';
 
                 if (response.photos && response.photos.length > 0) {
                     const wrapper = document.createElement('div');
@@ -399,7 +382,6 @@
                 });
             }
 
-            // ===== Открытие камеры и запуск загрузки =====
             function openCamera() {
                 const form = document.getElementById('photo-upload-form');
                 // Удаляем старый input, если он есть, чтобы избежать проблем
@@ -416,8 +398,9 @@
 
                 fileInput.onchange = () => {
                     if (fileInput.files.length > 0) {
-                        showLoadingSpinner();
                         submitPhotos(fileInput.files);
+                    } else {
+                        hideLoadingSpinner();
                     }
                 };
 
@@ -425,8 +408,8 @@
                 fileInput.click();
             }
 
-            // ===== Отправка фото на сервер =====
             async function submitPhotos(files) {
+                showLoadingSpinner();
                 const form = document.getElementById('photo-upload-form');
                 const urlTemplate = form.dataset.urlTemplate;
                 const actionUrl = urlTemplate.replace('WORKORDER_ID', currentWorkorderId) + `?category=${currentPhotoCategory}`;
@@ -438,13 +421,12 @@
 
                 try {
                     const response = await makeRequest(actionUrl, 'POST', formData);
-                    // Обновляем галерею с данными из ответа сервера
                     updateGalleryUI(currentWorkorderId, currentWorkorderNumber, response, currentPhotoCategory);
                     setTimeout(() => bindFancyboxForCell(currentWorkorderId, currentPhotoCategory), 100);
                 } catch (e) {
                     alert(`Error uploading photos: ${e.message}`);
                 } finally {
-                    // TODO: Скрыть спиннер загрузки
+                    hideLoadingSpinner();
                 }
             }
 

@@ -14,8 +14,6 @@ use App\Models\User;
 use App\Models\Workorder;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
-use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\DB;
 
 
 class MainController extends Controller
@@ -54,12 +52,11 @@ class MainController extends Controller
 
     public function show($workorder_id, Request $request)
     {
-
-        $users = User::all();
-        $general_tasks = GeneralTask::orderBy('id')->get();
-        $tasks = Task::orderBy('name')->get();
+        $users          = User::all();
+        $general_tasks  = GeneralTask::orderBy('id')->get();
+        $tasks          = Task::orderBy('name')->get();
         $tasksByGeneral = $tasks->groupBy('general_task_id');
-        $showAll = $request->boolean('show_all', false);
+        $showAll        = $request->boolean('show_all', false);
 
         $mains = Main::with(['user','task.generalTask'])
             ->where('workorder_id', $workorder_id)
@@ -73,6 +70,7 @@ class MainController extends Controller
             'unit.manual.components',
         ])->findOrFail($workorder_id);
 
+        // Components & TDRs (логика "open only" / "all" управляется show_all)
         $components = collect();
         if ($current_workorder->unit?->manual) {
             $components = $current_workorder->unit->manual
@@ -99,21 +97,20 @@ class MainController extends Controller
                 ->get();
         }
 
-
+        // Manual images (thumb/big)
         $manual = optional($current_workorder->unit)->manual;
-
         if ($manual) {
             if (method_exists($manual, 'getFirstMediaThumbnailUrl')) {
-                $imgThumb = $manual->getFirstMediaThumbnailUrl('manuals');   // из HasMediaHelpers
+                $imgThumb = $manual->getFirstMediaThumbnailUrl('manuals'); // из HasMediaHelpers
                 $imgFull  = $manual->getFirstMediaBigUrl('manuals');
             } else {
                 $imgThumb = $manual->getFirstMediaUrl('manuals', 'thumb');
                 $imgFull  = $manual->getFirstMediaUrl('manuals', 'big');
             }
         }
-
         $imgThumb = $imgThumb ?? asset('img/placeholder-160x160.png');
 
+        // Counters
         $tdrIds = Tdr::where('workorder_id', $workorder_id)
 
             ->pluck('id');
@@ -123,18 +120,12 @@ class MainController extends Controller
             ->whereNull('date_finish')
             ->count();
 
-
-
-
- //     dd($total);
-
-
         return view('admin.mains.main', compact(
             'users','current_workorder','mains','general_tasks','tasks','tasksByGeneral',
-            'imgThumb','imgFull','manual','components','showAll','tdrProcessesTotal','tdrProcessesOpen'
+            'imgThumb','imgFull','manual','components','showAll',
+            'tdrProcessesTotal','tdrProcessesOpen'
         ));
     }
-
 
 
 

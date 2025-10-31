@@ -176,29 +176,33 @@ class TrainingController extends Controller
             // Создаем тренировки между First Training Date и Last Training Date
             $this->createMissingTrainingsBetweenDates($userId, $manualId, $dateTraining132, $lastTrainingDate);
             
-            // Создаем новый тренинг с сегодняшней датой или последней прошедшей пятницей
-            $todayDate = now()->startOfDay();
-            
-            // Если сегодня пятница - используем сегодня, иначе последнюю прошедшую пятницу
-            if ($todayDate->dayOfWeek == \Carbon\Carbon::FRIDAY) {
-                $trainingDate = $todayDate;
-            } else {
-                $trainingDate = $todayDate->copy()->previous(\Carbon\Carbon::FRIDAY);
-            }
-            
-            $existingTodayTraining = Training::where('user_id', $userId)
-                ->where('manuals_id', $manualId)
-                ->where('date_training', $trainingDate->format('Y-m-d'))
-                ->where('form_type', '112')
-                ->first();
-            
-            if (!$existingTodayTraining) {
-                Training::create([
-                    'user_id' => $userId,
-                    'manuals_id' => $manualId,
-                    'date_training' => $trainingDate->format('Y-m-d'),
-                    'form_type' => '112',
-                ]);
+            // Если с даты последнего тренинга прошло меньше 12 месяцев, не создаем доп. тренинг на сегодня/последнюю пятницу
+            $monthsSinceLast = $lastTrainingDate->diffInMonths(now());
+            if ($monthsSinceLast >= 12) {
+                // Создаем новый тренинг с сегодняшней датой или последней прошедшей пятницей
+                $todayDate = now()->startOfDay();
+                
+                // Если сегодня пятница - используем сегодня, иначе последнюю прошедшую пятницу
+                if ($todayDate->dayOfWeek == \Carbon\Carbon::FRIDAY) {
+                    $trainingDate = $todayDate;
+                } else {
+                    $trainingDate = $todayDate->copy()->previous(\Carbon\Carbon::FRIDAY);
+                }
+                
+                $existingTodayTraining = Training::where('user_id', $userId)
+                    ->where('manuals_id', $manualId)
+                    ->where('date_training', $trainingDate->format('Y-m-d'))
+                    ->where('form_type', '112')
+                    ->first();
+                
+                if (!$existingTodayTraining) {
+                    Training::create([
+                        'user_id' => $userId,
+                        'manuals_id' => $manualId,
+                        'date_training' => $trainingDate->format('Y-m-d'),
+                        'form_type' => '112',
+                    ]);
+                }
             }
         } else {
             // Создаем тренировки за все пропущенные годы (начиная со следующего года)

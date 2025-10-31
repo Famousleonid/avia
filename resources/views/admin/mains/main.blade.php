@@ -4,16 +4,9 @@
     <style>
         .sf { font-size: 12px; }
 
-        [data-fp]{
-            opacity: 0;
-        }
-        .flatpickr-input[readonly]{
-            opacity: 1 !important;
-        }
-
-        .flatpickr-calendar{
-            z-index: 2000 !important;
-        }
+        [data-fp]{ opacity: 0; }
+        .flatpickr-input[readonly]{ opacity: 1 !important; }
+        .flatpickr-calendar{ z-index: 2000 !important; }
 
         input::placeholder,
         .flatpickr-input::placeholder { color:#6c757d; opacity:1; }
@@ -86,7 +79,6 @@
         #addBtn:not(:disabled){ opacity:1; }
 
         .fp-alt, .finish-input.fp-alt{ cursor:pointer; }
-
     </style>
 @endsection
 
@@ -122,8 +114,7 @@
                                                 <span class="badge bg-warning text-dark">Not approved</span>
                                             @endif
                                             <span class="ms-2 fs-4" title="{{ $current_workorder->description }}" style="cursor:help;">&#9432;</span>
-                                            <a href="{{ route('tdrs.show', $current_workorder->id) }}" class="btn
-                                            btn-outline-success " title="{{ __('TDR Report') }}" onclick="showLoadingSpinner()">
+                                            <a href="{{ route('tdrs.show', $current_workorder->id) }}" class="btn btn-outline-success " title="{{ __('TDR Report') }}" onclick="showLoadingSpinner()">
                                                 <i class="bi bi-journal-richtext" style="font-size: 16px"></i>
                                             </a>
                                         </div>
@@ -290,7 +281,7 @@
                                                 </td>
                                                 <td style="width: 80px">{{ optional($m->date_start)->format('d-M-y') }}</td>
                                                 <td style="width:150px;">
-                                                    {{-- ЛЕВАЯ ПАНЕЛЬ: теперь тоже форма с автосабмитом --}}
+                                                    {{-- ЛЕВАЯ ПАНЕЛЬ: форма с автосабмитом --}}
                                                     <form method="POST" action="{{ route('mains.update', $m) }}" class="auto-submit-form">
                                                         @csrf
                                                         @method('PATCH')
@@ -332,7 +323,6 @@
                                 <h6 class="mb-0 text-primary">Components</h6><span class="text-info">({{ $components->count()}})</span><h6 class="mb-0 text-primary"> & Processes</h6>
                                 <span class="badge text-info">{{ $tdrProcessesTotal }} total</span>
                                 <span class="badge text-info">{{ $tdrProcessesOpen }} open</span>
-
                             </div>
 
                             <form method="get" action="{{ route('mains.show', $current_workorder->id) }}" class="d-flex align-items-center gap-2">
@@ -502,7 +492,6 @@
                         onChange(selectedDates,dateStr,instance){
                             instance.altInput?.dispatchEvent(new Event('change',{bubbles:true}));
                         },
-
                         onReady(selectedDates, dateStr, instance){
                             if (src.getAttribute('placeholder')){
                                 instance.altInput.setAttribute('placeholder', src.getAttribute('placeholder'));
@@ -515,14 +504,11 @@
                             src.style.display = 'none';
                             instance.altInput.style.opacity = '1';
                         }
-
-
-
                     });
                 });
             }
 
-            // Автосабмит для обеих панелей (левая и правая)
+            // Автосабмит (левая и правая панели)
             function initAutoSubmit(){
                 document.querySelectorAll('.auto-submit-form .fp-alt').forEach(inp=>{
                     const submitDebounced = debounce(form=>form.submit(),250);
@@ -565,8 +551,6 @@
                 try { if (typeof showLoadingSpinner === 'function') showLoadingSpinner(); } catch {}
                 if (this.form?.requestSubmit) this.form.requestSubmit(); else this.form?.submit();
             });
-
-
         });
     </script>
 @endsection
