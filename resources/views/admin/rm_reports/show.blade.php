@@ -213,14 +213,14 @@
 
 
                 <div class="ps-2 d-flex" style="width: 600px;">
-{{--                    @if($log_card)--}}
+
                         <a href="{{ route('rm_reports.rmRecordForm', ['id'=> $current_wo->id]) }}"
                            class="btn btn-outline-warning mb-3 formLink "
                            target="_blank"
                            id="#" style=" height: 60px; width: 120px">
                             <i class="bi bi-file-earmark-excel"> R & M Record Form </i>
                         </a>
-{{--                    @endif--}}
+
                 </div>
 
                 <div class="">

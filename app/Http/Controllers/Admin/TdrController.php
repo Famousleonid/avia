@@ -426,6 +426,7 @@ class TdrController extends Controller
             'assy_serial_number' => 'nullable|string',
             'codes_id' => 'nullable|exists:codes,id',
             'necessaries_id' => 'nullable|exists:necessaries,id',
+            'description'=>'nullable|string',
         ]);
 
         // Проверяем, если выбран необходимый пункт "Order New"

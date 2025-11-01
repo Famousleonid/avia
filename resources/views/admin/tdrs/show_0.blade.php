@@ -34,328 +34,9 @@
                                data-bs-target=#infoModal{{$current_wo->number}}>{{$current_wo->number}}
                             </a>
                         </h5>
-                    </div>
-
-
-                    <div class="ps-2 d-flex" >
-
-                        <div class=" " style=" height: 40px; width: 250px;">
-                            <div class=" mt-1 d-flex">
-                                @if($trainings && $trainings->date_training && $user->id == $user_wo)
-                                    @php
-                                        $trainingDate = \Carbon\Carbon::parse($trainings->date_training);
-                                        $monthsDiff = $trainingDate->diffInMonths(now());
-                                        $daysDiff = $trainingDate->diffInDays(now());
-                                        $isThisMonth = $trainingDate->isCurrentMonth();
-                                        $isThisYear = $trainingDate->isCurrentYear();
-                                    @endphp
-                                    @if($monthsDiff<=12)
-                                        <div class="d-flex justify-content-center">
-                                            <div class=" pb-1 " style="color: lawngreen;">
-                                                @if($monthsDiff == 0  && $user->id == $user_wo)
-                                                    @if($isThisMonth)
-                                                        Last training this month
-                                                        <p>{{ $trainingDate->format('M d, Y') }}</p>
-                                                    @else
-                                                        {{--                                                    Last training {{ $monthsDiff }} months ago ({{ $trainingDate->format('M d,--}}
-                                                        {{--                                                    Y') }})--}}
-                                                        Last training for this unit
-                                                        <p>{{ $trainingDate->format('M d, Y') }} </p>
-
-                                                    @endif
-                                                @elseif($monthsDiff == 1)
-                                                    @if($user->id == $user_wo)
-                                                        Last training {{ $monthsDiff }} month ago
-                                                        <p>{{ $trainingDate->format('M d, Y') }}</p>
-                                                    @endif
-                                                @else
-                                                    @if($monthsDiff >= 6 && $user->id == $user_wo)
-
-                                                            Last training {{ $monthsDiff }} months ago
-                                                            <p>{{$trainingDate->format('M d, Y') }}</p>
-
-                                                    @else
-                                                        Last training {{ $monthsDiff }} months ago
-                                                        <p>{{ $trainingDate->format('M d, Y') }}</p>
-                                                    @endif
-                                                @endif
-                                            </div>
-                                            @if($monthsDiff >= 6 && $user->id == $user_wo)
-                                                <div class="text-center ms-2" style="height: 40px; width: 40px">
-                                                    <button class="btn btn-success btn-sm" title="{{ __('Update to Today') }}" onclick="updateTrainingToToday({{
-                                                    $manual_id }}, '{{ $trainings->date_training }}')">
-                                                        <i class="bi bi-calendar-check" style="font-size: 28px;"></i>
-{{--                                                        Update to Today--}}
-                                                    </button>
-                                                </div>
-                                            @endif
-                                        </div>
-
-                                    @else
-                                        <div class=" " style="color: red; ">
-                                            Last training {{ $monthsDiff }} months ago ({{ $trainingDate->format('M d, Y') }}). Need Update
-                                            @if($user->id == $user_wo)
-                                                <div class="ms-2">
-                                                    <button class="btn btn-warning btn-sm" title="{{ __('Update to Today') }}" onclick="updateTrainingToToday({{
-                                                    $manual_id }}, '{{ $trainings->date_training }}')">
-                                                        <i class="bi bi-calendar-check" style="font-size: 28px;" ></i>
-{{--                                                        Update to Today--}}
-                                                    </button>
-                                                </div>
-                                            @endif
-                                        </div>
-                                    @endif
-                                @else
-                                    @if($user->id == $user_wo)
-                                        <div class="d-flex " >
-                                            <div class="" style="color: red;">
-                                                There are no trainings
-                                                <p>for this unit.</p>
-                                            </div>
-                                                <div class="ms-2">
-                                                    <button class="fs-75 btn btn-primary btn-sm" title="{{ __('Create Trainings') }}" onclick="createTrainings({{
-                                                    $manual_id }})">
-                                                        <i class="bi bi-plus-circle" style="font-size: 28px;"></i>
-                                                    </button>
-                                            </div>
-                                        </div>
-
-                                    @endif
-                                @endif
-                            </div>
-                        </div>
-
-                        <div class="me-2 ms-2">
-                            <a href="{{ route('mains.show', $current_wo->id) }}" class="btn
-                                            btn-outline-success " title="{{ __('WO Tasks') }}"
-                               onclick="showLoadingSpinner()">
-                                <i class="bi bi-list-task " style="font-size: 28px;"></i>
-
-                            </a>
-                        </div>
 
 
 
-                        @if(count($processParts))
-                            <div class="me-2">
-                                <a href="{{route('tdrs.processes',['workorder_id' => $current_wo->id])}}"
-                                   class="btn fs-8 btn-outline-primary " style="height: 55px;width: 100px"
-                                   onclick="showLoadingSpinner()">
-                                    {{__('Component Processes')}}
-                                </a>
-                            </div>
-                        @endif
-                        <div class="me-2">
-                            <a href="{{route('extra_processes.show_all',['id'=>$current_wo->id])}}"
-                               class="btn fs-8 btn-outline-primary " style="height: 55px;width: 140px" onclick="showLoadingSpinner
-                                       ()">
-                                {{__('Extra Component Processes')}}
-                            </a>
-                        </div>
-                        <div>
-                            <a href="{{route('log_card.show',['log_card' => $current_wo->id])}}"
-                               class="btn  fs-8 btn-outline-primary " style="min-height: 55px;width: 55px"
-                               onclick="showLoadingSpinner
-                                   ()">
-                                {{__('Log Card')}}
-                            </a>
-                        </div>
-                        <div>
-                            <a href="{{route('wo_bushings.show',['wo_bushing' => $current_wo->id])}}"
-                               class="btn  fs-8 btn-outline-primary ms-2" style="min-height: 55px;width: 85px"
-                               onclick="showLoadingSpinner
-                                   ()">
-                                {{__('Bushing Processes')}}
-                            </a>
-                        </div>
-                        <div>
-                            <a href="{{route('rm_reports.show',['rm_report' => $current_wo->id])}}"
-                               class="btn  fs-8 btn-outline-primary ms-2 " style="height: 55px;width: 150px"
-                               onclick="showLoadingSpinner
-                                   ()">
-                                {{__('Repair & Modification Record')}}
-                            </a>
-                        </div>
-
-                        <div class="ms-5">
-                            @if($current_wo->instruction_id == 1 )
-                                <div class="me-1 ">
-                                    <a href="{{ route('ndt-cad-csv.index', $current_wo->id) }}"
-                                       class="btn fs-8 btn-outline-success" style="min-height: 55px; width: 90px">
-                                        {{--                                    <i class="bi bi-gear"></i> --}}
-                                        STD Processes
-                                    </a>
-                                </div>
-                            @endif
-                        </div>
-                    </div>
-
-                    <div class="ms-3">
-                        <div class="d-flex ">
-
-{{--                            <div class=" " style=" height: 40px; width: 300px;margin-top: -7px">--}}
-{{--                                <div class=" mt-1 ">--}}
-{{--                                    @if($trainings && $trainings->date_training && $user->id == $user_wo)--}}
-{{--                                        @php--}}
-{{--                                            $trainingDate = \Carbon\Carbon::parse($trainings->date_training);--}}
-{{--                                            $monthsDiff = $trainingDate->diffInMonths(now());--}}
-{{--                                            $daysDiff = $trainingDate->diffInDays(now());--}}
-{{--                                            $isThisMonth = $trainingDate->isCurrentMonth();--}}
-{{--                                            $isThisYear = $trainingDate->isCurrentYear();--}}
-{{--                                        @endphp--}}
-{{--                                        @if($monthsDiff<=12)--}}
-{{--                                            <div class="">--}}
-{{--                                                <div class=" pb-1" style="color: lawngreen; margin-top: -7px">--}}
-{{--                                                    @if($monthsDiff == 0  && $user->id == $user_wo)--}}
-{{--                                                        @if($isThisMonth)--}}
-{{--                                                            Last training this month ({{ $trainingDate->format('M d') }})--}}
-{{--                                                        @else--}}
-{{--                                                            --}}{{--                                                    Last training {{ $monthsDiff }} months ago ({{ $trainingDate->format('M d,--}}
-{{--                                                            --}}{{--                                                    Y') }})--}}
-{{--                                                            Last training was {{ $trainingDate->format('M d, Y') }}--}}
-{{--                                                        @endif--}}
-{{--                                                    @elseif($monthsDiff == 1)--}}
-{{--                                                        @if($user->id == $user_wo)--}}
-{{--                                                            Last training {{ $monthsDiff }} month ago ({{ $trainingDate->format('M d') }})--}}
-{{--                                                        @endif--}}
-{{--                                                    @else--}}
-{{--                                                        @if($user->id == $user_wo)--}}
-{{--                                                            Last training {{ $monthsDiff }} months ago ({{ $trainingDate->format('M d') }})--}}
-{{--                                                        @endif--}}
-{{--                                                    @endif--}}
-{{--                                                </div>--}}
-{{--                                                @if($monthsDiff >= 6 && $user->id == $user_wo)--}}
-{{--                                                    <div class="text-center ms-2">--}}
-{{--                                                        <button class="btn btn-success btn-sm" onclick="updateTrainingToToday({{ $manual_id }}, '{{ $trainings->date_training }}')">--}}
-{{--                                                            <i class="bi bi-calendar-check"></i> Update to Today--}}
-{{--                                                        </button>--}}
-{{--                                                    </div>--}}
-{{--                                                @endif--}}
-{{--                                            </div>--}}
-
-{{--                                        @else--}}
-{{--                                            <div class=" " style="color: red;  margin-top: -7px">--}}
-{{--                                                Last training {{ $monthsDiff }} months ago ({{ $trainingDate->format('M d, Y') }}). Need Update--}}
-{{--                                                @if($user->id == $user_wo)--}}
-{{--                                                    <div class="ms-2">--}}
-{{--                                                        <button class="btn btn-warning btn-sm" onclick="updateTrainingToToday({{ $manual_id }}, '{{ $trainings->date_training }}')">--}}
-{{--                                                            <i class="bi bi-calendar-check"></i> Update to Today--}}
-{{--                                                        </button>--}}
-{{--                                                    </div>--}}
-{{--                                                @endif--}}
-{{--                                            </div>--}}
-{{--                                        @endif--}}
-{{--                                    @else--}}
-{{--                                        @if($user->id == $user_wo)--}}
-{{--                                            <div class="" style="color: red; margin-top: -7px">--}}
-{{--                                                There are no trainings for this unit.--}}
-{{--                                                <div class="pt-1">--}}
-{{--                                                    <button class="fs-75 btn btn-primary btn-sm" onclick="createTrainings({{--}}
-{{--                                                    $manual_id }})">--}}
-{{--                                                        <i class="bi bi-plus-circle"></i> Create Trainings--}}
-{{--                                                    </button>--}}
-{{--                                                </div>--}}
-{{--                                            </div>--}}
-{{--                                        @endif--}}
-{{--                                    @endif--}}
-{{--                                </div>--}}
-{{--                            </div>--}}
-
-                            @php
-                                $manual = null;
-                                $hasNdtComponents = false;
-                                $hasCadComponents = false;
-                                $hasStressComponents = false;
-                                $hasPaintComponents = false;
-
-                                // Проверяем наличие NDT компонентов в таблице ndt_cad_csv
-                                if ($current_wo && $current_wo->ndtCadCsv) {
-                                    $ndtComponents = $current_wo->ndtCadCsv->ndt_components;
-                                    $hasNdtComponents = !empty($ndtComponents) && is_array($ndtComponents) && count($ndtComponents) > 0;
-
-                                    $cadComponents = $current_wo->ndtCadCsv->cad_components;
-                                    $hasCadComponents = !empty($cadComponents) && is_array($cadComponents) && count($cadComponents) > 0;
-
-                                    $stressComponents = $current_wo->ndtCadCsv->stress_components;
-                                    $hasStressComponents = !empty($stressComponents) && is_array($stressComponents) && count
-                                    ($stressComponents) > 0;
-
-                                    $paintComponents = $current_wo->ndtCadCsv->paint_components;
-                                    $hasPaintComponents = !empty($paintComponents) && is_array($paintComponents) && count
-                                    ($paintComponents) > 0;
-
-                                }
-
-                                // Оставляем старую логику для совместимости (если нужно)
-                                $hasNdtCsv = false;
-                                $hasCadCsv = false;
-                                $hasStressCsv = false;
-                                $hasPaintCsv = false;
-
-                                if ($current_wo && $current_wo->unit && $current_wo->unit->manuals) {
-                                    $manual = $current_wo->unit->manuals;
-                                    try {
-                                        $csv_media = $manual->getMedia('csv_files')->first(function($media) {
-                                            return $media->getCustomProperty('process_type') === 'ndt';
-                                        });
-                                        $hasNdtCsv = $csv_media !== null;
-                                    } catch (\Exception $e) {
-                                        \Log::error('Error checking NDT CSV:', [
-                                            'message' => $e->getMessage(),
-                                            'workorder_id' => $current_wo->id ?? null,
-                                            'unit_id' => $current_wo->unit->id ?? null,
-                                            'manual_id' => $current_wo->unit->manual_id ?? null
-                                        ]);
-                                    }
-
-                                    try {
-                                        $csv_media = $manual->getMedia('csv_files')->first(function($media) {
-                                            return $media->getCustomProperty('process_type') === 'cad';
-                                        });
-                                        $hasCadCsv = $cad_media !== null;
-                                    } catch (\Exception $e) {
-                                        \Log::error('Error checking CAD CSV:', [
-                                            'message' => $e->getMessage(),
-                                            'workorder_id' => $current_wo->id ?? null,
-                                            'unit_id' => $current_wo->unit->id ?? null,
-                                            'manual_id' => $current_wo->unit->manual_id ?? null
-                                        ]);
-                                    }
-                                    try {
-                                        $stress_media = $manual->getMedia('csv_files')->first(function($media) {
-                                            return $media->getCustomProperty('process_type') === 'stress';
-                                        });
-                                        $hasStressCsv = $stress_media !== null;
-                                    } catch (\Exception $e) {
-                                        \Log::error('Error checking Stress CSV:', [
-                                            'message' => $e->getMessage(),
-                                            'workorder_id' => $current_wo->id ?? null,
-                                            'unit_id' => $current_wo->unit->id ?? null,
-                                            'manual_id' => $current_wo->unit->manual_id ?? null
-                                        ]);
-                                    }
-                                    try {
-                                        $paint_media = $manual->getMedia('csv_files')->first(function($media) {
-                                            return $media->getCustomProperty('process_type') === 'paint';
-                                        });
-                                        $hasPaintCsv = $paint_media !== null;
-                                    } catch (\Exception $e) {
-                                        \Log::error('Error checking Paint CSV:', [
-                                            'message' => $e->getMessage(),
-                                            'workorder_id' => $current_wo->id ?? null,
-                                            'unit_id' => $current_wo->unit->id ?? null,
-                                            'manual_id' => $current_wo->unit->manual_id ?? null
-                                        ]);
-                                    }
-                                }
-                            @endphp
-
-
-
-
-                        </div>
-
-                        <!--  WO INfo -->
                         <div class="modal fade" id="infoModal{{$current_wo->number}}" tabindex="-1"
                              role="dialog" aria-labelledby="infoModalLabel{{$current_wo->number}}" aria-hidden="true">
                             <div class="modal-dialog modal-dialog-centered" role="document">
@@ -492,6 +173,245 @@
                                 </div>
                             </div>
                         </div>
+                    </div>
+
+                    <div class="ps-2 d-flex" style="width: 850px;">
+                        <div class="me-2">
+                            <a href="{{ route('mains.show', $current_wo->id) }}" class="btn
+                                            btn-outline-success " title="{{ __('WO Tasks') }}"
+                               onclick="showLoadingSpinner()">
+                                <i class="bi bi-list-task " style="font-size: 28px;"></i>
+
+                            </a>
+                        </div>
+
+                        @if(count($processParts))
+                            <div class="me-2">
+                                <a href="{{route('tdrs.processes',['workorder_id' => $current_wo->id])}}"
+                                   class="btn fs-8 btn-outline-primary " style="height: 55px;width: 100px"
+                                   onclick="showLoadingSpinner()">
+                                    {{__('Component Processes')}}
+                                </a>
+                            </div>
+                        @endif
+                        <div class="me-2">
+                            <a href="{{route('extra_processes.show_all',['id'=>$current_wo->id])}}"
+                               class="btn fs-8 btn-outline-primary " style="height: 55px;width: 140px" onclick="showLoadingSpinner
+                                       ()">
+                                {{__('Extra Component Processes')}}
+                            </a>
+                        </div>
+                        <div>
+                            <a href="{{route('log_card.show',['log_card' => $current_wo->id])}}"
+                               class="btn  fs-8 btn-outline-primary " style="min-height: 55px;width: 55px"
+                               onclick="showLoadingSpinner
+                                   ()">
+                                {{__('Log Card')}}
+                            </a>
+                        </div>
+                        <div>
+                            <a href="{{route('wo_bushings.show',['wo_bushing' => $current_wo->id])}}"
+                               class="btn  fs-8 btn-outline-primary ms-2" style="min-height: 55px;width: 85px"
+                               onclick="showLoadingSpinner
+                                   ()">
+                                {{__('Bushing Processes')}}
+                            </a>
+                        </div>
+                        <div>
+                            <a href="{{route('rm_reports.show',['rm_report' => $current_wo->id])}}"
+                               class="btn  fs-8 btn-outline-primary ms-2 " style="height: 55px;width: 150px"
+                               onclick="showLoadingSpinner
+                                   ()">
+                                {{__('Repair & Modification Record')}}
+                            </a>
+                        </div>
+
+                        <div>
+
+                        </div>
+                    </div>
+
+                    <div class="ms-3">
+                        <div class="d-flex ">
+                            <div class=" d-flex " style=" height: 40px; width: 380px">
+                                @if(count($tdrs))
+
+                                    <a href="{{ route('tdrs.tdrForm', ['id'=> $current_wo->id]) }}"
+                                       class="btn fs-8 btn-outline-warning me-1 formLink "
+                                       target="_blank"
+                                       id="#" style=" height: 55px; width: 60px">
+                                        TDR Form
+                                    </a>
+                                    @if(count($processParts)==0)
+                                        <a href="{{ route('tdrs.specProcessFormEmp', ['id'=> $current_wo->id]) }}"
+                                           class="btn fs-8 btn-outline-warning me-1 formLink "
+                                           target="_blank"
+                                           id="#" style=" height: 55px; width: 60px">
+{{--                                                                                        <i class="bi bi-file-earmark-excel"> SP Form </i>--}}
+                                            SP Form
+                                        </a>
+                                    @endif
+
+                                    <a href="{{ route('tdrs.woProcessForm', ['id'=> $current_wo->id]) }}"
+                                       class="btn fs-8 btn-outline-warning me-1 formLink "
+                                       target="_blank"
+                                       id="#" style=" height: 55px; width: 100px">
+{{--                                                                                <i class="bi bi-file-earmark-excel"> WO Process Sheet </i>--}}
+                                        WO Process Sheet
+                                    </a>
+
+                                    <a href="{{ route('tdrs.prlForm', ['id'=> $current_wo->id]) }}"
+                                       class="btn fs-8 btn-outline-warning me-1 formLink align-content-center "
+                                       target="_blank"
+                                       id="#" style=" height: 55px; width: 55px">
+                                        {{--                                        <i class="bi bi-file-earmark-excel"> PRL </i>--}}
+                                        PRL
+                                    </a>
+                                @endif
+                            </div>
+
+                            @php
+                                $manual = null;
+                                $hasNdtComponents = false;
+                                $hasCadComponents = false;
+                                $hasStressComponents = false;
+                                $hasPaintComponents = false;
+
+                                // Проверяем наличие NDT компонентов в таблице ndt_cad_csv
+                                if ($current_wo && $current_wo->ndtCadCsv) {
+                                    $ndtComponents = $current_wo->ndtCadCsv->ndt_components;
+                                    $hasNdtComponents = !empty($ndtComponents) && is_array($ndtComponents) && count($ndtComponents) > 0;
+
+                                    $cadComponents = $current_wo->ndtCadCsv->cad_components;
+                                    $hasCadComponents = !empty($cadComponents) && is_array($cadComponents) && count($cadComponents) > 0;
+
+                                    $stressComponents = $current_wo->ndtCadCsv->stress_components;
+                                    $hasStressComponents = !empty($stressComponents) && is_array($stressComponents) && count
+                                    ($stressComponents) > 0;
+
+                                    $paintComponents = $current_wo->ndtCadCsv->paint_components;
+                                    $hasPaintComponents = !empty($paintComponents) && is_array($paintComponents) && count
+                                    ($paintComponents) > 0;
+
+                                }
+
+                                // Оставляем старую логику для совместимости (если нужно)
+                                $hasNdtCsv = false;
+                                $hasCadCsv = false;
+                                $hasStressCsv = false;
+                                $hasPaintCsv = false;
+
+                                if ($current_wo && $current_wo->unit && $current_wo->unit->manuals) {
+                                    $manual = $current_wo->unit->manuals;
+                                    try {
+                                        $csv_media = $manual->getMedia('csv_files')->first(function($media) {
+                                            return $media->getCustomProperty('process_type') === 'ndt';
+                                        });
+                                        $hasNdtCsv = $csv_media !== null;
+                                    } catch (\Exception $e) {
+                                        \Log::error('Error checking NDT CSV:', [
+                                            'message' => $e->getMessage(),
+                                            'workorder_id' => $current_wo->id ?? null,
+                                            'unit_id' => $current_wo->unit->id ?? null,
+                                            'manual_id' => $current_wo->unit->manual_id ?? null
+                                        ]);
+                                    }
+
+                                    try {
+                                        $csv_media = $manual->getMedia('csv_files')->first(function($media) {
+                                            return $media->getCustomProperty('process_type') === 'cad';
+                                        });
+                                        $hasCadCsv = $cad_media !== null;
+                                    } catch (\Exception $e) {
+                                        \Log::error('Error checking CAD CSV:', [
+                                            'message' => $e->getMessage(),
+                                            'workorder_id' => $current_wo->id ?? null,
+                                            'unit_id' => $current_wo->unit->id ?? null,
+                                            'manual_id' => $current_wo->unit->manual_id ?? null
+                                        ]);
+                                    }
+                                    try {
+                                        $stress_media = $manual->getMedia('csv_files')->first(function($media) {
+                                            return $media->getCustomProperty('process_type') === 'stress';
+                                        });
+                                        $hasStressCsv = $stress_media !== null;
+                                    } catch (\Exception $e) {
+                                        \Log::error('Error checking Stress CSV:', [
+                                            'message' => $e->getMessage(),
+                                            'workorder_id' => $current_wo->id ?? null,
+                                            'unit_id' => $current_wo->unit->id ?? null,
+                                            'manual_id' => $current_wo->unit->manual_id ?? null
+                                        ]);
+                                    }
+                                    try {
+                                        $paint_media = $manual->getMedia('csv_files')->first(function($media) {
+                                            return $media->getCustomProperty('process_type') === 'paint';
+                                        });
+                                        $hasPaintCsv = $paint_media !== null;
+                                    } catch (\Exception $e) {
+                                        \Log::error('Error checking Paint CSV:', [
+                                            'message' => $e->getMessage(),
+                                            'workorder_id' => $current_wo->id ?? null,
+                                            'unit_id' => $current_wo->unit->id ?? null,
+                                            'manual_id' => $current_wo->unit->manual_id ?? null
+                                        ]);
+                                    }
+                                }
+                            @endphp
+
+
+
+                            @if($current_wo->instruction_id == 1 )
+                                <div class="me-1 ">
+                                    <a href="{{ route('ndt-cad-csv.index', $current_wo->id) }}"
+                                       class="btn fs-8 btn-outline-success" style="min-height: 55px; width: 90px">
+                                        {{--                                    <i class="bi bi-gear"></i> --}}
+                                        STD Processes
+                                    </a>
+                                </div>
+                            @endif
+
+                            @if($current_wo->instruction_id == 1 && $hasNdtComponents)
+                                <div class="me-1">
+                                    <a href="{{ route('tdrs.ndtStd', ['workorder_id' => $current_wo->id]) }}"
+                                       class="btn fs-8 btn-outline-warning" style="min-height: 55px; width: 55px"
+                                       target="_blank">
+                                        NDT STD
+                                    </a>
+                                </div>
+                            @endif
+
+                            @if($current_wo->instruction_id == 1 && $hasCadComponents)
+                                <div class="me-1 ">
+                                    <a href="{{ route('tdrs.cadStd', ['workorder_id' => $current_wo->id]) }}"
+                                       class="btn fs-8 btn-outline-warning" style="min-height: 55px; width: 55px"
+                                       target="_blank">
+                                        CAD STD
+                                    </a>
+                                </div>
+                            @endif
+
+                            @if($current_wo->instruction_id == 1 && $hasStressComponents)
+                                <div class="me-1 ">
+                                    <a href="{{ route('tdrs.stressStd', ['workorder_id' => $current_wo->id]) }}"
+                                       class="btn fs-8 btn-outline-warning" style="min-height: 55px; width: 60px"
+                                       target="_blank">
+                                        Stress STD
+                                    </a>
+                                </div>
+                            @endif
+
+                            @if($hasPaintComponents)
+                                <div class="me-1 ">
+                                    <a href="{{ route('tdrs.paintStd', ['workorder_id' => $current_wo->id]) }}"
+                                       class="btn fs-8 btn-outline-warning" style="min-height: 55px; width: 55px"
+                                       target="_blank">
+                                        Paint STD
+                                    </a>
+                                </div>
+                            @endif
+                        </div>
+
                         <!--  Missing Modal -->
                         <div class="modal fade" id="missingModal{{$current_wo->number}}" tabindex="-1"
                              role="dialog" aria-labelledby="missingModalLabel{{$current_wo->number}}" aria-hidden="true">
@@ -676,105 +596,75 @@
             <! --- Body --- ->
 
 
-            <div class="mb-1 mt-2 d-flex " style="margin-left: 60px">
+            <div class="">
+                <div class="row">
+                    <div class="col-5">
+                        <div class=" mt-1 ">
+                            @if($trainings && $trainings->date_training && $user->id == $user_wo)
+                                @php
+                                    $trainingDate = \Carbon\Carbon::parse($trainings->date_training);
+                                    $monthsDiff = $trainingDate->diffInMonths(now());
+                                    $daysDiff = $trainingDate->diffInDays(now());
+                                    $isThisMonth = $trainingDate->isCurrentMonth();
+                                    $isThisYear = $trainingDate->isCurrentYear();
+                                @endphp
+                                @if($monthsDiff<=12)
+                                    <div class="d-flex  justify-content-center">
+                                        <div class="fs-9 pt-1" style="color: lawngreen">
+                                            @if($monthsDiff == 0  && $user->id == $user_wo)
+                                                @if($isThisMonth)
+                                                    Last training this month ({{ $trainingDate->format('M d') }})
+                                                @else
+                                                    Last training {{ $monthsDiff }} months ago ({{ $trainingDate->format('M d, Y') }})
+                                                @endif
+                                            @elseif($monthsDiff == 1)
+                                                @if($user->id == $user_wo)
+                                                    Last training {{ $monthsDiff }} month ago ({{ $trainingDate->format('M d') }})
+                                                @endif
+                                            @else
+                                                @if($user->id == $user_wo)
+                                                    Last training {{ $monthsDiff }} months ago ({{ $trainingDate->format('M d') }})
+                                                @endif
+                                            @endif
+                                        </div>
+                                        @if($monthsDiff >= 6 && $user->id == $user_wo)
+                                            <div class="text-center ms-2">
+                                                <button class="btn btn-success btn-sm" onclick="updateTrainingToToday({{ $manual_id }}, '{{ $trainings->date_training }}')">
+                                                    <i class="bi bi-calendar-check"></i> Update to Today
+                                                </button>
+                                            </div>
+                                        @endif
+                                    </div>
 
-
-                        <div class=" d-flex " style=" ; width: 380px">
-
-                            @if(count($tdrs))
-                                <a href="{{ route('tdrs.woProcessForm', ['id'=> $current_wo->id]) }}"
-                                   class="btn fs-8 btn-outline-warning me-3 formLink "
-                                   target="_blank"
-                                   id="#" style=" height: 55px; width: 100px">
-                                    {{--                                                                                <i class="bi bi-file-earmark-excel"> WO Process Sheet </i>--}}
-                                    WO Process Sheet
-                                </a>
-
-                                <a href="{{ route('tdrs.tdrForm', ['id'=> $current_wo->id]) }}"
-                                   class="btn fs-8 btn-outline-warning me-1 formLink "
-                                   target="_blank"
-                                   id="#" style=" height: 55px; width: 60px">
-                                    TDR Form
-                                </a>
-                                @if(count($processParts)==0)
-                                    <a href="{{ route('tdrs.specProcessFormEmp', ['id'=> $current_wo->id]) }}"
-                                       class="btn fs-8 btn-outline-warning me-1 formLink "
-                                       target="_blank"
-                                       id="#" style=" height: 55px; width: 60px">
-                                        SP Form
-                                    </a>
                                 @else
-                                    <a href="{{ route('tdrs.specProcessForm', ['id'=> $current_wo->id]) }}"
-                                       class="btn fs-8 btn-outline-warning me-1 formLink "
-                                       target="_blank"
-                                       id="#" style=" height: 55px;width: 60px">
-                                        SP Form
-                                    </a>
+                                    <div class="fs-9 d-flex justify-content-center" style="color: red">
+                                        Last training {{ $monthsDiff }} months ago ({{ $trainingDate->format('M d, Y') }}). Need Update
+                                        @if($user->id == $user_wo)
+                                            <div class="ms-2">
+                                                <button class="btn btn-warning btn-sm" onclick="updateTrainingToToday({{ $manual_id }}, '{{ $trainings->date_training }}')">
+                                                    <i class="bi bi-calendar-check"></i> Update to Today
+                                                </button>
+                                            </div>
+                                        @endif
+                                    </div>
                                 @endif
-
-                                <a href="{{ route('rm_reports.rmRecordForm', ['id'=> $current_wo->id]) }}"
-                                   class="btn fs-8 btn-outline-warning me-1 formLink "
-                                   target="_blank"
-                                   id="#" style=" height: 55px; width: 60px">
-                                        R&M Form
-                                </a>
-
-                                <a href="{{ route('tdrs.prlForm', ['id'=> $current_wo->id]) }}"
-                                   class="btn fs-8 btn-outline-warning me-1 formLink align-content-center "
-                                   target="_blank"
-                                   id="#" style=" height: 55px; width: 55px">
-                                    {{--                                        <i class="bi bi-file-earmark-excel"> PRL </i>--}}
-                                    PRL
-                                </a>
-                            @endif
-
-
-                        </div>
-
-                        <! --- STD Processes --- ->
-                        <div class="d-flex">
-                            @if($current_wo->instruction_id == 1 && $hasNdtComponents)
-                                <div class="me-1">
-                                    <a href="{{ route('tdrs.ndtStd', ['workorder_id' => $current_wo->id]) }}"
-                                       class="btn fs-8 btn-outline-warning" style="min-height: 55px; width: 55px"
-                                       target="_blank">
-                                        NDT STD
-                                    </a>
-                                </div>
-                            @endif
-
-                            @if($current_wo->instruction_id == 1 && $hasCadComponents)
-                                <div class="me-1 ">
-                                    <a href="{{ route('tdrs.cadStd', ['workorder_id' => $current_wo->id]) }}"
-                                       class="btn fs-8 btn-outline-warning" style="min-height: 55px; width: 55px"
-                                       target="_blank">
-                                        CAD STD
-                                    </a>
-                                </div>
-                            @endif
-
-                            @if($current_wo->instruction_id == 1 && $hasStressComponents)
-                                <div class="me-1 ">
-                                    <a href="{{ route('tdrs.stressStd', ['workorder_id' => $current_wo->id]) }}"
-                                       class="btn fs-8 btn-outline-warning" style="min-height: 55px; width: 60px"
-                                       target="_blank">
-                                        Stress STD
-                                    </a>
-                                </div>
-                            @endif
-
-                            @if($hasPaintComponents)
-                                <div class="me-1 ">
-                                    <a href="{{ route('tdrs.paintStd', ['workorder_id' => $current_wo->id]) }}"
-                                       class="btn fs-8 btn-outline-warning" style="min-height: 55px; width: 55px"
-                                       target="_blank">
-                                        Paint STD
-                                    </a>
-                                </div>
+                            @else
+                                @if($user->id == $user_wo)
+                                    <div class="fs-9 d-flex justify-content-center" style="color: red">
+                                        There are no trainings for this unit.
+                                        <div class="ms-2">
+                                            <button class="btn btn-primary btn-sm" onclick="createTrainings({{ $manual_id }})">
+                                                <i class="bi bi-plus-circle"></i> Create Trainings
+                                            </button>
+                                        </div>
+                                    </div>
+                                @endif
                             @endif
                         </div>
+                    </div>
+                    <div class="col-7">
 
-
+                    </div>
 
                 </div>
 

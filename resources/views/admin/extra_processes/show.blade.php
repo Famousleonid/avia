@@ -41,13 +41,13 @@
             z-index: 1020;
         }
 
-        @media (max-width: 600px) {
-            .table th:nth-child(4), .table td:nth-child(4),
-            .table th:nth-child(2), .table td:nth-child(2),
-            .table th:nth-child(3), .table td:nth-child(3) {
-                display: none;
-            }
-        }
+        /*@media (max-width: 600px) {*/
+        /*    .table th:nth-child(4), .table td:nth-child(4),*/
+        /*    .table th:nth-child(2), .table td:nth-child(2),*/
+        /*    .table th:nth-child(3), .table td:nth-child(3) {*/
+        /*        display: none;*/
+        /*    }*/
+        /*}*/
 
         .table th.sortable {
             cursor: pointer;

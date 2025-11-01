@@ -22,17 +22,18 @@
                </div>
                 <div class="d-flex justify-content-between">
                     <div class="ms-2">
-                        <h6>{{ __('Component:') }} {{ $current_tdr->component->name }}</h6>
+                        <h6 style="margin-left: 64px">{{ __('Component:') }} {{ $current_tdr->component->name }}</h6>
                         <h6 style="margin-left: 64px">{{ __('PN:') }} {{ $current_tdr->component->part_number }}</h6>
                         <h6 style="margin-left: 64px">{{ __('IPL:') }} {{ $current_tdr->component->ipl_num }}</h6>
                     </div>
                     <div class="me-4" >
                         @foreach($manuals as $manual)
                             @if($manual->id == $current_tdr->workorder->unit->manual_id)
-                                <div style="margin-left: 23px">Unit: {{ $manual->title }}</div>
-                                <div style="margin-left: 30px">PN: {{ $current_tdr->workorder->unit->part_number }}</div>
-
-                                <div style="margin-left: 13px">CMM: {{ $manual->number }}</div>
+                                <div style="margin-left: 23px">{{__('Unit')}} {{ $manual->title }}</div>
+                                <div style="margin-left: 30px">{{__('PN:')}} {{ $current_tdr->workorder->unit->part_number }}
+                                    {{__('SN:')}} {{ $current_tdr->serial_number }}
+                                </div>
+                                <div style="margin-left: 13px">{{__('CMM:')}} {{ $manual->number }}</div>
                             @endif
                         @endforeach
                     </div>
@@ -57,7 +58,7 @@
                             <input id="serial_number" type="text" value="{{ $current_tdr->serial_number }}"
                                    class="form-control" name="serial_number">
                         </div>
-                        <div class="m-2" style="width: 250px">
+                        <div class="mt-2" style="width: 250px">
                             @if($current_tdr->assy_serial_number != null)
                                 <div id="assy_serial_number_container">
                                     <label for="assy_serial_number">{{ __('Assy Serial Number') }}</label>
@@ -69,7 +70,7 @@
                     </div>
 
                     <div class="d-flex justify-content-center">
-                        <div class="form-group m-2">
+                        <div class="form-group mt-2">
                             <label for="codes_id" class="form-label pe-2">Code Inspection</label>
                             <select name="codes_id" id="codes_id" class="form-control" style="width: 250px">
                                 @foreach($codes as $code)
@@ -79,7 +80,7 @@
                                 @endforeach
                             </select>
                         </div>
-                        <div class="form-group m-2" id="necessary">
+                        <div class="form-group mt-2" id="necessary">
                             <label for="necessaries_id" class="form-label pe-2">Necessary to Do</label>
                             <select name="necessaries_id" id="necessaries_id" class="form-control" style="width: 250px">
                                 @foreach($necessaries as $necessary)
@@ -88,10 +89,15 @@
                                     </option>
                                 @endforeach
                             </select>
-                        </div>
-                    </div>
+                        </div >
 
-                    <div class="text-end">
+                    </div>
+                    <div class="mt-2 " style="width: 500px;margin-left: 70px">
+                        <label for="description">{{ __('Description') }}</label>
+                        <input id="description" type="text" value="{{ $current_tdr->description }}"
+                               class="form-control mt-1" name="description">
+                    </div>
+                    <div class="text-end mt-2">
                         <button type="submit" class="btn btn-outline-primary mt-3">{{ __('Update') }}</button>
                         <a href="{{ route('tdrs.show', ['tdr'=>$current_tdr->workorder->id]) }}"
                         class="btn btn-outline-secondary mt-3" >{{ __('Cancel') }}</a>

@@ -94,8 +94,12 @@ Route::group(['middleware' => ['auth', 'isAdmin'], 'prefix' => 'admin'], functio
     Route::resource('/log_card', LogCardController::class);
 
     Route::resource('/process-names',ProcessNameController::class);
+
     Route::resource('/processes', ProcessController::class);
+    Route::get('processes/create/{manual_id}', [ProcessController::class, 'create'])->name('admin.processes.create');
+    Route::get('processes/edit/{id}', [ProcessController::class, 'edit'])->name('admin.processes.edit');
     Route::get('/get-processes', [ProcessController::class, 'getProcesses'])->name('processes.getProcesses');
+
     Route::resource('/tdr-processes',TdrProcessController::class);
     Route::patch('/tdr-processes/{tdrProcess}/dates', [TdrProcessController::class, 'updateDate'])->name('tdrprocesses.updateDate');
 
@@ -105,7 +109,7 @@ Route::group(['middleware' => ['auth', 'isAdmin'], 'prefix' => 'admin'], functio
     Route::get('/wo_bushings/create/{id}', [WoBushingController::class, 'create'])->name('wo_bushings.create');
 
 
-    // Route for LogCard creation with workorder ID
+
     Route::get('/extra_processes/create/{id}', [ExtraProcessController::class, 'create'])->name('extra_process.create');
     Route::get('/extra_processes/create_processes/{workorderId}/{componentId}', [ExtraProcessController::class, 'createProcesses'])->name('extra_processes.create_processes');
     Route::post('/extra_processes/store_processes', [ExtraProcessController::class, 'storeProcesses'])->name('extra_processes.store_processes');
@@ -117,6 +121,7 @@ Route::group(['middleware' => ['auth', 'isAdmin'], 'prefix' => 'admin'], functio
     Route::get('/extra_processes/{id}/group-forms/{processNameId}', [ExtraProcessController::class, 'showGroupForms'])->name('extra_processes.show_group_forms');
     Route::resource('/extra_processes', ExtraProcessController::class)->except(['create']);
 
+    // Route for LogCard creation with workorder ID
     Route::get('log_card/create/{id}', [LogCardController::class, 'create'])->name('log_card.create');
     Route::get('log_card/edit/{id}', [LogCardController::class, 'edit'])->name('log_card.edit');
     Route::get('log_card/show/{id}', [LogCardController::class, 'show'])->name('log_card.show');
@@ -127,8 +132,7 @@ Route::group(['middleware' => ['auth', 'isAdmin'], 'prefix' => 'admin'], functio
     Route::get('tdrs/show/{id}', [TdrController::class, 'show'])->name('tdrs.show');
     Route::get('tdrs/processes/{workorder_id}',[TdrController::class, 'processes'])->name('tdrs.processes');
 
-    Route::get('processes/create/{manual_id}', [ProcessController::class, 'create'])->name('admin.processes.create');
-    Route::get('processes/edit/{id}', [ProcessController::class, 'edit'])->name('admin.processes.edit');
+
 
     // Vendors routes
     Route::post('/vendors', [VendorController::class, 'store'])->name('vendors.store');
