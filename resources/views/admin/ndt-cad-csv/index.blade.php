@@ -104,7 +104,7 @@
                             Modification of STD list Processes for W{{ $workorder->number }}
                         </h3>
                         <div class="card-tools">
-                            <a href="{{ route('tdrs.show', ['tdr'=>$workorder->id]) }}" class="btn btn-secondary">
+                            <a href="{{ route('tdrs.show', ['id'=>$workorder->id]) }}" class="btn btn-secondary">
                                 <i class="fas fa-arrow-left"></i> Back to Workorder
                             </a>
                         </div>
@@ -1308,7 +1308,7 @@ function initializeWhenReady() {
 
             console.log('Sending NDT add data:', data);
 
-            $.post(`/admin/${workorderId}/ndt-cad-csv/add-ndt`, data).done(function(response) {
+            $.post(`{{ route('ndt-cad-csv.add-ndt', ['workorder' => $workorder->id]) }}`, data).done(function(response) {
                 console.log('NDT add response:', response);
                 if (response.success) {
                     // Обновляем локальный массив
@@ -1362,7 +1362,7 @@ function initializeWhenReady() {
 
             console.log('Sending CAD add data:', data);
 
-            $.post(`/admin/${workorderId}/ndt-cad-csv/add-cad`, data).done(function(response) {
+            $.post(`{{ route('ndt-cad-csv.add-cad', ['workorder' => $workorder->id]) }}`, data).done(function(response) {
                 console.log('CAD add response:', response);
                 if (response.success) {
                     // Обновляем локальный массив
@@ -1417,7 +1417,7 @@ function initializeWhenReady() {
 
             console.log('Sending Paint add data:', data);
 
-            $.post(`/admin/${workorderId}/ndt-cad-csv/add-paint`, data).done(function(response) {
+            $.post(`{{ route('ndt-cad-csv.add-paint', ['workorder' => $workorder->id]) }}`, data).done(function(response) {
                 console.log('Paint add response:', response);
                 if (response.success) {
                     // Обновляем локальный массив
@@ -1472,7 +1472,7 @@ function initializeWhenReady() {
 
             console.log('Sending Stress add data:', data);
 
-            $.post(`/admin/${workorderId}/ndt-cad-csv/add-stress`, data).done(function(response) {
+            $.post(`{{ route('ndt-cad-csv.add-stress', ['workorder' => $workorder->id]) }}`, data).done(function(response) {
                 console.log('Stress add response:', response);
                 if (response.success) {
                     // Обновляем локальный массив
@@ -1522,7 +1522,7 @@ function initializeWhenReady() {
 
             console.log('Sending NDT edit data:', data);
 
-            $.post(`/admin/${workorderId}/ndt-cad-csv/edit-ndt`, data).done(function(response) {
+            $.post(`{{ route('ndt-cad-csv.edit-ndt', ['workorder' => $workorder->id]) }}`, data).done(function(response) {
                 console.log('NDT edit response:', response);
                 if (response.success) {
                     // Обновляем локальный массив
@@ -1572,7 +1572,7 @@ function initializeWhenReady() {
 
             console.log('Sending CAD edit data:', data);
 
-            $.post(`/admin/${workorderId}/ndt-cad-csv/edit-cad`, data).done(function(response) {
+            $.post(`{{ route('ndt-cad-csv.edit-cad', ['workorder' => $workorder->id]) }}`, data).done(function(response) {
                 console.log('CAD edit response:', response);
                 if (response.success) {
                     // Обновляем локальный массив
@@ -1622,7 +1622,7 @@ function initializeWhenReady() {
 
             console.log('Sending Paint edit data:', data);
 
-            $.post(`/admin/${workorderId}/ndt-cad-csv/edit-paint`, data).done(function(response) {
+            $.post(`{{ route('ndt-cad-csv.edit-paint', ['workorder' => $workorder->id]) }}`, data).done(function(response) {
                 console.log('Paint edit response:', response);
                 if (response.success) {
                     // Обновляем локальный массив
@@ -1672,7 +1672,7 @@ function initializeWhenReady() {
 
             console.log('Sending Stress edit data:', data);
 
-            $.post(`/admin/${workorderId}/ndt-cad-csv/edit-stress`, data).done(function(response) {
+            $.post(`{{ route('ndt-cad-csv.edit-stress', ['workorder' => $workorder->id]) }}`, data).done(function(response) {
                 console.log('Stress edit response:', response);
                 if (response.success) {
                     // Обновляем локальный массив
@@ -1709,13 +1709,13 @@ function initializeWhenReady() {
             formData.append('_token', $('meta[name="csrf-token"]').attr('content'));
 
             $.ajax({
-                url: `/admin/${workorderId}/ndt-cad-csv/import`,
+                url: `{{ route('ndt-cad-csv.import', ['workorder' => $workorder->id]) }}`,
                 type: 'POST',
                 data: formData,
                 processData: false,
                 contentType: false,
                 success: function(response) {
-                    if (response.success) {
+            if (response.success) {
                         $('#csvImportModal').modal('hide');
 
                         // Обновляем соответствующий массив компонентов
@@ -1755,7 +1755,7 @@ console.log('showAddCadModal defined:', typeof window.showAddCadModal);
 
 function loadComponents() {
     console.log('Loading components...');
-    $.get(`/admin/${workorderId}/ndt-cad-csv/components`)
+    $.get(`{{ route('ndt-cad-csv.components', ['workorder' => $workorder->id]) }}`)
         .done(function(response) {
             console.log('Components response:', response);
             if (response.success) {
@@ -1772,7 +1772,7 @@ function loadComponents() {
 }
 
 function loadCadProcesses() {
-    $.get(`/admin/${workorderId}/ndt-cad-csv/cad-processes`)
+    $.get(`{{ route('ndt-cad-csv.cad-processes', ['workorder' => $workorder->id]) }}`)
         .done(function(response) {
             if (response.success) {
                 cadProcesses = response.processes;
@@ -1785,7 +1785,7 @@ function loadCadProcesses() {
 }
 
 function loadPaintProcesses() {
-    $.get(`/admin/${workorderId}/ndt-cad-csv/paint-processes`)
+    $.get(`{{ route('ndt-cad-csv.paint-processes', ['workorder' => $workorder->id]) }}`)
         .done(function(response) {
             if (response.success) {
                 paintProcesses = response.processes;
@@ -1798,7 +1798,7 @@ function loadPaintProcesses() {
 }
 
 function loadStressProcesses() {
-    $.get(`/admin/${workorderId}/ndt-cad-csv/stress-processes`)
+    $.get(`{{ route('ndt-cad-csv.stress-processes', ['workorder' => $workorder->id]) }}`)
         .done(function(response) {
             if (response.success) {
                 stressProcesses = response.processes;
@@ -1909,7 +1909,7 @@ window.removeNdtComponent = function(index) {
 
     if (confirm('Are you sure you want to remove this component?')) {
         if (typeof $ !== 'undefined') {
-            $.post(`/admin/${workorderId}/ndt-cad-csv/remove-ndt`, {
+            $.post(`{{ route('ndt-cad-csv.remove-ndt', ['workorder' => $workorder->id]) }}`, {
                 index: index,
                 _token: $('meta[name="csrf-token"]').attr('content')
             }).done(function(response) {
@@ -1944,7 +1944,7 @@ window.removeCadComponent = function(index) {
 
     if (confirm('Are you sure you want to remove this component?')) {
         if (typeof $ !== 'undefined') {
-            $.post(`/admin/${workorderId}/ndt-cad-csv/remove-cad`, {
+            $.post(`{{ route('ndt-cad-csv.remove-cad', ['workorder' => $workorder->id]) }}`, {
                 index: index,
                 _token: $('meta[name="csrf-token"]').attr('content')
             }).done(function(response) {
@@ -1979,7 +1979,7 @@ window.removeStressComponent = function(index) {
 
     if (confirm('Are you sure you want to remove this component?')) {
         if (typeof $ !== 'undefined') {
-            $.post(`/admin/${workorderId}/ndt-cad-csv/remove-stress`, {
+            $.post(`{{ route('ndt-cad-csv.remove-stress', ['workorder' => $workorder->id]) }}`, {
                 index: index,
                 _token: $('meta[name="csrf-token"]').attr('content')
             }).done(function(response) {

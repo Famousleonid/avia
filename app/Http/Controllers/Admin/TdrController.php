@@ -1571,7 +1571,7 @@ class TdrController extends Controller
             'necessaries', 'conditions', 'codes', 'tdrInspections'));
     }
 
-public function wo_Process_Form($id)
+    public function wo_Process_Form($id)
 {
     $current_wo = Workorder::findOrFail($id);
     return view('admin.tdrs.wo_ProcessForm', compact('current_wo'));

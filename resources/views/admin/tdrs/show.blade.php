@@ -20,6 +20,9 @@
             font-size: 0.75rem;
         }
 
+
+
+
     </style>
 
     @if($current_wo->unit->manuals->builder )
@@ -193,73 +196,6 @@
                     <div class="ms-3">
                         <div class="d-flex ">
 
-{{--                            <div class=" " style=" height: 40px; width: 300px;margin-top: -7px">--}}
-{{--                                <div class=" mt-1 ">--}}
-{{--                                    @if($trainings && $trainings->date_training && $user->id == $user_wo)--}}
-{{--                                        @php--}}
-{{--                                            $trainingDate = \Carbon\Carbon::parse($trainings->date_training);--}}
-{{--                                            $monthsDiff = $trainingDate->diffInMonths(now());--}}
-{{--                                            $daysDiff = $trainingDate->diffInDays(now());--}}
-{{--                                            $isThisMonth = $trainingDate->isCurrentMonth();--}}
-{{--                                            $isThisYear = $trainingDate->isCurrentYear();--}}
-{{--                                        @endphp--}}
-{{--                                        @if($monthsDiff<=12)--}}
-{{--                                            <div class="">--}}
-{{--                                                <div class=" pb-1" style="color: lawngreen; margin-top: -7px">--}}
-{{--                                                    @if($monthsDiff == 0  && $user->id == $user_wo)--}}
-{{--                                                        @if($isThisMonth)--}}
-{{--                                                            Last training this month ({{ $trainingDate->format('M d') }})--}}
-{{--                                                        @else--}}
-{{--                                                            --}}{{--                                                    Last training {{ $monthsDiff }} months ago ({{ $trainingDate->format('M d,--}}
-{{--                                                            --}}{{--                                                    Y') }})--}}
-{{--                                                            Last training was {{ $trainingDate->format('M d, Y') }}--}}
-{{--                                                        @endif--}}
-{{--                                                    @elseif($monthsDiff == 1)--}}
-{{--                                                        @if($user->id == $user_wo)--}}
-{{--                                                            Last training {{ $monthsDiff }} month ago ({{ $trainingDate->format('M d') }})--}}
-{{--                                                        @endif--}}
-{{--                                                    @else--}}
-{{--                                                        @if($user->id == $user_wo)--}}
-{{--                                                            Last training {{ $monthsDiff }} months ago ({{ $trainingDate->format('M d') }})--}}
-{{--                                                        @endif--}}
-{{--                                                    @endif--}}
-{{--                                                </div>--}}
-{{--                                                @if($monthsDiff >= 6 && $user->id == $user_wo)--}}
-{{--                                                    <div class="text-center ms-2">--}}
-{{--                                                        <button class="btn btn-success btn-sm" onclick="updateTrainingToToday({{ $manual_id }}, '{{ $trainings->date_training }}')">--}}
-{{--                                                            <i class="bi bi-calendar-check"></i> Update to Today--}}
-{{--                                                        </button>--}}
-{{--                                                    </div>--}}
-{{--                                                @endif--}}
-{{--                                            </div>--}}
-
-{{--                                        @else--}}
-{{--                                            <div class=" " style="color: red;  margin-top: -7px">--}}
-{{--                                                Last training {{ $monthsDiff }} months ago ({{ $trainingDate->format('M d, Y') }}). Need Update--}}
-{{--                                                @if($user->id == $user_wo)--}}
-{{--                                                    <div class="ms-2">--}}
-{{--                                                        <button class="btn btn-warning btn-sm" onclick="updateTrainingToToday({{ $manual_id }}, '{{ $trainings->date_training }}')">--}}
-{{--                                                            <i class="bi bi-calendar-check"></i> Update to Today--}}
-{{--                                                        </button>--}}
-{{--                                                    </div>--}}
-{{--                                                @endif--}}
-{{--                                            </div>--}}
-{{--                                        @endif--}}
-{{--                                    @else--}}
-{{--                                        @if($user->id == $user_wo)--}}
-{{--                                            <div class="" style="color: red; margin-top: -7px">--}}
-{{--                                                There are no trainings for this unit.--}}
-{{--                                                <div class="pt-1">--}}
-{{--                                                    <button class="fs-75 btn btn-primary btn-sm" onclick="createTrainings({{--}}
-{{--                                                    $manual_id }})">--}}
-{{--                                                        <i class="bi bi-plus-circle"></i> Create Trainings--}}
-{{--                                                    </button>--}}
-{{--                                                </div>--}}
-{{--                                            </div>--}}
-{{--                                        @endif--}}
-{{--                                    @endif--}}
-{{--                                </div>--}}
-{{--                            </div>--}}
 
                             @php
                                 $manual = null;
@@ -682,13 +618,17 @@
                         <div class=" d-flex " style=" ; width: 380px">
 
                             @if(count($tdrs))
-                                <a href="{{ route('tdrs.woProcessForm', ['id'=> $current_wo->id]) }}"
-                                   class="btn fs-8 btn-outline-warning me-3 formLink "
-                                   target="_blank"
-                                   id="#" style=" height: 55px; width: 100px">
-                                    {{--                                                                                <i class="bi bi-file-earmark-excel"> WO Process Sheet </i>--}}
-                                    WO Process Sheet
-                                </a>
+                                <div class="d-flex" style="width: 200px">
+                                    <a href="{{ route('tdrs.woProcessForm', ['id'=> $current_wo->id]) }}"
+                                       class="btn fs-8 btn-outline-warning me-3 formLink "
+                                       target="_blank"
+                                       id="#" style=" height: 55px; width: 100px">
+                                        {{--                                                                                <i class="bi bi-file-earmark-excel"> WO Process Sheet </i>--}}
+                                        WO Process Sheet
+                                    </a>
+
+                                </div>
+
 
                                 <a href="{{ route('tdrs.tdrForm', ['id'=> $current_wo->id]) }}"
                                    class="btn fs-8 btn-outline-warning me-1 formLink "
