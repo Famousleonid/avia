@@ -134,6 +134,8 @@ Route::group(['middleware' => ['auth']], function () {
         Route::post('/trainings/updateToToday', [TrainingController::class, 'updateToToday'])->name('trainings.updateToToday');
         Route::post('/trainings/delete-all', [TrainingController::class, 'deleteAll'])->name('trainings.deleteAll');
 
+    Route::resource('/scopes',  ScopeController::class);
+    Route::resource('/planes',PlaneController::class);
     Route::resource('/components', ComponentController::class);
     Route::resource('/process-names',ProcessNameController::class);
     Route::resource('/processes', ProcessController::class);
@@ -229,6 +231,14 @@ Route::group(['middleware' => ['auth']], function () {
     Route::put('/rm_reports/update-record/{id}', [RmReportController::class, 'updateRecord'])->name('rm_reports.updateRecord');
 
     Route::get('/api/get-components-by-manual', [TdrController::class, 'getComponentsByManual'])->name('api.get-components-by-manual');
+
+    // CSV файлы для мануалов
+    Route::prefix('manuals/{manual}/csv')->name('manuals.csv.')->group(function () {
+        Route::post('/', [ManualCsvController::class, 'store'])->name('store');
+        Route::get('/{file}', [ManualCsvController::class, 'view'])->name('view');
+        Route::delete('/{file}', [ManualCsvController::class, 'delete'])->name('delete');
+    });
+
 
 });
 
