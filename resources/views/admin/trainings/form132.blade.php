@@ -1315,9 +1315,16 @@
     <div class="row border-l-r" style="width: 920px">
         <div class="col-10 text-center">
             @if($showImage === 'true')
-                <div class="ps-5" style="height: 1px">
-                    <img src="{{ asset('storage/avatars/sign/' . Auth::user()->sign) }}"
-                         alt="Sign_user" class="pb-3  " style="width: 175px">
+                <div class=" pb-1 mt-n5 text-center align-items-start"
+                     style="height: 1px">
+                    @if($user->hasMedia('sign'))
+                        <a href="{{ $user->getFirstMediaBigUrl('sign') }}" data-fancybox="gallery">
+                            <img class="" src="{{ $user->getFirstMediaThumbnailUrl('sign') }}" width="150"
+                                 alt="Sign"/>
+                        </a>
+
+                    @endif
+
                 </div>
             @endif
         </div>
@@ -1362,7 +1369,7 @@
                 @if(Auth::user()->role !== null && Auth::user()->role->name !==
            'Component Technician')
                 <div class="ps-5 " style="height: 1px">
-                    <img src="{{ asset('storage/image/sign/sign_vn.png') }}"
+                    <img src="{{ asset('img\sign\sign_vn.png') }}"
                          alt="Sign" class="" style="width: 150px">
                 </div>
             @endif

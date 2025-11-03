@@ -8,6 +8,7 @@ use App\Models\Manual;
 use App\Models\Plane;
 use App\Models\Scope;
 use App\Models\Training;
+use App\Models\User;
 use Illuminate\Http\Request;
 
 class TrainingController extends Controller
@@ -105,7 +106,7 @@ class TrainingController extends Controller
         $dateTraining132 = \Carbon\Carbon::parse($validatedData['date_training']);
         $twoYearsAgo = now()->subYears(2);
         $isMoreThanTwoYears = $dateTraining132->lt($twoYearsAgo);
-        
+
         // Если больше 2 лет, проверяем наличие last_training_date
         if ($isMoreThanTwoYears) {
             if (empty($validatedData['last_training_date'])) {
@@ -113,16 +114,16 @@ class TrainingController extends Controller
                     ->withInput()
                     ->withErrors(['last_training_date' => 'Last Existing Training Date is required when First Training Date is more than 2 years ago.']);
             }
-            
+
             $lastTrainingDate = \Carbon\Carbon::parse($validatedData['last_training_date']);
-            
+
             // Проверяем что last_training_date после first_training_date
             if ($lastTrainingDate->lte($dateTraining132)) {
                 return redirect()->back()
                     ->withInput()
                     ->withErrors(['last_training_date' => 'Last Training Date must be after First Training Date.']);
             }
-            
+
             // Проверяем что last_training_date до сегодня
             if ($lastTrainingDate->gte(now()->startOfDay())) {
                 return redirect()->back()
@@ -152,14 +153,14 @@ class TrainingController extends Controller
 
         // Создаем первую форму 112 с правильной датой (следующая пятница)
         $dateTraining112 = \Carbon\Carbon::parse($dateTraining132)->next(\Carbon\Carbon::FRIDAY);
-        
+
         // Проверяем существование формы 112 для первой даты
         $existingTraining112 = Training::where('user_id', $userId)
             ->where('manuals_id', $manualId)
             ->where('date_training', $dateTraining112->format('Y-m-d'))
             ->where('form_type', '112')
             ->first();
-        
+
         if (!$existingTraining112) {
             Training::create([
                 'user_id' => $userId,
@@ -172,29 +173,29 @@ class TrainingController extends Controller
         // Если First Training Date больше чем 2 года назад и есть last_training_date
         if ($isMoreThanTwoYears && !empty($validatedData['last_training_date'])) {
             $lastTrainingDate = \Carbon\Carbon::parse($validatedData['last_training_date']);
-            
+
             // Создаем тренировки между First Training Date и Last Training Date
             $this->createMissingTrainingsBetweenDates($userId, $manualId, $dateTraining132, $lastTrainingDate);
-            
+
             // Если с даты последнего тренинга прошло меньше 12 месяцев, не создаем доп. тренинг на сегодня/последнюю пятницу
             $monthsSinceLast = $lastTrainingDate->diffInMonths(now());
             if ($monthsSinceLast >= 12) {
                 // Создаем новый тренинг с сегодняшней датой или последней прошедшей пятницей
                 $todayDate = now()->startOfDay();
-                
+
                 // Если сегодня пятница - используем сегодня, иначе последнюю прошедшую пятницу
                 if ($todayDate->dayOfWeek == \Carbon\Carbon::FRIDAY) {
                     $trainingDate = $todayDate;
                 } else {
                     $trainingDate = $todayDate->copy()->previous(\Carbon\Carbon::FRIDAY);
                 }
-                
+
                 $existingTodayTraining = Training::where('user_id', $userId)
                     ->where('manuals_id', $manualId)
                     ->where('date_training', $trainingDate->format('Y-m-d'))
                     ->where('form_type', '112')
                     ->first();
-                
+
                 if (!$existingTodayTraining) {
                     Training::create([
                         'user_id' => $userId,
@@ -211,18 +212,18 @@ class TrainingController extends Controller
 
         // Проверяем, есть ли URL для возврата в запросе
         $returnUrl = $request->input('return_url');
-        
+
         // Если есть URL возврата и он содержит TDR, используем его
         if ($returnUrl && str_contains($returnUrl, '/tdrs/')) {
             return redirect($returnUrl)->with('success', 'Unit added for trainings.');
         }
-        
+
         // Проверяем referer как fallback
         $referer = request()->header('referer');
         if ($referer && str_contains($referer, '/tdrs/')) {
             return redirect()->back()->with('success', 'Unit added for trainings.');
         }
-        
+
         return redirect()->route('trainings.index')->with('success', 'Unit added for trainings.');
     }
 
@@ -241,7 +242,7 @@ class TrainingController extends Controller
         for ($year = $firstTrainingYear + 1; $year <= $currentYear; $year++) {
             // Для формы 112 используем ту же неделю, но в следующем году
             $trainingDate = $this->getDateFromWeekAndYear($firstTrainingWeek, $year);
-            
+
             // Проверяем, что дата тренировки не в будущем
             if ($trainingDate <= $currentDate) {
                 // Проверяем существование формы 112 для этого года
@@ -250,7 +251,7 @@ class TrainingController extends Controller
                     ->where('date_training', $trainingDate->format('Y-m-d'))
                     ->where('form_type', '112')
                     ->first();
-                
+
                 if (!$existingTraining112) {
                     Training::create([
                         'user_id' => $userId,
@@ -271,7 +272,7 @@ class TrainingController extends Controller
         $firstJan = \Carbon\Carbon::create($year, 1, 1);
         $days = ($week - 1) * 7 - $firstJan->dayOfWeek + 1;
         $monday = $firstJan->addDays($days);
-        
+
         // Возвращаем пятницу той же недели
         return $monday->addDays(4);
     }
@@ -291,7 +292,7 @@ class TrainingController extends Controller
         for ($year = $firstTrainingYear + 1; $year <= $lastTrainingYear; $year++) {
             // Для формы 112 используем ту же неделю, но в следующем году
             $trainingDate = $this->getDateFromWeekAndYear($firstTrainingWeek, $year);
-            
+
             // Проверяем, что дата тренировки не позже последнего тренинга
             if ($trainingDate <= $lastTraining) {
                 // Проверяем существование формы 112 для этого года
@@ -300,7 +301,7 @@ class TrainingController extends Controller
                     ->where('date_training', $trainingDate->format('Y-m-d'))
                     ->where('form_type', '112')
                     ->first();
-                
+
                 if (!$existingTraining112) {
                     Training::create([
                         'user_id' => $userId,
@@ -336,14 +337,14 @@ class TrainingController extends Controller
 
             foreach ($validatedData['manuals_id'] as $key => $manualId) {
                 $trainingDate = $validatedData['date_training'][$key];
-                
+
                 // Проверяем существование тренировки формы 112
                 $existingTraining112 = Training::where('user_id', $userId)
                     ->where('manuals_id', $manualId)
                     ->where('date_training', $trainingDate)
                     ->where('form_type', '112')
                     ->first();
-                
+
                 if (!$existingTraining112) {
                     // Создаем тренировку формы 112
                     Training::create([
@@ -362,7 +363,7 @@ class TrainingController extends Controller
             if (!$existingForm132) {
                 // Берем дату первой тренировки для формы 132
                 $firstTrainingDate = $validatedData['date_training'][0];
-                
+
                 Training::create([
                     'user_id' => $userId,
                     'manuals_id' => $manualId,
@@ -378,7 +379,7 @@ class TrainingController extends Controller
             if ($skippedCount > 0) {
                 $message .= ", skipped {$skippedCount} existing trainings";
             }
-            
+
             // Добавляем информацию о форме 132
             if (!$existingForm132) {
                 $message .= " (including Form 132)";
@@ -387,7 +388,7 @@ class TrainingController extends Controller
             }
 
         return response()->json([
-            'success' => true, 
+            'success' => true,
             'message' => $message,
             'created' => $createdCount,
             'skipped' => $skippedCount
@@ -415,14 +416,14 @@ public function updateToToday(Request $request)
 
         foreach ($validatedData['manuals_id'] as $key => $manualId) {
             $trainingDate = $validatedData['date_training'][$key];
-            
+
             // Проверяем существование тренировки формы 112 на сегодняшнюю дату
             $existingTraining112 = Training::where('user_id', $userId)
                 ->where('manuals_id', $manualId)
                 ->where('date_training', $trainingDate)
                 ->where('form_type', '112')
                 ->first();
-            
+
             if (!$existingTraining112) {
                 // Создаем тренировку формы 112 на сегодняшнюю дату
                 Training::create([
@@ -443,7 +444,7 @@ public function updateToToday(Request $request)
         }
 
         return response()->json([
-            'success' => true, 
+            'success' => true,
             'message' => $message,
             'created' => $createdCount,
             'skipped' => $skippedCount
@@ -456,18 +457,23 @@ public function updateToToday(Request $request)
 
     public function showForm112($id, Request $request)
     {
-        $showImage = $request->query('showImage', 'false'); // Получаем параметр из запроса
         $training = Training::find($id);
+        $user = $training->user ?? User::find($training->user_id);
+        $showImage = $request->query('showImage', 'false'); // Получаем параметр из запроса
 
-        return view('admin.trainings.form112', compact('training', 'showImage'));
+
+        return view('admin.trainings.form112', compact('training', 'showImage','user'));
     }
 
     public function showForm132($id, Request $request)
     {
-        $showImage = $request->query('showImage', 'false'); // Получаем параметр из запроса
-        $training = Training::find($id);
 
-        return view('admin.trainings.form132', compact('training', 'showImage'));
+        $training = Training::find($id);
+        $user = $training->user ?? User::find($training->user_id);
+        $showImage = $request->query('showImage', 'false'); // Получаем параметр из запроса
+
+
+        return view('admin.trainings.form132', compact('training', 'showImage','user'));
     }
 
 

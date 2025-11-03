@@ -336,11 +336,19 @@
     <!-- Повторяем для других блоков... -->
    <h6>*Please use another sheet if necessary.</h6>
         @if($showImage === 'true')
-        <div class=" pb-5 mt-n5 text-center align-items-start"
+        <div class=" pb-1 mt-n5 text-center align-items-start"
              style="height: 1px">
+            @if($user->hasMedia('sign'))
+                <a href="{{ $user->getFirstMediaBigUrl('sign') }}" data-fancybox="gallery">
+                    <img class="" src="{{ $user->getFirstMediaThumbnailUrl('sign') }}" width="150"
+                         alt="Sign"/>
+                </a>
 
-            <img src="{{ asset('storage/avatars/sign/' . Auth::user()->sign) }}"
-                 alt="Sign" class="  ms-4" style="width: 200px">
+            @endif
+
+
+{{--            <img src="{{ asset('storage/avatars/sign/' . Auth::user()->sign) }}"--}}
+{{--                 alt="Sign" class="  ms-4" style="width: 200px">--}}
         </div>
         @endif
     </div>
@@ -356,12 +364,11 @@
         </div>
 
         @if($showImage === 'true')
-            @if(Auth::user()->role !== null && Auth::user()->role->name !==
-            'Component Technician')
+            @if(Auth::user()->role !== null && Auth::user()->role->name !== 'Component Technician')
+
                 <div class="col-8 text-center align-items-start" style="height: 1px">
-                    <img src="{{ asset('storage/image/sign/sign_vn.png') }}"
-                         alt="Sign" class="pb-5 ps-lg-1 ms-4" style="width:
-                             200px">
+                    <img src="{{ asset('img\sign\sign_vn.png') }}" alt="Sign" class="pb-5 ps-lg-1 ms-4"
+                         style="width:200px">
                 </div>
             @endif
         @endif

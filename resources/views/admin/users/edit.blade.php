@@ -69,16 +69,27 @@
                         <label for="is_admin" class="form-check-label small">admin</label>
                     </div>
 
-                    <div class="mb-3">
-                        <label for="img" class="form-label small">avatar</label>
-                        <input type="file" name="img" id="img" class="form-control">
-                        <small>Upload a new avatar to replace the current one.</small>
+
+                    <div class="d-flex mb-3">
+                        <div class="me-3">
+                            <label for="img" class="form-label small">Avatar</label>
+                            <input type="file" name="img" id="img" class="form-control" style="width: 300px">
+                            <small>Upload a new avatar to replace the current one.</small>
+                        </div>
+                        @if(Auth::user()->role !== null && Auth::user()->role->name !== 'Component Technician')
+                            <div class="ms-4">
+                                <label for="img" class="form-label small">Sign</label>
+                                <input type="file" name="sign" id="sing" class="form-control" style="width: 300px">
+                                {{--                            <small>Upload a sign to replace the current one.</small>--}}
+                            </div>
+                        @endif
                     </div>
 
                     <div class="d-flex justify-content-between">
                         <button type="submit" class="btn btn-primary" onclick="showLoadingSpinner()">Save</button>
                         <a href="{{ route('users.index') }}" class="btn btn-secondary">Cancel</a>
                     </div>
+
                 </form>
             </div>
         </div>

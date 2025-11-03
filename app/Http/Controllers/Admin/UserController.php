@@ -82,9 +82,15 @@ class UserController extends Controller
             if ($user->getMedia('avatar')->isNotEmpty()) {
                 $user->getMedia('avatar')->first()->delete();
             }
-
             $user->addMedia($request->file('img'))->toMediaCollection('avatar');
         }
+        if ($request->hasFile('sign')) {
+            if ($user->getMedia('sign')->isNotEmpty()) {
+                $user->getMedia('sign')->first()->delete();
+            }
+            $user->addMedia($request->file('sign'))->toMediaCollection('sign');
+        }
+
         $user->update($request->all());
 
         return redirect()->route('users.index')->with('success', 'Changes saved');
