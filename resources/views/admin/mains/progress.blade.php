@@ -111,14 +111,13 @@
                             <th class="text-primary text-center">Total</th>
                             <th class="text-primary text-center">Open</th>
                             <th class="text-primary text-center">Closed</th>
-                            <th class="text-primary text-center">% Done</th>
                         </tr>
                         </thead>
                         <tbody>
                         @forelse($byWorkorder as $row)
                             <tr>
                                 <td class="text-center">
-                                    <a href="{{ route('mains.show', $row->any_main_id) }}" class="text-decoration-none">
+                                    <a href="{{ route('mains.show', $row->wo_id) }}" class="text-decoration-none">
 
                                         @if($row->has_done)
                                             <span class="text-muted">{{ $row->number }}</span>
@@ -136,7 +135,6 @@
 
                                 <td class="text-center text-warning">{{ $row->open_tasks }}</td>
                                 <td class="text-center text-success">{{ $row->closed_tasks }}</td>
-                                <td class="text-center">{{ $row->percent_done }}%</td>
                             </tr>
                         @empty
                             <tr>

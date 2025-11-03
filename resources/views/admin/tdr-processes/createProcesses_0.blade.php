@@ -76,7 +76,7 @@
                 </div>
             </div>
             <div class="card-body">
-                <form method="POST" action="{{ route('admin.tdr-processes.store', $current_tdr->id) }}" enctype="multipart/form-data" id="createCPForm">
+                <form method="POST" action="{{ route('tdr-processes.store', $current_tdr->id) }}" enctype="multipart/form-data" id="createCPForm">
                     @csrf
                     <input type="hidden" name="tdrs_id" value="{{ $current_tdr->id }}">
 
@@ -114,7 +114,7 @@
 
                     <div class="text-end">
                         <button type="submit" class="btn btn-outline-primary mt-3">{{ __('Save') }}</button>
-                        <a href="{{ route('admin.tdrs.processes', ['workorder_id' => $current_tdr->workorder->id]) }}" class="btn btn-outline-secondary mt-3">{{ __('Cancel') }}</a>
+                        <a href="{{ route('tdrs.processes', ['workorder_id' => $current_tdr->workorder->id]) }}" class="btn btn-outline-secondary mt-3">{{ __('Cancel') }}</a>
                     </div>
                 </form>
 
@@ -358,7 +358,7 @@
                     formData.append('process', newProcess);
                     formData.append('manual_id', manualId);
 
-                    fetch("{{ route('admin.processes.store') }}", {
+                    fetch("{{ route('processes.store') }}", {
                         method: 'POST',
                         headers: {
                             'X-Requested-With': 'XMLHttpRequest'  // Для распознавания запроса как AJAX

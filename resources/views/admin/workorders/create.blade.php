@@ -74,6 +74,24 @@
             box-shadow: 0 0 0 0.25rem rgba(220, 53, 69, 0.5) !important; /* Bootstrap danger */
         }
 
+        /* ----------------------------------- Select2 White Text After Selection ----------------------------------- */
+
+        /* Светлая тема */
+        html[data-bs-theme="light"] .select2-container--bootstrap-5 .select2-selection--single .select2-selection__rendered {
+            color: #000 !important; /* чёрный текст в светлой теме */
+        }
+
+        /* Тёмная тема */
+        html[data-bs-theme="dark"] .select2-container--bootstrap-5 .select2-selection--single .select2-selection__rendered {
+            color: #fff !important; /* белый текст в тёмной теме */
+        }
+
+        /* Чтобы не перекрашивался placeholder */
+        .select2-container--bootstrap-5 .select2-selection__placeholder {
+            color: #6c757d !important;
+        }
+
+
     </style>
 
 @endsection
@@ -364,6 +382,16 @@
                     theme: 'bootstrap-5',
                     allowClear: true
                 });
+
+                $('#cmmSelect').select2({
+                    placeholder: '---',
+                    theme: 'bootstrap-5',
+                    allowClear: true,
+                    width: '100%',
+                    dropdownParent: $('#addUnitModal'),
+                    dropdownAutoWidth: true
+                });
+
                 applyTheme();
             });
 

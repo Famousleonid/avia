@@ -106,7 +106,7 @@
 {{--                    <button class="btn btn-outline-primary btn-sm" data-bs-toggle="modal" data-bs-target="#createModal">{{ __('Add--}}
 {{--                    Component') }}</button>--}}
 
-                    <a href="{{ route('admin.components.create') }}" class="btn btn-outline-primary " style="height: 40px">
+                    <a href="{{ route('components.create') }}" class="btn btn-outline-primary " style="height: 40px">
                         {{__('Add Component')}}
                     </a>
 
@@ -169,7 +169,7 @@
                         <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                     </div>
                     <div class="modal-body">
-                        <form id="createForm" method="POST" action="{{ route('admin.components.store') }}" enctype="multipart/form-data">
+                        <form id="createForm" method="POST" action="{{ route('components.store') }}" enctype="multipart/form-data">
 
                             @csrf
                             <div class="mb-3">
@@ -273,7 +273,7 @@
                                     <button type="submit" class="btn btn-outline-primary " onclick="showLoadingSpinner()">Save</button>
                                 </div>
                             </div>
-                            
+
                             <!-- Bush IPL Number field - показывается только когда Is Bush отмечен -->
                             <div class="form-group mt-3" id="bush_ipl_container" style="display: none;">
                                 <div class="d-flex">

@@ -184,7 +184,7 @@
                                         <i class="bi bi-pencil-square"></i>
                                     </button>
 
-                                    <form action="{{ route('admin.units.destroy', $manualNumber) }}" method="post"
+                                    <form action="{{ route('units.destroy', $manualNumber) }}" method="post"
                                           style="display: inline-block">
                                         @csrf
                                         @method('DELETE')
@@ -434,7 +434,7 @@
                 // AJAX-запрос для отправки данных на сервер
                 if (cmmId && pnValues.length > 0) {
                     $.ajax({
-                        url: '{{ route('admin.units.store') }}', // Обновите с вашим маршрутом для сохранения юнитов
+                        url: '{{ route('units.store') }}', // Обновите с вашим маршрутом для сохранения юнитов
                         type: 'POST',
                         data: {
                             cmm_id: cmmId,

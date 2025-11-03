@@ -153,7 +153,7 @@
                             </a>
                         </div>
                         <div>
-                            <a href="{{route('log_card.show',['log_card' => $current_wo->id])}}"
+                            <a href="{{route('log_card.show',['id' => $current_wo->id])}}"
                                class="btn  fs-8 btn-outline-primary " style="min-height: 55px;width: 55px"
                                onclick="showLoadingSpinner
                                    ()">
@@ -926,7 +926,7 @@
                                                    class="btn btn-outline-primary btn-sm me-2">
                                                     <i class="bi bi-bar-chart-steps" title="Component Processes"></i>
                                                 </a>
-                                                <a href="{{ route('tdrs.edit',['tdr' => $tdr->id]) }}"
+                                                <a href="{{ route('tdrs.edit',['id' => $tdr->id]) }}"
                                                    class="btn btn-outline-primary btn-sm me-2">
                                                     <i class="bi bi-pencil-square" title="Component Inspection Edit"></i>
                                                 </a>

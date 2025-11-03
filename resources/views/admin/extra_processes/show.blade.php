@@ -171,7 +171,7 @@
                         <i class="fas fa-plus"></i> Create Component Processes
                     </a>
 
-                    <a href="{{ route('tdrs.show', ['tdr'=>$current_wo->id]) }}"
+                    <a href="{{ route('tdrs.show', ['id'=>$current_wo->id]) }}"
                        class="btn btn-outline-secondary me-2" style="height: 60px;width: 110px">{{ __('Back to Work Order')
                             }} </a>
                 </div>

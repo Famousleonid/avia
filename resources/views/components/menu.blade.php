@@ -32,11 +32,11 @@
                     <li class="nav-item px-lg-3">
                         <a href="{{ route('login') }}" class="nav-link">{{ __('Login') }}</a>
                     </li>
-{{--                    @if (Route::has('register'))--}}
-{{--                        <li class="nav-item px-lg-3">--}}
-{{--                            <a href="{{ route('register') }}" class="nav-link">{{ __('Register') }}</a>--}}
-{{--                        </li>--}}
-{{--                    @endif--}}
+{{--                    @if (Route::has('register'))
+                        <li class="nav-item px-lg-3">
+                            <a href="{{ route('register') }}" class="nav-link">{{ __('Register') }}</a>
+                        </li>
+                    @endif--}}
                 @else
                     <li class="nav-item dropdown">
                         <a id="navbarDropdown" class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">
@@ -44,10 +44,6 @@
                         </a>
                         <ul class="dropdown-menu dropdown-menu-end text-end me-1 bg-transparent border-0" aria-labelledby="navbarDropdown">
                             @if (Auth::user()->isAdmin())
-                                <li>
-                                    <a class="dropdown-item text-white bg-transparent border-0" href="{{ route('admin.index') }}">{{ __('Admin Area') }}</a>
-                                </li>
-                            @else
                                 <li>
                                     <a class="dropdown-item text-white bg-transparent border-0" href="{{ route('cabinet.index') }}">{{ __('Personal Area') }}</a>
                                 </li>

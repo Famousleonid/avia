@@ -303,7 +303,7 @@
                             <button type="button" class="btn btn-secondary btn-lg me-2" onclick="clearForm()">
                                 <i class="fas fa-eraser"></i> Clear All
                             </button>
-{{--                            <a href="{{ route('admin.processes.create', ['manual' => $current_wo->unit->manual_id, 'return_to' => route('wo_bushings.edit', $woBushing->id)]) }}"--}}
+{{--                            <a href="{{ route('processes.create', ['manual' => $current_wo->unit->manual_id, 'return_to' => route('wo_bushings.edit', $woBushing->id)]) }}"--}}
 {{--                               class="btn btn-outline-primary btn-lg me-2">--}}
 {{--                                <i class="fas fa-cogs"></i> Add Processes--}}
 {{--                            </a>--}}

@@ -4,40 +4,42 @@ namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\Controller;
 use App\Providers\RouteServiceProvider;
+use App\Support\Device;
 use Illuminate\Foundation\Auth\AuthenticatesUsers;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Jenssegers\Agent\Agent;
 
 class LoginController extends Controller
 {
     use AuthenticatesUsers;
 
-    protected $redirectTo = RouteServiceProvider::HOME;
+    protected $redirectTo = '/';
 
     public function __construct()
     {
         $this->middleware('guest')->except('logout');
     }
 
-    protected function redirectTo()
+
+    protected function authenticated(Request $request, $user)
     {
-        $agent = new \Jenssegers\Agent\Agent();
-
-        if (Auth::check() && $agent->isMobile()) {
-            return route('mobile.index');
-        }
-
-        if (Auth::check()) {
-            return route('cabinet.index');
-        }
-
-        return route('login');
+        return Device::isMobile($request)
+            ? redirect()->intended('/mobile')
+            : redirect()->intended('/cabinet');
     }
 
-    public function logout()
+
+    public function logout(Request $request)
     {
-        Auth::logout();
-        return redirect(route('home'));
+        $this->guard()->logout();
+
+        $request->session()->invalidate();
+        $request->session()->regenerateToken();
+
+        return redirect()->route('login');
     }
+
     public function showMobileLoginForm()
     {
         return view('auth.login');

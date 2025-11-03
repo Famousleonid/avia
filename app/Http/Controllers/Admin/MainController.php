@@ -226,8 +226,7 @@ class MainController extends Controller
 
     public function progress(Request $request)
     {
-        // Если параметр technik пришёл (даже пустой) — уважаем его.
-        // Если параметра нет вообще (первый заход) — по умолчанию текущий пользователь.
+
         if ($request->has('technik')) {
             $technikId = $request->filled('technik') ? (int) $request->input('technik') : null; // All users -> null (без фильтра)
         } else {

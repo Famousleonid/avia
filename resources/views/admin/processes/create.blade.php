@@ -14,7 +14,7 @@
             </div>
 
             <div class="card-body">
-                <form method="POST" action="{{ route('admin.processes.store') }}" enctype="multipart/form-data"
+                <form method="POST" action="{{ route('processes.store') }}" enctype="multipart/form-data"
                       id="createCMMForm">
                 @csrf
                     <input type="hidden" name="manual_id" value="{{ $manual->id }}">
@@ -74,7 +74,7 @@
 
                     <div class="text-end m-3">
                         <button type="submit" class="btn btn-outline-primary mt-3 ">{{ __('Save') }}</button>
-                        <a href="{{ route('admin.processes.index') }}" class="btn btn-outline-secondary mt-3">{{ __('Back') }}
+                        <a href="{{ route('processes.index') }}" class="btn btn-outline-secondary mt-3">{{ __('Back') }}
                         </a>
                     </div>
                 </form>

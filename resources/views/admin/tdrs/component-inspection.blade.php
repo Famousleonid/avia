@@ -207,7 +207,7 @@
 
                     <div class="text-end">
                         <button type="submit" class="btn btn-outline-primary mt-3">{{ __('Save') }}</button>
-                        <a href="{{ route('tdrs.show', ['tdr'=>$current_wo->id]) }}"
+                        <a href="{{ route('tdrs.show', ['id'=>$current_wo->id]) }}"
                            class="btn btn-outline-secondary mt-3">{{ __('Cancel') }} </a>
                     </div>
                 </form>

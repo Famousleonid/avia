@@ -22,32 +22,7 @@ class CabinetController extends Controller implements hasMedia
         } else {
             return view('admin.auth-verify');
         }
-
-
-
-
-
     }
-
-//    public function activity()
-//    {
-//        $acts = Activity::All();
-//
-//        foreach ($acts as $act) {
-//            $modelClass = $act->subject_type;
-//            if (class_exists($modelClass)) {
-//                $act->subject = $modelClass::find($act->subject_id);
-//            } else {
-//                $act->subject = null;
-//            }
-//        }
-//
-//
-//        return View('admin.log.index', compact('acts'));
-//
-//
-//    }
-
 
 }
 

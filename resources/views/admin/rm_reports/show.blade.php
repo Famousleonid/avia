@@ -224,7 +224,7 @@
                 </div>
 
                 <div class="">
-                    <a href="{{ route('tdrs.show', ['tdr'=>$current_wo->id]) }}"
+                    <a href="{{ route('tdrs.show', ['id'=>$current_wo->id]) }}"
                        class="btn btn-outline-secondary " style="min-height: 60px; width: 110px">{{ __('Back to Work
                        Order') }} </a>
                 </div>

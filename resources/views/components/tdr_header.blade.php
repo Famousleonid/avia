@@ -265,7 +265,7 @@
             e.preventDefault();
             const formData = new FormData(this);
 
-            fetch('{{ route('admin.workorders.inspection', $current_wo->id) }}', {
+            fetch('{{ route('workorders.inspection', $current_wo->id) }}', {
                 method: 'POST',
                 headers: {
                     'X-CSRF-TOKEN': '{{ csrf_token() }}'
