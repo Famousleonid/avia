@@ -25,7 +25,7 @@ return new class extends Migration
             $table->foreignId('codes_id')->nullable()->constrained()->onDelete('set null');
             $table->foreignId('conditions_id')->nullable()->constrained()->onDelete('set null');
             $table->foreignId('necessaries_id')->nullable()->constrained()->onDelete('set null');
-            $table->string('description')->nullable();
+//            $table->string('description')->nullable();
 
             $table->unsignedInteger('qty')->default(1);
 

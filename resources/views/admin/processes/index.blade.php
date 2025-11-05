@@ -158,10 +158,11 @@
                             @endif
                         </td>
                         <td class="text-center" >
-                            <a href="{{ route('processes.create', ['manual' => $manual->id]) }}" class="btn btn-outline-primary btn-sm">
+                            <a href="{{ route('processes.create', ['manual_id' => $manual->id]) }}" class="btn
+                            btn-outline-primary btn-sm">
                                 <i class="bi bi-plus-lg"></i>
                             </a>
-                            <a href="{{ route('processes.edit', ['process' => $manual->id]) }}" class="btn
+                            <a href="{{ route('processes.edit', ['id' => $manual->id]) }}" class="btn
                             btn-outline-primary btn-sm">
                                 <i class="bi bi-vignette"></i>
                             </a>

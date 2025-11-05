@@ -14,6 +14,7 @@
     <link href="{{asset('assets/select2/css/select2.min.css')}}" rel="stylesheet"/>
     <link rel="stylesheet" href="{{asset('css/custom_bootstrap.css')}}">
     <link rel="stylesheet" href="{{asset('css/main.css')}}">
+    <link rel="stylesheet" href="{{ asset('css/paper-button.css') }}">
 
     <script>
         (function () {
@@ -63,6 +64,8 @@
 
         </div>
     </div>
+
+
     @include('components.footer')
 </div>
 

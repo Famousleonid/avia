@@ -1,0 +1,196 @@
+/* Размеры кнопок */
+.paper-portrait { width: 60px; height: 80px; }
+.paper-landscape { width: 80px; height: 60px; }
+
+/* Палитра по умолчанию */
+.paper-btn svg {
+    --paper: #b9b9b9;      /* цвет листа */
+    --stroke:#d0d0d0;     /* обводка/сгиб */
+    --fold:#c8c8c8;       /* уголок */
+    --text:#333;          /* текст */
+}
+
+/* Курсор и убираем рамку */
+.paper-btn {
+    cursor: pointer;
+    border: 0;
+    background: transparent;
+    padding: 0;
+}
+
+.paper-btn svg {
+    display: block;   /* чтобы SVG не добавлял строчный зазор */
+}
+
+/* Легкий подъем и тень */
+.paper-btn:hover svg {
+    transform: translateY(-1px);
+    filter: drop-shadow(0 2px 4px rgba(0,0,0,.2));
+}
+
+/* Плавность */
+.paper-btn svg {
+    transition: transform .15s ease, filter .15s ease;
+}
+
+/* Тонкие линии при масштабировании */
+.paper-btn svg * {
+    vector-effect: non-scaling-stroke;
+}
+
+/* Базовые стили фигур внутри SVG */
+.paper-btn svg .paper {
+    fill: var(--paper, #b9b9b9);
+    stroke: var(--stroke, #d0d0d0);
+    stroke-width: 1;
+    transition: stroke .15s ease, fill .15s ease;
+}
+
+.paper-btn svg .fold {
+    fill: var(--fold, #c8c8c8);
+    transition: fill .15s ease;
+}
+
+.paper-btn svg .line {
+    stroke: var(--stroke, #d0d0d0);
+    stroke-width: 2;
+    fill: none;
+    transition: stroke .15s ease;
+}
+
+.paper-btn svg .txt {
+    fill: var(--text, #333);
+    transition: fill .15s ease;
+}
+
+/* Стили для текста в foreignObject */
+.paper-btn svg foreignObject div {
+    color: var(--text, #333);
+    transition: color .15s ease;
+}
+
+/* Общий hover: чуть подсветить (только если нет Bootstrap класса) */
+.paper-btn:hover:not([class*="btn-outline-"]) svg .fold {
+    fill: #bdbdbd;
+}
+
+.paper-btn:hover:not([class*="btn-outline-"]) svg .line {
+    stroke: #bdbdbd;
+}
+
+.paper-btn:hover:not([class*="btn-outline-"]) svg .paper {
+    stroke: #bdbdbd;
+}
+
+/* Тема от Bootstrap — btn-outline-success: по умолчанию зелёные цвета */
+.btn-outline-success svg {
+    --fold:#198754;
+    --stroke:#198754;
+    --text:#0f5132;
+    --paper: #d5d5d5;
+}
+
+/* При hover: белые обводка и уголок, зелёный фон, белый текст */
+.btn-outline-success:hover svg,
+.btn-outline-success:focus svg {
+    --fold:#ffffff;
+    --stroke:#ffffff;
+    --text:#ffffff;
+    --paper:#198754;
+}
+
+/* Линия сгиба остается зелёной при hover */
+.btn-outline-success:hover svg .line,
+.btn-outline-success:focus svg .line {
+    stroke: #198754 !important;
+}
+
+/* Тема от Bootstrap — btn-outline-primary */
+.btn-outline-primary svg {
+    --fold:#0d6efd;
+    --stroke:#0d6efd;
+    --text:#084298;
+    --paper: #d5d5d5;
+}
+
+.btn-outline-primary:hover svg,
+.btn-outline-primary:focus svg {
+    --fold:#ffffff;
+    --stroke:#ffffff;
+    --text:#ffffff;
+    --paper:#0d6efd;
+}
+
+.btn-outline-primary:hover svg .line,
+.btn-outline-primary:focus svg .line {
+    stroke: #0d6efd !important;
+}
+
+/* Тема от Bootstrap — btn-outline-danger */
+.btn-outline-danger svg {
+    --fold:#dc3545;
+    --stroke:#dc3545;
+    --text:#842029;
+    --paper: #d5d5d5;
+}
+
+.btn-outline-danger:hover svg,
+.btn-outline-danger:focus svg {
+    --fold:#ffffff;
+    --stroke:#ffffff;
+    --text:#ffffff;
+    --paper:#dc3545;
+}
+
+.btn-outline-danger:hover svg .line,
+.btn-outline-danger:focus svg .line {
+    stroke: #dc3545 !important;
+}
+
+/* Тема от Bootstrap — btn-outline-warning */
+.btn-outline-warning svg {
+    --fold:#ffc107;
+    --stroke:#ffc107;
+    --text:#664d03;
+    --paper:#d5d5d5;
+}
+
+.btn-outline-warning:hover svg,
+.btn-outline-warning:focus svg {
+    --fold:#000000;
+    --stroke:#000000;
+    --text:#000000;
+    --paper:#ffc107;
+}
+
+.btn-outline-warning:hover svg .line,
+.btn-outline-warning:focus svg .line {
+    stroke: #664d03 !important;
+}
+
+/* Тема от Bootstrap — btn-outline-info */
+.btn-outline-info svg {
+    --fold:#0dcaf0;
+    --stroke:#0dcaf0;
+    --text:#055160;
+    --paper:#d5d5d5;
+}
+
+.btn-outline-info:hover svg,
+.btn-outline-info:focus svg {
+    --fold:#ffffff;
+    --stroke:#ffffff;
+    --text:#ffffff;
+    --paper:#0dcaf0;
+}
+
+.btn-outline-info:hover svg .line,
+.btn-outline-info:focus svg .line {
+    stroke: #0dcaf0 !important;
+}
+
+/* Активное/нажатие (опционально) */
+.paper-btn:active svg .fold {
+    filter: brightness(0.9);
+}
+

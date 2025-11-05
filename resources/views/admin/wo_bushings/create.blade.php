@@ -134,7 +134,8 @@
                     </div>
                 </div>
                 <div>
-                    <a href="{{ route('processes.create', ['manual' => $current_wo->unit->manual_id, 'return_to' => request()->fullUrl()]) }}"
+                    <a href="{{ route('processes.create', ['manual_id' => $current_wo->unit->manual_id, 'return_to' => request()
+                    ->fullUrl()]) }}"
                        class="btn btn-outline-primary me-2" style="height: 60px;width: 100px">
                         <i class="fas fa-cogs"></i> {{ __('Add Processes') }}
                     </a>

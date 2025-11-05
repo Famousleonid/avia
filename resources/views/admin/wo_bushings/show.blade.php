@@ -116,7 +116,7 @@
                         </a>
                         <div style="width: 100px"></div>
                         <a href="{{ route('wo_bushings.specProcessForm', $woBushing->id) }}" class="btn btn-outline-warning"
-                           style="height: 60px;width: 120px" target="_blank">
+                               style="height: 60px;width: 120px" target="_blank">
                             <i class="fas fa-list"></i> Spec Process Form
                         </a>
                     @else

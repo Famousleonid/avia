@@ -9,6 +9,7 @@ use App\Models\Component;
 use App\Models\Condition;
 use App\Models\Customer;
 use App\Models\Instruction;
+use App\Models\LogCard;
 use App\Models\Manual;
 use App\Models\ManualProcess;
 use App\Models\ModCsv;
@@ -20,6 +21,7 @@ use App\Models\Tdr;
 use App\Models\TdrProcess;
 use App\Models\Training;
 use App\Models\Vendor;
+use App\Models\WoBushing;
 use Illuminate\Support\Facades\Cache;
 use App\Models\Unit;
 //use App\Models\Wo_Code;
@@ -282,11 +284,12 @@ class TdrController extends Controller
         $current_wo = Workorder::with(['unit.manuals.builder', 'instruction'])->findOrFail($id);
         $units = Unit::all();
         $user = Auth::user();
-//        $userId = auth()->id();
+
         $user_wo = $current_wo->user_id;
         $customers = Customer::all();
 
-
+        $log_card = LogCard::where('workorder_id', $current_wo->id)->first();
+        $woBushing = WoBushing::where('workorder_id', $current_wo->id)->first();
         // Получаем manual_id из связанного unit
         $manual_id = $current_wo->unit->manual_id;
 
@@ -370,7 +373,7 @@ class TdrController extends Controller
             'manuals', 'builders', 'planes', 'instruction', 'necessary',
             'necessaries', 'unit_conditions', 'component_conditions',
             'codes', 'conditions', 'missingParts', 'ordersParts', 'inspectsUnit',
-            'processParts', 'ordersPartsNew','trainings','user_wo', 'manual_id'
+            'processParts', 'ordersPartsNew','trainings','user_wo', 'manual_id','log_card','woBushing'
         ));
     }
 

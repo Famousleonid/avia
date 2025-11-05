@@ -123,7 +123,8 @@
                     </div>
                 </div>
                 <div>
-                    <a href="{{ route('processes.create', ['manual' => $current_wo->unit->manual_id, 'return_to' => route('wo_bushings.edit', $woBushing->id)]) }}"
+                    <a href="{{ route('processes.create', ['manual_id' => $current_wo->unit->manual_id, 'return_to' => route
+                    ('wo_bushings.edit', $woBushing->id)]) }}"
                        class="btn btn-outline-primary me-2" style="height: 60px;width: 100px">
                         <i class="fas fa-cogs"></i> {{ __('Add Processes') }}
                     </a>
