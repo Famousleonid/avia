@@ -135,6 +135,7 @@ Route::group(['middleware' => ['auth']], function () {
         Route::post('/trainings/delete-all', [TrainingController::class, 'deleteAll'])->name('trainings.deleteAll');
 
     Route::resource('/scopes',  ScopeController::class);
+    Route::resource('/conditions',  ConditionController::class);
     Route::resource('/planes',PlaneController::class);
     Route::resource('/components', ComponentController::class);
     Route::resource('/process-names',ProcessNameController::class);
