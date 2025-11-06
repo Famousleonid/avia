@@ -304,6 +304,8 @@ class TdrController extends Controller
         // Извлекаем все manuals для отображения
         $manuals = Manual::all();
 
+        $plane_id =
+
         // Извлекаем компоненты, которые связаны с этим manual_id
         $components = Component::where('manual_id', $manual_id)->get();
         $code = Code::where('name', 'Missing')->first();

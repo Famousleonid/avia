@@ -166,13 +166,22 @@
                             @endif
                         </div>
                         <div>
+                            @foreach($manuals as $manual)
+                                @if($manual->id == $manual_id)
+                                    @foreach($planes as $plane)
+                                        @if($plane->id == $manual->planes_id)
+                                            @if(!str_contains($plane->type, 'ATR'))
+                                                <a href="{{route('log_card.show',['id' => $current_wo->id])}}"
+                                                      class="btn  fs-8 btn-outline-primary " style="min-height: 55px;width: 55px"
+                                                      onclick="showLoadingSpinner ()">
+                                                    {{__('Log Card')}}
+                                                </a>
+                                            @endif
+                                        @endif
+                                    @endforeach
+                                @endif
+                            @endforeach
 
-                            <a href="{{route('log_card.show',['id' => $current_wo->id])}}"
-                               class="btn  fs-8 btn-outline-primary " style="min-height: 55px;width: 55px"
-                               onclick="showLoadingSpinner
-                                   ()">
-                                {{__('Log Card')}}
-                            </a>
                         </div>
                         <div>
                             <a href="{{route('wo_bushings.show',['wo_bushing' => $current_wo->id])}}"
@@ -190,6 +199,10 @@
                                 {{__('Repair & Modification Record')}}
                             </a>
                         </div>
+
+
+
+
 
                         <div class="ms-5">
                             @if($current_wo->instruction_id == 1 )
