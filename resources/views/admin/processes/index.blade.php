@@ -158,6 +158,7 @@
                             @endif
                         </td>
                         <td class="text-center" >
+                            {{$manual->id}}
                             <a href="{{ route('processes.create', ['manual_id' => $manual->id]) }}" class="btn
                             btn-outline-primary btn-sm">
                                 <i class="bi bi-plus-lg"></i>

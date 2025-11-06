@@ -166,6 +166,7 @@
                             @endif
                         </div>
                         <div>
+
                             <a href="{{route('log_card.show',['id' => $current_wo->id])}}"
                                class="btn  fs-8 btn-outline-primary " style="min-height: 55px;width: 55px"
                                onclick="showLoadingSpinner
@@ -845,7 +846,7 @@
                                                 class="text-center fs-8">
                                                 @foreach($conditions as $condition)
                                                     @if($condition->id == $tdr->conditions_id)
-                                                        {{$condition ->name}}
+                                                        {{$condition ->name}} {{$tdr->description}}
                                                     @endif
                                                 @endforeach
 

@@ -48,13 +48,16 @@ class ProcessController extends Controller
      *
      * @return Application|Factory|View
      */
-    public function create(Request $request)
+    public function create(Request $request, $manualId = null)
     {
-        $manualId = $request->query('manual');
-        
+        // Получаем manual_id из параметра маршрута или из query string (для обратной совместимости)
+        if (!$manualId) {
+            $manualId = $request->route('manual_id') ?? $request->query('manual_id');
+        }
+
         \Log::info('ProcessController::create - Request query parameters:', $request->query());
         \Log::info('ProcessController::create - Manual ID:', ['manual_id' => $manualId]);
-        
+
         if (!$manualId) {
             abort(400, 'Manual ID is required');
         }
@@ -75,7 +78,7 @@ class ProcessController extends Controller
     public function store(Request $request)
     {
         \Log::info('ProcessController::store - Request data:', $request->all());
-        
+
         // Валидация с поддержкой двух сценариев: новый процесс или выбор существующего
         $validated = $request->validate([
             'process_names_id' => 'required|integer|exists:process_names,id',
@@ -88,20 +91,20 @@ class ProcessController extends Controller
             $validated['selected_process_id'] = $request->validate([
                 'selected_process_id' => 'required|integer|exists:processes,id'
             ])['selected_process_id'];
-            
+
             $processId = $validated['selected_process_id'];
         } else {
             // Сценарий 2: Создание нового процесса
             $validated['process'] = $request->validate([
                 'process' => 'required|string|max:255'
             ])['process'];
-            
+
             // Создаем новый процесс
             $process = Process::create([
                 'process_names_id' => $validated['process_names_id'],
                 'process' => $validated['process'],
             ]);
-            
+
             $processId = $process->id;
         }
 
@@ -132,7 +135,7 @@ class ProcessController extends Controller
             return redirect()->back()->with('success', 'Process added successfully.');
         } catch (\Exception $e) {
             \Log::error('ProcessController::store - Error: ' . $e->getMessage());
-            
+
             if ($request->ajax() || $request->wantsJson()) {
                 return response()->json([
                     'success' => false,

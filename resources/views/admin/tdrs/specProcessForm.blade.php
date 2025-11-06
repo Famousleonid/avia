@@ -305,17 +305,42 @@
                          style="width: 24px;height: 20px">
                 </div>
                 <div class="border-l-t-b text-center pt-0 fs-75" style="width: 25px;height: 20px">
-                    {{ !isset($ndtSums['mpi']) || $ndtSums['mpi'] === null ? 'N/A' : $ndtSums['mpi'] }}</div>
+                    @if($current_wo->instruction_id ==1)
+                        {{ !isset($ndtSums['mpi']) || $ndtSums['mpi'] === null ? 'N/A' : $ndtSums['mpi'] }}
+                    @else
+                        {{__('N/A')}}
+                    @endif
+                </div>
                 <div class="border-l-t-b ps-2 fs-8 " style="width: 130px;height: 20px; color: lightgray; font-style: italic" >RO
                     No.</div>
                 <div class="border-all text-center pt-0 fs-75" style="width: 25px;height: 20px">
-                    {{ !isset($ndtSums['fpi']) || $ndtSums['fpi'] === null ? 'N/A' : $ndtSums['fpi'] }}</div>
+                    @if($current_wo->instruction_id ==1)
+                         {{ !isset($ndtSums['fpi']) || $ndtSums['fpi'] === null ? 'N/A' : $ndtSums['fpi'] }}
+                    @else
+                        {{__('N/A')}}
+                    @endif
+                </div>
                 <div class=" text-center fs-8" style="width: 20px;height: 20px"></div>
                 <div class="border-l-t-b ps-2 fs-8 " style="width: 100px;height: 20px; color: lightgray; font-style:
                 italic" >RO
                     No.</div>
                 <div class="border-all text-center pt-0 fs-75" style="width: 25px;height: 20px">
-                    {{ empty($cadSum['total_qty']) ? 'N/A' : $cadSum['total_qty']  }}
+
+{{--                    {{ empty($cadSum['total_qty']) ? 'N/A' : $cadSum['total_qty']  }}--}}
+                    @php
+                        $a = $cadSum['total_qty'] ?? null;
+                        $b = $cadSum_ex ?? null;
+                        $hasA = isset($a) && $a !== '' && $a !== 0;
+                        $hasB = isset($b) && $b !== '' && $b !== 0;
+                        $result = ($hasA && $hasB) ? ((int)$a + (int)$b) : (($hasA ? (int)$a : ($hasB ? (int)$b : null)));
+                    @endphp
+                    @if($current_wo->instruction_id==1)
+                        {{ ($result !== null && $result > 0) ? $result : 'N/A' }}
+                    @else
+                        {{ ($cadSum_ex > 0) ? $cadSum_ex : 'N/A'}}
+                    @endif
+
+
                 </div>
                 <div class=" text-center fs-7" style="width: 305px;height: 20px"></div>
                 <div class=" text-end pt-2 fs-8" style="width: 75px;height: 10px">Technician</div>

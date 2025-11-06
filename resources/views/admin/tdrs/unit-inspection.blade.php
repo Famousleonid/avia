@@ -103,7 +103,11 @@
                             {{ __('Manage Condition') }}
                         </button>
                     </div>
-
+                    <div class="m-2">
+                        <label class="" for="description">{{ __('Notice')}}</label>
+                        <input id='description' type="text"
+                               class="form-control " name="description" >
+                    </div>
                     <div class="text-end">
                         <button type="submit" class="btn btn-outline-primary mt-3">{{ __('Save') }}</button>
                         <a href="{{ route('tdrs.show', ['id' => $current_wo->id]) }}" class="btn btn-outline-secondary mt-3">{{
