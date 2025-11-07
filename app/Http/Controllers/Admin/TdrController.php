@@ -8,7 +8,6 @@ use App\Models\Code;
 use App\Models\Component;
 use App\Models\Condition;
 use App\Models\Customer;
-use App\Models\ExtraProcess;
 use App\Models\Instruction;
 use App\Models\LogCard;
 use App\Models\Manual;
@@ -289,8 +288,7 @@ class TdrController extends Controller
         $user_wo = $current_wo->user_id;
         $customers = Customer::all();
 
-        $log_card = LogCard::where('workorder_id', $current_wo->id)->first();
-        $woBushing = WoBushing::where('workorder_id', $current_wo->id)->first();
+
         // Получаем manual_id из связанного unit
         $manual_id = $current_wo->unit->manual_id;
 
@@ -304,7 +302,8 @@ class TdrController extends Controller
         // Извлекаем все manuals для отображения
         $manuals = Manual::all();
 
-        $plane_id =
+        $log_card = LogCard::where('workorder_id', $current_wo->id)->first();
+        $woBushing = WoBushing::where('workorder_id', $current_wo->id)->first();
 
         // Извлекаем компоненты, которые связаны с этим manual_id
         $components = Component::where('manual_id', $manual_id)->get();
@@ -447,7 +446,7 @@ class TdrController extends Controller
 
         // Перенаправляем на страницу просмотра с сообщением об успехе
         return redirect()
-            ->route('tdrs.show', ['id' => $request->workorder_id])
+            ->route('tdrs.show', ['tdr' => $request->workorder_id])
             ->with('success', 'TDR for Component updated successfully');
     }
     public function prlForm(Request $request, $id){
@@ -1289,13 +1288,6 @@ class TdrController extends Controller
         $ndtSums = $this->calcNdtSums($id);
         $cadSum = $this->calcCadSums($id);
 
-        $proNameId = ProcessName::where('name', 'Cad plate')->value('id');
-
-        $cadSum_ex = \App\Models\ExtraProcess::where('workorder_id', $current_wo->id)
-            ->whereRaw("JSON_SEARCH(processes, 'one', CAST(? AS CHAR), NULL, '$[*].process_name_id') IS NOT NULL",[(string)$proNameId]
-            )->sum('qty');
-
-
         $tdr_ws = Tdr::where('workorder_id', $current_wo->id)
             ->where('use_process_forms', true)
             ->with('component')
@@ -1355,7 +1347,7 @@ class TdrController extends Controller
             'ndt_processes' => $ndt_processes, // Отфильтрованная коллекция
             'ndtSums' => $ndtSums, // Добавляем NDT суммы в представление
             'cadSum' => $cadSum,
-        ], compact('tdrs', 'tdr_ws','processNames','cadSum_ex'));
+        ], compact('tdrs', 'tdr_ws','processNames'));
     }
     public function specProcessFormEmp(Request $request, $id)
     {
@@ -1368,12 +1360,6 @@ class TdrController extends Controller
         // Получаем NDT суммы
         $ndtSums = $this->calcNdtSums($id);
         $cadSum = $this->calcCadSums($id);
-
-        $proNameId = ProcessName::where('name', 'Cad plate')->value('id');
-
-        $cadSum_ex = \App\Models\ExtraProcess::where('workorder_id', $current_wo->id)
-        ->whereRaw("JSON_SEARCH(processes, 'one', CAST(? AS CHAR), NULL, '$[*].process_name_id') IS NOT NULL",[(string)$proNameId]
-        )->sum('qty');
 
         $tdr_ws = Tdr::where('workorder_id', $current_wo->id)
             ->where('use_process_forms', true)
@@ -1433,7 +1419,7 @@ class TdrController extends Controller
             'ndt_processes' => $ndt_processes, // Отфильтрованная коллекция
             'ndtSums' => $ndtSums, // Добавляем NDT суммы в представление
             'cadSum' => $cadSum,
-        ], compact('tdrs', 'tdr_ws','processNames','cadSum_ex'));
+        ], compact('tdrs', 'tdr_ws','processNames'));
     }
 
     public function logCardForm(Request $request, $id)
@@ -1499,8 +1485,14 @@ class TdrController extends Controller
             if ($tdr->component_id === null) {
                 $conditions = $tdr->conditions; // Получаем данные о состоянии
                 if ($conditions) {
+                    $description = trim((string) $tdr->description);
+                    $conditionString = $conditions->name;
+                    if ($description !== '') {
+                        $conditionString .= ' ' . $description;
+                    }
+
                     // Добавляем состояние в массив
-                    $nullComponentConditions[] = $conditions->name;
+                    $nullComponentConditions[] = $conditionString;
                 }
             } elseif ($tdr->component_id !== null && $tdr->necessaries_id == $necessary->id) {
                 // Группируем компоненты по состояниям, если necessaries_id == 2 ('Order New')
