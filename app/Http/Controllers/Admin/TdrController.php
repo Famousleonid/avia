@@ -446,7 +446,7 @@ class TdrController extends Controller
 
         // Перенаправляем на страницу просмотра с сообщением об успехе
         return redirect()
-            ->route('tdrs.show', ['tdr' => $request->workorder_id])
+            ->route('tdrs.show', ['id' => $request->workorder_id])
             ->with('success', 'TDR for Component updated successfully');
     }
     public function prlForm(Request $request, $id){
@@ -1288,6 +1288,12 @@ class TdrController extends Controller
         $ndtSums = $this->calcNdtSums($id);
         $cadSum = $this->calcCadSums($id);
 
+        $proNameId = ProcessName::where('name', 'Cad plate')->value('id');
+
+        $cadSum_ex = \App\Models\ExtraProcess::where('workorder_id', $current_wo->id)
+            ->whereRaw("JSON_SEARCH(processes, 'one', CAST(? AS CHAR), NULL, '$[*].process_name_id') IS NOT NULL",[(string)$proNameId]
+            )->sum('qty');
+
         $tdr_ws = Tdr::where('workorder_id', $current_wo->id)
             ->where('use_process_forms', true)
             ->with('component')
@@ -1347,7 +1353,7 @@ class TdrController extends Controller
             'ndt_processes' => $ndt_processes, // Отфильтрованная коллекция
             'ndtSums' => $ndtSums, // Добавляем NDT суммы в представление
             'cadSum' => $cadSum,
-        ], compact('tdrs', 'tdr_ws','processNames'));
+        ], compact('tdrs', 'tdr_ws','processNames','cadSum_ex'));
     }
     public function specProcessFormEmp(Request $request, $id)
     {
@@ -1360,6 +1366,12 @@ class TdrController extends Controller
         // Получаем NDT суммы
         $ndtSums = $this->calcNdtSums($id);
         $cadSum = $this->calcCadSums($id);
+
+        $proNameId = ProcessName::where('name', 'Cad plate')->value('id');
+
+        $cadSum_ex = \App\Models\ExtraProcess::where('workorder_id', $current_wo->id)
+            ->whereRaw("JSON_SEARCH(processes, 'one', CAST(? AS CHAR), NULL, '$[*].process_name_id') IS NOT NULL",[(string)$proNameId]
+            )->sum('qty');
 
         $tdr_ws = Tdr::where('workorder_id', $current_wo->id)
             ->where('use_process_forms', true)
@@ -1419,7 +1431,7 @@ class TdrController extends Controller
             'ndt_processes' => $ndt_processes, // Отфильтрованная коллекция
             'ndtSums' => $ndtSums, // Добавляем NDT суммы в представление
             'cadSum' => $cadSum,
-        ], compact('tdrs', 'tdr_ws','processNames'));
+        ], compact('tdrs', 'tdr_ws','processNames','cadSum_ex'));
     }
 
     public function logCardForm(Request $request, $id)

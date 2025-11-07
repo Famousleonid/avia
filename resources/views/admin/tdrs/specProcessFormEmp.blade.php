@@ -318,7 +318,7 @@
                 @if($current_wo->instruction_id==1)
                      {{ ($result !== null && $result > 0) ? $result : 'N/A' }}
                 @else
-                    {{$cadSum_ex}}
+                    {{($cadSum_ex >0) ? $cadSum_ex : 'N/A' }}
                 @endif
             </div>
             <div class="text-center fs-7" style="width: 305px;height: 20px"></div>

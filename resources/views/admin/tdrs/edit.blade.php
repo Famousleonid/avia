@@ -99,7 +99,7 @@
                     </div>
                     <div class="text-end mt-2">
                         <button type="submit" class="btn btn-outline-primary mt-3">{{ __('Update') }}</button>
-                        <a href="{{ route('tdrs.show', ['tdr'=>$current_tdr->workorder->id]) }}"
+                        <a href="{{ route('tdrs.show', ['id'=>$current_tdr->workorder->id]) }}"
                         class="btn btn-outline-secondary mt-3" >{{ __('Cancel') }}</a>
                     </div>
                 </form>
