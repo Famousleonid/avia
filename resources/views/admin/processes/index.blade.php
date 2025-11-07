@@ -137,6 +137,8 @@
                                data-bs-target="#cmmModal{{$manual->id}}">
                                 {{ $manual->number }}
                             </a>
+                                <span class="text-white-50">({{ $manual->lib ?? '—' }})</span>
+
                         </td>
                         <td class="text-center" >
                             {{ $manual->title }} ({{ $manual->unit_name_training }})
@@ -158,7 +160,7 @@
                             @endif
                         </td>
                         <td class="text-center" >
-                            {{$manual->id}}
+
                             <a href="{{ route('processes.create', ['manual_id' => $manual->id]) }}" class="btn
                             btn-outline-primary btn-sm">
                                 <i class="bi bi-plus-lg"></i>

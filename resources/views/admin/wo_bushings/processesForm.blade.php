@@ -282,7 +282,7 @@
                 </div>
                 <div class="row" style="height: 32px">
                     <div class="col-4 pt-2 text-end"><strong>VENDOR:</strong></div>
-                    <div class="col-8 pt-2 border-b"></div>
+                    <div class="col-8 pt-2 border-b"><strong>{{ $selectedVendor ? $selectedVendor->name : '' }}</strong></div>
                 </div>
             </div>
         </div>
@@ -476,7 +476,7 @@
         </div>
         <div class="page data-page">
             @php
-                $totalRows = 16; // Общее количество строк
+                $totalRows = 20; // Общее количество строк
                 $dataRows = isset($table_data) ? count($table_data) : 0; // Количество строк с данными
                 $emptyRows = $totalRows - $dataRows; // Количество пустых строк
             @endphp

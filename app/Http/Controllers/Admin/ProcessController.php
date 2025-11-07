@@ -54,9 +54,9 @@ class ProcessController extends Controller
         if (!$manualId) {
             $manualId = $request->route('manual_id') ?? $request->query('manual_id');
         }
-
-        \Log::info('ProcessController::create - Request query parameters:', $request->query());
-        \Log::info('ProcessController::create - Manual ID:', ['manual_id' => $manualId]);
+//
+//        \Log::info('ProcessController::create - Request query parameters:', $request->query());
+//        \Log::info('ProcessController::create - Manual ID:', ['manual_id' => $manualId]);
 
         if (!$manualId) {
             abort(400, 'Manual ID is required');
@@ -120,11 +120,7 @@ class ProcessController extends Controller
 
             // Если это AJAX-запрос или JSON запрос, возвращаем JSON
             if ($request->ajax() || $request->wantsJson()) {
-                return response()->json([
-                    'success' => true,
-                    'message' => 'Process added successfully.',
-                    'process' => $processToReturn
-                ]);
+                return response()->json(['success' => true, 'message' => 'Process added successfully.', 'process' => $processToReturn ]);
             }
 
             // Проверяем, куда нужно вернуться

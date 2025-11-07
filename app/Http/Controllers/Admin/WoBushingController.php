@@ -8,6 +8,7 @@ use App\Models\Workorder;
 use App\Models\Component;
 use App\Models\Process;
 use App\Models\ProcessName;
+use App\Models\Vendor;
 use Illuminate\Http\Request;
 
 class WoBushingController extends Controller
@@ -252,6 +253,9 @@ class WoBushingController extends Controller
                 : json_decode($woBushing->bush_data, true);
         }
 
+        // Get all vendors
+        $vendors = Vendor::all();
+
         return view('admin.wo_bushings.show', compact(
             'current_wo',
             'bushings',
@@ -261,7 +265,8 @@ class WoBushingController extends Controller
             'cadProcesses',
             'xylanProcesses',
             'woBushing',
-            'bushData'
+            'bushData',
+            'vendors'
         ));
     }
 
@@ -435,11 +440,18 @@ class WoBushingController extends Controller
      * @param  int  $processNameId
      * @return \Illuminate\Contracts\View\View
      */
-    public function processesForm($id, $processNameId)
+    public function processesForm($id, $processNameId, Request $request)
     {
         $woBushing = WoBushing::findOrFail($id);
         $current_wo = Workorder::findOrFail($woBushing->workorder_id);
         $processName = ProcessName::findOrFail($processNameId);
+
+        // Получаем vendor_id из запроса
+        $vendorId = $request->input('vendor_id');
+        $selectedVendor = null;
+        if ($vendorId) {
+            $selectedVendor = Vendor::find($vendorId);
+        }
 
         // Получаем связанные данные
         $manual_id = $current_wo->unit->manual_id;
@@ -454,7 +466,8 @@ class WoBushingController extends Controller
             'wo_bushing' => $woBushing,
             'manuals' => \App\Models\Manual::where('id', $manual_id)->get(),
             'manual_id' => $manual_id,
-            'process_name' => $processName
+            'process_name' => $processName,
+            'selectedVendor' => $selectedVendor
         ];
 
         // Получаем данные о втулках

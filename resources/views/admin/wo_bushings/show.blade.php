@@ -13,15 +13,15 @@
             white-space: nowrap;
             overflow: hidden;
             text-overflow: ellipsis;
-            min-width: 120px;
-            max-width: 200px;
+            min-width: 80px;
+            max-width: 133px;
             padding: 8px 12px;
             vertical-align: middle;
         }
 
         .table th:nth-child(1), .table td:nth-child(1) {
-            min-width: 180px;
-            max-width: 250px;
+            min-width: 120px;
+            max-width: 167px;
         }
 
         .table th:nth-child(2), .table td:nth-child(2) {
@@ -30,9 +30,13 @@
             text-align: center;
         }
 
-        .table th:nth-child(3), .table td:nth-child(3) {
-            min-width: 80px;
-            max-width: 100px;
+        .table th:nth-child(3), .table td:nth-child(3),
+        .table th:nth-child(4), .table td:nth-child(4),
+        .table th:nth-child(5), .table td:nth-child(5),
+        .table th:nth-child(6), .table td:nth-child(6),
+        .table th:nth-child(7), .table td:nth-child(7) {
+            min-width: 140px;
+            max-width: 190px;
             text-align: center;
         }
 
@@ -43,7 +47,7 @@
             vertical-align: middle;
             border-top: 1px;
             z-index: 1020;
-            background-color: #f8f9fa;
+            /*background-color: #f8f9fa;*/
         }
 
         .form-select, .form-control {
@@ -184,14 +188,32 @@
                                                 }
                                             }
                                         @endphp
-                                        @if($machiningProcessName && $hasMachiningData)
-                                            <a href="{{ route('wo_bushings.processesForm', ['id' => $woBushing->id,
-                                            'processNameId' => $machiningProcessName->id]) }}" target="_blank" class="btn btn-sm btn-outline-warning mt-1">Form</a>
-                                        @else
-                                            <span class="text-muted">Form</span>
-                                        @endif
+                                        <div class="d-flex align-items-center justify-content-center gap-2 mt-1">
+                                            <select class="form-select form-select-sm" style="width: auto; min-width: 80px;" name="vendor_id" id="vendor_machining">
+                                                <option value="">Vendor</option>
+                                                @foreach($vendors as $vendor)
+                                                    <option value="{{ $vendor->id }}">{{ $vendor->name }}</option>
+                                                @endforeach
+                                            </select>
+                                            @if($machiningProcessName && $hasMachiningData)
+                                                <a href="{{ route('wo_bushings.processesForm', ['id' => $woBushing->id,
+                                                'processNameId' => $machiningProcessName->id]) }}" target="_blank" 
+                                                class="btn btn-sm btn-outline-warning form-btn" 
+                                                data-vendor-select="vendor_machining">Form</a>
+                                            @else
+                                                <span class="text-muted">Form</span>
+                                            @endif
+                                        </div>
                                     @else
-                                        <span class="text-muted">Form</span>
+                                        <div class="d-flex align-items-center justify-content-center gap-2 mt-1">
+                                            <select class="form-select form-select-sm" style="width: auto; min-width: 80px;" name="vendor_id" id="vendor_machining">
+                                                <option value="">Vendor</option>
+                                                @foreach($vendors as $vendor)
+                                                    <option value="{{ $vendor->id }}">{{ $vendor->name }}</option>
+                                                @endforeach
+                                            </select>
+                                            <span class="text-muted">Form</span>
+                                        </div>
                                     @endif
                                 </th>
                                 <th class="text-primary text-center">
@@ -210,14 +232,32 @@
                                                 }
                                             }
                                         @endphp
-                                        @if($ndtProcessName && $hasNdtData)
-                                            <a href="{{ route('wo_bushings.processesForm', ['id' => $woBushing->id,
-                                            'processNameId' => $ndtProcessName->id]) }}" target="_blank" class="btn btn-sm btn-outline-warning mt-1">Form</a>
-                                        @else
-                                            <span class="text-muted">Form</span>
-                                        @endif
+                                        <div class="d-flex align-items-center justify-content-center gap-2 mt-1">
+                                            <select class="form-select form-select-sm" style="width: auto; min-width: 80px;" name="vendor_id" id="vendor_ndt">
+                                                <option value="">Vendor</option>
+                                                @foreach($vendors as $vendor)
+                                                    <option value="{{ $vendor->id }}">{{ $vendor->name }}</option>
+                                                @endforeach
+                                            </select>
+                                            @if($ndtProcessName && $hasNdtData)
+                                                <a href="{{ route('wo_bushings.processesForm', ['id' => $woBushing->id,
+                                                'processNameId' => $ndtProcessName->id]) }}" target="_blank" 
+                                                class="btn btn-sm btn-outline-warning form-btn" 
+                                                data-vendor-select="vendor_ndt">Form</a>
+                                            @else
+                                                <span class="text-muted">Form</span>
+                                            @endif
+                                        </div>
                                     @else
-                                        <span class="text-muted">Form</span>
+                                        <div class="d-flex align-items-center justify-content-center gap-2 mt-1">
+                                            <select class="form-select form-select-sm" style="width: auto; min-width: 80px;" name="vendor_id" id="vendor_ndt">
+                                                <option value="">Vendor</option>
+                                                @foreach($vendors as $vendor)
+                                                    <option value="{{ $vendor->id }}">{{ $vendor->name }}</option>
+                                                @endforeach
+                                            </select>
+                                            <span class="text-muted">Form</span>
+                                        </div>
                                     @endif
                                 </th>
                                 <th class="text-primary text-center">
@@ -236,14 +276,32 @@
                                                 }
                                             }
                                         @endphp
-                                        @if($passivationProcessName && $hasPassivationData)
-                                            <a href="{{ route('wo_bushings.processesForm', ['id' => $woBushing->id,
-                                            'processNameId' => $passivationProcessName->id]) }}" target="_blank" class="btn btn-sm btn-outline-warning mt-1">Form</a>
-                                        @else
-                                            <span class="text-muted">Form</span>
-                                        @endif
+                                        <div class="d-flex align-items-center justify-content-center gap-2 mt-1">
+                                            <select class="form-select form-select-sm" style="width: auto; min-width: 80px;" name="vendor_id" id="vendor_passivation">
+                                                <option value="">Vendor</option>
+                                                @foreach($vendors as $vendor)
+                                                    <option value="{{ $vendor->id }}">{{ $vendor->name }}</option>
+                                                @endforeach
+                                            </select>
+                                            @if($passivationProcessName && $hasPassivationData)
+                                                <a href="{{ route('wo_bushings.processesForm', ['id' => $woBushing->id,
+                                                'processNameId' => $passivationProcessName->id]) }}" target="_blank" 
+                                                class="btn btn-sm btn-outline-warning form-btn" 
+                                                data-vendor-select="vendor_passivation">Form</a>
+                                            @else
+                                                <span class="text-muted">Form</span>
+                                            @endif
+                                        </div>
                                     @else
-                                        <span class="text-muted">Form</span>
+                                        <div class="d-flex align-items-center justify-content-center gap-2 mt-1">
+                                            <select class="form-select form-select-sm" style="width: auto; min-width: 80px;" name="vendor_id" id="vendor_passivation">
+                                                <option value="">Vendor</option>
+                                                @foreach($vendors as $vendor)
+                                                    <option value="{{ $vendor->id }}">{{ $vendor->name }}</option>
+                                                @endforeach
+                                            </select>
+                                            <span class="text-muted">Form</span>
+                                        </div>
                                     @endif
                                 </th>
                                 <th class="text-primary text-center">
@@ -262,14 +320,32 @@
                                                 }
                                             }
                                         @endphp
-                                        @if($cadProcessName && $hasCadData)
-                                            <a href="{{ route('wo_bushings.processesForm', ['id' => $woBushing->id,
-                                            'processNameId' => $cadProcessName->id]) }}" target="_blank" class="btn btn-sm btn-outline-warning mt-1">Form</a>
-                                        @else
-                                            <span class="text-muted">Form</span>
-                                        @endif
+                                        <div class="d-flex align-items-center justify-content-center gap-2 mt-1">
+                                            <select class="form-select form-select-sm" style="width: auto; min-width: 80px;" name="vendor_id" id="vendor_cad">
+                                                <option value="">Vendor</option>
+                                                @foreach($vendors as $vendor)
+                                                    <option value="{{ $vendor->id }}">{{ $vendor->name }}</option>
+                                                @endforeach
+                                            </select>
+                                            @if($cadProcessName && $hasCadData)
+                                                <a href="{{ route('wo_bushings.processesForm', ['id' => $woBushing->id,
+                                                'processNameId' => $cadProcessName->id]) }}" target="_blank" 
+                                                class="btn btn-sm btn-outline-warning form-btn" 
+                                                data-vendor-select="vendor_cad">Form</a>
+                                            @else
+                                                <span class="text-muted">Form</span>
+                                            @endif
+                                        </div>
                                     @else
+                                        <div class="d-flex align-items-center justify-content-center gap-2 mt-1">
+                                            <select class="form-select form-select-sm" style="width: auto; min-width: 80px;" name="vendor_id" id="vendor_cad">
+                                                <option value="">Vendor</option>
+                                                @foreach($vendors as $vendor)
+                                                    <option value="{{ $vendor->id }}">{{ $vendor->name }}</option>
+                                                @endforeach
+                                            </select>
                                             <span class="text-muted">Form</span>
+                                        </div>
                                     @endif
                                 </th>
                                 <th class="text-primary text-center">
@@ -288,14 +364,32 @@
                                                 }
                                             }
                                         @endphp
-                                        @if($xylanProcessName && $hasXylanData)
-                                            <a href="{{ route('wo_bushings.processesForm', ['id' => $woBushing->id,
-                                            'processNameId' => $xylanProcessName->id]) }}" target="_blank" class="btn btn-sm btn-outline-warning mt-1">Form</a>
-                                        @else
-                                            <span class="text-muted">Form</span>
-                                        @endif
+                                        <div class="d-flex align-items-center justify-content-center gap-2 mt-1">
+                                            <select class="form-select form-select-sm" style="width: auto; min-width: 80px;" name="vendor_id" id="vendor_xylan">
+                                                <option value="">Vendor</option>
+                                                @foreach($vendors as $vendor)
+                                                    <option value="{{ $vendor->id }}">{{ $vendor->name }}</option>
+                                                @endforeach
+                                            </select>
+                                            @if($xylanProcessName && $hasXylanData)
+                                                <a href="{{ route('wo_bushings.processesForm', ['id' => $woBushing->id,
+                                                'processNameId' => $xylanProcessName->id]) }}" target="_blank" 
+                                                class="btn btn-sm btn-outline-warning form-btn" 
+                                                data-vendor-select="vendor_xylan">Form</a>
+                                            @else
+                                                <span class="text-muted">Form</span>
+                                            @endif
+                                        </div>
                                     @else
-                                        <span class="text-muted">Form</span>
+                                        <div class="d-flex align-items-center justify-content-center gap-2 mt-1">
+                                            <select class="form-select form-select-sm" style="width: auto; min-width: 80px;" name="vendor_id" id="vendor_xylan">
+                                                <option value="">Vendor</option>
+                                                @foreach($vendors as $vendor)
+                                                    <option value="{{ $vendor->id }}">{{ $vendor->name }}</option>
+                                                @endforeach
+                                            </select>
+                                            <span class="text-muted">Form</span>
+                                        </div>
                                     @endif
                                 </th>
                             </tr>
@@ -392,6 +486,34 @@
         @endif
     </div>
 
-
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // Обработчик для всех кнопок Form
+            document.querySelectorAll('.form-btn').forEach(function(btn) {
+                btn.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    
+                    // Получаем ID дропдауна из data-атрибута
+                    var vendorSelectId = this.getAttribute('data-vendor-select');
+                    var vendorSelect = document.getElementById(vendorSelectId);
+                    
+                    // Получаем выбранное значение vendor_id
+                    var vendorId = vendorSelect ? vendorSelect.value : '';
+                    
+                    // Получаем базовый URL
+                    var baseUrl = this.getAttribute('href');
+                    
+                    // Добавляем vendor_id к URL, если он выбран
+                    var finalUrl = baseUrl;
+                    if (vendorId) {
+                        finalUrl += (baseUrl.includes('?') ? '&' : '?') + 'vendor_id=' + vendorId;
+                    }
+                    
+                    // Открываем форму в новом окне
+                    window.open(finalUrl, '_blank');
+                });
+            });
+        });
+    </script>
 
 @endsection
