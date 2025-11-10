@@ -71,6 +71,17 @@
         <span class="menu-label">Workorder</span>
     </a>
 
+    <a href="{{ route('mobile.tasks') }}"
+       class="flex-fill text-center d-flex flex-column align-items-center justify-content-center text-white">
+        <div class="menu-icon-wrapper {{ $isActive('mobile.tasks') ? 'active' : '' }}">
+            <i class="bi bi-list-task"></i>
+            <svg viewBox="0 0 36 36">
+                <circle cx="18" cy="18" r="18"/>
+            </svg>
+        </div>
+        <span class="menu-label">Tasks</span>
+    </a>
+
     <a href="{{ route('mobile.materials') }}"
        class="flex-fill text-center d-flex flex-column align-items-center justify-content-center text-white">
         <div class="menu-icon-wrapper {{ $isActive('mobile.materials') ? 'active' : '' }}">
