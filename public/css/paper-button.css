@@ -46,6 +46,25 @@
     transition: stroke .15s ease, fill .15s ease;
 }
 
+.paper-btn-multy svg .paper-layer {
+    fill: var(--paper, #b9b9b9);
+    stroke: var(--stroke, #d0d0d0);
+    stroke-width: 1;
+    transition: stroke .15s ease, fill .15s ease, opacity .15s ease;
+}
+
+.paper-btn-multy svg .paper-layer.layer-1 {
+    opacity: 0.35;
+}
+
+.paper-btn-multy svg .paper-layer.layer-2 {
+    opacity: 0.45;
+}
+
+.paper-btn-multy svg .paper-layer.layer-3 {
+    opacity: 0.6;
+}
+
 .paper-btn svg .fold {
     fill: var(--fold, #c8c8c8);
     transition: fill .15s ease;

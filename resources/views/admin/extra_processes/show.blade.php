@@ -154,12 +154,23 @@
 
                     </div>
                     @if(isset($processGroups) && count($processGroups) > 0)
-                        <button type="button" class="btn btn-outline-info me-2"
-                                style="height: 60px; width: 150px"
-                                data-bs-toggle="modal"
-                                data-bs-target="#groupFormsModal">
-                            <i class="fas fa-print"></i> Group Process Forms
-                        </button>
+{{--                        <button type="button" class="btn btn-outline-info me-2"--}}
+{{--                                style="height: 60px; width: 150px"--}}
+{{--                                data-bs-toggle="modal"--}}
+{{--                                data-bs-target="#groupFormsModal">--}}
+{{--                            <i class="fas fa-print"></i> Group Process Forms--}}
+{{--                        </button>--}}
+                        <x-paper-button-multy
+                            text="Group Process Forms"
+                            color="outline-primary"
+                            size="landscape"
+                            width="100"
+                            ariaLabel="Group Process Forms"
+                            data-bs-toggle="modal"
+                            data-bs-target="#groupFormsModal"
+                        />
+
+
                     @endif
 
 
@@ -294,19 +305,40 @@
                                 <tbody>
                             @foreach($processGroups as $processNameId => $group)
                                         <tr>
-                                            <td class="align-middle">
-                                        <a href="{{ route('extra_processes.show_group_forms', ['id' => $current_wo->id, 'processNameId' => $processNameId]) }}"
-                                                   class="btn btn-outline-warning w-100 group-form-link"
-                                           data-process-name-id="{{ $processNameId }}"
-                                           target="_blank">
-                                            <i class="fas fa-print me-2"></i>
-                                            {{ $group['process_name']->name }}
-                                                    <br>
-                                                    <span class="badge bg-primary mt-1 ms-1 process-qty-badge"
-                                                          data-process-name-id="{{ $processNameId }}">
-                                                        {{ $group['qty'] }} pcs
-                                                    </span>
-                                                </a>
+                                            <td class="align-middle ">
+{{--                                        <a href="{{ route('extra_processes.show_group_forms', ['id' => $current_wo->id, 'processNameId' => $processNameId]) }}"--}}
+{{--                                                   class="btn btn-outline-warning w-100 group-form-link"--}}
+{{--                                           data-process-name-id="{{ $processNameId }}"--}}
+{{--                                           target="_blank">--}}
+{{--                                            <i class="fas fa-print me-2"></i>--}}
+{{--                                            {{ $group['process_name']->name }}--}}
+{{--                                                    <br>--}}
+{{--                                                    <span class="badge bg-primary mt-1 ms-1 process-qty-badge"--}}
+{{--                                                          data-process-name-id="{{ $processNameId }}">--}}
+{{--                                                        {{ $group['qty'] }} pcs--}}
+{{--                                                    </span>--}}
+{{--                                                </a>--}}
+
+                                                <div class="position-relative d-inline-block ms-5">
+                                                <x-paper-button
+                                                    text="{{ $group['process_name']->name }} "
+                                                    size="landscape"
+                                                    width="120px"
+                                                    href="{{ route('extra_processes.show_group_forms', ['id' => $current_wo->id, 'processNameId' => $processNameId]) }}"
+                                                    target="_blank"
+
+{{--                                                    :attributes="['data-process-name-id' => $processNameId]"--}}
+                                                > </x-paper-button>
+{{--                                                    <i class="fas fa-print me-2"></i>--}}
+
+                                                    <span class="badge bg-success  mt-1 ms-1 process-qty-badge"
+                                                          style="position: absolute; top: -5px; left: 5px; min-width: 20px;
+                                                          height: 30px;
+                                              display: flex; align-items: center; justify-content: center; font-size: 0.7rem; padding: 0 5px;">
+                                                        {{$group['qty'] }} pcs</span>
+
+                                                </div>
+
                                             </td>
                                             <td class="align-middle">
                                                 <div class="component-checkboxes" data-process-name-id="{{ $processNameId }}">

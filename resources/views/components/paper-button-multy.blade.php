@@ -45,8 +45,9 @@
 
     // Определяем viewBox на основе размера
     if ($size === 'portrait') {
-        $viewBoxCoords = '0 0 190 270';
+        $viewBoxCoords = '0 0 220 300';
         $paperPath = 'M10 10 H140 L180 50 V240 H10 Z';
+        $rectangularPath = 'M10 10 H180 V240 H10 Z'; // Прямоугольный путь для фоновых листов
         $foldPoints = '140,10 140,50 180,50';
         $linePath = 'M140 12 V50 H180';
         $foreignObjectX = 20;
@@ -54,8 +55,9 @@
         $foreignObjectWidth = 120;
         $foreignObjectHeight = 130;
     } else {
-        $viewBoxCoords = '0 0 260 200';
+        $viewBoxCoords = '0 0 280 220';
         $paperPath = 'M10 10 H210 L250 50 V170 H10 Z';
+        $rectangularPath = 'M10 10 H250 V170 H10 Z'; // Прямоугольный путь для фоновых листов
         $foldPoints = '210,10 210,50 250,50';
         $linePath = 'M210 12 V50 H250';
         $foreignObjectX = 20;
@@ -64,11 +66,18 @@
         $foreignObjectHeight = 90;
     }
 
+    // Определяем дополнительные слои
+    $layerOffsets = [
+        ['dx' => 30, 'dy' => 30],
+        ['dx' => 20, 'dy' => 20],
+        ['dx' => 10, 'dy' => 10],
+    ];
+
     // Определяем aria-label
     $ariaLabelValue = $ariaLabel ?? $text;
 
     // Определяем классы Bootstrap
-    $buttonClass = 'paper-btn btn-' . $color . ' p-0 paper-' . $size;
+    $buttonClass = 'paper-btn paper-btn-multy btn-' . $color . ' p-0 paper-' . $size;
 
     // Определяем атрибуты для кнопки/ссылки
     $tag = $href || $route ? 'a' : 'button';
@@ -104,6 +113,10 @@
 <{{ $tag }} {{ $attributes }}>
     <svg viewBox="{{ $viewBoxCoords }}" width="{{ $width }}" height="{{ $height }}"
          preserveAspectRatio="xMidYMid meet" xmlns="http://www.w3.org/2000/svg"{!! $customStyle !!}>
+        @foreach ($layerOffsets as $index => $layer)
+            <path class="paper paper-layer layer-{{ $index + 1 }}" d="{{ $rectangularPath }}"
+                  transform="translate({{ $layer['dx'] }}, {{ $layer['dy'] }})"/>
+        @endforeach
         <!-- лист -->
         <path class="paper" d="{{ $paperPath }}"/>
         <!-- уголок -->
@@ -114,7 +127,7 @@
         <foreignObject x="{{ $foreignObjectX }}" y="{{ $foreignObjectY }}"
                       width="{{ $foreignObjectWidth }}" height="{{ $foreignObjectHeight }}">
             <div xmlns="http://www.w3.org/1999/xhtml"
-                 style="font: 36px Arial, sans-serif;
+                 style="font: 29px Arial, sans-serif;
                         text-align: center;
                         display: flex;
                         align-items: center;
@@ -127,4 +140,5 @@
         </foreignObject>
     </svg>
 </{{ $tag }}>
+
 

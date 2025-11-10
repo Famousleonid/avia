@@ -522,7 +522,7 @@
         </div>
         <div class="page data-page">
             @php
-                $totalRows = 20; // Общее количество строк
+                $totalRows = 19; // Общее количество строк
                 $dataRows = isset($table_data) ? count($table_data) : 0; // Количество строк с данными
                 $emptyRows = $totalRows - $dataRows; // Количество пустых строк
             @endphp

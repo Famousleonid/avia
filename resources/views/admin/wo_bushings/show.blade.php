@@ -126,7 +126,8 @@
                         <x-paper-button
                             text="Bushing SP Form"
                             href="{{ route('wo_bushings.specProcessForm', $woBushing->id) }}}"
-
+                            size="landscape"
+                            width="120px"
                             target="_blank"
                             color="outline-primary"
                         />
