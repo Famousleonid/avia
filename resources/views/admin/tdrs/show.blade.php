@@ -467,12 +467,12 @@
                                             <div class="d-flex justify-content-between">
                                                 <h4 class="modal-title">{{__('Parts Missing ')}}</h4>
 
-                                                <div>
-                                                    <a href="{{route('tdrs.inspection',['workorder_id' => $current_wo->id])}}"
-                                                       class="btn btn-outline-primary " style="height: 40px" onclick="showLoadingSpinner()">
-                                                        {{__('Add Unit Inspection')}}
-                                                    </a>
-                                                </div>
+{{--                                                <div>--}}
+{{--                                                    <a href="{{route('tdrs.inspection',['workorder_id' => $current_wo->id])}}"--}}
+{{--                                                       class="btn btn-outline-primary " style="height: 40px" onclick="showLoadingSpinner()">--}}
+{{--                                                        {{__('Add Unit Inspection')}}--}}
+{{--                                                    </a>--}}
+{{--                                                </div>--}}
                                             </div>
                                         </div>
                                     </div>
@@ -708,12 +708,14 @@
 {{--                                   id="#" style=" height: 55px; width: 60px">--}}
 {{--                                        R&M Form--}}
 {{--                                </a>--}}
+                             @if(count($prl_parts)>0)
                                 <x-paper-button
                                     text="PRL"
                                     href="{{ route('tdrs.prlForm', ['id'=> $current_wo->id]) }}"
                                     target="_blank"
                                 />
-{{--                                <a href="{{ route('tdrs.prlForm', ['id'=> $current_wo->id]) }}"--}}
+                                @endif
+                                {{--                                <a href="{{ route('tdrs.prlForm', ['id'=> $current_wo->id]) }}"--}}
 {{--                                   class="btn fs-8 btn-outline-warning me-1 formLink align-content-center "--}}
 {{--                                   target="_blank"--}}
 {{--                                   id="#" style=" height: 55px; width: 55px">--}}
@@ -815,6 +817,7 @@
 {{--                            </a>--}}
                             <x-paper-button
                                 text="Bushing SP Form"
+
                                 href="{{ route('wo_bushings.specProcessForm', $woBushing->id) }}}"
                                 target="_blank"
                                 color="outline-primary"

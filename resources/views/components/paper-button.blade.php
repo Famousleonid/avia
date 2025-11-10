@@ -1,5 +1,5 @@
 @props([
-    'text' => 'Export CSV',
+    'text' => 'Text',
     'href' => null,
     'route' => null,
     'action' => null,
@@ -14,7 +14,7 @@
     // Определяем размеры
     $width = $size === 'portrait' ? 60 : 80;
     $height = $size === 'portrait' ? 80 : 60;
-    
+
     // Определяем viewBox на основе размера
     if ($size === 'portrait') {
         $viewBoxCoords = '0 0 190 270';
@@ -35,30 +35,30 @@
         $foreignObjectWidth = 190;
         $foreignObjectHeight = 90;
     }
-    
+
     // Определяем aria-label
     $ariaLabelValue = $ariaLabel ?? $text;
-    
+
     // Определяем классы Bootstrap
     $buttonClass = 'paper-btn btn-' . $color . ' p-0 paper-' . $size;
-    
+
     // Определяем атрибуты для кнопки/ссылки
     $tag = $href || $route ? 'a' : 'button';
     $attributes = $attributes->merge([
         'class' => $buttonClass,
         'aria-label' => $ariaLabelValue,
     ]);
-    
+
     if ($href) {
         $attributes = $attributes->merge(['href' => $href]);
     } elseif ($route) {
         $attributes = $attributes->merge(['href' => route($route)]);
     }
-    
+
     if ($action) {
         $attributes = $attributes->merge(['onclick' => $action]);
     }
-    
+
     // Если есть кастомные цвета, добавляем их в style
     $customStyle = '';
     if ($customColors && is_array($customColors)) {
@@ -74,7 +74,7 @@
 @endphp
 
 <{{ $tag }} {{ $attributes }}>
-    <svg viewBox="{{ $viewBoxCoords }}" width="{{ $width }}" height="{{ $height }}" 
+    <svg viewBox="{{ $viewBoxCoords }}" width="{{ $width }}" height="{{ $height }}"
          preserveAspectRatio="xMidYMid meet" xmlns="http://www.w3.org/2000/svg"{!! $customStyle !!}>
         <!-- лист -->
         <path class="paper" d="{{ $paperPath }}"/>
@@ -83,7 +83,7 @@
         <!-- линия сгиба -->
         <path class="line" d="{{ $linePath }}"/>
         <!-- текст с переносом -->
-        <foreignObject x="{{ $foreignObjectX }}" y="{{ $foreignObjectY }}" 
+        <foreignObject x="{{ $foreignObjectX }}" y="{{ $foreignObjectY }}"
                       width="{{ $foreignObjectWidth }}" height="{{ $foreignObjectHeight }}">
             <div xmlns="http://www.w3.org/1999/xhtml"
                  style="font: 36px Arial, sans-serif;

@@ -105,14 +105,21 @@
                 </div>
 
 
-                <div class="ps-2 d-flex" style="width: 600px;">
+                <div class="ps-2 d-flex" style="width: 600px; margin-top: -5px">
                     @if($log_card)
-                    <a href="{{ route('log_card.logCardForm', ['id'=> $current_wo->id]) }}"
-                       class="btn btn-outline-warning mb-3 formLink "
-                       target="_blank"
-                       id="#" style=" height: 60px; width: 80px">
-                        <i class="bi bi-file-earmark-excel"> Log Card </i>
-                    </a>
+{{--                    <a href="{{ route('log_card.logCardForm', ['id'=> $current_wo->id]) }}"--}}
+{{--                       class="btn btn-outline-warning mb-3 formLink "--}}
+{{--                       target="_blank"--}}
+{{--                       id="#" style=" height: 60px; width: 80px">--}}
+{{--                        <i class=""> Log Card </i>--}}
+{{--                    </a>--}}
+                        <x-paper-button
+                            text="Log Card"
+                            href="{{ route('log_card.logCardForm', ['id'=> $current_wo->id]) }}"
+                            target="_blank"
+                            color="outline-primary"
+                        />
+
                     @endif
                 </div>
 

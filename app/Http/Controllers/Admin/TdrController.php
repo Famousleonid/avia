@@ -356,6 +356,9 @@ class TdrController extends Controller
             }])
             ->get();
 
+        $prl_parts=Tdr::where('workorder_id', $current_wo->id)
+            ->where('necessaries_id', $necessary->id)->get();
+
         $planes = Plane::all();
         $builders = Builder::all();
         $instruction = Instruction::all();
@@ -375,7 +378,7 @@ class TdrController extends Controller
             'manuals', 'builders', 'planes', 'instruction', 'necessary',
             'necessaries', 'unit_conditions', 'component_conditions',
             'codes', 'conditions', 'missingParts', 'ordersParts', 'inspectsUnit',
-            'processParts', 'ordersPartsNew','trainings','user_wo', 'manual_id','log_card','woBushing'
+            'processParts', 'ordersPartsNew','trainings','user_wo', 'manual_id','log_card','woBushing','prl_parts'
         ));
     }
 

@@ -214,13 +214,17 @@
 
                 <div class="ps-2 d-flex" style="width: 600px;">
 
-                        <a href="{{ route('rm_reports.rmRecordForm', ['id'=> $current_wo->id]) }}"
-                           class="btn btn-outline-warning mb-3 formLink "
-                           target="_blank"
-                           id="#" style=" height: 60px; width: 120px">
-                            <i class="bi bi-file-earmark-excel"> R & M Record Form </i>
-                        </a>
-
+{{--                        <a href="{{ route('rm_reports.rmRecordForm', ['id'=> $current_wo->id]) }}"--}}
+{{--                           class="btn btn-outline-warning mb-3 formLink "--}}
+{{--                           target="_blank"--}}
+{{--                           id="#" style=" height: 60px; width: 120px">--}}
+{{--                            <i class="bi bi-file-earmark-excel"> R & M Record Form </i>--}}
+{{--                        </a>--}}
+                    <x-paper-button
+                        text="R&M Form"
+                        href="{{ route('rm_reports.rmRecordForm', ['id'=> $current_wo->id]) }}"
+                        target="_blank"
+                    />
                 </div>
 
                 <div class="">

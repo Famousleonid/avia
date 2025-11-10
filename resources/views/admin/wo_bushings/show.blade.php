@@ -112,17 +112,24 @@
                         <h4 class="ps-xl-2">{{__('BUSHINGS PROCESSES')}}</h4>
                     </div>
                 </div>
-                <div class="ps-2 d-flex" style="width: 400px;">
+                <div class="ps-2 d-flex" style="width: 400px;margin-top: -5px">
                     @if($woBushing)
-                        <a href="{{ route('wo_bushings.edit', $woBushing->id) }}" class="btn btn-outline-primary me-2"
+                        <a href="{{ route('wo_bushings.edit', $woBushing->id) }}" class="btn btn-outline-primary mt-2 me-2"
                            style="height: 60px;width: 100px">
                             <i class="fas fa-edit"></i> Edit Bushings
                         </a>
-                        <div style="width: 100px"></div>
-                        <a href="{{ route('wo_bushings.specProcessForm', $woBushing->id) }}" class="btn btn-outline-warning"
-                               style="height: 60px;width: 120px" target="_blank">
-                            <i class="fas fa-list"></i> Spec Process Form
-                        </a>
+                        <div style="width: 100px;"></div>
+{{--                        <a href="{{ route('wo_bushings.specProcessForm', $woBushing->id) }}" class="btn btn-outline-warning"--}}
+{{--                               style="height: 60px;width: 120px" target="_blank">--}}
+{{--                            <i class="fas fa-list"></i> Spec Process Form--}}
+{{--                        </a>--}}
+                        <x-paper-button
+                            text="Bushing SP Form"
+                            href="{{ route('wo_bushings.specProcessForm', $woBushing->id) }}}"
+
+                            target="_blank"
+                            color="outline-primary"
+                        />
                     @else
                         @if($bushings->flatten()->count() > 0)
                             <a href="{{ route('wo_bushings.create', $current_wo->id) }}" class="btn btn-success"
@@ -197,8 +204,8 @@
                                             </select>
                                             @if($machiningProcessName && $hasMachiningData)
                                                 <a href="{{ route('wo_bushings.processesForm', ['id' => $woBushing->id,
-                                                'processNameId' => $machiningProcessName->id]) }}" target="_blank" 
-                                                class="btn btn-sm btn-outline-warning form-btn" 
+                                                'processNameId' => $machiningProcessName->id]) }}" target="_blank"
+                                                class="btn btn-sm btn-outline-warning form-btn"
                                                 data-vendor-select="vendor_machining">Form</a>
                                             @else
                                                 <span class="text-muted">Form</span>
@@ -241,8 +248,8 @@
                                             </select>
                                             @if($ndtProcessName && $hasNdtData)
                                                 <a href="{{ route('wo_bushings.processesForm', ['id' => $woBushing->id,
-                                                'processNameId' => $ndtProcessName->id]) }}" target="_blank" 
-                                                class="btn btn-sm btn-outline-warning form-btn" 
+                                                'processNameId' => $ndtProcessName->id]) }}" target="_blank"
+                                                class="btn btn-sm btn-outline-warning form-btn"
                                                 data-vendor-select="vendor_ndt">Form</a>
                                             @else
                                                 <span class="text-muted">Form</span>
@@ -285,8 +292,8 @@
                                             </select>
                                             @if($passivationProcessName && $hasPassivationData)
                                                 <a href="{{ route('wo_bushings.processesForm', ['id' => $woBushing->id,
-                                                'processNameId' => $passivationProcessName->id]) }}" target="_blank" 
-                                                class="btn btn-sm btn-outline-warning form-btn" 
+                                                'processNameId' => $passivationProcessName->id]) }}" target="_blank"
+                                                class="btn btn-sm btn-outline-warning form-btn"
                                                 data-vendor-select="vendor_passivation">Form</a>
                                             @else
                                                 <span class="text-muted">Form</span>
@@ -329,8 +336,8 @@
                                             </select>
                                             @if($cadProcessName && $hasCadData)
                                                 <a href="{{ route('wo_bushings.processesForm', ['id' => $woBushing->id,
-                                                'processNameId' => $cadProcessName->id]) }}" target="_blank" 
-                                                class="btn btn-sm btn-outline-warning form-btn" 
+                                                'processNameId' => $cadProcessName->id]) }}" target="_blank"
+                                                class="btn btn-sm btn-outline-warning form-btn"
                                                 data-vendor-select="vendor_cad">Form</a>
                                             @else
                                                 <span class="text-muted">Form</span>
@@ -373,8 +380,8 @@
                                             </select>
                                             @if($xylanProcessName && $hasXylanData)
                                                 <a href="{{ route('wo_bushings.processesForm', ['id' => $woBushing->id,
-                                                'processNameId' => $xylanProcessName->id]) }}" target="_blank" 
-                                                class="btn btn-sm btn-outline-warning form-btn" 
+                                                'processNameId' => $xylanProcessName->id]) }}" target="_blank"
+                                                class="btn btn-sm btn-outline-warning form-btn"
                                                 data-vendor-select="vendor_xylan">Form</a>
                                             @else
                                                 <span class="text-muted">Form</span>
@@ -492,23 +499,23 @@
             document.querySelectorAll('.form-btn').forEach(function(btn) {
                 btn.addEventListener('click', function(e) {
                     e.preventDefault();
-                    
+
                     // Получаем ID дропдауна из data-атрибута
                     var vendorSelectId = this.getAttribute('data-vendor-select');
                     var vendorSelect = document.getElementById(vendorSelectId);
-                    
+
                     // Получаем выбранное значение vendor_id
                     var vendorId = vendorSelect ? vendorSelect.value : '';
-                    
+
                     // Получаем базовый URL
                     var baseUrl = this.getAttribute('href');
-                    
+
                     // Добавляем vendor_id к URL, если он выбран
                     var finalUrl = baseUrl;
                     if (vendorId) {
                         finalUrl += (baseUrl.includes('?') ? '&' : '?') + 'vendor_id=' + vendorId;
                     }
-                    
+
                     // Открываем форму в новом окне
                     window.open(finalUrl, '_blank');
                 });
