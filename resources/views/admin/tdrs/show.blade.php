@@ -160,7 +160,8 @@
                                 {{__('Extra Component Processes')}}
                             </a>
                             @if($extraProcessesCount > 0)
-                                <span class="badge bg-danger rounded-pill" style="position: absolute; top: -5px; right: -5px; min-width: 20px; height: 20px; display: flex; align-items: center; justify-content: center; font-size: 0.7rem; padding: 0 5px;">
+                                <span class="badge bg-success rounded-pill" style="position: absolute; top: -5px; right: -5px;
+                                min-width: 20px; height: 20px; display: flex; align-items: center; justify-content: center; font-size: 0.7rem; padding: 0 5px;">
                                     {{ $extraProcessesCount }}
                                 </span>
                             @endif
@@ -716,7 +717,7 @@
                                             target="_blank"
                                         />
 
-                                        <span class="badge bg-danger rounded-pill"
+                                        <span class="badge bg-success rounded-pill"
                                               style="position: absolute; top: -5px; left: 2px; min-width: 20px; height: 20px;
                                               display: flex; align-items: center; justify-content: center; font-size: 0.7rem; padding: 0 5px;">
             {{ count($prl_parts) }}
