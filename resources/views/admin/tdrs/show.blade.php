@@ -708,12 +708,20 @@
 {{--                                   id="#" style=" height: 55px; width: 60px">--}}
 {{--                                        R&M Form--}}
 {{--                                </a>--}}
-                             @if(count($prl_parts)>0)
-                                <x-paper-button
-                                    text="PRL"
-                                    href="{{ route('tdrs.prlForm', ['id'=> $current_wo->id]) }}"
-                                    target="_blank"
-                                />
+                                @if (count($prl_parts) > 0)
+                                    <div class="position-relative d-inline-block">
+                                        <x-paper-button
+                                            text="PRL"
+                                            href="{{ route('tdrs.prlForm', ['id' => $current_wo->id]) }}"
+                                            target="_blank"
+                                        />
+
+                                        <span class="badge bg-danger rounded-pill"
+                                              style="position: absolute; top: -5px; left: 2px; min-width: 20px; height: 20px;
+                                              display: flex; align-items: center; justify-content: center; font-size: 0.7rem; padding: 0 5px;">
+            {{ count($prl_parts) }}
+        </span>
+                                    </div>
                                 @endif
                                 {{--                                <a href="{{ route('tdrs.prlForm', ['id'=> $current_wo->id]) }}"--}}
 {{--                                   class="btn fs-8 btn-outline-warning me-1 formLink align-content-center "--}}
