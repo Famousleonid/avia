@@ -4,14 +4,17 @@ namespace App\Http\Controllers\Mobile;
 
 use App\Http\Controllers\Controller;
 use App\Models\Component;
-use App\Models\Manual;
+use App\Models\GeneralTask;
+use App\Models\Main;
 use App\Models\Material;
+use App\Models\Task;
 use App\Models\Team;
 use App\Models\User;
 use App\Models\Workorder;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
+
 
 class MobileController extends Controller
 {
@@ -142,5 +145,164 @@ class MobileController extends Controller
        return redirect()->back()->with('success', 'New password saved');
    }
 
+    public function tasks()
+    {
+        $workorders = Workorder::orderBy('number', 'desc')->get();
+
+        $users = User::orderBy('name')->get(['id', 'name']);
+
+        $generalTasks = GeneralTask::with(['tasks:id,general_task_id,name'])
+            ->orderBy('name')
+            ->get(['id', 'name']);
+
+        $currentUserId = auth()->id();
+
+        return view('mobile.pages.tasks', compact(
+            'workorders',
+            'users',
+            'generalTasks',
+            'currentUserId'
+        ));
+    }
+
+    public function getTasksByWorkorder(Request $request)
+    {
+        $validated = $request->validate([
+            'workorder_id' => ['required', 'exists:workorders,id'],
+        ]);
+
+        $mains = Main::with(['user', 'task.generalTask'])
+            ->where('workorder_id', $validated['workorder_id'])
+            ->orderByRaw('date_start IS NULL')   // сначала с датой, потом пустые
+            ->orderBy('date_start')
+            ->orderBy('user_id')
+            ->get();
+
+        if ($mains->isEmpty()) {
+            return response()->json([
+                'html' => '<p class="text-secondary small mb-0">No tasks for this workorder yet.</p>',
+            ]);
+        }
+
+        $rows = '';
+
+        foreach ($mains as $main) {
+            $technik  = e($main->user->name ?? '-');
+            $category = e($main->generalTask->name ?? '-');
+            $taskName = e($main->task->name ?? '-');
+
+            $startDisplay  = $main->date_start  ? $main->date_start->format('d-M-y')  : '...';
+            $finishDisplay = $main->date_finish ? $main->date_finish->format('d-M-y') : '...';
+
+            $startValue  = $main->date_start  ? $main->date_start->format('Y-m-d')  : '';
+            $finishValue = $main->date_finish ? $main->date_finish->format('Y-m-d') : '';
+
+            $startFilled  = $main->date_start  ? 'date-cell-filled' : 'date-cell-empty';
+            $finishFilled = $main->date_finish ? 'date-cell-filled' : 'date-cell-empty';
+
+            $startCheck  = $main->date_start  ? "<i class='bi bi-check2'></i>"  : '';
+            $finishCheck = $main->date_finish ? "<i class='bi bi-check2'></i>" : '';
+
+            $rows .= "
+            <tr>
+                <td>{$technik}</td>
+                <td>{$category} &rarr; {$taskName}</td>
+
+                <td class='text-center'>
+                    <div class='date-cell {$startFilled}'>
+                        <span class='date-text'>{$startDisplay}</span>
+
+                        <button type='button'
+                                class='btn btn-sm date-calendar'
+                                data-id='{$main->id}'
+                                data-field='date_start'>
+                            <i class='bi bi-calendar3'></i>
+                        </button>
+                        <input type='date'
+                               class='date-picker-input'
+                               data-id='{$main->id}'
+                               data-field='date_start'
+                               value='{$startValue}'>
+                    </div>
+                </td>
+
+                <td class='text-center'>
+                    <div class='date-cell {$finishFilled}'>
+                        <span class='date-text'>{$finishDisplay}</span>
+
+                        <button type='button'
+                                class='btn btn-sm date-calendar'
+                                data-id='{$main->id}'
+                                data-field='date_finish'>
+                            <i class='bi bi-calendar3'></i>
+                        </button>
+                        <input type='date'
+                               class='date-picker-input'
+                               data-id='{$main->id}'
+                               data-field='date_finish'
+                               value='{$finishValue}'>
+                    </div>
+                </td>
+            </tr>
+        ";
+        }
+
+        $html = "
+        <div class='table-responsive mt-3'>
+            <table class='table table-sm table-dark align-middle mb-0 tasks-table'>
+                <thead>
+                <tr>
+                    <th>Technik</th>
+                    <th>Task</th>
+                    <th class='text-center'>Start</th>
+                    <th class='text-center'>Finish</th>
+                </tr>
+                </thead>
+                <tbody>{$rows}</tbody>
+            </table>
+        </div>
+    ";
+
+        return response()->json(['html' => $html]);
+    }
+
+    public function storeMain(Request $request)
+    {
+        $validated = $request->validate([
+            'workorder_id' => ['required', 'exists:workorders,id'],
+            'user_id'      => ['required', 'exists:users,id'],
+            'task_id'      => ['required', 'exists:tasks,id'],
+        ]);
+
+        $task = Task::findOrFail($validated['task_id']);
+
+        Main::create([
+            'user_id'         => $validated['user_id'],
+            'workorder_id'    => $validated['workorder_id'],
+            'task_id'         => $task->id,
+            'general_task_id' => $task->general_task_id, // поле есть в таблице tasks
+            'date_start'      => null,
+            'date_finish'     => null,
+            'description'     => null,
+        ]);
+
+        return response()->json(['success' => true]);
+    }
+
+    public function updateMainDates(Request $request)
+    {
+        $validated = $request->validate([
+            'main_id' => ['required', 'exists:mains,id'],
+            'field'   => ['required', 'in:date_start,date_finish'],
+            'value'   => ['nullable', 'date'],
+        ]);
+
+        $main = Main::findOrFail($validated['main_id']);
+
+        $main->{$validated['field']} = $validated['value'] ?: null;
+        $main->save();
+
+        return response()->json(['success' => true]);
+    }
 
 }

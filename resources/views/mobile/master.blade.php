@@ -9,13 +9,12 @@
     {{--<meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no"> --}}
     <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <!-- CSRF Token -->
     <meta name="csrf-token" content="{{ csrf_token() }}">
     <title>{{ config('app.name', 'Aviatechnik') }}</title>
-
     <link rel="stylesheet" href="{{asset('assets/Bootstrap 5/bootstrap.min.css')}}">
     <link href="{{asset('assets/Bootstrap 5/bootstrap-icons.css')}}" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fancyapps/ui@5.0/dist/fancybox/fancybox.css"/>
+    <link href="{{asset('assets/select2/css/select2.min.css')}}" rel="stylesheet"/>
     <link rel="stylesheet" href="{{asset('css/main.css')}}">
 
     <script>
@@ -79,6 +78,7 @@
 <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
 <script src="{{asset('assets/Bootstrap 5/bootstrap.bundle.min.js')}}"></script>
 <script src="https://cdn.jsdelivr.net/npm/@fancyapps/ui@5.0/dist/fancybox/fancybox.umd.js"></script>
+<script src="{{asset('assets/select2/js/select2.min.js')}}"></script>
 <script src="{{ asset('js/main.js') }}"></script>
 
 
