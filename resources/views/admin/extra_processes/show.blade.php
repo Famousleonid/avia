@@ -144,60 +144,52 @@
 
     <div class="card-shadow">
         <div class="card-header m-1 shadow">
-            <div class="d-flex justify-content-between">
-                <div class="d-flex" style="width: 1080px">
-                    <div style="width: 550px">
+
+                <div class="d-flex justify-content-between"  >
+                    <div style="width: 450px">
                         <h4 class="text-primary  ms-2">{{__('Work Order: ')}} {{$current_wo->number}}</h4>
                         <div>
                             <h4 class="ps-2">{{__('Component Extra Processes')}}</h4>
                         </div>
-
                     </div>
-                    @if(isset($processGroups) && count($processGroups) > 0)
-{{--                        <button type="button" class="btn btn-outline-info me-2"--}}
-{{--                                style="height: 60px; width: 150px"--}}
-{{--                                data-bs-toggle="modal"--}}
-{{--                                data-bs-target="#groupFormsModal">--}}
-{{--                            <i class="fas fa-print"></i> Group Process Forms--}}
-{{--                        </button>--}}
-                        <x-paper-button-multy
-                            text="Group Process Forms"
-                            color="outline-primary"
-                            size="landscape"
-                            width="100"
-                            ariaLabel="Group Process Forms"
-                            data-bs-toggle="modal"
-                            data-bs-target="#groupFormsModal"
-                        />
+                    <div class=" d-flex " >
+                        @if(isset($processGroups) && count($processGroups) > 0)
+                            <div style="width: 250px">
+                                <x-paper-button-multy
+                                    text="Group Process Forms"
+                                    color="outline-primary"
+                                    size="landscape"
+                                    width="100"
+                                    ariaLabel="Group Process Forms"
+                                    data-bs-toggle="modal"
+                                    data-bs-target="#groupFormsModal"
+                                />
+                            </div>
+                        @endif
 
+                        <a href="{{ route('extra_process.create', $current_wo->id) }}" class="btn btn-outline-success me-3"
+                           style="height:60px; width: 150px">
+                            <i class="fas fa-plus"></i> New Component Processes
+                        </a>
 
-                    @endif
-
-
-                </div>
-
-                <div class="">
-                    <a href="{{ route('extra_process.create', $current_wo->id) }}" class="btn btn-outline-success"
-                       style="height:60px; width: 180px">
-                        <i class="fas fa-plus"></i> Create Component Processes
-                    </a>
-
-                    <a href="{{ route('tdrs.show', ['id'=>$current_wo->id]) }}"
-                       class="btn btn-outline-secondary me-2" style="height: 60px;width: 110px">{{ __('Back to Work Order')
-                            }} </a>
+                        <a href="{{ route('tdrs.show', ['id'=>$current_wo->id]) }}"
+                           class="btn btn-outline-secondary 2" style="height: 60px;width: 110px">
+                            {{ __('Back to Work Order') }} </a>
+                    </div>
                 </div>
 
         </div>
-        <div class="card-body">
+            <div class="card-body">
             <div class="d-flex justify-content-center">
                 <div class="table-wrapper mt-3">
                     <table class="display table table-hover table-bordered bg-gradient shadow">
                         <thead>
                         <tr>
-                            <th class="text-primary text-center" style="width: 10%">IPL</th>
+                            <th class="text-primary text-center" style="width: 7%">IPL</th>
                             <th class="text-primary text-center"  style="width:15%">Name</th>
-                            <th class="text-primary text-center" style="width: 60%">Processes</th>
-                            <th class="text-primary text-center" style="width: 15%">Action</th>
+                            <th class="text-primary text-center"  style="width:5%">QTY</th>
+                            <th class="text-primary text-center" style="width: 48%">Processes</th>
+                            <th class="text-primary text-center" style="width: 20%">Action</th>
                         </tr>
                         </thead>
                         <tbody>
@@ -206,6 +198,11 @@
                                 <tr>
                                     <td class="text-center">{{ $extra_component->component ? $extra_component->component->ipl_num : 'N/A' }}</td>
                                     <td class="text-center">{{ $extra_component->component ? $extra_component->component->name : 'N/A' }}</td>
+                                    <td class="text-center" >{{ $extra_component->component ?
+                                    $extra_component->qty :
+                                    'N/A'
+                                    }}</td>
+
                                     <td class="ps-2 ">
                                         @if($extra_component->processes)
                                             @if(is_array($extra_component->processes) && array_keys($extra_component->processes) !== range(0, count($extra_component->processes) - 1))
@@ -246,20 +243,20 @@
                                     <td class="text-center">
                                         <div style="width: 100px">
                                             @if($extra_component->component)
+                                                <a href="{{ route('extra_processes.edit_component', ['id' => $extra_component->id]) }}"
+                                                   class="btn btn-outline-warning btn-sm " title="Edit Component">
+                                                    {{__('Edit')}}
+                                                </a>
                                                 <a href="{{ route('extra_processes.create_processes', ['workorderId' => $current_wo->id, 'componentId' => $extra_component->component->id]) }}"
-                                                   class="btn btn-outline-success btn-sm"
+                                                   class="btn btn-outline-success btn-sm " title="Add Processes"
                                                    onclick="console.log('Navigating to:', '{{ route('extra_processes.create_processes', ['workorderId' => $current_wo->id, 'componentId' => $extra_component->component->id]) }}')">
                                                     {{__('Add')}}
                                                 </a>
-                                            @else
-                                                <span class="text-muted">Component not found (ID: {{ $extra_component->component_id }})</span>
-                                            @endif
-                                            @if($extra_component->component)
                                                 <a href="{{ route('extra_processes.processes', ['workorderId' => $current_wo->id, 'componentId' => $extra_component->component->id]) }}"
-                                                   class="btn btn-outline-primary btn-sm"> {{__('Processes')}}
+                                                   class="btn btn-outline-primary btn-sm" title="All Processes for this Components"> {{__('Processes')}}
                                                 </a>
                                             @else
-                                                <span class="text-muted">Component not found</span>
+                                                <span class="text-muted">Component not found (ID: {{ $extra_component->component_id }})</span>
                                             @endif
                                         </div>
                                     </td>
@@ -269,7 +266,7 @@
                     </table>
                 </div>
             </div>
-        </div>
+
     </div>
 
     <!-- Modal - Group Process Forms -->

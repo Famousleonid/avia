@@ -100,8 +100,20 @@
 
 
                     <div class="form-group mb-3">
-                        <label for="qty" class="form-label">Quantity</label>
-                        <input type="number" name="qty" id="qty" class="form-control" value="1" min="1" required>
+
+                        <div class="d-flex justify-content-around">
+                            <div>
+                                <label for="serial_num" class="form-label" >Serial Number</label>
+                                <input type="text" name="serial_num" id="serial_num" class="form-control" style="width: 250px">
+                            </div>
+                            <div class="">
+                                <label for="qty" class="form-label" >Quantity</label>
+                                <input type="number" name="qty" id="qty" class="form-control" style="width: 100px" value="1"
+                                       min="1" required>
+                            </div>
+
+                        </div>
+
                     </div>
 
                     <div id="processes-container" data-manual-id="{{ $manual_id }}">
@@ -323,6 +335,7 @@
 
             const workorderId = document.querySelector('input[name="workorder_id"]').value;
             const componentId = document.querySelector('select[name="component_id"]').value;
+            const serial_num = document.querySelector('input[name="serial_num"]').value;
             const qty = document.querySelector('input[name="qty"]').value;
             const processRows = document.querySelectorAll('.process-row');
             const processesData = [];
@@ -359,6 +372,7 @@
             console.log('Sending data:', {
                 workorder_id: workorderId,
                 component_id: componentId,
+                serial_num: serial_num,
                 qty: qty,
                 processes: processesData
             });
@@ -367,12 +381,14 @@
             formData.append('_token', document.querySelector('meta[name="csrf-token"]').content);
             formData.append('workorder_id', workorderId);
             formData.append('component_id', componentId);
+            formData.append('serial_num', serial_num);
             formData.append('qty', qty);
             formData.append('processes', JSON.stringify(processesData));
 
             const requestBody = {
                 workorder_id: workorderId,
                 component_id: componentId,
+                serial_num: serial_num,
                 qty: qty,
                 processes: JSON.stringify(processesData)
             };

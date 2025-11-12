@@ -15,6 +15,7 @@ class ExtraProcess extends Model
         'processes', // JSON-поле для хранения массива процессов
         'sort_order', // Поле для сортировки
         'qty',
+        'serial_num'
     ];
 
     // Автоматическое преобразование JSON в массив

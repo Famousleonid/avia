@@ -82,52 +82,20 @@
                         <strong>Part Number:</strong> {{ $component->part_number }}
                     </div>
                     <div>
-                        <button class="btn btn-outline-primary" type="button" style="width: 120px" id="add-process">
-                            Add Process
-                        </button>
+                        @if(empty($processesToEdit))
+                            <button class="btn btn-outline-primary" type="button" style="width: 120px" id="add-process">
+                                Add Process
+                            </button>
+                        @endif
                     </div>
                 </div>
             </div>
             <div class="card-body">
-                @if($extra_process && $extra_process->processes)
-                    <div class="alert alert-info">
-                        <strong>Current Processes:</strong><br>
-                        @if(is_array($extra_process->processes) && array_keys($extra_process->processes) !== range(0, count($extra_process->processes) - 1))
-                            {{-- Старая структура: ассоциативный массив --}}
-                            @foreach($extra_process->processes as $processNameId => $processId)
-                                @php
-                                    $processName = \App\Models\ProcessName::find($processNameId);
-                                    $process = \App\Models\Process::find($processId);
-                                @endphp
-                                @if($processName && $process)
-                                    <span class="badge bg-secondary me-1 @if(strlen($process->process) > 40) process-text-long @endif">{{ $processName->name }}: {{ $process->process }}</span>
-                                @endif
-                            @endforeach
-                        @else
-                            {{-- Новая структура: массив объектов --}}
-                            @foreach($extra_process->processes as $processItem)
-                                @php
-                                    $processName = \App\Models\ProcessName::find($processItem['process_name_id']);
-                                    $process = \App\Models\Process::find($processItem['process_id']);
-                                @endphp
-                                @if($processName && $process)
-                                    <span class="badge bg-secondary me-1 @if(strlen($process->process) > 40) process-text-long @endif">{{ $processName->name }}: {{ $process->process }}</span>
-                                @endif
-                            @endforeach
-                        @endif
-                    </div>
-                @endif
-
                 <form id="editProcessesForm" role="form" method="POST" action="{{route('extra_processes.update', $extra_process->id)}}" class="editProcessesForm">
                     @csrf
                     @method('PUT')
                     <input type="hidden" name="workorder_id" value="{{$current_wo->id }}">
                     <input type="hidden" name="component_id" value="{{$component->id }}">
-
-                    <div class="form-group mb-3">
-                        <label for="qty" class="form-label">Quantity</label>
-                        <input type="number" name="qty" id="qty" class="form-control" value="{{ $extra_process->qty ?? 1 }}" min="1" required>
-                    </div>
 
                     <div id="processes-container" data-manual-id="{{ $manual_id }}">
                         <!-- Существующие процессы будут загружены через JavaScript -->
@@ -190,20 +158,36 @@
 
         function loadExistingProcesses() {
             const container = document.getElementById('processes-container');
-            const processes = @json($extra_process->processes ?? []);
+            const processesToEdit = @json($processesToEdit ?? []);
+            const processIndex = @json($processIndex ?? null);
             
-            if (Array.isArray(processes) && processes.length > 0) {
-                processes.forEach((processItem, index) => {
-                    const processNameId = processItem.process_name_id || processItem.process_name_id;
-                    const processId = processItem.process_id || processItem.process_id;
+            // Если передан конкретный процесс для редактирования, показываем только его
+            if (processesToEdit.length > 0) {
+                processesToEdit.forEach((processItem, index) => {
+                    const processNameId = processItem.process_name_id;
+                    const processId = processItem.process_id;
                     
                     if (processNameId && processId) {
-                        addProcessRow(index, processNameId, processId);
+                        addProcessRow(0, processNameId, processId);
                     }
                 });
             } else {
-                // Если нет процессов, добавляем пустую строку
-                addProcessRow(0);
+                // Если не передан конкретный процесс, показываем все процессы (старое поведение)
+                const processes = @json($extra_process->processes ?? []);
+                
+                if (Array.isArray(processes) && processes.length > 0) {
+                    processes.forEach((processItem, index) => {
+                        const processNameId = processItem.process_name_id || processItem.process_name_id;
+                        const processId = processItem.process_id || processItem.process_id;
+                        
+                        if (processNameId && processId) {
+                            addProcessRow(index, processNameId, processId);
+                        }
+                    });
+                } else {
+                    // Если нет процессов, добавляем пустую строку
+                    addProcessRow(0);
+                }
             }
         }
 
@@ -288,11 +272,14 @@
         }
 
         // Динамическое добавление новых строк
-        document.getElementById('add-process').addEventListener('click', function () {
-            const container = document.getElementById('processes-container');
-            const index = container.children.length;
-            addProcessRow(index);
-        });
+        const addProcessButton = document.getElementById('add-process');
+        if (addProcessButton) {
+            addProcessButton.addEventListener('click', function () {
+                const container = document.getElementById('processes-container');
+                const index = container.children.length;
+                addProcessRow(index);
+            });
+        }
 
         // Обработка отправки формы
         document.getElementById('editProcessesForm').addEventListener('submit', function (event) {
@@ -300,7 +287,6 @@
 
             const workorderId = document.querySelector('input[name="workorder_id"]').value;
             const componentId = document.querySelector('input[name="component_id"]').value;
-            const qty = document.querySelector('input[name="qty"]').value;
             const processRows = document.querySelectorAll('.process-row');
             const processesData = [];
             let hasSelectedRadio = false;
@@ -327,11 +313,15 @@
                 return;
             }
 
+            const processIndex = @json($processIndex ?? null);
+            const processNameId = @json($processNameId ?? null);
+            
             const requestBody = {
                 workorder_id: workorderId,
                 component_id: componentId,
-                qty: qty,
-                processes: JSON.stringify(processesData)
+                processes: JSON.stringify(processesData),
+                process_index: processIndex,
+                process_name_id: processNameId
             };
 
             fetch(`{{ route('extra_processes.update', $extra_process->id) }}`, {

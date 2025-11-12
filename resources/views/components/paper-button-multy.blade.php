@@ -61,9 +61,9 @@
         $foldPoints = '210,10 210,50 250,50';
         $linePath = 'M210 12 V50 H250';
         $foreignObjectX = 20;
-        $foreignObjectY = 60;
-        $foreignObjectWidth = 190;
-        $foreignObjectHeight = 90;
+        $foreignObjectY = 40;
+        $foreignObjectWidth = 210;
+        $foreignObjectHeight = 100;
     }
 
     // Определяем дополнительные слои
@@ -127,7 +127,7 @@
         <foreignObject x="{{ $foreignObjectX }}" y="{{ $foreignObjectY }}"
                       width="{{ $foreignObjectWidth }}" height="{{ $foreignObjectHeight }}">
             <div xmlns="http://www.w3.org/1999/xhtml"
-                 style="font: 29px Arial, sans-serif;
+                 style="font: 32px Arial, sans-serif;
                         text-align: center;
                         display: flex;
                         align-items: center;

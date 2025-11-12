@@ -416,8 +416,8 @@
                         </div>
                         <div class="col-3 border-l-b details-row text-center" style="height: 32px">
                             {{ $data['component']->part_number }}
-                            @if($data['extra_process']->serial_number)
-                                SN{{$data['extra_process']->serial_number}}
+                            @if($data['extra_process']->serial_num)
+                                SN{{$data['extra_process']->serial_num}}
                             @endif
                         </div>
                         <div class="col-3 border-l-b details-row text-center" style="height: 32px">
@@ -535,8 +535,8 @@
                         </div>
                         <div class="col-2 border-l-b details-cell text-center" style="min-height: 32px">
                             {{ $data['component']->part_number }}
-                            @if($data['extra_process']->serial_number)
-                                SN{{$data['extra_process']->serial_number}}
+                            @if($data['extra_process']->serial_num)
+                                SN{{$data['extra_process']->serial_num}}
                             @endif
                         </div>
                         <div class="col-2 border-l-b details-cell text-center" style="min-height: 32px" >

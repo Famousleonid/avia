@@ -136,7 +136,7 @@
                 <div class="">
                     <a href="{{ route('wo_bushings.show', $current_wo->id) }}"
                        class="btn btn-outline-secondary me-2" style="height: 60px;width: 110px">
-                        {{ __('Back to Bushings') }}
+                        {{ __('Back') }}
                     </a>
                 </div>
             </div>

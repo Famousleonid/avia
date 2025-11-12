@@ -162,7 +162,9 @@
                             @if($extraProcessesCount > 0)
                                 <span class="badge bg-success rounded-pill" style="position: absolute; top: -5px; right: -5px;
                                 min-width: 20px; height: 20px; display: flex; align-items: center; justify-content: center; font-size: 0.7rem; padding: 0 5px;">
-                                    {{ $extraProcessesCount }}
+{{--                                    {{ $extraProcessesCount }}--}}
+{{--                                    {{__(' * ')}}--}}
+                                    <i class="bi bi-brightness-high-fill"></i>
                                 </span>
                             @endif
                         </div>

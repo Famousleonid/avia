@@ -104,16 +104,21 @@
                     <div>
                         <strong>Component:</strong> {{ $component->name }}<br>
                         <strong>IPL:</strong> {{ $component->ipl_num }}<br>
-                        <strong>Part Number:</strong> {{ $component->part_number }}
+                        <strong>Part Number:</strong> {{ $component->part_number }} SN {{$extra_process->serial_num}}
                     </div>
-                    <div>
-                        <a href="{{ route('extra_processes.create_processes', ['workorderId' => $current_wo->id, 'componentId' => $component->id]) }}"
-                           class="btn btn-outline-success me-2">
-                            <i class="fas fa-plus"></i> Add Process
-                        </a>
-                        <button type="button" class="btn btn-outline-primary" data-bs-toggle="modal" data-bs-target="#addVendorModal">
-                            <i class="fas fa-plus"></i> Add Vendor
-                        </button>
+                    <div class="d-flex">
+                        <div  style="width: 450px">
+                            <a href="{{ route('extra_processes.create_processes', ['workorderId' => $current_wo->id, 'componentId' => $component->id]) }}"
+                               class="btn btn-outline-success me-2">
+                                <i class="fas fa-plus"></i> Add Process
+                            </a>
+                            <button type="button" class="btn btn-outline-primary" data-bs-toggle="modal" data-bs-target="#addVendorModal">
+                                <i class="fas fa-plus"></i> Add Vendor
+                            </button>
+                        </div>
+
+                        <a href="{{ route('extra_processes.show_all', ['id' => $current_wo->id]) }}"
+                           class="btn btn-outline-secondary " style="width: 80px; height: 40px">{{ __('Back') }}</a>
                     </div>
                 </div>
             </div>
@@ -143,7 +148,7 @@
                                                 <td class="text-center">{{ $processName->name }}</td>
                                                 <td class="ps-2">{{ $process->process }}</td>
                                                 <td class="text-center">
-                                                    <a href="{{ route('extra_processes.edit', ['extra_process' => $extra_process->id]) }}"
+                                                    <a href="{{ route('extra_processes.edit', ['extra_process' => $extra_process->id, 'process_name_id' => $processNameId]) }}"
                                                        class="btn btn-sm btn-outline-primary">{{__('Edit')}}</a>
                                                     <form id="deleteForm_{{ $extra_process->id }}_{{ $processNameId }}"
                                                           action="{{ route('extra_processes.destroy', ['extra_process' => $extra_process->id]) }}"
@@ -165,7 +170,7 @@
                                                                 style="width: 120px"
                                                                 data-extra-process-id="{{ $extra_process->id }}"
                                                                 data-process-name-id="{{ $processNameId }}">
-                                                            <option value="">Select Vendor</option>
+                                                            <option value="">Vendor</option>
                                                             @foreach($vendors as $vendor)
                                                                 <option value="{{ $vendor->id }}">{{ $vendor->name }}</option>
                                                             @endforeach
@@ -193,7 +198,7 @@
                                                 <td class="text-center">{{ $processName->name }}</td>
                                                 <td class="ps-2">{{ $process->process }}</td>
                                                 <td class="text-center">
-                                                    <a href="{{ route('extra_processes.edit', ['extra_process' => $extra_process->id]) }}"
+                                                    <a href="{{ route('extra_processes.edit', ['extra_process' => $extra_process->id, 'process_index' => $index]) }}"
                                                        class="btn btn-sm btn-outline-primary">{{__('Edit')}}</a>
                                                     <form id="deleteForm_{{ $extra_process->id }}_{{ $index }}"
                                                           action="{{ route('extra_processes.destroy', ['extra_process' => $extra_process->id]) }}"
@@ -212,10 +217,10 @@
                                                 <td class="text-center">
                                                     <div class="d-flex gap-2 justify-content-center">
                                                         <select class="form-select form-select-sm vendor-select"
-                                                                style="width: 85px"
+                                                                style="width: 95px"
                                                                 data-extra-process-id="{{ $extra_process->id }}"
                                                                 data-process-name-id="{{ $processItem['process_name_id'] }}">
-                                                            <option value="">Select Vendor</option>
+                                                            <option value="">Vendor</option>
                                                             @foreach($vendors as $vendor)
                                                                 <option value="{{ $vendor->id }}">{{ $vendor->name }}</option>
                                                             @endforeach
@@ -242,9 +247,6 @@
                         Click "Add Process" to add processes to this component.
                     </div>
                 @endif
-
-                <a href="{{ route('extra_processes.show_all', ['id' => $current_wo->id]) }}"
-                   class="btn btn-outline-secondary mt-3">{{ __('Back to All Components') }}</a>
             </div>
         </div>
     </div>
@@ -312,7 +314,7 @@
                             sort_order: index + 1
                         };
                     });
-                    
+
                     // Отправляем AJAX запрос для обновления порядка
                     updateProcessOrder(newOrder);
                 }
@@ -418,7 +420,7 @@
 
             saveVendorButton.addEventListener('click', function() {
                 const vendorName = vendorNameInput.value.trim();
-                
+
                 if (!vendorName) {
                     alert('Please enter vendor name');
                     return;
@@ -443,19 +445,19 @@
                         const newOption = document.createElement('option');
                         newOption.value = data.vendor.id;
                         newOption.textContent = data.vendor.name;
-                        
+
                         // Добавляем во все дропдауны
                         document.querySelectorAll('.vendor-select').forEach(select => {
                             select.appendChild(newOption.cloneNode(true));
                         });
-                        
+
                         // Закрываем модальное окно
                         const modal = bootstrap.Modal.getInstance(document.getElementById('addVendorModal'));
                         modal.hide();
-                        
+
                         // Очищаем форму
                         addVendorForm.reset();
-                        
+
                         alert('Vendor added successfully!');
                     } else {
                         alert('Error: ' + data.message);
@@ -470,7 +472,7 @@
             // Функция для обновления порядка процессов
             function updateProcessOrder(newOrder) {
                 const processIds = newOrder.map(item => item.id);
-                
+
                 fetch('{{ route("extra_processes.update-order") }}', {
                     method: 'POST',
                     headers: {
@@ -512,9 +514,9 @@
                     ${message}
                     <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
                 `;
-                
+
                 document.body.appendChild(notification);
-                
+
                 // Автоматически убираем уведомление через 3 секунды
                 setTimeout(() => {
                     if (notification.parentNode) {

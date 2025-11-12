@@ -90,8 +90,8 @@
             </div>
             <div class="card-body">
                 @if($existingExtraProcess && $existingExtraProcess->processes)
-                    <div class="alert alert-info">
-                        <strong>Existing Processes:</strong><br>
+                    <div class="alert alert-secondary">
+                        <strong class="m-1">Existing Processes:</strong><br>
                         @if(is_array($existingExtraProcess->processes) && array_keys($existingExtraProcess->processes) !== range(0, count($existingExtraProcess->processes) - 1))
                             {{-- Старая структура: ассоциативный массив --}}
                             @foreach($existingExtraProcess->processes as $processNameId => $processId)
@@ -100,7 +100,8 @@
                                     $process = \App\Models\Process::find($processId);
                                 @endphp
                                 @if($processName && $process)
-                                    <span class="badge bg-secondary me-1 @if(strlen($process->process) > 40) process-text-long @endif">{{ $processName->name }}: {{ $process->process }}</span>
+                                    <span class="badge bg-secondary ms-5  @if(strlen($process->process) > 40) process-text-long
+                                    @endif">{{ $processName->name }}: {{ $process->process }}</span>
                                 @endif
                             @endforeach
                         @else
@@ -111,7 +112,8 @@
                                     $process = \App\Models\Process::find($processItem['process_id']);
                                 @endphp
                                 @if($processName && $process)
-                                    <span class="badge bg-secondary me-1 @if(strlen($process->process) > 40) process-text-long @endif">{{ $processName->name }}: {{ $process->process }}</span>
+                                    <span class="badge bg-secondary ms-5 @if(strlen($process->process) > 40) process-text-long
+                                    @endif">{{ $processName->name }}: {{ $process->process }}</span>
                                 @endif
                             @endforeach
                         @endif
@@ -124,8 +126,16 @@
                     <input type="hidden" name="component_id" value="{{$component->id }}">
 
                     <div class="form-group mb-3">
-                        <label for="qty" class="form-label">Quantity</label>
-                        <input type="number" name="qty" id="qty" class="form-control" value="{{ $existingExtraProcess->qty ?? 1 }}" min="1" required>
+                        <div class="d-flex justify-content-around">
+                            <div>
+                                <label for="serial_num" class="form-label">Serial Number</label>
+                                <input type="text" name="serial_num" id="serial_num" class="form-control" style="width: 250px" value="{{ $existingExtraProcess->serial_num ?? '' }}">
+                            </div>
+                            <div style="width: 150px">
+                                <label for="qty" class="form-label">Quantity</label>
+                                <input type="number" name="qty" id="qty" class="form-control" value="{{ $existingExtraProcess->qty ?? 1 }}" min="1" required>
+                            </div>
+                        </div>
                     </div>
 
                     <div id="processes-container" data-manual-id="{{ $manual_id }}">
@@ -286,6 +296,7 @@
 
             const workorderId = document.querySelector('input[name="workorder_id"]').value;
             const componentId = document.querySelector('input[name="component_id"]').value;
+            const serial_num = document.querySelector('input[name="serial_num"]').value;
             const qty = document.querySelector('input[name="qty"]').value;
             const processRows = document.querySelectorAll('.process-row');
             const processesData = [];
@@ -297,7 +308,7 @@
                 const processName = processNameSelect.options[processNameSelect.selectedIndex].text;
 
                 const selectedRadio = row.querySelector('.process-options input[type="radio"]:checked');
-                
+
                 if (selectedRadio) {
                     const processId = selectedRadio.value;
                     processesData.push({
@@ -317,6 +328,7 @@
             console.log('Sending data:', {
                 workorder_id: workorderId,
                 component_id: componentId,
+                serial_num: serial_num,
                 qty: qty,
                 processes: processesData
             });
@@ -332,6 +344,7 @@
             const requestBody = {
                 workorder_id: workorderId,
                 component_id: componentId,
+                serial_num: serial_num,
                 qty: qty,
                 processes: JSON.stringify(processesData)
             };
@@ -397,7 +410,7 @@
                                 const container = document.getElementById('processes-container');
                                 const rows = container.querySelectorAll('.process-row');
                                 const index = Array.from(rows).indexOf(processOptionsContainer.closest('.process-row'));
-                                
+
                                 data.forEach(process => {
                                     const radioDiv = document.createElement('div');
                                     radioDiv.classList.add('form-check');
@@ -446,7 +459,7 @@
                 .then(data => {
                     const container = document.getElementById('existingProcessContainer');
                     container.innerHTML = '';
-                    
+
                     if (data && data.length > 0) {
                         data.forEach(process => {
                             const div = document.createElement('div');
@@ -499,16 +512,16 @@
                     // Закрываем модальное окно
                     const modal = bootstrap.Modal.getInstance(document.getElementById('addProcessModal'));
                     modal.hide();
-                    
+
                     // Очищаем поле ввода
                     newProcessInput.value = '';
-                    
+
                     // Обновляем список процессов для текущего process name
                     const currentSelect = currentRow.querySelector('.select2-process');
                     if (currentSelect) {
                         currentSelect.dispatchEvent(new Event('change'));
                     }
-                    
+
                     alert('Process added successfully!');
                 } else {
                     alert('Error adding process: ' + data.message);

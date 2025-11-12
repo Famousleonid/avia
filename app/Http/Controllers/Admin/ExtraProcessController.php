@@ -65,7 +65,7 @@ class ExtraProcessController extends Controller
         $component = Component::findOrFail($componentId);
         $manual_id = $current_wo->unit->manual_id;
         $processNames = ProcessName::all();
-        
+
         // Получаем процессы, связанные с manual_id
         $processes = Process::whereHas('manuals', function ($query) use ($manual_id) {
             $query->where('manual_id', $manual_id);
@@ -87,10 +87,10 @@ class ExtraProcessController extends Controller
         ]);
 
         return view('admin.extra_processes.create_processes', compact(
-            'current_wo', 
-            'component', 
-            'processNames', 
-            'processes', 
+            'current_wo',
+            'component',
+            'processNames',
+            'processes',
             'manual_id',
             'existingExtraProcess'
         ));
@@ -119,25 +119,29 @@ class ExtraProcessController extends Controller
                 $data = $request->json()->all();
                 $workorderId = (int)($data['workorder_id'] ?? 0);
                 $componentId = (int)($data['component_id'] ?? 0);
+                $serial_num = $data['serial_num'] ?? null;
                 $qty = (int)($data['qty'] ?? 1);
                 $processesData = json_decode($data['processes'], true);
-                
+
                 \Log::info('JSON data parsed', [
                     'workorderId' => $workorderId,
                     'componentId' => $componentId,
                     'qty' => $qty,
+                    'serial_num' => $serial_num,
                     'processesData' => $processesData
                 ]);
             } else {
                 $workorderId = (int)($request->input('workorder_id'));
                 $componentId = (int)($request->input('component_id'));
+                $serial_num = $request->input('serial_num');
                 $qty = (int)($request->input('qty', 1));
                 $processesData = $request->input('processes');
-                
+
                 \Log::info('Form data parsed', [
                     'workorderId' => $workorderId,
                     'componentId' => $componentId,
                     'qty' => $qty,
+                    'serial_num'=>$serial_num,
                     'processesData' => $processesData
                 ]);
             }
@@ -203,7 +207,7 @@ class ExtraProcessController extends Controller
 
                 $processNameId = $processData['process_names_id'];
                 $processIds = $processData['processes'];
-                
+
                 // Проверяем, что process_name_id существует
                 $processName = ProcessName::find($processNameId);
                 if (!$processName) {
@@ -213,7 +217,7 @@ class ExtraProcessController extends Controller
                 // Берем только первый process_id для каждого process_name_id
                 if (!empty($processIds) && is_array($processIds)) {
                     $processId = (int)$processIds[0];
-                    
+
                     // Проверяем, что process_id существует
                     $process = Process::find($processId);
                     if ($process) {
@@ -249,6 +253,7 @@ class ExtraProcessController extends Controller
                 'workorder_id' => $workorderId,
                 'component_id' => $componentId,
                 'qty' => $qty,
+                'serial_num' => $serial_num,
                 'processes' => $processesJson,
                 'sort_order' => $maxSortOrder + 1, // Устанавливаем sort_order в конец списка
             ]);
@@ -282,11 +287,13 @@ class ExtraProcessController extends Controller
                 $data = $request->json()->all();
                 $workorderId = (int)($data['workorder_id'] ?? 0);
                 $componentId = (int)($data['component_id'] ?? 0);
+                $serial_num = $data['serial_num'] ?? null;
                 $qty = (int)($data['qty'] ?? 1);
                 $processesData = json_decode($data['processes'], true);
             } else {
                 $workorderId = (int)($request->input('workorder_id'));
                 $componentId = (int)($request->input('component_id'));
+                $serial_num = $request->input('serial_num');
                 $qty = (int)($request->input('qty', 1));
                 $processesData = $request->input('processes');
             }
@@ -341,7 +348,7 @@ class ExtraProcessController extends Controller
                             }
                         }
                         $existingProcesses = $convertedProcesses;
-                        
+
                         // Обновляем запись с исправленными данными
                         $existingExtraProcess->update(['processes' => $existingProcesses]);
                         \Log::info('Updated existing data with correct format', ['convertedProcesses' => $convertedProcesses]);
@@ -385,13 +392,13 @@ class ExtraProcessController extends Controller
 
                 $processNameId = $processData['process_names_id'];
                 $processIds = $processData['processes'];
-                
+
                 \Log::info("Extracted values", [
                     'processNameId' => $processNameId,
                     'processIds' => $processIds,
                     'processIdsType' => gettype($processIds)
                 ]);
-                
+
                 // Проверяем, что process_name_id существует
                 $processName = ProcessName::find($processNameId);
                 if (!$processName) {
@@ -402,12 +409,12 @@ class ExtraProcessController extends Controller
                 // Берем только первый process_id для каждого process_name_id
                 if (!empty($processIds) && is_array($processIds)) {
                     $processId = (int)$processIds[0];
-                    
+
                     \Log::info("Process ID extracted", [
                         'processId' => $processId,
                         'processIdType' => gettype($processId)
                     ]);
-                    
+
                     // Проверяем, что process_id существует
                     $process = Process::find($processId);
                     if ($process) {
@@ -419,7 +426,7 @@ class ExtraProcessController extends Controller
                                 break;
                             }
                         }
-                        
+
                         if (!$exists) {
                             $finalProcesses[] = [
                                 'process_name_id' => $processNameId,
@@ -462,10 +469,16 @@ class ExtraProcessController extends Controller
             ]);
 
             // Обновляем запись с финальными процессами
-            $existingExtraProcess->update([
+            $updateData = [
                 'processes' => $finalProcesses,
                 'qty' => $qty,
-            ]);
+            ];
+            
+            if (isset($serial_num)) {
+                $updateData['serial_num'] = $serial_num;
+            }
+            
+            $existingExtraProcess->update($updateData);
 
             return response()->json([
                 'success' => true,
@@ -498,11 +511,11 @@ class ExtraProcessController extends Controller
         // Группируем процессы для создания кнопок групповых форм
         $processGroups = [];
         $totalQty = 0;
-        
+
         \Log::info('Starting process grouping', [
             'extra_components_count' => $extra_components->count()
         ]);
-        
+
         foreach ($extra_components as $extra_component) {
             if (!$extra_component->processes || !$extra_component->component) {
                 \Log::info('Skipping component', [
@@ -645,7 +658,7 @@ class ExtraProcessController extends Controller
     {
         $current_wo = Workorder::findOrFail($id);
         $processName = ProcessName::findOrFail($processNameId);
-        
+
         // Получаем все extra processes для этого work order
         $extra_processes = ExtraProcess::where('workorder_id', $current_wo->id)
             ->with(['component'])
@@ -654,7 +667,7 @@ class ExtraProcessController extends Controller
 
         // Группируем компоненты по process_name_id
         $groupedComponents = [];
-        
+
         foreach ($extra_processes as $extra_process) {
             if (!$extra_process->component || !$extra_process->processes) {
                 continue;
@@ -710,10 +723,10 @@ class ExtraProcessController extends Controller
         $componentIds = $request->input('component_ids');
         if ($componentIds) {
             // Разбиваем строку с ID на массив
-            $filteredComponentIds = is_array($componentIds) 
-                ? array_map('intval', $componentIds) 
+            $filteredComponentIds = is_array($componentIds)
+                ? array_map('intval', $componentIds)
                 : array_map('intval', explode(',', $componentIds));
-            
+
             // Фильтруем groupedComponents по выбранным component_id
             $groupedComponents = array_filter($groupedComponents, function($item) use ($filteredComponentIds) {
                 return in_array($item['component']->id, $filteredComponentIds);
@@ -800,7 +813,7 @@ class ExtraProcessController extends Controller
 
         // Получаем все процессы для отображения
         $allProcesses = Process::all();
-        
+
         // Получаем всех поставщиков
         $vendors = Vendor::all();
 
@@ -811,17 +824,51 @@ class ExtraProcessController extends Controller
      * Show the form for editing the specified resource.
      *
      * @param  int  $id
+     * @param  \Illuminate\Http\Request  $request
      * @return Application|Factory|View
      */
-    public function edit($id)
+    public function edit($id, Request $request)
     {
         $extra_process = ExtraProcess::findOrFail($id);
         $current_wo = Workorder::findOrFail($extra_process->workorder_id);
         $component = Component::findOrFail($extra_process->component_id);
+
+        // Получаем параметры для фильтрации конкретного процесса
+        $processIndex = $request->input('process_index');
+        $processNameId = $request->input('process_name_id');
         
+        // Фильтруем процессы для редактирования только выбранного
+        $processesToEdit = [];
+        if ($processIndex !== null || $processNameId !== null) {
+            $allProcesses = $extra_process->processes ?? [];
+            
+            if (is_array($allProcesses) && array_keys($allProcesses) !== range(0, count($allProcesses) - 1)) {
+                // Старая структура: ассоциативный массив
+                if ($processNameId && isset($allProcesses[$processNameId])) {
+                    $processesToEdit[] = [
+                        'process_name_id' => $processNameId,
+                        'process_id' => $allProcesses[$processNameId]
+                    ];
+                }
+            } else {
+                // Новая структура: массив объектов
+                if ($processIndex !== null && isset($allProcesses[$processIndex])) {
+                    $processesToEdit[] = $allProcesses[$processIndex];
+                } elseif ($processNameId !== null) {
+                    // Ищем по process_name_id
+                    foreach ($allProcesses as $processItem) {
+                        if (isset($processItem['process_name_id']) && $processItem['process_name_id'] == $processNameId) {
+                            $processesToEdit[] = $processItem;
+                            break;
+                        }
+                    }
+                }
+            }
+        }
+
         // Получаем имена процессов
         $processNames = ProcessName::all();
-        
+
         // Получаем процессы, связанные с manual_id
         $manual_id = $current_wo->unit->manual_id ?? null;
         $processes = Process::whereHas('manuals', function ($query) use ($manual_id) {
@@ -834,7 +881,10 @@ class ExtraProcessController extends Controller
             'extra_process',
             'processNames',
             'processes',
-            'manual_id'
+            'manual_id',
+            'processesToEdit',
+            'processIndex',
+            'processNameId'
         ));
     }
 
@@ -849,13 +899,19 @@ class ExtraProcessController extends Controller
     {
         try {
             $extra_process = ExtraProcess::findOrFail($id);
-            
+
+            // Получаем параметры для обновления конкретного процесса
+            $processIndex = $request->input('process_index');
+            $processNameId = $request->input('process_name_id');
+
             // Проверяем, приходят ли данные как JSON
             if ($request->isJson()) {
                 $data = $request->json()->all();
+                $serial_num = $data['serial_num'] ?? null;
                 $qty = (int)($data['qty'] ?? 1);
                 $processesData = json_decode($data['processes'], true);
             } else {
+                $serial_num = $request->input('serial_num');
                 $qty = (int)($request->input('qty', 1));
                 $processesData = $request->input('processes');
             }
@@ -868,42 +924,114 @@ class ExtraProcessController extends Controller
                 ], 422);
             }
 
-            // Формируем данные для сохранения в JSON формате
-            $processesJson = [];
-            foreach ($processesData as $processData) {
-                if (!isset($processData['process_names_id']) || !isset($processData['processes'])) {
-                    continue;
+            // Получаем существующие процессы
+            $existingProcesses = $extra_process->processes ?? [];
+            
+            // Если редактируется конкретный процесс, обновляем только его
+            if ($processIndex !== null || $processNameId !== null) {
+                // Формируем обновленный процесс из данных формы
+                $updatedProcess = null;
+                foreach ($processesData as $processData) {
+                    if (!isset($processData['process_names_id']) || !isset($processData['processes'])) {
+                        continue;
+                    }
+
+                    $newProcessNameId = $processData['process_names_id'];
+                    $processIds = $processData['processes'];
+
+                    // Проверяем, что process_name_id существует
+                    $processName = ProcessName::find($newProcessNameId);
+                    if (!$processName) {
+                        continue;
+                    }
+
+                    // Берем только первый process_id
+                    if (!empty($processIds) && is_array($processIds)) {
+                        $newProcessId = (int)$processIds[0];
+
+                        // Проверяем, что process_id существует
+                        $process = Process::find($newProcessId);
+                        if ($process) {
+                            $updatedProcess = [
+                                'process_name_id' => $newProcessNameId,
+                                'process_id' => $newProcessId
+                            ];
+                            break;
+                        }
+                    }
                 }
 
-                $processNameId = $processData['process_names_id'];
-                $processIds = $processData['processes'];
-                
-                // Проверяем, что process_name_id существует
-                $processName = ProcessName::find($processNameId);
-                if (!$processName) {
-                    continue;
+                if ($updatedProcess) {
+                    // Обновляем только конкретный процесс в массиве
+                    if (is_array($existingProcesses) && array_keys($existingProcesses) !== range(0, count($existingProcesses) - 1)) {
+                        // Старая структура: ассоциативный массив
+                        if ($processNameId && isset($existingProcesses[$processNameId])) {
+                            unset($existingProcesses[$processNameId]);
+                            $existingProcesses[$updatedProcess['process_name_id']] = $updatedProcess['process_id'];
+                        }
+                        $processesJson = $existingProcesses;
+                    } else {
+                        // Новая структура: массив объектов
+                        if ($processIndex !== null && isset($existingProcesses[$processIndex])) {
+                            $existingProcesses[$processIndex] = $updatedProcess;
+                        } elseif ($processNameId !== null) {
+                            // Ищем по process_name_id и обновляем
+                            foreach ($existingProcesses as $index => $processItem) {
+                                if (isset($processItem['process_name_id']) && $processItem['process_name_id'] == $processNameId) {
+                                    $existingProcesses[$index] = $updatedProcess;
+                                    break;
+                                }
+                            }
+                        }
+                        $processesJson = array_values($existingProcesses);
+                    }
+                } else {
+                    $processesJson = $existingProcesses;
                 }
+            } else {
+                // Если не передан конкретный процесс, обновляем все (старое поведение)
+                $processesJson = [];
+                foreach ($processesData as $processData) {
+                    if (!isset($processData['process_names_id']) || !isset($processData['processes'])) {
+                        continue;
+                    }
 
-                // Берем только первый process_id для каждого process_name_id
-                if (!empty($processIds) && is_array($processIds)) {
-                    $processId = (int)$processIds[0];
-                    
-                    // Проверяем, что process_id существует
-                    $process = Process::find($processId);
-                    if ($process) {
-                        $processesJson[] = [
-                            'process_name_id' => $processNameId,
-                            'process_id' => $processId
-                        ];
+                    $processNameId = $processData['process_names_id'];
+                    $processIds = $processData['processes'];
+
+                    // Проверяем, что process_name_id существует
+                    $processName = ProcessName::find($processNameId);
+                    if (!$processName) {
+                        continue;
+                    }
+
+                    // Берем только первый process_id для каждого process_name_id
+                    if (!empty($processIds) && is_array($processIds)) {
+                        $processId = (int)$processIds[0];
+
+                        // Проверяем, что process_id существует
+                        $process = Process::find($processId);
+                        if ($process) {
+                            $processesJson[] = [
+                                'process_name_id' => $processNameId,
+                                'process_id' => $processId
+                            ];
+                        }
                     }
                 }
             }
 
             // Обновляем запись
-            $extra_process->update([
+            $updateData = [
                 'processes' => $processesJson,
                 'qty' => $qty,
-            ]);
+            ];
+            
+            if (isset($serial_num)) {
+                $updateData['serial_num'] = $serial_num;
+            }
+            
+            $extra_process->update($updateData);
 
             return response()->json([
                 'success' => true,
@@ -936,14 +1064,14 @@ class ExtraProcessController extends Controller
         $current_wo = Workorder::findOrFail($extra_process->workorder_id);
         $component = Component::findOrFail($extra_process->component_id);
         $processName = ProcessName::findOrFail($processNameId);
-        
+
         // Получаем vendor_id из запроса
         $vendorId = $request->input('vendor_id');
         $selectedVendor = null;
         if ($vendorId) {
             $selectedVendor = Vendor::find($vendorId);
         }
-        
+
         // Получаем связанные данные
         $manual_id = $current_wo->unit->manual_id;
         $components = Component::where('manual_id', $manual_id)->get();
@@ -1015,9 +1143,9 @@ class ExtraProcessController extends Controller
             foreach ($filteredProcesses as $processItem) {
                 $processNameId = $processItem['process_name_id'];
                 $processId = $processItem['process_id'];
-                
+
                 $process = Process::find($processId);
-                
+
                 if ($process) {
                     $tableData[] = [
                         'process_name' => $processName,
@@ -1069,9 +1197,9 @@ class ExtraProcessController extends Controller
         foreach ($filteredProcesses as $processItem) {
             $processNameId = $processItem['process_name_id'];
             $processId = $processItem['process_id'];
-            
+
             $process = Process::find($processId);
-            
+
             if ($process) {
                 $tableData[] = [
                     'process_name' => $processName,
@@ -1099,7 +1227,7 @@ class ExtraProcessController extends Controller
         $extra_process = ExtraProcess::findOrFail($id);
         $current_wo = Workorder::findOrFail($extra_process->workorder_id);
         $component = Component::findOrFail($extra_process->component_id);
-        
+
         // Получаем связанные данные
         $manual_id = $current_wo->unit->manual_id;
         $components = Component::where('manual_id', $manual_id)->get();
@@ -1127,26 +1255,26 @@ class ExtraProcessController extends Controller
                 // Новая структура: массив объектов
                 $processNameIds = array_unique(array_column($extra_process->processes, 'process_name_id'));
             }
-            
+
             if (!empty($processNameIds)) {
                 $processName = ProcessName::find($processNameIds[0]);
                 if ($processName) {
                     $viewData['process_name'] = $processName;
-                    
+
                     // Получаем все процессы для отображения
                     $viewData['process_components'] = Process::whereIn('id', $manualProcesses)
                         ->whereIn('process_names_id', $processNameIds)
                         ->get();
-                        
+
                     // Создаем массив данных для отображения в таблице
                     $tableData = [];
                     foreach ($extra_process->processes as $processItem) {
                         $processNameId = is_array($processItem) ? $processItem['process_name_id'] : $processItem;
                         $processId = is_array($processItem) ? $processItem['process_id'] : $extra_process->processes[$processItem];
-                        
+
                         $processName = ProcessName::find($processNameId);
                         $process = Process::find($processId);
-                        
+
                         if ($processName && $process) {
                             $tableData[] = [
                                 'process_name' => $processName,
@@ -1176,15 +1304,15 @@ class ExtraProcessController extends Controller
     {
         try {
             $extraProcess = ExtraProcess::findOrFail($id);
-            
+
             // Проверяем, нужно ли удалить конкретный процесс или всю запись
             $processNameId = request('process_name_id');
             $processIndex = request('process_index');
-            
+
             if ($processNameId || $processIndex !== null) {
                 // Удаляем конкретный процесс
                 $processes = $extraProcess->processes ?? [];
-                
+
                 if (is_array($processes) && !empty($processes)) {
                     if ($processIndex !== null) {
                         // Новая структура: массив объектов
@@ -1198,7 +1326,7 @@ class ExtraProcessController extends Controller
                             unset($processes[$processNameId]);
                         }
                     }
-                    
+
                     // Если процессов не осталось, удаляем всю запись
                     if (empty($processes)) {
                         $extraProcess->delete();
@@ -1221,7 +1349,7 @@ class ExtraProcessController extends Controller
                     }
                 }
             }
-            
+
             // Если не указан конкретный процесс, удаляем всю запись
             $extraProcess->delete();
 
@@ -1247,7 +1375,7 @@ class ExtraProcessController extends Controller
     {
         try {
             $processIds = $request->input('process_ids');
-            
+
             if (!is_array($processIds)) {
                 return response()->json(['success' => false, 'message' => 'Invalid process IDs'], 400);
             }
@@ -1262,6 +1390,101 @@ class ExtraProcessController extends Controller
             return response()->json(['success' => true, 'message' => 'Order updated successfully']);
         } catch (\Exception $e) {
             return response()->json(['success' => false, 'message' => 'Error updating order: ' . $e->getMessage()], 500);
+        }
+    }
+
+    /**
+     * Show the form for editing the component of extra process.
+     *
+     * @param  int  $id
+     * @return Application|Factory|View
+     */
+    public function editComponent($id)
+    {
+        $extra_process = ExtraProcess::findOrFail($id);
+        $current_wo = Workorder::findOrFail($extra_process->workorder_id);
+        $manual_id = $current_wo->unit->manual_id;
+        $components = Component::where('manual_id', $manual_id)->get();
+
+        return view('admin.extra_processes.edit_component', compact(
+            'current_wo',
+            'extra_process',
+            'components',
+            'manual_id'
+        ));
+    }
+
+    /**
+     * Update the component of extra process.
+     *
+     * @param  \Illuminate\Http\Request  $request
+     * @param  int  $id
+     * @return JsonResponse
+     */
+    public function updateComponent(Request $request, $id)
+    {
+        try {
+            $extra_process = ExtraProcess::findOrFail($id);
+
+            // Проверяем, приходят ли данные как JSON
+            if ($request->isJson()) {
+                $data = $request->json()->all();
+                $componentId = (int)($data['component_id'] ?? 0);
+                $serial_num = $data['serial_num'] ?? null;
+                $qty = (int)($data['qty'] ?? 1);
+            } else {
+                $componentId = (int)$request->input('component_id');
+                $serial_num = $request->input('serial_num');
+                $qty = (int)$request->input('qty', 1);
+            }
+
+            // Валидация
+            $validator = \Validator::make([
+                'component_id' => $componentId,
+                'serial_num' => $serial_num,
+                'qty' => $qty,
+            ], [
+                'component_id' => 'required|exists:components,id',
+                'serial_num' => 'nullable|string',
+                'qty' => 'required|integer|min:1',
+            ]);
+
+            if ($validator->fails()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Validation failed.',
+                    'errors' => $validator->errors()
+                ], 422);
+            }
+
+            // Проверяем существование component
+            $component = Component::find($componentId);
+            if (!$component) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Component not found.'
+                ], 422);
+            }
+
+            // Обновляем запись
+            $extra_process->update([
+                'component_id' => $componentId,
+                'serial_num' => $serial_num,
+                'qty' => $qty,
+            ]);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Component updated successfully.',
+                'redirect' => route('extra_processes.show_all', ['id' => $extra_process->workorder_id])
+            ]);
+
+        } catch (\Exception $e) {
+            \Log::error('ExtraProcess updateComponent error: ' . $e->getMessage());
+            return response()->json([
+                'success' => false,
+                'message' => 'Error updating component: ' . $e->getMessage()
+            ], 500);
         }
     }
 }

@@ -115,10 +115,10 @@
                 <div class="ps-2 d-flex" style="width: 400px;margin-top: -5px">
                     @if($woBushing)
                         <a href="{{ route('wo_bushings.edit', $woBushing->id) }}" class="btn btn-outline-primary mt-2 me-2"
-                           style="height: 60px;width: 100px">
-                            <i class="fas fa-edit"></i> Edit Bushings
+                           style="height: 60px;width: 120px">
+                            <i class="fas fa-edit"></i> Update Bushings List
                         </a>
-                        <div style="width: 100px;"></div>
+                        <div style="width: 100px; margin-top: 10px"></div>
 {{--                        <a href="{{ route('wo_bushings.specProcessForm', $woBushing->id) }}" class="btn btn-outline-warning"--}}
 {{--                               style="height: 60px;width: 120px" target="_blank">--}}
 {{--                            <i class="fas fa-list"></i> Spec Process Form--}}
@@ -127,7 +127,7 @@
                             text="Bushing SP Form"
                             href="{{ route('wo_bushings.specProcessForm', $woBushing->id) }}}"
                             size="landscape"
-                            width="120px"
+                            width="100px"
                             target="_blank"
                             color="outline-primary"
                         />
@@ -135,7 +135,7 @@
                         @if($bushings->flatten()->count() > 0)
                             <a href="{{ route('wo_bushings.create', $current_wo->id) }}" class="btn btn-success"
                                style="height: 60px; width: 100px">
-                                <i class="fas fa-plus"></i> Create Bushings
+                                <i class="fas fa-plus"></i> Create Bushings List
                             </a>
                         @endif
                     @endif

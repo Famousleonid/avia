@@ -51,16 +51,16 @@
         $linePath = 'M140 12 V50 H180';
         $foreignObjectX = 20;
         $foreignObjectY = 60;
-        $foreignObjectWidth = 120;
-        $foreignObjectHeight = 130;
+        $foreignObjectWidth = 140;
+        $foreignObjectHeight = 140;
     } else {
         $viewBoxCoords = '0 0 260 200';
         $paperPath = 'M10 10 H210 L250 50 V170 H10 Z';
         $foldPoints = '210,10 210,50 250,50';
         $linePath = 'M210 12 V50 H250';
-        $foreignObjectX = 20;
-        $foreignObjectY = 60;
-        $foreignObjectWidth = 190;
+        $foreignObjectX = 25;
+        $foreignObjectY = 50;
+        $foreignObjectWidth = 210;
         $foreignObjectHeight = 90;
     }
 
@@ -114,7 +114,7 @@
         <foreignObject x="{{ $foreignObjectX }}" y="{{ $foreignObjectY }}"
                       width="{{ $foreignObjectWidth }}" height="{{ $foreignObjectHeight }}">
             <div xmlns="http://www.w3.org/1999/xhtml"
-                 style="font: 36px Arial, sans-serif;
+                 style="font: 34px Arial, sans-serif;
                         text-align: center;
                         display: flex;
                         align-items: center;
