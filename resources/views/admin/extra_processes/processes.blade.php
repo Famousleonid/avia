@@ -104,7 +104,13 @@
                     <div>
                         <strong>Component:</strong> {{ $component->name }}<br>
                         <strong>IPL:</strong> {{ $component->ipl_num }}<br>
-                        <strong>Part Number:</strong> {{ $component->part_number }} SN {{$extra_process->serial_num}}
+                        <strong>Part Number:</strong> {{ $component->part_number }} SN
+                        @if($extra_process->serial_num)
+                            {{$extra_process->serial_num}}
+                        @else
+                            {{__('NSN')}}
+                        @endif
+
                     </div>
                     <div class="d-flex">
                         <div  style="width: 450px">

@@ -237,9 +237,8 @@
                      style="width: 180px; margin: 6px 10px 0;">
             </div>
             <div class="col-9">
-                <h3 class="ms-4 mt-3 text-black text-"><strong>{{$process_name->process_sheet_name ?? $process_name->name ??
-                'EXTRA
-                 PROCESS'}} PROCESS SHEET</strong></h3>
+                <h3 class="ms-4 mt-3 text-black text-">
+                    <strong>{{$process_name->process_sheet_name ?? $process_name->name ??'EXTRA PROCESS'}} PROCESS SHEET</strong></h3>
             </div>
         </div>
         <div class="row">
@@ -516,10 +515,12 @@
                     </div>
                 @else
                 <div class="col-2 border-all pt-2  details-row  text-center"><h6  class="fs-7" ><strong>CMM No.</strong> </h6>
-                    @endif
+
                 </div>
+                @endif
             </div>
         </div>
+
         <div class="page data-page">
             @php
                 $totalRows = 19; // Общее количество строк
