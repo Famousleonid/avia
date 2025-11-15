@@ -19,10 +19,6 @@
                 @csrf
                     <input type="hidden" name="manual_id" value="{{ $manual->id }}">
                     <input type="hidden" name="return_to" value="{{ request()->query('return_to', '') }}">
-                    <!-- Debug info -->
-{{--                    <div class="text-muted small">--}}
-{{--                        Return to: {{ request()->query('return_to', 'Not set') }}--}}
-{{--                    </div>--}}
 
                     <div class="form-group d-flex">
                         <div class="form-group ">

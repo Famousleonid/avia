@@ -200,7 +200,7 @@
                                             $process = \App\Models\Process::find($processItem['process_id']);
                                         @endphp
                                         @if($processName && $process)
-                                            <tr data-id="{{ $extra_process->id }}">
+                                            <tr data-id="{{ $extra_process->id }}" data-process-index="{{ $index }}">
                                                 <td class="text-center">{{ $processName->name }}</td>
                                                 <td class="ps-2">{{ $process->process }}</td>
                                                 <td class="text-center">
@@ -313,11 +313,12 @@
                 ghostClass: 'dragging',
                 dragClass: 'dragging',
                 onEnd: function(evt) {
-                    // Получаем новый порядок элементов
-                    const newOrder = Array.from(sortable.el.children).map((row, index) => {
+                    // Получаем новый порядок элементов с сохранением исходных индексов процессов
+                    const newOrder = Array.from(sortable.el.children).map((row, newIndex) => {
                         return {
                             id: row.getAttribute('data-id'),
-                            sort_order: index + 1
+                            process_index: parseInt(row.getAttribute('data-process-index')),
+                            new_index: newIndex
                         };
                     });
 
@@ -477,7 +478,18 @@
 
             // Функция для обновления порядка процессов
             function updateProcessOrder(newOrder) {
-                const processIds = newOrder.map(item => item.id);
+                // Группируем по extra_process_id и формируем массив новых индексов
+                const orderByExtraProcess = {};
+                newOrder.forEach(item => {
+                    const extraProcessId = item.id;
+                    if (!orderByExtraProcess[extraProcessId]) {
+                        orderByExtraProcess[extraProcessId] = [];
+                    }
+                    orderByExtraProcess[extraProcessId].push({
+                        old_index: item.process_index,
+                        new_index: item.new_index
+                    });
+                });
 
                 fetch('{{ route("extra_processes.update-order") }}', {
                     method: 'POST',
@@ -487,13 +499,17 @@
                         'Accept': 'application/json',
                     },
                     body: JSON.stringify({
-                        process_ids: processIds
+                        processes_order: orderByExtraProcess
                     })
                 })
                 .then(response => response.json())
                 .then(data => {
                     if (data.success) {
                         console.log('Order updated successfully');
+                        // Обновляем data-process-index атрибуты в соответствии с новым порядком
+                        Array.from(sortable.el.children).forEach((row, index) => {
+                            row.setAttribute('data-process-index', index);
+                        });
                         // Показываем уведомление пользователю
                         showNotification('Порядок процессов обновлен', 'success');
                     } else {

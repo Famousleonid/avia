@@ -1374,21 +1374,83 @@ class ExtraProcessController extends Controller
     public function updateOrder(Request $request)
     {
         try {
-            $processIds = $request->input('process_ids');
+            $processesOrder = $request->input('processes_order');
 
-            if (!is_array($processIds)) {
-                return response()->json(['success' => false, 'message' => 'Invalid process IDs'], 400);
+            if (!is_array($processesOrder)) {
+                return response()->json(['success' => false, 'message' => 'Invalid processes order data'], 400);
             }
 
-            DB::transaction(function() use ($processIds) {
-                foreach ($processIds as $index => $processId) {
-                    ExtraProcess::where('id', $processId)
-                               ->update(['sort_order' => $index + 1]);
+            DB::transaction(function() use ($processesOrder) {
+                foreach ($processesOrder as $extraProcessId => $orderData) {
+                    $extraProcess = ExtraProcess::find($extraProcessId);
+                    
+                    if (!$extraProcess) {
+                        \Log::warning('ExtraProcess not found', ['id' => $extraProcessId]);
+                        continue;
+                    }
+
+                    // Получаем текущие процессы
+                    $currentProcesses = $extraProcess->processes ?? [];
+                    
+                    if (empty($currentProcesses) || !is_array($currentProcesses)) {
+                        \Log::warning('ExtraProcess has no processes or invalid format', [
+                            'id' => $extraProcessId,
+                            'processes' => $currentProcesses
+                        ]);
+                        continue;
+                    }
+
+                    // Проверяем структуру данных
+                    $isOldFormat = array_keys($currentProcesses) !== range(0, count($currentProcesses) - 1);
+                    
+                    if ($isOldFormat) {
+                        // Старая структура: ассоциативный массив
+                        // Конвертируем в новую структуру для обработки
+                        $convertedProcesses = [];
+                        foreach ($currentProcesses as $processNameId => $processId) {
+                            $convertedProcesses[] = [
+                                'process_name_id' => (string)$processNameId,
+                                'process_id' => (int)$processId
+                            ];
+                        }
+                        $currentProcesses = $convertedProcesses;
+                    }
+
+                    // Создаем новый массив процессов в правильном порядке
+                    $reorderedProcesses = [];
+                    
+                    // Сортируем orderData по new_index
+                    usort($orderData, function($a, $b) {
+                        return $a['new_index'] - $b['new_index'];
+                    });
+
+                    // Переупорядочиваем процессы согласно новому порядку
+                    foreach ($orderData as $orderItem) {
+                        $oldIndex = $orderItem['old_index'];
+                        if (isset($currentProcesses[$oldIndex])) {
+                            $reorderedProcesses[] = $currentProcesses[$oldIndex];
+                        }
+                    }
+
+                    // Обновляем запись с переупорядоченными процессами
+                    $extraProcess->update([
+                        'processes' => $reorderedProcesses
+                    ]);
+
+                    \Log::info('ExtraProcess processes order updated', [
+                        'id' => $extraProcessId,
+                        'old_count' => count($currentProcesses),
+                        'new_count' => count($reorderedProcesses)
+                    ]);
                 }
             });
 
             return response()->json(['success' => true, 'message' => 'Order updated successfully']);
         } catch (\Exception $e) {
+            \Log::error('Error updating extra processes order', [
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
             return response()->json(['success' => false, 'message' => 'Error updating order: ' . $e->getMessage()], 500);
         }
     }

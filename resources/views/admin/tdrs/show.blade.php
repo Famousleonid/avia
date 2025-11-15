@@ -646,13 +646,6 @@
 
                             @if(count($tdrs))
                                 <div class="d-flex" style="width: 200px">
-{{--                                    <a href="{{ route('tdrs.woProcessForm', ['id'=> $current_wo->id]) }}"--}}
-{{--                                       class="btn fs-8 btn-outline-warning me-3 formLink "--}}
-{{--                                       target="_blank"--}}
-{{--                                       id="#" style=" height: 55px; width: 100px">--}}
-{{--                                        --}}{{--                                                                                <i class="bi bi-file-earmark-excel"> WO Process Sheet </i>--}}
-{{--                                        WO Process Sheet--}}
-{{--                                    </a>--}}
                                     <x-paper-button
                                         text="WO Process Sheet"
                                         href="{{ route('tdrs.woProcessForm', ['id'=> $current_wo->id]) }}"
@@ -662,12 +655,6 @@
                                 </div>
 
 
-{{--                                <a href="{{ route('tdrs.tdrForm', ['id'=> $current_wo->id]) }}"--}}
-{{--                                   class="btn fs-8 btn-outline-warning me-1 formLink "--}}
-{{--                                   target="_blank"--}}
-{{--                                   id="#" style=" height: 55px; width: 60px">--}}
-{{--                                    TDR Form--}}
-{{--                                </a>--}}
                                 <x-paper-button
                                     text="TDR Form"
                                     href="{{ route('tdrs.tdrForm', ['id'=> $current_wo->id]) }}"
@@ -680,37 +667,20 @@
                                         target="_blank"
                                     />
 
-
-{{--                                    <a href="{{ route('tdrs.specProcessFormEmp', ['id'=> $current_wo->id]) }}"--}}
-{{--                                       class="btn fs-8 btn-outline-warning me-1 formLink "--}}
-{{--                                       target="_blank"--}}
-{{--                                       id="#" style=" height: 55px; width: 60px">--}}
-{{--                                        SP Form--}}
-{{--                                    </a>--}}
                                 @else
                                     <x-paper-button
                                         text="SP Form"
                                         href="{{ route('tdrs.specProcessForm', ['id'=> $current_wo->id]) }}"
                                         target="_blank"
                                     />
-{{--                                    <a href="{{ route('tdrs.specProcessForm', ['id'=> $current_wo->id]) }}"--}}
-{{--                                       class="btn fs-8 btn-outline-warning me-1 formLink "--}}
-{{--                                       target="_blank"--}}
-{{--                                       id="#" style=" height: 55px;width: 60px">--}}
-{{--                                        SP Form--}}
-{{--                                    </a>--}}
+
                                 @endif
                                 <x-paper-button
                                     text="R&M Form"
                                     href="{{ route('rm_reports.rmRecordForm', ['id'=> $current_wo->id]) }}"
                                     target="_blank"
                                 />
-{{--                                <a href="{{ route('rm_reports.rmRecordForm', ['id'=> $current_wo->id]) }}"--}}
-{{--                                   class="btn fs-8 btn-outline-warning me-1 formLink "--}}
-{{--                                   target="_blank"--}}
-{{--                                   id="#" style=" height: 55px; width: 60px">--}}
-{{--                                        R&M Form--}}
-{{--                                </a>--}}
+
                                 @if (count($prl_parts) > 0)
                                     <div class="position-relative d-inline-block">
                                         <x-paper-button
@@ -722,20 +692,12 @@
                                         <span class="badge bg-success rounded-pill"
                                               style="position: absolute; top: -5px; left: 2px; min-width: 20px; height: 20px;
                                               display: flex; align-items: center; justify-content: center; font-size: 0.7rem; padding: 0 5px;">
-            {{ count($prl_parts) }}
-        </span>
+                                         {{ count($prl_parts) }}
+                                        </span>
                                     </div>
                                 @endif
-                                {{--                                <a href="{{ route('tdrs.prlForm', ['id'=> $current_wo->id]) }}"--}}
-{{--                                   class="btn fs-8 btn-outline-warning me-1 formLink align-content-center "--}}
-{{--                                   target="_blank"--}}
-{{--                                   id="#" style=" height: 55px; width: 55px">--}}
-{{--                                    --}}{{--                                        <i class="bi bi-file-earmark-excel"> PRL </i>--}}
-{{--                                    PRL--}}
-{{--                                </a>--}}
+
                             @endif
-
-
 
                         </div>
 
@@ -749,11 +711,6 @@
                                         target="_blank"
                                         color="outline-primary"
                                     />
-{{--                                    <a href="{{ route('tdrs.ndtStd', ['workorder_id' => $current_wo->id]) }}"--}}
-{{--                                       class="btn fs-8 btn-outline-warning" style="min-height: 55px; width: 55px"--}}
-{{--                                       target="_blank">--}}
-{{--                                        NDT STD--}}
-{{--                                    </a>--}}
                                 </div>
                             @endif
 
@@ -765,11 +722,7 @@
                                         target="_blank"
                                         color="outline-primary"
                                     />
-{{--                                    <a href="{{ route('tdrs.cadStd', ['workorder_id' => $current_wo->id]) }}"--}}
-{{--                                       class="btn fs-8 btn-outline-warning" style="min-height: 55px; width: 55px"--}}
-{{--                                       target="_blank">--}}
-{{--                                        CAD STD--}}
-{{--                                    </a>--}}
+
                                 </div>
                             @endif
 
@@ -781,11 +734,6 @@
                                         target="_blank"
                                         color="outline-primary"
                                     />
-{{--                                    <a href="{{ route('tdrs.stressStd', ['workorder_id' => $current_wo->id]) }}"--}}
-{{--                                       class="btn fs-8 btn-outline-warning" style="min-height: 55px; width: 60px"--}}
-{{--                                       target="_blank">--}}
-{{--                                        Stress STD--}}
-{{--                                    </a>--}}
                                 </div>
                             @endif
 
@@ -797,23 +745,14 @@
                                         target="_blank"
                                         color="outline-primary"
                                     />
-{{--                                    <a href="{{ route('tdrs.paintStd', ['workorder_id' => $current_wo->id]) }}"--}}
-{{--                                       class="btn fs-8 btn-outline-warning" style="min-height: 55px; width: 55px"--}}
-{{--                                       target="_blank">--}}
-{{--                                        Paint STD--}}
-{{--                                    </a>--}}
+
                                 </div>
                             @endif
                         </div>
 
                 <div class="d-flex ms-5">
                     @if($log_card)
-{{--                        <a href="{{ route('log_card.logCardForm', ['id'=> $current_wo->id]) }}"--}}
-{{--                           class="btn btn-outline-warning mb-3 formLink "--}}
-{{--                           target="_blank"--}}
-{{--                           id="#" style=" height: 60px; width: 80px">--}}
-{{--                            <i class="bi bi-file-earmark-excel"> Log Card </i>--}}
-{{--                        </a>--}}
+
                         <x-paper-button
                             text="Log Card"
                             href="{{ route('log_card.logCardForm', ['id'=> $current_wo->id]) }}"
@@ -822,10 +761,7 @@
                         />
                     @endif
                      @if($woBushing)
-{{--                            <a href="{{ route('wo_bushings.specProcessForm', $woBushing->id) }}" class="btn btn-outline-warning"--}}
-{{--                               style="height: 60px;width: 120px" target="_blank">--}}
-{{--                                <i class="fas fa-list"></i> Spec Process Form--}}
-{{--                            </a>--}}
+
                             <x-paper-button
                                 text="Bushing SP Form"
 
@@ -940,6 +876,7 @@
                                     <th class=" text-center   text-primary sortable">{{__('Serial number')}}</th>
                                     <th class=" text-center  text-primary " style="width: 200px">{{__('Necessary')}}</th>
                                     <th class=" text-center  text-primary " style="width: 120px">{{__('Code')}}</th>
+                                    <th class=" text-center  text-primary " style="width: 60px">{{__('EC')}}</th>
                                     <th class=" text-primary text-center" style="width: 150px"> {{__('Action')}}
                                         <a href="{{ route('tdrs.inspection.component', ['workorder_id' => $current_wo->id])}}"
                                            class="btn btn-outline-info btn-sm ms-3" style="height: 32px">
@@ -980,8 +917,29 @@
                                                     @endif
                                                 @endforeach
                                             </td>
+                                            <td class="text-center" style="width: 60px"> <!--  EC -->
+                                                @if(empty($tdr_proc))
+                                                    No
+                                                @else
+                                                    @php
+                                                        $found = false;
+                                                    @endphp
+                                                    @foreach($tdr_proc as $tdr_ec)
+                                                        @if($tdr_ec->tdrs_id == $tdr->id)
+                                                            @php
+                                                                $found = true;
+                                                            @endphp
+                                                            Yes
+                                                            @break
+                                                        @endif
+                                                    @endforeach
+                                                    @if(!$found)
+                                                        No
+                                                    @endif
+                                                @endif
+                                            </td>
 
-                                            <td class="d-flex justify-content-center" style="width: 150px">
+                                            <td class="d-flex justify-content-center " style="width: 150px; align-content: center">
 
 
                                                 <a href="{{ route('tdr-processes.processes',['tdrId'=>$tdr->id])}}"

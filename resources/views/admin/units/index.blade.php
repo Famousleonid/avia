@@ -242,7 +242,7 @@
 
                         <div class="mb-3">
                             <label for="cmmSelect" class="form-label">CMM</label>
-                            <select class="form-select" id="cmmSelect" name="cmmSelect">
+                            <select class="form-select" id="cmmSelect" name="cmmSelect" >
                                 <option value="">{{ __('Select CMM') }}</option>
                                 @foreach($manuals as $m)
                                     <option value="{{ $m->id }}">{{ $m->title }} ({{ $m->number }})</option>

@@ -54,8 +54,8 @@
                                     </div>
                                 </div>
                                 <div class="col-md-2">
-                                    <label for="ec">EC:</label>
-                                    <div class="form-check mt-2">
+{{--                                    <label for="ec">EC:</label>--}}
+                                    <div class="form-check mt-2" id="ec-checkbox-container" style="display: none;">
                                         <input type="checkbox" name="processes[0][ec]" value="1" class="form-check-input" id="ec_edit"
                                             {{ $current_tdr_processes->ec ? 'checked' : '' }}>
                                         <label class="form-check-label" for="ec_edit">
@@ -106,6 +106,17 @@
                         option.style.display = 'none'; // Скрываем процесс
                     }
                 });
+
+                // Условное отображение чекбокса EC на основе id
+                const ecCheckboxContainer = document.getElementById('ec-checkbox-container');
+                if (ecCheckboxContainer) {
+                    // Показываем чекбокс EC только для определенных id
+                    if (selectedProcessNameId == '10') {
+                        ecCheckboxContainer.style.display = 'block';
+                    } else {
+                        ecCheckboxContainer.style.display = 'none';
+                    }
+                }
             }
 
             // Вызываем фильтрацию при изменении выбранного значения

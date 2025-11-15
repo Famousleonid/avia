@@ -1,6 +1,7 @@
 @extends('admin.master')
 
 @section('content')
+
     <style>
         .container {
             max-width: 950px;
@@ -90,10 +91,23 @@
                             <div class="row">
                                 <div class="col-md-5">
                                     <label for="process_names">Process Name:</label>
-                                    <select name="processes[0][process_names_id]" class="form-control select2-process" required>
+                                    <select name="processes[0][process_names_id]" class="form-control select2-process" required
+                                            data-process-data='@json($processNames->keyBy('id'))'>
                                         <option value="">Select Process Name</option>
                                         @foreach ($processNames as $processName)
-                                            <option value="{{ $processName->id }}">{{ $processName->name }}</option>
+                                            <option value="{{ $processName->id }}"
+                                                    data-process-id="{{ $processName->id }}"
+                                                    {{-- Примеры использования id в Blade @if --}}
+                                                    @if($processName->id == 1)
+                                                        data-is-special="true"
+                                                    @elseif($processName->id >= 5 && $processName->id <= 10)
+                                                        data-is-range="true"
+                                                    @endif
+                                                    @if(in_array($processName->id, [2, 3, 4]))
+                                                        data-is-group="true"
+                                                    @endif>
+                                                {{ $processName->name }}
+                                            </option>
                                         @endforeach
                                     </select>
                                 </div>
@@ -114,7 +128,11 @@
                                 </div>
                                 <div class="col-md-2">
 {{--                                    <label for="ec">EC:</label>--}}
-                                    <div class="form-check mt-2">
+{{--                                    <div class="mb-2">--}}
+{{--                                        <small class="text-muted">Process ID: <span id="process-name-id-0" class="fw-bold">-</span></small>--}}
+{{--                                    </div>--}}
+
+                                    <div class="form-check mt-2" style="display: none;">
                                         <input type="checkbox" name="processes[0][ec]" value="1" class="form-check-input" id="ec_0">
                                         <label class="form-check-label" for="ec_0">
                                             EC
@@ -173,10 +191,53 @@
     </div>
 
     <script>
+        // Универсальная функция для получения id выбранного Process Name
+        // Параметр: element - элемент select или строка process-row
+        function getSelectedProcessNameId(element) {
+            let select;
+
+            // Если передан select элемент напрямую
+            if (element.classList && element.classList.contains('select2-process')) {
+                select = element;
+            }
+            // Если передан элемент строки (process-row)
+            else if (element.classList && element.classList.contains('process-row')) {
+                select = element.querySelector('.select2-process');
+            }
+            // Если передан event объект
+            else if (element.target) {
+                select = element.target;
+            }
+
+            if (select) {
+                return select.value; // Возвращает id выбранного Process Name
+            }
+
+            return null;
+        }
+
+        // Данные процессов для использования в динамически создаваемых строках
+        const processNamesData = @json($processNames->keyBy('id'));
+
         // Динамическое добавление новых строк
         document.getElementById('add-process').addEventListener('click', function () {
             const container = document.getElementById('processes-container');
             const index = container.children.length;
+
+            // Формируем опции для select
+            let optionsHtml = '<option value="">Select Process Name</option>';
+            @foreach ($processNames as $processName)
+                optionsHtml += `<option value="{{ $processName->id }}"
+                    data-process-id="{{ $processName->id }}"
+                    @if($processName->id == 1)
+                        data-is-special="true"
+                    @elseif($processName->id >= 5 && $processName->id <= 10)
+                        data-is-range="true"
+                    @endif
+                    @if(in_array($processName->id, [2, 3, 4]))
+                        data-is-group="true"
+                    @endif>{{ $processName->name }}</option>`;
+            @endforeach
 
             const newRow = document.createElement('div');
             newRow.classList.add('process-row', 'mb-3');
@@ -184,12 +245,12 @@
                 <div class="row ">
                     <div class="col-md-5">
                         <label for="process_names">Process Name:</label>
-                        <select name="processes[${index}][process_names_id]" class="form-control select2-process" required>
-                            <option value="">Select Process Name</option>
-                            @foreach ($processNames as $processName)
-            <option value="{{ $processName->id }}">{{ $processName->name }}</option>
-                            @endforeach
-            </select>
+                        <select name="processes[${index}][process_names_id]"
+                                class="form-control select2-process"
+                                required
+                                data-process-data='@json($processNames->keyBy('id'))'>
+                            ${optionsHtml}
+                        </select>
         </div>
         <div class="col-md-5">
             <label for="process">Processes:</label>
@@ -204,8 +265,11 @@
             </div>
         </div>
         <div class="col-md-2">
-             {{--                                    <label for="ec">EC:</label>--}}
-            <div class="form-check mt-2">
+             {{--                                    <label for="ec">EC:</label>
+            <div class="mb-2">
+                <small class="text-muted">Process ID: <span id="process-name-id-${index}" class="fw-bold">-</span></small>
+            </div>--}}
+            <div class="form-check mt-2" style="display: none;">
                 <input type="checkbox" name="processes[${index}][ec]" value="1" class="form-check-input" id="ec_${index}">
                 <label class="form-check-label" for="ec_${index}">
                     EC
@@ -305,9 +369,83 @@
         document.addEventListener('change', function (event) {
             if (event.target.classList.contains('select2-process')) {
                 const processNameId = event.target.value;
-                const processOptionsContainer = event.target.closest('.process-row').querySelector('.process-options');
+                const processRow = event.target.closest('.process-row');
+                const processOptionsContainer = processRow.querySelector('.process-options');
                 const manualId = document.getElementById('processes-container').dataset.manualId; // Получаем manual_id
                 const saveButton = document.querySelector('button[type="submit"]');
+
+                // Обновление отображения id выбранного Process Name
+                // Получаем индекс строки из name атрибута select
+                const selectName = event.target.name;
+                const match = selectName.match(/processes\[(\d+)\]/);
+                if (match) {
+                    const rowIndex = match[1];
+                    const processIdElement = document.getElementById(`process-name-id-${rowIndex}`);
+                    if (processIdElement) {
+                        processIdElement.textContent = processNameId || '-';
+                    }
+                }
+
+                // ============================================
+                // ПРИМЕРЫ ИСПОЛЬЗОВАНИЯ ID ДЛЯ УСЛОВНОЙ ЛОГИКИ
+                // ============================================
+
+                // // СПОСОБ 1: Использование id для сравнения в JavaScript
+                // if (processNameId) {
+                //     // Пример: если id равен определенному значению
+                //     if (processNameId == '1') {
+                //         console.log('Выбран Process Name с id = 1');
+                //         // Здесь можно выполнить какие-то действия
+                //     }
+                //
+                //     // Пример: если id в определенном диапазоне
+                //     if (processNameId >= 1 && processNameId <= 10) {
+                //         console.log('ID в диапазоне от 1 до 10');
+                //     }
+                //
+                //     // Пример: проверка на несколько значений
+                //     if ([1, 5, 10].includes(parseInt(processNameId))) {
+                //         console.log('ID равен 1, 5 или 10');
+                //     }
+                // }
+
+                // // СПОСОБ 2: Использование data-атрибутов для получения дополнительных данных
+                // const selectedOption = event.target.options[event.target.selectedIndex];
+                // if (selectedOption) {
+                //     const isSpecial = selectedOption.getAttribute('data-is-special') === 'true';
+                //     if (isSpecial) {
+                //         console.log('Выбран специальный процесс');
+                //         // Показать/скрыть дополнительные элементы
+                //     }
+                // }
+                //
+                // // СПОСОБ 3: Использование данных из data-process-data атрибута
+                // const processDataStr = event.target.getAttribute('data-process-data');
+                // if (processDataStr) {
+                //     try {
+                //         const processData = JSON.parse(processDataStr);
+                //         const selectedProcess = processData[processNameId];
+                //         if (selectedProcess) {
+                //             // Теперь можно использовать данные процесса для условий
+                //             // Например: if (selectedProcess.type === 'special') { ... }
+                //             console.log('Данные процесса:', selectedProcess);
+                //         }
+                //     } catch (e) {
+                //         console.error('Ошибка парсинга данных процесса:', e);
+                //     }
+                // }
+
+                // СПОСОБ 4: Условное отображение элементов на основе id
+                const ecCheckbox = processRow.querySelector('input[name*="[ec]"]');
+                if (ecCheckbox) {
+                    // Показываем чекбокс EC только для определенных id
+                    // if (processNameId == '10' || processNameId == '5') {
+                    if (processNameId == '10') {
+                        ecCheckbox.closest('.form-check').style.display = 'block';
+                    } else {
+                        ecCheckbox.closest('.form-check').style.display = 'none';
+                    }
+                }
 
                 // Очистка контейнера для чекбоксов
                 processOptionsContainer.innerHTML = '';
@@ -578,6 +716,38 @@
             const modalEl = document.getElementById('addProcessModal');
             const modalInstance = bootstrap.Modal.getInstance(modalEl);
             modalInstance.hide();
+        });
+
+        // Инициализация отображения id и чекбокса EC для всех существующих строк при загрузке страницы
+        document.addEventListener('DOMContentLoaded', function() {
+            const processRows = document.querySelectorAll('.process-row');
+            processRows.forEach(row => {
+                const select = row.querySelector('.select2-process');
+                if (select) {
+                    const processNameId = select.value;
+                    const ecCheckbox = row.querySelector('input[name*="[ec]"]');
+                    
+                    // Показываем/скрываем чекбокс EC в зависимости от выбранного id
+                    if (ecCheckbox) {
+                        // Показываем чекбокс EC только для определенных id
+                        if (processNameId == '10') {
+                            ecCheckbox.closest('.form-check').style.display = 'block';
+                        } else {
+                            ecCheckbox.closest('.form-check').style.display = 'none';
+                        }
+                    }
+                    
+                    const selectName = select.name;
+                    const match = selectName.match(/processes\[(\d+)\]/);
+                    if (match) {
+                        const rowIndex = match[1];
+                        const processIdElement = document.getElementById(`process-name-id-${rowIndex}`);
+                        if (processIdElement) {
+                            processIdElement.textContent = processNameId || '-';
+                        }
+                    }
+                }
+            });
         });
 
 

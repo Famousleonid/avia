@@ -97,13 +97,6 @@
                         </button>
                     </div>
 
-{{--                    <a href="{{ route('tdrs.specProcessForm', ['id'=> $current_wo->id]) }}"--}}
-{{--                       class="btn btn-outline-warning  formLink "--}}
-{{--                       target="_blank"--}}
-{{--                       id="#" style=" height: 60px;width: 120px">--}}
-
-{{--                        <i class="bi bi-file-earmark-excel"> Special Process Form</i>--}}
-{{--                    </a>--}}
                     <x-paper-button
                         text="SP Form"
                         href="{{ route('tdrs.specProcessForm', ['id'=> $current_wo->id]) }}"

@@ -373,14 +373,18 @@ class TdrController extends Controller
             }])
             ->get();
 
+         $tdr_proc = TdrProcess::where('ec',1)->get();
+
+
         return view('admin.tdrs.show', compact(
             'current_wo', 'tdrs', 'units', 'components', 'user', 'customers',
             'manuals', 'builders', 'planes', 'instruction', 'necessary',
             'necessaries', 'unit_conditions', 'component_conditions',
             'codes', 'conditions', 'missingParts', 'ordersParts', 'inspectsUnit',
-            'processParts', 'ordersPartsNew','trainings','user_wo', 'manual_id','log_card','woBushing','prl_parts'
+            'processParts', 'ordersPartsNew','trainings','user_wo', 'manual_id','log_card','woBushing','prl_parts','tdr_proc',
         ));
     }
+
 
     /**
      * Show the form for editing the specified resource.
@@ -1305,33 +1309,48 @@ class TdrController extends Controller
         $components = Component::where('manual_id', $manual_id)->get();
 
         $processNames = ProcessName::where(function ($query) {
-            $query->where('name', 'NOT LIKE', '%NDT%');
+            $query->where('name', 'NOT LIKE', '%NDT%')
 //                ->where('name', 'NOT LIKE', '%Paint%');
+                ->where('name', 'NOT LIKE', '%EC%');
         })->get();
 
         // Получаем Tdr, где use_process_form = true, с предварительной загрузкой TdrProcess
         $tdrs = Tdr::where('workorder_id', $current_wo->id)
             ->where('use_process_forms', true)
             ->with(['tdrProcesses' => function($query) {
-                $query->orderBy('sort_order');
-            }]) // Предварительная загрузка TdrProcess с сортировкой
+                $query->orderBy('sort_order')->with('processName');
+            }]) // Предварительная загрузка TdrProcess с сортировкой и processName
             ->with('component')
             ->get();
+
+        // Получаем ID процессов с именем 'EC' для исключения из подсчёта number_line
+        $ecProcessIds = ProcessName::where('name', 'LIKE', '%EC%')->pluck('id');
 
         // Создаем коллекцию для результата
         $result = collect();
 
         // Обрабатываем каждый Tdr
         foreach ($tdrs as $tdr) {
-            // Получаем связанные процессы
+            // Получаем связанные процессы (processName уже загружен)
             $groupedProcesses = $tdr->tdrProcesses;
 
+            // Счётчик для number_line (не учитывает процессы с именем 'EC')
+            $lineNumber = 0;
+
             // Обрабатываем каждый процесс
-            $groupedProcesses->each(function ($process, $index) use (&$result, $tdr) {
+            $groupedProcesses->each(function ($process) use (&$result, &$lineNumber, $tdr, $ecProcessIds) {
+                // Проверяем, является ли процесс процессом с именем 'EC'
+                $isEcProcess = $ecProcessIds->contains($process->process_names_id);
+
+                // Увеличиваем счётчик только для процессов, не являющихся 'EC'
+                if (!$isEcProcess) {
+                    $lineNumber++;
+                }
+
                 $result->push([
                     'tdrs_id' => $tdr->id,
                     'process_name_id' => $process->process_names_id,
-                    'number_line' => $index + 1, // Номер строки
+                    'number_line' => $isEcProcess ? null : $lineNumber, // null для EC процессов, иначе номер строки
                     'ec' => $process->ec, // Добавляем поле EC
                 ]);
             });

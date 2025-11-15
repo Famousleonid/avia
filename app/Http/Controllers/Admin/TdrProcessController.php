@@ -133,20 +133,58 @@ class TdrProcessController extends Controller
 
     public function getProcess($processNameId, Request $request)
     {
-        // Получаем manual_id из запроса
-        $manualId = $request->query('manual_id');
+        try {
+            // Получаем manual_id из запроса
+            $manualId = $request->query('manual_id');
 
-        // Фильтруем процессы по processNameId и manual_id
-        $processes = Process::where('process_names_id', $processNameId)
-            ->whereHas('manuals', function ($query) use ($manualId) {
-                $query->where('manual_id', $manualId);
-            })
-            ->get();
+            // Валидация и преобразование processNameId в число
+            $processNameId = (int)$processNameId;
+            if (!$processNameId || $processNameId <= 0) {
+                return response()->json(['error' => 'Invalid process name ID'], 400);
+            }
 
-        // Log or inspect the response data for debugging
-        \Log::info($processes); // Log data to inspect it
+            // Проверяем существование ProcessName
+            $processName = ProcessName::find($processNameId);
+            if (!$processName) {
+                return response()->json(['error' => 'Process name not found'], 404);
+            }
 
-        return response()->json($processes);
+            // Фильтруем процессы по processNameId
+            $query = Process::where('process_names_id', $processNameId);
+
+            // Если manual_id передан, фильтруем по нему
+            if ($manualId) {
+                $manualId = (int)$manualId;
+                if ($manualId > 0) {
+                    $query->whereHas('manuals', function ($query) use ($manualId) {
+                        $query->where('manual_id', $manualId);
+                    });
+                }
+            }
+
+            $processes = $query->get();
+
+            // Log or inspect the response data for debugging
+            Log::info('getProcess called', [
+                'processNameId' => $processNameId,
+                'manualId' => $manualId,
+                'processes_count' => $processes->count()
+            ]);
+
+            return response()->json($processes);
+        } catch (\Exception $e) {
+            Log::error('Error in getProcess', [
+                'processNameId' => $processNameId ?? null,
+                'manualId' => $request->query('manual_id'),
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+
+            return response()->json([
+                'error' => 'Error retrieving processes',
+                'message' => $e->getMessage()
+            ], 500);
+        }
     }
 
     public function getProcesses(Request $request)
@@ -190,10 +228,19 @@ class TdrProcessController extends Controller
         ]);
 
         $tdrId = $request->input('tdrs_id');
-        $processesData = json_decode($request->input('processes'), true);
+        $processesJson = $request->input('processes');
+        $processesData = json_decode($processesJson, true);
+
+        // Логируем входящие данные для отладки
+        Log::info('Store method called', [
+            'tdrs_id' => $tdrId,
+            'processes_json' => $processesJson,
+            'processes_data' => $processesData
+        ]);
 
         // Если processesData пустой, возвращаем ошибку
         if (empty($processesData)) {
+            Log::warning('No processes selected', ['tdrs_id' => $tdrId]);
             return response()->json(['error' => 'No processes selected.'], 400);
         }
 
@@ -206,17 +253,118 @@ class TdrProcessController extends Controller
         // Получаем максимальный sort_order для данного tdr_id
         $maxSortOrder = TdrProcess::where('tdrs_id', $tdrId)->max('sort_order') ?? 0;
 
+        // Счетчик для правильного расчета sort_order (учитывает дополнительные записи EC)
+        $sortOrderCounter = 0;
+
         // Сохраняем каждый процесс
         foreach ($processesData as $index => $data) {
+            $machiningProcessNameId = 10; // ID для процесса 'Machining'
+            $isMachining = (int)$data['process_names_id'] === $machiningProcessNameId;
+            
+            // Проверяем значение ec (может быть true, 1, "1", или отсутствовать)
+            $ecValue = isset($data['ec']) ? (
+                $data['ec'] === true || 
+                $data['ec'] === 1 || 
+                $data['ec'] === '1' || 
+                $data['ec'] === 'true'
+            ) : false;
+            
+            // Логируем для отладки
+            Log::info('Processing process data', [
+                'process_names_id' => $data['process_names_id'],
+                'isMachining' => $isMachining,
+                'ec_value' => $data['ec'] ?? null,
+                'ec_checked' => $ecValue,
+                'tdrs_id' => $tdrId
+            ]);
+
+            // Создаем запись процесса
             TdrProcess::create([
                 'tdrs_id' => $tdrId,
                 'process_names_id' => $data['process_names_id'],
                 'processes' => json_encode($data['processes']), // Сохраняем массив ID процессов
-                'sort_order' => $maxSortOrder + $index + 1, // Устанавливаем sort_order в конец списка
+                'sort_order' => $maxSortOrder + $sortOrderCounter + 1, // Устанавливаем sort_order в конец списка
                 'date_start' => null,
                 'date_finish' => null,
-                'ec' => $data['ec'] ?? false, // Добавляем поле EC
+                'ec' => $ecValue, // Добавляем поле EC
             ]);
+
+            $sortOrderCounter++;
+
+            // Если это процесс 'Machining' с отмеченным чекбоксом 'EC'
+            if ($isMachining && $ecValue) {
+                Log::info('Machining with EC checked - processing', [
+                    'tdrs_id' => $tdrId,
+                    'process_names_id' => $data['process_names_id']
+                ]);
+
+                // 1. Проверяем наличие ProcessName с name = 'EC'
+                $ecProcessName = ProcessName::where('name', 'EC')->first();
+
+                // Если нет - создаем запись
+                if (!$ecProcessName) {
+                    try {
+                        $ecProcessName = ProcessName::create([
+                            'name' => 'EC',
+                            'process_sheet_name' => 'EC',
+                            'form_number' => 'EC',
+                        ]);
+                        Log::info('Created new ProcessName with name "EC"', [
+                            'id' => $ecProcessName->id,
+                            'name' => $ecProcessName->name,
+                            'process_sheet_name' => $ecProcessName->process_sheet_name,
+                            'form_number' => $ecProcessName->form_number
+                        ]);
+                    } catch (\Exception $e) {
+                        Log::error('Error creating ProcessName "EC"', [
+                            'error' => $e->getMessage(),
+                            'trace' => $e->getTraceAsString()
+                        ]);
+                        // Если не удалось создать ProcessName, пропускаем создание TdrProcess для EC
+                        // но продолжаем обработку других процессов
+                        continue;
+                    }
+                } else {
+                    Log::info('ProcessName "EC" already exists', [
+                        'id' => $ecProcessName->id
+                    ]);
+                }
+
+                // Проверяем, что $ecProcessName был успешно получен или создан
+                if ($ecProcessName && $ecProcessName->id) {
+                    // 2. Создаем дополнительную запись для 'EC' процесса
+                    try {
+                        TdrProcess::create([
+                            'tdrs_id' => $tdrId,
+                            'process_names_id' => $ecProcessName->id,
+                            'processes' => json_encode($data['processes']), // Те же processes что и у Machining
+                            'sort_order' => $maxSortOrder + $sortOrderCounter + 1, // Следующий порядок после Machining
+                            'date_start' => null,
+                            'date_finish' => null,
+                            'ec' => 0, // Поле ec = 0
+                        ]);
+
+                        $sortOrderCounter++; // Увеличиваем счетчик, так как создали дополнительную запись
+
+                        Log::info('Created EC process record for Machining', [
+                            'tdrs_id' => $tdrId,
+                            'ec_process_name_id' => $ecProcessName->id,
+                            'machining_processes' => $data['processes']
+                        ]);
+                    } catch (\Exception $e) {
+                        Log::error('Error creating TdrProcess for EC', [
+                            'tdrs_id' => $tdrId,
+                            'ec_process_name_id' => $ecProcessName->id,
+                            'error' => $e->getMessage(),
+                            'trace' => $e->getTraceAsString()
+                        ]);
+                    }
+                } else {
+                    Log::error('EC ProcessName not available for creating TdrProcess', [
+                        'tdrs_id' => $tdrId
+                    ]);
+                }
+            }
         }
 
         // Возвращаем JSON-ответ с URL для перенаправления
