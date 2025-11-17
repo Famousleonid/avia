@@ -107,15 +107,13 @@ class WorkorderController extends Controller
 
     }
 
-    public function update(Request $request, $id)
+    public function update(Request $request, Workorder $workorder)
     {
         $request->validate([
             'unit_id' => 'required',
             'customer_id' => 'required',
             'instruction_id' => 'required',
         ]);
-
-        $wo = Workorder::find($id);
 
         $request->merge([
             'part_missing' => $request->has('part_missing') ? 1 : 0,
@@ -127,7 +125,7 @@ class WorkorderController extends Controller
             'extra_parts' => $request->has('extra_parts') ? 1 : 0,
         ]);
 
-        $wo->update($request->all());
+        $workorder->update($request->all());
 
         return redirect()->route('workorders.index')->with('success', 'Workorder was edited successfully');
     }
