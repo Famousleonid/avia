@@ -189,7 +189,9 @@
                             </td>
                             <td class="text-center">{{ $workorder->unit->part_number }}</td>
                             <td class="text-center" data-bs-toggle="tooltip" title="{{ $workorder->unit->manuals->title }}">{{ $workorder->unit->manuals->title }} </td>
-                            <td class="text-center">{{ $workorder->serial_number }} @if($workorder->amdt > 0) Amdt {{ $workorder->amdt }} @endif</td>
+
+                            <td class="text-center">{{ $workorder->serial_number }} @if($workorder->amdt > 0) Amdt {{ $workorder->amdt }} @endif </td>
+
                             <td class="text-center">
                                 <a href="{{ route('tdrs.show', $workorder->id) }}" class="btn btn-outline-primary btn-sm">
                                     <i class="bi bi-journal-richtext"></i>
@@ -217,7 +219,7 @@
                                     <span style="display: none">{{ $workorder->open_at }}</span>{{ $workorder->open_at }}
                                 @endif
                             </td>
-                            @if (is_admin())
+                            @can('workorders.delete', $workorder)
                                 <td class="text-center">
                                     <form id="deleteForm_{{ $workorder->id }}" action="{{ route('workorders.destroy', $workorder->id) }}" method="POST" style="display:inline;">
                                         @csrf
@@ -229,7 +231,7 @@
                                         </button>
                                     </form>
                                 </td>
-                            @endif
+                            @endcan
                         </tr>
                     @endforeach
                     </tbody>

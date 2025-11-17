@@ -21,6 +21,12 @@ use ZipStream\Option\Archive as ArchiveOptions;
 class WorkorderController extends Controller
 {
 
+    public function __construct()
+    {
+        $this->authorizeResource(Workorder::class, 'workorder');
+    }
+
+
     public function index()
     {
         $workorders = Workorder::with(['main.task', 'unit.manuals', 'customer', 'instruction', 'user'])
@@ -78,10 +84,10 @@ class WorkorderController extends Controller
         return redirect()->route('workorders.index')->with('success', 'Workorder added');
     }
 
-    public function destroy($id)
+    public function destroy(Workorder $workorder)
     {
 
-        Workorder::destroy($id);
+        $workorder->delete();
 
         return redirect()->route('workorders.index')->with('success', 'Workorder deleted');
     }

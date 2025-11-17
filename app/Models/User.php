@@ -40,6 +40,23 @@ class User extends Authenticatable implements MustVerifyEmail, hasMedia
         return $this->is_admin == 1;
     }
 
+    public function roleName(): ?string
+    {
+        return $this->role?->name;
+    }
+
+    public function roleIs(string|array $roles): bool
+    {
+        $roles = (array)$roles;
+        return in_array($this->roleName(), $roles, true) || ($this->is_admin ?? false);
+    }
+
+    public function hasAnyRole(string $pipeSeparated): bool
+    {
+        $roles = explode('|', $pipeSeparated);
+        return $this->roleIs($roles);
+    }
+
     public function role()
     {
         return $this->belongsTo(Role::class);

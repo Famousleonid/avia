@@ -17,7 +17,9 @@ class ManualController extends Controller
     public function __construct()
     {
         $this->middleware('auth');
+        $this->authorizeResource(Manual::class, 'manual');
     }
+
 
     public function index()
     {

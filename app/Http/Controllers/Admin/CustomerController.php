@@ -9,6 +9,11 @@ use Illuminate\Http\Request;
 class CustomerController extends Controller
 {
 
+    public function __construct()
+    {
+        $this->authorizeResource(Customer::class, 'customer');
+    }
+
     public function index()
     {
         $customers = Customer::all();

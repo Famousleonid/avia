@@ -60,7 +60,7 @@
                     </a>
                 </div>
                 <div class="h5 ms-2 mt-2 text-white">
-                    {{Auth::user()->name}}
+                    <span>{{Auth::user()->name}} </span> <span class="text-secondary fs-6">  {{Auth::user()->role->name}}</span>
                 </div>
             </div>
         </div>

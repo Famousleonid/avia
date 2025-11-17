@@ -16,9 +16,11 @@ use Throwable;
 
 class UnitController extends Controller
 {
-    /**
-     * Display a listing of the resource.
-     */
+    public function __construct()
+    {
+        $this->authorizeResource(Unit::class, 'unit');
+    }
+
     public function index()
     {
         // Получаем все units и связанные с ними manuals

@@ -10,6 +10,12 @@ use Illuminate\Http\Request;
 class TaskController extends Controller
 {
 
+    public function __construct()
+    {
+        $this->authorizeResource(Task::class, 'task');
+    }
+
+
     public function index()
     {
         $general_tasks = GeneralTask::orderBy('id')->get();
