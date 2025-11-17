@@ -1403,8 +1403,9 @@ class TdrController extends Controller
         $components = Component::where('manual_id', $manual_id)->get();
 
         $processNames = ProcessName::where(function ($query) {
-            $query->where('name', 'NOT LIKE', '%NDT%');
+            $query->where('name', 'NOT LIKE', '%NDT%')
 //                ->where('name', 'NOT LIKE', '%Paint%');
+            ->where('name', 'NOT LIKE', '%EC%');
         })->get();
 
         // Получаем Tdr, где use_process_form = true, с предварительной загрузкой TdrProcess
@@ -1535,11 +1536,13 @@ class TdrController extends Controller
                 if ($component && $conditions) {
                     // Формируем строку для компонента
                     $componentString = sprintf(
-                        "<b>%s</b> (%s%s)", // Номер компонента и его имя
-                        strtoupper($component->name), // Имя компонента
+                        "(%s%s)<b> %s </b>: ( %s)", // Номер компонента и его имя
                         strtoupper($component->ipl_num), // Номер компонента
-                        $tdr->qty == 1 ? '' : ', ' . $tdr->qty . 'pcs' // Если qty == 1, то пустая строка, иначе добавляем qty
-                    // и "pcs"
+
+
+                        $tdr->qty == 1 ? '' : ', ' . $tdr->qty . 'pcs', //Если qty == 1, то пустая строка, иначе добавляем qty и "pcs"
+                        strtoupper($component->name), // Имя компонента
+                        strtoupper($tdr->description),
                     );
 
                     // Инициализируем массив для состояния, если он еще не существует

@@ -188,7 +188,8 @@
                                 </a>
                             </td>
                             <td class="text-center">{{ $workorder->unit->part_number }}</td>
-                            <td class="text-center" data-bs-toggle="tooltip" title="{{ $workorder->unit->manuals->title }}">{{ $workorder->unit->manuals->title }} </td>
+                            <td class="text-center" data-bs-toggle="tooltip" title="{{ $workorder->description }}">{{
+                            $workorder->description }} </td>
 
                             <td class="text-center">{{ $workorder->serial_number }} @if($workorder->amdt > 0) Amdt {{ $workorder->amdt }} @endif </td>
 
@@ -207,6 +208,7 @@
                                 </button>
                             </td>
                             <td class="text-center td-technik">{{ $workorder->user->name }}</td>
+
                             <td class="text-center">
                                 <a href="{{ route('workorders.edit', $workorder->id) }}">
                                     <img src="{{ asset('img/set.png') }}" width="30" alt="Edit">

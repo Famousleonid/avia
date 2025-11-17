@@ -807,15 +807,18 @@
                                         <tr>
                                             <td
                                                 class="text-center fs-8">
+
+
                                                 @foreach($conditions as $condition)
-                                                    @if($condition->id == $tdr->conditions_id)
-                                                        {{$condition ->name}} {{$tdr->description}}
+                                                    @if($condition->id == $tdr->conditions_id  )
+                                                        {{$condition ->name}}
+
                                                     @endif
+
                                                 @endforeach
 
-                                                @if($tdr->component)
+                                                @if($tdr->component_id)
                                                     <fs-8 class="" style="color: #5897fb">(scrap)</fs-8>
-
                                                     {{ $tdr->component->name }}
                                                     @if ($tdr->qty == 1)
                                                         ({{ $tdr->component->ipl_num }})
@@ -823,6 +826,9 @@
                                                          ({{ $tdr->component->ipl_num }}, {{$tdr->qty}} pcs)
                                                     @endif
                                                 @endif
+                                                    @if($tdr->description)
+                                                        ({{$tdr->description}})
+                                                    @endif
                                             </td>
                                             <td class="p-2 text-center">
 
@@ -849,7 +855,7 @@
                                                         {{ __('Missing Part') }}</button>
                                                 @else
                                                     @if($tdr->necessaries_id == $necessary->id)
-                                                        <button class="btn btn-outline-info btn-sm" style="height: 32px"
+                                                        <button class="btn btn-outline-info btn-sm" style="min-height: 32px"
                                                                 href="#"
                                                                 data-bs-toggle="modal" data-bs-target="#orderModal{{$current_wo->number}}">
                                                             {{ __('Ordered Parts') }}</button>

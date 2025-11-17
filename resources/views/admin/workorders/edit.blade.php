@@ -143,7 +143,8 @@
 
                                         <div class="form-group col-lg-4 mt-2">
                                             <label for="unit_description">Description</label>
-                                            <input type="text" name="description" id="wo_description" value={{old('description', $current_wo->description)}} class="form-control @error('description') is-invalid @enderror">
+                                            <input type="text" name="description" id="description" value={{old
+                                            ('description', $current_wo->description)}} class="form-control">
                                         </div>
                                     </div>
 

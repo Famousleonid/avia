@@ -266,17 +266,17 @@
                 </div>
                 <div class="col-3 ">
                     <div class="row ">
-                        <div class="col-5 border-b">
+                        <div class="col-12 border-b">
                             <div class="d-flex ">
                                 <h6 class=" "><strong>MFR: </strong></h6>
                                 @foreach($manuals as $manual)
                                     @if($manual->id == $current_wo->unit->manual_id)
-                                        <h6 class=" ms-2"><strong> {{$manual->builder->name}}</strong></h6>
+                                        <h6 class=" ms-1"><strong> {{$manual->builder->name}}</strong></h6>
                                     @endif
                                 @endforeach
                             </div>
                         </div>
-                        <div class="col-5 border-b"> </div>
+                        <div class="col-0 "> </div>
                     </div>
                 </div>
                 <div class="col-3">

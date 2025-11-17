@@ -125,7 +125,7 @@ class ManualProcessController extends Controller
 //        dd($manualProcess, $manualId);
         $manualProcess->delete();
 
-        return redirect()->route('processes.edit',['process' => $manualId])
+        return redirect()->route('processes.edit',['id' => $manualId])
             ->with('success', 'Process deleted successfully');
     }
 }

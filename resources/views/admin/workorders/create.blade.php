@@ -171,7 +171,7 @@
 
                                         <div class="form-group col-lg-4 mt-2">
                                             <label for="unit_description">Description</label>
-                                            <input type="text" name="description" id="wo_description" value="" class="form-control @error('description') is-invalid @enderror" placeholder="">
+                                            <input type="text" name="description" id="description" value="" class="form-control @error('description') is-invalid @enderror" placeholder="">
                                         </div>
                                     </div>
 
@@ -194,7 +194,7 @@
                                     <div class="row ">
 
                                         <div class="form-group col-lg-4 offset-4 mt-2">
-                                            <label for="instruction_id">Technik</label>
+                                            <label for="instruction_id">Technician</label>
                                             <select name="user_id" id="user_id" class="form-select">
                                                 <option disabled selected value style="color: gray;"> -- select an option --</option>
                                                 @foreach ($users as $user)
@@ -254,13 +254,24 @@
                         <select class="form-select" id="cmmSelect" name="manual_id">
                             <option value="">{{ __('Select CMM') }}</option>
                             @foreach($manuals as $manual)
-                                <option value="{{ $manual->id }}"> ({{ $manual->number }})</option>
+                                <option value="{{ $manual->id }}">
+                                    {{ $manual->number }}
+                                    {{ $manual->title }}
+                                    <span class="text-secondary">({{$manual->lib }})</span>
+
+                                </option>
                             @endforeach
                         </select>
                     </div>
                     <div id="pnInputs">
                         <div class="input-group mb-2 pn-field">
                             <input type="text" class="form-control" placeholder="Enter PN" style="width: 200px;" name="part_number" id="partNumberInput">
+                        </div>
+                    </div>
+                    <div id="pnInputs">
+                        <div class="input-group mb-2 pn-field">
+                            <input type="text" class="form-control" placeholder="Description" style="width: 200px;"
+                                   name="description" id="description">
                         </div>
                     </div>
                 </div>
