@@ -60,10 +60,9 @@ class UserController extends Controller
         return redirect()->route('users.index')->with('success', 'Пользователь добавлен');
     }
 
-    public function edit($id)
+    public function edit(User $user)
     {
 
-        $user = User::find($id);
         $teams = Team::all();
         $roles = Role::all();
 

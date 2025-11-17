@@ -92,9 +92,9 @@ class WorkorderController extends Controller
         return redirect()->route('workorders.index')->with('success', 'Workorder deleted');
     }
 
-    public function edit($id)
+    public function edit(Workorder $workorder)
     {
-        $current_wo = Workorder::find($id);
+        $current_wo = $workorder;
         $customers = Customer::all();
         $units = Unit::all();
         $instructions = Instruction::all();

@@ -6,7 +6,7 @@ return [
         'view'    => ['Admin','Manager', 'Team Leader', 'Technician'],
         'create'  => ['Admin','Manager', 'Team Leader', 'Technician'],
         'update'  => ['Admin','Manager', 'Team Leader', 'Technician'],
-        'delete'  => ['Admin','Manager'],
+        'delete'  => ['Admin'],
     ],
 
     'units' => [
@@ -49,3 +49,5 @@ return [
     ],
 
 ];
+
+
