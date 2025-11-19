@@ -221,7 +221,7 @@
                                     <span style="display: none">{{ $workorder->open_at }}</span>{{ $workorder->open_at }}
                                 @endif
                             </td>
-                            @can('workorders.delete', $workorder)
+                            @role('Admin')
                                 <td class="text-center">
                                     <form id="deleteForm_{{ $workorder->id }}" action="{{ route('workorders.destroy', $workorder->id) }}" method="POST" style="display:inline;">
                                         @csrf
@@ -233,7 +233,7 @@
                                         </button>
                                     </form>
                                 </td>
-                            @endcan
+                            @endrole
                         </tr>
                     @endforeach
                     </tbody>

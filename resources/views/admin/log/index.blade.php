@@ -1,122 +1,160 @@
 @extends('admin.master')
 
-
-@section('content')
-
+@section('style')
     <style>
-        .json-field {
-            white-space: pre-wrap;
-            word-wrap: break-word;
+        .card-full-height {
+            display: flex;
+            flex-direction: column;
+            height: calc(100vh - 70px); /* подправь при необходимости */
+        }
+        .card-full-height .card-body {
+            flex: 1 1 auto;
+            overflow-y: auto;
+        }
+        .logs-table th,
+        .logs-table td {
+            white-space: nowrap;
+            vertical-align: top;
+        }
+        .logs-table td.changes-cell {
+            white-space: normal;
         }
     </style>
-    <div class="container-fluid pl-3 pr-3 pt-2">
-        <div class="card shadow firm-border bg-white mt-2">
-            <div class="card-header row">
-                <div class="col-6"><h3 class="card-title text-bold">list of logs ( {{count($acts)}} )</h3></div>
-            </div>
-            @php
-                use App\Models\User;
-                use App\Models\Workorder;
-            @endphp
-            <div class="card-body">
-                <div class="box-body table-responsive">
-                    @if(count($acts))
-                        <table id="customers-list" class="table-sm table-bordered table-striped table-hover " style="width:100%;">
-                            <thead>
-                            <tr>
-                                <th>Technic</th>
-                                <th>Model</th>
-                                <th>Event</th>
-                                <th>Name</th>
-                                <th>Json</th>
-                                <th hidden>Date create</th>
-                                <th>Date create</th>
-                            </tr>
-                            </thead>
-                            <tbody>
-                            @foreach ($acts as $act)
-                                <tr>
-                                    <td>
-                                        @php
-                                            $user = \App\Models\User::find($act->causer_id);
-                                        @endphp
-                                        @if ($user)
-                                            {{ $user->name }}
-                                        @else
-                                            User not found for ID: {{ $act->causer_id }}
-                                        @endif
-                                    </td>
-                                    <td>{{ collect(explode('\\', $act->subject_type))->last()   }}</td>
-                                    <td>{{$act->event}}</td>
+@endsection
 
+@section('content')
+    <div class="card card-full-height shadow">
+        <div class="card-header d-flex justify-content-between align-items-center">
+            <h5 class="mb-0 text-primary">Workorders activity log</h5>
+        </div>
 
-                                    <td class="text-center">
-                                        @php
-                                            $subject = null;
-                                            switch ($act->subject_type) {
-                                                case 'App\Models\User':
-                                                    $subject = User::find($act->subject_id);
-                                                    break;
-                                                case 'App\Models\Workorder':
-                                                    $subject = Workorder::find($act->subject_id);
-                                                    break;
-                                            }
-                                        @endphp
-                                        {{ $subject ? $subject : 'Not Found' }}
-                                    </td>
-                                    <td class="json-field">{{$act->properties}}</td>
-                                    <td hidden>{{$act->created_at}}</td>
-                                    <td>{{$act->created_at->format('d.m.Y')}}</td>
-                                </tr>
-                            @endforeach
-                            </tbody>
-                        </table>
-                    @else
-                        <p>No logs</p>
-                    @endif
-                </div>
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-sm table-striped table-hover mb-0 logs-table">
+                    <thead class="table-light">
+                    <tr>
+                        <th class="text-center">Дата</th>
+                        <th class="text-center">Пользователь</th>
+                        <th class="text-center">Событие</th>
+                        <th class="text-center">WO №</th>
+                        <th class="text-start">Изменения</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    @forelse($activities as $activity)
+                        @php
+                            $props      = $activity->properties ?? collect();
+                            $attributes = $props['attributes'] ?? [];
+                            $old        = $props['old'] ?? [];
+
+                            // номер воркдера: сначала из subject, если он есть,
+                            // иначе из атрибутов / old
+                            $subject   = $activity->subject;
+                            $woNumber  = $subject->number
+                                         ?? ($attributes['number'] ?? ($old['number'] ?? '—'));
+
+                            // готовим список изменений ТОЛЬКО для update
+                            $changes = [];
+
+                            if ($activity->event === 'updated') {
+                                $formatValue = function ($field, $value)
+                                    use ($unitsMap, $customersMap, $instructionsMap, $usersMap) {
+
+                                    if ($value === null || $value === '') {
+                                        return '—';
+                                    }
+
+                                    switch ($field) {
+                                        case 'unit_id':
+                                            return $unitsMap[$value] ?? $value;
+                                        case 'customer_id':
+                                            return $customersMap[$value] ?? $value;
+                                        case 'instruction_id':
+                                            return $instructionsMap[$value] ?? $value;
+                                        case 'user_id':
+                                            return $usersMap[$value] ?? $value;
+                                        default:
+                                            return $value;
+                                    }
+                                };
+
+                                foreach ($attributes as $field => $newValue) {
+                                    $oldValue = $old[$field] ?? null;
+
+                                    if ($oldValue === $newValue) {
+                                        continue;
+                                    }
+
+                                    $label = $fieldLabels[$field] ?? $field;
+
+                                    $changes[] = [
+                                        'label' => $label,
+                                        'old'   => $formatValue($field, $oldValue),
+                                        'new'   => $formatValue($field, $newValue),
+                                    ];
+                                }
+                            }
+                        @endphp
+
+                        <tr>
+                            <td class="text-center">
+                                {{ $activity->created_at->format('d.m.Y H:i') }}
+                            </td>
+                            <td class="text-center">
+                                {{ $activity->causer?->name ?? 'system' }}
+                            </td>
+                            <td class="text-center">
+                            <span class="badge
+                                @if($activity->event === 'created') bg-success
+                                @elseif($activity->event === 'updated') bg-warning text-dark
+                                @elseif($activity->event === 'deleted') bg-danger
+                                @else bg-secondary
+                                @endif">
+                                {{ ucfirst($activity->event) }}
+                            </span>
+                            </td>
+                            <td class="text-center">
+                                {{ $woNumber }}
+                            </td>
+                            <td class="changes-cell">
+                                @if($activity->event === 'updated' && count($changes))
+                                    <ul class="mb-0 small">
+                                        @foreach($changes as $change)
+                                            <li>
+                                                <strong>{{ $change['label'] }}:</strong>
+                                                <span class="text-muted">{{ $change['old'] }}</span>
+                                                &rarr;
+                                                <span class="text-primary">{{ $change['new'] }}</span>
+                                            </li>
+                                        @endforeach
+                                    </ul>
+                                @elseif($activity->event === 'created')
+                                    {{-- для create деталей не показываем --}}
+                                    <span class="text-muted small">Создан</span>
+                                @elseif($activity->event === 'deleted')
+                                    <span class="text-muted small">Удалён</span>
+                                @else
+                                    <span class="text-muted small">Без деталей</span>
+                                @endif
+                            </td>
+                        </tr>
+                    @empty
+                        <tr>
+                            <td colspan="5" class="text-center text-muted py-3">
+                                Логи по workorders пока отсутствуют.
+                            </td>
+                        </tr>
+                    @endforelse
+                    </tbody>
+                </table>
             </div>
         </div>
+
+        @if($activities instanceof \Illuminate\Pagination\LengthAwarePaginator)
+            <div class="card-footer">
+                {{ $activities->links() }}
+            </div>
+        @endif
     </div>
-
-    @include('components.delete')
-
 @endsection
 
-@section('scripts')
-    <script>
-        let userTable = $('#customers-list').DataTable({
-            "AutoWidth": true,
-            "scrollY": "550px",
-            "scrollCollapse": true,
-            "paging": false,
-            "order": [[6, 'desc']],
-            "info": false,
-            "columnDefs": [
-                {"width": "10%", "targets": 0},
-                {"width": "5%", "targets": 1},
-                {"width": "5%", "targets": 2},
-                {"width": "5%", "targets": 3},
-                {"width": "5%", "targets": 4},
-                {"width": "50%", "targets": 5},
-                {"width": "15%", "targets": 6},
-            ],
-        });
-
-
-        $('#confirmDelete').on('show.bs.modal', function (e) {
-
-            let message = $(e.relatedTarget).attr('data-message');
-            $(this).find('.modal-body p').text(message);
-            let $title = $(e.relatedTarget).attr('data-title');
-            $(this).find('.modal-title').text($title);
-            let form = $(e.relatedTarget).closest('form');
-            $(this).find('.modal-footer #buttonConfirm').data('form', form);
-        });
-
-        $('#confirmDelete').find('.modal-footer #buttonConfirm').on('click', function () {
-            $(this).data('form').submit();
-        });
-
-    </script>
-@endsection

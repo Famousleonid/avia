@@ -1,4 +1,3 @@
-@props(['themeToggleId' => 'themeToggle'])
 
 <ul class="nav flex-column" data-accordion="false">
     <li class="nav-item">
@@ -70,6 +69,11 @@
         <li class="nav-item press-spinner">
             <a href="{{route('general-tasks.index')}}" class="nav-link">
                 <i class="bi bi-stickies me-2"></i> General Tasks
+            </a>
+        </li>
+        <li class="nav-item press-spinner">
+            <a href="{{route('workorders.logs')}}" class="nav-link">
+                <i class="bi bi-stickies me-2"></i> Log
             </a>
         </li>
         <li class="nav-item press-spinner">

@@ -68,13 +68,25 @@ class Workorder extends Model implements HasMedia
 
     }
 
+
+
     public function getActivitylogOptions(): LogOptions
     {
         return LogOptions::defaults()
-            ->logAll()
-            ->logOnly(['number', 'user_id', 'unit_id', 'instruction_id', 'customer_id', 'approve', 'description', 'notes', 'manual', 'serial_number', 'place', 'open_at','amdt'])
-            ->logOnlyDirty();
+            ->useLogName('workorder')
+            ->logOnly([
+                'number',
+                'unit_id',
+                'customer_id',
+                'instruction_id',
+                'user_id',
+                'approve_at',
+                'approve_name',
+                'description',
 
+            ])
+            ->logOnlyDirty()                // логировать ТОЛЬКО изменившиеся поля
+            ->dontSubmitEmptyLogs();        // не создавать пустые записи
     }
 
 }

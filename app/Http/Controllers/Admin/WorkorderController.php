@@ -17,6 +17,7 @@ use ZipStream\ZipStream;
 use Illuminate\Support\Str;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 use ZipStream\Option\Archive as ArchiveOptions;
+use Spatie\Activitylog\Models\Activity;
 
 class WorkorderController extends Controller
 {
@@ -24,6 +25,43 @@ class WorkorderController extends Controller
     public function __construct()
     {
         $this->authorizeResource(Workorder::class, 'workorder');
+    }
+
+
+    public function logs()
+    {
+        $activities = Activity::query()
+            ->where('log_name', 'workorder')
+            ->with(['causer', 'subject']) // subject = Workorder
+            ->orderByDesc('created_at')
+            ->paginate(50);
+
+        // Мапы id → красивое имя
+        $unitsMap        = Unit::pluck('part_number', 'id')->all();
+        $customersMap    = Customer::pluck('name', 'id')->all();
+        $instructionsMap = Instruction::pluck('name', 'id')->all();
+        $usersMap        = User::pluck('name', 'id')->all();
+
+        // Читабельные названия полей
+        $fieldLabels = [
+            'number'        => 'WO Number',
+            'unit_id'       => 'Unit',
+            'customer_id'   => 'Customer',
+            'instruction_id'=> 'Instruction',
+            'user_id'       => 'Technik',
+            'approve_at'    => 'Approve date',
+            'approve_name'  => 'Approved by',
+            'description'   => 'Description',
+        ];
+
+        return view('admin.log.index', compact(
+            'activities',
+            'unitsMap',
+            'customersMap',
+            'instructionsMap',
+            'usersMap',
+            'fieldLabels'
+        ));
     }
 
 
@@ -202,7 +240,7 @@ class WorkorderController extends Controller
             return response()->json($result);
 
         } catch (\Throwable $e) {
-            Log::channel('avia')->error("Photo load failed [workorder $id]: {$e->getMessage()}");
+//            Log::channel('avia')->error("Photo load failed [workorder $id]: {$e->getMessage()}");
             return response()->json(['error' => 'Server error'], 500);
         }
     }
@@ -213,7 +251,7 @@ class WorkorderController extends Controller
             $workorder = Workorder::findOrFail($id);
             $groups = ['photos', 'damages', 'logs'];
 
-            Log::channel('avia')->info("ZIP download started for workorder ID: $id");
+          //  Log::channel('avia')->info("ZIP download started for workorder ID: $id");
 
             return new StreamedResponse(function () use ($workorder, $groups, $id) {
                 $options = new ArchiveOptions();
