@@ -22,6 +22,12 @@
             document.documentElement.setAttribute('data-bs-theme', savedTheme);
         })();
     </script>
+    <script>
+        (function () {
+            const collapsed = localStorage.getItem('adminSidebarCollapsed') === '1';
+            document.documentElement.setAttribute('data-sidebar-collapsed', collapsed ? '1' : '0');
+        })();
+    </script>
 
     @yield('style')
 
@@ -29,7 +35,7 @@
         .content {
             height: 100vh;
             overflow-y: auto;
-            padding-right: 12px; /* для компенсации скролла */
+            padding-right: 12px;
             padding-bottom: 5vh;
         }
 
@@ -39,8 +45,6 @@
             flex-direction: column;
             position: relative;
         }
-
-
     </style>
 </head>
 
@@ -50,21 +54,18 @@
     <span class="visually-hidden">Loading...</span>
 </div>
 
-
 <div class="row vh-100 g-0">
 
-    <div class="col-lg-2 bg-body">
+    <div id="sidebarColumn" class="bg-body p-0 col-auto">
         @include('components.sidebar')
     </div>
 
-    <div class="content col-12 col-lg-10 bg-body pt-2">
+    <div class="content col bg-body pt-2">
         <div class="content-inner px-2">
             @include('components.status')
             @yield('content')
-
         </div>
     </div>
-
 
     @include('components.footer')
 </div>
@@ -79,7 +80,6 @@
 @yield('scripts')
 
 <script>
-
     window.addEventListener('load', function () {
         hideLoadingSpinner();
         const themeToggle = document.getElementById('themeToggle');
@@ -129,7 +129,6 @@
         document.documentElement.setAttribute('data-bs-theme', storedTheme);
         updateThemeIcon(storedTheme);
 
-
         $(function () {
             $('[data-toggle="tooltip"]').tooltip()
         })
@@ -146,7 +145,6 @@
     });
 </script>
 
-<!-- Обработка ошибок MetaMask -->
 <script>
     // Подавляем ошибки MetaMask
     window.addEventListener('error', function(e) {
@@ -164,23 +162,47 @@
         }
     });
 
+    //------------------------------------------------------------------------------------------------------------------------
+
+    // Подсветка активного пункта в sidebar
+    $('#sidebarMenu a').each(function () {
+        let location = window.location.protocol + '//' + window.location.host + window.location.pathname;
+        let link = this.href;
+        if (link === location) {
+            $(this).addClass('text-white bg-primary');
+        }
+    });
+
+    // ---------- СВЕРТЫВАНИЕ САЙДБАРА С ПЛАВНОЙ АНИМАЦИЕЙ ----------
+    const sidebarToggleBtn = document.getElementById('collapseSidebarBtn');
+    const root = document.documentElement;
+    const sidebarStorageKey = 'adminSidebarCollapsed';
+
+    if (sidebarToggleBtn) {
+        const icon = sidebarToggleBtn.querySelector('i');
+
+        function isCollapsed() {
+            return root.getAttribute('data-sidebar-collapsed') === '1';
+        }
+
+        function setArrow(collapsed) {
+            if (!icon) return;
+            icon.className = 'bi ' + (collapsed ? 'bi-chevron-right' : 'bi-chevron-left');
+        }
+
+        setArrow(isCollapsed());
+
+        sidebarToggleBtn.addEventListener('click', function () {
+            const collapsed = isCollapsed();
+            const newValue = collapsed ? '0' : '1';
+
+            root.setAttribute('data-sidebar-collapsed', newValue);
+            localStorage.setItem(sidebarStorageKey, newValue === '1' ? '1' : '0');
+            setArrow(!collapsed);
+        });
+    }
 
 </script>
 
 </body>
 </html>
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

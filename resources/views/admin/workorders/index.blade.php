@@ -566,17 +566,15 @@
             const deleteModal = document.getElementById('useConfirmDelete');
             const confirmBtn = document.getElementById('confirmDeleteBtn');
 
-            // Когда модалка открывается — берем ID формы из кнопки
             deleteModal.addEventListener('show.bs.modal', event => {
                 const button = event.relatedTarget; // кнопка в таблице
                 currentFormId = button.getAttribute('data-form-id');
 
-                // Заголовок
+
                 const title = button.getAttribute('data-title') || 'Delete Confirmation';
                 document.getElementById('confirmDeleteLabel').textContent = title;
             });
 
-            // Когда нажимаем Delete внутри модалки — отправляем нужную форму
             confirmBtn.addEventListener('click', () => {
                 if (!currentFormId) return;
 
