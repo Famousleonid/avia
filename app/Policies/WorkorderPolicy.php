@@ -29,6 +29,7 @@ class WorkorderPolicy
 
     public function delete(User $user, Workorder $workorder): bool
     {
+
         return $user->can('workorders.delete', $workorder);
     }
 }

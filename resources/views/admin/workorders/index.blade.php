@@ -155,9 +155,9 @@
                         <th class="text-center text-primary sortable">Technik <i class="bi bi-chevron-expand ms-1"></i></th>
                         <th class="text-center text-primary col-edit">Edit</th>
                         <th class="text-center text-primary col-date">Open Date</th>
-                        @if (is_admin())
+                        @role('Admin')
                             <th class="text-center text-primary col-delete">Delete</th>
-                        @endif
+                        @endrole
                     </tr>
                     </thead>
                     <tbody>
@@ -226,8 +226,11 @@
                                     <form id="deleteForm_{{ $workorder->id }}" action="{{ route('workorders.destroy', $workorder->id) }}" method="POST" style="display:inline;">
                                         @csrf
                                         @method('DELETE')
-                                        <button class="btn btn-sm btn-outline-danger" type="button" name="btn_delete"
-                                                data-bs-toggle="modal" data-bs-target="#useConfirmDelete"
+                                        <button class="btn btn-sm btn-outline-danger"
+                                                type="button" name="btn_delete"
+                                                data-bs-toggle="modal"
+                                                data-bs-target="#useConfirmDelete"
+                                                data-form-id="deleteForm_{{ $workorder->id }}"
                                                 data-title="Delete Confirmation WO {{ $workorder->number }}">
                                             <i class="bi bi-trash"></i>
                                         </button>
@@ -554,6 +557,36 @@
                 input.value = '';
                 input.dispatchEvent(new Event('input'));
             });
+
+        //     -------------------- Delete workorder ----------------------
+
+
+            let currentFormId = null;
+
+            const deleteModal = document.getElementById('useConfirmDelete');
+            const confirmBtn = document.getElementById('confirmDeleteBtn');
+
+            // Когда модалка открывается — берем ID формы из кнопки
+            deleteModal.addEventListener('show.bs.modal', event => {
+                const button = event.relatedTarget; // кнопка в таблице
+                currentFormId = button.getAttribute('data-form-id');
+
+                // Заголовок
+                const title = button.getAttribute('data-title') || 'Delete Confirmation';
+                document.getElementById('confirmDeleteLabel').textContent = title;
+            });
+
+            // Когда нажимаем Delete внутри модалки — отправляем нужную форму
+            confirmBtn.addEventListener('click', () => {
+                if (!currentFormId) return;
+
+                const form = document.getElementById(currentFormId);
+                if (!form) return;
+
+                if (typeof showLoadingSpinner === 'function') showLoadingSpinner();
+                form.submit();
+            });
+
 
         });
     </script>
