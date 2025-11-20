@@ -74,12 +74,16 @@ class UnitController extends Controller
                     'manual_id'   => 'required|exists:manuals,id',
                     'part_number' => 'required|string|max:255',
                     'eff_code'    => 'nullable|string|max:255',
+                    'name'        => 'nullable|string|max:255',
+                    'description' => 'nullable|string|max:255',
                 ]);
 
                 $unit = Unit::create([
                     'manual_id'   => $data['manual_id'],
                     'part_number' => $data['part_number'],
                     'eff_code'    => $data['eff_code'] ?? null,
+                    'name'        => $data['name'] ?? null,
+                    'description' => $data['description'] ?? null,
                     'verified'    => false,
                 ]);
 
@@ -89,6 +93,8 @@ class UnitController extends Controller
                 return response()->json([
                     'id'           => $unit->id,
                     'part_number'  => $unit->part_number,
+                    'name'         => $unit->name,
+                    'description'  => $unit->description,
                     'manual_title' => optional($unit->manual)->title,
                 ], 201);
             }

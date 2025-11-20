@@ -3,7 +3,7 @@
 @section('content')
     <style>
         .container {
-            max-width: 1080px;
+            /*max-width: 1200px;*/
         }
 
         /* Стили для Select2 (темная и светлая темы) */
@@ -91,6 +91,13 @@
             border-bottom: 3px solid #007bff;
             background-color: #e3f2fd;
         }
+
+        .parent {
+            display: grid;
+            grid-template-columns: repeat(5, 1fr);
+            grid-template-rows: repeat(1, 1fr);
+            gap: 8px;
+        }
     </style>
 
     <div class="container mt-3">
@@ -110,14 +117,49 @@
                         PN: {{ $current_tdr->component->part_number }}
                         SN: {{ $current_tdr->serial_number }}</p>
                     </div>
-                    <div>
-                        <a href="{{ route('tdr-processes.createProcesses', ['tdrId' => $current_tdr->id]) }}"
-                           class="btn btn-outline-success me-2">
-                            <i class="fas fa-plus"></i> Add Process
-                        </a>
-                        <button type="button" class="btn btn-outline-primary" data-bs-toggle="modal" data-bs-target="#addVendorModal">
-                            <i class="fas fa-plus"></i> Add Vendor
-                        </button>
+
+                    <div class="d-flex parent">
+                        <div class="d-flex div1 border border-primary  border-2"  >
+                            <div class=" ">
+                                <div class="d-flex ms-1 mt-1">
+                                    <label for="number_id " style="font-size: .8rem;width: 70px; margin-top: 5px">Repair No.</label>
+                                    <input type="text" style="height: 32px; width: 100px" name="repair_num." id="repair_num" value=""
+                                           class="form-control">
+                                </div>
+                                <select class="form-select form-select-sm ms-1 mb-1 vendor-select"
+                                        style="width: 170px; height: 32px"
+                                        data-tdr-process-id=""
+                                        data-process="">
+                                    <option value="">Select Vendor</option>
+                                    @foreach($vendors as $vendor)
+                                        <option value="{{ $vendor->id }}">{{ $vendor->name }}</option>
+                                    @endforeach
+                                </select>
+                            </div>
+                            <div class="mt-2">
+                                <x-paper-button
+                                    text="Part Traveler"
+                                    href="#"
+                                    id="travelFormBtn"
+                                    target="_blank"
+                                    color="outline-primary"
+                                    size="landscape"
+
+                                />
+                            </div>
+                        </div>
+
+                        <div class="ms-5">
+                            <a href="{{ route('tdr-processes.createProcesses', ['tdrId' => $current_tdr->id]) }}"
+                               class="btn btn-outline-success mt-2 me-2">
+                                <i class="fas fa-plus"></i> Add Process
+                            </a>
+                            <button type="button" class="btn btn-outline-primary mt-2" data-bs-toggle="modal"
+                                    data-bs-target="#addVendorModal">
+                                <i class="fas fa-plus"></i> Add Vendor
+                            </button>
+                        </div>
+
                     </div>
                     <div class="me-4">
                         <button type="button"
@@ -456,6 +498,32 @@
                     }
                 }, 3000);
             }
+
+            // Обработчик клика на кнопку Part Traveler
+            document.getElementById('travelFormBtn')?.addEventListener('click', function(e) {
+                e.preventDefault();
+
+                // Получаем значения из input и select
+                const repairNum = document.getElementById('repair_num')?.value || '';
+                const vendorSelect = document.querySelector('.vendor-select');
+                const vendorId = vendorSelect?.value || '';
+
+                // Формируем URL с параметрами
+                const baseUrl = '{{ route("tdr-processes.travelForm", ["id" => $current_tdr->id]) }}';
+                const params = new URLSearchParams();
+
+                if (repairNum) {
+                    params.append('repair_num', repairNum);
+                }
+                if (vendorId) {
+                    params.append('vendor', vendorId);
+                }
+
+                const url = params.toString() ? `${baseUrl}?${params.toString()}` : baseUrl;
+
+                // Открываем в новом окне
+                window.open(url, '_blank');
+            });
         });
     </script>
 @endsection

@@ -123,7 +123,8 @@
                                             <span class="mx-2 text-primary">•</span>
                                             <span class="text-light">{{ $manual->number ?? '—' }}</span>
                                             <span class="mx-2 text-primary">•</span>
-                                            <span class="text-light">{{ $manual->title ?? '—' }}</span>
+{{--                                            <span class="text-light">{{ $manual->title ?? '—' }}</span>--}}
+                                            <span class="text-light">{{ $current_workorder->description ?? '—' }}</span>
                                             <span class="mx-2 text-primary">•</span>
                                             <span class="text-muted small">Lib:</span> <span class="text-light">{{ $manual->lib ?? '—' }}</span>
                                             <span class="mx-2 text-primary">•</span>

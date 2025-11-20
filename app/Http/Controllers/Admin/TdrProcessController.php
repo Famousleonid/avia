@@ -260,15 +260,15 @@ class TdrProcessController extends Controller
         foreach ($processesData as $index => $data) {
             $machiningProcessNameId = 10; // ID для процесса 'Machining'
             $isMachining = (int)$data['process_names_id'] === $machiningProcessNameId;
-            
+
             // Проверяем значение ec (может быть true, 1, "1", или отсутствовать)
             $ecValue = isset($data['ec']) ? (
-                $data['ec'] === true || 
-                $data['ec'] === 1 || 
-                $data['ec'] === '1' || 
+                $data['ec'] === true ||
+                $data['ec'] === 1 ||
+                $data['ec'] === '1' ||
                 $data['ec'] === 'true'
             ) : false;
-            
+
             // Логируем для отладки
             Log::info('Processing process data', [
                 'process_names_id' => $data['process_names_id'],
@@ -374,6 +374,39 @@ class TdrProcessController extends Controller
         ], 200);
     }
 
+    public function travelForm(Request $request, $id)
+    {
+        $current_tdr = Tdr::findOrFail($id);
+
+        // Получаем workorder_id из текущей записи Tdr
+        $workorder_id = $current_tdr->workorder_id;
+
+        // Находим связанный Workorder
+        $current_wo = Workorder::find($workorder_id);
+
+        $manual = $current_wo->unit->manuals;
+
+        $tdrProcesses = TdrProcess::orderBy('sort_order')->get();
+
+        $proces = Process::all();
+
+        // Получаем всех поставщиков
+        $vendors = Vendor::all();
+
+        // Получаем параметры из запроса
+        $repairNum = $request->input('repair_num', 'N/A');
+        $vendorId = $request->input('vendor');
+        
+        // Получаем имя вендора если передан ID
+        $vendorName = null;
+        if ($vendorId) {
+            $vendor = Vendor::find($vendorId);
+            $vendorName = $vendor ? $vendor->name : null;
+        }
+
+        return view('admin.tdr-processes.travelForm',compact('current_tdr',
+            'current_wo','tdrProcesses','proces','vendors', 'manual', 'repairNum', 'vendorName' ));
+    }
 
     public function processesForm(Request $request, $id)
     {

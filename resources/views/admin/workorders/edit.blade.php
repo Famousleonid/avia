@@ -108,9 +108,9 @@
                                                 </a>
                                             </label>
                                             <select name="unit_id" id="unit_id" class="form-control">
-                                                <option selected value="{{ old('unit_id', $current_wo->unit_id) }}">{{ old('part_number', $current_wo->unit->part_number) }}</option>
+                                                <option selected value="{{ old('unit_id', $current_wo->unit_id) }}" data-name="{{ old('unit_name', $current_wo->unit->name) }}">{{ old('part_number', $current_wo->unit->part_number) }}</option>
                                                 @foreach ($units as $unit)
-                                                    <option value="{{$unit->id}}">{{$unit->part_number}}</option>
+                                                    <option value="{{$unit->id}}" data-name="{{ $unit->name }}">{{$unit->part_number}}</option>
                                                 @endforeach
                                             </select>
                                         </div>
@@ -143,8 +143,7 @@
 
                                         <div class="form-group col-lg-4 mt-2">
                                             <label for="unit_description">Description</label>
-                                            <input type="text" name="description" id="description" value={{old
-                                            ('description', $current_wo->description)}} class="form-control">
+                                            <input type="text" name="description" id="description" value="{{old('description', $current_wo->description)}}" class="form-control">
                                         </div>
                                     </div>
 
@@ -248,18 +247,32 @@
                 <div class="modal-body">
                     <div class="mb-3">
                         <label for="cmmSelect" class="form-label">CMM</label>
-                        <select class="form-select" id="cmmSelect" name="cmmSelect">
+                        <select class="form-select" id="cmmSelect" name="manual_id">
                             <option value="">{{ __('Select CMM') }}</option>
                             @foreach($manuals as $manual)
-                                <option value="{{ $manual->id }}"> ({{ $manual->number }})</option>
+                                <option value="{{ $manual->id }}">
+                                    {{ $manual->number }}
+                                    {{ $manual->title }}
+                                    <span class="text-secondary">({{$manual->lib }})</span>
+                                </option>
                             @endforeach
                         </select>
                     </div>
                     <div id="pnInputs">
                         <div class="input-group mb-2 pn-field">
-                            <input type="text" class="form-control"
-                                   placeholder="Enter PN" style="width: 200px;"
-                                   name="pn[]">
+                            <input type="text" class="form-control" placeholder="Enter PN" style="width: 200px;" name="part_number" id="partNumberInput">
+                        </div>
+                    </div>
+                    <div id="pnInputs">
+                        <div class="input-group mb-2 pn-field">
+                            <input type="text" class="form-control" placeholder="Name" style="width: 200px;"
+                                   name="name" id="unitNameInput">
+                        </div>
+                    </div>
+                    <div id="pnInputs">
+                        <div class="input-group mb-2 pn-field">
+                            <input type="text" class="form-control" placeholder="Description" style="width: 200px;"
+                                   name="description" id="unitDescriptionInput">
                         </div>
                     </div>
                 </div>
@@ -284,11 +297,43 @@
 
             // --------------------------------- Select 2 --------------------------------------------------------
 
+            const unitSelect = document.getElementById('unit_id');
+            const workorderDescriptionInput = document.getElementById('description');
+
+            unitSelect.onchange = function () {
+                const selectedOption = this.options[this.selectedIndex];
+                const unitName = selectedOption.getAttribute('data-name');
+                workorderDescriptionInput.value = unitName || '';
+            };
+
             $(document).ready(function () {
                 $('#unit_id').select2({
                     placeholder: '---',
                     theme: 'bootstrap-5',
                     allowClear: true
+                });
+
+                $('#cmmSelect').select2({
+                    placeholder: '---',
+                    theme: 'bootstrap-5',
+                    allowClear: true,
+                    width: '100%',
+                    dropdownParent: $('#addUnitModal'),
+                    dropdownAutoWidth: true
+                });
+
+                // Инициализация description при загрузке страницы, если unit уже выбран
+                const initialSelectedOption = $('#unit_id option:selected');
+                const initialUnitName = initialSelectedOption.attr('data-name');
+                if (initialUnitName && !workorderDescriptionInput.value) {
+                    workorderDescriptionInput.value = initialUnitName;
+                }
+
+                // Обработчик изменения для Select2
+                $('#unit_id').on('change', function() {
+                    const selectedOption = $(this).find('option:selected');
+                    const unitName = selectedOption.attr('data-name');
+                    workorderDescriptionInput.value = unitName || '';
                 });
             });
             $(function () {
@@ -309,6 +354,77 @@
 
             // -----------------------------------------------------------------------------------------------------
 
+            // ---------------------   Save Unit ------------------------------------------------------------------
+            document.getElementById('createUnitBtn').addEventListener('click', function () {
+                const manualId = document.getElementById('cmmSelect').value;
+                const pnInput = document.getElementById('partNumberInput');
+                const nameInput = document.getElementById('unitNameInput');
+                const descriptionInput = document.getElementById('unitDescriptionInput');
+                const partNumber = pnInput.value.trim();
+                const unitName = nameInput.value.trim();
+                const unitDescription = descriptionInput.value.trim();
+
+                if (!manualId || !partNumber) {
+                    alert("Please select a CMM and enter a Part Number.");
+                    return;
+                }
+
+                showLoadingSpinner();
+
+                const requestBody = {
+                    manual_id: manualId,
+                    part_number: partNumber
+                };
+
+                // Добавляем name и description если они заполнены
+                if (unitName) {
+                    requestBody.name = unitName;
+                }
+                if (unitDescription) {
+                    requestBody.description = unitDescription;
+                }
+
+                fetch("{{ route('units.store') }}", {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json",
+                        "Accept": "application/json",
+                        "X-Requested-With": "XMLHttpRequest",
+                        "X-CSRF-TOKEN": document.querySelector('meta[name="csrf-token"]').content
+                    },
+                    body: JSON.stringify(requestBody)
+                })
+                    .then(res => {
+                        hideLoadingSpinner();
+                        if (!res.ok) throw new Error("Failed to create unit");
+                        return res.json();
+                    })
+                    .then(data => {
+                        // Добавить новую опцию в селект
+                        const option = new Option(data.part_number, data.id, true, true);
+                        option.setAttribute('data-name', data.name || '');
+                        $('#unit_id').append(option).trigger('change');
+
+                        // Подставить name в description workorder, если name заполнено
+                        if (data.name) {
+                            workorderDescriptionInput.value = data.name;
+                        }
+
+                        // Закрыть модалку
+                        bootstrap.Modal.getInstance(document.getElementById('addUnitModal')).hide();
+
+                        // Очистить поля
+                        pnInput.value = '';
+                        nameInput.value = '';
+                        descriptionInput.value = '';
+                        document.getElementById('cmmSelect').value = '';
+                        $('#cmmSelect').trigger('change');
+                    })
+                    .catch(error => {
+                        hideLoadingSpinner();
+                        alert("Error: " + error.message);
+                    });
+            });
 
         });
 

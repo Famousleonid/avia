@@ -117,7 +117,16 @@ class WorkorderController extends Controller
             'extra_parts' => $request->has('extra_parts') ? 1 : 0,
         ]);
 
-        Workorder::create($request->all());
+        $workorder = Workorder::create($request->all());
+
+        // Если description заполнено и unit->name пустое, обновляем unit->name
+        if (!empty($request->description)) {
+            $unit = Unit::find($workorder->unit_id);
+            if ($unit && empty($unit->name)) {
+                $unit->name = $request->description;
+                $unit->save();
+            }
+        }
 
         return redirect()->route('workorders.index')->with('success', 'Workorder added');
     }
@@ -164,6 +173,17 @@ class WorkorderController extends Controller
         ]);
 
         $workorder->update($request->all());
+
+        // Если description заполнено и unit->name пустое, обновляем unit->name
+        if (!empty($request->description)) {
+            // Используем unit_id из запроса, так как он мог измениться
+            $unitId = $request->unit_id ?? $workorder->unit_id;
+            $unit = Unit::find($unitId);
+            if ($unit && empty($unit->name)) {
+                $unit->name = $request->description;
+                $unit->save();
+            }
+        }
 
         return redirect()->route('workorders.index')->with('success', 'Workorder was edited successfully');
     }

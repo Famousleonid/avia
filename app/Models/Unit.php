@@ -14,6 +14,8 @@ class Unit extends Model
         'verified',
         'eff_code',
         'manual_id',
+        'name',
+        'description',
     ];
 
 

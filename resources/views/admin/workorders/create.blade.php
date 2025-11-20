@@ -132,7 +132,7 @@
                                                 @foreach ($units as $unit)
                                                     <option
                                                         value="{{$unit->id}}"
-                                                        data-title="{{ $unit->manual?->title }}">
+                                                        data-name="{{ $unit->name }}">
                                                         {{$unit->part_number}}
                                                     </option>
                                                 @endforeach
@@ -270,8 +270,14 @@
                     </div>
                     <div id="pnInputs">
                         <div class="input-group mb-2 pn-field">
+                            <input type="text" class="form-control" placeholder="Name" style="width: 200px;"
+                                   name="name" id="unitNameInput">
+                        </div>
+                    </div>
+                    <div id="pnInputs">
+                        <div class="input-group mb-2 pn-field">
                             <input type="text" class="form-control" placeholder="Description" style="width: 200px;"
-                                   name="description" id="description">
+                                   name="description" id="unitDescriptionInput">
                         </div>
                     </div>
                 </div>
@@ -315,12 +321,12 @@
             const form = document.getElementById("createForm");
             const saveBtn = document.getElementById("ntSaveFormsSubmit");
             const unitSelect = document.getElementById('unit_id');
-            const descriptionInput = document.getElementById('wo_description');
+            const descriptionInput = document.getElementById('description');
 
             unitSelect.onchange = function () {
                 const selectedOption = this.options[this.selectedIndex];
-                const title = selectedOption.getAttribute('data-title');
-                descriptionInput.value = title || '';
+                const unitName = selectedOption.getAttribute('data-name');
+                descriptionInput.value = unitName || '';
             };
 
             function check1() {
@@ -423,7 +429,11 @@
             document.getElementById('createUnitBtn').addEventListener('click', function () {
                 const manualId = document.getElementById('cmmSelect').value;
                 const pnInput = document.getElementById('partNumberInput');
+                const nameInput = document.getElementById('unitNameInput');
+                const descriptionInput = document.getElementById('unitDescriptionInput');
                 const partNumber = pnInput.value.trim();
+                const unitName = nameInput.value.trim();
+                const unitDescription = descriptionInput.value.trim();
 
                 if (!manualId || !partNumber) {
                     alert("Please select a CMM and enter a Part Number.");
@@ -431,6 +441,19 @@
                 }
 
                 showLoadingSpinner();
+
+                const requestBody = {
+                    manual_id: manualId,
+                    part_number: partNumber
+                };
+
+                // Добавляем name и description если они заполнены
+                if (unitName) {
+                    requestBody.name = unitName;
+                }
+                if (unitDescription) {
+                    requestBody.description = unitDescription;
+                }
 
                 fetch("{{ route('units.store') }}", {
                     method: "POST",
@@ -440,10 +463,7 @@
                         "X-Requested-With": "XMLHttpRequest",
                         "X-CSRF-TOKEN": document.querySelector('meta[name="csrf-token"]').content
                     },
-                    body: JSON.stringify({
-                        manual_id: manualId,
-                        part_number: partNumber
-                    })
+                    body: JSON.stringify(requestBody)
                 })
                     .then(res => {
                         console.log(res);
@@ -455,15 +475,24 @@
                     .then(data => {
                         // Добавить новую опцию в селект
                         const option = new Option(data.part_number, data.id, true, true);
-                        option.setAttribute('data-title', data.manual_title);
+                        option.setAttribute('data-name', data.name || '');
                         $('#unit_id').append(option).trigger('change');
+
+                        // Подставить name в description workorder, если name заполнено
+                        const workorderDescriptionInput = document.getElementById('description');
+                        if (data.name) {
+                            workorderDescriptionInput.value = data.name;
+                        }
 
                         // Закрыть модалку
                         bootstrap.Modal.getInstance(document.getElementById('addUnitModal')).hide();
 
                         // Очистить поля
                         pnInput.value = '';
+                        nameInput.value = '';
+                        descriptionInput.value = '';
                         document.getElementById('cmmSelect').value = '';
+                        $('#cmmSelect').trigger('change');
                     })
                     .catch(error => {
                         hideLoadingSpinner();
