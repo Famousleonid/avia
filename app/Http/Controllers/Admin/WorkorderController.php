@@ -310,4 +310,43 @@ class WorkorderController extends Controller
             return response()->json(['error' => 'Server error'], 500);
         }
     }
+
+    /**
+     * Получить список всех PDF файлов для workorder
+     */
+    public function pdfs($id)
+    {
+        try {
+            $workorder = Workorder::findOrFail($id);
+            $pdfs = $workorder->getMedia('pdfs')->map(function ($media) use ($workorder) {
+                $documentName = $media->getCustomProperty('document_name') ?: ($media->name ?? null);
+                
+                return [
+                    'id' => $media->id,
+                    'name' => $documentName ?: $media->file_name,
+                    'file_name' => $media->file_name,
+                    'size' => $media->size,
+                    'mime_type' => $media->mime_type,
+                    'created_at' => $media->created_at->format('Y-m-d H:i:s'),
+                    'url' => route('workorders.pdf.show', [
+                        'workorderId' => $workorder->id,
+                        'mediaId' => $media->id,
+                    ]),
+                    'download_url' => route('workorders.pdf.download', [
+                        'workorderId' => $workorder->id,
+                        'mediaId' => $media->id,
+                    ]),
+                ];
+            })->values()->toArray();
+
+            return response()->json([
+                'success' => true,
+                'pdfs' => $pdfs,
+                'count' => count($pdfs),
+            ]);
+        } catch (\Throwable $e) {
+            Log::error("PDF list failed for workorder $id: {$e->getMessage()}");
+            return response()->json(['error' => 'Server error'], 500);
+        }
+    }
 }

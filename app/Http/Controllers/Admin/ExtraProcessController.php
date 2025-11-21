@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\Component;
 use App\Models\ExtraProcess;
+use App\Models\Manual;
 use App\Models\Process;
 use App\Models\ProcessName;
 use App\Models\Vendor;
@@ -43,8 +44,9 @@ class ExtraProcessController extends Controller
         $processes = Process::whereHas('manuals', function ($query) use ($manual_id) {
             $query->where('manual_id', $manual_id);
         })->get();
+        $manuals = Manual::all();
 
-        return view('admin.extra_processes.create', compact('current_wo', 'components', 'processNames', 'processes', 'manual_id'));
+        return view('admin.extra_processes.create', compact('current_wo', 'components', 'processNames', 'processes', 'manual_id', 'manuals'));
     }
 
     /**
@@ -542,18 +544,41 @@ class ExtraProcessController extends Controller
                 foreach ($extra_component->processes as $processNameId => $processId) {
                     $processName = ProcessName::find($processNameId);
                     if ($processName) {
-                        if (!isset($processGroups[$processNameId])) {
-                            $processGroups[$processNameId] = [
-                                'process_name' => $processName,
-                                'components_qty' => [],
-                                'components' => []
-                            ];
+                        // Определяем ключ группы: для NDT процессов используем 'NDT_GROUP', иначе processNameId
+                        $groupKey = ($processName->process_sheet_name == 'NDT') ? 'NDT_GROUP' : $processNameId;
+                        
+                        if (!isset($processGroups[$groupKey])) {
+                            // Для NDT группы создаем виртуальный ProcessName или используем первый найденный NDT процесс
+                            if ($groupKey == 'NDT_GROUP') {
+                                // Находим первый ProcessName с process_sheet_name == 'NDT' для использования в группе
+                                $ndtProcessName = ProcessName::where('process_sheet_name', 'NDT')->first();
+                                if ($ndtProcessName) {
+                                    $processGroups[$groupKey] = [
+                                        'process_name' => $ndtProcessName,
+                                        'components_qty' => [],
+                                        'components' => []
+                                    ];
+                                } else {
+                                    // Если не найден, используем текущий процесс
+                                    $processGroups[$groupKey] = [
+                                        'process_name' => $processName,
+                                        'components_qty' => [],
+                                        'components' => []
+                                    ];
+                                }
+                            } else {
+                                $processGroups[$groupKey] = [
+                                    'process_name' => $processName,
+                                    'components_qty' => [],
+                                    'components' => []
+                                ];
+                            }
                         }
                         // Добавляем/обновляем количество по компоненту
-                        $processGroups[$processNameId]['components_qty'][$extra_component->component->id] = (int)($extra_component->qty ?? 0);
+                        $processGroups[$groupKey]['components_qty'][$extra_component->component->id] = (int)($extra_component->qty ?? 0);
                         // Сохраняем информацию о компоненте
-                        if (!isset($processGroups[$processNameId]['components'][$extra_component->component->id])) {
-                            $processGroups[$processNameId]['components'][$extra_component->component->id] = [
+                        if (!isset($processGroups[$groupKey]['components'][$extra_component->component->id])) {
+                            $processGroups[$groupKey]['components'][$extra_component->component->id] = [
                                 'id' => $extra_component->component->id,
                                 'name' => $extra_component->component->name,
                                 'ipl_num' => $extra_component->component->ipl_num,
@@ -561,6 +586,7 @@ class ExtraProcessController extends Controller
                             ];
                         }
                         \Log::info('Added component to process group', [
+                            'group_key' => $groupKey,
                             'process_name_id' => $processNameId,
                             'process_name' => $processName->name,
                             'component_id' => $extra_component->component->id
@@ -574,18 +600,41 @@ class ExtraProcessController extends Controller
                     $processName = ProcessName::find($processItem['process_name_id']);
                     if ($processName) {
                         $processNameId = $processItem['process_name_id'];
-                        if (!isset($processGroups[$processNameId])) {
-                            $processGroups[$processNameId] = [
-                                'process_name' => $processName,
-                                'components_qty' => [],
-                                'components' => []
-                            ];
+                        // Определяем ключ группы: для NDT процессов используем 'NDT_GROUP', иначе processNameId
+                        $groupKey = ($processName->process_sheet_name == 'NDT') ? 'NDT_GROUP' : $processNameId;
+                        
+                        if (!isset($processGroups[$groupKey])) {
+                            // Для NDT группы создаем виртуальный ProcessName или используем первый найденный NDT процесс
+                            if ($groupKey == 'NDT_GROUP') {
+                                // Находим первый ProcessName с process_sheet_name == 'NDT' для использования в группе
+                                $ndtProcessName = ProcessName::where('process_sheet_name', 'NDT')->first();
+                                if ($ndtProcessName) {
+                                    $processGroups[$groupKey] = [
+                                        'process_name' => $ndtProcessName,
+                                        'components_qty' => [],
+                                        'components' => []
+                                    ];
+                                } else {
+                                    // Если не найден, используем текущий процесс
+                                    $processGroups[$groupKey] = [
+                                        'process_name' => $processName,
+                                        'components_qty' => [],
+                                        'components' => []
+                                    ];
+                                }
+                            } else {
+                                $processGroups[$groupKey] = [
+                                    'process_name' => $processName,
+                                    'components_qty' => [],
+                                    'components' => []
+                                ];
+                            }
                         }
                         // Добавляем/обновляем количество по компоненту
-                        $processGroups[$processNameId]['components_qty'][$extra_component->component->id] = (int)($extra_component->qty ?? 0);
+                        $processGroups[$groupKey]['components_qty'][$extra_component->component->id] = (int)($extra_component->qty ?? 0);
                         // Сохраняем информацию о компоненте
-                        if (!isset($processGroups[$processNameId]['components'][$extra_component->component->id])) {
-                            $processGroups[$processNameId]['components'][$extra_component->component->id] = [
+                        if (!isset($processGroups[$groupKey]['components'][$extra_component->component->id])) {
+                            $processGroups[$groupKey]['components'][$extra_component->component->id] = [
                                 'id' => $extra_component->component->id,
                                 'name' => $extra_component->component->name,
                                 'ipl_num' => $extra_component->component->ipl_num,
@@ -593,6 +642,7 @@ class ExtraProcessController extends Controller
                             ];
                         }
                         \Log::info('Added component to process group', [
+                            'group_key' => $groupKey,
                             'process_name_id' => $processNameId,
                             'process_name' => $processName->name,
                             'component_id' => $extra_component->component->id
@@ -661,9 +711,20 @@ class ExtraProcessController extends Controller
 
         // Получаем все extra processes для этого work order
         $extra_processes = ExtraProcess::where('workorder_id', $current_wo->id)
-            ->with(['component'])
+            ->with(['component.manual'])
             ->orderBy('sort_order')
             ->get();
+
+        // Определяем, является ли это NDT группой
+        $isNdtGroup = ($processName->process_sheet_name == 'NDT');
+        
+        // Если это NDT группа, получаем все NDT process_name_ids
+        $ndtProcessNameIds = [];
+        if ($isNdtGroup) {
+            $ndtProcessNameIds = ProcessName::where('process_sheet_name', 'NDT')
+                ->pluck('id')
+                ->toArray();
+        }
 
         // Группируем компоненты по process_name_id
         $groupedComponents = [];
@@ -676,30 +737,81 @@ class ExtraProcessController extends Controller
             // Проверяем старую и новую структуру данных
             if (is_array($extra_process->processes) && array_keys($extra_process->processes) !== range(0, count($extra_process->processes) - 1)) {
                 // Старая структура: ассоциативный массив
-                if (isset($extra_process->processes[$processNameId])) {
-                    $processId = $extra_process->processes[$processNameId];
-                    $process = Process::find($processId);
-                    if ($process) {
-                        $groupedComponents[] = [
-                            'process_name' => $processName,
-                            'process' => $process,
-                            'component' => $extra_process->component,
-                            'extra_process' => $extra_process
-                        ];
+                if ($isNdtGroup) {
+                    // Для NDT группы обрабатываем все NDT процессы
+                    foreach ($ndtProcessNameIds as $ndtProcessNameId) {
+                        if (isset($extra_process->processes[$ndtProcessNameId])) {
+                            $processId = $extra_process->processes[$ndtProcessNameId];
+                            $process = Process::find($processId);
+                            $ndtProcessName = ProcessName::find($ndtProcessNameId);
+                            if ($process && $ndtProcessName) {
+                                // Получаем manual для компонента
+                                $componentManual = $extra_process->component->manual ?? null;
+                                $groupedComponents[] = [
+                                    'process_name' => $ndtProcessName,
+                                    'process' => $process,
+                                    'component' => $extra_process->component,
+                                    'extra_process' => $extra_process,
+                                    'manual' => $componentManual
+                                ];
+                            }
+                        }
                     }
-                }
-            } else {
-                // Новая структура: массив объектов
-                foreach ($extra_process->processes as $processItem) {
-                    if ($processItem['process_name_id'] == $processNameId) {
-                        $process = Process::find($processItem['process_id']);
+                } else {
+                    // Для обычных процессов обрабатываем только указанный processNameId
+                    if (isset($extra_process->processes[$processNameId])) {
+                        $processId = $extra_process->processes[$processNameId];
+                        $process = Process::find($processId);
                         if ($process) {
+                            // Получаем manual для компонента
+                            $componentManual = $extra_process->component->manual ?? null;
                             $groupedComponents[] = [
                                 'process_name' => $processName,
                                 'process' => $process,
                                 'component' => $extra_process->component,
-                                'extra_process' => $extra_process
+                                'extra_process' => $extra_process,
+                                'manual' => $componentManual
                             ];
+                        }
+                    }
+                }
+            } else {
+                // Новая структура: массив объектов
+                if ($isNdtGroup) {
+                    // Для NDT группы обрабатываем все NDT процессы
+                    foreach ($extra_process->processes as $processItem) {
+                        if (in_array($processItem['process_name_id'], $ndtProcessNameIds)) {
+                            $process = Process::find($processItem['process_id']);
+                            $ndtProcessName = ProcessName::find($processItem['process_name_id']);
+                            if ($process && $ndtProcessName) {
+                                // Получаем manual для компонента
+                                $componentManual = $extra_process->component->manual ?? null;
+                                $groupedComponents[] = [
+                                    'process_name' => $ndtProcessName,
+                                    'process' => $process,
+                                    'component' => $extra_process->component,
+                                    'extra_process' => $extra_process,
+                                    'manual' => $componentManual
+                                ];
+                            }
+                        }
+                    }
+                } else {
+                    // Для обычных процессов обрабатываем только указанный processNameId
+                    foreach ($extra_process->processes as $processItem) {
+                        if ($processItem['process_name_id'] == $processNameId) {
+                            $process = Process::find($processItem['process_id']);
+                            if ($process) {
+                                // Получаем manual для компонента
+                                $componentManual = $extra_process->component->manual ?? null;
+                                $groupedComponents[] = [
+                                    'process_name' => $processName,
+                                    'process' => $process,
+                                    'component' => $extra_process->component,
+                                    'extra_process' => $extra_process,
+                                    'manual' => $componentManual
+                                ];
+                            }
                         }
                     }
                 }
@@ -781,8 +893,22 @@ class ExtraProcessController extends Controller
                 ->whereIn('process_names_id', $ndt_ids)
                 ->get();
 
+            // Собираем все уникальные номера manual из компонентов
+            $manualNumbers = [];
+            foreach ($groupedComponents as $item) {
+                if (isset($item['manual']) && $item['manual']) {
+                    $manualNumber = $item['manual']->number;
+                    if (!in_array($manualNumber, $manualNumbers)) {
+                        $manualNumbers[] = $manualNumber;
+                    }
+                }
+            }
+            $manualNumbersString = implode(', ', $manualNumbers);
+
             return view('admin.extra_processes.processesForm', array_merge($viewData, [
-                'ndt_processes' => $ndt_processes
+                'ndt_processes' => $ndt_processes,
+                'selectedVendor' => $selectedVendor, // Явно сохраняем selectedVendor
+                'manual_numbers' => $manualNumbersString // Номера manual через запятую для NDT
             ], $ndt_ids));
         }
 
@@ -792,7 +918,8 @@ class ExtraProcessController extends Controller
             ->get();
 
         return view('admin.extra_processes.processesForm', array_merge($viewData, [
-            'process_components' => $process_components
+            'process_components' => $process_components,
+            'selectedVendor' => $selectedVendor // Явно сохраняем selectedVendor
         ]));
     }
 

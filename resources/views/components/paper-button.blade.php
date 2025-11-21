@@ -72,8 +72,25 @@
 
     // Определяем атрибуты для кнопки/ссылки
     $tag = $href || $route ? 'a' : 'button';
+    
+    // Получаем существующий класс из атрибутов (если передан)
+    $existingClass = '';
+    if (is_object($attributes) && method_exists($attributes, 'get')) {
+        $existingClass = $attributes->get('class', '');
+    } elseif (is_array($attributes) && isset($attributes['class'])) {
+        $existingClass = $attributes['class'];
+    }
+    
+    // Объединяем классы
+    $mergedClass = trim($buttonClass . ' ' . $existingClass);
+    
+    // Убеждаемся, что $attributes является объектом Attributes
+    if (!is_object($attributes) || !method_exists($attributes, 'merge')) {
+        $attributes = \Illuminate\View\ComponentAttributeBag::make($attributes ?? []);
+    }
+    
     $attributes = $attributes->merge([
-        'class' => $buttonClass,
+        'class' => $mergedClass,
         'aria-label' => $ariaLabelValue,
     ]);
 

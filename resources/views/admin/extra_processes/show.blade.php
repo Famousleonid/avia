@@ -186,10 +186,10 @@
                         <thead>
                         <tr>
                             <th class="text-primary text-center" style="width: 7%">IPL</th>
-                            <th class="text-primary text-center"  style="width:15%">Name</th>
-                            <th class="text-primary text-center"  style="width:5%">QTY</th>
-                            <th class="text-primary text-center" style="width: 48%">Processes</th>
-                            <th class="text-primary text-center" style="width: 20%">Action</th>
+                            <th class="text-primary text-center"  style="width:10%">Name</th>
+                            <th class="text-primary text-center"  style="width:7%">QTY</th>
+                            <th class="text-primary text-center" style="width: 45%">Processes</th>
+                            <th class="text-primary text-center" style="width: 35%">Action</th>
                         </tr>
                         </thead>
                         <tbody>
@@ -300,31 +300,37 @@
                                     </tr>
                                 </thead>
                                 <tbody>
-                            @foreach($processGroups as $processNameId => $group)
+                            @foreach($processGroups as $groupKey => $group)
+                                        @php
+                                            // Для группы NDT используем ID процесса из process_name, иначе используем groupKey
+                                            $actualProcessNameId = ($groupKey == 'NDT_GROUP') ? $group['process_name']->id : $groupKey;
+                                            // Для группы NDT отображаем "NDT", иначе название процесса
+                                            $displayName = ($groupKey == 'NDT_GROUP') ? 'NDT' : $group['process_name']->name;
+                                        @endphp
                                         <tr>
                                             <td class="align-middle ">
-{{--                                        <a href="{{ route('extra_processes.show_group_forms', ['id' => $current_wo->id, 'processNameId' => $processNameId]) }}"--}}
+{{--                                        <a href="{{ route('extra_processes.show_group_forms', ['id' => $current_wo->id, 'processNameId' => $actualProcessNameId]) }}"--}}
 {{--                                                   class="btn btn-outline-warning w-100 group-form-link"--}}
-{{--                                           data-process-name-id="{{ $processNameId }}"--}}
+{{--                                           data-process-name-id="{{ $actualProcessNameId }}"--}}
 {{--                                           target="_blank">--}}
 {{--                                            <i class="fas fa-print me-2"></i>--}}
-{{--                                            {{ $group['process_name']->name }}--}}
+{{--                                            {{ $displayName }}--}}
 {{--                                                    <br>--}}
 {{--                                                    <span class="badge bg-primary mt-1 ms-1 process-qty-badge"--}}
-{{--                                                          data-process-name-id="{{ $processNameId }}">--}}
+{{--                                                          data-process-name-id="{{ $actualProcessNameId }}">--}}
 {{--                                                        {{ $group['qty'] }} pcs--}}
 {{--                                                    </span>--}}
 {{--                                                </a>--}}
 
                                                 <div class="position-relative d-inline-block ms-5">
                                                 <x-paper-button
-                                                    text="{{ $group['process_name']->name }} "
+                                                    text="{{ $displayName }} "
                                                     size="landscape"
                                                     width="120px"
-                                                    href="{{ route('extra_processes.show_group_forms', ['id' => $current_wo->id, 'processNameId' => $processNameId]) }}"
+                                                    href="{{ route('extra_processes.show_group_forms', ['id' => $current_wo->id, 'processNameId' => $actualProcessNameId]) }}"
                                                     target="_blank"
-
-{{--                                                    :attributes="['data-process-name-id' => $processNameId]"--}}
+                                                    class="group-form-button"
+                                                    data-process-name-id="{{ $actualProcessNameId }}"
                                                 > </x-paper-button>
 {{--                                                    <i class="fas fa-print me-2"></i>--}}
 
@@ -338,18 +344,18 @@
 
                                             </td>
                                             <td class="align-middle">
-                                                <div class="component-checkboxes" data-process-name-id="{{ $processNameId }}">
+                                                <div class="component-checkboxes" data-process-name-id="{{ $actualProcessNameId }}">
                                                     @if($group['count'] > 1)
                                                         @foreach($group['components'] as $component)
                                                             <div class="form-check">
                                                                 <input class=" ms-1 form-check-input component-checkbox"
                                                                        type="checkbox"
                                                                        value="{{ $component['id'] }}"
-                                                                       id="component_{{ $processNameId }}_{{ $component['id'] }}"
-                                                                       data-process-name-id="{{ $processNameId }}"
+                                                                       id="component_{{ $actualProcessNameId }}_{{ $component['id'] }}"
+                                                                       data-process-name-id="{{ $actualProcessNameId }}"
                                                                        data-qty="{{ $component['qty'] }}"
                                                                        checked>
-                                                                <label class="form-check-label" for="component_{{ $processNameId }}_{{ $component['id'] }}">
+                                                                <label class="form-check-label" for="component_{{ $actualProcessNameId }}_{{ $component['id'] }}">
                                                                     <strong>{{ $component['ipl_num'] }}</strong> -
                                                                     {{ Str::limit($component['name'], 40) }}
                                                                     <span class="">Qty: {{ $component['qty'] }}</span>
@@ -362,12 +368,12 @@
                                                                 <input class="ms-1 form-check-input component-checkbox"
                                                                        type="checkbox"
                                                                        value="{{ $component['id'] }}"
-                                                                       id="component_{{ $processNameId }}_{{ $component['id'] }}"
-                                                                       data-process-name-id="{{ $processNameId }}"
+                                                                       id="component_{{ $actualProcessNameId }}_{{ $component['id'] }}"
+                                                                       data-process-name-id="{{ $actualProcessNameId }}"
                                                                        data-qty="{{ $component['qty'] }}"
                                                                        checked
                                                                        disabled>
-                                                                <label class="form-check-label" for="component_{{ $processNameId }}_{{ $component['id'] }}">
+                                                                <label class="form-check-label" for="component_{{ $actualProcessNameId }}_{{ $component['id'] }}">
                                                                     <strong>{{ $component['ipl_num'] }}</strong> -
                                                                     {{ Str::limit($component['name'], 40) }}
                                                                     <span class="">Qty: {{ $component['qty'] }}</span>
@@ -379,7 +385,7 @@
                                             </td>
                                             <td class="align-middle">
                                         <select class="form-select vendor-select"
-                                                data-process-name-id="{{ $processNameId }}"
+                                                data-process-name-id="{{ $actualProcessNameId }}"
                                                 style="font-size: 0.9rem;">
                                             <option value="">No vendor</option>
                                             @foreach($vendors as $vendor)
@@ -406,14 +412,21 @@
         document.addEventListener('DOMContentLoaded', function() {
             const vendorSelects = document.querySelectorAll('.vendor-select');
             const groupFormLinks = document.querySelectorAll('.group-form-link');
+            const groupFormButtons = document.querySelectorAll('.group-form-button');
             const componentCheckboxes = document.querySelectorAll('.component-checkbox');
 
             // Функция для обновления URL с учетом vendor и компонентов
             function updateLinkUrl(processNameId) {
-                const link = document.querySelector(`.group-form-link[data-process-name-id="${processNameId}"]`);
+                // Пробуем найти ссылку или кнопку
+                let link = document.querySelector(`.group-form-link[data-process-name-id="${processNameId}"]`);
+                if (!link) {
+                    link = document.querySelector(`.group-form-button[data-process-name-id="${processNameId}"]`);
+                }
                 if (!link) return;
 
                 const originalUrl = link.getAttribute('href');
+                if (!originalUrl) return;
+
                 const url = new URL(originalUrl, window.location.origin);
 
                 // Добавляем vendor_id если выбран
@@ -482,11 +495,29 @@
                 });
             });
 
+            // Обработчик клика по paper-button кнопкам форм
+            groupFormButtons.forEach(button => {
+                button.addEventListener('click', function(e) {
+                    const processNameId = this.getAttribute('data-process-name-id');
+                    if (processNameId) {
+                        // Обновляем URL перед переходом
+                        updateLinkUrl(processNameId);
+                        // Получаем обновленный URL и устанавливаем его
+                        const updatedUrl = this.getAttribute('href');
+                        if (updatedUrl) {
+                            this.setAttribute('href', updatedUrl);
+                        }
+                    }
+                });
+            });
+
             // Инициализация URL и badge при загрузке страницы
-            document.querySelectorAll('.group-form-link').forEach(link => {
+            document.querySelectorAll('.group-form-link, .group-form-button').forEach(link => {
                 const processNameId = link.getAttribute('data-process-name-id');
-                updateLinkUrl(processNameId);
-                updateQuantityBadge(processNameId);
+                if (processNameId) {
+                    updateLinkUrl(processNameId);
+                    updateQuantityBadge(processNameId);
+                }
             });
         });
     </script>

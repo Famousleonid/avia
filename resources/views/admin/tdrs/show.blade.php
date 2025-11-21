@@ -42,8 +42,8 @@
 
                     <div class="ps-2 d-flex" >
 
-                        <div class=" " style=" height: 40px; width: 250px;">
-                            <div class=" mt-1 d-flex">
+                        <div class=" " style=" height: 46px; width: 250px;">
+                            <div class=" mt-0 d-flex">
                                 @if($trainings && $trainings->date_training && $user->id == $user_wo)
                                     @php
                                         $trainingDate = \Carbon\Carbon::parse($trainings->date_training);
@@ -85,7 +85,8 @@
                                             </div>
                                             @if($monthsDiff >= 6 && $user->id == $user_wo)
                                                 <div class="text-center ms-2" style="height: 40px; width: 40px">
-                                                    <button class="btn btn-success btn-sm" title="{{ __('Update to Today') }}" onclick="updateTrainingToToday({{
+                                                    <button class="btn btn-success btn-sm" style="height: 55px;width: 55px" title="{{ __('Update to Today') }}"
+                                                            onclick="updateTrainingToToday({{
                                                     $manual_id }}, '{{ $trainings->date_training }}')">
                                                         <i class="bi bi-calendar-check" style="font-size: 28px;"></i>
 {{--                                                        Update to Today--}}
@@ -99,7 +100,8 @@
                                             Last training {{ $monthsDiff }} months ago ({{ $trainingDate->format('M d, Y') }}). Need Update
                                             @if($user->id == $user_wo)
                                                 <div class="ms-2">
-                                                    <button class="btn btn-warning btn-sm" title="{{ __('Update to Today') }}" onclick="updateTrainingToToday({{
+                                                    <button class="btn btn-warning btn-sm" style="height: 55px;width: 55px" title="{{ __('Update to Today') }}"
+                                                            onclick="updateTrainingToToday({{
                                                     $manual_id }}, '{{ $trainings->date_training }}')">
                                                         <i class="bi bi-calendar-check" style="font-size: 28px;" ></i>
 {{--                                                        Update to Today--}}
@@ -116,7 +118,8 @@
                                                 <p>for this unit.</p>
                                             </div>
                                                 <div class="ms-2">
-                                                    <button class="fs-75 btn btn-primary btn-sm" title="{{ __('Create Trainings') }}" onclick="createTrainings({{
+                                                    <button class="fs-75 btn btn-primary btn-sm" style="height: 55px;width: 55px" title="{{ __('Create
+                                                    Trainings') }}" onclick="createTrainings({{
                                                     $manual_id }})">
                                                         <i class="bi bi-plus-circle" style="font-size: 28px;"></i>
                                                     </button>
@@ -128,7 +131,7 @@
                             </div>
                         </div>
 
-                        <div class="me-2 ms-2">
+                        <div class=" ms-4">
                             <a href="{{ route('mains.show', $current_wo->id) }}" class="btn
                                             btn-outline-success " title="{{ __('WO Tasks') }}"
                                onclick="showLoadingSpinner()">
@@ -136,7 +139,16 @@
 
                             </a>
                         </div>
-
+                        <div class="me-2">
+                            <button class="btn  btn-outline-warning ms-2 open-pdf-modal text-center"
+                                    title="{{ __('PDF Library') }}"
+                                    style="height: 55px;width: 55px"
+                                    data-id="{{ $current_wo->id }}"
+                                    data-number="{{ $current_wo->number }}" >
+                                <i class="bi bi-file-earmark-pdf" style="font-size: 28px; "></i>
+                                {{--                                {{__('PDF Library')}}--}}
+                            </button>
+                        </div>
 
 
                         @if(count($processParts))
@@ -202,6 +214,7 @@
                                 {{__('Repair & Modification Record')}}
                             </a>
                         </div>
+
 
 
 
@@ -1329,6 +1342,376 @@
             @endif
         @endif
 
+    </script>
+
+    <!-- PDF Library Modal -->
+    <div class="modal fade" id="pdfModal" tabindex="-1" aria-labelledby="pdfModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-xl modal-dialog-scrollable">
+            <div class="modal-content" style="background-color: #343A40">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="pdfModalLabel">PDF Library - Workorder <span id="pdfModalWorkorderNumber"></span></h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <!-- Upload Section -->
+                    <div class="mb-4">
+                        <div class="card bg-dark border-secondary">
+                            <div class="card-body">
+                                <h6 class="text-primary mb-3">Upload PDF Files</h6>
+                                <form id="pdfUploadForm" enctype="multipart/form-data">
+                                    <div class="mb-3">
+                                        <label for="pdfDocumentName" class="form-label text-white">Document Name</label>
+                                        <input type="text" class="form-control" id="pdfDocumentName" name="document_name"
+                                               placeholder="Enter document name (optional)" maxlength="255">
+                                        <small class="text-muted">Optional: Enter a name for the document</small>
+                                    </div>
+                                    <div class="input-group mb-2">
+                                        <input type="file" class="form-control" id="pdfFileInput" name="pdf" accept=".pdf" required>
+                                        <button class="btn btn-primary" type="submit" id="uploadPdfBtn">
+                                            <i class="bi bi-upload"></i> Upload
+                                        </button>
+                                    </div>
+                                    <small class="text-muted">Max size: 10MB. Upload one file at a time.</small>
+                                </form>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- PDF List -->
+                    <div id="pdfListContainer" class="row g-3">
+                        <!-- PDFs will be loaded here -->
+                    </div>
+
+                    <!-- PDF Viewer Modal -->
+                    <div class="modal fade" id="pdfViewerModal" tabindex="-1" aria-labelledby="pdfViewerModalLabel" aria-hidden="true">
+                        <div class="modal-dialog modal-xl">
+                            <div class="modal-content bg-dark">
+                                <div class="modal-header">
+                                    <h5 class="modal-title" id="pdfViewerModalLabel">PDF Viewer</h5>
+                                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                                </div>
+                                <div class="modal-body p-0" style="min-height: 600px; position: relative;">
+                                    <iframe id="pdfViewerFrame" src="" style="width: 100%; height: 600px; border: none; position: relative;"></iframe>
+                                </div>
+                                <div class="modal-footer">
+                                    <a id="pdfDownloadLink" href="#" class="btn btn-primary" download>
+                                        <i class="bi bi-download"></i> Download
+                                    </a>
+                                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                </div>
+                <div class="modal-footer">
+                    <button class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Confirm Delete PDF Modal -->
+    <div class="modal fade" id="confirmDeletePdfModal" tabindex="-1" aria-labelledby="confirmDeletePdfLabel" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content text-center">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="confirmDeletePdfLabel">Confirm Deletion</h5>
+                </div>
+                <div class="modal-body">
+                    Are you sure you want to delete this PDF file?
+                </div>
+                <div class="modal-footer justify-content-center">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button id="confirmPdfDeleteBtn" class="btn btn-danger">Delete</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="position-fixed bottom-0 end-0 p-3" style="z-index: 1055">
+        <div id="pdfDeletedToast" class="toast bg-success text-white" role="alert" aria-live="assertive" aria-atomic="true">
+            <div class="toast-body">
+                PDF deleted successfully.
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // ==================== PDF Library ====================
+
+        // Открытие модального окна PDF библиотеки
+        document.querySelectorAll('.open-pdf-modal').forEach(button => {
+            button.addEventListener('click', async function () {
+                const workorderId = this.dataset.id;
+                const workorderNumber = this.dataset.number;
+                window.currentPdfWorkorderId = workorderId;
+                window.currentPdfWorkorderNumber = workorderNumber;
+
+                document.getElementById('pdfModalWorkorderNumber').textContent = workorderNumber;
+
+                await loadPdfLibrary(workorderId);
+                new bootstrap.Modal(document.getElementById('pdfModal')).show();
+            });
+        });
+
+        // Очистка при закрытии основного модального окна PDF Library
+        const pdfModal = document.getElementById('pdfModal');
+        if (pdfModal) {
+            pdfModal.addEventListener('hidden.bs.modal', function () {
+                // Очищаем iframe просмотра PDF, если он был открыт
+                const iframe = document.getElementById('pdfViewerFrame');
+                if (iframe && iframe.src && iframe.src !== 'about:blank') {
+                    iframe.src = 'about:blank';
+                }
+                // Очищаем ссылку на скачивание
+                const downloadLink = document.getElementById('pdfDownloadLink');
+                if (downloadLink) {
+                    downloadLink.href = '#';
+                    downloadLink.download = '';
+                }
+            });
+        }
+
+        // Загрузка списка PDF файлов
+        async function loadPdfLibrary(workorderId) {
+            const container = document.getElementById('pdfListContainer');
+            if (typeof showLoadingSpinner === 'function') showLoadingSpinner();
+
+            try {
+                const response = await fetch(`/workorders/${workorderId}/pdfs`);
+                if (!response.ok) throw new Error('Response not ok');
+                const data = await response.json();
+
+                if (data.pdfs.length === 0) {
+                    container.innerHTML = '<div class="col-12"><p class="text-muted text-center">No PDF files uploaded yet.</p></div>';
+                    if (typeof hideLoadingSpinner === 'function') hideLoadingSpinner();
+                    return;
+                }
+
+                let html = '';
+                data.pdfs.forEach(pdf => {
+                    const fileSize = formatFileSize(pdf.size);
+                    const uploadDate = new Date(pdf.created_at).toLocaleDateString('en-US', {
+                        year: 'numeric',
+                        month: 'short',
+                        day: 'numeric',
+                        hour: '2-digit',
+                        minute: '2-digit'
+                    });
+
+                    const displayName = pdf.name && pdf.name !== pdf.file_name ? pdf.name : pdf.file_name;
+                    const displayTitle = pdf.name && pdf.name !== pdf.file_name ? `${pdf.name} (${pdf.file_name})` : pdf.file_name;
+
+                    html += `
+                        <div class="col-md-6 col-lg-4 col-xl-3">
+                            <div class="card bg-secondary border-primary pdf-card" data-pdf-id="${pdf.id}">
+                                <div class="card-body">
+                                    <div class="d-flex justify-content-between align-items-start mb-2">
+                                        <h6 class="card-title text-truncate mb-0" style="max-width: 200px;" title="${displayTitle}">
+                                            <i class="bi bi-file-earmark-pdf text-danger"></i> ${displayName}
+                                        </h6>
+                                        <button class="btn btn-sm btn-danger delete-pdf-btn" data-id="${pdf.id}" title="Delete">
+                                            <i class="bi bi-trash"></i>
+                                        </button>
+                                    </div>
+                                    <p class="text-muted small mb-2">
+                                        <i class="bi bi-file-text"></i> ${fileSize}<br>
+                                        <i class="bi bi-calendar"></i> ${uploadDate}
+                                    </p>
+                                    <div class="d-grid gap-2">
+                                        <button class="btn btn-sm btn-primary view-pdf-btn"
+                                                data-url="${pdf.url}"
+                                                data-download="${pdf.download_url}"
+                                                data-name="${displayName}">
+                                            <i class="bi bi-eye"></i> View PDF
+                                        </button>
+                                        <a href="${pdf.download_url}" class="btn btn-sm btn-outline-success" download>
+                                            <i class="bi bi-download"></i> Download
+                                        </a>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                });
+
+                container.innerHTML = html;
+                bindPdfButtons();
+            } catch (e) {
+                console.error('Load PDF error', e);
+                container.innerHTML = '<div class="col-12"><div class="alert alert-danger">Failed to load PDF files</div></div>';
+            } finally {
+                if (typeof hideLoadingSpinner === 'function') hideLoadingSpinner();
+            }
+        }
+
+        // Форматирование размера файла
+        function formatFileSize(bytes) {
+            if (bytes === 0) return '0 Bytes';
+            const k = 1024;
+            const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+            const i = Math.floor(Math.log(bytes) / Math.log(k));
+            return Math.round(bytes / Math.pow(k, i) * 100) / 100 + ' ' + sizes[i];
+        }
+
+        // Привязка обработчиков кнопок PDF
+        function bindPdfButtons() {
+            // Кнопки просмотра
+            document.querySelectorAll('.view-pdf-btn').forEach(btn => {
+                btn.addEventListener('click', function () {
+                    const pdfUrl = this.dataset.url;
+                    const downloadUrl = this.dataset.download;
+                    const pdfName = this.dataset.name;
+
+                    const iframe = document.getElementById('pdfViewerFrame');
+                    iframe.src = pdfUrl;
+                    document.getElementById('pdfDownloadLink').href = downloadUrl;
+                    document.getElementById('pdfDownloadLink').download = pdfName;
+                    document.getElementById('pdfViewerModalLabel').textContent = pdfName;
+
+                    new bootstrap.Modal(document.getElementById('pdfViewerModal')).show();
+                });
+            });
+
+            // Очистка iframe при закрытии модального окна просмотра PDF
+            const pdfViewerModal = document.getElementById('pdfViewerModal');
+            if (pdfViewerModal) {
+                pdfViewerModal.addEventListener('hidden.bs.modal', function () {
+                    const iframe = document.getElementById('pdfViewerFrame');
+                    if (iframe) {
+                        iframe.src = 'about:blank';
+                    }
+                    const downloadLink = document.getElementById('pdfDownloadLink');
+                    if (downloadLink) {
+                        downloadLink.href = '#';
+                        downloadLink.download = '';
+                    }
+                });
+            }
+
+            // Кнопки удаления
+            document.querySelectorAll('.delete-pdf-btn').forEach(btn => {
+                btn.addEventListener('click', function (e) {
+                    e.preventDefault();
+                    e.stopPropagation();
+
+                    const pdfId = this.dataset.id;
+                    const pdfCard = this.closest('.pdf-card');
+
+                    window.pendingPdfDelete = {pdfId, pdfCard};
+                    new bootstrap.Modal(document.getElementById('confirmDeletePdfModal')).show();
+                });
+            });
+        }
+
+        // Загрузка PDF файлов
+        document.getElementById('pdfUploadForm').addEventListener('submit', async function (e) {
+            e.preventDefault();
+
+            const workorderId = window.currentPdfWorkorderId;
+            if (!workorderId) {
+                alert('Workorder ID missing');
+                return;
+            }
+
+            const fileInput = document.getElementById('pdfFileInput');
+            if (!fileInput.files.length) {
+                alert('Please select a PDF file');
+                return;
+            }
+
+            const documentName = document.getElementById('pdfDocumentName').value.trim();
+
+            const formData = new FormData();
+            formData.append('pdf', fileInput.files[0]);
+            if (documentName) {
+                formData.append('document_name', documentName);
+            }
+
+            if (typeof showLoadingSpinner === 'function') showLoadingSpinner();
+            const uploadBtn = document.getElementById('uploadPdfBtn');
+            uploadBtn.disabled = true;
+
+            try {
+                const response = await fetch(`/workorders/pdf/${workorderId}`, {
+                    method: 'POST',
+                    headers: {
+                        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content
+                    },
+                    body: formData
+                });
+
+                if (!response.ok) {
+                    const error = await response.json();
+                    throw new Error(error.message || 'Upload failed');
+                }
+
+                const data = await response.json();
+
+                // Перезагружаем список PDF
+                await loadPdfLibrary(workorderId);
+
+                // Очищаем форму
+                fileInput.value = '';
+                document.getElementById('pdfDocumentName').value = '';
+
+                // Показываем уведомление об успехе
+                const toast = new bootstrap.Toast(document.getElementById('pdfDeletedToast'));
+                document.querySelector('#pdfDeletedToast .toast-body').textContent =
+                    `PDF file uploaded successfully.`;
+                toast.show();
+            } catch (err) {
+                console.error('Upload error:', err);
+                alert('Upload failed: ' + err.message);
+            } finally {
+                if (typeof hideLoadingSpinner === 'function') hideLoadingSpinner();
+                uploadBtn.disabled = false;
+            }
+        });
+
+        // Подтверждение удаления PDF
+        document.getElementById('confirmPdfDeleteBtn').addEventListener('click', async function () {
+            const {pdfId, pdfCard} = window.pendingPdfDelete || {};
+            if (!pdfId) return;
+
+            if (typeof showLoadingSpinner === 'function') showLoadingSpinner();
+
+            try {
+                const response = await fetch(`/workorders/pdf/delete/${pdfId}`, {
+                    method: 'DELETE',
+                    headers: {
+                        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content
+                    }
+                });
+
+                if (response.ok) {
+                    pdfCard.style.transition = 'opacity 0.3s ease';
+                    pdfCard.style.opacity = '0';
+                    setTimeout(() => {
+                        pdfCard.remove();
+                        // Перезагружаем список, если он пуст
+                        const container = document.getElementById('pdfListContainer');
+                        if (container.querySelectorAll('.pdf-card').length === 0) {
+                            loadPdfLibrary(window.currentPdfWorkorderId);
+                        }
+                    }, 300);
+
+                    const toast = new bootstrap.Toast(document.getElementById('pdfDeletedToast'));
+                    document.querySelector('#pdfDeletedToast .toast-body').textContent = 'PDF deleted successfully.';
+                    toast.show();
+                } else {
+                    alert('Failed to delete PDF');
+                }
+            } catch (err) {
+                console.error('Delete error:', err);
+                alert('Server error');
+            } finally {
+                if (typeof hideLoadingSpinner === 'function') hideLoadingSpinner();
+                bootstrap.Modal.getInstance(document.getElementById('confirmDeletePdfModal')).hide();
+                window.pendingPdfDelete = null;
+            }
+        });
     </script>
 
 @endsection

@@ -100,6 +100,13 @@ Route::group(['middleware' => ['auth']], function () {
         Route::get('/workorders/{id}/photos', [WorkorderController::class, 'photos'])->name('workorders.photos');
         Route::get('/workorders/download/{id}/all', [WorkorderController::class, 'downloadAllGrouped'])->name('workorders.downloadAllGrouped');
         Route::delete('/workorders/photo/delete/{id}', [MediaController::class, 'delete_photo'])->name('workorders.photo.delete');
+        
+        // PDF Library routes
+        Route::get('/workorders/{id}/pdfs', [WorkorderController::class, 'pdfs'])->name('workorders.pdfs');
+        Route::post('/workorders/pdf/{id}', [MediaController::class, 'store_pdf_workorders'])->name('workorders.pdf.store');
+        Route::get('/workorders/{workorderId}/pdf/{mediaId}/show', [MediaController::class, 'showPdf'])->name('workorders.pdf.show');
+        Route::get('/workorders/{workorderId}/pdf/{mediaId}/download', [MediaController::class, 'downloadPdf'])->name('workorders.pdf.download');
+        Route::delete('/workorders/pdf/delete/{id}', [MediaController::class, 'delete_pdf'])->name('workorders.pdf.delete');
 
         Route::resource('/tdrs', TdrController::class)->except('create','edit', 'show');
 

@@ -247,7 +247,7 @@
                     <div class="col-6 pt-2 text-end"> <strong>COMPONENT NAME</strong> :</div>
                     <div class="col-6 pt-2 border-b">
                         <strong>
-                             <span @if(strlen($current_wo->description) > 30) class="description-text-long"
+                             <span @if(strlen($current_wo->description) > 20) class="description-text-long"
                                 @endif>{{$current_wo->description}}</span>
 
 {{--                            @if(isset($table_data) && count($table_data) > 1)--}}
@@ -380,11 +380,15 @@
                     </div>
                 </div>
                 <div class="row border-all mt-2" style="height: 56px">
-                    @foreach($manuals as $manual)
-                        @if($manual->id == $current_wo->unit->manual_id)
-                            <h6 class="text-center mt-3"><strong> {{$manual->number}}</strong></h6>
-                        @endif
-                    @endforeach
+                    @if($process_name->process_sheet_name == 'NDT' && isset($manual_numbers))
+                        <h6 class="text-center mt-3"><strong>{{ $manual_numbers }}</strong></h6>
+                    @else
+                        @foreach($manuals as $manual)
+                            @if($manual->id == $current_wo->unit->manual_id)
+                                <h6 class="text-center mt-3"><strong> {{$manual->number}}</strong></h6>
+                            @endif
+                        @endforeach
+                    @endif
                 </div>
             </div>
         </div>
@@ -558,13 +562,19 @@
                             <div class="col-2 border-l-b-r details-cell text-center"  style="min-height: 32px"></div>
                         @else
                             <div class="col-2 border-l-b-r details-cell text-center"  style="min-height: 32px">
-                                @foreach($manuals as $manual)
-                                    @if($manual->id == $current_wo->unit->manual_id)
-                                        <h6 class="text-center mt-2">
-                                                {{$manual->number}}
-                                        </h6>
-                                    @endif
-                                @endforeach
+                                @if(isset($data['manual']) && $data['manual'])
+                                    <h6 class="text-center mt-2">
+                                        {{ $data['manual']->number }}
+                                    </h6>
+                                @else
+                                    @foreach($manuals as $manual)
+                                        @if($manual->id == $current_wo->unit->manual_id)
+                                            <h6 class="text-center mt-2">
+                                                    {{$manual->number}}
+                                            </h6>
+                                        @endif
+                                    @endforeach
+                                @endif
                             </div>
                         @endif
                     </div>

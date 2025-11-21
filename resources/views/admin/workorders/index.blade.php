@@ -152,7 +152,7 @@
                         <th class="text-center text-primary sortable">Customer <i class="bi bi-chevron-expand ms-1"></i></th>
                         <th class="text-center text-primary sortable">Instruction <i class="bi bi-chevron-expand ms-1"></i></th>
                         <th class="text-center text-primary col-photos">Photos</th>
-                        <th class="text-center text-primary sortable">Technik <i class="bi bi-chevron-expand ms-1"></i></th>
+                        <th class="text-center text-primary sortable">Technik <i class="bi bi-chevron-expand ms-1"></i"></th>
                         <th class="text-center text-primary col-edit">Edit</th>
                         <th class="text-center text-primary col-date">Open Date</th>
                         @role('Admin')

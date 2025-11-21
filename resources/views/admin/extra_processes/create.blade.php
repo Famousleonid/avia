@@ -3,7 +3,7 @@
 @section('content')
     <style>
         .container {
-            max-width: 850px;
+            max-width: 1050px;
         }
 
         /* ----------------------------------- Select 2 Dark Theme -------------------------------------*/
@@ -64,14 +64,15 @@
             <div class="card-header">
                 <div class="d-flex justify-content-between">
                     <h4 class="text-primary">{{__('Add Extra Component Processes')}}</h4>
-                    <h4 class="text-primary"> {{__('Work Order')}} {{$current_wo->number}}</h4>
+
                 </div>
                 <div class="d-flex justify-content-between">
-                    <div>
-                        <button class="btn btn-outline-primary" type="button" style="width: 120px" id="add-process">
-                            Add Process
-                        </button>
-                    </div>
+                    <h4 class="text-primary"> {{__('Work Order')}} {{$current_wo->number}}</h4>
+                    <button class="btn btn-outline-primary" type="button" style="width: 120px" id="add-process">
+                        Add Process
+                    </button>
+
+
                 </div>
             </div>
             <div class="card-body">
@@ -79,36 +80,54 @@
                     @csrf
                     <input type="hidden" name="workorder_id" value="{{$current_wo->id }}">
 
-                    <div class="form-group d-flex mb-3">
-                        <label for="i_component_id" class="form-label pe-2">Component</label>
+                    <div class="row mb-3">
+                        <div class="col">
+                            <label for="i_component_id" class="form-label pe-2">Component</label>
+                            <div class="form-group ">
+                                <select name="component_id" id="i_component_id" class="form-control" style="width: 300px" required>
+                                    <option selected value="">---</option>
+                                    @foreach($components as $component)
+                                        <option value="{{ $component->id }}"
+                                                data-has_assy="{{ $component->assy_part_number ? 'true' : 'false' }}"
+                                                data-title="{{ $component->name }}">
+                                            {{ $component->ipl_num }} : {{ $component->part_number }} - {{ $component->name }}
+                                        </option>
+                                    @endforeach
+                                </select>
 
-                        <select name="component_id" id="i_component_id" class="form-control" style="width: 300px" required>
-                            <option selected value="">---</option>
-                            @foreach($components as $component)
-                                <option value="{{ $component->id }}"
-                                        data-has_assy="{{ $component->assy_part_number ? 'true' : 'false' }}"
-                                        data-title="{{ $component->name }}">
-                                    {{ $component->ipl_num }} : {{ $component->part_number }} - {{ $component->name }}
-                                </option>
-                            @endforeach
-                        </select>
-                        <button type="button" class="btn btn-link" data-bs-toggle="modal"
-                                data-bs-target="#addComponentModal">{{ __('Add Component') }}
-                        </button>
+                                <button type="button" class="btn btn-link" data-bs-toggle="modal"
+                                        data-bs-target="#addComponentModal">{{ __('Add Component') }}
+                                </button>
+                            </div>
+                        </div>
+                        <div class="col">
+                            <label for="i_manual_id" class="form-label pe-2">Manual</label>
+                            <div class="form-group">
+                                <select name="manual_id" id="i_manual_id" class="form-control" style="width: 400px">
+                                    <option value="">---</option>
+                                    @foreach($manuals as $manual)
+                                        <option value="{{ $manual->id }}"
+                                            {{ $manual->id == $manual_id ? 'selected' : '' }}>
+                                            {{ $manual->number }} : {{ $manual->title }}
+                                        </option>
+                                    @endforeach
+                                </select>
+                            </div>
+                        </div>
                     </div>
 
 
 
                     <div class="form-group mb-3">
 
-                        <div class="d-flex justify-content-around">
+                        <div class="d-flex d">
                             <div>
                                 <label for="serial_num" class="form-label" >Serial Number</label>
                                 <input type="text" name="serial_num" id="serial_num" class="form-control" style="width: 250px">
                             </div>
                             <div class="">
-                                <label for="qty" class="form-label" >Quantity</label>
-                                <input type="number" name="qty" id="qty" class="form-control" style="width: 100px" value="1"
+                                <label for="qty" class="form-label ms-5" >Quantity</label>
+                                <input type="number" name="qty" id="qty" class="form-control ms-5" style="width: 100px" value="1"
                                        min="1" required>
                             </div>
 
@@ -159,24 +178,40 @@
     <!-- Modal - Add component -->
     <div class="modal fade" id="addComponentModal" tabindex="-1" aria-labelledby="addComponentModalLabel"
          aria-hidden="true">
-        <div class="modal-dialog">
+        <div class="modal-dialog modal-lg">
             <div class="modal-content bg-gradient">
                 <div class="modal-header">
                     <h5 class="modal-title" id="addComponentModalLabel">{{ __('Add Component') }}</h5>
                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Закрыть"></button>
                 </div>
-                <form action="{{ route('components.storeFromExtra') }}" method="POST" id="addComponentForm">
+                <form action="{{ route('components.storeFromExtra') }}" method="POST" id="addComponentForm" enctype="multipart/form-data">
                     @csrf
 
                     <div class="modal-body">
-                        <input type="hidden" name="manual_id" value="{{$current_wo->unit->manual_id}}">
                         <input type="hidden" name="current_wo" value="{{$current_wo->id}}">
+
+                        <div class="form-group mb-3">
+                            <label for="modal_manual_id" class="form-label">CMM</label>
+                            <select name="manual_id" id="modal_manual_id" class="form-control">
+                                <option disabled value="">---</option>
+                                @foreach($manuals as $manual)
+                                    <option
+                                        value="{{ $manual->id }}"
+                                        data-title="{{$manual->title}}"
+                                        {{ $manual->id == $manual_id ? 'selected' : '' }}>
+                                        {{$manual->number}}
+                                        ( {{ $manual->title }} -
+                                        {{$manual->unit_name_training}} )
+                                    </option>
+                                @endforeach
+                            </select>
+                        </div>
+
                         <div class="form-group">
                             <label for="name">{{ __('Name') }}</label>
                             <input id='name' type="text" class="form-control" name="name" required>
                         </div>
                         <div class="d-flex">
-
                             <div class="d-flex">
                                 <div class="m-3">
                                     <div class="">
@@ -197,19 +232,21 @@
                                         <input id='part_number' type="text" class="form-control"
                                                name="part_number" required>
                                     </div>
-
+                                    <div class="mt-2">
+                                        <label for="eff_code">{{ __('EFF Code') }}</label>
+                                        <input id='eff_code' type="text" class="form-control"
+                                               name="eff_code" placeholder="Enter EFF code (optional)">
+                                    </div>
                                 </div>
 
                                 <div class="m-3">
                                     <div class="">
                                         <label for="assy_ipl_num">{{ __('Assembly IPL Number') }}</label>
                                         <input id='assy_ipl_num' type="text" class="form-control" name="assy_ipl_num"
-                                               pattern="^\d+-\d+[A-Za-z]?$"
-                                               title="The format should be: number-number (for example: 1-200A, 1001-100, 5-398B)"
-                                        >
+                                               pattern="^$|^\d+-\d+[A-Za-z]?$"
+                                               title="The format should be: number-number (for example: 1-200A, 1001-100, 5-398B) or leave empty">
                                     </div>
-
-                                    <div class=" col-xs-12 col-sm-12 col-md-12 mt-2" >
+                                    <div class="col-xs-12 col-sm-12 col-md-12 mt-2">
                                         <div class="form-group">
                                             <strong>{{__(' Assy Image:')}}</strong>
                                             <input type="file" name="assy_img" class="form-control" placeholder="Image">
@@ -220,19 +257,47 @@
                                         <input id='assy_part_number' type="text" class="form-control"
                                                name="assy_part_number" >
                                     </div>
+                                    <div class="mt-2">
+                                        <label for="units_assy">{{ __('Units per Assy') }}</label>
+                                        <input id='units_assy' type="text" class="form-control"
+                                               name="units_assy" placeholder="Enter units per assembly">
+                                    </div>
                                 </div>
                             </div>
                         </div>
-                        <div class="d-flex justify-content-between">
-                            <div class="form-check">
+                        <div class="d-flex">
+                            <div class="form-check ms-1">
                                 <input class="form-check-input" type="checkbox"  id="log_card" name="log_card">
                                 <label class="form-check-label" for="log_card">
                                     Log Card
                                 </label>
                             </div>
-                            <div class="text-end">
-                                <button type="submit" class="btn btn-primary">Save Component</button>
+                            <div class="form-check ms-3">
+                                <input class="form-check-input" type="checkbox"  id="repair" name="repair">
+                                <label class="form-check-label" for="repair">
+                                    Repair
+                                </label>
                             </div>
+                            <div class="form-check ms-3">
+                                <input class="form-check-input" type="checkbox"  id="is_bush" name="is_bush" onchange="toggleBushIPL()">
+                                <label class="form-check-label" for="is_bush">
+                                    Is Bush
+                                </label>
+                            </div>
+                            <!-- Bush IPL Number field - показывается только когда Is Bush отмечен -->
+                            <div class="form-group ms-3" id="bush_ipl_container" style="display: none;">
+                                <div class="d-flex">
+                                    <label for="bush_ipl_num">{{ __('Initial Bushing IPL Number') }}</label>
+                                    <input id='bush_ipl_num' type="text" class="form-control" name="bush_ipl_num"
+                                           pattern="^\d+-\d+[A-Za-z]?$"
+                                           title="The format should be: number-number (for example: 1-200A, 1001-100, 5-398B)"
+                                           style="width: 100px">
+                                </div>
+                            </div>
+                        </div>
+                        <div class="text-end mt-3">
+                            <button type="submit" class="btn btn-primary">Save Component</button>
+                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
                         </div>
                     </div>
                 </form>
@@ -282,6 +347,12 @@
     <script>
         // Инициализация select2 для выбора компонента
         $(document).ready(function() {
+            // Устанавливаем значение по умолчанию для Manual
+            const defaultManualId = {{ $manual_id }};
+            if (defaultManualId) {
+                $('#i_manual_id').val(defaultManualId).trigger('change');
+            }
+
             // Инициализация select2 для выбора компонента
             $('#i_component_id').select2({
                 placeholder: 'Select a component',
@@ -291,8 +362,104 @@
                     noResults: function() {
                         return "No components found";
                     }
+                },
+                sorter: function(data) {
+                    return data.sort(function(a, b) {
+                        // Извлекаем IPL номер из текста (всё до первого ":")
+                        const aIpl = a.text.split(':')[0].trim();
+                        const bIpl = b.text.split(':')[0].trim();
+
+                        // Разбиваем IPL номер на части (например, "1-40" -> ["1", "40"])
+                        const aParts = aIpl.split('-');
+                        const bParts = bIpl.split('-');
+
+                        // Сравниваем первую часть (до дефиса)
+                        const aFirst = parseInt(aParts[0]);
+                        const bFirst = parseInt(bParts[0]);
+                        if (aFirst !== bFirst) {
+                            return aFirst - bFirst;
+                        }
+
+                        // Если первые части равны, сравниваем вторую часть
+                        const aSecond = aParts[1].replace(/[^0-9]/g, ''); // Убираем буквы
+                        const bSecond = bParts[1].replace(/[^0-9]/g, '');
+                        const aSecondNum = parseInt(aSecond);
+                        const bSecondNum = parseInt(bSecond);
+
+                        if (aSecondNum !== bSecondNum) {
+                            return aSecondNum - bSecondNum;
+                        }
+
+                        // Если числовые части равны, сравниваем буквенные суффиксы
+                        const aSuffix = aParts[1].replace(/[0-9]/g, '');
+                        const bSuffix = bParts[1].replace(/[0-9]/g, '');
+                        return aSuffix.localeCompare(bSuffix);
+                    });
                 }
             });
+
+            // Инициализация Select2 для Manual
+            $('#i_manual_id').select2({
+                placeholder: '---',
+                theme: 'bootstrap-5',
+                allowClear: true
+            });
+
+            applyTheme();
+        });
+
+        // Функция для загрузки компонентов по manual_id
+        function loadComponentsByManual(manualId) {
+            const ajaxUrl = '{{ route("api.get-components-by-manual") }}';
+            console.log('Loading components for manual_id:', manualId);
+
+            $.ajax({
+                url: ajaxUrl,
+                method: 'GET',
+                data: {
+                    manual_id: manualId,
+                    _token: '{{ csrf_token() }}'
+                },
+                success: function(response) {
+                    // Очищаем текущие опции в дропдауне компонентов
+                    $('#i_component_id').empty().append('<option value="">---</option>');
+
+                    // Добавляем новые опции
+                    response.components.forEach(function(component) {
+                        $('#i_component_id').append(
+                            '<option value="' + component.id + '" ' +
+                            'data-has_assy="' + (component.assy_part_number ? 'true' : 'false') + '" ' +
+                            'data-title="' + component.name + '">' +
+                            component.ipl_num + ' : ' + component.part_number + ' - ' + component.name +
+                            '</option>'
+                        );
+                    });
+
+                    // Обновляем Select2
+                    $('#i_component_id').trigger('change');
+                },
+                error: function(xhr, status, error) {
+                    console.error('Ошибка загрузки компонентов:', error);
+                }
+            });
+        }
+
+        // Обработчик изменения Manual
+        $('#i_manual_id').on('change', function() {
+            const selectedManualId = $(this).val();
+
+            if (selectedManualId) {
+                loadComponentsByManual(selectedManualId);
+            } else {
+                // Если manual не выбран, загружаем компоненты по начальному manual_id
+                const defaultManualId = {{ $manual_id }};
+                if (defaultManualId) {
+                    loadComponentsByManual(defaultManualId);
+                } else {
+                    // Если нет начального manual_id, очищаем дропдаун
+                    $('#i_component_id').empty().append('<option value="">---</option>').trigger('change');
+                }
+            }
         });
 
         // Динамическое добавление новых строк
@@ -637,6 +804,53 @@
             }
         }
 
+        // Инициализация Select2 для manual в модальном окне
+        $('#addComponentModal').on('shown.bs.modal', function() {
+            if (!$('#modal_manual_id').hasClass('select2-hidden-accessible')) {
+                $('#modal_manual_id').select2({
+                    placeholder: '---',
+                    theme: 'bootstrap-5',
+                    allowClear: true,
+                    dropdownParent: $('#addComponentModal')
+                });
+                applyTheme();
+            }
+
+            // Устанавливаем значение из основного dropdown при открытии модального окна
+            const selectedManualId = $('#i_manual_id').val();
+            const defaultManualId = {{ $manual_id }};
+            const manualIdToUse = selectedManualId || defaultManualId;
+            $('#modal_manual_id').val(manualIdToUse).trigger('change');
+        });
+
+        // Обновление manual_id в модальном окне при изменении dropdown manual на основной странице
+        $('#i_manual_id').on('change', function() {
+            if ($('#addComponentModal').hasClass('show')) {
+                const selectedManualId = $(this).val();
+                const defaultManualId = {{ $manual_id }};
+                const manualIdToUse = selectedManualId || defaultManualId;
+                $('#modal_manual_id').val(manualIdToUse).trigger('change');
+            }
+        });
+
+        // Функция для показа/скрытия поля Bush IPL Number
+        function toggleBushIPL() {
+            const isBushCheckbox = document.getElementById('is_bush');
+            const bushIPLContainer = document.getElementById('bush_ipl_container');
+            const bushIPLInput = document.getElementById('bush_ipl_num');
+
+            if (isBushCheckbox && isBushCheckbox.checked) {
+                if (bushIPLContainer) bushIPLContainer.style.display = 'block';
+                if (bushIPLInput) bushIPLInput.required = true;
+            } else {
+                if (bushIPLContainer) bushIPLContainer.style.display = 'none';
+                if (bushIPLInput) {
+                    bushIPLInput.required = false;
+                    bushIPLInput.value = ''; // Очищаем поле при скрытии
+                }
+            }
+        }
+
         // Обработка успешного добавления компонента
         document.getElementById('addComponentForm').addEventListener('submit', function(e) {
             e.preventDefault();
@@ -660,7 +874,43 @@
                     return response.json();
                 })
                 .then(data => {
-                    if (data.success) {
+                    if (data.success && data.component) {
+                        const component = data.component;
+                        const selectedManualId = $('#i_manual_id').val();
+                        const defaultManualId = {{ $manual_id }};
+                        const currentManualId = selectedManualId || defaultManualId;
+
+                        // Проверяем, относится ли компонент к текущему выбранному manual
+                        if (component.manual_id == currentManualId) {
+                            // Добавляем новый компонент в dropdown компонентов
+                            const hasAssy = component.assy_part_number ? 'true' : 'false';
+                            const optionText = component.ipl_num + ' : ' + component.part_number + ' - ' + component.name;
+
+                            // Создаем новую опцию
+                            const newOption = new Option(optionText, component.id, false, false);
+                            newOption.setAttribute('data-has_assy', hasAssy);
+                            newOption.setAttribute('data-title', component.name);
+
+                            // Добавляем опцию в dropdown
+                            $('#i_component_id').append(newOption).trigger('change');
+
+                            // Выбираем только что добавленный компонент
+                            $('#i_component_id').val(component.id).trigger('change');
+                        }
+
+                        // Очищаем форму
+                        document.getElementById('addComponentForm').reset();
+
+                        // Сбрасываем Select2 в модальном окне на значение из основного dropdown
+                        const manualIdToUse = selectedManualId || defaultManualId;
+                        $('#modal_manual_id').val(manualIdToUse).trigger('change');
+
+                        // Скрываем поле Bush IPL если было показано
+                        const bushIPLContainer = document.getElementById('bush_ipl_container');
+                        if (bushIPLContainer) {
+                            bushIPLContainer.style.display = 'none';
+                        }
+
                         // Закрываем модальное окно
                         const modalEl = document.getElementById('addComponentModal');
                         const modalInstance = bootstrap.Modal.getInstance(modalEl);
@@ -668,9 +918,6 @@
 
                         // Показываем сообщение об успехе
                         alert('Component created successfully!');
-
-                        // Перезагружаем страницу для обновления списка компонентов
-                        window.location.reload();
                     } else {
                         alert(data.message || 'Error creating component');
                     }

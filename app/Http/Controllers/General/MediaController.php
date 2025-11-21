@@ -141,4 +141,129 @@ class MediaController extends Controller
             'photo_count' => count($uploadedPhotos),
         ]);
     }
+
+    /**
+     * Загрузка PDF файлов для workorder
+     */
+    public function store_pdf_workorders(Request $request, $id)
+    {
+        $workorder = Workorder::findOrFail($id);
+
+        $request->validate([
+            'pdf' => 'required|mimes:pdf|max:10240', // максимум 10MB на файл
+            'document_name' => 'nullable|string|max:255',
+        ]);
+
+        if ($request->hasFile('pdf')) {
+            $pdf = $request->file('pdf');
+            $documentName = $request->input('document_name');
+            
+            // Формируем уникальное читаемое имя файла
+            $filename = 'wo_' . $workorder->number . '_' . now()->format('Ymd_Hi') . '_' . Str::random(3) . '.pdf';
+
+            $media = $workorder->addMedia($pdf)
+                ->usingFileName($filename)
+                ->toMediaCollection('pdfs');
+
+            // Сохраняем название документа в custom property
+            if ($documentName) {
+                $media->setCustomProperty('document_name', $documentName);
+                $media->name = $documentName;
+                $media->save();
+            }
+        }
+
+        // Формируем список загруженных PDF для фронта
+        $uploadedPdfs = [];
+        foreach ($workorder->getMedia('pdfs') as $media) {
+            if (!$media->id) continue;
+
+            $documentName = $media->getCustomProperty('document_name') ?: ($media->name ?? null);
+
+            $uploadedPdfs[] = [
+                'id' => $media->id,
+                'name' => $documentName ?: $media->file_name,
+                'file_name' => $media->file_name,
+                'size' => $media->size,
+                'created_at' => $media->created_at->format('Y-m-d H:i:s'),
+                'url' => route('workorders.pdf.show', [
+                    'workorderId' => $workorder->id,
+                    'mediaId' => $media->id,
+                ]),
+                'download_url' => route('workorders.pdf.download', [
+                    'workorderId' => $workorder->id,
+                    'mediaId' => $media->id,
+                ]),
+            ];
+        }
+
+        return response()->json([
+            'success' => true,
+            'pdfs' => $uploadedPdfs,
+            'pdf_count' => count($uploadedPdfs),
+        ]);
+    }
+
+    /**
+     * Показать PDF файл в браузере
+     */
+    public function showPdf($workorderId, $mediaId)
+    {
+        $workorder = Workorder::findOrFail($workorderId);
+        $media = $workorder->getMedia('pdfs')->where('id', $mediaId)->first();
+
+        if (!$media) {
+            abort(404, 'PDF not found');
+        }
+
+        $filePath = $media->getPath();
+
+        if (!file_exists($filePath)) {
+            abort(404, 'PDF file not found');
+        }
+
+        return response()->file($filePath, [
+            'Content-Type' => 'application/pdf',
+            'Content-Disposition' => 'inline; filename="' . $media->file_name . '"',
+        ]);
+    }
+
+
+    /**
+     * Скачать PDF файл
+     */
+    public function downloadPdf($workorderId, $mediaId)
+    {
+        $workorder = Workorder::findOrFail($workorderId);
+        $media = $workorder->getMedia('pdfs')->where('id', $mediaId)->first();
+
+        if (!$media) {
+            abort(404, 'PDF not found');
+        }
+
+        $filePath = $media->getPath();
+
+        if (!file_exists($filePath)) {
+            abort(404, 'PDF file not found');
+        }
+
+        return response()->download($filePath, $media->file_name);
+    }
+
+    /**
+     * Удалить PDF файл
+     */
+    public function delete_pdf($id)
+    {
+        $media = Media::findOrFail($id);
+        
+        // Проверяем, что это PDF из коллекции pdfs
+        if ($media->collection_name !== 'pdfs') {
+            return response()->json(['error' => 'Invalid file type'], 400);
+        }
+
+        $media->delete();
+
+        return response()->json(['success' => true]);
+    }
 }
