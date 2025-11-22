@@ -134,7 +134,7 @@
                     @else
                         @if($bushings->flatten()->count() > 0)
                             <a href="{{ route('wo_bushings.create', $current_wo->id) }}" class="btn btn-success"
-                               style="height: 60px; width: 100px">
+                               style="height: 60px; width: 130px">
                                 <i class="fas fa-plus"></i> Create Bushings List
                             </a>
                         @endif
@@ -149,27 +149,27 @@
             </div>
         </div>
 
-        {{-- Success/Error Messages --}}
-        @if(session('success'))
-            <div class="alert alert-success alert-dismissible fade show mx-3 mt-3" role="alert">
-                {{ session('success') }}
-                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-            </div>
-        @endif
+{{--        --}}{{-- Success/Error Messages --}}
+{{--        @if(session('success'))--}}
+{{--            <div class="alert alert-success alert-dismissible fade show mx-3 mt-3" role="alert">--}}
+{{--                {{ session('success') }}--}}
+{{--                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>--}}
+{{--            </div>--}}
+{{--        @endif--}}
 
-        @if(session('error'))
-            <div class="alert alert-danger alert-dismissible fade show mx-3 mt-3" role="alert">
-                {{ session('error') }}
-                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-            </div>
-        @endif
+{{--        @if(session('error'))--}}
+{{--            <div class="alert alert-danger alert-dismissible fade show mx-3 mt-3" role="alert">--}}
+{{--                {{ session('error') }}--}}
+{{--                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>--}}
+{{--            </div>--}}
+{{--        @endif--}}
 
-        @if(session('warning'))
-            <div class="alert alert-warning alert-dismissible fade show mx-3 mt-3" role="alert">
-                {{ session('warning') }}
-                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-            </div>
-        @endif
+{{--        @if(session('warning'))--}}
+{{--            <div class="alert alert-warning alert-dismissible fade show mx-3 mt-3" role="alert">--}}
+{{--                {{ session('warning') }}--}}
+{{--                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>--}}
+{{--            </div>--}}
+{{--        @endif--}}
 
         @if($woBushing && $bushData)
             {{-- Показ сохраненных данных в режиме просмотра --}}
@@ -487,7 +487,7 @@
             <div class="text-center mt-5">
                 <h3 class="text-muted">{{__('No Bushings Available')}}</h3>
                 <p class="text-muted">{{__('No components with "Is Bush" marked are found for this manual.')}}</p>
-                <a href="{{ route('components.create') }}" class="btn btn-primary mt-3">
+                <a href="{{ route('components.create', ['manual_id' => $current_wo->unit->manual_id ?? null, 'redirect' => route('wo_bushings.show', $current_wo->id)]) }}" class="btn btn-primary mt-3">
                     <i class="fas fa-plus"></i> {{__('Add Components')}}
                 </a>
             </div>

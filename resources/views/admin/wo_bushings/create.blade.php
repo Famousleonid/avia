@@ -122,6 +122,119 @@
             background-color: #0d6efd;
             border-color: #0d6efd;
         }
+
+        /* Select2 theme support */
+        [data-bs-theme="dark"] .select2-container--default .select2-selection--single {
+            background-color: #212529 !important;
+            border: 1px solid #495057 !important;
+            color: #fff !important;
+            height: 38px;
+        }
+
+        [data-bs-theme="dark"] .select2-container--default .select2-selection--single .select2-selection__rendered {
+            color: #fff !important;
+            line-height: 38px;
+        }
+
+        [data-bs-theme="dark"] .select2-container--default .select2-selection--single .select2-selection__arrow {
+            height: 36px;
+        }
+
+        [data-bs-theme="dark"] .select2-container--default .select2-selection--single .select2-selection__arrow b {
+            border-color: #fff transparent transparent transparent !important;
+        }
+
+        [data-bs-theme="dark"] .select2-container--default.select2-container--open .select2-selection--single .select2-selection__arrow b {
+            border-color: transparent transparent #fff transparent !important;
+        }
+
+        [data-bs-theme="dark"] .select2-dropdown {
+            background-color: #212529 !important;
+            border: 1px solid #495057 !important;
+        }
+
+        [data-bs-theme="dark"] .select2-container--default .select2-results__option {
+            background-color: #212529 !important;
+            color: #fff !important;
+        }
+
+        [data-bs-theme="dark"] .select2-container--default .select2-results__option--highlighted[aria-selected] {
+            background-color: #0d6efd !important;
+            color: #fff !important;
+        }
+
+        [data-bs-theme="dark"] .select2-container--default .select2-results__option[aria-selected=true] {
+            background-color: #0d6efd !important;
+            color: #fff !important;
+        }
+
+        [data-bs-theme="dark"] .select2-search--dropdown .select2-search__field {
+            background-color: #212529 !important;
+            border: 1px solid #495057 !important;
+            color: #fff !important;
+        }
+
+        [data-bs-theme="dark"] .select2-container--default .select2-selection--single:focus,
+        [data-bs-theme="dark"] .select2-container--default .select2-selection--single:active {
+            border-color: #0d6efd !important;
+            outline: none;
+        }
+
+        [data-bs-theme="light"] .select2-container--default .select2-selection--single {
+            background-color: #fff !important;
+            border: 1px solid #ced4da !important;
+            color: #212529 !important;
+            height: 38px;
+        }
+
+        [data-bs-theme="light"] .select2-container--default .select2-selection--single .select2-selection__rendered {
+            color: #212529 !important;
+            line-height: 38px;
+        }
+
+        [data-bs-theme="light"] .select2-container--default .select2-selection--single .select2-selection__arrow {
+            height: 36px;
+        }
+
+        [data-bs-theme="light"] .select2-container--default .select2-selection--single .select2-selection__arrow b {
+            border-color: #212529 transparent transparent transparent !important;
+        }
+
+        [data-bs-theme="light"] .select2-container--default.select2-container--open .select2-selection--single .select2-selection__arrow b {
+            border-color: transparent transparent #212529 transparent !important;
+        }
+
+        [data-bs-theme="light"] .select2-dropdown {
+            background-color: #fff !important;
+            border: 1px solid #ced4da !important;
+        }
+
+        [data-bs-theme="light"] .select2-container--default .select2-results__option {
+            background-color: #fff !important;
+            color: #212529 !important;
+        }
+
+        [data-bs-theme="light"] .select2-container--default .select2-results__option--highlighted[aria-selected] {
+            background-color: #0d6efd !important;
+            color: #fff !important;
+        }
+
+        [data-bs-theme="light"] .select2-container--default .select2-results__option[aria-selected=true] {
+            background-color: #0d6efd !important;
+            color: #fff !important;
+        }
+
+        [data-bs-theme="light"] .select2-search--dropdown .select2-search__field {
+            background-color: #fff !important;
+            border: 1px solid #ced4da !important;
+            color: #212529 !important;
+        }
+
+        [data-bs-theme="light"] .select2-container--default .select2-selection--single:focus,
+        [data-bs-theme="light"] .select2-container--default .select2-selection--single:active {
+            border-color: #0d6efd !important;
+            outline: none;
+        }
     </style>
 
     <div class="card-shadow">
@@ -134,12 +247,14 @@
                     </div>
                 </div>
                 <div>
-                    <a href="{{ route('processes.create', ['manual_id' => $current_wo->unit->manual_id, 'return_to' => request()
-                    ->fullUrl()]) }}"
+                    <button type="button" class="btn btn-outline-info me-2" style="height: 60px;width: 140px" data-bs-toggle="modal" data-bs-target="#addBushingsFromManualModal">
+                        <i class="fas fa-exchange-alt"></i> {{ __('Add from Manual') }}
+                    </button>
+                    <a href="{{ route('processes.create', ['manual_id' => $current_wo->unit->manual_id, 'return_to' => route('wo_bushings.create', $current_wo->id)]) }}"
                        class="btn btn-outline-primary me-2" style="height: 60px;width: 100px">
                         <i class="fas fa-cogs"></i> {{ __('Add Processes') }}
                     </a>
-                    <a href="{{ route('components.create', ['manual_id' => $current_wo->unit->manual_id ?? null, 'redirect' => request()->fullUrl()]) }}"
+                    <a href="{{ route('components.create', ['manual_id' => $current_wo->unit->manual_id ?? null, 'redirect' => route('wo_bushings.create', $current_wo->id)]) }}"
                        class="btn btn-outline-primary me-2" style="height: 60px;width: 110px">
                         <i class="fas fa-plus"></i> {{ __('Add Component') }}
                     </a>
@@ -305,7 +420,7 @@
             <div class="text-center mt-5">
                 <h3 class="text-muted">{{__('No Bushings available for this Work Order')}}</h3>
                 <p class="text-muted">{{__('No components with "Is Bush" marked are found for this manual.')}}</p>
-                <a href="{{ route('components.create') }}" class="btn btn-primary mt-3">
+                <a href="{{ route('components.create', ['manual_id' => $current_wo->unit->manual_id ?? null, 'redirect' => route('wo_bushings.create', $current_wo->id)]) }}" class="btn btn-primary mt-3">
                     <i class="fas fa-plus"></i> {{__('Add Components')}}
                 </a>
             </div>
@@ -402,6 +517,310 @@
                     alert('{{__("Please enter quantity for all groups with selected components.")}}');
                     return false;
                 }
+            });
+        });
+    </script>
+
+    <!-- Modal for adding bushings from another manual -->
+    <div class="modal fade" id="addBushingsFromManualModal" tabindex="-1" aria-labelledby="addBushingsFromManualModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="addBushingsFromManualModalLabel">{{ __('Add Bushings from Another Manual') }}</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label for="manual_select" class="form-label">{{ __('Select Manual') }}</label>
+                        <select class="form-select" id="manual_select" style="width: 100%;">
+                            <option value="">{{ __('-- Select Manual --') }}</option>
+                            @foreach($manuals as $manual)
+                                @if($manual->id != $current_wo->unit->manual_id)
+                                    <option value="{{ $manual->id }}">{{ $manual->number }} - {{ $manual->title }}</option>
+                                @endif
+                            @endforeach
+                        </select>
+                    </div>
+                    <div id="bushings_selection" style="display: none;">
+                        <label class="form-label">{{ __('Select Bushings') }}</label>
+                        <div id="bushings_list" style="max-height: 400px; overflow-y: auto; border: 1px solid #dee2e6; padding: 10px; border-radius: 0.25rem;">
+                            <!-- Bushings will be loaded here -->
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">{{ __('Close') }}</button>
+                    <button type="button" class="btn btn-primary" id="add_selected_bushings_btn" style="display: none;">{{ __('Add Selected Bushings') }}</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let selectedManualBushings = [];
+        let selectedManualProcesses = {};
+        
+        // Store current manual processes for use when adding bushings from other manuals
+        const currentManualProcesses = {
+            machining: @json($machiningProcesses->map(function($p) { return ['id' => $p->id, 'process' => $p->process]; })),
+            ndt: @json($ndtProcesses->map(function($p) { return ['id' => $p->id, 'name' => $p->process_name->name]; })),
+            passivation: @json($passivationProcesses->map(function($p) { return ['id' => $p->id, 'process' => $p->process]; })),
+            cad: @json($cadProcesses->map(function($p) { return ['id' => $p->id, 'process' => $p->process]; })),
+            xylan: @json($xylanProcesses->map(function($p) { return ['id' => $p->id, 'process' => $p->process]; }))
+        };
+
+        document.addEventListener('DOMContentLoaded', function() {
+            const manualSelect = document.getElementById('manual_select');
+            const bushingsSelection = document.getElementById('bushings_selection');
+            const bushingsList = document.getElementById('bushings_list');
+            const addSelectedBtn = document.getElementById('add_selected_bushings_btn');
+            const currentManualId = {{ $current_wo->unit->manual_id }};
+
+            // Initialize Select2 for manual dropdown
+            $(manualSelect).select2({
+                placeholder: '{{ __("-- Select Manual --") }}',
+                allowClear: true,
+                width: '100%',
+                dropdownParent: $('#addBushingsFromManualModal')
+            });
+
+            // Handle change event for Select2
+            $(manualSelect).on('change', function() {
+                const selectedManualId = $(this).val();
+                
+                if (!selectedManualId) {
+                    bushingsSelection.style.display = 'none';
+                    addSelectedBtn.style.display = 'none';
+                    selectedManualBushings = [];
+                    return;
+                }
+
+                // Show loading
+                bushingsList.innerHTML = '<div class="text-center"><div class="spinner-border" role="status"><span class="visually-hidden">Loading...</span></div></div>';
+                bushingsSelection.style.display = 'block';
+
+                // Fetch bushings from selected manual
+                fetch('{{ route("wo_bushings.getBushingsFromManual") }}', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRF-TOKEN': '{{ csrf_token() }}'
+                    },
+                    body: JSON.stringify({
+                        manual_id: selectedManualId,
+                        current_manual_id: currentManualId
+                    })
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        selectedManualBushings = data.bushings;
+                        // Use processes from current manual, not from selected manual
+                        selectedManualProcesses = currentManualProcesses;
+                        renderBushingsList(data.bushings);
+                        addSelectedBtn.style.display = 'block';
+                    } else {
+                        bushingsList.innerHTML = '<div class="alert alert-danger">Error loading bushings</div>';
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    bushingsList.innerHTML = '<div class="alert alert-danger">Error loading bushings</div>';
+                });
+            });
+
+            function renderBushingsList(bushings) {
+                if (bushings.length === 0) {
+                    bushingsList.innerHTML = '<div class="alert alert-info">No bushings found in this manual</div>';
+                    return;
+                }
+
+                // Sort groups by bush_ipl_num (handle 'no_ipl' at the end)
+                const sortedBushings = [...bushings].sort(function(a, b) {
+                    const aKey = a.bush_ipl_num === 'no_ipl' ? 'zzz_no_ipl' : a.bush_ipl_num;
+                    const bKey = b.bush_ipl_num === 'no_ipl' ? 'zzz_no_ipl' : b.bush_ipl_num;
+                    return aKey.localeCompare(bKey);
+                });
+
+                let html = '<div class="list-group">';
+                sortedBushings.forEach(function(group, groupIndex) {
+                    const groupKey = group.bush_ipl_num;
+                    html += `<div class="list-group-item mb-2">`;
+                    html += `<div class="form-check mb-2">`;
+                    html += `<input class="form-check-input group-checkbox" type="checkbox" id="group_${groupIndex}" data-group="${groupKey}">`;
+                    html += `<label class="form-check-label fw-bold" for="group_${groupIndex}">`;
+                    html += `Bush IPL: ${groupKey || 'No IPL'}`;
+                    html += `</label>`;
+                    html += `</div>`;
+                    
+                    // Sort components within group by ipl_num
+                    const sortedComponents = [...group.components].sort(function(a, b) {
+                        // Extract numeric part for sorting
+                        const aParts = a.ipl_num.split('-');
+                        const bParts = b.ipl_num.split('-');
+                        const aNum = parseInt(aParts[aParts.length - 1].replace(/[^0-9]/g, '')) || 0;
+                        const bNum = parseInt(bParts[bParts.length - 1].replace(/[^0-9]/g, '')) || 0;
+                        return aNum - bNum;
+                    });
+                    
+                    sortedComponents.forEach(function(component, compIndex) {
+                        const checkboxId = `comp_${groupIndex}_${compIndex}`;
+                        html += `<div class="form-check ms-4 mb-1">`;
+                        html += `<input class="form-check-input component-checkbox" type="checkbox" id="${checkboxId}" value="${component.id}" data-group="${groupKey}" data-group-index="${groupIndex}">`;
+                        html += `<label class="form-check-label" for="${checkboxId}">`;
+                        html += `<strong>${component.ipl_num}</strong> - ${component.part_number}`;
+                        html += `</label>`;
+                        html += `</div>`;
+                    });
+                    html += `</div>`;
+                });
+                html += '</div>';
+                bushingsList.innerHTML = html;
+
+                // Add event listeners for group checkboxes
+                document.querySelectorAll('.group-checkbox').forEach(function(checkbox) {
+                    checkbox.addEventListener('change', function() {
+                        const groupKey = this.getAttribute('data-group');
+                        const isChecked = this.checked;
+                        document.querySelectorAll(`.component-checkbox[data-group="${groupKey}"]`).forEach(function(compCheckbox) {
+                            compCheckbox.checked = isChecked;
+                        });
+                    });
+                });
+
+                // Add event listeners for component checkboxes
+                document.querySelectorAll('.component-checkbox').forEach(function(checkbox) {
+                    checkbox.addEventListener('change', function() {
+                        const groupKey = this.getAttribute('data-group');
+                        const groupCheckboxes = document.querySelectorAll(`.component-checkbox[data-group="${groupKey}"]`);
+                        const checkedInGroup = document.querySelectorAll(`.component-checkbox[data-group="${groupKey}"]:checked`);
+                        const groupCheckbox = document.querySelector(`.group-checkbox[data-group="${groupKey}"]`);
+                        if (groupCheckbox) {
+                            groupCheckbox.checked = checkedInGroup.length === groupCheckboxes.length;
+                        }
+                    });
+                });
+            }
+
+            addSelectedBtn.addEventListener('click', function() {
+                const selectedComponents = [];
+                document.querySelectorAll('#bushings_list .component-checkbox:checked').forEach(function(checkbox) {
+                    const componentId = parseInt(checkbox.value);
+                    const groupKey = checkbox.getAttribute('data-group');
+                    const groupIndex = parseInt(checkbox.getAttribute('data-group-index'));
+                    
+                    // Find the group data by groupKey (since we sorted, need to find by key)
+                    const group = selectedManualBushings.find(g => (g.bush_ipl_num || 'no_ipl') === groupKey);
+                    if (group) {
+                        const component = group.components.find(c => c.id === componentId);
+                        if (component) {
+                            selectedComponents.push({
+                                id: componentId,
+                                ipl_num: component.ipl_num,
+                                part_number: component.part_number,
+                                group_key: groupKey
+                            });
+                        }
+                    }
+                });
+
+                if (selectedComponents.length === 0) {
+                    alert('{{__("Please select at least one bushing")}}');
+                    return;
+                }
+
+                // Group selected components by group_key
+                const groupedComponents = {};
+                selectedComponents.forEach(function(comp) {
+                    if (!groupedComponents[comp.group_key]) {
+                        groupedComponents[comp.group_key] = [];
+                    }
+                    groupedComponents[comp.group_key].push(comp);
+                });
+
+                // Add rows to the table
+                const tbody = document.querySelector('#bushings-form table tbody');
+                let groupCounter = 0;
+                
+                Object.keys(groupedComponents).forEach(function(groupKey) {
+                    const components = groupedComponents[groupKey];
+                    const uniqueGroupKey = `manual_${Date.now()}_${groupCounter++}`;
+                    
+                    // Create table row
+                    let rowHtml = '<tr>';
+                    
+                    // First column - Bushings list
+                    rowHtml += '<td class="ps-2">';
+                    components.forEach(function(comp) {
+                        rowHtml += `<div class="mb-1"><span><strong>${comp.ipl_num}</strong> - ${comp.part_number}</span></div>`;
+                    });
+                    rowHtml += '</td>';
+                    
+                    // Second column - Checkboxes
+                    rowHtml += '<td class="text-center"><div class="text-start">';
+                    components.forEach(function(comp) {
+                        rowHtml += `<div class="mb-1">`;
+                        rowHtml += `<input type="checkbox" name="group_bushings[${uniqueGroupKey}][components][]" value="${comp.id}" class="form-check-input me-1 component-checkbox" data-group="${uniqueGroupKey}" onchange="toggleGroupFields('${uniqueGroupKey}')">`;
+                        rowHtml += `<small>${comp.ipl_num}</small>`;
+                        rowHtml += `</div>`;
+                    });
+                    rowHtml += '</div></td>';
+                    
+                    // Third column - QTY
+                    rowHtml += `<td class="text-center">`;
+                    rowHtml += `<input type="number" name="group_bushings[${uniqueGroupKey}][qty]" class="form-control qty-input" min="0" value="1" data-group="${uniqueGroupKey}" disabled>`;
+                    rowHtml += `</td>`;
+                    
+                    // Process columns - use processes from current manual
+                    const processTypes = ['machining', 'ndt', 'passivation', 'cad', 'xylan'];
+                    const processLabels = {
+                        'machining': 'Machining',
+                        'ndt': 'NDT',
+                        'passivation': 'Passivation',
+                        'cad': 'CAD',
+                        'xylan': 'Xylan'
+                    };
+                    
+                    processTypes.forEach(function(processType) {
+                        rowHtml += `<td>`;
+                        rowHtml += `<select name="group_bushings[${uniqueGroupKey}][${processType}]" class="form-select" data-group="${uniqueGroupKey}" disabled>`;
+                        rowHtml += `<option value="">-- Select ${processLabels[processType]} --</option>`;
+                        
+                        // Use processes from current manual
+                        if (selectedManualProcesses[processType] && selectedManualProcesses[processType].length > 0) {
+                            selectedManualProcesses[processType].forEach(function(process) {
+                                const displayText = processType === 'ndt' ? process.name : process.process;
+                                const escapedText = displayText.replace(/"/g, '&quot;').replace(/'/g, '&#39;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+                                rowHtml += `<option value="${process.id}">${escapedText}</option>`;
+                            });
+                        }
+                        
+                        rowHtml += `</select>`;
+                        rowHtml += `</td>`;
+                    });
+                    
+                    rowHtml += '</tr>';
+                    tbody.insertAdjacentHTML('beforeend', rowHtml);
+                });
+
+                // Close modal
+                const modal = bootstrap.Modal.getInstance(document.getElementById('addBushingsFromManualModal'));
+                modal.hide();
+                
+                // Reset modal
+                $(manualSelect).val(null).trigger('change');
+                bushingsSelection.style.display = 'none';
+                addSelectedBtn.style.display = 'none';
+                selectedManualBushings = [];
+            });
+
+            // Reset Select2 when modal is closed
+            $('#addBushingsFromManualModal').on('hidden.bs.modal', function () {
+                $(manualSelect).val(null).trigger('change');
+                bushingsSelection.style.display = 'none';
+                addSelectedBtn.style.display = 'none';
+                selectedManualBushings = [];
+                bushingsList.innerHTML = '';
             });
         });
     </script>

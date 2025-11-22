@@ -70,7 +70,7 @@
 
                     <div class="text-end m-3">
                         <button type="submit" class="btn btn-outline-primary mt-3 ">{{ __('Save') }}</button>
-                        <a href="{{ route('processes.index') }}" class="btn btn-outline-secondary mt-3">{{ __('Back') }}
+                        <a href="{{ request()->query('return_to', route('processes.index')) }}" class="btn btn-outline-secondary mt-3">{{ __('Back') }}
                         </a>
                     </div>
                 </form>

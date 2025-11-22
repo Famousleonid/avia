@@ -21,8 +21,6 @@
         }
 
 
-
-
     </style>
 
     @if($current_wo->unit->manuals->builder )
@@ -1349,29 +1347,39 @@
         <div class="modal-dialog modal-xl modal-dialog-scrollable">
             <div class="modal-content" style="background-color: #343A40">
                 <div class="modal-header">
-                    <h5 class="modal-title" id="pdfModalLabel">PDF Library - Workorder <span id="pdfModalWorkorderNumber"></span></h5>
+                    <h5 class="modal-title" id="pdfModalLabel">PDF Library - Workorder W<span
+                            id="pdfModalWorkorderNumber"></span></h5>
                     <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
                 <div class="modal-body">
                     <!-- Upload Section -->
                     <div class="mb-4">
-                        <div class="card bg-dark border-secondary">
-                            <div class="card-body">
-                                <h6 class="text-primary mb-3">Upload PDF Files</h6>
+                        <div class="card bg-dark border-secondary" >
+                            <div class="card-body d-flex" >
+                                <h6 class="text-primary mb-3 me-4">Upload PDF Files</h6>
                                 <form id="pdfUploadForm" enctype="multipart/form-data">
-                                    <div class="mb-3">
-                                        <label for="pdfDocumentName" class="form-label text-white">Document Name</label>
-                                        <input type="text" class="form-control" id="pdfDocumentName" name="document_name"
-                                               placeholder="Enter document name (optional)" maxlength="255">
-                                        <small class="text-muted">Optional: Enter a name for the document</small>
+                                    <div class="ms-3">
+                                        <div class="d-flex">
+                                            <label for="pdfDocumentName" class="form-label  me-2" >
+                                                Document Name</label>
+                                            <input type="text" class="form-control" id="pdfDocumentName" name="document_name"
+                                                   placeholder="Enter document name (optional)" style="width: 400px"
+                                                   maxlength="255">
+{{--                                            <small class="text-muted ms-2">Optional: Enter a name for the document</small>--}}
+                                        </div>
+                                        <div class="input-group mt-2 ms-4 d-flex " style="height: 40px">
+                                            <input type="file" class="form-control" id="pdfFileInput" name="pdf" accept=".pdf"
+                                                   style="width: 385px"
+                                                      required>
+                                            <button class="btn btn-primary" type="submit" id="uploadPdfBtn">
+                                                <i class="bi bi-upload"></i> Upload
+                                            </button>
+                                            <small class="text-muted ms-3">Max size: 10MB. Upload one file at a time.</small>
+                                        </div>
+
                                     </div>
-                                    <div class="input-group mb-2">
-                                        <input type="file" class="form-control" id="pdfFileInput" name="pdf" accept=".pdf" required>
-                                        <button class="btn btn-primary" type="submit" id="uploadPdfBtn">
-                                            <i class="bi bi-upload"></i> Upload
-                                        </button>
-                                    </div>
-                                    <small class="text-muted">Max size: 10MB. Upload one file at a time.</small>
+
+
                                 </form>
                             </div>
                         </div>
@@ -1508,7 +1516,8 @@
                             <div class="card bg-secondary border-primary pdf-card" data-pdf-id="${pdf.id}">
                                 <div class="card-body">
                                     <div class="d-flex justify-content-between align-items-start mb-2">
-                                        <h6 class="card-title text-truncate mb-0" style="max-width: 200px;" title="${displayTitle}">
+                                        <h6 class="card-title text-truncate mb-0" style="max-width: 150px;"
+                                        title="${displayTitle}">
                                             <i class="bi bi-file-earmark-pdf text-danger"></i> ${displayName}
                                         </h6>
                                         <button class="btn btn-sm btn-danger delete-pdf-btn" data-id="${pdf.id}" title="Delete">

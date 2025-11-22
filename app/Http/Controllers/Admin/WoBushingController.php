@@ -9,6 +9,7 @@ use App\Models\Component;
 use App\Models\Process;
 use App\Models\ProcessName;
 use App\Models\Vendor;
+use App\Models\Manual;
 use Illuminate\Http\Request;
 
 class WoBushingController extends Controller
@@ -98,6 +99,9 @@ class WoBushingController extends Controller
             ->with('process_name')
             ->get();
 
+        // Get all manuals for dropdown
+        $manuals = Manual::all();
+
         return view('admin.wo_bushings.create', compact(
             'current_wo',
             'bushings',
@@ -105,7 +109,8 @@ class WoBushingController extends Controller
             'ndtProcesses',
             'passivationProcesses',
             'cadProcesses',
-            'xylanProcesses'
+            'xylanProcesses',
+            'manuals'
         ));
     }
 
@@ -681,5 +686,128 @@ class WoBushingController extends Controller
             'processGroups',
             'processNames'
         ));
+    }
+
+    /**
+     * Get bushings from another manual via AJAX
+     *
+     * @param  \Illuminate\Http\Request  $request
+     * @return \Illuminate\Http\JsonResponse
+     */
+    public function getBushingsFromManual(Request $request)
+    {
+        $request->validate([
+            'manual_id' => 'required|exists:manuals,id',
+            'current_manual_id' => 'required|exists:manuals,id',
+        ]);
+
+        $manual_id = $request->manual_id;
+        $current_manual_id = $request->current_manual_id;
+
+        // Get all bushings (components where is_bush = 1) for the selected manual, grouped by bush_ipl_num
+        // Sort by is_bush (desc - 1 first), then by bush_ipl_num, then by numeric part of ipl_num
+        $bushingsQuery = Component::where('manual_id', $manual_id)
+            ->where('is_bush', 1)
+            ->orderBy('is_bush', 'desc')
+            ->orderBy('bush_ipl_num', 'asc')
+            ->get();
+
+        // Sort by numeric part of ipl_num within each group
+        $bushingsQuery = $bushingsQuery->sortBy(function ($item) {
+            // First sort by bush_ipl_num
+            $bushIplNum = $item->bush_ipl_num ?? '';
+            // Then by numeric part of ipl_num
+            $parts = explode('-', $item->ipl_num);
+            $numericPart = preg_replace('/[^0-9]/', '', end($parts));
+            return [$bushIplNum, (int)$numericPart];
+        });
+
+        // Group bushings by bush_ipl_num (sorted groups)
+        $bushings = $bushingsQuery->groupBy('bush_ipl_num');
+
+        // Get processes for each process type for the current manual (not the selected one)
+        $machiningProcesses = Process::whereHas('process_name', function($query) {
+                $query->where('name', 'Machining');
+            })
+            ->whereHas('manuals', function($query) use ($current_manual_id) {
+                $query->where('manual_id', $current_manual_id);
+            })
+            ->with('process_name')
+            ->get();
+
+        $ndtProcesses = Process::whereHas('process_name', function($query) {
+                $query->where('name', 'LIKE', 'NDT%');
+            })
+            ->whereHas('manuals', function($query) use ($current_manual_id) {
+                $query->where('manual_id', $current_manual_id);
+            })
+            ->with('process_name')
+            ->get();
+
+        $passivationProcesses = Process::whereHas('process_name', function($query) {
+                $query->where('name', 'Passivation');
+            })
+            ->whereHas('manuals', function($query) use ($current_manual_id) {
+                $query->where('manual_id', $current_manual_id);
+            })
+            ->with('process_name')
+            ->get();
+
+        $cadProcesses = Process::whereHas('process_name', function($query) {
+                $query->where('name', 'Cad plate');
+            })
+            ->whereHas('manuals', function($query) use ($current_manual_id) {
+                $query->where('manual_id', $current_manual_id);
+            })
+            ->with('process_name')
+            ->get();
+
+        $xylanProcesses = Process::whereHas('process_name', function($query) {
+                $query->where('name', 'Xylan coating');
+            })
+            ->whereHas('manuals', function($query) use ($current_manual_id) {
+                $query->where('manual_id', $current_manual_id);
+            })
+            ->with('process_name')
+            ->get();
+
+        // Format data for response
+        $formattedBushings = [];
+        foreach ($bushings as $bushIplNum => $bushingGroup) {
+            $groupData = [
+                'bush_ipl_num' => $bushIplNum ?: 'no_ipl',
+                'components' => []
+            ];
+            foreach ($bushingGroup as $bushing) {
+                $groupData['components'][] = [
+                    'id' => $bushing->id,
+                    'ipl_num' => $bushing->ipl_num,
+                    'part_number' => $bushing->part_number,
+                ];
+            }
+            $formattedBushings[] = $groupData;
+        }
+
+        return response()->json([
+            'success' => true,
+            'bushings' => $formattedBushings,
+            'processes' => [
+                'machining' => $machiningProcesses->map(function($p) {
+                    return ['id' => $p->id, 'process' => $p->process];
+                }),
+                'ndt' => $ndtProcesses->map(function($p) {
+                    return ['id' => $p->id, 'name' => $p->process_name->name];
+                }),
+                'passivation' => $passivationProcesses->map(function($p) {
+                    return ['id' => $p->id, 'process' => $p->process];
+                }),
+                'cad' => $cadProcesses->map(function($p) {
+                    return ['id' => $p->id, 'process' => $p->process];
+                }),
+                'xylan' => $xylanProcesses->map(function($p) {
+                    return ['id' => $p->id, 'process' => $p->process];
+                }),
+            ]
+        ]);
     }
 }
