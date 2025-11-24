@@ -87,6 +87,7 @@ Route::group(['middleware' => ['auth']], function () {
     Route::get('/image/show/big/{mediaId}/users/{modelId}/name/{mediaName}', [MediaController::class, 'showBig'])->name('image.show.big');
     Route::post('/users/avatar/{id}', [MediaController::class, 'store_avatar'])->name('avatar.media.store');
     Route::get('workorders-logs', [\App\Http\Controllers\Admin\WorkorderController::class, 'logs'])->name('workorders.logs');
+    Route::get('/workorders/{workorder}/logs-json', [WorkorderController::class, 'logsForWorkorder'])->name('workorders.logs-json');
 
     Route::resource('/users', UserController::class);
     Route::resource('/mains',  MainController::class);
@@ -100,7 +101,7 @@ Route::group(['middleware' => ['auth']], function () {
         Route::get('/workorders/{id}/photos', [WorkorderController::class, 'photos'])->name('workorders.photos');
         Route::get('/workorders/download/{id}/all', [WorkorderController::class, 'downloadAllGrouped'])->name('workorders.downloadAllGrouped');
         Route::delete('/workorders/photo/delete/{id}', [MediaController::class, 'delete_photo'])->name('workorders.photo.delete');
-        
+
         // PDF Library routes
         Route::get('/workorders/{id}/pdfs', [WorkorderController::class, 'pdfs'])->name('workorders.pdfs');
         Route::post('/workorders/pdf/{id}', [MediaController::class, 'store_pdf_workorders'])->name('workorders.pdf.store');

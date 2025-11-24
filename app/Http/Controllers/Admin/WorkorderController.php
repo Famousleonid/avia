@@ -64,6 +64,80 @@ class WorkorderController extends Controller
         ));
     }
 
+    public function logsForWorkorder(Workorder $workorder)
+    {
+        $activities = Activity::query()
+            ->where('log_name', 'workorder')
+            ->where('subject_type', Workorder::class)
+            ->where('subject_id', $workorder->id)
+            ->with(['causer'])
+            ->orderByDesc('created_at')
+            ->get();
+
+        // Мапы для красивых имён
+        $unitsMap        = Unit::pluck('part_number', 'id')->all();
+        $customersMap    = Customer::pluck('name', 'id')->all();
+        $instructionsMap = Instruction::pluck('name', 'id')->all();
+        $usersMap        = User::pluck('name', 'id')->all();
+
+        $fieldLabels = [
+            'number'         => 'WO Number',
+            'unit_id'        => 'Unit',
+            'customer_id'    => 'Customer',
+            'instruction_id' => 'Instruction',
+            'user_id'        => 'Technik',
+            'approve_at'     => 'Approve date',
+            'approve_name'   => 'Approved by',
+            'description'    => 'Description',
+            'serial_number'  => 'Serial number',
+        ];
+
+        $formatValue = function ($field, $value) use ($unitsMap, $customersMap, $instructionsMap, $usersMap) {
+            if ($value === null) return null;
+
+            return match ($field) {
+                'unit_id'        => $unitsMap[$value]        ?? $value,
+                'customer_id'    => $customersMap[$value]    ?? $value,
+                'instruction_id' => $instructionsMap[$value] ?? $value,
+                'user_id'        => $usersMap[$value]        ?? $value,
+                default          => $value,
+            };
+        };
+
+        $data = $activities->map(function (Activity $log) use ($fieldLabels, $formatValue) {
+            $props      = $log->properties ?? [];
+            $attributes = $props['attributes'] ?? [];
+            $old        = $props['old'] ?? [];
+
+            $changes = [];
+
+            foreach ($attributes as $field => $newValue) {
+                $oldValue = $old[$field] ?? null;
+
+                if ($oldValue === $newValue) continue;
+
+                $changes[] = [
+                    'field' => $field,
+                    'label' => $fieldLabels[$field] ?? $field,
+                    'old'   => $formatValue($field, $oldValue),
+                    'new'   => $formatValue($field, $newValue),
+                ];
+            }
+
+            return [
+                'id'          => $log->id,
+                'created_at'  => optional($log->created_at)->format('d-M-y H:i'),
+                'description' => $log->description,
+                'event'       => $log->event,
+                'log_name'    => $log->log_name,
+                'causer_name' => optional($log->causer)->name,
+                'changes'     => $changes,
+            ];
+        })->values();
+
+        return response()->json($data);
+    }
+
 
     public function index()
     {
@@ -73,8 +147,10 @@ class WorkorderController extends Controller
 
         $manuals = Manual::all();
         $units = Unit::with('manuals')->get();
+        $customers = Customer::orderBy('name')->get();
+        $users     = User::orderBy('name')->get();
 
-        return view('admin.workorders.index', compact('workorders', 'units', 'manuals'));
+        return view('admin.workorders.index', compact('workorders', 'units', 'manuals','customers','users'));
     }
 
 
@@ -320,7 +396,7 @@ class WorkorderController extends Controller
             $workorder = Workorder::findOrFail($id);
             $pdfs = $workorder->getMedia('pdfs')->map(function ($media) use ($workorder) {
                 $documentName = $media->getCustomProperty('document_name') ?: ($media->name ?? null);
-                
+
                 return [
                     'id' => $media->id,
                     'name' => $documentName ?: $media->file_name,

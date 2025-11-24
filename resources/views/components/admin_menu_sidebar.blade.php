@@ -5,16 +5,7 @@
             <i class="bi bi-file-earmark-word fs-6 me-2 "></i> <span>Workorder</span>
         </a>
     </li>
-    <li class="nav-item">
-        <a class="nav-link press-spinner" href="{{route('progress.index')}}" onclick="showLoadingSpinner()">
-            <i class="bi bi-graph-up-arrow me-2"></i> <span>Statistics</span>
-        </a>
-    </li>
-    <li class="nav-item press-spinner">
-        <a href="{{route('materials.index')}}" class="nav-link">
-            <i class="bi bi-body-text me-2"></i> <span>Materials</span>
-        </a>
-    </li>
+
     <li class="nav-item">
         <a class="nav-link press-spinner" href="{{route('trainings.index')}}">
             <i class="bi bi-list-check me-2"></i> <span>Training</span>
@@ -23,6 +14,11 @@
     <li class="nav-item">
         <a class="nav-link press-spinner" href="{{route('users.index')}}">
             <i class="bi bi-person-arms-up me-2"></i> <span>Techniks</span>
+        </a>
+    </li>
+    <li class="nav-item press-spinner">
+        <a href="{{route('materials.index')}}" class="nav-link">
+            <i class="bi bi-body-text me-2"></i> <span>Materials</span>
         </a>
     </li>
     @if (is_admin())
