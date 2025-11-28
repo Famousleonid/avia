@@ -397,7 +397,29 @@ class TdrProcessController extends Controller
         $repairNum = $request->input('repair_num', 'N/A');
         $vendorId = $request->input('vendor');
         
-        // Получаем имя вендора если передан ID
+        // Получаем данные о vendor для каждой строки
+        $vendorsData = [];
+        $vendorsDataJson = $request->input('vendors_data');
+        if ($vendorsDataJson) {
+            try {
+                $vendorsData = json_decode($vendorsDataJson, true);
+            } catch (\Exception $e) {
+                \Log::error('Error parsing vendors_data: ' . $e->getMessage());
+            }
+        }
+        
+        // Получаем данные о отмеченных чекбоксах AT
+        $atData = [];
+        $atDataJson = $request->input('at_data');
+        if ($atDataJson) {
+            try {
+                $atData = json_decode($atDataJson, true);
+            } catch (\Exception $e) {
+                \Log::error('Error parsing at_data: ' . $e->getMessage());
+            }
+        }
+        
+        // Получаем имя вендора если передан ID (для обратной совместимости)
         $vendorName = null;
         if ($vendorId) {
             $vendor = Vendor::find($vendorId);
@@ -405,7 +427,7 @@ class TdrProcessController extends Controller
         }
 
         return view('admin.tdr-processes.travelForm',compact('current_tdr',
-            'current_wo','tdrProcesses','proces','vendors', 'manual', 'repairNum', 'vendorName' ));
+            'current_wo','tdrProcesses','proces','vendors', 'manual', 'repairNum', 'vendorName', 'vendorsData', 'atData' ));
     }
 
     public function processesForm(Request $request, $id)
@@ -631,6 +653,28 @@ class TdrProcessController extends Controller
         $vendors = Vendor::all();
 
         return view('admin.tdr-processes.processes',compact('current_tdr',
+            'current_wo','tdrProcesses','proces','vendors'
+        ));
+    }
+
+    public function traveler(Request $request, $tdrId)
+    {
+        // Находим запись Tdr по ID
+        $current_tdr = Tdr::findOrFail($tdrId);
+
+        // Получаем workorder_id из текущей записи Tdr
+        $workorder_id = $current_tdr->workorder_id;
+
+        // Находим связанный Workorder
+        $current_wo = Workorder::find($workorder_id);
+
+        $tdrProcesses = TdrProcess::orderBy('sort_order')->get();
+        $proces = Process::all();
+
+        // Получаем всех поставщиков
+        $vendors = Vendor::all();
+
+        return view('admin.tdr-processes.traveler',compact('current_tdr',
             'current_wo','tdrProcesses','proces','vendors'
         ));
     }

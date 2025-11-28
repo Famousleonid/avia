@@ -5,6 +5,9 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\Component;
 use App\Models\Manual;
+use App\Models\Plane;
+use App\Models\Builder;
+use App\Models\Scope;
 use Illuminate\Contracts\Foundation\Application;
 use Illuminate\Contracts\View\Factory;
 use Illuminate\Contracts\View\View;
@@ -19,10 +22,13 @@ class ComponentController extends Controller
      */
     public function index()
     {
-        $components = Component::orderBy('ipl_num')->get();
+        $components = Component::with('manuals')->orderBy('ipl_num')->get();
         $manuals = Manual::all();
+        $planes = Plane::pluck('type', 'id');
+        $builders = Builder::pluck('name', 'id');
+        $scopes = Scope::pluck('scope', 'id');
 
-        return view('admin.components.index', compact('components','manuals'));
+        return view('admin.components.index', compact('components', 'manuals', 'planes', 'builders', 'scopes'));
     }
 
     /**

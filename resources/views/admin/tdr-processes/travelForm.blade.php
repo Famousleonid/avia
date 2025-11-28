@@ -284,22 +284,157 @@
             <div class="div7 border-t-r-b" style="min-height: 36px; align-content: center"> <strong>Vendor stamp</strong></div>
             <div class="div8 border-t-r-b " style="min-height: 36px; align-content: center"> <strong>Note</strong></div>
 
-
-                <div class="div1 border-l-b-r " style="min-height: 36px; align-content: center">{{1}}</div>
-                <div class="div2 border-r-b fs-9" style="min-height: 36px; align-content: center"><strong>{{__('Outcoming
-                inspection')}}</strong></div>
-                <div class="div3 border-r-b fs-9" style="min-height: 36px; align-content: center">{{__('Visual')}}</div>
-                <div class="div4 border-r-b " style="min-height: 36px; align-content: center">{{__('N/A')}}</div>
-                <div class="div5 border-r-b " style="min-height: 36px; align-content: center">{{__('AT')}}</div>
-                <div class="div6 border-r-b " style="min-height: 36px; align-content: center"> </div>
-                <div class="div7 border-r-b" style="min-height: 36px; align-content: center"> </div>
-                <div class="div8 border-r-b " style="min-height: 36px; align-content: center"> </div>
-
             @php
                 $dateRows = 0;
                 $totalRow = 12;
+                
+                // Находим первую строку с vendor по sort_order
+                $firstVendorSortOrder = null;
+                if(isset($vendorsData) && !empty($vendorsData)) {
+                    foreach($tdrProcesses as $processes) {
+                        if($processes->tdrs_id == $current_tdr->id && isset($vendorsData[$processes->id])) {
+                            $processData = json_decode($processes->processes, true);
+                            foreach($processData as $process) {
+                                if(isset($vendorsData[$processes->id][$process]) && isset($vendorsData[$processes->id][$process]['vendor_name'])) {
+                                    if($firstVendorSortOrder === null || $processes->sort_order < $firstVendorSortOrder) {
+                                        $firstVendorSortOrder = $processes->sort_order;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
             @endphp
 
+            {{-- Формируем строки с отмеченными чекбоксами AT, которые идут ДО первого отмеченного vendor --}}
+            @if(isset($atData) && !empty($atData))
+                @foreach($tdrProcesses as $processes)
+                    @if($processes->tdrs_id == $current_tdr->id && isset($atData[$processes->id]))
+                        @php
+                            $processData = json_decode($processes->processes, true);
+                            $processName = $processes->processName->name;
+                            // Показываем только те AT строки, которые идут до первого vendor
+                            $showAtBeforeVendor = ($firstVendorSortOrder === null) || ($processes->sort_order < $firstVendorSortOrder);
+                        @endphp
+                        
+                        @if(strpos($processName, 'EC') === false && $showAtBeforeVendor)
+                            @foreach($processData as $process)
+                                @php
+                                    $isAtChecked = in_array($process, $atData[$processes->id]);
+                                @endphp
+                                
+                                @if($isAtChecked)
+                                    @php $dateRows++; @endphp
+                                    <div class="div1 border-l-b-r " style="min-height: 36px; align-content: center">{{$dateRows}}</div>
+                                    <div class="div2 border-r-b fs-9" style="min-height: 36px; align-content: center">
+                                        <strong>
+                                            @if($processName == 'NDT-1' ||  $processName == 'NDT-4' )
+                                                {{__('NDT')}}
+                                            @else
+                                                {{ $processName }}
+                                            @endif
+                                        </strong>
+                                    </div>
+                                    <div class="div3 border-r-b fs-8" style="min-height: 36px; align-content: center">
+                                        @foreach($proces as $proc)
+                                            @if($proc->id == $process)
+                                                {{$proc->process}}
+                                            @endif
+                                        @endforeach
+                                    </div>
+                                    <div class="div4 border-r-b " style="min-height: 36px; align-content: center">
+                                        W{{$current_tdr->workorder->number}}
+                                    </div>
+                                    <div class="div5 border-r-b " style="min-height: 36px; align-content: center">
+                                        {{__('AT')}}
+                                    </div>
+                                    <div class="div6 border-r-b " style="min-height: 36px; align-content: center"> </div>
+                                    <div class="div7 border-r-b" style="min-height: 36px; align-content: center"> </div>
+                                    <div class="div8 border-r-b " style="min-height: 36px; align-content: center"> </div>
+                                @endif
+                            @endforeach
+                        @endif
+                    @endif
+                @endforeach
+            @endif
+
+            {{-- Строка "Outcoming inspection" --}}
+            @php $dateRows++; @endphp
+            <div class="div1 border-l-b-r " style="min-height: 36px; align-content: center">{{$dateRows}}</div>
+            <div class="div2 border-r-b fs-9" style="min-height: 36px; align-content: center"><strong>{{__('Outcoming
+            inspection')}}</strong></div>
+            <div class="div3 border-r-b fs-9" style="min-height: 36px; align-content: center">{{__('Visual')}}</div>
+            <div class="div4 border-r-b " style="min-height: 36px; align-content: center">{{__('N/A')}}</div>
+            <div class="div5 border-r-b " style="min-height: 36px; align-content: center">{{__('AT')}}</div>
+            <div class="div6 border-r-b " style="min-height: 36px; align-content: center"> </div>
+            <div class="div7 border-r-b" style="min-height: 36px; align-content: center"> </div>
+            <div class="div8 border-r-b " style="min-height: 36px; align-content: center"> </div>
+
+            {{-- Формируем строки с отмеченными чекбоксами vendor после "Outcoming inspection" --}}
+            @if(isset($vendorsData) && !empty($vendorsData))
+                @foreach($tdrProcesses as $processes)
+                    @if($processes->tdrs_id == $current_tdr->id && isset($vendorsData[$processes->id]))
+                        @php
+                            $processData = json_decode($processes->processes, true);
+                            $processName = $processes->processName->name;
+                        @endphp
+                        
+                        @if(strpos($processName, 'EC') === false)
+                            @foreach($processData as $process)
+                                @if(isset($vendorsData[$processes->id][$process]) && isset($vendorsData[$processes->id][$process]['vendor_name']))
+                                    @php $dateRows++; @endphp
+                                    <div class="div1 border-l-b-r " style="min-height: 36px; align-content: center">{{$dateRows}}</div>
+                                    <div class="div2 border-r-b fs-9" style="min-height: 36px; align-content: center">
+                                        <strong>
+                                            @if($processName == 'NDT-1' ||  $processName == 'NDT-4' )
+                                                {{__('NDT')}}
+                                            @else
+                                                {{ $processName }}
+                                            @endif
+                                        </strong>
+                                    </div>
+                                    <div class="div3 border-r-b fs-8" style="min-height: 36px; align-content: center">
+                                        @foreach($proces as $proc)
+                                            @if($proc->id == $process)
+                                                {{$proc->process}}
+                                            @endif
+                                        @endforeach
+                                    </div>
+                                    <div class="div4 border-r-b " style="min-height: 36px; align-content: center">
+                                        @if($processName == 'Paint ')
+                                            W{{$current_wo->number}}
+                                        @endif
+                                    </div>
+                                    <div class="div5 border-r-b " style="min-height: 36px; align-content: center">
+                                        @if($processName == 'Paint ')
+                                            {{__('AT')}}
+                                        @elseif($processName == 'Silver plate')
+                                            {{__("")}}
+                                        @else
+                                            {{ $vendorsData[$processes->id][$process]['vendor_name'] }}
+                                        @endif
+                                    </div>
+                                    <div class="div6 border-r-b " style="min-height: 36px; align-content: center"> </div>
+                                    <div class="div7 border-r-b" style="min-height: 36px; align-content: center"> </div>
+                                    <div class="div8 border-r-b " style="min-height: 36px; align-content: center"> </div>
+                                @endif
+                            @endforeach
+                        @endif
+                    @endif
+                @endforeach
+            @endif
+
+            {{-- Строка "Receiving inspection" после последней строки с vendor --}}
+            @php $dateRows++; @endphp
+            <div class="div1 border-l-b-r" style="min-height: 36px; align-content: center">{{ $dateRows }}</div>
+            <div class="div2 border-r-b fs-9" style="min-height: 36px; align-content: center"><strong>{{ __('Receiving
+            inspection') }}</strong></div>
+            <div class="div3 border-r-b fs-9" style="min-height: 36px; align-content: center">{{__('Visual')}}</div>
+            <div class="div4 border-r-b" style="min-height: 36px; align-content: center">{{__('N/A')}}</div>
+            <div class="div5 border-r-b" style="min-height: 36px; align-content: center">{{__('AT')}}</div>
+            <div class="div6 border-r-b" style="min-height: 36px; align-content: center"></div>
+            <div class="div7 border-r-b" style="min-height: 36px; align-content: center"></div>
+            <div class="div8 border-r-b" style="min-height: 36px; align-content: center"></div>
 
             @foreach($tdrProcesses as $processes)
                 @if($processes->tdrs_id == $current_tdr->id)
@@ -308,65 +443,64 @@
                         $processData = json_decode($processes->processes, true);
                         // Получаем имя процесса из связанной модели ProcessName
                         $processName = $processes->processName->name;
-                        $dateRows++;
                     @endphp
 
-                    @if ($processName === 'Silver plate')
-                        {{-- Добавляем строку перед Silver plate --}}
-                        <div class="div1 border-l-b-r" style="min-height: 36px; align-content: center">{{ $dateRows+1 }}</div>
-                        <div class="div2 border-r-b fs-9" style="min-height: 36px; align-content: center"><strong>{{ __('Receiving
-                        inspection') }}</strong></div>
-                        <div class="div3 border-r-b fs-9" style="min-height: 36px; align-content: center">{{__('Visual')}}</div>
-                        <div class="div4 border-r-b" style="min-height: 36px; align-content: center">{{__('N/A')}}</div>
-                        <div class="div5 border-r-b" style="min-height: 36px; align-content: center">{{__('AT')}}</div>
-                        <div class="div6 border-r-b" style="min-height: 36px; align-content: center"></div>
-                        <div class="div7 border-r-b" style="min-height: 36px; align-content: center"></div>
-                        <div class="div8 border-r-b" style="min-height: 36px; align-content: center"></div>
-                        @php $dateRows++; @endphp
-                    @endif
+                    @if(strpos($processName, 'EC') === false)
+                        @foreach($processData as $process)
+                            @php
+                                // Проверяем, не была ли эта строка уже обработана
+                                $isAtChecked = isset($atData[$processes->id]) && in_array($process, $atData[$processes->id]);
+                                $isVendorProcessed = isset($vendorsData[$processes->id]) && isset($vendorsData[$processes->id][$process]) && isset($vendorsData[$processes->id][$process]['vendor_name']);
+                                
+                                // Исключаем строки с vendor (они обрабатываются после "Outcoming inspection")
+                                // Исключаем строки с AT, которые были показаны до первого vendor
+                                $wasAtShownBeforeVendor = $isAtChecked && (($firstVendorSortOrder === null) || ($processes->sort_order < $firstVendorSortOrder));
+                            @endphp
 
-                    @foreach($processData as $process)
+                            @if(!$isVendorProcessed && !$wasAtShownBeforeVendor)
+                                @php $dateRows++; @endphp
+                                <div class="div1 border-l-b-r " style="min-height: 36px; align-content: center">{{$dateRows}}</div>
+                                <div class="div2 border-r-b fs-9" style="min-height: 36px; align-content: center">
+                                    <strong>
+                                        @if($processName == 'NDT-1' ||  $processName == 'NDT-4' )
+                                            {{__('NDT')}}
+                                        @else
+                                            {{ $processName }}
+                                        @endif
+                                    </strong></div>
+                                <div class="div3 border-r-b fs-8" style="min-height: 36px; align-content: center">
+                                    @foreach($proces as $proc)
+                                        @if($proc->id == $process)
+                                        {{$proc->process}}
+                                        @endif
+                                    @endforeach
+                                </div>
+                                <div class="div4 border-r-b " style="min-height: 36px; align-content: center">
 
-                        <div class="div1 border-l-b-r " style="min-height: 36px; align-content: center">{{$dateRows+1}}</div>
-                        <div class="div2 border-r-b fs-9" style="min-height: 36px; align-content: center">
-                            <strong>
-                                @if($processName == 'NDT-1' ||  $processName == 'NDT-4' )
-                                    {{__('NDT')}}
-                                @else
-                                    {{ $processName }}
-                                @endif
-                            </strong></div>
-                        <div class="div3 border-r-b fs-8" style="min-height: 36px; align-content: center">
-                            @foreach($proces as $proc)
-                                @if($proc->id == $process)
-                                {{$proc->process}}
-                                @endif
-                            @endforeach
-                        </div>
-                        <div class="div4 border-r-b " style="min-height: 36px; align-content: center">
-
+                                            @if($processName == 'Paint ')
+                                        W{{$current_wo->number}}
+                                            @endif
+                                </div>
+                                <div class="div5 border-r-b " style="min-height: 36px; align-content: center">
                                     @if($processName == 'Paint ')
-                                W{{$current_wo->number}}
+                                       {{__('AT')}}
+                                    @elseif($processName == 'Silver plate')
+                                        {{__("")}}
+                                    @elseif(isset($vendorName) && $vendorName)
+                                       {{ $vendorName }}
                                     @endif
-                        </div>
-                        <div class="div5 border-r-b " style="min-height: 36px; align-content: center">
-                            @if($processName == 'Paint ')
-                               {{__('AT')}}
-                            @elseif($processName == 'Silver plate')
-                                {{__("")}}
-                            @elseif(isset($vendorName) && $vendorName)
-                               {{ $vendorName }}
+                                </div>
+                                <div class="div6 border-r-b " style="min-height: 36px; align-content: center"> </div>
+                                <div class="div7 border-r-b" style="min-height: 36px; align-content: center"> </div>
+                                <div class="div8 border-r-b " style="min-height: 36px; align-content: center"> </div>
                             @endif
-                        </div>
-                        <div class="div6 border-r-b " style="min-height: 36px; align-content: center"> </div>
-                        <div class="div7 border-r-b" style="min-height: 36px; align-content: center"> </div>
-                        <div class="div8 border-r-b " style="min-height: 36px; align-content: center"> </div>
 
 
 
 
 
-                    @endforeach
+                        @endforeach
+                    @endif
 
                 @endif
 

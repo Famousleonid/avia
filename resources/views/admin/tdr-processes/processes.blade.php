@@ -105,8 +105,8 @@
             <div class="card-header">
                 <div class="d-flex justify-content-between">
                     <div class="d-flex align-items-center gap-3">
-
                         <h4 class="text-primary mb-0">{{ __('Component Processes') }}</h4>
+
                     </div>
                     <h4 class="pe-3 mb-0">{{ __('W') }}{{ $current_tdr->workorder->number }}</h4>
                 </div>
@@ -119,37 +119,12 @@
                     </div>
 
                     <div class="d-flex parent">
-                        <div class="d-flex div1 border border-primary  border-2"  >
-                            <div class=" ">
-                                <div class="d-flex ms-1 mt-1">
-                                    <label for="number_id " style="font-size: .8rem;width: 70px; margin-top: 5px">Repair No.</label>
-                                    <input type="text" style="height: 32px; width: 100px" name="repair_num." id="repair_num" value=""
-                                           class="form-control">
-                                </div>
-                                <select class="form-select form-select-sm ms-1 mb-1 vendor-select"
-                                        style="width: 170px; height: 32px"
-                                        data-tdr-process-id=""
-                                        data-process="">
-                                    <option value="">Select Vendor</option>
-                                    @foreach($vendors as $vendor)
-                                        <option value="{{ $vendor->id }}">{{ $vendor->name }}</option>
-                                    @endforeach
-                                </select>
-                            </div>
-                            <div class="mt-2">
-                                <x-paper-button
-                                    text="Part Traveler"
-                                    href="#"
-                                    id="travelFormBtn"
-                                    target="_blank"
-                                    color="outline-primary"
-                                    size="landscape"
-
-                                />
-                            </div>
-                        </div>
-
                         <div class="ms-5">
+                        <a href="{{ route('tdr-processes.traveler', ['tdrId' => $current_tdr->id]) }}"
+                           class="btn btn-outline-info mt-2 me-2">
+                            <i class="fas fa-file-alt"></i> Traveler
+                        </a>
+
                             <a href="{{ route('tdr-processes.createProcesses', ['tdrId' => $current_tdr->id]) }}"
                                class="btn btn-outline-success mt-2 me-2">
                                 <i class="fas fa-plus"></i> Add Process
@@ -499,31 +474,6 @@
                 }, 3000);
             }
 
-            // Обработчик клика на кнопку Part Traveler
-            document.getElementById('travelFormBtn')?.addEventListener('click', function(e) {
-                e.preventDefault();
-
-                // Получаем значения из input и select
-                const repairNum = document.getElementById('repair_num')?.value || '';
-                const vendorSelect = document.querySelector('.vendor-select');
-                const vendorId = vendorSelect?.value || '';
-
-                // Формируем URL с параметрами
-                const baseUrl = '{{ route("tdr-processes.travelForm", ["id" => $current_tdr->id]) }}';
-                const params = new URLSearchParams();
-
-                if (repairNum) {
-                    params.append('repair_num', repairNum);
-                }
-                if (vendorId) {
-                    params.append('vendor', vendorId);
-                }
-
-                const url = params.toString() ? `${baseUrl}?${params.toString()}` : baseUrl;
-
-                // Открываем в новом окне
-                window.open(url, '_blank');
-            });
         });
     </script>
 @endsection
