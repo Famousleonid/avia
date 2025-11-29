@@ -18,36 +18,24 @@
         }
 
         .table th:nth-child(1), .table td:nth-child(1) {
-            min-width: 100px;
-            max-width: 150px;
+            min-width: 150px;
+            max-width: 200px;
         }
 
         .table th:nth-child(2), .table td:nth-child(2) {
-            min-width: 100px;
-            max-width: 150px;
+            min-width: 200px;
+            max-width: 300px;
         }
 
         .table th:nth-child(3), .table td:nth-child(3) {
-            min-width: 150px;
-            max-width: 250px;
+            min-width: 250px;
+            max-width: 400px;
         }
 
         .table th:nth-child(4), .table td:nth-child(4) {
-            min-width: 80px;
-            max-width: 120px;
+            min-width: 200px;
+            max-width: 300px;
         }
-
-        .table th:nth-child(5), .table td:nth-child(5) {
-            min-width: 100px;
-            max-width: 150px;
-        }
-
-        .table th:nth-child(6), .table td:nth-child(6) {
-            min-width: 100px;
-            max-width: 150px;
-        }
-
-
 
         .table thead th {
             position: sticky;
@@ -55,15 +43,7 @@
             top: -1px;
             vertical-align: middle;
             border-top: 1px;
-
             z-index: 1020;
-        }
-
-        @media (max-width: 1200px) {
-            .table th:nth-child(4), .table td:nth-child(4),
-            .table th:nth-child(3), .table td:nth-child(3) {
-                display: none;
-            }
         }
 
         .table th.sortable {
@@ -88,36 +68,14 @@
             border: none;
             cursor: pointer;
         }
-
-
-
-
-
-
     </style>
 
     <div class="card shadow">
         <div class="card-header my-1 shadow">
             <div class="d-flex justify-content-between align-items-center flex-wrap">
-                <h5 class="text-primary manage-header">{{__('Components')}}( <span class="text-success" id="componentsCount">{{$components->count()}}
-                    </span>)
-                </h5>
+                <h5 class="text-primary manage-header">{{__('Manuals CSV Components')}} ( <span class="text-success" id="manualsCount">{{$manuals->count()}}</span>)</h5>
 
                 <div class="d-flex my-2 gap-2 flex-wrap">
-                    <!-- Filter by Manual -->
-                    <div>
-                        <select id="manualFilter" class="form-select" style="height: 40px; width: 300px;">
-                            <option value="">{{__('All Manuals')}}</option>
-                            @foreach($manuals as $manual)
-                                <option value="{{$manual->id}}">{{$manual->number}} - {{$manual->title}}
-                                    @if($manual->unit_name_training)
-                                    ({{ Str::limit($manual->unit_name_training, 10) }})
-                                    @endif
-                                </option>
-                            @endforeach
-                        </select>
-                    </div>
-
                     <!-- Search -->
                     <div class="clearable-input">
                         <input id="searchInput" type="text" class="form-control w-100" placeholder="Search...">
@@ -126,84 +84,95 @@
                         </button>
                     </div>
 
-                    <!-- CSV Components -->
-                    <a href="{{ route('components.csv-components') }}" class="btn btn-outline-info" style="height: 40px">
-                        <i class="bi bi-file-earmark-spreadsheet"></i> {{__('CSV Components')}}
-                    </a>
+                    <!-- Upload CSV -->
+                    <button type="button" class="btn btn-outline-success" style="height: 40px" data-bs-toggle="modal" data-bs-target="#uploadCsvModal">
+                        <i class="bi bi-upload"></i> {{__('Upload CSV')}}
+                    </button>
 
-{{--                    <!-- Upload CSV -->--}}
-{{--                    <button type="button" class="btn btn-outline-success" style="height: 40px" data-bs-toggle="modal" data-bs-target="#uploadCsvModal">--}}
-{{--                        <i class="bi bi-upload"></i> {{__('Upload CSV')}}--}}
-{{--                    </button>--}}
-
-                    <!-- Add Component -->
-                    <a href="{{ route('components.create') }}" class="btn btn-outline-primary" style="height: 40px">
-                        {{__('Add Component')}}
+                    <!-- Back -->
+                    <a href="{{ route('components.index') }}" class="btn btn-outline-secondary" style="height: 40px">
+                        <i class="bi bi-arrow-left"></i> {{__('Back')}}
                     </a>
                 </div>
+            </div>
         </div>
 
-        @if(count($components))
+        @if(count($manuals))
             <div class="table-wrapper me-3 p-2 pt-0">
-                <table id="componentsTable" class="table table-sm table-hover bg-gradient table-striped align-middle table-bordered">
-                <thead class="bg-gradient">
-                <tr>
-                    <th class="text-center sortable">{{__('IPL Number')}} <i class="bi bi-chevron-expand ms-1"></i></th>
-                    <th class="text-center sortable">{{__('Part Number')}} <i class="bi bi-chevron-expand ms-1"></i></th>
-                    <th class="text-center sortable">{{__('Name')}} <i class="bi bi-chevron-expand ms-1"></i></th>
-                    <th class="text-center">{{__('Image')}}</th>
-                    <th class="text-center">{{__('Manual')}}</th>
-                    <th class="text-center">{{__('Action')}}</th>
-                </tr>
-                </thead>
+                <table id="manualsTable" class="display table table-sm table-hover bg-gradient table-striped align-middle table-bordered">
+                    <thead class="bg-gradient">
+                    <tr>
+                        <th class="text-center sortable">{{__('Manual')}} <i class="bi bi-chevron-expand ms-1"></i></th>
+                        <th class="text-center sortable">{{__('Title')}} <i class="bi bi-chevron-expand ms-1"></i></th>
+                        <th class="text-center">{{__('Component CSV Files')}}</th>
+                        <th class="text-center">{{__('Action')}}</th>
+                    </tr>
+                    </thead>
                     <tbody>
-                        @foreach($components as $component)
-                            <tr data-manual-id="{{ $component->manual_id }}">
-                                <td class="text-center">{{$component->ipl_num}}</td>
-                                <td class="text-center">{{$component->part_number}}</td>
-                                <td class="text-center">{{$component->name}}</td>
-                                <td class="text-center" style="width: 120px;">
-                                    @if($component->getMedia('component')->isNotEmpty())
-                                        <a href="{{ $component->getFirstMediaBigUrl('component') }}" data-fancybox="gallery">
-                                            <img class="rounded-circle" src="{{ $component->getFirstMediaThumbnailUrl('component') }}" width="40" height="40" alt="IMG"/>
-                                        </a>
+                        @foreach($manuals as $manual)
+                            <tr>
+                                <td class="text-center">
+                                    <a href="#"
+                                       data-bs-toggle="modal"
+                                       data-bs-target="#manualModal{{ $manual->id }}">
+                                        {{$manual->number}}
+                                    </a>
+                                </td>
+                                <td class="text-center">{{$manual->title}}</td>
+                                <td class="text-center" style="width: 250px;">
+                                    @if($manual->getMedia('component_csv_files')->isNotEmpty())
+                                        @foreach($manual->getMedia('component_csv_files') as $csvFile)
+                                            <div class="mb-1 d-flex align-items-center">
+                                                <small class="text-muted">{{ Str::limit($csvFile->file_name, 30) }}</small>
+                                            </div>
+                                        @endforeach
+                                    @else
+                                        <span class="text-muted small">No CSV</span>
+                                    @endif
+                                </td>
+                                <td class="text-center">
+                                    @if($manual->getMedia('component_csv_files')->isNotEmpty())
+                                        @foreach($manual->getMedia('component_csv_files') as $csvFile)
+                                            <div class="btn-group btn-group-sm mb-1" role="group">
+                                                <a href="{{ route('components.view-csv', ['manual_id' => $manual->id, 'file_id' => $csvFile->id]) }}"
+                                                   class="btn btn-outline-info"
+                                                   title="View {{ $csvFile->file_name }}">
+                                                    <i class="bi bi-eye"></i> View
+                                                </a>
+                                                <a href="{{ route('components.edit-csv', ['manual_id' => $manual->id, 'file_id' => $csvFile->id]) }}"
+                                                   class="btn btn-outline-primary"
+                                                   title="Edit {{ $csvFile->file_name }}">
+                                                    <i class="bi bi-pencil-square"></i> Edit
+                                                </a>
+                                                <a href="{{ route('components.download-csv', ['manual_id' => $manual->id, 'file_id' => $csvFile->id]) }}"
+                                                   class="btn btn-outline-success"
+                                                   title="Download {{ $csvFile->file_name }}">
+                                                    <i class="bi bi-download"></i> Download
+                                                </a>
+                                                <form action="{{ route('components.delete-csv', ['manual_id' => $manual->id, 'file_id' => $csvFile->id]) }}"
+                                                      method="POST"
+                                                      style="display:inline-block;"
+                                                      onsubmit="return confirm('Вы уверены, что хотите удалить этот CSV файл?');">
+                                                    @csrf
+                                                    @method('DELETE')
+                                                    <button type="submit" class="btn btn-outline-danger" title="Delete {{ $csvFile->file_name }}">
+                                                        <i class="bi bi-trash"></i> Delete
+                                                    </button>
+                                                </form>
+                                            </div>
+                                        @endforeach
                                     @else
                                         <span class="text-muted small">—</span>
                                     @endif
-                                </td>
-                                <td class="text-center">
-                                    @if($component->manuals)
-                                        <a href="#"
-                                           data-bs-toggle="modal"
-                                           data-bs-target="#manualModal{{ $component->manuals->id }}">
-                                            {{$component->manuals->number}}
-                                        </a>
-                                    @else
-                                        <span class="text-muted">—</span>
-                                    @endif
-                                </td>
-                                <td class="text-center">
-                                    <a href="{{ route('components.edit',['component' => $component->id]) }}" class="btn btn-outline-primary btn-sm">
-                                        <i class="bi bi-pencil-square"></i>
-                                    </a>
-                                    <form action="{{ route('components.destroy', $component->id) }}" method="POST" style="display:inline-block;">
-                                        @csrf
-                                        @method('DELETE')
-                                        <button type="submit" class="btn btn-outline-danger btn-sm" onclick="return confirm('Вы уверены, что хотите удалить этот компонент?');">
-                                            <i class="bi bi-trash"></i>
-                                        </button>
-                                    </form>
                                 </td>
                             </tr>
                         @endforeach
                     </tbody>
                 </table>
             </div>
-
         @else
-            <H5 CLASS="text-center">{{__('COMPONENTS NOT FOUND')}}</H5>
+            <H5 CLASS="text-center">{{__('MANUALS NOT FOUND')}}</H5>
         @endif
-
     </div>
 
     <!-- CSV Upload Modal -->
@@ -228,7 +197,9 @@
                                         <option value="">{{__('Select Manual')}}</option>
                                         @foreach($manuals as $manual)
                                             <option value="{{ $manual->id }}">{{ $manual->number }} - {{ $manual->title }}
+                                                @if($manual->unit_name_training)
                                                 ({{ Str::limit($manual->unit_name_training, 10) }})
+                                                @endif
                                             </option>
                                         @endforeach
                                     </select>
@@ -322,50 +293,21 @@
         </div>
     @endforeach
 
-
-        <script>
+    <script>
         document.addEventListener('DOMContentLoaded', function() {
-            try {
-                const table = document.getElementById('componentsTable');
-                const searchInput = document.getElementById('searchInput');
-                const manualFilter = document.getElementById('manualFilter');
-                const componentsCount = document.getElementById('componentsCount');
+            const table = document.getElementById('manualsTable');
+            const searchInput = document.getElementById('searchInput');
+            const manualsCount = document.getElementById('manualsCount');
 
-                // Проверяем существование таблицы
-                if (!table) {
-                    console.warn('Components table not found');
-                    return;
-                }
-
-                // Кэшируем данные строк для быстрого поиска
-                const tbody = table.querySelector('tbody');
-                if (!tbody) {
-                    console.warn('Table tbody not found');
-                    return;
-                }
-
-                const rows = Array.from(tbody.querySelectorAll('tr'));
-                const rowDataCache = rows.map(row => ({
-                    element: row,
-                    searchText: row.innerText ? row.innerText.toLowerCase() : '',
-                    manualId: row.getAttribute('data-manual-id') || ''
-                }));
-
-            // Debounce функция для оптимизации поиска
-            let searchTimeout;
-            function debounce(func, wait) {
-                return function(...args) {
-                    clearTimeout(searchTimeout);
-                    searchTimeout = setTimeout(() => func.apply(this, args), wait);
-                };
-            }
+            // Кэшируем данные строк для быстрого поиска
+            const rows = Array.from(table.querySelectorAll('tbody tr'));
+            const rowDataCache = rows.map(row => ({
+                element: row,
+                searchText: row.innerText.toLowerCase()
+            }));
 
             // Sorting
-            const headers = table ? table.querySelectorAll('.sortable') : [];
-            if (headers.length === 0) {
-                console.warn('No sortable headers found');
-            }
-
+            const headers = document.querySelectorAll('.sortable');
             headers.forEach(header => {
                 header.addEventListener('click', () => {
                     const columnIndex = Array.from(header.parentNode.children).indexOf(header);
@@ -377,135 +319,27 @@
                     const icon = header.querySelector('i');
                     icon.className = direction === 'asc' ? 'bi bi-chevron-up ms-1' : 'bi bi-chevron-down ms-1';
 
-                    // Определяем, является ли это столбцом IPL Number
-                    const headerText = header.textContent.trim().toLowerCase();
-                    const isIplNumberColumn = headerText.includes('ipl') && headerText.includes('number');
-
                     visibleRows.sort((a, b) => {
                         const aText = a.element.cells[columnIndex].innerText.trim();
                         const bText = b.element.cells[columnIndex].innerText.trim();
-
-                        // Special sorting for IPL numbers
-                        if (isIplNumberColumn) {
-                            return sortIplNumbers(aText, bText, direction);
-                        }
-
                         return direction === 'asc' ? aText.localeCompare(bText) : bText.localeCompare(aText);
                     });
 
                     // Переупорядочиваем только видимые строки
-                    if (tbody) {
-                        visibleRows.forEach(data => tbody.appendChild(data.element));
-                    }
+                    const tbody = table.querySelector('tbody');
+                    visibleRows.forEach(data => tbody.appendChild(data.element));
                 });
             });
 
-            // Начальная сортировка по IPL Number при загрузке
-            function applyInitialSort() {
-                const iplHeader = Array.from(headers).find(h => {
-                    const text = h.textContent.trim().toLowerCase();
-                    return text.includes('ipl') && text.includes('number');
-                });
-
-                if (iplHeader) {
-                    const columnIndex = Array.from(iplHeader.parentNode.children).indexOf(iplHeader);
-                    const direction = 'asc';
-                    iplHeader.dataset.direction = direction;
-
-                    // Обновляем иконку
-                    const icon = iplHeader.querySelector('i');
-                    if (icon) {
-                        icon.className = direction === 'asc' ? 'bi bi-chevron-up ms-1' : 'bi bi-chevron-down ms-1';
-                    }
-
-                    // Сортируем ВСЕ строки, а не только видимые
-                    rowDataCache.sort((a, b) => {
-                        const aText = a.element.cells[columnIndex].innerText.trim();
-                        const bText = b.element.cells[columnIndex].innerText.trim();
-                        return sortIplNumbers(aText, bText, direction);
-                    });
-
-                    // Переупорядочиваем все строки в таблице
-                    if (tbody) {
-                        rowDataCache.forEach(data => tbody.appendChild(data.element));
-                    }
-                }
-            }
-
-            // Применяем начальную сортировку
-            applyInitialSort();
-
-            // Custom sorting function for IPL numbers
-            // Правильная сортировка: 1-10, 1-20, 1-20A, 1-20B, 1-100, 1-1000
-            function sortIplNumbers(a, b, direction) {
-                // Обработка пустых значений
-                if (!a && !b) return 0;
-                if (!a || a.trim() === '') return direction === 'asc' ? 1 : -1;
-                if (!b || b.trim() === '') return direction === 'asc' ? -1 : 1;
-
-                // Нормализуем строки
-                a = a.trim();
-                b = b.trim();
-
-                // Проверяем формат (должен быть "число-число" или "число-числоБуква")
-                const aMatch = a.match(/^(\d+)-(\d+)([A-Za-z]*)$/);
-                const bMatch = b.match(/^(\d+)-(\d+)([A-Za-z]*)$/);
-
-                // Если формат не соответствует, используем обычную сортировку
-                if (!aMatch || !bMatch) {
-                    return direction === 'asc' ? a.localeCompare(b) : b.localeCompare(a);
-                }
-
-                // Извлекаем части
-                const aMajor = parseInt(aMatch[1], 10);
-                const bMajor = parseInt(bMatch[1], 10);
-                const aMinorNum = parseInt(aMatch[2], 10);
-                const bMinorNum = parseInt(bMatch[2], 10);
-                const aMinorLetter = aMatch[3] || '';
-                const bMinorLetter = bMatch[3] || '';
-
-                // Сравниваем первую часть (major number)
-                if (aMajor !== bMajor) {
-                    const result = aMajor - bMajor;
-                    return direction === 'asc' ? result : -result;
-                }
-
-                // Сравниваем числовую часть второй части
-                if (aMinorNum !== bMinorNum) {
-                    const result = aMinorNum - bMinorNum;
-                    return direction === 'asc' ? result : -result;
-                }
-
-                // Если числовые части одинаковые, сравниваем буквенные суффиксы
-                // Пустые буквы идут перед буквенными
-                if (aMinorLetter === '' && bMinorLetter !== '') {
-                    return direction === 'asc' ? -1 : 1;
-                }
-                if (aMinorLetter !== '' && bMinorLetter === '') {
-                    return direction === 'asc' ? 1 : -1;
-                }
-
-                // Если обе имеют буквы, сравниваем их алфавитно
-                if (aMinorLetter && bMinorLetter) {
-                    const letterCompare = aMinorLetter.localeCompare(bMinorLetter);
-                    return direction === 'asc' ? letterCompare : -letterCompare;
-                }
-
-                return 0;
-            }
-
-            // Оптимизированная функция фильтрации
+            // Search function
             function filterTable() {
                 const searchFilter = searchInput.value.toLowerCase();
-                const manualFilterValue = manualFilter.value;
                 let visibleCount = 0;
 
-                // Используем кэшированные данные вместо innerText
                 rowDataCache.forEach(data => {
                     const matchesSearch = !searchFilter || data.searchText.includes(searchFilter);
-                    const matchesManual = !manualFilterValue || data.manualId === manualFilterValue;
 
-                    if (matchesSearch && matchesManual) {
+                    if (matchesSearch) {
                         data.element.style.display = '';
                         visibleCount++;
                     } else {
@@ -514,20 +348,22 @@
                 });
 
                 // Update count
-                if (componentsCount) {
-                    componentsCount.textContent = visibleCount;
+                if (manualsCount) {
+                    manualsCount.textContent = visibleCount;
                 }
             }
 
-            // Search с debounce (300ms задержка)
-            if (searchInput) {
-                searchInput.addEventListener('input', debounce(filterTable, 300));
+            // Debounce функция для оптимизации поиска
+            let searchTimeout;
+            function debounce(func, wait) {
+                return function(...args) {
+                    clearTimeout(searchTimeout);
+                    searchTimeout = setTimeout(() => func.apply(this, args), wait);
+                };
             }
 
-            // Manual filter (без debounce, так как это выбор из списка)
-            if (manualFilter) {
-                manualFilter.addEventListener('change', filterTable);
-            }
+            // Search с debounce (300ms задержка)
+            searchInput.addEventListener('input', debounce(filterTable, 300));
 
             // CSV Upload handling
             const csvUploadForm = document.getElementById('csvUploadForm');
@@ -593,9 +429,7 @@
                     }
                 }, 5000);
             }
-            } catch (error) {
-                console.error('Error in components index script:', error);
-            }
         });
     </script>
 @endsection
+

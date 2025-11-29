@@ -267,7 +267,7 @@
             <div class="div5" style="text-align: end"> <strong>P/N</strong></div>
             <div class="div6 border-b ps-2">{{ $current_tdr->component->part_number }}</div>
             <div class="div7" style="text-align: end"> <strong>CMM</strong></div>
-            <div class="div8 border-b" style="text-align: center">{{$manual->number}}</div>
+            <div class="div8 border-b" style="text-align: center">{{substr($manual->number, 0, 8)}}</div>
             <div class="div9" style="text-align: end"> <strong>Repair No.</strong></div>
             <div class="div10 border-b ps-2">{{ $repairNum ?? 'N/A' }}</div>
             <div class="div11" style="text-align: end"> <strong>S/N</strong></div>

@@ -266,17 +266,17 @@
                 </div>
                 <div class="col-3 ">
                     <div class="row ">
-                        <div class="col-12 border-b">
+                        <div class="col-5 border-b">
                             <div class="d-flex ">
                                 <h6 class=" "><strong>MFR: </strong></h6>
                                 @foreach($manuals as $manual)
                                     @if($manual->id == $current_wo->unit->manual_id)
-                                        <h6 class=" ms-1"><strong> {{$manual->builder->name}}</strong></h6>
+                                        <h6 class=" ms-2"><strong> {{$manual->builder->name}}</strong></h6>
                                     @endif
                                 @endforeach
                             </div>
                         </div>
-                        <div class="col-0 "> </div>
+                        <div class="col-5 border-b"> </div>
                     </div>
                 </div>
                 <div class="col-3">
@@ -306,7 +306,7 @@
                         <div class="col-3 border-b">
                             @foreach($manuals as $manual)
                                 @if($manual->id == $current_wo->unit->manual_id)
-                                    <h6 class=""><strong> {{$manual->number}}</strong></h6>
+                                    <h6 class=""><strong> {{substr($manual->number, 0, 8)}}</strong></h6>
                                 @endif
                             @endforeach
                         </div>
@@ -356,20 +356,13 @@
                     if ($i < $totalParts) {
                         $component = $ordersParts[$i]->orderComponent ?? $ordersParts[$i]->component;
                         if ($component) {
-//                            $ipl_num = $component->ipl_num ?? $component->assy_ipl_num ?? '';
-                             // Используем assy_ipl_num если он есть и не пустой, иначе ipl_num
+                            // Используем assy_ipl_num если он есть и не пустой, иначе ipl_num
                             $ipl_num = (isset($component->assy_ipl_num) && $component->assy_ipl_num !== null && $component->assy_ipl_num !== '') ? $component->assy_ipl_num : ($component->ipl_num ?? '');
-
                             $ipl_parts = explode('-', $ipl_num);
                             $first_part = $ipl_parts[0] ?? '';
                             $second_part = $ipl_parts[1] ?? '';
-
-                            // Отладочная информация
-                            // dd("i: $i, Component exists: " . ($component ? 'YES' : 'NO') .
-                            //    ", assy_ipl_num: '" . ($component->assy_ipl_num ?? 'NULL') . "'" .
-                            //    ", ipl_num: '" . ($component->ipl_num ?? 'NULL') . "'" .
-                            //    ", IPL: '$ipl_num', First: '$first_part', Second: '$second_part'" .
-                            //    ", All attributes: " . json_encode($component->getAttributes()));
+                            
+                            // Логика выбора IPL номера: используем assy_ipl_num если он есть, иначе ipl_num
                         } else {
                             $first_part = '';
                             $second_part = '';
@@ -405,7 +398,7 @@
                             <div class="col-4 border-l-b text-center pt-2 align-content-center">
                                 @if($i < $totalParts && isset($component) && $component)
                                     <h6>
-                                        {{ !empty($component->assy_part_number) ? $component->assy_part_number : $component->part_number }}
+                                        {{ (!empty($component->assy_part_number)) ? $component->assy_part_number : $component->part_number }}
                                     </h6>
                                 @else
                                     <h6> </h6>
@@ -506,7 +499,7 @@
                         <div class="col-3 border-b">
                             @foreach($manuals as $manual)
                                 @if($manual->id == $current_wo->unit->manual_id)
-                                    <h6 class=""><strong> {{$manual->number}}</strong></h6>
+                                    <h6 class=""><strong> {{substr($manual->number, 0, 8)}}</strong></h6>
                                 @endif
                             @endforeach
                         </div>

@@ -283,7 +283,7 @@
                                     }
 
                                     try {
-                                        $csv_media = $manual->getMedia('csv_files')->first(function($media) {
+                                        $cad_media = $manual->getMedia('csv_files')->first(function($media) {
                                             return $media->getCustomProperty('process_type') === 'cad';
                                         });
                                         $hasCadCsv = $cad_media !== null;

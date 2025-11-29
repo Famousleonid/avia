@@ -1001,4 +1001,184 @@ class ComponentController extends Controller
         }
     }
 
+    /**
+     * Display CSV components management page
+     *
+     * @return Application|Factory|View
+     */
+    public function csvComponents()
+    {
+        $manuals = Manual::with('media')->get();
+        $planes = Plane::pluck('type', 'id');
+        $builders = Builder::pluck('name', 'id');
+        $scopes = Scope::pluck('scope', 'id');
+
+        return view('admin.components.csv-components', compact('manuals', 'planes', 'builders', 'scopes'));
+    }
+
+    /**
+     * Edit CSV file content
+     *
+     * @param  int  $manual_id
+     * @param  int  $file_id
+     * @return \Illuminate\Http\Response
+     */
+    public function editCsv($manual_id, $file_id)
+    {
+        try {
+            $manual = Manual::findOrFail($manual_id);
+            $csvFile = $manual->getMedia('component_csv_files')->find($file_id);
+            
+            if (!$csvFile) {
+                abort(404, 'CSV file not found');
+            }
+
+            // Read CSV file content
+            $filePath = $csvFile->getPath();
+            $csvContent = file_get_contents($filePath);
+            
+            // Parse CSV content for editing
+            $csvData = array_map('str_getcsv', explode("\n", $csvContent));
+            $headers = array_shift($csvData); // Remove header row
+            
+            // Ensure headers is an array
+            if (!is_array($headers)) {
+                $headers = [];
+            }
+            
+            // Filter out empty rows
+            $csvData = array_filter($csvData, function($row) {
+                return !empty(array_filter($row, 'strlen'));
+            });
+            
+            // Ensure csvData is an array
+            if (!is_array($csvData)) {
+                $csvData = [];
+            }
+
+            return view('admin.components.edit-csv', compact('manual', 'csvFile', 'headers', 'csvData'));
+
+        } catch (\Exception $e) {
+            \Log::error('CSV edit error: ' . $e->getMessage());
+            abort(500, 'Error loading CSV file for editing');
+        }
+    }
+
+    /**
+     * Update CSV file content
+     *
+     * @param  \Illuminate\Http\Request  $request
+     * @param  int  $manual_id
+     * @param  int  $file_id
+     * @return \Illuminate\Http\RedirectResponse
+     */
+    public function updateCsv(Request $request, $manual_id, $file_id)
+    {
+        try {
+            $manual = Manual::findOrFail($manual_id);
+            $csvFile = $manual->getMedia('component_csv_files')->find($file_id);
+            
+            if (!$csvFile) {
+                abort(404, 'CSV file not found');
+            }
+
+            // Get updated CSV data from request
+            $headers = $request->input('headers', []);
+            $rows = $request->input('rows', []);
+
+            // Build CSV content
+            $file = fopen('php://temp', 'r+');
+            
+            // Add BOM for UTF-8
+            fprintf($file, chr(0xEF).chr(0xBB).chr(0xBF));
+            
+            // Add headers
+            fputcsv($file, $headers);
+            
+            // Add rows
+            foreach ($rows as $row) {
+                // Ensure row has same number of columns as headers
+                $rowData = [];
+                foreach ($headers as $index => $header) {
+                    $rowData[] = isset($row[$index]) ? $row[$index] : '';
+                }
+                fputcsv($file, $rowData);
+            }
+            
+            rewind($file);
+            $csvContent = stream_get_contents($file);
+            fclose($file);
+
+            // Save updated content to file
+            $filePath = $csvFile->getPath();
+            file_put_contents($filePath, $csvContent);
+
+            return redirect()->route('components.csv-components')
+                ->with('success', 'CSV file updated successfully');
+
+        } catch (\Exception $e) {
+            \Log::error('CSV update error: ' . $e->getMessage());
+            return redirect()->back()
+                ->with('error', 'Error updating CSV file: ' . $e->getMessage());
+        }
+    }
+
+    /**
+     * Delete CSV file
+     *
+     * @param  int  $manual_id
+     * @param  int  $file_id
+     * @return \Illuminate\Http\RedirectResponse
+     */
+    public function deleteCsv($manual_id, $file_id)
+    {
+        try {
+            $manual = Manual::findOrFail($manual_id);
+            $csvFile = $manual->getMedia('component_csv_files')->find($file_id);
+            
+            if (!$csvFile) {
+                abort(404, 'CSV file not found');
+            }
+
+            $csvFile->delete();
+
+            return redirect()->route('components.csv-components')
+                ->with('success', 'CSV file deleted successfully');
+
+        } catch (\Exception $e) {
+            \Log::error('CSV delete error: ' . $e->getMessage());
+            return redirect()->back()
+                ->with('error', 'Error deleting CSV file: ' . $e->getMessage());
+        }
+    }
+
+    /**
+     * Download CSV file
+     *
+     * @param  int  $manual_id
+     * @param  int  $file_id
+     * @return \Symfony\Component\HttpFoundation\StreamedResponse
+     */
+    public function downloadCsv($manual_id, $file_id)
+    {
+        try {
+            $manual = Manual::findOrFail($manual_id);
+            $csvFile = $manual->getMedia('component_csv_files')->find($file_id);
+            
+            if (!$csvFile) {
+                abort(404, 'CSV file not found');
+            }
+
+            $filePath = $csvFile->getPath();
+            
+            return response()->download($filePath, $csvFile->file_name, [
+                'Content-Type' => 'text/csv',
+            ]);
+
+        } catch (\Exception $e) {
+            \Log::error('CSV download error: ' . $e->getMessage());
+            abort(500, 'Error downloading CSV file');
+        }
+    }
+
 }

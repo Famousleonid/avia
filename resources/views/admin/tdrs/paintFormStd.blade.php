@@ -221,7 +221,7 @@
                            <strong class="">
                            {{__('Perform the Paint process as specified under Process No. and in accordance with SMM No. ')}}
                             <span class="ms-5">
-                                {{$manual->number}}
+                                {{substr($manual->number, 0, 8)}}
                             </span>
                           </strong>
                        </h6>
@@ -277,7 +277,7 @@
                 <div class="col-2 border-l-b-r details-cell text-center" style="min-height: 34px">
                     @foreach($manuals as $manual)
                         @if($manual->id == $current_wo->unit->manual_id)
-                            <h6 class="text-center ">{{$manual->number}}</h6>
+                            <h6 class="text-center ">{{substr($manual->number, 0, 8)}}</h6>
                         @endif
                     @endforeach
                 </div>

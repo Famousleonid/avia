@@ -242,7 +242,7 @@
                 <div class="col-3 border-all text-center" style="height: 55px">
                     @foreach($manuals as $manual)
                         @if($manual->id == $current_wo->unit->manual_id)
-                            <h6 class="text-center mt-3"> <strong> {{$manual->number}} </strong></h6>
+                            <h6 class="text-center mt-3"> <strong> {{substr($manual->number, 0, 8)}} </strong></h6>
                         @endif
                     @endforeach
                 </div>

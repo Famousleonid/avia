@@ -152,6 +152,17 @@ Route::group(['middleware' => ['auth']], function () {
     Route::resource('/scopes',  ScopeController::class);
     Route::resource('/conditions',  ConditionController::class);
     Route::resource('/planes',PlaneController::class);
+    
+    // Components CSV routes - must be before resource route
+    Route::post('/components/upload-csv', [ComponentController::class, 'uploadCsv'])->name('components.upload-csv');
+    Route::get('/components/download-csv-template', [ComponentController::class, 'downloadCsvTemplate'])->name('components.download-csv-template');
+    Route::get('/components/csv-components', [ComponentController::class, 'csvComponents'])->name('components.csv-components');
+    Route::get('/components/view-csv/{manual_id}/{file_id}', [ComponentController::class, 'viewCsv'])->name('components.view-csv');
+    Route::get('/components/edit-csv/{manual_id}/{file_id}', [ComponentController::class, 'editCsv'])->name('components.edit-csv');
+    Route::post('/components/update-csv/{manual_id}/{file_id}', [ComponentController::class, 'updateCsv'])->name('components.update-csv');
+    Route::delete('/components/delete-csv/{manual_id}/{file_id}', [ComponentController::class, 'deleteCsv'])->name('components.delete-csv');
+    Route::get('/components/download-csv/{manual_id}/{file_id}', [ComponentController::class, 'downloadCsv'])->name('components.download-csv');
+    
     Route::resource('/components', ComponentController::class);
     Route::resource('/process-names',ProcessNameController::class);
     Route::resource('/processes', ProcessController::class);
@@ -171,10 +182,6 @@ Route::group(['middleware' => ['auth']], function () {
     Route::resource('/wo_bushings', WoBushingController::class)->except(['create']);
     Route::get('/wo_bushings/create/{id}', [WoBushingController::class, 'create'])->name('wo_bushings.create');
     Route::post('/wo_bushings/get-bushings-from-manual', [WoBushingController::class, 'getBushingsFromManual'])->name('wo_bushings.getBushingsFromManual');
-
-    Route::post('/components/upload-csv', [ComponentController::class, 'uploadCsv'])->name('components.upload-csv');
-    Route::get('/components/download-csv-template', [ComponentController::class, 'downloadCsvTemplate'])->name('components.download-csv-template');
-    Route::get('/components/view-csv/{manual_id}/{file_id}', [ComponentController::class, 'viewCsv'])->name('components.view-csv');
 
     Route::get('processes/create/{manual_id}', [ProcessController::class, 'create'])->name('processes.create');
     Route::get('processes/edit/{id}', [ProcessController::class, 'edit'])->name('processes.edit');

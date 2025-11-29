@@ -14,40 +14,31 @@
                             CSV File: {{ $csvFile->file_name }}
                         </h5>
                         <div>
-                            <a href="{{ route('components.index') }}" class="btn btn-outline-secondary btn-sm">
-                                <i class="bi bi-arrow-left"></i> Back to Components
+                            <a href="{{ route('components.csv-components') }}" class="btn btn-outline-secondary btn-sm">
+                                <i class="bi bi-arrow-left"></i> Back to CSV Components
                             </a>
-{{--                            <a href="{{ $csvFile->getUrl() }}" class="btn btn-outline-primary btn-sm" download>--}}
-{{--                                <i class="bi bi-download"></i> Download CSV--}}
-{{--                            </a>--}}
                         </div>
                     </div>
                 </div>
 
-                <div class="card-body">
-                    <div class="row mb-3">
-                        <div class="col-md-6">
-                            <h6>File Information</h6>
-                            <ul class="list-unstyled">
-                                <li><strong>Manual:</strong> {{ $manual->number }} - {{ $manual->title }}</li>
-                                <li><strong>File Name:</strong> {{ $csvFile->file_name }}</li>
-                                <li><strong>File Size:</strong> {{ number_format($csvFile->size / 1024, 2) }} KB</li>
-                                <li><strong>Upload Date:</strong> {{ $csvFile->created_at->format('Y-m-d H:i:s') }}</li>
-                            </ul>
-                        </div>
-                        <div class="col-md-6">
-                            <h6>CSV Summary</h6>
-                            <ul class="list-unstyled">
-{{--                                <li><strong>Total Rows:</strong> {{ count($csvData) + 1 }}</li>--}}
-                                <li><strong>Data Rows:</strong> {{ count($csvData) }}</li>
-{{--                                <li><strong>Columns:</strong> {{ count($headers) }}</li>--}}
-                            </ul>
-                        </div>
-                    </div>
-
+                <div class="card-body p-0">
                     @if(!empty($headers) && !empty($csvData))
-                        <div class="table-responsive">
-                            <table class="table table-sm table-striped table-bordered">
+                        <style>
+                            .csv-table-wrapper {
+                                height: calc(100vh - 250px);
+                                overflow-y: auto;
+                                overflow-x: auto;
+                            }
+                            
+                            .csv-table-wrapper table thead th {
+                                position: sticky;
+                                top: 0;
+                                z-index: 10;
+                                background-color: #212529 !important;
+                            }
+                        </style>
+                        <div class="csv-table-wrapper">
+                            <table class="table table-sm table-striped table-bordered mb-0">
                                 <thead class="table-dark">
                                     <tr>
                                         @foreach($headers as $header)
@@ -65,7 +56,6 @@
                                                             @if($row[$colIndex] == '1' || $row[$colIndex] == 'true')
                                                                 <span class="badge bg-success">Yes</span>
                                                             @else
-{{--                                                                <span class="badge bg-secondary">No</span>--}}
                                                                 <span class="">No</span>
                                                             @endif
                                                         @else
@@ -82,7 +72,7 @@
                             </table>
                         </div>
                     @else
-                        <div class="alert alert-warning">
+                        <div class="alert alert-warning m-3">
                             <i class="bi bi-exclamation-triangle"></i>
                             No data found in CSV file or file is empty.
                         </div>

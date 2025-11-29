@@ -385,7 +385,7 @@
                     @else
                         @foreach($manuals as $manual)
                             @if($manual->id == $current_wo->unit->manual_id)
-                                <h6 class="text-center mt-3"><strong> {{$manual->number}}</strong></h6>
+                                <h6 class="text-center mt-3"><strong> {{substr($manual->number, 0, 8)}}</strong></h6>
                             @endif
                         @endforeach
                     @endif
@@ -482,7 +482,7 @@
                 <div class="col-3 border-all text-center" style="height: 55px">
                     @foreach($manuals as $manual)
                         @if($manual->id == $current_wo->unit->manual_id)
-                                <h6 class="text-center mt-3"> <strong> {{$manual->number}} </strong></h6>
+                                <h6 class="text-center mt-3"> <strong> {{substr($manual->number, 0, 8)}} </strong></h6>
                         @endif
                     @endforeach
                 </div>
@@ -564,13 +564,13 @@
                             <div class="col-2 border-l-b-r details-cell text-center"  style="min-height: 32px">
                                 @if(isset($data['manual']) && $data['manual'])
                                     <h6 class="text-center mt-2">
-                                        {{ $data['manual']->number }}
+                                        {{ substr($data['manual']->number, 0, 8) }}
                                     </h6>
                                 @else
                                     @foreach($manuals as $manual)
                                         @if($manual->id == $current_wo->unit->manual_id)
                                             <h6 class="text-center mt-2">
-                                                    {{$manual->number}}
+                                                    {{substr($manual->number, 0, 8)}}
                                             </h6>
                                         @endif
                                     @endforeach

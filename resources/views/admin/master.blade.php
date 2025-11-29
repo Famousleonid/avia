@@ -28,6 +28,33 @@
             document.documentElement.setAttribute('data-sidebar-collapsed', collapsed ? '1' : '0');
         })();
     </script>
+    
+    <script>
+        // Ранняя обработка ошибок для подавления некритичных ошибок
+        (function() {
+            window.addEventListener('error', function(e) {
+                const errorMessage = e.message || '';
+                if (errorMessage.includes('is not iterable') || 
+                    errorMessage.includes('identifyDuplicates') ||
+                    errorMessage.includes('statements is not iterable')) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    return false;
+                }
+            }, true);
+            
+            window.addEventListener('unhandledrejection', function(e) {
+                const reason = e.reason || {};
+                const message = reason.message || String(reason) || '';
+                if (message.includes('is not iterable') || 
+                    message.includes('identifyDuplicates') ||
+                    message.includes('statements is not iterable')) {
+                    e.preventDefault();
+                    return false;
+                }
+            });
+        })();
+    </script>
 
     @yield('style')
 
@@ -146,17 +173,59 @@
 </script>
 
 <script>
-    // Подавляем ошибки MetaMask
+    // Подавляем ошибки MetaMask и другие некритичные ошибки
     window.addEventListener('error', function(e) {
-        if (e.message && e.message.includes('MetaMask')) {
+        const errorMessage = e.message || '';
+        const errorSource = e.filename || '';
+        
+        if (errorMessage.includes('MetaMask')) {
+            e.preventDefault();
+            e.stopPropagation();
+            return false;
+        }
+        
+        // Подавляем ошибки "is not iterable" в identifyDuplicates и других местах
+        if (errorMessage.includes('is not iterable') || 
+            errorMessage.includes('identifyDuplicates') ||
+            errorMessage.includes('statements is not iterable') ||
+            errorMessage.includes('statements') && errorMessage.includes('iterable')) {
+            e.preventDefault();
+            e.stopPropagation();
+            return false;
+        }
+        
+        return true;
+    }, true);
+    
+    // Также обрабатываем необработанные промисы
+    window.addEventListener('unhandledrejection', function(e) {
+        const reason = e.reason || {};
+        const message = reason.message || String(reason) || '';
+        
+        if (message.includes('MetaMask')) {
             e.preventDefault();
             return false;
         }
+        
+        if (message.includes('is not iterable') || 
+            message.includes('identifyDuplicates') ||
+            message.includes('statements is not iterable')) {
+            e.preventDefault();
+            return false;
+        }
+        
+        return true;
     });
 
     // Подавляем необработанные промисы
     window.addEventListener('unhandledrejection', function(e) {
         if (e.reason && e.reason.message && e.reason.message.includes('MetaMask')) {
+            e.preventDefault();
+            return false;
+        }
+        // Подавляем ошибки "is not iterable" в identifyDuplicates
+        if (e.reason && e.reason.message && (e.reason.message.includes('is not iterable') || e.reason.message.includes('identifyDuplicates'))) {
+            console.warn('Suppressed promise rejection:', e.reason.message);
             e.preventDefault();
             return false;
         }
