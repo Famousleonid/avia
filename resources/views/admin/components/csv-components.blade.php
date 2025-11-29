@@ -76,6 +76,11 @@
                 <h5 class="text-primary manage-header">{{__('Manuals CSV Components')}} ( <span class="text-success" id="manualsCount">{{$manuals->count()}}</span>)</h5>
 
                 <div class="d-flex my-2 gap-2 flex-wrap">
+                    <!-- Upload CSV -->
+                    <button type="button" class="btn btn-outline-success" style="height: 40px" data-bs-toggle="modal" data-bs-target="#uploadCsvModal">
+                        <i class="bi bi-upload"></i> {{__('Upload CSV')}}
+                    </button>
+
                     <!-- Search -->
                     <div class="clearable-input">
                         <input id="searchInput" type="text" class="form-control w-100" placeholder="Search...">
@@ -84,10 +89,7 @@
                         </button>
                     </div>
 
-                    <!-- Upload CSV -->
-                    <button type="button" class="btn btn-outline-success" style="height: 40px" data-bs-toggle="modal" data-bs-target="#uploadCsvModal">
-                        <i class="bi bi-upload"></i> {{__('Upload CSV')}}
-                    </button>
+
 
                     <!-- Back -->
                     <a href="{{ route('components.index') }}" class="btn btn-outline-secondary" style="height: 40px">

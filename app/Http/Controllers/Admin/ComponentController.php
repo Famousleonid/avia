@@ -1065,7 +1065,7 @@ class ComponentController extends Controller
     }
 
     /**
-     * Update CSV file content
+     * Update CSV file content and components in database
      *
      * @param  \Illuminate\Http\Request  $request
      * @param  int  $manual_id
@@ -1085,6 +1085,27 @@ class ComponentController extends Controller
             // Get updated CSV data from request
             $headers = $request->input('headers', []);
             $rows = $request->input('rows', []);
+
+            // Логируем входящие данные для отладки
+            \Log::info('Update CSV - Headers: ' . json_encode($headers));
+            \Log::info('Update CSV - Rows count: ' . count($rows));
+            if (count($rows) > 0) {
+                \Log::info('Update CSV - First row: ' . json_encode($rows[0]));
+            }
+
+            // Validate headers
+            if (empty($headers)) {
+                return redirect()->back()
+                    ->with('error', 'Headers are required');
+            }
+
+            $requiredHeaders = ['part_number', 'name', 'ipl_num'];
+            $missingHeaders = array_diff($requiredHeaders, $headers);
+            
+            if (!empty($missingHeaders)) {
+                return redirect()->back()
+                    ->with('error', 'Missing required headers: ' . implode(', ', $missingHeaders));
+            }
 
             // Build CSV content
             $file = fopen('php://temp', 'r+');
@@ -1113,8 +1134,148 @@ class ComponentController extends Controller
             $filePath = $csvFile->getPath();
             file_put_contents($filePath, $csvContent);
 
+            // Process components update/create
+            $successCount = 0;
+            $updateCount = 0;
+            $createCount = 0;
+            $errorCount = 0;
+            $errors = [];
+
+            foreach ($rows as $rowIndex => $row) {
+                try {
+                    // Ensure row is an array
+                    if (!is_array($row)) {
+                        $errorCount++;
+                        $errors[] = "Row " . ($rowIndex + 1) . ": Invalid row format";
+                        continue;
+                    }
+                    
+                    // Ensure row has same number of columns as headers
+                    $cleanRow = [];
+                    foreach ($headers as $index => $header) {
+                        $cellValue = isset($row[$index]) ? trim($row[$index]) : '';
+                        $cleanRow[] = $cellValue;
+                    }
+                    
+                    // Create associative array from headers and row data
+                    $rowData = array_combine($headers, $cleanRow);
+                    
+                    // Validate required fields
+                    if (empty($rowData['part_number']) || empty($rowData['name']) || empty($rowData['ipl_num'])) {
+                        $errorCount++;
+                        $errors[] = "Row " . ($rowIndex + 1) . ": Missing required fields";
+                        continue;
+                    }
+
+                    // Prepare component data
+                    $partNumber = trim($rowData['part_number']);
+                    $iplNum = trim($rowData['ipl_num']);
+                    $name = trim($rowData['name']);
+                    
+                    $componentData = [
+                        'manual_id' => $manual_id,
+                        'part_number' => $partNumber,
+                        'assy_part_number' => isset($rowData['assy_part_number']) ? trim($rowData['assy_part_number']) : null,
+                        'name' => $name,
+                        'ipl_num' => $iplNum,
+                        'assy_ipl_num' => isset($rowData['assy_ipl_num']) ? trim($rowData['assy_ipl_num']) : null,
+                        'eff_code' => isset($rowData['eff_code']) ? trim($rowData['eff_code']) : null,
+                        'units_assy' => isset($rowData['units_assy']) ? trim($rowData['units_assy']) : null,
+                        'log_card' => isset($rowData['log_card']) ? (int)($rowData['log_card'] == '1' || $rowData['log_card'] == 'true') : 0,
+                        'repair' => isset($rowData['repair']) ? (int)($rowData['repair'] == '1' || $rowData['repair'] == 'true') : 0,
+                        'is_bush' => isset($rowData['is_bush']) ? (int)($rowData['is_bush'] == '1' || $rowData['is_bush'] == 'true') : 0,
+                        'bush_ipl_num' => isset($rowData['bush_ipl_num']) ? trim($rowData['bush_ipl_num']) : null,
+                    ];
+
+                    // Check if component exists - сначала по ipl_num (более стабильный идентификатор)
+                    // Это позволяет обновлять компонент даже если part_number был исправлен
+                    $existingComponent = Component::where('manual_id', $manual_id)
+                        ->whereRaw('TRIM(ipl_num) = ?', [$iplNum])
+                        ->first();
+                    
+                    // Если не найден по ipl_num, пробуем найти по part_number + ipl_num (для обратной совместимости)
+                    if (!$existingComponent) {
+                        $existingComponent = Component::where('manual_id', $manual_id)
+                            ->whereRaw('TRIM(part_number) = ?', [$partNumber])
+                            ->whereRaw('TRIM(ipl_num) = ?', [$iplNum])
+                            ->first();
+                    }
+                    
+                    // Логируем для отладки
+                    \Log::info("Update CSV - Row " . ($rowIndex + 1) . ": part_number='{$partNumber}', ipl_num='{$iplNum}', manual_id={$manual_id}");
+                    if ($existingComponent) {
+                        \Log::info("Found existing component ID: " . $existingComponent->id . " (old part_number: " . $existingComponent->part_number . ")");
+                    } else {
+                        \Log::info("Component not found, will create new");
+                    }
+
+                    if ($existingComponent) {
+                        // Update existing component - включая part_number, если он изменился
+                        try {
+                            $updateData = array_intersect_key($componentData, array_flip([
+                                'part_number', 'name', 'assy_part_number', 'assy_ipl_num', 'eff_code', 
+                                'units_assy', 'log_card', 'repair', 'is_bush', 'bush_ipl_num'
+                            ]));
+                            
+                            // Убираем пустые строки и null значения, но оставляем 0 для boolean полей
+                            // НО оставляем part_number всегда, даже если он пустой (для исправления ошибок)
+                            $updateData = array_filter($updateData, function($value, $key) {
+                                if ($key === 'part_number') {
+                                    return true; // Всегда обновляем part_number, даже если пустой
+                                }
+                                if (in_array($key, ['log_card', 'repair', 'is_bush'])) {
+                                    return $value !== null;
+                                }
+                                return $value !== null && $value !== '';
+                            }, ARRAY_FILTER_USE_BOTH);
+                            
+                            // Проверяем, изменился ли part_number
+                            $partNumberChanged = false;
+                            if (isset($updateData['part_number']) && $existingComponent->part_number !== $updateData['part_number']) {
+                                $partNumberChanged = true;
+                                \Log::info("Part number changed from '{$existingComponent->part_number}' to '{$updateData['part_number']}' for component ID: " . $existingComponent->id);
+                            }
+                            
+                            // Всегда обновляем, даже если данные не изменились (для синхронизации)
+                            $existingComponent->update($updateData);
+                            $successCount++;
+                            $updateCount++;
+                            \Log::info("Updated component ID: " . $existingComponent->id . " with data: " . json_encode($updateData) . ($partNumberChanged ? " (part_number changed)" : ""));
+                        } catch (\Exception $e) {
+                            \Log::error("Row " . ($rowIndex + 1) . ": Failed to update component: " . $e->getMessage());
+                            \Log::error("Row " . ($rowIndex + 1) . ": Component data: " . json_encode($componentData));
+                            $errorCount++;
+                            $errors[] = "Row " . ($rowIndex + 1) . ": Failed to update component: " . $e->getMessage();
+                        }
+                    } else {
+                        // Create new component
+                        try {
+                            $newComponent = Component::create($componentData);
+                            $successCount++;
+                            $createCount++;
+                            \Log::info("Created new component ID: " . $newComponent->id . " with part_number: " . $partNumber . ", ipl_num: " . $iplNum);
+                        } catch (\Exception $e) {
+                            \Log::error("Row " . ($rowIndex + 1) . ": Failed to create component: " . $e->getMessage());
+                            \Log::error("Row " . ($rowIndex + 1) . ": Component data: " . json_encode($componentData));
+                            $errorCount++;
+                            $errors[] = "Row " . ($rowIndex + 1) . ": Failed to create component: " . $e->getMessage();
+                        }
+                    }
+
+                } catch (\Exception $e) {
+                    $errorCount++;
+                    $errors[] = "Row " . ($rowIndex + 1) . ": " . $e->getMessage();
+                }
+            }
+
+            // Build success message
+            $message = "CSV file updated successfully. Processed {$successCount} components: {$createCount} created, {$updateCount} updated.";
+            if ($errorCount > 0) {
+                $message .= " {$errorCount} rows had errors.";
+            }
+
             return redirect()->route('components.csv-components')
-                ->with('success', 'CSV file updated successfully');
+                ->with('success', $message);
 
         } catch (\Exception $e) {
             \Log::error('CSV update error: ' . $e->getMessage());
