@@ -155,10 +155,12 @@
                             </td>
 
                             <td class="text-center">
-                                <a href="{{ route('users.edit', ['user' => $user->id]) }}"
-                                   class="btn btn-outline-primary btn-sm">
-                                    <i class="bi bi-pencil-square"></i>
-                                </a>
+                                @if((auth()->check() && auth()->id() === $user->id) || is_admin())
+                                    <a href="{{ route('users.edit', ['user' => $user->id]) }}"
+                                        class="btn btn-outline-primary btn-sm">
+                                        <i class="bi bi-pencil-square"></i>
+                                     </a>
+                                @endif
                                 @can('users.delete')
                                     <form id="deleteForm_{{$user->id}}"
                                           action="{{ route('users.destroy', ['user' => $user->id]) }}" method="POST"

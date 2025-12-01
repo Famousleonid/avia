@@ -13,22 +13,12 @@ use Illuminate\Support\Facades\Hash;
 
 class UserController extends Controller
 {
-
     public function __construct()
     {
-        // Список пользователей
         $this->middleware('can:users.viewAny')->only('index');
-
-        // Просмотр конкретного пользователя
         $this->middleware('can:users.view')->only('show');
-
-        // Создание нового
         $this->middleware('can:users.create')->only(['create', 'store']);
-
-        // Редактирование
         $this->middleware('can:users.update')->only(['edit', 'update']);
-
-        // Удаление
         $this->middleware('can:users.delete')->only('destroy');
     }
 
@@ -36,15 +26,6 @@ class UserController extends Controller
     {
         $user = Auth::user();
         $users = User::all();
-
-//        dd('UserPolicy@delete', [
-//            'auth_id'        => $user->id,
-//            'auth_role'      => $user->roleName(),
-//            'is_admin_flag'  => $user->is_admin,
-//            'roles_allowed'  => config('permissions.users.delete'),
-//            'role_is_allowed'=> $user->roleIs(config('permissions.users.delete')),
-//            'can_via_gate'   => $user->can('users.delete'), // проверка Gate
-//        ]);
 
         return View('admin.users.index', compact('users', ));
 
@@ -84,7 +65,11 @@ class UserController extends Controller
 
     public function edit(User $user)
     {
+        $auth = auth()->user();
 
+        if (! $auth->roleIs('Admin') && $auth->id !== $user->id) {
+            abort(403, 'You do not have permission to edit this user.');
+        }
         $teams = Team::all();
         $roles = Role::all();
 
@@ -93,7 +78,13 @@ class UserController extends Controller
 
     public function update(Request $request, $id)
     {
+        $auth = auth()->user();
         $user = User::find($id);
+
+        if (! $auth->roleIs('Admin') && $auth->id !== $user->id) {
+            abort(403, 'You do not have permission to edit this user.');
+        }
+
         $request->phone = $this->removeSpace($request->phone);
         $request->validate([
             'name' => 'required',

@@ -11,26 +11,31 @@
             <div class="card-header text-center">
                 @if($user->hasMedia('avatar'))
                     <a href="{{ $user->getFirstMediaBigUrl('avatar') }}" data-fancybox="gallery">
-                        <img class="rounded-circle mb-3" src="{{ $user->getFirstMediaThumbnailUrl('avatar') }}" width="150" height="150" alt="Avatar"/>
+                        <img class="rounded-circle mb-3" src="{{ $user->getFirstMediaThumbnailUrl('avatar') }}"
+                             width="150" height="150" alt="Avatar"/>
                     </a>
                 @else
-                    <img src="https://via.placeholder.com/150" class="rounded-circle mb-3" width="150" height="150" alt="Default Avatar">
+                    <img src="https://via.placeholder.com/150" class="rounded-circle mb-3" width="150" height="150"
+                         alt="Default Avatar">
                 @endif
             </div>
             <div class="card-body">
-                <form action="{{ route('users.update', $user->id) }}" method="POST" enctype="multipart/form-data" onsubmit="return validateForm();">
+                <form action="{{ route('users.update', $user->id) }}" method="POST" enctype="multipart/form-data"
+                      onsubmit="return validateForm();">
                     @csrf
                     @method('PUT')
 
                     <div class="row">
                         <div class="col-md-6 mb-3">
                             <label for="name" class="form-label small">name</label>
-                            <input type="text" name="name" id="name" class="form-control" value="{{ $user->name }}" required>
+                            <input type="text" name="name" id="name" class="form-control" value="{{ $user->name }}"
+                                   required>
                         </div>
 
                         <div class="col-md-6 mb-3">
                             <label for="email" class="form-label small">email</label>
-                            <input type="email" name="email" id="email" class="form-control" value="{{ $user->email }}" required>
+                            <input type="email" name="email" id="email" class="form-control" value="{{ $user->email }}"
+                                   required>
                         </div>
 
                         <div class="col-md-6 mb-3">
@@ -48,27 +53,32 @@
                             <select name="role_id" id="role_id" class="form-select">
                                 <option value="" {{ $user->role_id ? '' : 'selected' }}>Select Role</option>
                                 @foreach($roles as $role)
-                                    <option value="{{ $role->id }}" {{ $user->role_id == $role->id ? 'selected' : '' }}>{{ $role->name }}</option>
+                                    <option
+                                        value="{{ $role->id }}" {{ $user->role_id == $role->id ? 'selected' : '' }}>{{ $role->name }}</option>
                                 @endforeach
                             </select>
                         </div>
 
                         <div class="col-md-6 mb-3">
                             <label for="team_id" class="form-label small" id="team_label">team</label>
-                            <select name="team_id" id="team_id" class="form-select" >
+                            <select name="team_id" id="team_id" class="form-select">
                                 <option value="" disabled {{ $user->team_id ? '' : 'selected' }}>Select Team</option>
                                 @foreach($teams as $team)
-                                    <option value="{{ $team->id }}" {{ $user->team_id == $team->id ? 'selected' : '' }}>{{ $team->name }}</option>
+                                    <option
+                                        value="{{ $team->id }}" {{ $user->team_id == $team->id ? 'selected' : '' }}>{{ $team->name }}</option>
                                 @endforeach
                             </select>
                         </div>
                     </div>
 
-                    <div class="form-check mb-3">
-                        <input type="checkbox" name="is_admin" id="is_admin" class="form-check-input" {{ $user->is_admin ? 'checked' : '' }}>
-                        <label for="is_admin" class="form-check-label small">admin</label>
-                    </div>
 
+                    @role('Admin')
+                        <div class="form-check mb-3">
+                            <input type="checkbox" name="is_admin" id="is_admin"
+                                   class="form-check-input" {{ $user->is_admin ? 'checked' : '' }}>
+                            <label for="is_admin" class="form-check-label small">admin</label>
+                        </div>
+                    @endrole
 
                     <div class="d-flex mb-3">
                         <div class="me-3">

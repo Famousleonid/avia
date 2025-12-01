@@ -39,5 +39,17 @@ class AppServiceProvider extends ServiceProvider
         Blade::if('hasanyrole', function (string $roles) {
             return auth()->check() && auth()->user()->hasAnyRole($roles);
         });
+
+        Blade::if('roles', function (string $roles) {
+            if (! auth()->check()) {
+                return false;
+            }
+
+            // 'Admin|Manager' → ['Admin', 'Manager']
+            $rolesArray = explode('|', $roles);
+
+            return auth()->user()->roleIs($rolesArray);
+        });
+
     }
 }
