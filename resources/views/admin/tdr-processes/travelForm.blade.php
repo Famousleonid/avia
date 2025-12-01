@@ -228,8 +228,8 @@
 
             grid-template-columns:
         40px 160px
-        280px 120px
-        120px 120px
+        340px 100px
+        120px 100px
         60px 100px;
             /*min-height: 42px; !* Опционально: для единой высоты строк *!*/
         }
@@ -275,19 +275,20 @@
         </div>
 
         <div class="table mt-2">
-            <div class="div1 border-all " style="min-height: 36px; align-content: center"></div>
-            <div class="div2 border-t-r-b " style="min-height: 36px; align-content: center"> <strong>Task require</strong>d</div>
-            <div class="div3 border-t-r-b " style="min-height: 36px; align-content: center"> <strong>Process</strong></div>
-            <div class="div4 border-t-r-b " style="min-height: 36px; align-content: center"> <strong>RO No.</strong></div>
-            <div class="div5 border-t-r-b " style="min-height: 36px; align-content: center"> <strong>Vendor Name</strong></div>
-            <div class="div6 border-t-r-b " style="min-height: 36px; align-content: center"> <strong>Date completed</strong></div>
-            <div class="div7 border-t-r-b" style="min-height: 36px; align-content: center"> <strong>Vendor stamp</strong></div>
-            <div class="div8 border-t-r-b " style="min-height: 36px; align-content: center"> <strong>Note</strong></div>
+            <div class="div1 border-all " style="min-height: 36px;  align-content: center"></div>
+            <div class="div2 border-t-r-b " style="min-height: 36px;  align-content: center"> <strong>Task require</strong>d</div>
+            <div class="div3 border-t-r-b " style="min-height: 36px;  align-content: center"> <strong>Process</strong></div>
+            <div class="div4 border-t-r-b " style="min-height: 36px;  align-content: center"> <strong>RO No.</strong></div>
+            <div class="div5 border-t-r-b " style="min-height: 36px;  align-content: center"> <strong>Vendor Name</strong></div>
+            <div class="div6 border-t-r-b " style="min-height: 36px;  align-content: center"> <strong>Date
+                    completed</strong></div>
+            <div class="div7 border-t-r-b" style="min-height: 36px;  align-content: center"> <strong>Vendor stamp</strong></div>
+            <div class="div8 border-t-r-b " style="min-height: 36px;  align-content: center"> <strong>Note</strong></div>
 
             @php
                 $dateRows = 0;
-                $totalRow = 12;
-                
+                $totalRow = 14;
+
                 // Находим первую строку с vendor по sort_order
                 $firstVendorSortOrder = null;
                 if(isset($vendorsData) && !empty($vendorsData)) {
@@ -316,13 +317,13 @@
                             // Показываем только те AT строки, которые идут до первого vendor
                             $showAtBeforeVendor = ($firstVendorSortOrder === null) || ($processes->sort_order < $firstVendorSortOrder);
                         @endphp
-                        
+
                         @if(strpos($processName, 'EC') === false && $showAtBeforeVendor)
                             @foreach($processData as $process)
                                 @php
                                     $isAtChecked = in_array($process, $atData[$processes->id]);
                                 @endphp
-                                
+
                                 @if($isAtChecked)
                                     @php $dateRows++; @endphp
                                     <div class="div1 border-l-b-r " style="min-height: 36px; align-content: center">{{$dateRows}}</div>
@@ -335,7 +336,7 @@
                                             @endif
                                         </strong>
                                     </div>
-                                    <div class="div3 border-r-b fs-8" style="min-height: 36px; align-content: center">
+                                    <div class="div3 border-r-b fs-75" style="min-height: 36px; align-content: center">
                                         @foreach($proces as $proc)
                                             @if($proc->id == $process)
                                                 {{$proc->process}}
@@ -350,7 +351,11 @@
                                     </div>
                                     <div class="div6 border-r-b " style="min-height: 36px; align-content: center"> </div>
                                     <div class="div7 border-r-b" style="min-height: 36px; align-content: center"> </div>
-                                    <div class="div8 border-r-b " style="min-height: 36px; align-content: center"> </div>
+                                    <div class="div8 border-r-b fs-8" style="min-height: 36px; align-content: center">
+                                        @if($processes->description)
+                                            {{ $processes->description }}
+                                        @endif
+                                    </div>
                                 @endif
                             @endforeach
                         @endif
@@ -378,7 +383,7 @@
                             $processData = json_decode($processes->processes, true);
                             $processName = $processes->processName->name;
                         @endphp
-                        
+
                         @if(strpos($processName, 'EC') === false)
                             @foreach($processData as $process)
                                 @if(isset($vendorsData[$processes->id][$process]) && isset($vendorsData[$processes->id][$process]['vendor_name']))
@@ -393,7 +398,7 @@
                                             @endif
                                         </strong>
                                     </div>
-                                    <div class="div3 border-r-b fs-8" style="min-height: 36px; align-content: center">
+                                    <div class="div3 border-r-b fs-75" style="min-height: 36px; align-content: center">
                                         @foreach($proces as $proc)
                                             @if($proc->id == $process)
                                                 {{$proc->process}}
@@ -406,17 +411,24 @@
                                         @endif
                                     </div>
                                     <div class="div5 border-r-b " style="min-height: 36px; align-content: center">
-                                        @if($processName == 'Paint ')
-                                            {{__('AT')}}
-                                        @elseif($processName == 'Silver plate')
-                                            {{__("")}}
-                                        @else
+{{--                                        @if($processName == 'Paint ')--}}
+{{--                                            {{__('AT')}}--}}
+{{--                                        @elseif($processName == 'Silver plate')--}}
+{{--                                            {{__("")}}--}}
+{{--                                        @else--}}
+{{--                                            {{ $vendorsData[$processes->id][$process]['vendor_name'] }}--}}
+{{--                                        @endif--}}
+
                                             {{ $vendorsData[$processes->id][$process]['vendor_name'] }}
-                                        @endif
+
                                     </div>
                                     <div class="div6 border-r-b " style="min-height: 36px; align-content: center"> </div>
                                     <div class="div7 border-r-b" style="min-height: 36px; align-content: center"> </div>
-                                    <div class="div8 border-r-b " style="min-height: 36px; align-content: center"> </div>
+                                    <div class="div8 border-r-b  fs-8" style="min-height: 36px; align-content: center">
+                                        @if($processes->description)
+                                            {{ $processes->description }}
+                                        @endif
+                                    </div>
                                 @endif
                             @endforeach
                         @endif
@@ -451,7 +463,7 @@
                                 // Проверяем, не была ли эта строка уже обработана
                                 $isAtChecked = isset($atData[$processes->id]) && in_array($process, $atData[$processes->id]);
                                 $isVendorProcessed = isset($vendorsData[$processes->id]) && isset($vendorsData[$processes->id][$process]) && isset($vendorsData[$processes->id][$process]['vendor_name']);
-                                
+
                                 // Исключаем строки с vendor (они обрабатываются после "Outcoming inspection")
                                 // Исключаем строки с AT, которые были показаны до первого vendor
                                 $wasAtShownBeforeVendor = $isAtChecked && (($firstVendorSortOrder === null) || ($processes->sort_order < $firstVendorSortOrder));
@@ -492,7 +504,11 @@
                                 </div>
                                 <div class="div6 border-r-b " style="min-height: 36px; align-content: center"> </div>
                                 <div class="div7 border-r-b" style="min-height: 36px; align-content: center"> </div>
-                                <div class="div8 border-r-b " style="min-height: 36px; align-content: center"> </div>
+                                <div class="div8 border-r-b " style="min-height: 36px; align-content: center">
+                                    @if($processes->description)
+                                        {{ $processes->description }}
+                                    @endif
+                                </div>
                             @endif
 
 

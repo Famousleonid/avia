@@ -30,7 +30,7 @@
                     <div id="processes-container">
                         <div class="process-row mb-3">
                             <div class="row" >
-                                <div class="col-md-5" style="width: 200px">
+                                <div class="col-md-3" style="width: 200px">
                                     <label for="process_names">Process Name:</label>
                                     <select name="processes[0][process_names_id]" class="form-control select2-process" required>
                                         <option value="">Select Process Name</option>
@@ -53,7 +53,7 @@
                                         @endforeach
                                     </div>
                                 </div>
-                                <div class="col-md-2">
+                                <div class="col-md-4">
 {{--                                    <label for="ec">EC:</label>--}}
                                     <div class="form-check mt-2" id="ec-checkbox-container" style="display: none;">
                                         <input type="checkbox" name="processes[0][ec]" value="1" class="form-check-input" id="ec_edit"
@@ -62,6 +62,11 @@
                                             EC
                                         </label>
                                     </div>
+                                    <div>
+                                        <label for="description" class="form-label" style="margin-bottom: -5px">Notes</label>
+                                        <input type="text" class="form-control" id="description" name="description" value="{{ old('description', $current_tdr_processes->description) }}" placeholder="Enter Notes">
+                                    </div>
+                                </div>
                                 </div>
                             </div>
                         </div>

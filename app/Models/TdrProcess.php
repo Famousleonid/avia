@@ -14,10 +14,11 @@ class TdrProcess extends Model
         'tdrs_id',
         'process_names_id',
         'processes', // JSON-поле для хранения массива процессов
+        'description',
         'sort_order', // Поле для сортировки
         'date_start',
         'date_finish',
-        'ec', // Boolean поле для EC
+        'ec',// Boolean поле для EC
     ];
     protected $casts = [
         'processes'   => 'array',

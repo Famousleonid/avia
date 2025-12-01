@@ -154,6 +154,7 @@
                             <tr>
                                 <th class="text-primary text-center">Process Name</th>
                                 <th class="text-primary text-center" style="width: 450px;">Process</th>
+                                <th class="text-primary text-center">Notes</th>
                                 <th class="text-primary text-center">Action</th>
                                 <th class="text-primary text-center">Form</th>
                             </tr>
@@ -175,10 +176,13 @@
 
                                                 @foreach($proces as $proc)
                                                     @if($proc->id ==$process  )
-                                                        {{$proc->process}}@if($processes->ec) ( EC )@endif
+                                                        {{$proc->process}}@if($processes->ec) ( EC ) @endif
                                                     @endif
                                                 @endforeach
 
+                                            </td>
+                                            <td class="text-center">
+                                                {{$processes->description}}
                                             </td>
                                             <td class="text-center">
                                                 <a href="{{ route('tdr-processes.edit', ['tdr_process' =>

@@ -287,6 +287,7 @@ class TdrProcessController extends Controller
                 'date_start' => null,
                 'date_finish' => null,
                 'ec' => $ecValue, // Добавляем поле EC
+                'description' => $data['description'] ?? null, // Добавляем поле description (необязательное)
             ]);
 
             $sortOrderCounter++;
@@ -342,6 +343,7 @@ class TdrProcessController extends Controller
                             'date_start' => null,
                             'date_finish' => null,
                             'ec' => 0, // Поле ec = 0
+                            'description' => $data['description'] ?? null, // Добавляем поле description (необязательное)
                         ]);
 
                         $sortOrderCounter++; // Увеличиваем счетчик, так как создали дополнительную запись
@@ -738,6 +740,7 @@ class TdrProcessController extends Controller
             'processes.*.process' => 'required|array',
             'processes.*.process.*' => 'integer|exists:processes,id',
             'processes.*.ec' => 'nullable|boolean',
+            'description' => 'nullable|string|max:255', // Валидация для description
         ]);
 
         // Извлекаем данные из запроса
@@ -752,6 +755,7 @@ class TdrProcessController extends Controller
             'process_names_id' => $processData['process_names_id'],
             'processes' => json_encode($processesArray), // Преобразуем массив в JSON
             'ec' => $processData['ec'] ?? false, // Добавляем поле EC
+            'description' => $request->input('description') ?? null, // Добавляем поле description (необязательное)
         ];
 
         // Обновляем запись
@@ -759,13 +763,8 @@ class TdrProcessController extends Controller
         $current_tdr_processes->update($dataToUpdate);
         \Log::info('After update:', $current_tdr_processes->fresh()->toArray());
 
-        // Получаем workorder_id для редиректа
-        $current_tdr = Tdr::find($validated['tdrs_id']);
-        $workorder_id = $current_tdr->workorder_id;
-
-        // Редирект с сообщением об успехе
-        return redirect()
-            ->route('tdrs.processes', ['workorder_id' => $workorder_id])
+        // Редирект назад с сообщением об успехе
+        return redirect()->back()
             ->with('success', 'TDR for Component updated successfully');
     }
 

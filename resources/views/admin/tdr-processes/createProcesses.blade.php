@@ -1,10 +1,11 @@
+
 @extends('admin.master')
 
 @section('content')
 
     <style>
         .container {
-            max-width: 950px;
+            max-width: 1080px;
         }
 
         /* Стили для Select2 (темная и светлая темы) */
@@ -89,7 +90,7 @@
                         <!-- Начальная строка -->
                         <div class="process-row mb-3">
                             <div class="row">
-                                <div class="col-md-5">
+                                <div class="col-md-3">
                                     <label for="process_names">Process Name:</label>
                                     <select name="processes[0][process_names_id]" class="form-control select2-process" required
                                             data-process-data='@json($processNames->keyBy('id'))'>
@@ -111,22 +112,19 @@
                                         @endforeach
                                     </select>
                                 </div>
+
                                 <div class="col-md-5">
                                     <label for="process">Processes (Specification):</label>
-
                                     <button type="button" class="btn btn-link mb-1" data-bs-toggle="modal"
                                             data-bs-target="#addProcessModal">
-
                                         <img src="{{ asset('img/plus.png')}}" alt="arrow"
                                              style="width: 20px;" class="" >
                                     </button>
-
-
                                     <div class="process-options">
                                         <!-- Здесь будут чекбоксы для выбранного имени процесса -->
                                     </div>
                                 </div>
-                                <div class="col-md-2">
+                                <div class="col-md-4">
 {{--                                    <label for="ec">EC:</label>--}}
 {{--                                    <div class="mb-2">--}}
 {{--                                        <small class="text-muted">Process ID: <span id="process-name-id-0" class="fw-bold">-</span></small>--}}
@@ -137,6 +135,10 @@
                                         <label class="form-check-label" for="ec_0">
                                             EC
                                         </label>
+                                    </div>
+                                    <div>
+                                        <label for="description_0" class="form-label" style="margin-bottom: -5px">Notes</label>
+                                        <input type="text" class="form-control" id="description_0" name="processes[0][description]" placeholder="Enter Notes">
                                     </div>
                                 </div>
                             </div>
@@ -275,6 +277,10 @@
                     EC
                 </label>
             </div>
+            <div>
+                <label for="description_${index}" class="form-label" style="margin-bottom: -5px">Notes</label>
+                <input type="text" class="form-control" id="description_${index}" name="processes[${index}][description]" placeholder="Enter Notes">
+            </div>
         </div>
     </div>`;
 
@@ -311,11 +317,16 @@
                 const ecCheckbox = row.querySelector('input[name*="[ec]"]');
                 const ecValue = ecCheckbox ? ecCheckbox.checked : false;
 
+                // Получаем значение description (Notes)
+                const descriptionInput = row.querySelector('input[name*="[description]"]');
+                const descriptionValue = descriptionInput ? descriptionInput.value.trim() : null;
+
                 if (selectedProcessIds.length > 0) {
                     processesData.push({
                         process_names_id: processNameId,
                         processes: selectedProcessIds, // Сохраняем массив ID процессов
-                        ec: ecValue // Добавляем значение EC
+                        ec: ecValue, // Добавляем значение EC
+                        description: descriptionValue || null // Добавляем значение description
                     });
                 }
             });
@@ -726,7 +737,7 @@
                 if (select) {
                     const processNameId = select.value;
                     const ecCheckbox = row.querySelector('input[name*="[ec]"]');
-                    
+
                     // Показываем/скрываем чекбокс EC в зависимости от выбранного id
                     if (ecCheckbox) {
                         // Показываем чекбокс EC только для определенных id
@@ -736,7 +747,7 @@
                             ecCheckbox.closest('.form-check').style.display = 'none';
                         }
                     }
-                    
+
                     const selectName = select.name;
                     const match = selectName.match(/processes\[(\d+)\]/);
                     if (match) {
