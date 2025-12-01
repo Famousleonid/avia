@@ -18,7 +18,11 @@ class UnitController extends Controller
 {
     public function __construct()
     {
-        $this->authorizeResource(Unit::class, 'unit');
+        $this->middleware('can:units.viewAny')->only('index');
+        $this->middleware('can:units.view')->only('show');
+        $this->middleware('can:units.create')->only(['create', 'store']);
+        $this->middleware('can:units.update')->only(['edit', 'update']);
+        $this->middleware('can:units.delete')->only('destroy');
     }
 
     public function index()

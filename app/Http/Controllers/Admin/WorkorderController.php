@@ -24,7 +24,12 @@ class WorkorderController extends Controller
 
     public function __construct()
     {
-        $this->authorizeResource(Workorder::class, 'workorder');
+        $this->middleware('can:workorders.viewAny')->only('index');
+        $this->middleware('can:workorders.view')->only('show');
+        $this->middleware('can:workorders.create')->only(['create', 'store']);
+        $this->middleware('can:workorders.update')->only(['edit', 'update']);
+        $this->middleware('can:workorders.delete')->only('destroy');
+        $this->middleware('can:workorders.approve')->only('approve');
     }
 
 

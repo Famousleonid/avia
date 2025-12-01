@@ -5,8 +5,9 @@ return [
         'viewAny' => ['Admin','Manager', 'Team Leader', 'Technician'],
         'view'    => ['Admin','Manager', 'Team Leader', 'Technician'],
         'create'  => ['Admin','Manager', 'Team Leader', 'Technician'],
-        'update'  => ['Admin','Manager', 'Team Leader', 'Technician'],
+        'update'  => ['Admin'],
         'delete'  => ['Admin'],
+        'approve' => ['Admin','Manager'],
     ],
 
     'units' => [
@@ -39,7 +40,9 @@ return [
         'create'  => ['Admin','Manager', 'Team Leader', 'Technician'],
         'update'  => ['Admin','Manager', 'Team Leader', 'Technician'],
         'delete'  => ['Admin'],
+
     ],
+
     'customer' => [
         'viewAny' => ['Admin','Manager', 'Team Leader', 'Technician'],
         'view'    => ['Admin','Manager', 'Team Leader', 'Technician'],

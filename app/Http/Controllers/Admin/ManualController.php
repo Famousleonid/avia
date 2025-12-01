@@ -17,7 +17,11 @@ class ManualController extends Controller
     public function __construct()
     {
         $this->middleware('auth');
-        $this->authorizeResource(Manual::class, 'manual');
+        $this->middleware('can:manuals.viewAny')->only('index');
+        $this->middleware('can:manuals.view')->only('show');
+        $this->middleware('can:manuals.create')->only(['create', 'store']);
+        $this->middleware('can:manuals.update')->only(['edit', 'update']);
+        $this->middleware('can:manuals.delete')->only('destroy');
     }
 
 

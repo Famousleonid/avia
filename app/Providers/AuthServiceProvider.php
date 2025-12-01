@@ -12,15 +12,15 @@ class AuthServiceProvider extends ServiceProvider
      *
      * @var array<class-string, class-string>
      */
-    protected $policies = [
-        \App\Models\Workorder::class => \App\Policies\WorkorderPolicy::class,
-        \App\Models\Manual::class => \App\Policies\ManualPolicy::class,
-        \App\Models\Unit::class => \App\Policies\UnitPolicy::class,
-        \App\Models\User::class => \App\Policies\UserPolicy::class,
-        \App\Models\Task::class => \App\Policies\TaskPolicy::class,
-        \App\Models\Customer::class => \App\Policies\CustomerPolicy::class,
-
-    ];
+//    protected $policies = [
+//        \App\Models\Workorder::class => \App\Policies\WorkorderPolicy::class,
+//        \App\Models\Manual::class => \App\Policies\ManualPolicy::class,
+//        \App\Models\Unit::class => \App\Policies\UnitPolicy::class,
+//        \App\Models\User::class => \App\Policies\UserPolicy::class,
+//        \App\Models\Task::class => \App\Policies\TaskPolicy::class,
+//        \App\Models\Customer::class => \App\Policies\CustomerPolicy::class,
+//
+//    ];
 
     /**
      * Register any authentication / authorization services.
@@ -35,9 +35,8 @@ class AuthServiceProvider extends ServiceProvider
                 Gate::define("{$model}.{$action}", function ($user, $item = null) use ($rolesAllowed, $model, $action) {
 
                     // 1. Проверяем роль
-                    if (! in_array($user->role->name, $rolesAllowed)) {
+                    if (! $user->roleIs($rolesAllowed)) {
                         return false;
-
                     }
 
 //                    // 2. Дополнительные проверки для моделей

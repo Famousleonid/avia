@@ -96,8 +96,10 @@
         @if (is_admin())
             <div class="card-header my-1 shadow">
                 <div class="d-flex justify-content-between">
-                    <h5 class="text-primary">{{__('Manage Users')}}( <span class="text-success">{{$users->count()}} </span>)</h5>
-                    <a href="{{ route('users.create') }}" class="btn btn-outline-primary btn-sm ">{{ __('Add User') }}</a>
+                    <h5 class="text-primary">{{__('Manage Users')}}( <span
+                            class="text-success">{{$users->count()}} </span>)</h5>
+                    <a href="{{ route('users.create') }}"
+                       class="btn btn-outline-primary btn-sm ">{{ __('Add User') }}</a>
                 </div>
                 <div class="d-flex my-2">
                     <div class="clearable-input ps-2">
@@ -113,12 +115,15 @@
 
         @if(count($users))
             <div class="table-wrapper me3 p-2 pt-0">
-                <table id="userTable" class="display table table-sm table-hover table-striped align-middle table-bordered">
+                <table id="userTable"
+                       class="display table table-sm table-hover table-striped align-middle table-bordered">
                     <thead class="bg-gradient">
                     <tr>
-                        <th class="text-primary bg-gradient sortable">{{__('Name') }}<i class="bi bi-chevron-expand ms-1"></i></th>
+                        <th class="text-primary bg-gradient sortable">{{__('Name') }}<i
+                                class="bi bi-chevron-expand ms-1"></i></th>
                         <th class="text-primary bg-gradient ">{{__('Email') }}</th>
-                        <th class="text-primary bg-gradient sortable text-center">{{__('Team') }}<i class="bi bi-chevron-expand ms-1"></i></th>
+                        <th class="text-primary bg-gradient sortable text-center">{{__('Team') }}<i
+                                class="bi bi-chevron-expand ms-1"></i></th>
                         <th class="text-primary bg-gradient text-center">{{__('Avatar') }}</th>
                         <th class="text-primary bg-gradient text-center">{{__('Role') }}</th>
                         <th class="text-primary bg-gradient text-center">{{__('Stamp') }}</th>
@@ -133,30 +138,42 @@
                         <tr>
                             <td @if(!$user->email_verified_at) style="color:red" @endif>{{$user->name}}</td>
                             <td class="">{{$user->email}}</td>
-                            <td class="text-center" style="color: {{ $user->team ? '#ffffff' : '#808080' }};">{{ $user->team->name ?? 'Unknown team' }}</td>
+                            <td class="text-center"
+                                style="color: {{ $user->team ? '#ffffff' : '#808080' }};">{{ $user->team->name ?? 'Unknown team' }}</td>
                             <td class="text-center">
                                 <a href="{{ $user->getFirstMediaBigUrl('avatar') }}" data-fancybox="gallery">
-                                    <img class="rounded-circle" src="{{ $user->getFirstMediaThumbnailUrl('avatar') }}" width="40" height="40" alt="Image"/>
+                                    <img class="rounded-circle" src="{{ $user->getFirstMediaThumbnailUrl('avatar') }}"
+                                         width="40" height="40" alt="Image"/>
                                 </a>
                             </td>
-                            <td class="text-center" style="color: {{ $user->role? '#ffffff' : '#808080' }};">{{ $user->role->name ?? 'Unknown role' }}</td>
-                            <td class="text-center" style="color: {{ $user->role? '#ffffff' : '#808080' }};">{{ $user->stamp }}</td>
-                            <td class="text-center"><span style="display: none">{{$user->created_at}}</span>{{$user->created_at->format('d.m.Y')}}</td>
-                            @if (is_admin())
-                                <td class="text-center">
-                                    <a href="{{ route('users.edit', ['user' => $user->id]) }}" class="btn btn-outline-primary btn-sm">
-                                        <i class="bi bi-pencil-square"></i>
-                                    </a>
-                                    <form id="deleteForm_{{$user->id}}" action="{{ route('users.destroy', ['user' => $user->id]) }}" method="POST" style="display:inline;">
+                            <td class="text-center"
+                                style="color: {{ $user->role? '#ffffff' : '#808080' }};">{{ $user->role->name ?? 'Unknown role' }}</td>
+                            <td class="text-center"
+                                style="color: {{ $user->role? '#ffffff' : '#808080' }};">{{ $user->stamp }}</td>
+                            <td class="text-center"><span
+                                    style="display: none">{{$user->created_at}}</span>{{$user->created_at->format('d.m.Y')}}
+                            </td>
+
+                            <td class="text-center">
+                                <a href="{{ route('users.edit', ['user' => $user->id]) }}"
+                                   class="btn btn-outline-primary btn-sm">
+                                    <i class="bi bi-pencil-square"></i>
+                                </a>
+                                @can('users.delete')
+                                    <form id="deleteForm_{{$user->id}}"
+                                          action="{{ route('users.destroy', ['user' => $user->id]) }}" method="POST"
+                                          style="display:inline;">
                                         @csrf
                                         @method('DELETE')
                                         <button class="btn btn-sm btn-outline-danger" type="button" name="btn_delete"
-                                                data-bs-toggle="modal" data-bs-target="#useConfirmDelete" data-title="Delete Confirmation row {{$user->name}}">
+                                                data-bs-toggle="modal" data-bs-target="#useConfirmDelete"
+                                                data-title="Delete Confirmation row {{$user->name}}">
                                             <i class="bi bi-trash"></i>
                                         </button>
                                     </form>
-                                </td>
-                            @endif
+                                @endcan
+                            </td>
+
                         </tr>
                     @endforeach
                     </tbody>
