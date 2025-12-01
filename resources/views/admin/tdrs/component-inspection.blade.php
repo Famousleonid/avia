@@ -91,9 +91,12 @@
                                     @endforeach
                                 </select>
                             </div>
-                            <div>
-                                <button type="button" class="btn btn-link" data-bs-toggle="modal"
+                            <div class="mt-1 d-flex">
+                                <button type="button" class="btn btn-link p-0 me-3" data-bs-toggle="modal"
                                         data-bs-target="#addComponentModal">{{ __('Add Component') }}
+                                </button>
+                                <button type="button" class="btn btn-link p-0" id="editComponentBtn">
+                                    {{ __('Edit Component') }}
                                 </button>
                             </div>
                         </div>
@@ -328,6 +331,100 @@
         </div>
     </div>
 
+    <!-- Modal - Edit component -->
+    <div class="modal fade" id="editComponentModal" tabindex="-1" aria-labelledby="editComponentModalLabel"
+         aria-hidden="true">
+        <div class="modal-dialog modal-l">
+            <div class="modal-content bg-gradient">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="editComponentModalLabel">{{ __('Edit Component') }}</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <form action="" method="POST" id="editComponentForm" enctype="multipart/form-data">
+                    @csrf
+                    <input type="hidden" name="workorder_id" value="{{ $current_wo->id }}">
+                    <input type="hidden" name="manual_id" value="{{ $current_wo->unit->manual_id }}">
+
+                    <div class="modal-body">
+                        <div class="form-group">
+                            <label for="edit_name">{{ __('Name') }}</label>
+                            <input id="edit_name" type="text" class="form-control" name="name" required>
+                        </div>
+                        <div class="d-flex">
+                            <div class="d-flex">
+                                <div class="m-3">
+                                    <div>
+                                        <label for="edit_ipl_num">{{ __('IPL Number') }}</label>
+                                        <input id="edit_ipl_num" type="text" class="form-control" name="ipl_num" required>
+                                    </div>
+                                    <div class="mt-2">
+                                        <label for="edit_part_number">{{ __('Part Number') }}</label>
+                                        <input id="edit_part_number" type="text" class="form-control" name="part_number" required>
+                                    </div>
+                                    <div class="mt-2">
+                                        <label for="edit_eff_code">{{ __('EFF Code') }}</label>
+                                        <input id="edit_eff_code" type="text" class="form-control" name="eff_code">
+                                    </div>
+                                    <div class="mt-2">
+                                        <label for="edit_units_assy">{{ __('Units per Assy') }}</label>
+                                        <input id="edit_units_assy" type="text" class="form-control" name="units_assy">
+                                    </div>
+                                    <div class="mt-2">
+                                        <label>{{ __('Image') }}</label>
+                                        <input type="file" name="img" class="form-control">
+                                    </div>
+                                </div>
+
+                                <div class="m-3">
+                                    <div>
+                                        <label for="edit_assy_ipl_num">{{ __('Assembly IPL Number') }}</label>
+                                        <input id="edit_assy_ipl_num" type="text" class="form-control" name="assy_ipl_num">
+                                    </div>
+                                    <div class="mt-2">
+                                        <label>{{ __('Assy Image') }}</label>
+                                        <input type="file" name="assy_img" class="form-control">
+                                    </div>
+                                    <div class="mt-2">
+                                        <label for="edit_assy_part_number">{{ __('Assembly Part Number') }}</label>
+                                        <input id="edit_assy_part_number" type="text" class="form-control" name="assy_part_number">
+                                    </div>
+                                    <div class="form-check mt-2">
+                                        <input class="form-check-input" type="checkbox" id="edit_log_card" name="log_card">
+                                        <label class="form-check-label" for="edit_log_card">
+                                            Log Card
+                                        </label>
+                                    </div>
+                                    <div class="form-check mt-2">
+                                        <input class="form-check-input" type="checkbox" id="edit_repair" name="repair">
+                                        <label class="form-check-label" for="edit_repair">
+                                            Repair
+                                        </label>
+                                    </div>
+                                    <div class="form-check mt-2">
+                                        <input class="form-check-input" type="checkbox" id="edit_is_bush" name="is_bush">
+                                        <label class="form-check-label" for="edit_is_bush">
+                                            Is Bush
+                                        </label>
+                                    </div>
+                                    <div class="mt-2" id="edit_bush_ipl_container" style="display: none;">
+                                        <label for="edit_bush_ipl_num">{{ __('Initial Bushing IPL Number') }}</label>
+                                        <input id="edit_bush_ipl_num" type="text" class="form-control" name="bush_ipl_num"
+                                               pattern="^\d+-\d+[A-Za-z]?$"
+                                               title="The format should be: number-number (for example: 1-200A, 1001-100, 5-398B)"
+                                               style="width: 140px;">
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="text-end">
+                            <button type="submit" class="btn btn-primary">{{ __('Save changes') }}</button>
+                        </div>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
     <!-- Добавьте перед вашим скриптом -->
     {{--    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>--}}
 
@@ -495,6 +592,67 @@
 
             // Инициализация при загрузке - скрываем все группы кроме основных
             hideAllGroups();
+
+            // ----------------- Edit Component Modal -------------------------
+            $('#editComponentBtn').on('click', function (e) {
+                e.preventDefault();
+
+                var componentId = $('#i_component_id').val();
+
+                if (!componentId) {
+                    alert('Select component first.');
+                    return;
+                }
+
+                var url = '{{ route('components.showJson', ['component' => '__ID__']) }}'.replace('__ID__', componentId);
+
+                $.get(url, function (response) {
+                    if (!response.success) {
+                        alert('Failed to load component data.');
+                        return;
+                    }
+
+                    var c = response.component;
+
+                    $('#edit_name').val(c.name);
+                    $('#edit_ipl_num').val(c.ipl_num);
+                    $('#edit_part_number').val(c.part_number);
+                    $('#edit_assy_ipl_num').val(c.assy_ipl_num);
+                    $('#edit_assy_part_number').val(c.assy_part_number);
+                    $('#edit_eff_code').val(c.eff_code);
+                    $('#edit_units_assy').val(c.units_assy);
+
+                    $('#edit_log_card').prop('checked', c.log_card);
+                    $('#edit_repair').prop('checked', c.repair);
+                    $('#edit_is_bush').prop('checked', c.is_bush);
+
+                    if (c.is_bush) {
+                        $('#edit_bush_ipl_container').show();
+                        $('#edit_bush_ipl_num').val(c.bush_ipl_num);
+                    } else {
+                        $('#edit_bush_ipl_container').hide();
+                        $('#edit_bush_ipl_num').val('');
+                    }
+
+                    var formAction = '{{ route('components.updateFromInspection', ['component' => '__ID__']) }}'
+                        .replace('__ID__', componentId);
+                    $('#editComponentForm').attr('action', formAction);
+
+                    // Открываем модалку только после успешной загрузки данных
+                    $('#editComponentModal').modal('show');
+                }).fail(function () {
+                    alert('Error loading component.');
+                });
+            });
+
+            $('#edit_is_bush').on('change', function () {
+                if ($(this).is(':checked')) {
+                    $('#edit_bush_ipl_container').show();
+                } else {
+                    $('#edit_bush_ipl_container').hide();
+                    $('#edit_bush_ipl_num').val('');
+                }
+            });
         });
 
         $('#createForm').on('submit', function(e) {

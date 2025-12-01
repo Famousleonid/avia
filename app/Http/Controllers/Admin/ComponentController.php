@@ -307,6 +307,89 @@ class ComponentController extends Controller
     }
 
     /**
+     * Return component data as JSON (for editing from inspection form).
+     *
+     * @param int $id
+     * @return \Illuminate\Http\JsonResponse
+     */
+    public function showJson($id)
+    {
+        $component = Component::findOrFail($id);
+
+        return response()->json([
+            'success'   => true,
+            'component' => [
+                'id'               => $component->id,
+                'name'             => $component->name,
+                'ipl_num'          => $component->ipl_num,
+                'part_number'      => $component->part_number,
+                'assy_ipl_num'     => $component->assy_ipl_num,
+                'assy_part_number' => $component->assy_part_number,
+                'eff_code'         => $component->eff_code,
+                'units_assy'       => $component->units_assy,
+                'log_card'         => (bool) $component->log_card,
+                'repair'           => (bool) $component->repair,
+                'is_bush'          => (bool) $component->is_bush,
+                'bush_ipl_num'     => $component->bush_ipl_num,
+            ],
+        ]);
+    }
+
+    /**
+     * Update component from TDR component-inspection page.
+     *
+     * @param \Illuminate\Http\Request $request
+     * @param int $id
+     * @return \Illuminate\Http\RedirectResponse
+     */
+    public function updateFromInspection(Request $request, $id)
+    {
+        $component = Component::findOrFail($id);
+
+        $validated = $request->validate([
+            'name'         => 'required|string|max:250',
+            'manual_id'    => 'required|exists:manuals,id',
+            'part_number'  => 'required|string|max:50',
+            'ipl_num'      => 'required|string|max:10',
+            'assy_ipl_num' => 'nullable|string|max:10|regex:/^\d+-\d+[A-Za-z]?$/',
+            'bush_ipl_num' => 'nullable|string|max:10|regex:/^\d+-\d+[A-Za-z]?$/',
+            'eff_code'     => 'nullable|string|max:100',
+            'units_assy'   => 'nullable|string|max:100',
+        ]);
+
+        $validated['assy_part_number'] = $request->assy_part_number;
+        $validated['eff_code']         = $request->eff_code;
+        $validated['units_assy']       = $request->units_assy;
+        $validated['assy_ipl_num']     = $request->assy_ipl_num;
+        $validated['log_card']         = $request->has('log_card') ? 1 : 0;
+        $validated['repair']           = $request->has('repair') ? 1 : 0;
+        $validated['is_bush']          = $request->has('is_bush') ? 1 : 0;
+        $validated['bush_ipl_num']     = $request->bush_ipl_num;
+
+        if ($request->hasFile('img')) {
+            if ($component->getMedia('component')->isNotEmpty()) {
+                $component->getMedia('component')->first()->delete();
+            }
+
+            $component->addMedia($request->file('img'))->toMediaCollection('component');
+        }
+
+        if ($request->hasFile('assy_img')) {
+            if ($component->getMedia('assy_component')->isNotEmpty()) {
+                $component->getMedia('assy_component')->first()->delete();
+            }
+
+            $component->addMedia($request->file('assy_img'))->toMediaCollection('assy_component');
+        }
+
+        $component->update($validated);
+
+        return redirect()
+            ->route('tdrs.inspection.component', ['workorder_id' => $request->workorder_id])
+            ->with('success', 'Component updated successfully.');
+    }
+
+    /**
      * Remove the specified resource from storage.
      *
      * @param  int  $id

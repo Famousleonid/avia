@@ -162,6 +162,10 @@ Route::group(['middleware' => ['auth']], function () {
     Route::post('/components/update-csv/{manual_id}/{file_id}', [ComponentController::class, 'updateCsv'])->name('components.update-csv');
     Route::delete('/components/delete-csv/{manual_id}/{file_id}', [ComponentController::class, 'deleteCsv'])->name('components.delete-csv');
     Route::get('/components/download-csv/{manual_id}/{file_id}', [ComponentController::class, 'downloadCsv'])->name('components.download-csv');
+
+    // Components editing from inspection
+    Route::get('/components/{component}/json', [ComponentController::class, 'showJson'])->name('components.showJson');
+    Route::post('/components/{component}/update-from-inspection', [ComponentController::class, 'updateFromInspection'])->name('components.updateFromInspection');
     
     Route::resource('/components', ComponentController::class);
     Route::resource('/process-names',ProcessNameController::class);
