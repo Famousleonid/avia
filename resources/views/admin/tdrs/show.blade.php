@@ -137,7 +137,7 @@
 
                             </a>
                         </div>
-                        <div class="me-2">
+                        <div class="me-2 position-relative">
                             <button class="btn  btn-outline-warning ms-2 open-pdf-modal text-center"
                                     title="{{ __('PDF Library') }}"
                                     style="height: 55px;width: 55px"
@@ -146,6 +146,13 @@
                                 <i class="bi bi-file-earmark-pdf" style="font-size: 28px; "></i>
                                 {{--                                {{__('PDF Library')}}--}}
                             </button>
+                            {{-- Badge with count of uploaded PDF files --}}
+                            <span id="pdfCountBadge"
+                                  class="badge bg-warning rounded-pill position-absolute d-none"
+                                  style="top: -5px; right: -5px; min-width: 22px; height: 22px;
+                                         display: flex; align-items: center; justify-content: center;color: black;
+                                         font-size: 0.7rem; padding: 0 5px;">
+                            </span>
                         </div>
 
 
@@ -1448,6 +1455,29 @@
     <script>
         // ==================== PDF Library ====================
 
+        // Обновление бейджа с количеством PDF
+        async function updatePdfCountBadge(workorderId) {
+            const pdfBadge = document.getElementById('pdfCountBadge');
+            if (!pdfBadge) return;
+
+            try {
+                const response = await fetch(`/workorders/${workorderId}/pdfs`);
+                if (!response.ok) return;
+                const data = await response.json();
+
+                const pdfCount = Array.isArray(data.pdfs) ? data.pdfs.length : 0;
+                if (pdfCount > 0) {
+                    pdfBadge.textContent = pdfCount;
+                    pdfBadge.classList.remove('d-none');
+                } else {
+                    pdfBadge.textContent = '';
+                    pdfBadge.classList.add('d-none');
+                }
+            } catch (e) {
+                console.error('Failed to load PDF count', e);
+            }
+        }
+
         // Открытие модального окна PDF библиотеки
         document.querySelectorAll('.open-pdf-modal').forEach(button => {
             button.addEventListener('click', async function () {
@@ -1461,6 +1491,11 @@
                 await loadPdfLibrary(workorderId);
                 new bootstrap.Modal(document.getElementById('pdfModal')).show();
             });
+        });
+
+        // Инициализация бейджа при загрузке страницы
+        document.addEventListener('DOMContentLoaded', function () {
+            updatePdfCountBadge({{ $current_wo->id }});
         });
 
         // Очистка при закрытии основного модального окна PDF Library
@@ -1490,6 +1525,19 @@
                 const response = await fetch(`/workorders/${workorderId}/pdfs`);
                 if (!response.ok) throw new Error('Response not ok');
                 const data = await response.json();
+
+                // Update badge with count of uploaded PDFs
+                const pdfBadge = document.getElementById('pdfCountBadge');
+                if (pdfBadge) {
+                    const pdfCount = Array.isArray(data.pdfs) ? data.pdfs.length : 0;
+                    if (pdfCount > 0) {
+                        pdfBadge.textContent = pdfCount;
+                        pdfBadge.classList.remove('d-none');
+                    } else {
+                        pdfBadge.textContent = '';
+                        pdfBadge.classList.add('d-none');
+                    }
+                }
 
                 if (data.pdfs.length === 0) {
                     container.innerHTML = '<div class="col-12"><p class="text-muted text-center">No PDF files uploaded yet.</p></div>';
@@ -1705,6 +1753,11 @@
                             loadPdfLibrary(window.currentPdfWorkorderId);
                         }
                     }, 300);
+
+                    // Обновляем бейдж количества PDF после удаления
+                    if (window.currentPdfWorkorderId) {
+                        updatePdfCountBadge(window.currentPdfWorkorderId);
+                    }
 
                     const toast = new bootstrap.Toast(document.getElementById('pdfDeletedToast'));
                     document.querySelector('#pdfDeletedToast .toast-body').textContent = 'PDF deleted successfully.';
