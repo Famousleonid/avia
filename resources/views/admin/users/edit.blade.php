@@ -71,14 +71,13 @@
                         </div>
                     </div>
 
-
-                    @role('Admin')
+                    @admin
                         <div class="form-check mb-3">
                             <input type="checkbox" name="is_admin" id="is_admin"
                                    class="form-check-input" {{ $user->is_admin ? 'checked' : '' }}>
                             <label for="is_admin" class="form-check-label small">admin</label>
                         </div>
-                    @endrole
+                    @endadmin
 
                     <div class="d-flex mb-3">
                         <div class="me-3">

@@ -21,7 +21,7 @@
             <i class="bi bi-body-text me-2"></i> <span>Materials</span>
         </a>
     </li>
-    @if (is_admin())
+    @if (auth()->user()->roleIs('Admin'))
         <li class="nav-item">
             <a class="nav-link press-spinner" href="{{route('customers.index')}}">
                 <i class="bi bi-person-workspace me-2"></i> <span>Customers</span>

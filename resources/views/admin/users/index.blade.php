@@ -155,7 +155,7 @@
                             </td>
 
                             <td class="text-center">
-                                @if((auth()->check() && auth()->id() === $user->id) || is_admin())
+                                @if((auth()->check() && auth()->id() === $user->id) || auth()->user()->roleIs('Admin'))
                                     <a href="{{ route('users.edit', ['user' => $user->id]) }}"
                                         class="btn btn-outline-primary btn-sm">
                                         <i class="bi bi-pencil-square"></i>

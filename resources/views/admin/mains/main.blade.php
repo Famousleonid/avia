@@ -330,7 +330,7 @@
                                                class="btn btn-outline-success"
                                                title="{{ __('TDR Report') }}"
                                                onclick="showLoadingSpinner()">
-                                                <i class="bi bi-hammer" style="font-size: 16px"></i>
+                                                <i class="bi bi-hammer" style="font-size:22px; line-height:0;"></i>
                                             </a>
 
                                             <a class="btn btn-outline-info btn-sm open-photo-modal"
