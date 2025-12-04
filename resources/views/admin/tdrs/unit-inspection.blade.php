@@ -96,12 +96,17 @@
                                 @endif
                             @endforeach
                         </select>
+                        @admin
+
                         <button type="button" class="btn btn-link" data-bs-toggle="modal" data-bs-target="#addConditionModal">
                             {{ __('Add Condition') }}
                         </button>
-                        <button type="button" class="btn btn-link" data-bs-toggle="modal" data-bs-target="#manageConditionModal">
-                            {{ __('Manage Condition') }}
-                        </button>
+{{--                        <button type="button" class="btn btn-link" data-bs-toggle="modal" data-bs-target="#manageConditionModal">--}}
+{{--                            {{ __('Manage Condition') }}--}}
+{{--                        </button>--}}
+
+                        @endadmin
+
                     </div>
                     <div class="m-2">
                         <label class="" for="description">{{ __('Notice')}}</label>
