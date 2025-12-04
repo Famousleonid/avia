@@ -106,7 +106,7 @@ class ManualProcessController extends Controller
             $process->save();
         }
 
-        return redirect()->route('processes.edit',['process' => $manualId])
+        return redirect()->route('processes.edit',['id' => $manualId])
             ->with('success', 'Process updated successfully');
     }
 
