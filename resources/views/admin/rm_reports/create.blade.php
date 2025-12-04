@@ -359,12 +359,34 @@
                 return this.value;
             }).get();
 
-            if (selectedRecords.length === 0) {
-                alert('Please select at least one record to save.');
+            // Проверяем, есть ли хотя бы одна заметка
+            var hasNotes = false;
+            for (var i = 1; i <= 7; i++) {
+                if ($('#note' + i).val().trim() !== '') {
+                    hasNotes = true;
+                    break;
+                }
+            }
+
+            // Проверяем, что есть либо выбранные записи, либо заметки
+            if (selectedRecords.length === 0 && !hasNotes) {
+                alert('Please select at least one R&M record or enter at least one technical note to save.');
                 return;
             }
 
-            if (confirm('Are you sure you want to save ' + selectedRecords.length + ' selected record(s) and technical notes to this work order?')) {
+            // Формируем сообщение подтверждения
+            var confirmMessage = 'Are you sure you want to save ';
+            if (selectedRecords.length > 0) {
+                confirmMessage += selectedRecords.length + ' selected record(s)';
+                if (hasNotes) {
+                    confirmMessage += ' and technical notes';
+                }
+            } else {
+                confirmMessage += 'technical notes';
+            }
+            confirmMessage += ' to this work order?';
+
+            if (confirm(confirmMessage)) {
                 // Создаем форму для отправки POST запроса
                 var form = document.createElement('form');
                 form.method = 'POST';
