@@ -137,6 +137,7 @@ Route::group(['middleware' => ['auth']], function () {
         Route::get('tdrs/prlForm/{id}', [TdrController::class, 'prlForm'])->name('tdrs.prlForm');
         Route::get('tdrs/specProcessForm/{id}', [TdrController::class, 'specProcessForm'])->name('tdrs.specProcessForm');
     Route::get('tdrs/specProcessFormEmp/{id}', [TdrController::class, 'specProcessFormEmp'])->name('tdrs.specProcessFormEmp');
+        Route::post('tdrs/update-part-field/{id}', [TdrController::class, 'updatePartField'])->name('tdrs.updatePartField');
 
     Route::resource('/manuals', ManualController::class);
     Route::resource('/materials',  MaterialController::class);
