@@ -19,6 +19,8 @@ class Tdr extends Model
         'necessaries_id',
         'description',
         'qty',
+        'po_num',
+        'received',
         'use_tdr',
         'use_process_forms',
         'use_log_card',

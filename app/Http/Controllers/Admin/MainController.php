@@ -3,10 +3,12 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Models\Code;
 use App\Models\Customer;
 use App\Models\GeneralTask;
 use App\Models\Main;
 use App\Models\Manual;
+use App\Models\Necessary;
 use App\Models\Task;
 use App\Models\Tdr;
 use App\Models\TdrProcess;
@@ -120,10 +122,40 @@ class MainController extends Controller
             ->whereNull('date_finish')
             ->count();
 
+        $code = Code::where('name', 'Missing')->first();
+        $necessary = Necessary::where('name', 'Order New')->first();
+        $ordersPartsNew = Tdr::where('workorder_id', $workorder_id)
+            ->where('codes_id', '!=', $code->id)
+            ->where('necessaries_id', $necessary->id)
+            ->whereNotNull('order_component_id')
+            ->with(['codes', 'orderComponent' => function($query) {
+                $query->select('id', 'name', 'part_number', 'ipl_num');
+            }])
+            ->get();
+        $prl_parts=Tdr::where('workorder_id', $workorder_id)
+            ->where('necessaries_id', $necessary->id)
+            ->with([
+                'component' => function($query) {
+                    $query->select('id', 'name', 'part_number', 'ipl_num');
+                },
+                'orderComponent' => function($query) {
+                    $query->select('id', 'name', 'part_number', 'ipl_num');
+                }
+            ])
+            ->get();
+        // Подсчет заказанных деталей (сумма QTY всех деталей в prl_parts)
+        $orderedQty = $prl_parts->sum('qty');
+
+        // Подсчет полученных деталей (сумма QTY деталей с заполненным полем received)
+        $receivedQty = $prl_parts->whereNotNull('received')->sum('qty');
+
+
+
         return view('admin.mains.main', compact(
             'users','current_workorder','mains','general_tasks','tasks','tasksByGeneral',
             'imgThumb','imgFull','manual','components','showAll',
-            'tdrProcessesTotal','tdrProcessesOpen'
+            'tdrProcessesTotal','tdrProcessesOpen',
+            'ordersPartsNew','prl_parts','orderedQty', 'receivedQty',
         ));
     }
 

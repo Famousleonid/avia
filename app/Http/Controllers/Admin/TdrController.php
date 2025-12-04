@@ -357,7 +357,16 @@ class TdrController extends Controller
             ->get();
 
         $prl_parts=Tdr::where('workorder_id', $current_wo->id)
-            ->where('necessaries_id', $necessary->id)->get();
+            ->where('necessaries_id', $necessary->id)
+            ->with([
+                'component' => function($query) {
+                    $query->select('id', 'name', 'part_number', 'ipl_num');
+                },
+                'orderComponent' => function($query) {
+                    $query->select('id', 'name', 'part_number', 'ipl_num');
+                }
+            ])
+            ->get();
 
         $planes = Plane::all();
         $builders = Builder::all();
@@ -375,6 +384,11 @@ class TdrController extends Controller
 
          $tdr_proc = TdrProcess::where('ec',1)->get();
 
+        // Подсчет заказанных деталей (сумма QTY всех деталей в prl_parts)
+        $orderedQty = $prl_parts->sum('qty');
+
+        // Подсчет полученных деталей (сумма QTY деталей с заполненным полем received)
+        $receivedQty = $prl_parts->whereNotNull('received')->sum('qty');
 
         return view('admin.tdrs.show', compact(
             'current_wo', 'tdrs', 'units', 'components', 'user', 'customers',
@@ -382,6 +396,7 @@ class TdrController extends Controller
             'necessaries', 'unit_conditions', 'component_conditions',
             'codes', 'conditions', 'missingParts', 'ordersParts', 'inspectsUnit',
             'processParts', 'ordersPartsNew','trainings','user_wo', 'manual_id','log_card','woBushing','prl_parts','tdr_proc',
+            'orderedQty', 'receivedQty'
         ));
     }
 
@@ -2338,6 +2353,34 @@ class TdrController extends Controller
      * Проверяет, нужно ли пропустить элемент на основе существующих IPL номеров
      */
 
+    /**
+     * Обновление po_num или received для записи Tdr
+     */
+    public function updatePartField(Request $request, $id)
+    {
+        $request->validate([
+            'field' => 'required|in:po_num,received',
+            'value' => 'nullable|string'
+        ]);
 
+        $tdr = Tdr::findOrFail($id);
+        
+        $field = $request->input('field');
+        $value = $request->input('value');
+        
+        // Если поле received и значение пустое, устанавливаем null
+        if ($field === 'received' && empty($value)) {
+            $tdr->received = null;
+        } else {
+            $tdr->$field = $value;
+        }
+        
+        $tdr->save();
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Field updated successfully'
+        ]);
+    }
 
 }

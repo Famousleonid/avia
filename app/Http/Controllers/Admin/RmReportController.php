@@ -404,7 +404,15 @@ public function rmRecordForm(Request $request, $id)
      */
     public function saveToWorkorder(Request $request)
     {
-        $selectedRecords = json_decode($request->selected_records, true);
+        // Обрабатываем selected_records - может быть пустым массивом или не передан
+        $selectedRecords = [];
+        if ($request->has('selected_records') && !empty($request->selected_records)) {
+            $decoded = json_decode($request->selected_records, true);
+            if (is_array($decoded)) {
+                $selectedRecords = $decoded;
+            }
+        }
+        
         $workorder_id = $request->workorder_id;
         
         // Собираем технические заметки
@@ -415,6 +423,9 @@ public function rmRecordForm(Request $request, $id)
         }
         
         $dataToSave = [];
+        
+        // Получаем workorder для проверки существующих данных
+        $workorder = Workorder::findOrFail($workorder_id);
         
         // Добавляем R&M записи, если они выбраны
         if (!empty($selectedRecords)) {
@@ -439,13 +450,20 @@ public function rmRecordForm(Request $request, $id)
             })->toArray();
             
             $dataToSave['rm_records'] = $rmData;
+        } else {
+            // Если записи не выбраны, сохраняем существующие записи из workorder (если есть)
+            if ($workorder->rm_report) {
+                $existingData = json_decode($workorder->rm_report, true);
+                if ($existingData && isset($existingData['rm_records']) && !empty($existingData['rm_records'])) {
+                    $dataToSave['rm_records'] = $existingData['rm_records'];
+                }
+            }
         }
         
         // Добавляем технические заметки
         $dataToSave['technical_notes'] = $technicalNotes;
         
         // Сохраняем в поле rm_report таблицы workorders
-        $workorder = Workorder::findOrFail($workorder_id);
         $workorder->update([
             'rm_report' => json_encode($dataToSave)
         ]);
