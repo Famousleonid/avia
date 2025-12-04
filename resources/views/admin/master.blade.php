@@ -15,6 +15,7 @@
     <link rel="stylesheet" href="{{asset('css/custom_bootstrap.css')}}">
     <link rel="stylesheet" href="{{asset('css/main.css')}}">
     <link rel="stylesheet" href="{{ asset('css/paper-button.css') }}">
+    <link rel="stylesheet" href="https://unpkg.com/tippy.js@6/dist/tippy.css">
 
     <script>
         (function () {
@@ -28,13 +29,13 @@
             document.documentElement.setAttribute('data-sidebar-collapsed', collapsed ? '1' : '0');
         })();
     </script>
-    
+
     <script>
         // Ранняя обработка ошибок для подавления некритичных ошибок
         (function() {
             window.addEventListener('error', function(e) {
                 const errorMessage = e.message || '';
-                if (errorMessage.includes('is not iterable') || 
+                if (errorMessage.includes('is not iterable') ||
                     errorMessage.includes('identifyDuplicates') ||
                     errorMessage.includes('statements is not iterable')) {
                     e.preventDefault();
@@ -42,11 +43,11 @@
                     return false;
                 }
             }, true);
-            
+
             window.addEventListener('unhandledrejection', function(e) {
                 const reason = e.reason || {};
                 const message = reason.message || String(reason) || '';
-                if (message.includes('is not iterable') || 
+                if (message.includes('is not iterable') ||
                     message.includes('identifyDuplicates') ||
                     message.includes('statements is not iterable')) {
                     e.preventDefault();
@@ -102,15 +103,22 @@
 <script src="{{asset('assets/select2/js/select2.min.js')}}"></script>
 <script src="{{ asset('assets/jquery/jquery.fancybox.min.js') }}"></script>
 <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+<script src="https://unpkg.com/@popperjs/core@2"></script>
+<script src="https://unpkg.com/tippy.js@6"></script>
 <script src="{{ asset('js/main.js') }}"></script>
-
-@yield('scripts')
 
 <script>
     window.addEventListener('load', function () {
         hideLoadingSpinner();
         const themeToggle = document.getElementById('themeToggle');
         const themeToggleMobile = document.getElementById('themeToggleMobile');
+
+        tippy('[data-tippy-content]', {
+            placement: 'top',
+            animation: 'scale',
+            theme: 'light-border',
+            delay: [100, 50],
+        });
 
         function updateThemeIcon(theme) {
             const iconClass = theme === 'dark' ? 'bi-sun' : 'bi-moon';
@@ -172,20 +180,23 @@
     });
 </script>
 
+@yield('scripts')
+
+
 <script>
     // Подавляем ошибки MetaMask и другие некритичные ошибки
     window.addEventListener('error', function(e) {
         const errorMessage = e.message || '';
         const errorSource = e.filename || '';
-        
+
         if (errorMessage.includes('MetaMask')) {
             e.preventDefault();
             e.stopPropagation();
             return false;
         }
-        
+
         // Подавляем ошибки "is not iterable" в identifyDuplicates и других местах
-        if (errorMessage.includes('is not iterable') || 
+        if (errorMessage.includes('is not iterable') ||
             errorMessage.includes('identifyDuplicates') ||
             errorMessage.includes('statements is not iterable') ||
             errorMessage.includes('statements') && errorMessage.includes('iterable')) {
@@ -193,27 +204,27 @@
             e.stopPropagation();
             return false;
         }
-        
+
         return true;
     }, true);
-    
+
     // Также обрабатываем необработанные промисы
     window.addEventListener('unhandledrejection', function(e) {
         const reason = e.reason || {};
         const message = reason.message || String(reason) || '';
-        
+
         if (message.includes('MetaMask')) {
             e.preventDefault();
             return false;
         }
-        
-        if (message.includes('is not iterable') || 
+
+        if (message.includes('is not iterable') ||
             message.includes('identifyDuplicates') ||
             message.includes('statements is not iterable')) {
             e.preventDefault();
             return false;
         }
-        
+
         return true;
     });
 

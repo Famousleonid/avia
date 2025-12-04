@@ -292,13 +292,16 @@
 
                         {{-- Manual image --}}
                         <div class="col-12 col-md-2 col-lg-1 d-flex">
-                            <div class="card h-100 w-100 bg-dark text-light border-secondary d-flex align-items-center justify-content-center p-3">
+                            <div
+                                class="card h-100 w-100 bg-dark text-light border-secondary d-flex align-items-center justify-content-center p-3">
                                 @if($imgFull)
                                     <a href="{{ $imgFull }}" data-fancybox="wo-manual" title="Manual">
-                                        <img class="rounded-circle" src="{{ $imgThumb }}" width="90" height="90" alt="Manual preview">
+                                        <img class="rounded-circle" src="{{ $imgThumb }}" width="90" height="90"
+                                             alt="Manual preview">
                                     </a>
                                 @else
-                                    <img class="rounded-circle" src="{{ $imgThumb }}" width="80" height="80" alt="No image">
+                                    <img class="rounded-circle" src="{{ $imgThumb }}" width="80" height="80"
+                                         alt="No image">
                                 @endif
                             </div>
                         </div>
@@ -322,34 +325,37 @@
                                             @endif
 
                                             <span class="ms-2 fs-4"
-                                                  title="{{ $current_workorder->description }}"
+                                                  data-tippy-content="{{ $current_workorder->description }}"
                                                   style="cursor:help;">&#9432;</span>
 
                                             {{-- TDR --}}
                                             <a href="{{ route('tdrs.show', $current_workorder->id) }}"
                                                class="btn btn-outline-success"
-                                               title="{{ __('TDR Report') }}"
+                                               data-tippy-content="{{ __('TDR Report') }}"
+                                               data-tippy-placement="top"
                                                onclick="showLoadingSpinner()">
                                                 <i class="bi bi-hammer" style="font-size:22px; line-height:0;"></i>
                                             </a>
 
                                             <a class="btn btn-outline-info btn-sm open-photo-modal"
-                                                    title="{{ __('Pictures') }}"
-                                                    data-id="{{ $current_workorder->id }}"
-                                                    data-number="{{ $current_workorder->number }}">
-                                                <i class="bi bi-images text-decoration-none" style="font-size: 18px"></i>
+                                               data-tippy-content="{{ __('Pictures') }}"
+                                               data-id="{{ $current_workorder->id }}"
+                                               data-number="{{ $current_workorder->number }}">
+                                                <i class="bi bi-images text-decoration-none"
+                                                   style="font-size: 18px"></i>
                                             </a>
-
+                                            @admin
                                             <a class="btn btn-outline-warning btn-sm open-log-modal"
-                                                     title="{{ __('Logs') }}"
-                                                    data-url="{{ route('workorders.logs-json', $current_workorder->id) }}">
+                                               data-tippy-content="{{ __('Logs') }}"
+                                               data-url="{{ route('workorders.logs-json', $current_workorder->id) }}">
                                                 <i class="bi bi-clock-history" style="font-size: 18px"></i>
                                             </a>
-
+                                            @endadmin
                                         </div>
 
                                         <div class="small text-end">
-                                            <span class="text-light">{{ $current_workorder->instruction->name ?? '—' }}</span>
+                                            <span
+                                                class="text-light">{{ $current_workorder->instruction->name ?? '—' }}</span>
                                             <span class="mx-2 text-primary">•</span>
                                             <span class="text-light">{{ $manual->number ?? '—' }}</span>
                                             <span class="mx-2 text-primary">•</span>
@@ -359,7 +365,8 @@
                                             <span class="text-light">{{ $manual->lib ?? '—' }}</span>
                                             <span class="mx-2 text-primary">•</span>
                                             <span class="text-muted small">Open:</span>
-                                            <span class="text-light">{{ $current_workorder->open_at?->format('d-M-y') ?? '—' }}</span>
+                                            <span
+                                                class="text-light">{{ $current_workorder->open_at?->format('d-M-y') ?? '—' }}</span>
                                         </div>
                                     </div>
 
@@ -387,15 +394,19 @@
 
                                         <div class="col-12 col-lg-2 d-flex">
                                             <div class="border rounded p-2 h-100 w-100">
-                                                <div><span class="text-info small">Technik:</span> {{ $current_workorder->user->name ?? '—' }}</div>
+                                                <div><span
+                                                        class="text-info small">Technik:</span> {{ $current_workorder->user->name ?? '—' }}
+                                                </div>
                                             </div>
                                         </div>
                                         <div class="col-12 col-lg-3 d-flex">
                                             <div class="border rounded p-2 h-100 w-100">
                                                 <div class="small d-flex justify-content-between">
                                                     <span class="text-info  me-2">Parts:</span>
-                                                    Ordered: <span id="orderedQty{{$current_workorder->number}}">{{ $orderedQty ?? 0 }}</span>
-                                                    Received: <span id="receivedQty{{$current_workorder->number}}">{{ $receivedQty ?? 0 }}</span>
+                                                    Ordered: <span
+                                                        id="orderedQty{{$current_workorder->number}}">{{ $orderedQty ?? 0 }}</span>
+                                                    Received: <span
+                                                        id="receivedQty{{$current_workorder->number}}">{{ $receivedQty ?? 0 }}</span>
                                                     <button type="button" class="btn btn-success fs-6"
                                                             style="--bs-btn-padding-y: .02rem; --bs-btn-padding-x: 1rem;
                                                             --bs-btn-font-size: .7rem;"
@@ -423,7 +434,8 @@
                         <div class="left-pane">
 
                             {{-- Add task form --}}
-                            <form id="general_task_form" method="POST" action="{{ route('mains.store') }}" class="w-100">
+                            <form id="general_task_form" method="POST" action="{{ route('mains.store') }}"
+                                  class="w-100">
                                 @csrf
                                 <input type="hidden" name="workorder_id" value="{{ $current_workorder->id }}">
                                 <input type="hidden" name="task_id" id="task_id" value="{{ old('task_id') }}">
@@ -432,7 +444,8 @@
                                 <div class="dropdown mb-2">
                                     <button id="taskPickerBtn"
                                             class="btn btn-outline-primary eqh w-100 d-flex align-items-center justify-content-between dropdown-toggle"
-                                            type="button" data-bs-toggle="dropdown" data-bs-auto-close="outside" aria-expanded="false">
+                                            type="button" data-bs-toggle="dropdown" data-bs-auto-close="outside"
+                                            aria-expanded="false">
                                         <span>Choose task</span>
                                         <span id="pickedSummary" class="picked text-truncate"></span>
                                     </button>
@@ -443,14 +456,15 @@
                                                 <ul class="nav nav-pills flex-column" id="generalTab" role="tablist">
                                                     @foreach ($general_tasks as $general)
                                                         <li class="nav-item">
-                                                            <button class="nav-link @if($loop->first) active @endif w-100 text-start"
-                                                                    id="tab-g-{{ $general->id }}"
-                                                                    data-bs-toggle="pill"
-                                                                    data-bs-target="#pane-g-{{ $general->id }}"
-                                                                    type="button" role="tab"
-                                                                    aria-controls="pane-g-{{ $general->id }}"
-                                                                    aria-selected="{{ $loop->first ? 'true' : 'false' }}"
-                                                                    data-general-id="{{ $general->id }}">
+                                                            <button
+                                                                class="nav-link @if($loop->first) active @endif w-100 text-start"
+                                                                id="tab-g-{{ $general->id }}"
+                                                                data-bs-toggle="pill"
+                                                                data-bs-target="#pane-g-{{ $general->id }}"
+                                                                type="button" role="tab"
+                                                                aria-controls="pane-g-{{ $general->id }}"
+                                                                aria-selected="{{ $loop->first ? 'true' : 'false' }}"
+                                                                data-general-id="{{ $general->id }}">
                                                                 {{ $general->name }}
                                                             </button>
                                                         </li>
@@ -514,8 +528,10 @@
                                                placeholder="Finish...">
                                     </div>
 
-                                    <div class="col-12 col-xl-2 d-grid">
-                                        <button type="submit" id="addBtn" class="btn-sm btn-success" disabled>Add</button>
+                                    <div class="col-12 col-xl-2 d-grid" data-tippy-content="{{ __('Add task') }}">
+                                        <button type="submit" id="addBtn"
+                                                class="btn-sm btn-success" disabled
+                                        >Add</button>
                                     </div>
                                 </div>
                             </form>
@@ -620,7 +636,8 @@
                                             @php $prs = $tdr->tdrProcesses; @endphp
                                             @if($prs->isNotEmpty())
                                                 <div class="mt-2 ps-2">
-                                                    <table class="table table-sm table-dark table-bordered mb-2 align-middle">
+                                                    <table
+                                                        class="table table-sm table-dark table-bordered mb-2 align-middle">
                                                         <thead>
                                                         <tr>
                                                             <th style="width:40%;">
@@ -715,8 +732,10 @@
                             <thead class="bg-gradient">
                             <tr>
                                 <th class="text-primary  bg-gradient " data-direction="asc">{{__('IPL')}}</th>
-                                <th class="text-primary  bg-gradient " data-direction="asc">{{__('Part Description') }}</th>
-                                <th class="text-primary  bg-gradient " style="width: 250px;" data-direction="asc">{{__('Part Number')}}</th>
+                                <th class="text-primary  bg-gradient "
+                                    data-direction="asc">{{__('Part Description') }}</th>
+                                <th class="text-primary  bg-gradient " style="width: 250px;"
+                                    data-direction="asc">{{__('Part Number')}}</th>
                                 <th class="text-primary  bg-gradient " data-direction="asc">{{__('QTY')}}</th>
                                 <th class="text-primary  bg-gradient ">{{__('PO NO.')}} </th>
                                 <th class="text-primary  bg-gradient ">{{__('Received')}}</th>
@@ -741,8 +760,14 @@
                                                     data-workorder-number="{{ $current_workorder->number }}"
                                                     style="width: 100%;">
                                                 <option value="">-- Select --</option>
-                                                <option value="Customer" {{ $part->po_num === 'Customer' ? 'selected' : '' }}>Customer</option>
-                                                <option value="INPUT" {{ $part->po_num && $part->po_num !== 'Customer' ? 'selected' : '' }}>PO No.</option>
+                                                <option
+                                                    value="Customer" {{ $part->po_num === 'Customer' ? 'selected' : '' }}>
+                                                    Customer
+                                                </option>
+                                                <option
+                                                    value="INPUT" {{ $part->po_num && $part->po_num !== 'Customer' ? 'selected' : '' }}>
+                                                    PO No.
+                                                </option>
                                             </select>
                                             <input type="text"
                                                    class="form-control form-control-sm po-no-input mt-1"
@@ -853,8 +878,6 @@
             </div>
         </div>
     </div>
-
-
 
 @endsection
 
@@ -1323,7 +1346,7 @@
         });
     </script>
     <script>
-        (function() {
+        (function () {
             'use strict';
 
             console.log('Parts Modal JavaScript loaded');
@@ -1337,7 +1360,7 @@
 
             // Утилиты для работы с CSRF токеном
             const TokenUtils = {
-                getCsrfToken: function() {
+                getCsrfToken: function () {
                     const metaTag = document.querySelector('meta[name="csrf-token"]');
                     return metaTag
                         ? metaTag.getAttribute('content')
@@ -1347,23 +1370,23 @@
 
             // Утилиты для работы с DOM
             const DomUtils = {
-                getModal: function(workorderNumber) {
+                getModal: function (workorderNumber) {
                     return document.getElementById('partsModal' + workorderNumber);
                 },
 
-                getReceivedCounter: function(workorderNumber) {
+                getReceivedCounter: function (workorderNumber) {
                     return document.getElementById('receivedQty' + workorderNumber);
                 },
 
-                getPoNoInput: function(selectElement) {
+                getPoNoInput: function (selectElement) {
                     return selectElement.closest('.po-no-container').querySelector('.po-no-input');
                 },
 
-                getTableRows: function(modal) {
+                getTableRows: function (modal) {
                     return modal ? modal.querySelectorAll('tbody tr') : [];
                 },
 
-                getQtyFromRow: function(row) {
+                getQtyFromRow: function (row) {
                     const qtyCell = row.querySelector('td:nth-child(' + CONFIG.qtyColumnIndex + ')');
                     return qtyCell ? parseInt(qtyCell.textContent.trim()) || 0 : 0;
                 }
@@ -1371,7 +1394,7 @@
 
             // API для сохранения данных
             const PartsApi = {
-                saveField: function(tdrsId, field, value, workorderNumber) {
+                saveField: function (tdrsId, field, value, workorderNumber) {
                     const csrfToken = TokenUtils.getCsrfToken();
                     const url = '{{ route("tdrs.updatePartField", ":id") }}'.replace(':id', tdrsId);
 
@@ -1405,14 +1428,14 @@
 
             // Управление счетчиками
             const PartsCounter = {
-                updateReceivedCount: function(workorderNumber) {
+                updateReceivedCount: function (workorderNumber) {
                     const modal = DomUtils.getModal(workorderNumber);
                     if (!modal) return;
 
                     const rows = DomUtils.getTableRows(modal);
                     let receivedQty = 0;
 
-                    rows.forEach(function(row) {
+                    rows.forEach(function (row) {
                         const receivedInput = row.querySelector('.received-date');
                         if (receivedInput && receivedInput.value) {
                             receivedQty += DomUtils.getQtyFromRow(row);
@@ -1428,7 +1451,7 @@
 
             // Управление полем PO NO
             const PoNoManager = {
-                handleSelectChange: function(selectElement) {
+                handleSelectChange: function (selectElement) {
                     const tdrsId = selectElement.getAttribute('data-tdrs-id');
                     const workorderNumber = selectElement.getAttribute('data-workorder-number');
                     const value = selectElement.value;
@@ -1443,21 +1466,21 @@
                     }
                 },
 
-                showInput: function(input) {
+                showInput: function (input) {
                     if (input) {
                         input.style.display = 'block';
                         input.focus();
                     }
                 },
 
-                hideInput: function(input) {
+                hideInput: function (input) {
                     if (input) {
                         input.style.display = 'none';
                         input.value = '';
                     }
                 },
 
-                handleInputChange: function(inputElement) {
+                handleInputChange: function (inputElement) {
                     const tdrsId = inputElement.getAttribute('data-tdrs-id');
                     const workorderNumber = inputElement.getAttribute('data-workorder-number');
                     const value = inputElement.value;
@@ -1470,14 +1493,14 @@
             const PoNoDebounceManager = {
                 timeouts: {},
 
-                debounceSave: function(tdrsId, workorderNumber, value) {
+                debounceSave: function (tdrsId, workorderNumber, value) {
                     const timeoutKey = tdrsId + '_' + workorderNumber;
 
                     if (this.timeouts[timeoutKey]) {
                         clearTimeout(this.timeouts[timeoutKey]);
                     }
 
-                    this.timeouts[timeoutKey] = setTimeout(function() {
+                    this.timeouts[timeoutKey] = setTimeout(function () {
                         PartsApi.saveField(tdrsId, 'po_num', value, workorderNumber);
                         delete PoNoDebounceManager.timeouts[timeoutKey];
                     }, CONFIG.debounceDelay);
@@ -1486,7 +1509,7 @@
 
             // Управление полем Received
             const ReceivedManager = {
-                handleDateChange: function(inputElement) {
+                handleDateChange: function (inputElement) {
                     const tdrsId = inputElement.getAttribute('data-tdrs-id');
                     const workorderNumber = inputElement.getAttribute('data-workorder-number');
                     const value = inputElement.value;
@@ -1497,7 +1520,7 @@
 
             // Обработчики событий
             const EventHandlers = {
-                handleChange: function(e) {
+                handleChange: function (e) {
                     if (e.target.classList.contains('po-no-select')) {
                         PoNoManager.handleSelectChange(e.target);
                     } else if (e.target.classList.contains('received-date')) {
@@ -1505,17 +1528,17 @@
                     }
                 },
 
-                handleInput: function(e) {
+                handleInput: function (e) {
                     if (e.target.classList.contains('po-no-input')) {
                         PoNoManager.handleInputChange(e.target);
                     }
                 },
 
-                handleModalOpen: function(button) {
+                handleModalOpen: function (button) {
                     const target = button.getAttribute('data-bs-target');
                     const workorderNumber = target.replace('#partsModal', '');
 
-                    setTimeout(function() {
+                    setTimeout(function () {
                         PartsCounter.updateReceivedCount(workorderNumber);
                     }, CONFIG.modalOpenDelay);
                 }
@@ -1523,20 +1546,20 @@
 
             // Инициализация
             const PartsModal = {
-                init: function() {
+                init: function () {
                     this.attachEventListeners();
                     this.initModalButtons();
                 },
 
-                attachEventListeners: function() {
+                attachEventListeners: function () {
                     document.addEventListener('change', EventHandlers.handleChange);
                     document.addEventListener('input', EventHandlers.handleInput);
                 },
 
-                initModalButtons: function() {
-                    document.addEventListener('DOMContentLoaded', function() {
-                        document.querySelectorAll('[data-bs-target^="#partsModal"]').forEach(function(button) {
-                            button.addEventListener('click', function() {
+                initModalButtons: function () {
+                    document.addEventListener('DOMContentLoaded', function () {
+                        document.querySelectorAll('[data-bs-target^="#partsModal"]').forEach(function (button) {
+                            button.addEventListener('click', function () {
                                 EventHandlers.handleModalOpen(this);
                             });
                         });
