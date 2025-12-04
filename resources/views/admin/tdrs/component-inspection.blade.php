@@ -232,7 +232,7 @@
                     @csrf
 
                     <div class="modal-body" >
-                        <input type="hidden" name="manual_id" value="{{$current_wo->unit->manual_id}}">
+                        <input type="hidden" name="manual_id" id="addComponentManualId" value="{{$current_wo->unit->manual_id}}">
                         <input type="hidden" name="current_wo" value="{{$current_wo->id}}">
                         <div class="form-group">
                             <label for="name">{{ __('Name') }}</label>
@@ -439,6 +439,8 @@
             const defaultManualId = {{ $manual_id }};
             if (defaultManualId) {
                 $('#i_manual_id').val(defaultManualId).trigger('change');
+                // Устанавливаем начальное значение manual_id в модальном окне Add Component
+                $('#addComponentManualId').val(defaultManualId);
             }
 
 
@@ -778,6 +780,9 @@
         $('#i_manual_id').on('change', function() {
             const selectedManualId = $(this).val();
 
+            // Обновляем manual_id в модальном окне Add Component
+            $('#addComponentManualId').val(selectedManualId || {{ $manual_id }});
+
             if (selectedManualId) {
                 loadComponentsByManual(selectedManualId);
             } else {
@@ -791,6 +796,12 @@
                     $('#order_component_id').empty().append('<option value="">---</option>').trigger('change');
                 }
             }
+        });
+
+        // Обновляем manual_id в модальном окне при его открытии
+        $('#addComponentModal').on('show.bs.modal', function() {
+            const selectedManualId = $('#i_manual_id').val();
+            $('#addComponentManualId').val(selectedManualId || {{ $manual_id }});
         });
 
 
