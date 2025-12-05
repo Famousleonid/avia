@@ -32,6 +32,8 @@
                     <div style="width: 150px;">
                         <h5 class="text-primary  ps-1">{{__('Work Order')}}
                             <a class="text-success-emphasis " href="#" data-bs-toggle="modal"
+                               data-tippy-content="{{ __('Work Order Info') }}"
+                               data-tippy-placement="top"
                                data-bs-target=#infoModal{{$current_wo->number}}>{{$current_wo->number}}
                             </a>
                         </h5>
@@ -83,7 +85,10 @@
                                             </div>
                                             @if($monthsDiff >= 6 && $user->id == $user_wo)
                                                 <div class="text-center ms-2" style="height: 40px; width: 40px">
-                                                    <button class="btn btn-success btn-sm" style="height: 55px;width: 55px" title="{{ __('Update to Today') }}"
+                                                    <button class="btn btn-success btn-sm" style="height: 55px;width: 55px"
+{{--                                                            title="{{ __('Update to Today') }}"--}}
+                                                            data-tippy-content="{{ __('Update to Today') }}"
+                                                            data-tippy-placement="top"
                                                             onclick="updateTrainingToToday({{
                                                     $manual_id }}, '{{ $trainings->date_training }}')">
                                                         <i class="bi bi-calendar-check" style="font-size: 28px;"></i>
@@ -98,7 +103,10 @@
                                             Last training {{ $monthsDiff }} months ago ({{ $trainingDate->format('M d, Y') }}). Need Update
                                             @if($user->id == $user_wo)
                                                 <div class="ms-2">
-                                                    <button class="btn btn-warning btn-sm" style="height: 55px;width: 55px" title="{{ __('Update to Today') }}"
+                                                    <button class="btn btn-warning btn-sm" style="height: 55px;width: 55px"
+{{--                                                            title="{{ __('Update to Today') }}"--}}
+                                                            data-tippy-content="{{ __('Update to Today') }}"
+                                                            data-tippy-placement="top"
                                                             onclick="updateTrainingToToday({{
                                                     $manual_id }}, '{{ $trainings->date_training }}')">
                                                         <i class="bi bi-calendar-check" style="font-size: 28px;" ></i>
@@ -116,8 +124,11 @@
                                                 <p>for this unit.</p>
                                             </div>
                                                 <div class="ms-2">
-                                                    <button class="fs-75 btn btn-primary btn-sm" style="height: 55px;width: 55px" title="{{ __('Create
-                                                    Trainings') }}" onclick="createTrainings({{
+                                                    <button class="fs-75 btn btn-primary btn-sm" style="height: 55px;width: 55px"
+{{--                                                            title="{{ __('Create Trainings') }}"--}}
+                                                            data-tippy-content="{{ __('Create Trainings') }}"
+                                                            data-tippy-placement="top"
+                                                            onclick="createTrainings({{
                                                     $manual_id }})">
                                                         <i class="bi bi-plus-circle" style="font-size: 28px;"></i>
                                                     </button>
@@ -131,7 +142,10 @@
 
                         <div class=" ms-4">
                             <a href="{{ route('mains.show', $current_wo->id) }}" class="btn
-                                            btn-outline-success " title="{{ __('WO Tasks') }}"
+                                            btn-outline-success "
+{{--                               title="{{ __('WO Tasks') }}"--}}
+                               data-tippy-content="{{ __('WO Tasks') }}"
+                               data-tippy-placement="top"
                                onclick="showLoadingSpinner()">
                                 <i class="bi bi-list-task " style="font-size: 28px;"></i>
 
@@ -139,7 +153,9 @@
                         </div>
                         <div class="me-2 position-relative">
                             <button class="btn  btn-outline-warning ms-2 open-pdf-modal text-center"
-                                    title="{{ __('PDF Library') }}"
+{{--                                    title="{{ __('PDF Library') }}"--}}
+                                    data-tippy-content="{{ __('PDF Library') }}"
+                                    data-tippy-placement="top"
                                     style="height: 55px;width: 55px"
                                     data-id="{{ $current_wo->id }}"
                                     data-number="{{ $current_wo->number }}" >
@@ -160,6 +176,8 @@
                             <div class="me-2">
                                 <a href="{{route('tdrs.processes',['workorder_id' => $current_wo->id])}}"
                                    class="btn fs-8 btn-outline-primary " style="height: 55px;width: 100px"
+                                   data-tippy-content="{{ __('All Component Processes') }}"
+                                   data-tippy-placement="top"
                                    onclick="showLoadingSpinner()">
                                     {{__('Component Processes')}}
                                 </a>
@@ -172,8 +190,10 @@
                                     ->count('component_id');
                             @endphp
                             <a href="{{route('extra_processes.show_all',['id'=>$current_wo->id])}}"
-                               class="btn fs-8 btn-outline-primary " style="height: 55px;width: 140px" onclick="showLoadingSpinner
-                                       ()">
+                               class="btn fs-8 btn-outline-primary " style="height: 55px;width: 140px"
+                               data-tippy-content="{{ __('Create Processes for Extra Components ') }}"
+                               data-tippy-placement="top"
+                               onclick="showLoadingSpinner()">
                                 {{__('Extra Component Processes')}}
                             </a>
                             @if($extraProcessesCount > 0)
@@ -193,6 +213,8 @@
                                             @if(!str_contains($plane->type, 'ATR'))
                                                 <a href="{{route('log_card.show',['id' => $current_wo->id])}}"
                                                       class="btn  fs-8 btn-outline-primary " style="min-height: 55px;width: 55px"
+                                                   data-tippy-content="{{ __('Create Log Card') }}"
+                                                   data-tippy-placement="top"
                                                       onclick="showLoadingSpinner ()">
                                                     {{__('Log Card')}}
                                                 </a>
@@ -205,7 +227,9 @@
                         </div>
                         <div>
                             <a href="{{route('wo_bushings.show',['wo_bushing' => $current_wo->id])}}"
-                               class="btn  fs-8 btn-outline-primary ms-2" style="min-height: 55px;width: 85px"
+                               class="btn  fs-8 btn-outline-primary ms-2" style="min-height: 55px;width: 95px"
+                               data-tippy-content="{{ __('Create Processes for Bushings') }}"
+                               data-tippy-placement="top"
                                onclick="showLoadingSpinner
                                    ()">
                                 {{__('Bushing Processes')}}
@@ -214,6 +238,8 @@
                         <div>
                             <a href="{{route('rm_reports.show',['rm_report' => $current_wo->id])}}"
                                class="btn  fs-8 btn-outline-primary ms-2 " style="height: 55px;width: 150px"
+                               data-tippy-content="{{ __('Create Repair and Modification Form') }}"
+                               data-tippy-placement="top"
                                onclick="showLoadingSpinner
                                    ()">
                                 {{__('Repair & Modification Record')}}
@@ -244,7 +270,10 @@
                             @if($current_wo->instruction_id == 1 )
                                 <div class="me-1 ">
                                     <a href="{{ route('ndt-cad-csv.index', $current_wo->id) }}"
-                                       class="btn fs-8 btn-outline-success" style="min-height: 55px; width: 90px">
+                                       class="btn fs-8 btn-outline-success"
+                                       data-tippy-content="{{ __('Create Standard Processes') }}"
+                                       data-tippy-placement="top"
+                                       style="min-height: 55px; width: 90px">
                                         {{--                                    <i class="bi bi-gear"></i> --}}
                                         STD Processes
                                     </a>
@@ -910,11 +939,13 @@
                                         table-hover table-striped align-middle table-bordered bg-gradient">
                                 <thead>
                                 <tr>
-                                    <th class=" text-primary text-center  " style="width: 300px;">{{__('Teardown
-                                    Inspection')
+                                    <th class=" text-primary text-center  " style="width: 300px;">
+                                        {{__('Teardown Inspection')
                                     }}</th>
                                     <th class=" text-primary text-center " style="width: 150px;">
                                         <a href="{{ route('tdrs.inspection.unit', ['workorder_id' => $current_wo->id]) }}"
+                                           data-tippy-content="{{ __('Add Unit Inspection') }}"
+                                           data-tippy-placement="right"
                                            class="btn btn-outline-info btn-sm" style="height: 32px">
                                             {{ __('Add') }}
                                         </a>
@@ -974,6 +1005,8 @@
 
                                                 @if($tdr->conditions->name == 'PARTS MISSING UPON ARRIVAL AS INDICATED ON PARTS LIST')
                                                     <button class="btn btn-outline-info btn-sm" style="height: 32px"
+                                                            data-tippy-content="{{ __('List of Missing Parts') }}"
+                                                            data-tippy-placement="right"
                                                             data-bs-toggle="modal"
                                                             data-bs-target="#missingModal{{$current_wo->number}}">
                                                         {{ __('Missing Part') }}</button>
@@ -981,6 +1014,8 @@
                                                     @if($tdr->necessaries_id == $necessary->id)
                                                         <button class="btn btn-outline-info btn-sm" style="min-height: 32px"
                                                                 href="#"
+                                                                data-tippy-content="{{ __('List of Ordered Parts') }}"
+                                                                data-tippy-placement="right"
                                                                 data-bs-toggle="modal" data-bs-target="#orderModal{{$current_wo->number}}">
                                                             {{ __('Ordered Parts') }}</button>
                                                     @endif
@@ -1009,7 +1044,9 @@
                                     <th class=" text-center  text-primary " style="width: 60px">{{__('EC')}}</th>
                                     <th class=" text-primary text-center" style="width: 150px"> {{__('Action')}}
                                         <a href="{{ route('tdrs.inspection.component', ['workorder_id' => $current_wo->id])}}"
-                                           class="btn btn-outline-info btn-sm ms-3" style="height: 32px">
+                                           class="btn btn-outline-info btn-sm ms-3" style="height: 32px"
+                                           data-tippy-content="{{ __('Add Component Inspection') }}"
+                                           data-tippy-placement="right">
                                             {{ __('Add') }}
                                         </a>
                                     </th>
@@ -1073,18 +1110,24 @@
 
 
                                                 <a href="{{ route('tdr-processes.processes',['tdrId'=>$tdr->id])}}"
-                                                   class="btn btn-outline-primary btn-sm me-2">
+                                                   class="btn btn-outline-primary btn-sm me-2"
+                                                   data-tippy-content="{{ __('Component Processes') }}"
+                                                   data-tippy-placement="top">
                                                     <i class="bi bi-bar-chart-steps" title="Component Processes"></i>
                                                 </a>
                                                 <a href="{{ route('tdrs.edit',['id' => $tdr->id]) }}"
-                                                   class="btn btn-outline-primary btn-sm me-2">
+                                                   class="btn btn-outline-primary btn-sm me-2"
+                                                   data-tippy-content="{{ __('Edit Component Inspection') }}"
+                                                   data-tippy-placement="top">
                                                     <i class="bi bi-pencil-square" title="Component Inspection Edit"></i>
                                                 </a>
                                                 <form action="{{ route('tdrs.destroy', ['tdr' => $tdr->id]) }}" method="POST"
                                                       onsubmit="return confirm('Are you sure you want to delete this item?');">
                                                     @csrf
                                                     @method('DELETE')
-                                                    <button type="submit" class="btn btn-outline-danger btn-sm">
+                                                    <button type="submit" class="btn btn-outline-danger btn-sm"
+                                                            data-tippy-content="{{ __('Delete Component Inspection') }}"
+                                                            data-tippy-placement="top">
                                                         <i class="bi bi-trash"></i>
                                                         {{--                                                            {{__('Delete')}}--}}
                                                     </button>
