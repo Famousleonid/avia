@@ -217,7 +217,7 @@
            <h5 class="ps-3 mt-2 mb-2 ">
                @foreach($manuals as $manual)
                    @if($manual->id == $current_wo->unit->manual_id)
-                       <h6 class="ps-4">
+                       <h6 class="mt-4 ps-4">
                            <strong class="">
                            {{__('Perform the CAD plate as specified under Process No. and in accordance with SMM No. ')}}
                             <span class="ms-5">
@@ -235,8 +235,10 @@
             <div class="col-1 border-l-t-b pt-2 details-row text-center" style="height: 42px"><h6 class="fs-7">
                     <strong>ITEM No.</strong></h6></div>
             <div class="col-2 border-l-t-b pt-2 details-row text-center" style="height: 42px"><h6 class="fs-7"><strong>PART No.</strong></h6></div>
-            <div class="col-2 border-l-t-b pt-2 details-row text-center" style="height: 42px"><h6 class="fs-7"><strong>DESCRIPTION</strong></h6></div>
-            <div class="col-4 border-l-t-b pt-2 details-row text-center" style="height: 42px"><h6 class="fs-7"><strong>PROCESS No.</strong></h6></div>
+            <div class="col-3 border-l-t-b pt-2 details-row text-center" style="height: 42px"><h6
+                    class="fs-7"><strong>DESCRIPTION</strong></h6></div>
+            <div class="col-3 border-l-t-b pt-2 details-row text-center" style="height: 42px"><h6 class="fs-7"><strong>PROCESS
+                        No.</strong></h6></div>
             <div class="col-1 border-l-t-b pt-2 details-row text-center" style="height: 42px"><h6 class="fs-7"><strong>QTY</strong></h6></div>
             <div class="col-2 border-all pt-2 details-row text-center" style="height: 42px"><h6 class="fs-7"><strong>CMM No.</strong></h6></div>
         </div>
@@ -257,10 +259,10 @@
                 <div class="col-2 border-l-b details-cell text-center" style="min-height: 32px">
                     {{ $component->part_number }}
                 </div>
-                <div class="col-2 border-l-b details-cell text-center" style="min-height: 32px">
+                <div class="col-3 border-l-b details-cell text-center" style="min-height: 32px">
                     {{ $component->name }}
                 </div>
-                <div class="col-4 border-l-b details-cell text-center process-cell" style="min-height: 32px">
+                <div class="col-3 border-l-b details-cell text-center process-cell" style="min-height: 32px">
                     {{ $component->process_name }}
                 </div>
                 <div class="col-1 border-l-b details-cell text-center" style="min-height: 32px">
@@ -280,8 +282,8 @@
             <div class="row empty-row">
                 <div class="col-1 border-l-b text-center" style="height: 34px"></div>
                 <div class="col-2 border-l-b text-center" style="height: 34px"></div>
-                <div class="col-2 border-l-b text-center" style="height: 34px"></div>
-                <div class="col-4 border-l-b text-center" style="height: 34px"></div>
+                <div class="col-3 border-l-b text-center" style="height: 34px"></div>
+                <div class="col-3 border-l-b text-center" style="height: 34px"></div>
                 <div class="col-1 border-l-b text-center" style="height: 34px"></div>
                 <div class="col-2 border-l-b-r text-center" style="height: 34px"></div>
             </div>

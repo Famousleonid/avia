@@ -234,7 +234,7 @@
         <div class="row">
             <div class="col-3">
                 <img src="{{ asset('img/icons/AT_logo-rb.svg') }}" alt="Logo"
-                     style="width: 180px; margin: 6px 10px 0;">
+                     style="width: 140px; margin: 6px 10px 0;">
             </div>
             <div class="col-9">
                 <h3 class="ms-4 mt-3 text-black text-">
@@ -492,7 +492,7 @@
 
 
 
-                        <h6 class="mt-3 ms-3"><strong>
+                        <h6 class="mt-4 ms-3"><strong>
                     Perform the {{ ucwords(strtolower($process_name->process_sheet_name ?? $process_name->name ?? 'Extra Process')) }}
                     as the specified under Process No. and in
                     accordance with CMM No
@@ -506,9 +506,9 @@
                 <div class="col-2 border-l-t-b pt-2 details-row text-center"><h6  class="fs-7" ><strong>PART No.</strong>
                     </h6>
                 </div>
-                <div class="col-2 border-l-t-b pt-2  details-row text-center"><h6  class="fs-7" ><strong>DESCRIPTION</strong>
+                <div class="col-3 border-l-t-b pt-2  details-row text-center"><h6  class="fs-7" ><strong>DESCRIPTION</strong>
                     </h6></div>
-                <div class="col-4 border-l-t-b pt-2 details-row text-center"><h6  class="fs-7" ><strong>PROCESS No.</strong>
+                <div class="col-3 border-l-t-b pt-2 details-row text-center"><h6  class="fs-7" ><strong>PROCESS No.</strong>
                     </h6> </div>
                 <div class="col-1 border-l-t-b pt-2  details-row  text-center"><h6  class="fs-7" ><strong>QTY</strong> </h6>
                 </div>
@@ -541,13 +541,13 @@
                         <div class="col-2 border-l-b details-cell text-center" style="min-height: 32px">
                             {{ $data['component']->part_number }}
                             @if($data['extra_process']->serial_num)
-                                SN{{$data['extra_process']->serial_num}}
+                                <br>S/N{{" "}}{{$data['extra_process']->serial_num}}
                             @endif
                         </div>
-                        <div class="col-2 border-l-b details-cell text-center" style="min-height: 32px" >
+                        <div class="col-3 border-l-b details-cell text-center" style="min-height: 32px" >
                             {{ $data['component']->name }}
                         </div>
-                        <div class="col-4 border-l-b details-cell text-center process-cell"  style="min-height: 32px">
+                        <div class="col-3 border-l-b details-cell text-center process-cell"  style="min-height: 32px">
                             @foreach($process_components as $component_process)
                                 @if($component_process->id == ($data['process']->id ?? null))
                                     <span @if(strlen($component_process->process) > 40) class="process-text-long" @endif>{{$component_process->process}}</span>
@@ -589,10 +589,10 @@
                     <div class="col-2 border-l-b  text-center" style="height: 34px">
                         <!-- Пустая ячейка -->
                     </div>
-                    <div class="col-2 border-l-b  text-center" style="height: 34px">
+                    <div class="col-3 border-l-b  text-center" style="height: 34px">
                         <!-- Пустая ячейка -->
                     </div>
-                    <div class="col-4 border-l-b  text-center" style="height: 34px">
+                    <div class="col-3 border-l-b  text-center" style="height: 34px">
                         <!-- Пустая ячейка -->
                     </div>
                     <div class="col-1 border-l-b  text-center" style="height: 34px">
