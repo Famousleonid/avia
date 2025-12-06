@@ -137,6 +137,8 @@
                                 <tr>
                                     <th class="text-primary text-center">Process Name</th>
                                     <th class="text-primary text-center" style="width: 450px;">Process</th>
+                                    <th class="text-primary text-center">Description</th>
+                                    <th class="text-primary text-center">Notes</th>
                                     <th class="text-primary text-center">Action</th>
                                     <th class="text-primary text-center">Form</th>
                                 </tr>
@@ -153,6 +155,17 @@
                                             <tr data-id="{{ $extra_process->id }}">
                                                 <td class="text-center">{{ $processName->name }}</td>
                                                 <td class="ps-2">{{ $process->process }}</td>
+                                                <td class="text-center">
+                                                    @php
+                                                        // Для старой структуры description и notes не хранятся в JSON
+                                                        $description = '';
+                                                        $notes = '';
+                                                    @endphp
+                                                    {{ $description }}
+                                                </td>
+                                                <td class="text-center">
+                                                    {{ $notes }}
+                                                </td>
                                                 <td class="text-center">
                                                     <a href="{{ route('extra_processes.edit', ['extra_process' => $extra_process->id, 'process_name_id' => $processNameId]) }}"
                                                        class="btn btn-sm btn-outline-primary">{{__('Edit')}}</a>
@@ -203,6 +216,12 @@
                                             <tr data-id="{{ $extra_process->id }}" data-process-index="{{ $index }}">
                                                 <td class="text-center">{{ $processName->name }}</td>
                                                 <td class="ps-2">{{ $process->process }}</td>
+                                                <td class="text-center">
+                                                    {{ $processItem['description'] ?? '' }}
+                                                </td>
+                                                <td class="text-center">
+                                                    {{ $processItem['notes'] ?? '' }}
+                                                </td>
                                                 <td class="text-center">
                                                     <a href="{{ route('extra_processes.edit', ['extra_process' => $extra_process->id, 'process_index' => $index]) }}"
                                                        class="btn btn-sm btn-outline-primary">{{__('Edit')}}</a>

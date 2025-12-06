@@ -137,8 +137,14 @@
                                         </label>
                                     </div>
                                     <div>
-                                        <label for="description_0" class="form-label" style="margin-bottom: -5px">Notes</label>
-                                        <input type="text" class="form-control" id="description_0" name="processes[0][description]" placeholder="Enter Notes">
+                                        <label for="description" class="form-label" style="margin-bottom:
+                                        -5px">Description</label>
+                                        <input type="text" class="form-control" id="description_0"
+                                               name="processes[0][description]" placeholder="Enter Description">
+
+                                        <label for="notes" class="form-label" style="margin-bottom: -5px">Notes</label>
+                                        <input type="text" class="form-control" id="notes" name="processes[0][notes]"
+                                               placeholder="Enter Notes">
                                     </div>
                                 </div>
                             </div>
@@ -278,8 +284,10 @@
                 </label>
             </div>
             <div>
-                <label for="description_${index}" class="form-label" style="margin-bottom: -5px">Notes</label>
-                <input type="text" class="form-control" id="description_${index}" name="processes[${index}][description]" placeholder="Enter Notes">
+                <label for="description_${index}" class="form-label" style="margin-bottom: -5px">Description</label>
+                <input type="text" class="form-control" id="description_${index}" name="processes[${index}][description]" placeholder="Enter Description">
+                <label for="notes_${index}" class="form-label" style="margin-bottom: -5px">Notes</label>
+                <input type="text" class="form-control" id="notes_${index}" name="processes[${index}][notes]" placeholder="Enter Notes">
             </div>
         </div>
     </div>`;
@@ -317,16 +325,21 @@
                 const ecCheckbox = row.querySelector('input[name*="[ec]"]');
                 const ecValue = ecCheckbox ? ecCheckbox.checked : false;
 
-                // Получаем значение description (Notes)
+                // Получаем значение description
                 const descriptionInput = row.querySelector('input[name*="[description]"]');
                 const descriptionValue = descriptionInput ? descriptionInput.value.trim() : null;
+
+                // Получаем значение notes
+                const notesInput = row.querySelector('input[name*="[notes]"]');
+                const notesValue = notesInput ? notesInput.value.trim() : null;
 
                 if (selectedProcessIds.length > 0) {
                     processesData.push({
                         process_names_id: processNameId,
                         processes: selectedProcessIds, // Сохраняем массив ID процессов
                         ec: ecValue, // Добавляем значение EC
-                        description: descriptionValue || null // Добавляем значение description
+                        description: descriptionValue || null, // Добавляем значение description
+                        notes: notesValue || null // Добавляем значение notes
                     });
                 }
             });

@@ -11,6 +11,14 @@
             <i class="bi bi-list-check me-2"></i> <span>Training</span>
         </a>
     </li>
+    @roles("Admin|Team Leader|Manager")
+
+    <li class="nav-item">
+        <a class="nav-link press-spinner" href="{{route('trainings.showAll')}}">
+            <i class="bi bi-list-check me-2"></i> <span>Training All</span>
+        </a>
+    </li>
+    @endroles
     <li class="nav-item">
         <a class="nav-link press-spinner" href="{{route('users.index')}}">
             <i class="bi bi-person-arms-up me-2"></i> <span>Techniks</span>

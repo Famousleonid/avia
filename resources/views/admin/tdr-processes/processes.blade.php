@@ -153,7 +153,8 @@
                             <thead>
                             <tr>
                                 <th class="text-primary text-center">Process Name</th>
-                                <th class="text-primary text-center" style="width: 450px;">Process</th>
+                                <th class="text-primary text-center" style="width: 350px;">Process</th>
+                                <th class="text-primary text-center">Description</th>
                                 <th class="text-primary text-center">Notes</th>
                                 <th class="text-primary text-center">Action</th>
                                 <th class="text-primary text-center">Form</th>
@@ -182,7 +183,10 @@
 
                                             </td>
                                             <td class="text-center">
-                                                {{$processes->description}}
+                                                {{$processes->description ?? ''}}
+                                            </td>
+                                            <td class="text-center">
+                                                {{$processes->notes ?? ''}}
                                             </td>
                                             <td class="text-center">
                                                 <a href="{{ route('tdr-processes.edit', ['tdr_process' =>

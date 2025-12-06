@@ -142,18 +142,21 @@ Route::group(['middleware' => ['auth']], function () {
     Route::resource('/manuals', ManualController::class);
     Route::resource('/materials',  MaterialController::class);
 
-    Route::resource('/trainings', TrainingController::class);
 
+
+        Route::get('trainings/show-all', [TrainingController::class, 'showAll'])->name('trainings.showAll');
         Route::get('trainings/form112/{id}', [TrainingController::class, 'showForm112'])->name('trainings.form112');
         Route::get('trainings/form132/{id}', [TrainingController::class, 'showForm132'])->name('trainings.form132');
         Route::post('/trainings/createTraining', [TrainingController::class, 'createTraining'])->name('trainings.createTraining');
         Route::post('/trainings/updateToToday', [TrainingController::class, 'updateToToday'])->name('trainings.updateToToday');
         Route::post('/trainings/delete-all', [TrainingController::class, 'deleteAll'])->name('trainings.deleteAll');
 
+        Route::resource('/trainings', TrainingController::class);
+
     Route::resource('/scopes',  ScopeController::class);
     Route::resource('/conditions',  ConditionController::class);
     Route::resource('/planes',PlaneController::class);
-    
+
     // Components CSV routes - must be before resource route
     Route::post('/components/upload-csv', [ComponentController::class, 'uploadCsv'])->name('components.upload-csv');
     Route::get('/components/download-csv-template', [ComponentController::class, 'downloadCsvTemplate'])->name('components.download-csv-template');
@@ -167,7 +170,7 @@ Route::group(['middleware' => ['auth']], function () {
     // Components editing from inspection
     Route::get('/components/{component}/json', [ComponentController::class, 'showJson'])->name('components.showJson');
     Route::post('/components/{component}/update-from-inspection', [ComponentController::class, 'updateFromInspection'])->name('components.updateFromInspection');
-    
+
     Route::resource('/components', ComponentController::class);
     Route::resource('/process-names',ProcessNameController::class);
     Route::resource('/processes', ProcessController::class);

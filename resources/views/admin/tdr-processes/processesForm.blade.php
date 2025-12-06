@@ -552,7 +552,6 @@ $emptyRows = $totalRows - $dataRows; // Количество пустых стр
                         <br><span class="description-text-long" >{{$component->description}}</span>
                     @endif
                     </span>
-
             @endif
         @endforeach
     </div>

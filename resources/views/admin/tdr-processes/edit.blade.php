@@ -63,8 +63,10 @@
                                         </label>
                                     </div>
                                     <div>
-                                        <label for="description" class="form-label" style="margin-bottom: -5px">Notes</label>
-                                        <input type="text" class="form-control" id="description" name="description" value="{{ old('description', $current_tdr_processes->description) }}" placeholder="Enter Notes">
+                                        <label for="description" class="form-label" style="margin-bottom: -5px">Description</label>
+                                        <input type="text" class="form-control" id="description" name="description" value="{{ old('description', $current_tdr_processes->description) }}" placeholder="Enter Description">
+                                        <label for="notes" class="form-label" style="margin-bottom: -5px">Notes</label>
+                                        <input type="text" class="form-control" id="notes" name="notes" value="{{ old('notes', $current_tdr_processes->notes) }}" placeholder="Enter Notes">
                                     </div>
                                 </div>
                                 </div>

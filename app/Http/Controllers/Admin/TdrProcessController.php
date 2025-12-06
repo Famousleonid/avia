@@ -288,6 +288,7 @@ class TdrProcessController extends Controller
                 'date_finish' => null,
                 'ec' => $ecValue, // Добавляем поле EC
                 'description' => $data['description'] ?? null, // Добавляем поле description (необязательное)
+                'notes' => $data['notes'] ?? null, // Добавляем поле notes (необязательное)
             ]);
 
             $sortOrderCounter++;
@@ -344,6 +345,7 @@ class TdrProcessController extends Controller
                             'date_finish' => null,
                             'ec' => 0, // Поле ec = 0
                             'description' => $data['description'] ?? null, // Добавляем поле description (необязательное)
+                            'notes' => $data['notes'] ?? null, // Добавляем поле notes (необязательное)
                         ]);
 
                         $sortOrderCounter++; // Увеличиваем счетчик, так как создали дополнительную запись
@@ -741,6 +743,7 @@ class TdrProcessController extends Controller
             'processes.*.process.*' => 'integer|exists:processes,id',
             'processes.*.ec' => 'nullable|boolean',
             'description' => 'nullable|string|max:255', // Валидация для description
+            'notes' => 'nullable|string|max:255', // Валидация для notes
         ]);
 
         // Извлекаем данные из запроса
@@ -756,6 +759,7 @@ class TdrProcessController extends Controller
             'processes' => json_encode($processesArray), // Преобразуем массив в JSON
             'ec' => $processData['ec'] ?? false, // Добавляем поле EC
             'description' => $request->input('description') ?? null, // Добавляем поле description (необязательное)
+            'notes' => $request->input('notes') ?? null, // Добавляем поле notes (необязательное)
         ];
 
         // Обновляем запись

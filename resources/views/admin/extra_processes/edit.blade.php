@@ -166,9 +166,11 @@
                 processesToEdit.forEach((processItem, index) => {
                     const processNameId = processItem.process_name_id;
                     const processId = processItem.process_id;
+                    const description = processItem.description || '';
+                    const notes = processItem.notes || '';
                     
                     if (processNameId && processId) {
-                        addProcessRow(0, processNameId, processId);
+                        addProcessRow(0, processNameId, processId, description, notes);
                     }
                 });
             } else {
@@ -179,9 +181,11 @@
                     processes.forEach((processItem, index) => {
                         const processNameId = processItem.process_name_id || processItem.process_name_id;
                         const processId = processItem.process_id || processItem.process_id;
+                        const description = processItem.description || '';
+                        const notes = processItem.notes || '';
                         
                         if (processNameId && processId) {
-                            addProcessRow(index, processNameId, processId);
+                            addProcessRow(index, processNameId, processId, description, notes);
                         }
                     });
                 } else {
@@ -207,7 +211,7 @@
                             @endforeach
                         </select>
                     </div>
-                    <div class="col-md-6">
+                    <div class="col-md-3">
                         <label for="process">Processes:</label>
                         <button type="button" class="btn btn-link mb-1" data-bs-toggle="modal"
                                 data-bs-target="#addProcessModal">
@@ -216,6 +220,16 @@
                         </button>
                         <div class="process-options">
                             <!-- Здесь будут radio buttons для выбранного имени процесса -->
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div>
+                            <label for="description_${index}" class="form-label" style="margin-bottom: -5px">Description</label>
+                            <input type="text" class="form-control" id="description_${index}" name="processes[${index}][description]" placeholder="Enter Description">
+                        </div>
+                        <div>
+                            <label for="notes_${index}" class="form-label" style="margin-bottom: -5px">Notes</label>
+                            <input type="text" class="form-control" id="notes_${index}" name="processes[${index}][notes]" placeholder="Enter Notes">
                         </div>
                     </div>
                 </div>`;
@@ -298,11 +312,21 @@
 
                 const selectedRadio = row.querySelector('.process-options input[type="radio"]:checked');
                 
+                // Получаем значение description
+                const descriptionInput = row.querySelector('input[name*="[description]"]');
+                const descriptionValue = descriptionInput ? descriptionInput.value.trim() : null;
+
+                // Получаем значение notes
+                const notesInput = row.querySelector('input[name*="[notes]"]');
+                const notesValue = notesInput ? notesInput.value.trim() : null;
+                
                 if (selectedRadio) {
                     const processId = selectedRadio.value;
                     processesData.push({
                         process_names_id: processNameId,
-                        processes: [parseInt(processId)]
+                        processes: [parseInt(processId)],
+                        description: descriptionValue || null,
+                        notes: notesValue || null
                     });
                     hasSelectedRadio = true;
                 }

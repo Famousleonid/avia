@@ -226,7 +226,9 @@ class ExtraProcessController extends Controller
                         // Сохраняем в порядке добавления как массив объектов
                         $processesJson[] = [
                             'process_name_id' => $processNameId,
-                            'process_id' => $processId
+                            'process_id' => $processId,
+                            'description' => $processData['description'] ?? null,
+                            'notes' => $processData['notes'] ?? null
                         ];
                     }
                 }
@@ -432,7 +434,9 @@ class ExtraProcessController extends Controller
                         if (!$exists) {
                             $finalProcesses[] = [
                                 'process_name_id' => $processNameId,
-                                'process_id' => $processId
+                                'process_id' => $processId,
+                                'description' => $processData['description'] ?? null,
+                                'notes' => $processData['notes'] ?? null
                             ];
                             \Log::info("Added new process to finalProcesses", [
                                 'processNameId' => $processNameId,
@@ -1081,7 +1085,9 @@ class ExtraProcessController extends Controller
                         if ($process) {
                             $updatedProcess = [
                                 'process_name_id' => $newProcessNameId,
-                                'process_id' => $newProcessId
+                                'process_id' => $newProcessId,
+                                'description' => $processData['description'] ?? null,
+                                'notes' => $processData['notes'] ?? null
                             ];
                             break;
                         }

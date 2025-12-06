@@ -457,10 +457,9 @@ public function updateToToday(Request $request)
 
     public function showForm112($id, Request $request)
     {
-        $training = Training::find($id);
+        $training = Training::findOrFail($id);
         $user = $training->user ?? User::find($training->user_id);
         $showImage = $request->query('showImage', 'false'); // Получаем параметр из запроса
-
 
         return view('admin.trainings.form112', compact('training', 'showImage','user'));
     }
@@ -468,9 +467,9 @@ public function updateToToday(Request $request)
     public function showForm132($id, Request $request)
     {
 
-        $training = Training::find($id);
+        $training = Training::findOrFail($id);
         $user = $training->user ?? User::find($training->user_id);
-        $showImage = $request->query('showImage', 'false'); // Получаем параметр из запроса
+        $showImage = $request->query('showImage', 'false');
 
 
         return view('admin.trainings.form132', compact('training', 'showImage','user'));
@@ -532,6 +531,93 @@ public function updateToToday(Request $request)
                 'success' => false,
                 'message' => $e->getMessage()
             ], 500);
+        }
+    }
+
+    /**
+     * Display all trainings for all users
+     */
+    public function showAll()
+    {
+        try {
+            // Инициализируем переменные по умолчанию
+            $manuals = collect();
+            $users = collect();
+            $trainingDates = [];
+            $error = null;
+            
+            // Получаем все manuals, где unit_name_training не пустое
+            $manuals = Manual::whereNotNull('unit_name_training')
+                ->where('unit_name_training', '<>', '')
+                ->orderBy('title')
+                ->get();
+
+            // Получаем всех пользователей и сортируем по stamp
+            // Сначала цифры (по возрастанию), потом буквы (по алфавиту)
+            $users = User::whereNotNull('stamp')
+                ->where('stamp', '<>', '')
+                ->whereNull('deleted_at') // Исключаем удаленных пользователей
+                ->get()
+                ->sortBy(function ($user) {
+                    $stamp = trim($user->stamp ?? '');
+                    // Проверяем, начинается ли stamp с цифры
+                    if (preg_match('/^\d+/', $stamp, $matches)) {
+                        // Извлекаем числовую часть
+                        $numericPart = (int)$matches[0];
+                        // Для цифр используем числовую сортировку с дополнением нулями
+                        return '0_' . str_pad($numericPart, 10, '0', STR_PAD_LEFT) . '_' . $stamp;
+                    } else {
+                        // Для букв используем алфавитную сортировку
+                        return '1_' . strtoupper($stamp);
+                    }
+                })
+                ->values();
+
+            // Получаем все тренинги одним запросом для оптимизации
+            $manualIds = $manuals->pluck('id')->toArray();
+            $userIds = $users->pluck('id')->toArray();
+            
+            $trainings = collect();
+            if (!empty($manualIds) && !empty($userIds)) {
+                $trainings = Training::whereIn('manuals_id', $manualIds)
+                    ->whereIn('user_id', $userIds)
+                    ->orderBy('date_training', 'desc')
+                    ->get();
+            }
+
+            // Группируем тренинги и находим последнюю дату для каждой комбинации manual + user
+            $trainingDates = [];
+            foreach ($trainings as $training) {
+                $manualId = $training->manuals_id;
+                $userId = $training->user_id;
+                
+                // Сохраняем только самую последнюю дату для каждой комбинации
+                if (!isset($trainingDates[$manualId][$userId]) || 
+                    $training->date_training > $trainingDates[$manualId][$userId]) {
+                    $trainingDates[$manualId][$userId] = $training->date_training;
+                }
+            }
+
+            return view('admin.trainings.show_all', compact('manuals', 'users', 'trainingDates', 'error'));
+        } catch (\Exception $e) {
+            \Log::error('Error in showAll: ' . $e->getMessage());
+            \Log::error('Stack trace: ' . $e->getTraceAsString());
+            
+            $manuals = collect();
+            $users = collect();
+            $trainingDates = [];
+            $error = $e->getMessage();
+            
+            return view('admin.trainings.show_all', compact('manuals', 'users', 'trainingDates', 'error'));
+        } catch (\Throwable $e) {
+            \Log::error('Fatal error in showAll: ' . $e->getMessage());
+            
+            $manuals = collect();
+            $users = collect();
+            $trainingDates = [];
+            $error = 'Fatal error: ' . $e->getMessage();
+            
+            return view('admin.trainings.show_all', compact('manuals', 'users', 'trainingDates', 'error'));
         }
     }
 }
