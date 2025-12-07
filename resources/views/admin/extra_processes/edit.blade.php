@@ -160,7 +160,7 @@
             const container = document.getElementById('processes-container');
             const processesToEdit = @json($processesToEdit ?? []);
             const processIndex = @json($processIndex ?? null);
-            
+
             // Если передан конкретный процесс для редактирования, показываем только его
             if (processesToEdit.length > 0) {
                 processesToEdit.forEach((processItem, index) => {
@@ -168,7 +168,7 @@
                     const processId = processItem.process_id;
                     const description = processItem.description || '';
                     const notes = processItem.notes || '';
-                    
+
                     if (processNameId && processId) {
                         addProcessRow(0, processNameId, processId, description, notes);
                     }
@@ -176,14 +176,14 @@
             } else {
                 // Если не передан конкретный процесс, показываем все процессы (старое поведение)
                 const processes = @json($extra_process->processes ?? []);
-                
+
                 if (Array.isArray(processes) && processes.length > 0) {
                     processes.forEach((processItem, index) => {
                         const processNameId = processItem.process_name_id || processItem.process_name_id;
                         const processId = processItem.process_id || processItem.process_id;
                         const description = processItem.description || '';
                         const notes = processItem.notes || '';
-                        
+
                         if (processNameId && processId) {
                             addProcessRow(index, processNameId, processId, description, notes);
                         }
@@ -197,7 +197,7 @@
 
         function addProcessRow(index, selectedProcessNameId = '', selectedProcessId = '') {
             const container = document.getElementById('processes-container');
-            
+
             const newRow = document.createElement('div');
             newRow.classList.add('process-row', 'mb-3');
             newRow.innerHTML = `
@@ -225,7 +225,8 @@
                     <div class="col-md-3">
                         <div>
                             <label for="description_${index}" class="form-label" style="margin-bottom: -5px">Description</label>
-                            <input type="text" class="form-control" id="description_${index}" name="processes[${index}][description]" placeholder="Enter Description">
+                            <input type="text" class="form-control" id="description_${index}"
+                            name="processes[${index}][description]" placeholder="CMM fig. ____ pg. ___">
                         </div>
                         <div>
                             <label for="notes_${index}" class="form-label" style="margin-bottom: -5px">Notes</label>
@@ -235,7 +236,7 @@
                 </div>`;
 
             container.appendChild(newRow);
-            
+
             // Если есть выбранный процесс, загружаем его опции
             if (selectedProcessNameId) {
                 loadProcessOptions(newRow, selectedProcessNameId, selectedProcessId);
@@ -311,7 +312,7 @@
                 const processName = processNameSelect.options[processNameSelect.selectedIndex].text;
 
                 const selectedRadio = row.querySelector('.process-options input[type="radio"]:checked');
-                
+
                 // Получаем значение description
                 const descriptionInput = row.querySelector('input[name*="[description]"]');
                 const descriptionValue = descriptionInput ? descriptionInput.value.trim() : null;
@@ -319,7 +320,7 @@
                 // Получаем значение notes
                 const notesInput = row.querySelector('input[name*="[notes]"]');
                 const notesValue = notesInput ? notesInput.value.trim() : null;
-                
+
                 if (selectedRadio) {
                     const processId = selectedRadio.value;
                     processesData.push({
@@ -339,7 +340,7 @@
 
             const processIndex = @json($processIndex ?? null);
             const processNameId = @json($processNameId ?? null);
-            
+
             const requestBody = {
                 workorder_id: workorderId,
                 component_id: componentId,
@@ -410,7 +411,7 @@
                 .then(data => {
                     const container = document.getElementById('existingProcessContainer');
                     container.innerHTML = '';
-                    
+
                     if (data && data.length > 0) {
                         data.forEach(process => {
                             const div = document.createElement('div');
@@ -461,14 +462,14 @@
                 if (data.success) {
                     const modal = bootstrap.Modal.getInstance(document.getElementById('addProcessModal'));
                     modal.hide();
-                    
+
                     newProcessInput.value = '';
-                    
+
                     const currentSelect = currentRow.querySelector('.select2-process');
                     if (currentSelect) {
                         currentSelect.dispatchEvent(new Event('change'));
                     }
-                    
+
                     alert('Process added successfully!');
                 } else {
                     alert('Error adding process: ' + data.message);
@@ -480,4 +481,4 @@
             });
         });
     </script>
-@endsection 
+@endsection

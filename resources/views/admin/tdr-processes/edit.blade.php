@@ -74,7 +74,7 @@
                         </div>
                     </div>
 
-                    <div class="text-end">
+                    <div class="text-end mb-3 me-4">
                         <button type="submit" class="btn btn-outline-primary mt-3">{{ __('Update') }}</button>
                         <a href="{{ route('tdrs.processes', ['workorder_id' => $current_tdr->workorder->id]) }}" class="btn btn-outline-secondary mt-3">{{ __('Cancel') }}</a>
                     </div>
