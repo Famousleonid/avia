@@ -158,8 +158,15 @@
 
         function loadExistingProcesses() {
             const container = document.getElementById('processes-container');
+            if (!container) {
+                console.error('processes-container not found');
+                return;
+            }
+
             const processesToEdit = @json($processesToEdit ?? []);
             const processIndex = @json($processIndex ?? null);
+
+            console.log('Loading existing processes:', { processesToEdit, processIndex });
 
             // Если передан конкретный процесс для редактирования, показываем только его
             if (processesToEdit.length > 0) {
@@ -177,6 +184,8 @@
                 // Если не передан конкретный процесс, показываем все процессы (старое поведение)
                 const processes = @json($extra_process->processes ?? []);
 
+                console.log('All processes:', processes);
+
                 if (Array.isArray(processes) && processes.length > 0) {
                     processes.forEach((processItem, index) => {
                         const processNameId = processItem.process_name_id || processItem.process_name_id;
@@ -190,14 +199,15 @@
                     });
                 } else {
                     // Если нет процессов, добавляем пустую строку
+                    console.log('No processes found, adding empty row');
                     addProcessRow(0);
                 }
             }
         }
 
-        function addProcessRow(index, selectedProcessNameId = '', selectedProcessId = '') {
+        function addProcessRow(index, selectedProcessNameId = '', selectedProcessId = '', selectedDescription = '', selectedNotes = '') {
             const container = document.getElementById('processes-container');
-
+            
             const newRow = document.createElement('div');
             newRow.classList.add('process-row', 'mb-3');
             newRow.innerHTML = `
@@ -225,12 +235,11 @@
                     <div class="col-md-3">
                         <div>
                             <label for="description_${index}" class="form-label" style="margin-bottom: -5px">Description</label>
-                            <input type="text" class="form-control" id="description_${index}"
-                            name="processes[${index}][description]" placeholder="CMM fig. ____ pg. ___">
+                            <input type="text" class="form-control" id="description_${index}" name="processes[${index}][description]" value="${selectedDescription || ''}" placeholder="CMM fig. ____ pg. ___">
                         </div>
                         <div>
                             <label for="notes_${index}" class="form-label" style="margin-bottom: -5px">Notes</label>
-                            <input type="text" class="form-control" id="notes_${index}" name="processes[${index}][notes]" placeholder="Enter Notes">
+                            <input type="text" class="form-control" id="notes_${index}" name="processes[${index}][notes]" value="${selectedNotes || ''}" placeholder="Enter Notes">
                         </div>
                     </div>
                 </div>`;
@@ -251,6 +260,11 @@
             processOptionsContainer.innerHTML = '';
 
             if (processNameId) {
+                // Получаем индекс строки для правильного именования radio buttons
+                const container = document.getElementById('processes-container');
+                const rows = container.querySelectorAll('.process-row');
+                const rowIndex = Array.from(rows).indexOf(row);
+
                 fetch(`/get-process/${processNameId}?manual_id=${manualId}`)
                     .then(response => {
                         if (!response.ok) {
@@ -265,7 +279,7 @@
                                 radioDiv.classList.add('form-check');
                                 const isChecked = selectedProcessId == process.id ? 'checked' : '';
                                 radioDiv.innerHTML = `
-                                    <input type="radio" name="processes[${processNameId}][process]" value="${process.id}" class="form-check-input" required ${isChecked}>
+                                    <input type="radio" name="processes[${rowIndex}][process]" value="${process.id}" class="form-check-input" required ${isChecked}>
                                     <label class="form-check-label">${process.process}</label>
                                 `;
                                 processOptionsContainer.appendChild(radioDiv);

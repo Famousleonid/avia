@@ -347,7 +347,9 @@ class ExtraProcessController extends Controller
                             if (is_numeric($processNameId) && is_numeric($processId)) {
                                 $convertedProcesses[] = [
                                     'process_name_id' => (string)$processNameId,
-                                    'process_id' => (int)$processId
+                                    'process_id' => (int)$processId,
+                                    'description' => null, // Старая структура не содержит description
+                                    'notes' => null // Старая структура не содержит notes
                                 ];
                             }
                         }
@@ -978,7 +980,9 @@ class ExtraProcessController extends Controller
                 if ($processNameId && isset($allProcesses[$processNameId])) {
                     $processesToEdit[] = [
                         'process_name_id' => $processNameId,
-                        'process_id' => $allProcesses[$processNameId]
+                        'process_id' => $allProcesses[$processNameId],
+                        'description' => null, // Старая структура не содержит description
+                        'notes' => null // Старая структура не содержит notes
                     ];
                 }
             } else {
@@ -1097,12 +1101,23 @@ class ExtraProcessController extends Controller
                 if ($updatedProcess) {
                     // Обновляем только конкретный процесс в массиве
                     if (is_array($existingProcesses) && array_keys($existingProcesses) !== range(0, count($existingProcesses) - 1)) {
-                        // Старая структура: ассоциативный массив
-                        if ($processNameId && isset($existingProcesses[$processNameId])) {
-                            unset($existingProcesses[$processNameId]);
-                            $existingProcesses[$updatedProcess['process_name_id']] = $updatedProcess['process_id'];
+                        // Старая структура: ассоциативный массив - конвертируем в новую структуру
+                        $convertedProcesses = [];
+                        foreach ($existingProcesses as $oldProcessNameId => $oldProcessId) {
+                            if ($oldProcessNameId == $processNameId) {
+                                // Заменяем обновленным процессом
+                                $convertedProcesses[] = $updatedProcess;
+                            } else {
+                                // Сохраняем остальные процессы
+                                $convertedProcesses[] = [
+                                    'process_name_id' => (string)$oldProcessNameId,
+                                    'process_id' => (int)$oldProcessId,
+                                    'description' => null,
+                                    'notes' => null
+                                ];
+                            }
                         }
-                        $processesJson = $existingProcesses;
+                        $processesJson = $convertedProcesses;
                     } else {
                         // Новая структура: массив объектов
                         if ($processIndex !== null && isset($existingProcesses[$processIndex])) {
@@ -1119,7 +1134,22 @@ class ExtraProcessController extends Controller
                         $processesJson = array_values($existingProcesses);
                     }
                 } else {
-                    $processesJson = $existingProcesses;
+                    // Если не удалось сформировать updatedProcess, конвертируем существующие в новую структуру
+                    if (is_array($existingProcesses) && array_keys($existingProcesses) !== range(0, count($existingProcesses) - 1)) {
+                        // Старая структура: конвертируем в новую
+                        $convertedProcesses = [];
+                        foreach ($existingProcesses as $processNameId => $processId) {
+                            $convertedProcesses[] = [
+                                'process_name_id' => (string)$processNameId,
+                                'process_id' => (int)$processId,
+                                'description' => null,
+                                'notes' => null
+                            ];
+                        }
+                        $processesJson = $convertedProcesses;
+                    } else {
+                        $processesJson = $existingProcesses;
+                    }
                 }
             } else {
                 // Если не передан конкретный процесс, обновляем все (старое поведение)
@@ -1147,7 +1177,9 @@ class ExtraProcessController extends Controller
                         if ($process) {
                             $processesJson[] = [
                                 'process_name_id' => $processNameId,
-                                'process_id' => $processId
+                                'process_id' => $processId,
+                                'description' => $processData['description'] ?? null,
+                                'notes' => $processData['notes'] ?? null
                             ];
                         }
                     }
@@ -1257,7 +1289,9 @@ class ExtraProcessController extends Controller
                         if ($process) {
                             $filteredProcesses[] = [
                                 'process_name_id' => $processNameId,
-                                'process_id' => $processId
+                                'process_id' => $processId,
+                                'description' => null, // Старая структура не содержит description
+                                'notes' => null // Старая структура не содержит notes
                             ];
                         }
                     }
@@ -1311,7 +1345,9 @@ class ExtraProcessController extends Controller
                     if ($process) {
                         $filteredProcesses[] = [
                             'process_name_id' => $processNameId,
-                            'process_id' => $processId
+                            'process_id' => $processId,
+                            'description' => null, // Старая структура не содержит description
+                            'notes' => null // Старая структура не содержит notes
                         ];
                     }
                 }
@@ -1543,7 +1579,9 @@ class ExtraProcessController extends Controller
                         foreach ($currentProcesses as $processNameId => $processId) {
                             $convertedProcesses[] = [
                                 'process_name_id' => (string)$processNameId,
-                                'process_id' => (int)$processId
+                                'process_id' => (int)$processId,
+                                'description' => null, // Старая структура не содержит description
+                                'notes' => null // Старая структура не содержит notes
                             ];
                         }
                         $currentProcesses = $convertedProcesses;
