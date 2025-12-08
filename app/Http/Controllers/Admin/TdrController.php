@@ -132,7 +132,7 @@ class TdrController extends Controller
     }
 
 
-       /**
+    /**
      * Store a newly created resource in storage.
      *
      * @param \Illuminate\Http\Request $request
@@ -382,7 +382,7 @@ class TdrController extends Controller
             }])
             ->get();
 
-         $tdr_proc = TdrProcess::where('ec',1)->get();
+        $tdr_proc = TdrProcess::where('ec',1)->get();
 
         // Подсчет заказанных деталей (сумма QTY всех деталей в prl_parts)
         $orderedQty = $prl_parts->sum('qty');
@@ -943,15 +943,15 @@ class TdrController extends Controller
             $cadSum = $this->calcCadSums($workorder_id);
 
             return view('admin.tdrs.cadFormStd', [
-                'current_wo' => $current_wo,
-                'manual' => $manual,
-                'cad_components' => $cad_components,
-                'cad_processes' => $cad_processes,
-                'form_number' => $form_number,
-                'manuals' => [$manual],
-                'process_name' => ProcessName::where('name', 'Cad plate')->first(),
-                'cadSum' => $cadSum,
-            ] + $cad_ids);
+                    'current_wo' => $current_wo,
+                    'manual' => $manual,
+                    'cad_components' => $cad_components,
+                    'cad_processes' => $cad_processes,
+                    'form_number' => $form_number,
+                    'manuals' => [$manual],
+                    'process_name' => ProcessName::where('name', 'Cad plate')->first(),
+                    'cadSum' => $cadSum,
+                ] + $cad_ids);
 
         } catch (\Exception $e) {
             \Log::error('Error in CAD processing:', [
@@ -1061,15 +1061,15 @@ class TdrController extends Controller
             $paintSum = $this->calcPaintSums($workorder_id);
 
             return view('admin.tdrs.paintFormStd', [
-                'current_wo' => $current_wo,
-                'manual' => $manual,
-                'paint_components' => $paint_components,
-                'paint_processes' => $paint_processes,
-                'form_number' => $form_number,
-                'manuals' => [$manual],
-                'process_name' => $paintProcessName,
-                'paintSum' => $paintSum,
-            ] + $paint_ids);
+                    'current_wo' => $current_wo,
+                    'manual' => $manual,
+                    'paint_components' => $paint_components,
+                    'paint_processes' => $paint_processes,
+                    'form_number' => $form_number,
+                    'manuals' => [$manual],
+                    'process_name' => $paintProcessName,
+                    'paintSum' => $paintSum,
+                ] + $paint_ids);
 
         } catch (\Exception $e) {
             \Log::error('Error in Paint processing:', [
@@ -1275,15 +1275,15 @@ class TdrController extends Controller
             $stressSum = $this->calcStressSums($workorder_id);
 
             return view('admin.tdrs.stressFormStd', [
-                'current_wo' => $current_wo,
-                'manual' => $manual,
-                'stress_components' => $stress_components,
-                'stress_processes' => $stress_processes,
-                'form_number' => $form_number,
-                'manuals' => [$manual],
-                'process_name' => ProcessName::where('id', 3)->first(),
-                'stressSum' => $stressSum,
-            ] + $stress_ids);
+                    'current_wo' => $current_wo,
+                    'manual' => $manual,
+                    'stress_components' => $stress_components,
+                    'stress_processes' => $stress_processes,
+                    'form_number' => $form_number,
+                    'manuals' => [$manual],
+                    'process_name' => ProcessName::where('id', 3)->first(),
+                    'stressSum' => $stressSum,
+                ] + $stress_ids);
 
         } catch (\Exception $e) {
             \Log::error('Error in Stress processing:', [
@@ -1420,7 +1420,7 @@ class TdrController extends Controller
         $processNames = ProcessName::where(function ($query) {
             $query->where('name', 'NOT LIKE', '%NDT%')
 //                ->where('name', 'NOT LIKE', '%Paint%');
-            ->where('name', 'NOT LIKE', '%EC%');
+                ->where('name', 'NOT LIKE', '%EC%');
         })->get();
 
         // Получаем Tdr, где use_process_form = true, с предварительной загрузкой TdrProcess
@@ -1473,31 +1473,31 @@ class TdrController extends Controller
     }
 
     public function logCardForm(Request $request, $id)
-{
+    {
 //    dd($request, $id);
-    // Загрузка Workorder по ID
-    $current_wo = Workorder::findOrFail($id);
-    // Получаем данные о manual, связанном с этим Workorder
-    $manual = $current_wo->unit->manual_id;
-    $manual_wo = $current_wo->unit->manuals;
-    $builders = Builder::all();
+        // Загрузка Workorder по ID
+        $current_wo = Workorder::findOrFail($id);
+        // Получаем данные о manual, связанном с этим Workorder
+        $manual = $current_wo->unit->manual_id;
+        $manual_wo = $current_wo->unit->manuals;
+        $builders = Builder::all();
 // dd($manual);
-    $manuals = Manual::where('id', $manual)
-        ->with('builder')
-        ->get();
+        $manuals = Manual::where('id', $manual)
+            ->with('builder')
+            ->get();
 
 //dd($manuals, $manual);
 
 // Получаем CSV-файл с process_type = 'log'
-    $csvMedia = $manual_wo->getMedia('csv_files')->first(function ($media) {
-        return $media->getCustomProperty('process_type') === self::PROCESS_TYPE_LOG;
-    });
+        $csvMedia = $manual_wo->getMedia('csv_files')->first(function ($media) {
+            return $media->getCustomProperty('process_type') === self::PROCESS_TYPE_LOG;
+        });
 
 //    dd($csvMedia);
 
-    return view('admin.tdrs.logCardForm', compact('current_wo','manuals', 'builders'));
+        return view('admin.tdrs.logCardForm', compact('current_wo','manuals', 'builders'));
 
-}
+    }
     public function tdrForm(Request $request, $id)
     {
         // Загрузка Workorder по ID
@@ -1635,10 +1635,10 @@ class TdrController extends Controller
     }
 
     public function wo_Process_Form($id)
-{
-    $current_wo = Workorder::findOrFail($id);
-    return view('admin.tdrs.wo_ProcessForm', compact('current_wo'));
-}
+    {
+        $current_wo = Workorder::findOrFail($id);
+        return view('admin.tdrs.wo_ProcessForm', compact('current_wo'));
+    }
     /**
      * Remove the specified resource from storage.
      *
@@ -2364,17 +2364,17 @@ class TdrController extends Controller
         ]);
 
         $tdr = Tdr::findOrFail($id);
-        
+
         $field = $request->input('field');
         $value = $request->input('value');
-        
+
         // Если поле received и значение пустое, устанавливаем null
         if ($field === 'received' && empty($value)) {
             $tdr->received = null;
         } else {
             $tdr->$field = $value;
         }
-        
+
         $tdr->save();
 
         return response()->json([

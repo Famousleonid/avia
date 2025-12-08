@@ -140,7 +140,7 @@
                                         <label for="description" class="form-label" style="margin-bottom:
                                         -5px">Description</label>
                                         <input type="text" class="form-control" id="description_0"
-                                               name="processes[0][description]" placeholder="Enter Description">
+                                               name="processes[0][description]" placeholder="CMM fig.___ pg. ___">
 
                                         <label for="notes" class="form-label" style="margin-bottom: -5px">Notes</label>
                                         <input type="text" class="form-control" id="notes" name="processes[0][notes]"
@@ -285,7 +285,7 @@
             </div>
             <div>
                 <label for="description_${index}" class="form-label" style="margin-bottom: -5px">Description</label>
-                <input type="text" class="form-control" id="description_${index}" name="processes[${index}][description]" placeholder="Enter Description">
+                <input type="text" class="form-control" id="description_${index}" name="processes[${index}][description]" placeholder="CMM fig.___ pg. ___">
                 <label for="notes_${index}" class="form-label" style="margin-bottom: -5px">Notes</label>
                 <input type="text" class="form-control" id="notes_${index}" name="processes[${index}][notes]" placeholder="Enter Notes">
             </div>

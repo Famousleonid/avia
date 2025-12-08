@@ -251,7 +251,7 @@
                 <div class="row" style="height: 32px">
                     <div class="col-6 pt-2 text-end"> <strong>COMPONENT NAME</strong> :</div>
                     <div class="col-6 fs-7 pt-2 border-b"> <strong>
-{{--                            {{$current_wo->description}}--}}
+                            {{--                            {{$current_wo->description}}--}}
                             <span @if(strlen($current_wo->description) > 30) class="description-text-long"
                                 @endif>{{$current_wo->description}}</span>
                         </strong> </div>
@@ -298,7 +298,7 @@
                             @foreach($ndt_processes as $process)
                                 @if($process->process_names_id == $ndt1_name_id)
                                     <span @if(strlen($process->process) > 40) class="process-text-long" @endif>{{$process->process}}</span>
-{{--                                    {{ $process->process ?? '' }}--}}
+                                    {{--                                    {{ $process->process ?? '' }}--}}
                                 @endif
                             @endforeach
                         @endif
@@ -313,7 +313,7 @@
                             @foreach($ndt_processes as $process)
                                 @if($process->process_names_id == $ndt4_name_id)
                                     <span @if(strlen($process->process) > 40) class="process-text-long" @endif>{{$process->process}}</span>
-{{--                                    {{ $process->process ?? '' }}--}}
+                                    {{--                                    {{ $process->process ?? '' }}--}}
                                 @endif
                             @endforeach
                         @endif
@@ -330,11 +330,11 @@
                 <div class="row mt-2" style="height: 26px">
                     <div class="col-2">#2</div>
                     <div class="col-10 border-b">
-{{--                        @foreach($ndt_processes as $process)--}}
-{{--                            @if($process->process_names_id == $ndt2_name_id)--}}
-{{--                                {{$process->process}}--}}
-{{--                            @endif--}}
-{{--                        @endforeach--}}
+                        {{--                        @foreach($ndt_processes as $process)--}}
+                        {{--                            @if($process->process_names_id == $ndt2_name_id)--}}
+                        {{--                                {{$process->process}}--}}
+                        {{--                            @endif--}}
+                        {{--                        @endforeach--}}
                     </div>
                 </div>
                 <div class="row mt-4" style="height: 26px">
@@ -356,11 +356,11 @@
                 <div class="row mt-2" style="height: 26px">
                     <div class="col-2 text-end">#3</div>
                     <div class="col-10 border-b">
-{{--                        @foreach($ndt_processes as $process)--}}
-{{--                            @if($process->process_names_id == $ndt3_name_id)--}}
-{{--                                {{$process->process}}--}}
-{{--                            @endif--}}
-{{--                        @endforeach--}}
+                        {{--                        @foreach($ndt_processes as $process)--}}
+                        {{--                            @if($process->process_names_id == $ndt3_name_id)--}}
+                        {{--                                {{$process->process}}--}}
+                        {{--                            @endif--}}
+                        {{--                        @endforeach--}}
                     </div>
                 </div>
                 <div class="text-start"><strong>EDDY CURRENT AS PER:</strong></div>
@@ -627,25 +627,25 @@
                 </div>
                 <div class="col-6 text-end pe-4 ">
                     {{__('Rev#0, 15/Dec/2012   ')}}
-<br>
+                    <br>
                     {{__('Total QTY:')}} {{ array_sum(array_column($ndt_components, 'qty')) }}
-                                            ( {{__('MPI:')}} {{ array_sum(array_column(array_filter($ndt_components, function($item) {
+                    ( {{__('MPI:')}} {{ array_sum(array_column(array_filter($ndt_components, function($item) {
                                                 return strpos($item->process_name, '1') !== false;
                                             }), 'qty')) }} {{__(' ; ')}}
-                                            {{__('FPI:')}} {{ array_sum(array_column(array_filter($ndt_components, function($item) {
+                    {{__('FPI:')}} {{ array_sum(array_column(array_filter($ndt_components, function($item) {
                                                 return strpos($item->process_name, '1') === false;
                                             }), 'qty')) }} )
-{{--                    @if($loop->iteration == 1)--}}
-{{--                        <br class=" ">--}}
+                    {{--                    @if($loop->iteration == 1)--}}
+                    {{--                        <br class=" ">--}}
 
-{{--                        {{__('Total QTY:')}} {{ array_sum(array_column($ndt_components, 'qty')) }}--}}
-{{--                        ( {{__('MPI:')}} {{ array_sum(array_column(array_filter($ndt_components, function($item) {--}}
-{{--                            return strpos($item->process_name, '1') !== false;--}}
-{{--                        }), 'qty')) }} {{__(' ; ')}}--}}
-{{--                        {{__('FPI:')}} {{ array_sum(array_column(array_filter($ndt_components, function($item) {--}}
-{{--                            return strpos($item->process_name, '1') === false;--}}
-{{--                        }), 'qty')) }} )--}}
-{{--                    @endif--}}
+                    {{--                        {{__('Total QTY:')}} {{ array_sum(array_column($ndt_components, 'qty')) }}--}}
+                    {{--                        ( {{__('MPI:')}} {{ array_sum(array_column(array_filter($ndt_components, function($item) {--}}
+                    {{--                            return strpos($item->process_name, '1') !== false;--}}
+                    {{--                        }), 'qty')) }} {{__(' ; ')}}--}}
+                    {{--                        {{__('FPI:')}} {{ array_sum(array_column(array_filter($ndt_components, function($item) {--}}
+                    {{--                            return strpos($item->process_name, '1') === false;--}}
+                    {{--                        }), 'qty')) }} )--}}
+                    {{--                    @endif--}}
                 </div>
             </div>
         </footer>
