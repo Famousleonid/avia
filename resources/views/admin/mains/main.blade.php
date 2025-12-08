@@ -726,6 +726,7 @@
                     </div>
                     <button type="button" class="btn-close pb-2" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
+
                 @if(count($ordersPartsNew))
                     <div class="table-wrapper">
                         <table class="display table table-cm table-hover table-striped align-middle table-bordered">

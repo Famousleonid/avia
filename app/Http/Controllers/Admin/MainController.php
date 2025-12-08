@@ -124,14 +124,15 @@ class MainController extends Controller
 
         $code = Code::where('name', 'Missing')->first();
         $necessary = Necessary::where('name', 'Order New')->first();
+
         $ordersPartsNew = Tdr::where('workorder_id', $workorder_id)
-            ->where('codes_id', '!=', $code->id)
             ->where('necessaries_id', $necessary->id)
-            ->whereNotNull('order_component_id')
+
             ->with(['codes', 'orderComponent' => function($query) {
                 $query->select('id', 'name', 'part_number', 'ipl_num');
             }])
             ->get();
+
         $prl_parts=Tdr::where('workorder_id', $workorder_id)
             ->where('necessaries_id', $necessary->id)
             ->with([

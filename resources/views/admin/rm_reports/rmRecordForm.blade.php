@@ -388,11 +388,11 @@
         <div class="div15 border-l-t-b text-center align-content-center fs-75">Previously Carried out</div>
         <div class="div16 border-l-t-b text-center align-content-center fs-75">Carried out by AT</div>
         <div class="div17 border-all text-center align-content-center fs-75">Identification Method</div>
-        @for($i=1; $i<17; $i++)
+        @for($i=1; $i<16; $i++)
             @php
                 $rmRecord = $rmRecords->get($i-1);
             @endphp
-            <div class="div11 border-l-b text-center align-content-center fs-75" style="height: 37px">{{$i}}</div>
+            <div class="div11 border-l-b text-center align-content-center fs-75" style="min-height: 37px">{{$i}}</div>
             <div class="div12 border-l-b text-center align-content-center fs-75" >{{ $rmRecord ? $rmRecord->part_description : '' }}</div>
             <div class="div13 border-l-b text-center align-content-center fs-75" >{{ $rmRecord ? $rmRecord->mod_repair : '' }}</div>
             <div class="div14 border-l-b text-center align-content-center fs-75" >{{ $rmRecord ? $rmRecord->description : '' }}</div>
@@ -404,7 +404,7 @@
     </div>
 
     <div class="qc_stamp mt-1">
-        <div class="div21" style="height: 37px"></div>
+        <div class="div21" style="min-height: 37px"></div>
         <div class="div22 border-all text-end align-content-center pe-1 fs-8" >Quality Assurance Acceptance </div>
         <div class="div23 border-t-r-b text-center align-content-center fs-8" style="color: lightgray">Q.C. stamp</div>
         <div class="div24 border-t-r-b text-center  pt-4  fs-8" style="color: lightgray">Date</div>
