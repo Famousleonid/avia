@@ -309,7 +309,7 @@
                             data-approved="{{ $workorder->approve_at ? '1' : '0' }}"
                         >
                             <td class="text-center">
-                                @if ($workorder->main->whereIn('task.name', ['Submitted Wo Assembly', 'Done'])->isNotEmpty())
+                                @if($workorder->isDone())
                                     <a href="{{ route('mains.show', $workorder->id) }}" class="text-decoration-none">
                                         <span class="text-muted">{{ $workorder->number }}</span>
                                     </a>

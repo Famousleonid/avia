@@ -75,53 +75,6 @@
             height: 32px;
         }
 
-        #workorder_id {
-            background-color: #121212;
-            color: #f8f9fa;
-            border: 1px solid #495057;
-            border-radius: 6px;
-            height: 36px;
-        }
-
-        .select2-container {
-            width: 100% !important;
-        }
-
-        .select2-selection--single {
-            background-color: #121212 !important;
-            border: 1px solid #495057 !important;
-            height: 36px !important;
-            border-radius: 6px !important;
-        }
-
-        .select2-selection__rendered {
-            color: yellow !important;
-            line-height: 36px !important;
-            padding-left: 8px !important;
-        }
-
-        .select2-dropdown {
-            background-color: #212529;
-            border: 1px solid #495057;
-        }
-
-        .select2-results__option {
-            color: #faf8fa;
-        }
-
-        .select2-results__option--highlighted {
-            background-color: #495057 !important;
-        }
-
-        .select2-container--open .select2-results__options {
-            max-height: calc(100vh - 160px) !important;
-        }
-
-        .select2-container--open .select2-dropdown {
-            width: 100% !important;
-            left: 0 !important;
-        }
-
         .btn-add-task {
             white-space: nowrap;
             height: 32px;
@@ -227,27 +180,34 @@
             width: 25%; /* Start и Finish по 30% */
         }
 
-
+        .gradient-pane {
+            background: #343A40;
+            color: #f8f9fa;
+        }
 
     </style>
 @endsection
 
 @section('content')
-    <div class="tasks-wrapper">
+    <div class="tasks-wrapper bg-dark p-0">
 
-        <div class="mb-2">
-            <label for="workorder_id" class="form-label">Select workorder</label>
-            <select id="workorder_id" class="form-select js-workorder-select">
-                <option value="">-- choose workorder --</option>
-                @foreach($workorders as $workorder)
-                    <option value="{{ $workorder->id }}">
-                       w {{ $workorder->number }}
-                    </option>
-                @endforeach
-            </select>
+        <div id="block-info" class="rounded-3 border border-info gradient-pane shadow-sm" style="margin: 5px; padding: 3px;">
+
+            <div class="d-flex justify-content-between align-items-center w-100 fw-bold  fs-2 ms-3">
+                @if(!$workorder->isDone())
+                    <span class="text-info">W {{ $workorder->number }}</span>
+                @else
+                    <span class="text-secondary"> {{ $workorder->number }}</span>
+                @endif
+
+                @if($workorder->open_at)<span class="text-secondary fw-normal fs-6 me-4">Open at: {{ $workorder->open_at->format('d-M-Y') }}</span>@endif
+            </div>
+
         </div>
 
-        <div class="task-card d-none" id="task-card">
+        <hr class="border-secondary opacity-50 my-2">
+
+        <div class="task-card " id="task-card">
 
             <div class="row g-2 mb-2">
                 <div class="col-12">
@@ -306,8 +266,11 @@
 
 @section('scripts')
 
-
+@section('scripts')
     <script>
+        // Текущий воркордер – один на всю страницу
+        const WORKORDER_ID = {{ $workorder->id }};
+
         const generalTasks = @json($generalTasks);
 
         function populateTaskSelect() {
@@ -336,16 +299,9 @@
         }
 
         function loadTasks() {
-            const workorderId = $('#workorder_id').val();
-
             $('#tasks-table').html('');
 
-            if (!workorderId) {
-                $('#task-card').addClass('d-none');
-                $('#task-info').text('Choose workorder to see its tasks.').removeClass('d-none');
-                return;
-            }
-
+            // карточку никогда не скрываем – воркордер уже выбран
             $('#task-card').removeClass('d-none');
             $('#task-info').text('').addClass('d-none');
 
@@ -355,14 +311,16 @@
                 url: '{{ route('mobile.tasks.byWorkorder') }}',
                 type: 'POST',
                 data: {
-                    workorder_id: workorderId,
+                    workorder_id: WORKORDER_ID,
                     _token: '{{ csrf_token() }}'
                 },
                 success: function (res) {
                     $('#tasks-table').html(res.html);
                 },
                 error: function () {
-                    $('#task-info').text('Error loading tasks.').removeClass('d-none');
+                    $('#task-info')
+                        .text('Error loading tasks.')
+                        .removeClass('d-none');
                 },
                 complete: function () {
                     hideLoadingSpinner();
@@ -395,26 +353,18 @@
         }
 
         $(document).ready(function () {
-                $('#workorder_id').select2({
-                placeholder: '-- choose workorder --',
-                allowClear: true,
-                width: '100%',
-                dropdownParent: $('.tasks-wrapper')
-            });
 
-            $('#workorder_id').on('change', loadTasks);
+            // выбор задач по категории
             $('#general_task_id').on('change', populateTaskSelect);
+
+            // грузим задачи для текущего воркордера сразу при открытии страницы
+            loadTasks();
 
             // Добавление новой записи Main
             $('#add-task-btn').on('click', function () {
-                const workorderId = $('#workorder_id').val();
-                const userId      = $('#user_id').val();
-                const taskId      = $('#task_id').val();
+                const userId = $('#user_id').val();
+                const taskId = $('#task_id').val();
 
-                if (!workorderId) {
-                    alert('Select workorder first.');
-                    return;
-                }
                 if (!userId) {
                     alert('Select technik.');
                     return;
@@ -430,7 +380,7 @@
                     url: '{{ route('mobile.tasks.store') }}',
                     type: 'POST',
                     data: {
-                        workorder_id: workorderId,
+                        workorder_id: WORKORDER_ID,
                         user_id: userId,
                         task_id: taskId,
                         _token: '{{ csrf_token() }}'
@@ -440,7 +390,9 @@
                     },
                     error: function (xhr) {
                         console.error(xhr.responseText);
-                        $('#task-info').text('Error saving task.').removeClass('d-none');
+                        $('#task-info')
+                            .text('Error saving task.')
+                            .removeClass('d-none');
                     },
                     complete: function () {
                         hideLoadingSpinner();
@@ -448,7 +400,8 @@
                 });
             });
 
-            $(document).on('click', '.date-cell, .date-calendar', function (e) {
+            // Клик по ячейке даты / иконке календаря
+            $(document).on('click', '.date-cell, .date-calendar', function () {
                 const $cell = $(this).closest('.date-cell');
                 const input = $cell.find('.date-picker-input')[0];
                 if (!input) return;
@@ -466,6 +419,7 @@
                 }
             });
 
+            // Изменение даты
             $(document).on('change', '.date-picker-input', function () {
                 const $input = $(this);
                 const mainId = $input.data('id');
@@ -496,4 +450,7 @@
             });
         });
     </script>
+@endsection
+
+
 @endsection

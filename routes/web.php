@@ -61,20 +61,27 @@ Route::get('/', function (\Illuminate\Http\Request $request) {
 Route::prefix('mobile')->name('mobile.')->middleware(['auth','verified'])->group(function () {
 
     Route::get('/', [MobileController::class, 'index'])->name('index');
-    Route::post('/workorders/photo/{id}', [MediaController::class, 'store_photo_workorders'])->name('workorders.media.store');
-    Route::delete('/workorders/photo/delete/{id}', [MediaController::class, 'delete_photo'])->name('mobile.workorders.photo.delete');
-    Route::get('/workorders/photos/{id}', [MediaController::class, 'get_photos'])->name('mobile.workorders.photos');
-    Route::get('/materials', [MobileController::class, 'materials'])->name('materials');
-    Route::post('/materials/{id}/update-description', [MobileController::class, 'updateMaterialDescription'])->name('mobile.materials.updateDescription');
-    Route::get('/components', [MobileController::class, 'components'])->name('components');
-    Route::post('/component/store', [MobileController::class, 'componentStore'])->name('component.store');
-    Route::get('/profile', [MobileController::class, 'profile'])->name('profile');
-    Route::put('/profile/{id}',[MobileController::class, 'update_profile'])->name('update.profile');
-    Route::post('/change_password/user/{id}/', [MobileController::class, 'changePassword'])->name('profile.changePassword');
-    Route::get('/tasks', [MobileController::class, 'tasks'])->name('tasks');
+    Route::get('/show/{workorder}', [MobileController::class, 'show'])->name('show');
+
+    Route::get('/tasks/{workorder}', [MobileController::class, 'tasks'])->name('tasks');
     Route::post('/tasks/by-workorder', [MobileController::class, 'getTasksByWorkorder'])->name('tasks.byWorkorder');
     Route::post('/tasks/store', [MobileController::class, 'storeMain'])->name('tasks.store');
     Route::post('/tasks/update-dates', [MobileController::class, 'updateMainDates'])->name('tasks.updateDates');
+
+    Route::get('/components/{workorder}', [MobileController::class, 'components'])->name('components');
+    Route::post('/component/store', [MobileController::class, 'componentStore'])->name('component.store');
+
+    Route::get('/materials', [MobileController::class, 'materials'])->name('materials');
+    Route::post('/materials/{id}/update-description', [MobileController::class, 'updateMaterialDescription'])->name('mobile.materials.updateDescription');
+
+    Route::post('/workorders/photo/{id}', [MediaController::class, 'store_photo_workorders'])->name('workorders.media.store');
+    Route::delete('/workorders/photo/delete/{id}', [MediaController::class, 'delete_photo'])->name('mobile.workorders.photo.delete');
+    Route::get('/workorders/photos/{id}', [MediaController::class, 'get_photos'])->name('mobile.workorders.photos');
+
+
+    Route::get('/profile', [MobileController::class, 'profile'])->name('profile');
+    Route::put('/profile/{id}',[MobileController::class, 'update_profile'])->name('update.profile');
+    Route::post('/change_password/user/{id}/', [MobileController::class, 'changePassword'])->name('profile.changePassword');
 
 });
 

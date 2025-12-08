@@ -68,8 +68,6 @@ class Workorder extends Model implements HasMedia
 
     }
 
-
-
     public function getActivitylogOptions(): LogOptions
     {
         return LogOptions::defaults()
@@ -88,5 +86,26 @@ class Workorder extends Model implements HasMedia
             ->logOnlyDirty()                // логировать ТОЛЬКО изменившиеся поля
             ->dontSubmitEmptyLogs();        // не создавать пустые записи
     }
+    public function getDoneMainRecord()
+    {
+        return $this->main
+            ->first(function ($m) {
+                return $m->task && $m->task->name === 'Done';
+            });
+    }
+
+    public function isDone(): bool
+    {
+        $done = $this->getDoneMainRecord();
+        return $done && $done->date_finish !== null;
+    }
+
+
+    public function doneDate()
+    {
+        $done = $this->getDoneMainRecord();
+        return $done ? $done->date_finish : null;
+    }
+
 
 }

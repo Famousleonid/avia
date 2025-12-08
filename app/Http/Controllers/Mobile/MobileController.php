@@ -27,6 +27,13 @@ class MobileController extends Controller
         return view('mobile.pages.index',compact('workorders'));
     }
 
+    public function show(Workorder $workorder)
+    {
+        $workorder->load(['unit', 'media']);
+
+        return view('mobile.pages.show', compact('workorder'));
+    }
+
     public function profile()
     {
         $user = Auth::user();
@@ -74,21 +81,31 @@ class MobileController extends Controller
         return response()->json(['success' => true]);
     }
 
-    public function components(Request $request)
+    public function components(Workorder $workorder)
     {
-        $workorders = Workorder::with('unit')->get();
+        $workorder->load([
+            'unit',
+            'media',
+            'tdrs.component.media',        // ✅ компонент у Tdr
+            'tdrs.tdrProcesses.processName',
+        ]);
 
-        $components = collect();
-        if ($request->filled('workorder_id')) {
-            $workorder = Workorder::with('unit')->find($request->workorder_id);
-            $manualId = optional($workorder->unit)->manual_id;
+        // Собираем компоненты для этого воркордера
+        $components = $workorder->tdrs
+            ->filter(fn ($tdr) => $tdr->component)       // только Tdr с компонентом
+            ->groupBy('component_id')                    // группируем по компоненту
+            ->map(function ($group) {
+                $first = $group->first();
+                $component = $first->component;
+                $component->processesForWorkorder = $group
+                    ->flatMap->tdrProcesses           // собираем все tdrProcesses из группы
+                    ->values();
 
-            if ($manualId) {
-                $components = Component::where('manual_id', $manualId)->get();
-            }
-        }
+                return $component;
+            })
+            ->values();
 
-        return view('mobile.pages.components', compact('workorders', 'components'));
+        return view('mobile.pages.components', compact('workorder', 'components'));
     }
 
 
@@ -145,9 +162,9 @@ class MobileController extends Controller
        return redirect()->back()->with('success', 'New password saved');
    }
 
-    public function tasks()
+    public function tasks(Workorder $workorder)
     {
-        $workorders = Workorder::orderBy('number', 'desc')->get();
+        $workorder->load(['unit', 'media']);
 
         $users = User::orderBy('name')->get(['id', 'name']);
 
@@ -158,7 +175,7 @@ class MobileController extends Controller
         $currentUserId = auth()->id();
 
         return view('mobile.pages.tasks', compact(
-            'workorders',
+            'workorder',
             'users',
             'generalTasks',
             'currentUserId'

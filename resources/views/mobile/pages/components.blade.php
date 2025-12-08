@@ -8,209 +8,325 @@
             margin: 0;
         }
 
-        .table-responsive {
-            max-height: calc(100vh - 160px);
-            overflow-y: auto;
-        }
-
-        table {
-            table-layout: fixed;
-            width: 100% !important;
-        }
-
-        .table th, .table td {
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
-            padding: 6px;
-            text-align: center;
-            vertical-align: middle;
-            font-size: 0.75rem;
-        }
-
-        .table thead th {
-            position: sticky;
-            top: 0;
-            z-index: 1020;
-            background-color: #0d6efd;
-            color: white;
-        }
-
-        .table td img {
-            width: 40px;
-            height: 40px;
-        }
-
-        @media (max-width: 768px) {
-            .table th, .table td {
-                font-size: 0.7rem;
-                padding: 4px;
-            }
-        }
         .text-format {
             font-size: 0.75rem;
             line-height: 1;
         }
 
-        @keyframes blink-shadow {
-            0%, 100% {
-                box-shadow: 0 0 0 0 rgba(220, 53, 69, 0.8);
-            }
-            50% {
-                box-shadow: 0 0 0 4px rgba(220, 53, 69, 0.8);
-            }
+        .gradient-pane {
+            background: #343A40;
+            color: #f8f9fa;
         }
 
-        .select-error {
-            animation: blink-shadow 0.5s ease-in-out 3;
-            border-color: #dc3545 !important;
-            border-width: 1px;
+        .component-list-wrapper {
+            max-height: calc(100vh - 210px);
+            overflow: auto;
         }
 
+        .process-table {
+            font-size: 0.7rem;
+        }
+
+        .process-table th,
+        .process-table td {
+            padding: 4px 6px;
+            text-align: center;
+            vertical-align: middle;
+        }
+
+        .process-table th:first-child,
+        .process-table td:first-child {
+            text-align: left;
+        }
+
+        .process-table input[type="date"] {
+            font-size: 0.75rem;
+            padding: 2px 4px;
+            height: 28px;
+        }
     </style>
 @endsection
 
 @section('content')
 
-    <div class="container-fluid d-flex flex-column bg-dark p-0"  style="min-height: calc(100vh - 80px);padding-top: 60px; ">
+    <div class="container-fluid d-flex flex-column bg-dark p-0"
+         style="min-height: calc(100vh - 80px); padding-top: 60px;">
+
+        {{-- Блок информации о воркордере --}}
+        <div id="block-info"
+             class="rounded-3 border border-info gradient-pane shadow-sm"
+             style="margin: 5px; padding: 3px;">
+
+            <div class="d-flex justify-content-between align-items-center w-100 fw-bold fs-2 ms-3">
+                @if(!$workorder->isDone())
+                    <span class="text-info">W {{ $workorder->number }}</span>
+                @else
+                    <span class="text-secondary">W {{ $workorder->number }}</span>
+                @endif
+
+                @if($workorder->open_at)
+                    <span class="text-secondary fw-normal fs-6 me-4">
+                        Open at: {{ $workorder->open_at->format('d-M-Y') }}
+                    </span>
+                @endif
+            </div>
+        </div>
+
+        <hr class="border-secondary opacity-50 my-2">
 
         <div class="row g-0 flex-grow-1" style="background-color:#343A40;">
             <div class="col-12 p-0">
-                <div class="bg-dark py-2 px-3 d-flex justify-content-between align-items-center border-bottom mt-3">
-                    <span class="text-success-emphasis text-format">{{ __('Components') }} ({{ $components->count() }})</span>
 
-                    <div class="w-80 me-2">
-                        <form method="GET" action="{{ route('mobile.components') }}" class="d-flex w-100 me-2">
-                            <select name="workorder_id"
-                                    id="selectedWorkorderId"
-                                    class="form-select form-select-sm"
-                                    onchange="this.form.submit()">
-                                <option value="">Select Workorder</option>
-                                @foreach($workorders as $wo)
-                                    <option value="{{ $wo->id }}" {{ request('workorder_id') == $wo->id ? 'selected' : '' }}>
-                                        {{ $wo->number }}
-                                    </option>
-                                @endforeach
-                            </select>
-                        </form>
+                {{-- Header: Components --}}
+                <div class="bg-dark py-2 px-3 d-flex justify-content-between align-items-center border-bottom mt-3">
+                    <div class="d-flex align-items-center gap-2">
+                        <h6 class="mb-0 text-primary">{{ __('Components') }}</h6>
+                        <span class="text-info">({{ $components->count() }})</span>
                     </div>
 
-                    <button class="btn btn-success btn text-format" id="openAddComponentBtn" {{ $workorders->count() ? '' : 'disabled' }}>
+                    <button class="btn btn-success btn-sm text-format" id="openAddComponentBtn">
                         {{ __('Add Component') }}
                     </button>
                 </div>
 
-                @if($components->count())
-                    <div class="table-responsive p-2 " >
-                        <table id="componentTable" class="table table-sm table-striped table-bordered table-dark m-0 shadow">
-                            <thead>
-                            <tr>
-                                <th class="sortable">{{ __('Manual') }}</th>
-                                <th class="sortable">{{ __('IPL Number') }}</th>
-                                <th class="sortable">{{ __('Component') }}</th>
-                                <th class="sortable">{{ __('Part number') }}</th>
-                                <th>{{ __('Image') }}</th>
-                            </tr>
-                            </thead>
-                            <tbody>
-                            @foreach($components as $component)
-                                <tr>
-                                    <td>{{ $component->manuals->number }}</td>
-                                    <td>{{ $component->ipl_num }}</td>
-                                    <td>{{ $component->name }}</td>
-                                    <td>{{ $component->part_number }}</td>
-                                    <td>
-                                        <a href="{{ $component->getFirstMediaBigUrl('components') }}" data-fancybox="component-{{ $component->id }}">
-                                            <img class="rounded-circle" src="{{ $component->getFirstMediaThumbnailUrl('components') }}" alt="Img">
-                                        </a>
-                                    </td>
-                                </tr>
-                            @endforeach
-                            </tbody>
-                        </table>
+                @if($components->isEmpty())
+                    <div class="text-center text-muted small py-3">
+                        {{ __('COMPONENTS NOT CREATED') }}
                     </div>
                 @else
-                    <div class="text-center text-light py-4">{{ __('COMPONENTS NOT CREATED') }}</div>
+                    {{-- Список компонентов + мини-таблицы процессов --}}
+                    <div class="list-group list-group-flush component-list-wrapper">
+                        @foreach($components as $component)
+                            @if(!$component) @continue @endif
+                            <div class="list-group-item bg-transparent text-light border-secondary">
+
+                                {{-- Шапка компонента: картинка + инфа --}}
+                                <div class="d-flex align-items-center gap-2">
+                                    <div class="flex-shrink-0">
+                                        <a href="{{ $component->getFirstMediaBigUrl('components') }}"
+                                           data-fancybox="component-{{ $component->id }}">
+                                            <img class="rounded-circle"
+                                                 src="{{ $component->getFirstMediaThumbnailUrl('components') }}"
+                                                 alt="Img" width="40" height="40">
+                                        </a>
+                                    </div>
+
+                                    <div class="flex-grow-1">
+                                        <div class="fw-semibold text-info">
+                                            {{ $component->name ?? ('#'.$component->id) }}
+                                        </div>
+
+{{--                                        <div class="small text-secondary">--}}
+{{--                                            <span class="me-2">--}}
+{{--                                                <span class="text-muted">Manual:</span>--}}
+{{--                                                {{ $component->manuals->number ?? '—' }}--}}
+{{--                                            </span>--}}
+{{--                                        </div>--}}
+
+                                        <div class="small text-secondary">
+                                            <span class="me-2">
+                                                <span class="text-muted">IPL:</span>
+                                                {{ $component->ipl_num ?? '—' }}
+                                            </span>
+                                            <span class="me-2">
+                                                <span class="text-muted">P/N:</span>
+                                                {{ $component->part_number ?? '—' }}
+                                            </span>
+                                        </div>
+
+                                        @if($component->eff_code)
+                                            <div class="small text-secondary">
+                                                <span class="text-muted">EFF:</span> {{ $component->eff_code }}
+                                            </div>
+                                        @endif
+                                    </div>
+                                </div>
+
+                                @php
+                                    $allProcesses = $component->processesForWorkorder ?? collect();
+                                @endphp
+
+                                @if($allProcesses->isNotEmpty())
+                                    <div class="mt-2 ps-2">
+                                        <table class="table table-sm table-dark table-bordered mb-2 align-middle process-table">
+                                            <thead>
+                                            <tr>
+                                                <th style="width:40%;">
+                                                    <div class="fw-semibold text-info">
+                                                        Processes
+                                                    </div>
+                                                </th>
+                                                <th style="width:30%; text-align: center"
+                                                    class="fw-normal text-muted">
+                                                    Sent (edit)
+                                                </th>
+                                                <th style="width:30%; text-align: center"
+                                                    class="fw-normal text-muted">
+                                                    Returned (edit)
+                                                </th>
+                                            </tr>
+                                            </thead>
+                                            <tbody>
+                                            @foreach($allProcesses as $pr)
+                                                <tr>
+                                                    <td class="text-start">
+                                                        {{ $pr->processName->name ?? '—' }}
+                                                    </td>
+                                                    <td>
+                                                        <form method="POST"
+                                                              action="{{ route('tdrprocesses.updateDate', $pr) }}"
+                                                              class="auto-submit-form">
+                                                            @csrf
+                                                            @method('PATCH')
+                                                            <input type="date"
+                                                                   name="date_start"
+                                                                   class="form-control form-control-sm"
+                                                                   value="{{ $pr->date_start?->format('Y-m-d') }}"
+                                                                   placeholder="...">
+                                                        </form>
+                                                    </td>
+                                                    <td>
+                                                        <form method="POST"
+                                                              action="{{ route('tdrprocesses.updateDate', $pr) }}"
+                                                              class="auto-submit-form">
+                                                            @csrf
+                                                            @method('PATCH')
+                                                            <input type="date"
+                                                                   name="date_finish"
+                                                                   class="form-control form-control-sm finish-input"
+                                                                   value="{{ $pr->date_finish?->format('Y-m-d') }}"
+                                                                   placeholder="...">
+                                                        </form>
+                                                    </td>
+                                                </tr>
+                                            @endforeach
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                @else
+                                    <div class="mt-2 ps-2 small text-muted">
+                                        No processes for this component on this workorder.
+                                    </div>
+                                @endif
+
+                            </div>
+                        @endforeach
+                    </div>
                 @endif
 
             </div>
         </div>
     </div>
 
-
     <!-- Modal -->
-    <div class="modal fade" id="addComponentModal" tabindex="-1" aria-labelledby="addComponentModalLabel" aria-hidden="true">
+    <div class="modal fade" id="addComponentModal" tabindex="-1"
+         aria-labelledby="addComponentModalLabel" aria-hidden="true">
         <div class="modal-dialog modal-fullscreen-sm-down">
             <div class="modal-content bg-dark text-light">
-                <form id="componentUploadForm" method="POST" enctype="multipart/form-data" action="{{ route('mobile.component.store') }}">
+                <form id="componentUploadForm"
+                      method="POST"
+                      enctype="multipart/form-data"
+                      action="{{ route('mobile.component.store') }}">
                     @csrf
                     <div class="modal-header">
                         <h5 class="modal-title" id="addComponentModalLabel">Add Component</h5>
-                        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                        <button type="button" class="btn-close btn-close-white"
+                                data-bs-dismiss="modal" aria-label="Close"></button>
                     </div>
-                    <input type="hidden" name="workorder_id" id="modal_workorder_id">
+
+                    <input type="hidden" name="workorder_id" id="modal_workorder_id" value="{{ $workorder->id }}">
+
                     <div class="modal-body">
 
                         <div class="mb-3">
                             <label for="ipl_num" class="form-label">IPL Number</label>
-                            <input type="text" name="ipl_num" id="ipl_num" class="form-control" required>
+                            <input type="text" name="ipl_num" id="ipl_num"
+                                   class="form-control" required>
                         </div>
 
                         <div class="mb-3">
                             <label for="part_number" class="form-label">Part Number</label>
-                            <input type="text" name="part_number" id="part_number" class="form-control" required>
+                            <input type="text" name="part_number" id="part_number"
+                                   class="form-control" required>
                         </div>
+
                         <div class="mb-3">
                             <label for="eff_code" class="form-label">EFF Code</label>
-                            <input type="text" name="eff_code" id="eff_code" class="form-control" placeholder="Enter EFF code (optional)">
+                            <input type="text" name="eff_code" id="eff_code"
+                                   class="form-control"
+                                   placeholder="Enter EFF code (optional)">
                         </div>
+
                         <div class="mb-3">
                             <label for="name" class="form-label">Component Name</label>
-                            <input type="text" name="name" id="name" class="form-control" required>
+                            <input type="text" name="name" id="name"
+                                   class="form-control" required>
                         </div>
+
                         <div class="mb-3">
                             <label for="assy_ipl_num" class="form-label">Assembly IPL Number</label>
-                            <input type="text" name="assy_ipl_num" id="assy_ipl_num" class="form-control" placeholder="Enter assembly IPL number (optional)">
+                            <input type="text" name="assy_ipl_num" id="assy_ipl_num"
+                                   class="form-control"
+                                   placeholder="Enter assembly IPL number (optional)">
                         </div>
+
                         <div class="mb-3">
                             <label for="assy_img" class="form-label">Assembly Image</label>
-                            <input type="file" name="assy_img" accept="image/*" capture="environment" class="form-control">
+                            <input type="file" name="assy_img"
+                                   accept="image/*" capture="environment"
+                                   class="form-control">
                         </div>
+
                         <div class="mb-3">
                             <label for="assy_part_number" class="form-label">Assembly Part Number</label>
-                            <input type="text" name="assy_part_number" id="assy_part_number" class="form-control" placeholder="Enter assembly part number (optional)">
+                            <input type="text" name="assy_part_number" id="assy_part_number"
+                                   class="form-control"
+                                   placeholder="Enter assembly part number (optional)">
                         </div>
+
                         <div class="mb-3">
                             <label for="photo" class="form-label">Component Photo</label>
-                            <input type="file" name="photo" accept="image/*" capture="environment" class="form-control" required>
+                            <input type="file" name="photo"
+                                   accept="image/*" capture="environment"
+                                   class="form-control" required>
                         </div>
+
                         <div class="d-flex justify-content-between">
                             <div class="d-flex">
                                 <div class="form-check">
-                                    <input class="form-check-input" type="checkbox" id="log_card" name="log_card">
+                                    <input class="form-check-input"
+                                           type="checkbox" id="log_card" name="log_card">
                                     <label class="form-check-label" for="log_card">
                                         Log Card
                                     </label>
                                 </div>
+
                                 <div class="form-check ms-3">
-                                    <input class="form-check-input" type="checkbox" id="repair" name="repair">
+                                    <input class="form-check-input"
+                                           type="checkbox" id="repair" name="repair">
                                     <label class="form-check-label" for="repair">
                                         Repair
                                     </label>
                                 </div>
+
                                 <div class="form-check ms-3">
-                                    <input class="form-check-input" type="checkbox" id="is_bush" name="is_bush" onchange="toggleBushIPL()">
+                                    <input class="form-check-input"
+                                           type="checkbox" id="is_bush" name="is_bush"
+                                           onchange="toggleBushIPL()">
                                     <label class="form-check-label" for="is_bush">
                                         Is Bush
                                     </label>
                                 </div>
                             </div>
                         </div>
-                        
-                        <!-- Bush IPL Number field - показывается только когда Is Bush отмечен -->
+
+                        {{-- Bush IPL Number field --}}
                         <div class="form-group mb-3" id="bush_ipl_container" style="display: none;">
-                            <label for="bush_ipl_num" class="form-label">Initial Bushing IPL Number</label>
-                            <input id='bush_ipl_num' type="text" class="form-control" name="bush_ipl_num"
+                            <label for="bush_ipl_num" class="form-label">
+                                Initial Bushing IPL Number
+                            </label>
+                            <input id='bush_ipl_num' type="text"
+                                   class="form-control" name="bush_ipl_num"
                                    pattern="^\d+-\d+[A-Za-z]?$"
                                    title="The format should be: number-number (for example: 1-200A, 1001-100, 5-398B)">
                         </div>
@@ -218,7 +334,8 @@
 
                     <div class="modal-footer">
                         <button type="submit" class="btn btn-success">Save</button>
-                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                        <button type="button" class="btn btn-secondary"
+                                data-bs-dismiss="modal">Cancel</button>
                     </div>
                 </form>
             </div>
@@ -228,8 +345,8 @@
 @endsection
 
 @section('scripts')
-
     <script>
+
         Fancybox.bind('[data-fancybox^="component-"]', {
             Toolbar: ["zoom", "fullscreen", "close"],
             dragToClose: false,
@@ -238,57 +355,31 @@
         });
 
 
-        // Сортировка таблицы
-        const table = document.getElementById('componentTable');
-        const headers = document.querySelectorAll('.sortable');
-
-        headers.forEach(header => {
-            header.addEventListener('click', () => {
-                const index = Array.from(header.parentNode.children).indexOf(header);
-                const direction = header.dataset.direction === 'asc' ? 'desc' : 'asc';
-                header.dataset.direction = direction;
-
-                const rows = Array.from(table.querySelectorAll('tbody tr'));
-                rows.sort((a, b) => {
-                    const aText = a.cells[index].innerText.trim();
-                    const bText = b.cells[index].innerText.trim();
-                    return direction === 'asc'
-                        ? aText.localeCompare(bText)
-                        : bText.localeCompare(aText);
-                });
-
-                rows.forEach(row => table.querySelector('tbody').appendChild(row));
-            });
-        });
-
         document.getElementById('openAddComponentBtn').addEventListener('click', function () {
-            const select = document.getElementById('selectedWorkorderId');
-            const selectedId = select.value;
-
-            if (!selectedId) {
-                select.classList.add('select-error');
-
-                // Убираем эффект после анимации (1.5 сек)
-                setTimeout(() => {
-                    select.classList.remove('select-error');
-                }, 1500);
-
-                return;
-            }
-
-            // если выбран — передаём ID
-            document.getElementById('modal_workorder_id').value = selectedId;
+            document.getElementById('modal_workorder_id').value = {{ $workorder->id }};
 
             const modal = new bootstrap.Modal(document.getElementById('addComponentModal'));
             modal.show();
         });
-        // Обработка отправки формы с включением спиннера
+
+
         const form = document.getElementById('componentUploadForm');
         form.addEventListener('submit', function () {
-            showLoadingSpinner();
+            if (typeof showLoadingSpinner === 'function') {
+                showLoadingSpinner();
+            }
         });
 
-        // Функция для показа/скрытия поля Bush IPL Number
+        // Автосабмит дат процессов (Sent / Returned)
+        document.addEventListener('change', function (e) {
+            const input = e.target;
+            const form = input.closest('.auto-submit-form');
+            if (form) {
+                form.submit();
+            }
+        });
+
+        // Показ/скрытие поля Bush IPL Number
         function toggleBushIPL() {
             const isBushCheckbox = document.getElementById('is_bush');
             const bushIPLContainer = document.getElementById('bush_ipl_container');
@@ -300,9 +391,10 @@
             } else {
                 bushIPLContainer.style.display = 'none';
                 bushIPLInput.required = false;
-                bushIPLInput.value = ''; // Очищаем поле при скрытии
+                bushIPLInput.value = '';
             }
         }
 
+        window.toggleBushIPL = toggleBushIPL;
     </script>
 @endsection

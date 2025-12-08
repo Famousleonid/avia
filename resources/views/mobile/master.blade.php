@@ -23,6 +23,7 @@
             document.documentElement.setAttribute('data-bs-theme', 'dark');
         })();
     </script>
+
     @include('components.status')
     @yield('style')
 
@@ -33,25 +34,23 @@
             margin: 0;
             padding: 0;
             overflow: hidden;
-            background-color: #343A40; /* Твой темный фон */
+            background-color: #343A40;
         }
 
         .app-container {
             display: flex;
             flex-direction: column;
-            height: 100vh; /* Занимает всю высоту экрана */
+            height: 100vh;
         }
 
-        /* Контейнер для меню */
         .app-header {
-            flex-shrink: 0; /* Запрещаем меню сжиматься */
+            flex-shrink: 0; /* Запрет меню сжиматься */
         }
 
-        /* Контейнер для основного контента */
         .app-content {
             flex-grow: 1; /* Растягивается на все оставшееся место */
-            overflow-y: auto; /* Включаем прокрутку ТОЛЬКО для контента, если он не помещается */
-            min-height: 0; /* Важный хак для правильной работы flex-grow */
+            overflow-y: auto; /* прокрутку ТОЛЬКО для контента, если он не помещается */
+            min-height: 0; /* правильная работы flex-grow */
         }
     </style>
 
@@ -64,7 +63,7 @@
     </div>
 
     <div class="app-header">
-        @include('components.mobile-menu', ['position' => 'top'])
+        @include('components.mobile-menu', ['position'   => 'top','workorder'  => $workorder ?? null,])
     </div>
 
     <main class="app-content">
@@ -81,13 +80,20 @@
 <script src="{{asset('assets/select2/js/select2.min.js')}}"></script>
 <script src="{{ asset('js/main.js') }}"></script>
 
-
 <script>
-    window.addEventListener('load', function () {
 
+    function formatWo(number) {
+        return number.toString().replace(/\B(?=(\d{3})+(?!\d))/g, " ");
+    }
+
+    function initAfterLoad() {
         hideLoadingSpinner();
 
-    });
+        // сюда добавить общий код для всех моб.страниц общие слушатели и т.д
+
+    }
+
+    window.addEventListener('load', initAfterLoad);
 </script>
 
 @yield('scripts')
