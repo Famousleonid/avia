@@ -493,6 +493,11 @@
                                         {{$proc->process}}
                                         @endif
                                     @endforeach
+                                        <div class="fs-8">
+                                            @if($processes->description)
+                                                {{ $processes->description }}
+                                            @endif
+                                        </div>
                                 </div>
                                 <div class="div4 border-r-b " style="min-height: 36px; align-content: center">
 
@@ -512,8 +517,8 @@
                                 <div class="div6 border-r-b " style="min-height: 36px; align-content: center"> </div>
                                 <div class="div7 border-r-b" style="min-height: 36px; align-content: center"> </div>
                                 <div class="div8 border-r-b " style="min-height: 36px; align-content: center">
-                                    @if($processes->description)
-                                        {{ $processes->description }}
+                                    @if($processes->notes)
+                                        {{ $processes->notes }}
                                     @endif
                                 </div>
                             @endif

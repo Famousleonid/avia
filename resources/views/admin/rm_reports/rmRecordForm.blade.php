@@ -354,7 +354,7 @@
 
         <div class="div1">
             <img src="{{ asset('img/icons/AT_logo-rb.svg') }}" alt="Logo"
-                     style="width: 160px">
+                     style="width: 140px">
         </div>
         <div class="div2">
             <h5 class="pt-3  text-black text-center"><strong>Repair and Modification Record WO#</strong></h5>
@@ -388,17 +388,33 @@
         <div class="div15 border-l-t-b text-center align-content-center fs-75">Previously Carried out</div>
         <div class="div16 border-l-t-b text-center align-content-center fs-75">Carried out by AT</div>
         <div class="div17 border-all text-center align-content-center fs-75">Identification Method</div>
-        @for($i=1; $i<16; $i++)
+        @php
+            // Максимальное количество строк для рендеринга (больше, чем нужно, чтобы было из чего выбирать)
+            $max_row = 25;
+            // Сохраняем данные для использования в JavaScript
+            $rmRecordsData = [];
+            if ($rmRecords && count($rmRecords) > 0) {
+                foreach($rmRecords as $record) {
+                    $rmRecordsData[] = [
+                        'part_description' => $record->part_description ?? '',
+                        'mod_repair' => $record->mod_repair ?? '',
+                        'description' => $record->description ?? '',
+                        'ident_method' => $record->ident_method ?? ''
+                    ];
+                }
+            }
+        @endphp
+        @for($i=1; $i<$max_row; $i++)
             @php
                 $rmRecord = $rmRecords->get($i-1);
             @endphp
-            <div class="div11 border-l-b text-center align-content-center fs-75" style="min-height: 37px">{{$i}}</div>
-            <div class="div12 border-l-b text-center align-content-center fs-75" >{{ $rmRecord ? $rmRecord->part_description : '' }}</div>
-            <div class="div13 border-l-b text-center align-content-center fs-75" >{{ $rmRecord ? $rmRecord->mod_repair : '' }}</div>
-            <div class="div14 border-l-b text-center align-content-center fs-75" >{{ $rmRecord ? $rmRecord->description : '' }}</div>
-            <div class="div15 border-l-b text-center align-content-center fs-75" style="color: lightgray">tech stamp</div>
-            <div class="div16 border-l-b text-center align-content-center fs-75" style="color: lightgray">tech stamp</div>
-            <div class="div17 border-l-b-r text-center align-content-center fs-75" >{{ $rmRecord ? $rmRecord->ident_method : '' }}</div>
+            <div class="div11 border-l-b text-center align-content-center fs-75 data-row" style="min-height: 37px" data-row-index="{{$i}}">{{$i}}</div>
+            <div class="div12 border-l-b text-center align-content-center fs-75 data-row" data-row-index="{{$i}}">{{ $rmRecord ? $rmRecord->part_description : '' }}</div>
+            <div class="div13 border-l-b text-center align-content-center fs-75 data-row" data-row-index="{{$i}}">{{ $rmRecord ? $rmRecord->mod_repair : '' }}</div>
+            <div class="div14 border-l-b text-center align-content-center fs-75 data-row" data-row-index="{{$i}}">{{ $rmRecord ? $rmRecord->description : '' }}</div>
+            <div class="div15 border-l-b text-center align-content-center fs-75 data-row" style="color: lightgray" data-row-index="{{$i}}">tech stamp</div>
+            <div class="div16 border-l-b text-center align-content-center fs-75 data-row" style="color: lightgray" data-row-index="{{$i}}">tech stamp</div>
+            <div class="div17 border-l-b-r text-center align-content-center fs-75 data-row" data-row-index="{{$i}}">{{ $rmRecord ? $rmRecord->ident_method : '' }}</div>
         @endfor
 
     </div>
@@ -424,6 +440,213 @@
         </div>
     </div>
 </footer>
+
+<script>
+    // Данные из PHP для использования в JavaScript
+    const rmRecordsData = @json($rmRecordsData ?? []);
+    
+    // Функция для определения общей высоты двух основных таблиц
+    function getTablesHeight() {
+        // Находим первую таблицу (блок с классом "parent")
+        const table1 = document.querySelector('.parent');
+        // Находим вторую таблицу (блок с классом "qc_stamp")
+        const table2 = document.querySelector('.qc_stamp');
+        
+        if (!table1 || !table2) {
+            console.error('Таблицы не найдены');
+            return null;
+        }
+        
+        // Получаем высоту каждой таблицы в пикселях
+        const height1 = table1.offsetHeight;
+        const height2 = table2.offsetHeight;
+        
+        // Вычисляем общую высоту
+        const totalHeight = height1 + height2;
+        
+        // Также учитываем отступ между таблицами (mt-1 = margin-top)
+        const marginTop = parseInt(window.getComputedStyle(table2).marginTop) || 0;
+        const totalHeightWithMargin = totalHeight + marginTop;
+        
+        return {
+            table1Height: height1,
+            table2Height: height2,
+            marginBetween: marginTop,
+            totalHeight: totalHeightWithMargin
+        };
+    }
+    
+    // Функция для получения текущего количества строк в таблице
+    function getCurrentRowCount() {
+        const rows = document.querySelectorAll('.parent .data-row[data-row-index]');
+        const rowIndices = new Set();
+        rows.forEach(row => {
+            const index = parseInt(row.getAttribute('data-row-index'));
+            if (!isNaN(index)) {
+                rowIndices.add(index);
+            }
+        });
+        return rowIndices.size;
+    }
+    
+    // Функция для получения максимального индекса строки
+    function getMaxRowIndex() {
+        const rows = document.querySelectorAll('.parent .data-row[data-row-index]');
+        let maxIndex = 0;
+        rows.forEach(row => {
+            const index = parseInt(row.getAttribute('data-row-index'));
+            if (!isNaN(index) && index > maxIndex) {
+                maxIndex = index;
+            }
+        });
+        return maxIndex;
+    }
+    
+    // Функция для удаления строки по индексу
+    function removeRow(rowIndex) {
+        const rows = document.querySelectorAll(`.parent .data-row[data-row-index="${rowIndex}"]`);
+        rows.forEach(row => row.remove());
+    }
+    
+    // Функция для добавления пустой строки
+    function addEmptyRow(rowIndex) {
+        const parent = document.querySelector('.parent');
+        if (!parent) return;
+        
+        // Создаем все 7 ячеек строки
+        const div11 = document.createElement('div');
+        div11.className = 'div11 border-l-b text-center align-content-center fs-75 data-row';
+        div11.style.minHeight = '37px';
+        div11.setAttribute('data-row-index', rowIndex);
+        div11.textContent = rowIndex;
+        
+        const div12 = document.createElement('div');
+        div12.className = 'div12 border-l-b text-center align-content-center fs-75 data-row';
+        div12.setAttribute('data-row-index', rowIndex);
+        
+        const div13 = document.createElement('div');
+        div13.className = 'div13 border-l-b text-center align-content-center fs-75 data-row';
+        div13.setAttribute('data-row-index', rowIndex);
+        
+        const div14 = document.createElement('div');
+        div14.className = 'div14 border-l-b text-center align-content-center fs-75 data-row';
+        div14.setAttribute('data-row-index', rowIndex);
+        
+        const div15 = document.createElement('div');
+        div15.className = 'div15 border-l-b text-center align-content-center fs-75 data-row';
+        div15.style.color = 'lightgray';
+        div15.setAttribute('data-row-index', rowIndex);
+        div15.textContent = 'tech stamp';
+        
+        const div16 = document.createElement('div');
+        div16.className = 'div16 border-l-b text-center align-content-center fs-75 data-row';
+        div16.style.color = 'lightgray';
+        div16.setAttribute('data-row-index', rowIndex);
+        div16.textContent = 'tech stamp';
+        
+        const div17 = document.createElement('div');
+        div17.className = 'div17 border-l-b-r text-center align-content-center fs-75 data-row';
+        div17.setAttribute('data-row-index', rowIndex);
+        
+        // Добавляем данные, если они есть
+        const recordData = rmRecordsData[rowIndex - 1];
+        if (recordData) {
+            div12.textContent = recordData.part_description || '';
+            div13.textContent = recordData.mod_repair || '';
+            div14.textContent = recordData.description || '';
+            div17.textContent = recordData.ident_method || '';
+        }
+        
+        // Добавляем все ячейки в контейнер
+        parent.appendChild(div11);
+        parent.appendChild(div12);
+        parent.appendChild(div13);
+        parent.appendChild(div14);
+        parent.appendChild(div15);
+        parent.appendChild(div16);
+        parent.appendChild(div17);
+    }
+    
+    // Функция для автоматической настройки высоты таблицы
+    function adjustTableHeight() {
+        const table = document.querySelector('.parent');
+        if (!table) {
+            console.error('Таблица .parent не найдена');
+            return;
+        }
+        
+        const MIN_HEIGHT = 593;
+        const MAX_HEIGHT = 639;
+        const MAX_ITERATIONS = 50; // Защита от бесконечного цикла
+        let iterations = 0;
+        
+        while (iterations < MAX_ITERATIONS) {
+            const currentHeight = table.offsetHeight;
+            
+            if (currentHeight >= MIN_HEIGHT && currentHeight <= MAX_HEIGHT) {
+                console.log(`Высота таблицы настроена: ${currentHeight}px (целевой диапазон: ${MIN_HEIGHT}-${MAX_HEIGHT}px)`);
+                console.log(`Количество строк: ${getCurrentRowCount()}`);
+                break;
+            }
+            
+            if (currentHeight < MIN_HEIGHT) {
+                // Высота меньше минимума - добавляем строку
+                const maxIndex = getMaxRowIndex();
+                addEmptyRow(maxIndex + 1);
+            } else if (currentHeight > MAX_HEIGHT) {
+                // Высота больше максимума - удаляем последнюю строку
+                const maxIndex = getMaxRowIndex();
+                if (maxIndex > 0) {
+                    removeRow(maxIndex);
+                } else {
+                    break; // Нельзя удалить все строки
+                }
+            }
+            
+            iterations++;
+        }
+        
+        if (iterations >= MAX_ITERATIONS) {
+            console.warn('Достигнуто максимальное количество итераций при настройке высоты таблицы');
+        }
+    }
+    
+    // Вызываем функции после полной загрузки страницы
+    window.addEventListener('load', function() {
+        // Сначала настраиваем высоту таблицы
+        setTimeout(function() {
+            adjustTableHeight();
+            
+            // Затем выводим информацию о высотах
+            const heights = getTablesHeight();
+            if (heights) {
+                console.log('Высота первой таблицы (.parent):', heights.table1Height + 'px');
+                console.log('Высота второй таблицы (.qc_stamp):', heights.table2Height + 'px');
+                console.log('Отступ между таблицами:', heights.marginBetween + 'px');
+                console.log('Общая высота двух таблиц:', heights.totalHeight + 'px');
+                
+                // Информационный блок скрыт
+                // Раскомментируйте код ниже, если нужно показать информационный блок на странице
+                /*
+                const infoDiv = document.createElement('div');
+                infoDiv.className = 'no-print';
+                infoDiv.style.cssText = 'position: fixed; top: 10px; right: 10px; background: rgba(0,0,0,0.8); color: white; padding: 15px; border-radius: 5px; z-index: 10000; font-size: 12px;';
+                infoDiv.innerHTML = `
+                    <strong>Высота таблиц:</strong><br>
+                    Таблица 1 (.parent): ${heights.table1Height}px<br>
+                    Таблица 2 (.qc_stamp): ${heights.table2Height}px<br>
+                    Отступ: ${heights.marginBetween}px<br>
+                    <strong>Общая высота: ${heights.totalHeight}px</strong><br>
+                    <strong>Количество строк: ${getCurrentRowCount()}</strong>
+                `;
+                document.body.appendChild(infoDiv);
+                */
+            }
+        }, 100); // Небольшая задержка для полной отрисовки
+    });
+    
+    // Также можно вызвать функцию вручную через консоль: getTablesHeight() или adjustTableHeight()
+</script>
 </body>
 </html>
 
