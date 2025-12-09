@@ -404,16 +404,17 @@
                 <div class="col-1 border-all details-row  text-center"><h6  class="fs-7">REJECT</h6> </div>
             </div>
         </div>
-        <div class="page ">
+        <div class="page ndt-data-container">
             @php
                 $totalRows = 16; // Общее количество строк
                 $dataRows = isset($table_data) ? count($table_data) : 0; // Количество строк с данными
                 $emptyRows = $totalRows - $dataRows; // Количество пустых строк
+                $rowIndex = 1;
             @endphp
 
             @if(isset($table_data) && count($table_data) > 0)
                 @foreach($table_data as $data)
-                    <div class="row fs-85">
+                    <div class="row fs-85 data-row-ndt" data-row-index="{{ $rowIndex }}">
                         <div class="col-1 border-l-b details-row text-center" style="height: 32px">
                             {{ $data['component']->ipl_num }}
                         </div>
@@ -439,11 +440,12 @@
                         <div class="col-1 border-l-b-r details-row text-center" style="height: 32px">
                         </div>
                     </div>
+                    @php $rowIndex++; @endphp
                 @endforeach
             @endif
 
             @for ($i = 0; $i < $emptyRows; $i++)
-                <div class="row fs-85">
+                <div class="row fs-85 data-row-ndt empty-row" data-row-index="{{ $rowIndex }}">
                     <div class="col-1 border-l-b details-row text-center" style="height: 32px">
                         <!-- Пустая ячейка -->
                     </div>
@@ -466,6 +468,7 @@
                         <!-- Пустая ячейка -->
                     </div>
                 </div>
+                @php $rowIndex++; @endphp
             @endfor
         </div>
     @else
@@ -530,24 +533,25 @@
                 $totalRows = 19; // Общее количество строк
                 $dataRows = isset($table_data) ? count($table_data) : 0; // Количество строк с данными
                 $emptyRows = $totalRows - $dataRows; // Количество пустых строк
+                $rowIndex = 1;
             @endphp
 
             @if(isset($table_data) && count($table_data) > 0)
                 @foreach($table_data as $data)
-                    <div class="row fs-85 data-row">
-                        <div class="col-1 border-l-b details-cell text-center"  style="min-height: 32px">
+                    <div class="row fs-85 data-row" data-row-index="{{ $rowIndex }}">
+                        <div class="col-1 border-l-b details-cell text-center"  style="min-height: 34px">
                             {{ $data['component']->ipl_num }}
                         </div>
-                        <div class="col-2 border-l-b details-cell text-center" style="min-height: 32px">
+                        <div class="col-2 border-l-b details-cell text-center" style="min-height: 34px">
                             {{ $data['component']->part_number }}
                             @if($data['extra_process']->serial_num)
                                 <br>S/N{{" "}}{{$data['extra_process']->serial_num}}
                             @endif
                         </div>
-                        <div class="col-3 border-l-b details-cell text-center" style="min-height: 32px" >
+                        <div class="col-3 border-l-b details-cell text-center" style="min-height: 34px" >
                             {{ $data['component']->name }}
                         </div>
-                        <div class="col-3 border-l-b details-cell text-center process-cell"  style="min-height: 32px">
+                        <div class="col-3 border-l-b details-cell text-center process-cell"  style="min-height: 34px">
                             @foreach($process_components as $component_process)
                                 @if($component_process->id == ($data['process']->id ?? null))
                                     <span @if(strlen($component_process->process) > 40) class="process-text-long" @endif>{{$component_process->process}}</span>
@@ -555,13 +559,13 @@
                             @endforeach
 
                         </div>
-                        <div class="col-1 border-l-b details-cell text-center" style="min-height: 32px" >
+                        <div class="col-1 border-l-b details-cell text-center" style="min-height: 34px" >
                             {{ $data['extra_process']->qty ?? 1 }}
                         </div>
                         @if($process_name->process_sheet_name == 'STRESS RELIEF')
-                            <div class="col-2 border-l-b-r details-cell text-center"  style="min-height: 32px"></div>
+                            <div class="col-2 border-l-b-r details-cell text-center"  style="min-height: 34px"></div>
                         @else
-                            <div class="col-2 border-l-b-r details-cell text-center"  style="min-height: 32px">
+                            <div class="col-2 border-l-b-r details-cell text-center"  style="min-height: 34px">
                                 @if(isset($data['manual']) && $data['manual'])
                                     <h6 class="text-center mt-2">
                                         {{ substr($data['manual']->number, 0, 8) }}
@@ -578,30 +582,32 @@
                             </div>
                         @endif
                     </div>
+                    @php $rowIndex++; @endphp
                 @endforeach
             @endif
 
             @for ($i = 0; $i < $emptyRows; $i++)
-                <div class="row  empty-row">
-                    <div class="col-1 border-l-b  text-center" style="height: 34px">
+                <div class="row empty-row" data-row-index="{{ $rowIndex }}">
+                    <div class="col-1 border-l-b  text-center" style="height: 32px">
                         <!-- Пустая ячейка -->
                     </div>
-                    <div class="col-2 border-l-b  text-center" style="height: 34px">
+                    <div class="col-2 border-l-b  text-center" style="height: 32px">
                         <!-- Пустая ячейка -->
                     </div>
-                    <div class="col-3 border-l-b  text-center" style="height: 34px">
+                    <div class="col-3 border-l-b  text-center" style="height: 32px">
                         <!-- Пустая ячейка -->
                     </div>
-                    <div class="col-3 border-l-b  text-center" style="height: 34px">
+                    <div class="col-3 border-l-b  text-center" style="height: 32px">
                         <!-- Пустая ячейка -->
                     </div>
-                    <div class="col-1 border-l-b  text-center" style="height: 34px">
+                    <div class="col-1 border-l-b  text-center" style="height: 32px">
                         <!-- Пустая ячейка -->
                     </div>
-                    <div class="col-2 border-l-b-r  text-center" style="height: 34px">
+                    <div class="col-2 border-l-b-r  text-center" style="height: 32px">
                         <!-- Пустая ячейка -->
                     </div>
                 </div>
+                @php $rowIndex++; @endphp
             @endfor
         </div>
     @endif
@@ -632,30 +638,142 @@
 
 <script>
 document.addEventListener("DOMContentLoaded", function() {
-    // Выбираем ячейки с текстом из строк данных (исключая заголовки)
-    var processCells = document.querySelectorAll('.data-row .process-cell');
-    var totalExtraLines = 0;
+    // Функция для добавления пустой строки NDT таблицы
+    function addEmptyRowNDT(rowIndex, tableElement) {
+        const container = typeof tableElement === 'string'
+            ? document.querySelector(tableElement)
+            : tableElement;
+        if (!container) return;
 
-    processCells.forEach(function(cell) {
-        var cellHeight = cell.offsetHeight;
-        // Если высота ячейки больше базовых 36px (2 строки)
-        if(cellHeight > 32) {
-            // Каждые дополнительные 18px считаются как 1 лишняя строка
-            var extraLines = Math.floor((cellHeight - 32) / 16);
-            totalExtraLines += extraLines;
-        }
-    });
-
-    // Каждые 2 дополнительные линии (36px) эквивалентны 1 пустой строке
-    var emptyRowsToRemove = Math.floor(totalExtraLines / 2);
-
-    // Выбираем пустые строки по классу empty-row
-    var emptyRows = document.querySelectorAll('.empty-row');
-    for (var i = 0; i < emptyRowsToRemove && i < emptyRows.length; i++) {
-        emptyRows[i].remove();
+        const row = document.createElement('div');
+        row.className = 'row fs-85 data-row-ndt empty-row';
+        row.setAttribute('data-row-index', rowIndex);
+        row.innerHTML = `
+            <div class="col-1 border-l-b details-row text-center" style="height: 32px"></div>
+            <div class="col-3 border-l-b details-row text-center" style="height: 32px"></div>
+            <div class="col-3 border-l-b details-row text-center" style="height: 32px"></div>
+            <div class="col-2 border-l-b details-row text-center" style="height: 32px"></div>
+            <div class="col-1 border-l-b details-row text-center" style="height: 32px"></div>
+            <div class="col-1 border-l-b details-row text-center" style="height: 32px"></div>
+            <div class="col-1 border-l-b-r details-row text-center" style="height: 32px"></div>
+        `;
+        container.appendChild(row);
     }
-    console.log("Всего дополнительных строк:", totalExtraLines);
-    console.log("Пустых строк для удаления:", emptyRowsToRemove);
+
+    // Функция для удаления строки NDT таблицы
+    function removeRowNDT(rowIndex, tableElement) {
+        const container = typeof tableElement === 'string'
+            ? document.querySelector(tableElement)
+            : tableElement;
+        if (!container) return;
+
+        const row = container.querySelector(`.data-row-ndt[data-row-index="${rowIndex}"]`);
+        if (row) row.remove();
+    }
+
+    // Функция для добавления пустой строки обычной таблицы
+    function addEmptyRowRegular(rowIndex, tableElement) {
+        const container = typeof tableElement === 'string'
+            ? document.querySelector(tableElement)
+            : tableElement;
+        if (!container) return;
+
+        const row = document.createElement('div');
+        row.className = 'row empty-row';
+        row.setAttribute('data-row-index', rowIndex);
+        row.innerHTML = `
+            <div class="col-1 border-l-b text-center" style="height: 32px"></div>
+            <div class="col-2 border-l-b text-center" style="height: 32px"></div>
+            <div class="col-3 border-l-b text-center" style="height: 32px"></div>
+            <div class="col-3 border-l-b text-center" style="height: 32px"></div>
+            <div class="col-1 border-l-b text-center" style="height: 32px"></div>
+            <div class="col-2 border-l-b-r text-center" style="height: 32px"></div>
+        `;
+        container.appendChild(row);
+    }
+
+    // Функция для удаления строки обычной таблицы
+    function removeRowRegular(rowIndex, tableElement) {
+        const container = typeof tableElement === 'string'
+            ? document.querySelector(tableElement)
+            : tableElement;
+        if (!container) return;
+
+        const row = container.querySelector(`[data-row-index="${rowIndex}"]`);
+        if (row) row.remove();
+    }
+
+    // Настройка высоты таблиц после загрузки
+    setTimeout(function() {
+        // Настройка таблицы NDT (если она есть)
+        const ndtRows = document.querySelectorAll('.data-row-ndt');
+        if (ndtRows.length > 0) {
+            const ndtDataContainer = document.querySelector('.ndt-data-container');
+            if (ndtDataContainer) {
+                adjustTableHeightToRange({
+                    min_height_tab: 500,
+                    max_height_tab: 600,
+                    tab_name: '.ndt-data-container',
+                    row_height: 32,
+                    row_selector: '.data-row-ndt[data-row-index]',
+                    addRowCallback: addEmptyRowNDT,
+                    removeRowCallback: removeRowNDT,
+                    getRowIndexCallback: function(rowElement) {
+                        return parseInt(rowElement.getAttribute('data-row-index')) || 0;
+                    },
+                    max_iterations: 50,
+                    onComplete: function(currentHeight, rowCount) {
+                        console.log(`NDT таблица настроена: высота ${currentHeight}px, строк ${rowCount}`);
+                    }
+                });
+            }
+        }
+
+        // Настройка обычной таблицы (если она есть)
+        const regularTableContainer = document.querySelector('.data-page');
+        const regularRows = document.querySelectorAll('.data-page .data-row:not(.data-row-ndt)');
+        if (regularTableContainer && regularRows.length > 0) {
+            adjustTableHeightToRange({
+                min_height_tab: 700,
+                max_height_tab: 750,
+                tab_name: '.data-page',
+                row_height: 34,
+                row_selector: '.data-page [data-row-index]',
+                addRowCallback: addEmptyRowRegular,
+                removeRowCallback: removeRowRegular,
+                getRowIndexCallback: function(rowElement) {
+                    return parseInt(rowElement.getAttribute('data-row-index')) || 0;
+                },
+                max_iterations: 50,
+                onComplete: function(currentHeight, rowCount) {
+                    console.log(`Обычная таблица настроена: высота ${currentHeight}px, строк ${rowCount}`);
+                }
+            });
+        }
+
+        // Старый код для удаления пустых строк на основе высоты ячеек процесса (оставляем для совместимости)
+        var processCells = document.querySelectorAll('.data-row .process-cell');
+        var totalExtraLines = 0;
+
+        processCells.forEach(function(cell) {
+            var cellHeight = cell.offsetHeight;
+            if(cellHeight > 32) {
+                var extraLines = Math.floor((cellHeight - 32) / 16);
+                totalExtraLines += extraLines;
+            }
+        });
+
+        var emptyRowsToRemove = Math.floor(totalExtraLines / 2);
+        var emptyRows = document.querySelectorAll('.empty-row');
+        for (var i = 0; i < emptyRowsToRemove && i < emptyRows.length; i++) {
+            // Удаляем только если строка не была добавлена функцией adjustTableHeightToRange
+            if (emptyRows[i] && !emptyRows[i].hasAttribute('data-keep')) {
+                emptyRows[i].remove();
+            }
+        }
+        console.log("Всего дополнительных строк:", totalExtraLines);
+        console.log("Пустых строк для удаления:", emptyRowsToRemove);
+    }, 200);
 });
 </script>
 </div>

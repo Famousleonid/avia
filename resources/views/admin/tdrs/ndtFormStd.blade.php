@@ -297,7 +297,8 @@
                         @if(!empty($ndt_processes) && count($ndt_processes))
                             @foreach($ndt_processes as $process)
                                 @if($process->process_names_id == $ndt1_name_id)
-                                    <span @if(strlen($process->process) > 40) class="process-text-long" @endif>{{$process->process}}</span>
+                                    <span @if(strlen($process->process) > 25) class="process-text-long"
+                                        @endif>{{$process->process}}</span>
                                     {{--                                    {{ $process->process ?? '' }}--}}
                                 @endif
                             @endforeach
@@ -312,7 +313,8 @@
                         @if(!empty($ndt_processes) && count($ndt_processes))
                             @foreach($ndt_processes as $process)
                                 @if($process->process_names_id == $ndt4_name_id)
-                                    <span @if(strlen($process->process) > 40) class="process-text-long" @endif>{{$process->process}}</span>
+                                    <span @if(strlen($process->process) > 25) class="process-text-long"
+                                        @endif>{{$process->process}}</span>
                                     {{--                                    {{ $process->process ?? '' }}--}}
                                 @endif
                             @endforeach
@@ -557,15 +559,16 @@
             </div>
         @endif
 
-        <div class="page data-page">
+        <div class="page data-page" data-page-index="{{ $loop->iteration }}">
             @php
                 $totalRows = 16; // Общее количество строк
                 $dataRows = count($chunk); // Количество строк с данными
                 $emptyRows = $totalRows - $dataRows; // Количество пустых строк
+                $rowIndex = 1;
             @endphp
 
             @foreach($chunk as $component)
-                <div class="row fs-85">
+                <div class="row fs-85 data-row-ndt" data-row-index="{{ $rowIndex }}">
                     <div class="col-1 border-l-b fs-75 details-row text-center" style="height: 32px">
                         {{ $component->ipl_num }}
                     </div>
@@ -588,10 +591,11 @@
                         <!-- Пустая ячейка -->
                     </div>
                 </div>
+                @php $rowIndex++; @endphp
             @endforeach
 
             @for ($i = 0; $i < $emptyRows; $i++)
-                <div class="row fs-85">
+                <div class="row fs-85 data-row-ndt empty-row" data-row-index="{{ $rowIndex }}">
                     <div class="col-1 border-l-b details-row text-center" style="height: 32px">
                         <!-- Пустая ячейка -->
                     </div>
@@ -614,6 +618,7 @@
                         <!-- Пустая ячейка -->
                     </div>
                 </div>
+                @php $rowIndex++; @endphp
             @endfor
         </div>
 
@@ -655,5 +660,68 @@
         @endif
     @endforeach
 </div>
+<script>
+document.addEventListener("DOMContentLoaded", function() {
+    // Функция для добавления пустой строки NDT таблицы
+    function addEmptyRowNDT(rowIndex, tableElement) {
+        const container = typeof tableElement === 'string'
+            ? document.querySelector(tableElement)
+            : tableElement;
+        if (!container) return;
+
+        const row = document.createElement('div');
+        row.className = 'row fs-85 data-row-ndt empty-row';
+        row.setAttribute('data-row-index', rowIndex);
+        row.innerHTML = `
+            <div class="col-1 border-l-b details-row text-center" style="height: 32px"></div>
+            <div class="col-3 border-l-b details-row text-center" style="height: 32px"></div>
+            <div class="col-3 border-l-b details-row text-center" style="height: 32px"></div>
+            <div class="col-2 border-l-b details-row text-center" style="height: 32px"></div>
+            <div class="col-1 border-l-b details-row text-center" style="height: 32px"></div>
+            <div class="col-1 border-l-b details-row text-center" style="height: 32px"></div>
+            <div class="col-1 border-l-b-r details-row text-center" style="height: 32px"></div>
+        `;
+        container.appendChild(row);
+    }
+
+    // Функция для удаления строки NDT таблицы
+    function removeRowNDT(rowIndex, tableElement) {
+        const container = typeof tableElement === 'string'
+            ? document.querySelector(tableElement)
+            : tableElement;
+        if (!container) return;
+
+        const row = container.querySelector(`.data-row-ndt[data-row-index="${rowIndex}"]`);
+        if (row) row.remove();
+    }
+
+    // Настройка высоты всех таблиц после загрузки
+    setTimeout(function() {
+        // Обрабатываем каждую страницу отдельно
+        const dataPages = document.querySelectorAll('.data-page');
+        dataPages.forEach(function(pageContainer, pageIndex) {
+            const ndtRows = pageContainer.querySelectorAll('.data-row-ndt');
+            if (ndtRows.length > 0) {
+                adjustTableHeightToRange({
+                    min_height_tab: 500,
+                    max_height_tab: 600,
+                    tab_name: pageContainer,
+                    row_height: 32,
+                    row_selector: '.data-row-ndt[data-row-index]',
+                    addRowCallback: addEmptyRowNDT,
+                    removeRowCallback: removeRowNDT,
+                    getRowIndexCallback: function(rowElement) {
+                        return parseInt(rowElement.getAttribute('data-row-index')) || 0;
+                    },
+                    max_iterations: 50,
+                    onComplete: function(currentHeight, rowCount) {
+                        console.log(`NDT таблица страница ${pageIndex + 1} настроена: высота ${currentHeight}px, строк ${rowCount}`);
+                    }
+                });
+            }
+        });
+    }, 200);
+});
+</script>
 </body>
 </html>

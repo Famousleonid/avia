@@ -349,7 +349,10 @@
 
 
         <!-- Данные для текущей страницы -->
-        <div class="page data-page">
+        <div class="page data-page" data-page-index="{{ $page }}">
+            @php
+                $rowIndex = 1;
+            @endphp
             @for($i = $page * $partsPerPage; $i < ($page + 1) * $partsPerPage; $i++)
                 @php
                     // Если данные существуют, выбираем ipl_num или assy_ipl_num
@@ -374,7 +377,7 @@
                     }
                 @endphp
 
-                <div class="row" style="width: 1020px">
+                <div class="row data-row-prl" style="width: 1020px" data-row-index="{{ $rowIndex }}">
                     <div class="col-5">
                         <div class="row" style="height: 36px">
                             <div class="col-1 border-l-b text-center pt-1 align-content-center">
@@ -419,6 +422,7 @@
                         </div>
                     </div>
                 </div>
+                @php $rowIndex++; @endphp
             @endfor
 
                 <!-- Проверка на последнюю страницу и добавление специального блока -->
@@ -540,8 +544,11 @@
             </div>
         </div>
         <div class="page data-page">
+            @php
+                $rowIndex = 1;
+            @endphp
             @for($i = 0; $i < $partsPerPage ; $i++)
-                <div class="row" style="width: 1020px">
+                <div class="row data-row-prl empty-row" style="width: 1020px" data-row-index="{{ $rowIndex }}">
                     <div class="col-5">
                         <div class="row" style="height: 36px">
                             <div class="col-1 border-l-b align-content-center">
@@ -575,6 +582,7 @@
                         </div>
                     </div>
                 </div>
+                @php $rowIndex++; @endphp
             @endfor
                 <div class="row mt-2">
                     <div class="col-8"></div>
@@ -603,5 +611,78 @@
         </div>
     </footer>
 </div>
+<script>
+document.addEventListener("DOMContentLoaded", function() {
+    // Функция для добавления пустой строки PRL таблицы
+    function addEmptyRowPRL(rowIndex, tableElement) {
+        const container = typeof tableElement === 'string'
+            ? document.querySelector(tableElement)
+            : tableElement;
+        if (!container) return;
+
+        const row = document.createElement('div');
+        row.className = 'row data-row-prl empty-row';
+        row.style.width = '1020px';
+        row.setAttribute('data-row-index', rowIndex);
+        row.innerHTML = `
+            <div class="col-5">
+                <div class="row" style="height: 36px">
+                    <div class="col-1 border-l-b align-content-center"><h6></h6></div>
+                    <div class="col-2 border-l-b"><h6></h6></div>
+                    <div class="col-9 border-l-b align-content-center"><h6></h6></div>
+                </div>
+            </div>
+            <div class="col-7">
+                <div class="row" style="height: 36px">
+                    <div class="col-4 border-l-b text-center align-content-center"><h6></h6></div>
+                    <div class="col-1 border-l-b align-content-center"><h6 style="margin-left: -7px"></h6></div>
+                    <div class="col-1 border-l-b align-content-center"><h6 style="margin-left: -10px"></h6></div>
+                    <div class="col-2 border-l-b text-center align-content-center"><h6></h6></div>
+                    <div class="col-2 border-l-b-r align-content-center"><h6></h6></div>
+                </div>
+            </div>
+        `;
+        container.appendChild(row);
+    }
+
+    // Функция для удаления строки PRL таблицы
+    function removeRowPRL(rowIndex, tableElement) {
+        const container = typeof tableElement === 'string'
+            ? document.querySelector(tableElement)
+            : tableElement;
+        if (!container) return;
+
+        const row = container.querySelector(`.data-row-prl[data-row-index="${rowIndex}"]`);
+        if (row) row.remove();
+    }
+
+    // Настройка высоты всех таблиц после загрузки
+    setTimeout(function() {
+        // Обрабатываем каждую страницу отдельно
+        const dataPages = document.querySelectorAll('.data-page');
+        dataPages.forEach(function(pageContainer, pageIndex) {
+            const prlRows = pageContainer.querySelectorAll('.data-row-prl');
+            if (prlRows.length > 0) {
+                adjustTableHeightToRange({
+                    min_height_tab: 700,
+                    max_height_tab: 850,
+                    tab_name: pageContainer,
+                    row_height: 36,
+                    row_selector: '.data-row-prl[data-row-index]',
+                    addRowCallback: addEmptyRowPRL,
+                    removeRowCallback: removeRowPRL,
+                    getRowIndexCallback: function(rowElement) {
+                        return parseInt(rowElement.getAttribute('data-row-index')) || 0;
+                    },
+                    max_iterations: 50,
+                    onComplete: function(currentHeight, rowCount) {
+                        console.log(`PRL таблица страница ${pageIndex + 1} настроена: высота ${currentHeight}px, строк ${rowCount}`);
+                    }
+                });
+            }
+        });
+    }, 200);
+});
+</script>
 </body>
 </html>

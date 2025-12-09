@@ -286,7 +286,8 @@
                     <div class="col-11 border-b">
                         @foreach($ndt_processes as $process)
                             @if($process->process_names_id == $ndt1_name_id)
-                                <span @if(strlen($process->process) > 40) class="process-text-long" @endif>{{$process->process}}</span>
+                                <span @if(strlen($process->process) > 25) class="process-text-long"
+                                    @endif>{{$process->process}}</span>
                             @endif
                         @endforeach
                     </div>
@@ -298,7 +299,8 @@
                     <div class="col-11 border-b">
                         @foreach($ndt_processes as $process)
                             @if($process->process_names_id == $ndt4_name_id)
-                                <span @if(strlen($process->process) > 40) class="process-text-long" @endif>{{$process->process}}</span>
+                                <span @if(strlen($process->process) > 25) class="process-text-long"
+                                    @endif>{{$process->process}}</span>
                             @endif
                         @endforeach
                     </div>
@@ -383,10 +385,11 @@
             $totalRows = 17; // Общее количество строк
             $dataRows = count($ndt_components); // Количество строк с данными
             $emptyRows = $totalRows - $dataRows; // Количество пустых строк
+            $rowIndex = 1;
         @endphp
 
         @foreach($ndt_components as $component)
-            <div class="row fs-85">
+            <div class="row fs-85 data-row-ndt" data-row-index="{{ $rowIndex }}">
                 <div class="col-1 border-l-b details-row text-center" style="height: 32px">
                     {{ $component->tdr->component->ipl_num }}
                 </div>
@@ -409,10 +412,11 @@
                     <!-- Пустая ячейка -->
                 </div>
             </div>
+            @php $rowIndex++; @endphp
         @endforeach
 
         @for ($i = 0; $i < $emptyRows; $i++)
-            <div class="row fs-85">
+            <div class="row fs-85 data-row-ndt empty-row" data-row-index="{{ $rowIndex }}">
                 <div class="col-1 border-l-b details-row text-center" style="height: 32px">
                     <!-- Пустая ячейка -->
                 </div>
@@ -435,6 +439,7 @@
                     <!-- Пустая ячейка -->
                 </div>
             </div>
+            @php $rowIndex++; @endphp
         @endfor
     </div>
     <footer>
@@ -448,5 +453,65 @@
         </div>
     </footer>
 </div>
+<script>
+document.addEventListener("DOMContentLoaded", function() {
+    // Функция для добавления пустой строки NDT таблицы
+    function addEmptyRowNDT(rowIndex, tableElement) {
+        const container = typeof tableElement === 'string'
+            ? document.querySelector(tableElement)
+            : tableElement;
+        if (!container) return;
+
+        const row = document.createElement('div');
+        row.className = 'row fs-85 data-row-ndt empty-row';
+        row.setAttribute('data-row-index', rowIndex);
+        row.innerHTML = `
+            <div class="col-1 border-l-b details-row text-center" style="height: 32px"></div>
+            <div class="col-3 border-l-b details-row text-center" style="height: 32px"></div>
+            <div class="col-3 border-l-b details-row text-center" style="height: 32px"></div>
+            <div class="col-2 border-l-b details-row text-center" style="height: 32px"></div>
+            <div class="col-1 border-l-b details-row text-center" style="height: 32px"></div>
+            <div class="col-1 border-l-b details-row text-center" style="height: 32px"></div>
+            <div class="col-1 border-l-b-r details-row text-center" style="height: 32px"></div>
+        `;
+        container.appendChild(row);
+    }
+
+    // Функция для удаления строки NDT таблицы
+    function removeRowNDT(rowIndex, tableElement) {
+        const container = typeof tableElement === 'string'
+            ? document.querySelector(tableElement)
+            : tableElement;
+        if (!container) return;
+
+        const row = container.querySelector(`.data-row-ndt[data-row-index="${rowIndex}"]`);
+        if (row) row.remove();
+    }
+
+    // Настройка высоты таблицы после загрузки
+    setTimeout(function() {
+        const ndtDataContainer = document.querySelector('.data-page');
+        const ndtRows = document.querySelectorAll('.data-row-ndt');
+        if (ndtDataContainer && ndtRows.length > 0) {
+            adjustTableHeightToRange({
+                min_height_tab: 500,
+                max_height_tab: 600,
+                tab_name: '.data-page',
+                row_height: 32,
+                row_selector: '.data-row-ndt[data-row-index]',
+                addRowCallback: addEmptyRowNDT,
+                removeRowCallback: removeRowNDT,
+                getRowIndexCallback: function(rowElement) {
+                    return parseInt(rowElement.getAttribute('data-row-index')) || 0;
+                },
+                max_iterations: 50,
+                onComplete: function(currentHeight, rowCount) {
+                    console.log(`NDT таблица настроена: высота ${currentHeight}px, строк ${rowCount}`);
+                }
+            });
+        }
+    }, 200);
+});
+</script>
 </body>
 </html>

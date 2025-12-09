@@ -246,13 +246,16 @@
 
     <div class="page data-page">
         @php
-            $totalRows = 18;
+            $totalRows = 17;
             $dataRows = count($cad_components);
             $emptyRows = $totalRows - $dataRows;
         @endphp
 
+        @php
+            $rowIndex = 1;
+        @endphp
         @foreach($cad_components as $component)
-            <div class="row fs-85 data-row">
+            <div class="row fs-85 data-row" data-row-index="{{ $rowIndex }}">
                 <div class="col-1 border-l-b details-cell text-center" style="min-height: 32px">
                     {{ $component->ipl_num }}
                 </div>
@@ -276,10 +279,11 @@
                     @endforeach
                 </div>
             </div>
+            @php $rowIndex++; @endphp
         @endforeach
 
         @for ($i = 0; $i < $emptyRows; $i++)
-            <div class="row empty-row">
+            <div class="row empty-row" data-row-index="{{ $rowIndex }}">
                 <div class="col-1 border-l-b text-center" style="height: 34px"></div>
                 <div class="col-2 border-l-b text-center" style="height: 34px"></div>
                 <div class="col-3 border-l-b text-center" style="height: 34px"></div>
@@ -287,6 +291,7 @@
                 <div class="col-1 border-l-b text-center" style="height: 34px"></div>
                 <div class="col-2 border-l-b-r text-center" style="height: 34px"></div>
             </div>
+            @php $rowIndex++; @endphp
         @endfor
     </div>
 
@@ -308,22 +313,81 @@
 </body>
 <script>
     document.addEventListener("DOMContentLoaded", function() {
-        var processCells = document.querySelectorAll('.data-row .process-cell');
-        var totalExtraLines = 0;
+        // Функция для добавления пустой строки
+        function addEmptyRowRegular(rowIndex, tableElement) {
+            const container = typeof tableElement === 'string'
+                ? document.querySelector(tableElement)
+                : tableElement;
+            if (!container) return;
 
-        processCells.forEach(function(cell) {
-            var cellHeight = cell.offsetHeight;
-            if(cellHeight > 32) {
-                var extraLines = Math.floor((cellHeight - 32) / 16);
-                totalExtraLines += extraLines;
-            }
-        });
-
-        var emptyRowsToRemove = Math.floor(totalExtraLines / 2);
-        var emptyRows = document.querySelectorAll('.empty-row');
-        for (var i = 0; i < emptyRowsToRemove && i < emptyRows.length; i++) {
-            emptyRows[i].remove();
+            const row = document.createElement('div');
+            row.className = 'row empty-row';
+            row.setAttribute('data-row-index', rowIndex);
+            row.innerHTML = `
+                <div class="col-1 border-l-b text-center" style="height: 32px"></div>
+                <div class="col-2 border-l-b text-center" style="height: 32px"></div>
+                <div class="col-3 border-l-b text-center" style="height: 32px"></div>
+                <div class="col-3 border-l-b text-center" style="height: 32px"></div>
+                <div class="col-1 border-l-b text-center" style="height: 32px"></div>
+                <div class="col-2 border-l-b-r text-center" style="height: 32px"></div>
+            `;
+            container.appendChild(row);
         }
+
+        // Функция для удаления строки
+        function removeRowRegular(rowIndex, tableElement) {
+            const container = typeof tableElement === 'string'
+                ? document.querySelector(tableElement)
+                : tableElement;
+            if (!container) return;
+
+            const row = container.querySelector(`[data-row-index="${rowIndex}"]`);
+            if (row) row.remove();
+        }
+
+        // Настройка высоты таблицы
+        setTimeout(function() {
+            const regularTableContainer = document.querySelector('.data-page');
+            const regularRows = document.querySelectorAll('.data-page .data-row');
+            if (regularTableContainer && regularRows.length > 0) {
+                adjustTableHeightToRange({
+                    min_height_tab: 600,
+                    max_height_tab: 650,
+                    tab_name: '.data-page',
+                    row_height: 34,
+                    row_selector: '.data-page [data-row-index]',
+                    addRowCallback: addEmptyRowRegular,
+                    removeRowCallback: removeRowRegular,
+                    getRowIndexCallback: function(rowElement) {
+                        return parseInt(rowElement.getAttribute('data-row-index')) || 0;
+                    },
+                    max_iterations: 50,
+                    onComplete: function(currentHeight, rowCount) {
+                        console.log(`CAD таблица настроена: высота ${currentHeight}px, строк ${rowCount}`);
+                    }
+                });
+            }
+
+            // Старый код для удаления пустых строк на основе высоты ячеек процесса
+            var processCells = document.querySelectorAll('.data-row .process-cell');
+            var totalExtraLines = 0;
+
+            processCells.forEach(function(cell) {
+                var cellHeight = cell.offsetHeight;
+                if(cellHeight > 32) {
+                    var extraLines = Math.floor((cellHeight - 32) / 16);
+                    totalExtraLines += extraLines;
+                }
+            });
+
+            var emptyRowsToRemove = Math.floor(totalExtraLines / 2);
+            var emptyRows = document.querySelectorAll('.empty-row');
+            for (var i = 0; i < emptyRowsToRemove && i < emptyRows.length; i++) {
+                if (emptyRows[i] && !emptyRows[i].hasAttribute('data-keep')) {
+                    emptyRows[i].remove();
+                }
+            }
+        }, 200);
     });
 </script>
 

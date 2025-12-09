@@ -567,48 +567,31 @@
         parent.appendChild(div17);
     }
     
-    // Функция для автоматической настройки высоты таблицы
+    // Функция для автоматической настройки высоты таблицы (использует универсальную функцию)
     function adjustTableHeight() {
-        const table = document.querySelector('.parent');
-        if (!table) {
-            console.error('Таблица .parent не найдена');
-            return;
-        }
-        
-        const MIN_HEIGHT = 593;
-        const MAX_HEIGHT = 639;
-        const MAX_ITERATIONS = 50; // Защита от бесконечного цикла
-        let iterations = 0;
-        
-        while (iterations < MAX_ITERATIONS) {
-            const currentHeight = table.offsetHeight;
-            
-            if (currentHeight >= MIN_HEIGHT && currentHeight <= MAX_HEIGHT) {
-                console.log(`Высота таблицы настроена: ${currentHeight}px (целевой диапазон: ${MIN_HEIGHT}-${MAX_HEIGHT}px)`);
-                console.log(`Количество строк: ${getCurrentRowCount()}`);
-                break;
+        // Используем универсальную функцию adjustTableHeightToRange
+        const result = adjustTableHeightToRange({
+            min_height_tab: 593,
+            max_height_tab: 639,
+            tab_name: '.parent',
+            row_height: 37, // Примерная высота одной строки
+            row_selector: '.data-row[data-row-index]',
+            addRowCallback: function(rowIndex, tableElement) {
+                addEmptyRow(rowIndex);
+            },
+            removeRowCallback: function(rowIndex, tableElement) {
+                removeRow(rowIndex);
+            },
+            getRowIndexCallback: function(rowElement) {
+                return parseInt(rowElement.getAttribute('data-row-index'));
+            },
+            max_iterations: 50,
+            onComplete: function(currentHeight, rowCount) {
+                console.log(`Настройка завершена. Высота: ${currentHeight}px, строк: ${rowCount}`);
             }
-            
-            if (currentHeight < MIN_HEIGHT) {
-                // Высота меньше минимума - добавляем строку
-                const maxIndex = getMaxRowIndex();
-                addEmptyRow(maxIndex + 1);
-            } else if (currentHeight > MAX_HEIGHT) {
-                // Высота больше максимума - удаляем последнюю строку
-                const maxIndex = getMaxRowIndex();
-                if (maxIndex > 0) {
-                    removeRow(maxIndex);
-                } else {
-                    break; // Нельзя удалить все строки
-                }
-            }
-            
-            iterations++;
-        }
+        });
         
-        if (iterations >= MAX_ITERATIONS) {
-            console.warn('Достигнуто максимальное количество итераций при настройке высоты таблицы');
-        }
+        return result;
     }
     
     // Вызываем функции после полной загрузки страницы
