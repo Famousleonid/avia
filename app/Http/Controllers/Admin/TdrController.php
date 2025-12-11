@@ -46,6 +46,146 @@ class TdrController extends Controller
     const PROCESS_TYPE_LOG = 'log';
 
     /**
+     * Нормализует IPL номер, убирая буквенные суффиксы для сравнения
+     * Например: 5-90A -> 5-90, 1-1190B -> 1-1190
+     * 
+     * @param string $iplNum
+     * @return string
+     */
+    private function normalizeIplNum($iplNum)
+    {
+        if (empty($iplNum)) {
+            return '';
+        }
+        
+        // Убираем буквенные суффиксы в конце (A, B, C, и т.д.)
+        // Паттерн: удаляем буквы в конце после последнего дефиса или в конце строки
+        return preg_replace('/[A-Z]+$/', '', trim($iplNum));
+    }
+
+    /**
+     * Рассчитывает пагинацию компонентов с учетом manual-строк и пустых строк
+     * 
+     * @param array $components Массив компонентов
+     * @param int $targetRows Целевое количество строк на странице (включая manual и пустые)
+     * @return array Массив chunks, каждый chunk содержит:
+     *   - 'components': массив компонентов
+     *   - 'manual_rows': количество manual-строк
+     *   - 'data_rows': количество строк с данными
+     *   - 'empty_rows': количество пустых строк для добавления
+     *   - 'total_rows': общее количество строк
+     *   - 'previous_manual': последний manual в chunk (для следующего chunk)
+     */
+    private function paginateComponentsWithEmptyRows($components, $targetRows = 18)
+    {
+        $chunks = [];
+        $currentChunk = [];
+        $previousManual = null;
+        $previousChunkLastManual = null;
+
+        foreach ($components as $component) {
+            $currentManual = $component->manual ?? null;
+            $hasManual = ($currentManual !== null && $currentManual !== '' && $currentManual !== $previousManual);
+
+            // Подсчитываем количество строк в текущем chunk БЕЗ нового компонента
+            $rowsInChunk = count($currentChunk);
+            $manualRowsInChunk = 0;
+            $tempPreviousManual = $previousChunkLastManual ?? $previousManual;
+
+            // Считаем manual-строки в текущем chunk (уже добавленных компонентов)
+            foreach ($currentChunk as $chunkComponent) {
+                $chunkManual = $chunkComponent->manual ?? null;
+                if ($chunkManual !== null && $chunkManual !== '' && $chunkManual !== $tempPreviousManual) {
+                    $manualRowsInChunk++;
+                    $tempPreviousManual = $chunkManual;
+                } else if ($chunkManual !== null && $chunkManual !== '') {
+                    $tempPreviousManual = $chunkManual;
+                }
+            }
+
+            // Если добавляем этот компонент, будет ли новая manual-строка?
+            if ($hasManual) {
+                $manualRowsInChunk++;
+            }
+
+            // Общее количество строк в chunk С новым компонентом
+            $totalRowsInChunk = $rowsInChunk + $manualRowsInChunk + 1;
+
+            // Если добавление этого компонента превысит лимит, сохраняем текущий chunk
+            if ($totalRowsInChunk > $targetRows && !empty($currentChunk)) {
+                // Рассчитываем пустые строки для текущего chunk
+                $chunkInfo = $this->calculateChunkInfo($currentChunk, $targetRows, $previousChunkLastManual ?? $previousManual, false);
+                $chunks[] = $chunkInfo;
+                $previousChunkLastManual = $chunkInfo['previous_manual'];
+                
+                // Начинаем новый chunk
+                $currentChunk = [];
+                $previousManual = $previousChunkLastManual;
+            }
+
+            // Добавляем компонент в текущий chunk
+            $currentChunk[] = $component;
+
+            // Обновляем previousManual для следующей итерации
+            if ($currentManual !== null && $currentManual !== '') {
+                $previousManual = $currentManual;
+            }
+        }
+
+        // Добавляем последний chunk, если он не пустой
+        if (!empty($currentChunk)) {
+            $chunkInfo = $this->calculateChunkInfo($currentChunk, $targetRows, $previousChunkLastManual ?? $previousManual, true);
+            $chunks[] = $chunkInfo;
+        }
+
+        return $chunks;
+    }
+
+    /**
+     * Рассчитывает информацию о chunk: количество manual-строк, data-строк и пустых строк
+     * 
+     * @param array $chunk Массив компонентов в chunk
+     * @param int $targetRows Целевое количество строк
+     * @param string|null $previousManual Manual из предыдущего chunk
+     * @param bool $isLastPage Является ли это последней страницей
+     * @return array
+     */
+    private function calculateChunkInfo($chunk, $targetRows, $previousManual = null, $isLastPage = false)
+    {
+        $manualRows = 0;
+        $dataRows = count($chunk);
+        $tempPreviousManual = $previousManual;
+        $lastManual = null;
+
+        // Считаем manual-строки
+        foreach ($chunk as $component) {
+            $currentManual = $component->manual ?? null;
+            if ($currentManual !== null && $currentManual !== '' && $currentManual !== $tempPreviousManual) {
+                $manualRows++;
+                $tempPreviousManual = $currentManual;
+                $lastManual = $currentManual;
+            } else if ($currentManual !== null && $currentManual !== '') {
+                $tempPreviousManual = $currentManual;
+                $lastManual = $currentManual;
+            }
+        }
+
+        $totalDataRows = $dataRows + $manualRows;
+        
+        // Добавляем пустые строки до targetRows на всех страницах (включая последнюю)
+        $emptyRows = max(0, $targetRows - $totalDataRows);
+        
+        return [
+            'components' => $chunk,
+            'manual_rows' => $manualRows,
+            'data_rows' => $dataRows,
+            'empty_rows' => $emptyRows,
+            'total_rows' => $totalDataRows + $emptyRows,
+            'previous_manual' => $lastManual ?? $previousManual,
+        ];
+    }
+
+    /**
      * Display a listing of the resource.
      *
      * @return
@@ -649,61 +789,170 @@ class TdrController extends Controller
             ->values()
             ->toArray();
 
-        // 2) Мапа units_assy по IPL из Components текущего manual
-        $unitsAssyByIpl = Component::where('manual_id', $manual->id)
-            ->get(['ipl_num', 'units_assy'])
-            ->pluck('units_assy', 'ipl_num')
-            ->map(function ($value) {
-                $num = (int) ($value ?? 1);
-                return $num > 0 ? $num : 1;
-            })
-            ->toArray();
-
-        // Фильтруем компоненты из NdtCadCsv
-        $ndt_components = [];
-        foreach ($ndtCadCsv->ndt_components as $component) {
-            $itemNo = $component['ipl_num'];
-
-            // Рассчитываем остаток по количеству: units_assy - сумма qty в TDR (по всем совпадающим IPL)
-            $unitsAssy = $unitsAssyByIpl[$itemNo] ?? (int)($component['qty'] ?? self::DEFAULT_QTY);
-
-            // Суммируем TDR qty, если IPL из TDR совпадает с текущим itemNo с учётом правил shouldSkipItem
-            $tdrQty = 0;
-            foreach ($tdrItems as $tdrItem) {
-                $tdrIpl = $tdrItem['ipl_num'];
-
-                // Совпадение в любую сторону (учёт объединённых значений и нормализации)
-                $matches = $this->shouldSkipItem($itemNo, [$tdrIpl]) || $this->shouldSkipItem($tdrIpl, [$itemNo]);
-                if ($matches) {
-                    $tdrQty += (int)$tdrItem['qty'];
+        // 2) Мапа units_assy по IPL из Components всех manuals (с нормализацией IPL)
+        // Приоритет: компоненты из текущего manual
+        // Это необходимо, т.к. в CSV и TDR могут быть компоненты из других manuals
+        $unitsAssyByIpl = [];
+        
+        // Получаем все компоненты, сортируя так, чтобы сначала шли компоненты из текущего manual
+        $allComponents = Component::select('ipl_num', 'units_assy', 'manual_id')
+            ->orderByRaw("CASE WHEN manual_id = ? THEN 0 ELSE 1 END", [$manual->id])
+            ->get();
+        
+        foreach ($allComponents as $component) {
+            if ($component->ipl_num) {
+                $normalizedIpl = $this->normalizeIplNum($component->ipl_num);
+                if (!empty($normalizedIpl)) {
+                    // Добавляем только если еще нет в мапе
+                    // Благодаря сортировке, компоненты из текущего manual будут добавлены первыми
+                    if (!isset($unitsAssyByIpl[$normalizedIpl])) {
+                        $num = (int)($component->units_assy ?? 1);
+                        $unitsAssy = $num > 0 ? $num : 1;
+                        $unitsAssyByIpl[$normalizedIpl] = $unitsAssy;
+                    }
                 }
             }
-            $remaining = $unitsAssy - $tdrQty;
+        }
 
-            // Если остаток <= 0, полностью скрываем позицию
-            if ($remaining <= 0) {
-                \Log::info('Skipping NDT component due to qty fully covered by TDR Missing', [
-                    'item_no' => $itemNo,
-                    'units_assy' => $unitsAssy,
-                    'tdr_qty' => $tdrQty
-                ]);
+        // 3) Получаем IPL номера компонентов, которые должны быть исключены из ndtFormStd
+        // Исключаем компоненты, присутствующие в TDR со статусами: Missing, Repair, Order New
+        $excludedIplNums = [];
+        
+        // Получаем ID для Missing, Repair, Order New
+        $missingCode = Code::where('name', 'Missing')->first();
+        $repairCode = Code::where('name', 'Repair')->first();
+        $orderNewNecessary = Necessary::where('name', 'Order New')->first();
+        
+        // Получаем TDR записи с этими статусами
+        $excludedTdrQuery = Tdr::where('workorder_id', $workorder_id)
+            ->whereNotNull('component_id')
+            ->with('component:id,ipl_num');
+        
+        $excludedConditions = [];
+        if ($missingCode) {
+            $excludedConditions[] = ['codes_id', $missingCode->id];
+        }
+        if ($repairCode) {
+            $excludedConditions[] = ['codes_id', $repairCode->id];
+        }
+        if ($orderNewNecessary) {
+            $excludedConditions[] = ['necessaries_id', $orderNewNecessary->id];
+        }
+        
+        if (!empty($excludedConditions)) {
+            $excludedTdrQuery->where(function($query) use ($excludedConditions) {
+                foreach ($excludedConditions as $condition) {
+                    $query->orWhere($condition[0], $condition[1]);
+                }
+            });
+            
+            $excludedTdrs = $excludedTdrQuery->get();
+            foreach ($excludedTdrs as $tdr) {
+                if ($tdr->component && $tdr->component->ipl_num) {
+                    // Нормализуем IPL номер для сравнения (убираем буквенные суффиксы)
+                    $normalizedIpl = $this->normalizeIplNum($tdr->component->ipl_num);
+                    if (!empty($normalizedIpl)) {
+                        $excludedIplNums[$normalizedIpl] = true;
+                    }
+                }
+            }
+        }
+
+        // Фильтруем компоненты из NdtCadCsv с учетом remaining quantity
+        $ndt_components = [];
+        
+        // Создаем мапу TDR items по IPL для быстрого поиска (с нормализацией)
+        $tdrItemsMap = [];
+        foreach ($tdrItems as $item) {
+            $iplNum = $item['ipl_num'];
+            // Нормализуем IPL номер для группировки
+            $normalizedIpl = $this->normalizeIplNum($iplNum);
+            if (!empty($normalizedIpl)) {
+                if (!isset($tdrItemsMap[$normalizedIpl])) {
+                    $tdrItemsMap[$normalizedIpl] = 0;
+                }
+                $tdrItemsMap[$normalizedIpl] += $item['qty'];
+            }
+        }
+        
+        foreach ($ndtCadCsv->ndt_components as $component) {
+            $iplNum = $component['ipl_num'] ?? '';
+            if (empty($iplNum)) {
+                continue; // Пропускаем компоненты без IPL номера
+            }
+            
+            // Нормализуем IPL номер для сравнения
+            $normalizedIpl = $this->normalizeIplNum($iplNum);
+            
+            // Исключаем компоненты, присутствующие в TDR со статусами Missing, Repair, Order New
+            if (isset($excludedIplNums[$normalizedIpl])) {
                 continue;
             }
-
+            
+            // Получаем данные для расчета remaining
+            $csvQty = (int)($component['qty'] ?? self::DEFAULT_QTY);
+            $tdrQty = $tdrItemsMap[$normalizedIpl] ?? 0; // Сумма QTY из TDR для этого IPL (нормализованного)
+            
+            // Определяем units_assy: если в CSV есть поле manual (manual->number), 
+            // ищем компонент в соответствующем manual, иначе используем общую мапу
+            $unitsAssy = 1;
+            if (!empty($component['manual'])) {
+                // Ищем manual по number из CSV (например, "32-11-12")
+                $componentManual = Manual::where('number', $component['manual'])->first();
+                if ($componentManual) {
+                    // Ищем компонент в этом manual
+                    $componentRecord = Component::where('manual_id', $componentManual->id)
+                        ->where('ipl_num', $iplNum)
+                        ->first();
+                    if ($componentRecord && $componentRecord->units_assy) {
+                        $num = (int)$componentRecord->units_assy;
+                        $unitsAssy = $num > 0 ? $num : 1;
+                    } else {
+                        // Если не найдено в указанном manual, используем общую мапу
+                        $unitsAssy = $unitsAssyByIpl[$normalizedIpl] ?? 1;
+                    }
+                } else {
+                    // Если manual не найден, используем общую мапу
+                    $unitsAssy = $unitsAssyByIpl[$normalizedIpl] ?? 1;
+                }
+            } else {
+                // Если поле manual отсутствует, используем общую мапу
+                $unitsAssy = $unitsAssyByIpl[$normalizedIpl] ?? 1;
+            }
+            
+            // Расчет remaining quantity: (csvQty * unitsAssy) - tdrQty
+            $remaining = ($csvQty * $unitsAssy) - $tdrQty;
+            
+            // Пропускаем компоненты с remaining <= 0
+            if ($remaining <= 0) {
+                continue;
+            }
+            
             // Преобразуем в объект для совместимости с существующим кодом
             $componentObj = new \stdClass();
-            $componentObj->ipl_num = $component['ipl_num'];
+            $componentObj->ipl_num = $iplNum;
             $componentObj->part_number = $component['part_number'] ?? '';
             $componentObj->name = $component['description'] ?? '';
-            // Количество в форме = рассчитанный остаток
-            $componentObj->qty = (int) $remaining;
+            // Количество в форме = remaining quantity
+            $componentObj->qty = $remaining;
             $componentObj->process_name = $component['process'] ?? '1';
+            // Добавляем поле manual, если оно есть
+            $componentObj->manual = $component['manual'] ?? null;
 
             $ndt_components[] = $componentObj;
         }
 
-        // Сортируем NDT компоненты по ipl_num
+        // Сортируем NDT компоненты: сначала по manual (если есть), потом по ipl_num
         usort($ndt_components, function($a, $b) {
+            // Сначала сравниваем по manual
+            $manualA = $a->manual ?? '';
+            $manualB = $b->manual ?? '';
+            $manualCompare = strnatcasecmp($manualA, $manualB);
+            if ($manualCompare !== 0) {
+                return $manualCompare;
+            }
+
+            // Если manual одинаковые, сравниваем по ipl_num
             $aParts = explode('-', $a->ipl_num ?? '');
             $bParts = explode('-', $b->ipl_num ?? '');
 
@@ -724,6 +973,9 @@ class TdrController extends Controller
 
         $form_number = 'NDT-STD';
 
+        // Рассчитываем пагинацию с пустыми строками на бэкенде
+        $componentChunks = $this->paginateComponentsWithEmptyRows($ndt_components, 16);
+
         return view('admin.tdrs.ndtFormStd', [
                 'current_wo' => $current_wo,
                 'manual' => $manual,
@@ -731,6 +983,7 @@ class TdrController extends Controller
                 'ndt_processes' => $ndt_processes,
                 'form_number' => $form_number,
                 'manuals' => [$manual], // Для совместимости с существующим кодом
+                'componentChunks' => $componentChunks,
             ] + $ndt_ids); // Добавляем ID процессов NDT
     }
     public function cadStd($workorder_id)
@@ -819,20 +1072,203 @@ class TdrController extends Controller
                 ->values()
                 ->toArray();
 
-            $unitsAssyByIplCad = Component::where('manual_id', $manual->id)
-                ->get(['ipl_num', 'units_assy'])
-                ->pluck('units_assy', 'ipl_num')
-                ->map(function ($value) {
-                    $num = (int) ($value ?? 1);
-                    return $num > 0 ? $num : 1;
-                })
-                ->toArray();
+            // Мапа units_assy по IPL из Components всех manuals (с нормализацией IPL)
+            // Приоритет: компоненты из текущего manual
+            // Это необходимо, т.к. в CSV и TDR могут быть компоненты из других manuals
+            $unitsAssyByIplCad = [];
+            
+            // Получаем все компоненты, сортируя так, чтобы сначала шли компоненты из текущего manual
+            $allComponentsCad = Component::select('ipl_num', 'units_assy', 'manual_id')
+                ->orderByRaw("CASE WHEN manual_id = ? THEN 0 ELSE 1 END", [$manual->id])
+                ->get();
+            
+            foreach ($allComponentsCad as $component) {
+                if ($component->ipl_num) {
+                    $normalizedIpl = $this->normalizeIplNum($component->ipl_num);
+                    if (!empty($normalizedIpl)) {
+                        // Добавляем только если еще нет в мапе
+                        // Благодаря сортировке, компоненты из текущего manual будут добавлены первыми
+                        if (!isset($unitsAssyByIplCad[$normalizedIpl])) {
+                            $num = (int)($component->units_assy ?? 1);
+                            $unitsAssy = $num > 0 ? $num : 1;
+                            $unitsAssyByIplCad[$normalizedIpl] = $unitsAssy;
+                        }
+                    }
+                }
+            }
+
+            // Получаем IPL номера компонентов, которые должны быть исключены из cadFormStd
+            // Исключаем компоненты, присутствующие в TDR со статусами: Missing, Repair, Order New
+            $excludedIplNumsCad = [];
+            
+            // Получаем ID для Missing, Repair, Order New
+            // Missing - в таблице codes
+            $missingCode = Code::where('name', 'Missing')->first();
+            
+            // Repair - в таблице necessaries (ID = 1)
+            $repairNecessary = Necessary::find(1);
+            if (!$repairNecessary || stripos($repairNecessary->name, 'repair') === false) {
+                // Пробуем найти по имени
+                $repairNecessary = Necessary::where('name', 'Repair')->first();
+                if (!$repairNecessary) {
+                    $repairNecessary = Necessary::where('name', 'REPAIR')->first();
+                }
+                if (!$repairNecessary) {
+                    $repairNecessary = Necessary::where('name', 'repair')->first();
+                }
+            }
+            
+            // Order New - в таблице necessaries (ID = 2)
+            $orderNewNecessary = Necessary::find(2);
+            if (!$orderNewNecessary || stripos($orderNewNecessary->name, 'order') === false) {
+                // Пробуем найти по имени
+                $orderNewNecessary = Necessary::where('name', 'Order New')->first();
+            }
+            
+            \Log::info('CAD Filtering - Codes and Necessaries', [
+                'missing_code_id' => $missingCode ? $missingCode->id : null,
+                'missing_code_name' => $missingCode ? $missingCode->name : null,
+                'repair_necessary_id' => $repairNecessary ? $repairNecessary->id : null,
+                'repair_necessary_name' => $repairNecessary ? $repairNecessary->name : null,
+                'order_new_necessary_id' => $orderNewNecessary ? $orderNewNecessary->id : null,
+                'order_new_necessary_name' => $orderNewNecessary ? $orderNewNecessary->name : null,
+            ]);
+            
+            // Получаем TDR записи с этими статусами
+            $excludedTdrQuery = Tdr::where('workorder_id', $workorder_id)
+                ->whereNotNull('component_id')
+                ->with('component:id,ipl_num');
+            
+            $excludedConditions = [];
+            if ($missingCode) {
+                $excludedConditions[] = ['codes_id', $missingCode->id];
+            }
+            if ($repairNecessary) {
+                $excludedConditions[] = ['necessaries_id', $repairNecessary->id];
+            }
+            if ($orderNewNecessary) {
+                $excludedConditions[] = ['necessaries_id', $orderNewNecessary->id];
+            }
+            
+            \Log::info('CAD Filtering - Excluded conditions', [
+                'conditions_count' => count($excludedConditions),
+                'conditions' => $excludedConditions
+            ]);
+            
+            if (!empty($excludedConditions)) {
+                $excludedTdrQuery->where(function($query) use ($excludedConditions) {
+                    foreach ($excludedConditions as $condition) {
+                        $query->orWhere($condition[0], $condition[1]);
+                    }
+                });
+                
+                $excludedTdrs = $excludedTdrQuery->get();
+                \Log::info('CAD Filtering - Excluded TDRs found', [
+                    'count' => $excludedTdrs->count(),
+                    'tdrs' => $excludedTdrs->map(function($tdr) use ($repairNecessary) {
+                        $isRepair = $tdr->necessaries_id == ($repairNecessary ? $repairNecessary->id : null);
+                        $code = $tdr->codes_id ? Code::find($tdr->codes_id) : null;
+                        $necessary = $tdr->necessaries_id ? Necessary::find($tdr->necessaries_id) : null;
+                        return [
+                            'id' => $tdr->id,
+                            'ipl_num' => $tdr->component->ipl_num ?? null,
+                            'codes_id' => $tdr->codes_id,
+                            'code_name' => $code ? $code->name : null,
+                            'necessaries_id' => $tdr->necessaries_id,
+                            'necessary_name' => $necessary ? $necessary->name : null,
+                            'is_repair' => $isRepair,
+                        ];
+                    })->toArray()
+                ]);
+                
+                // Проверяем, есть ли компонент 5-90A в TDR
+                $tdr590A = Tdr::where('workorder_id', $workorder_id)
+                    ->whereNotNull('component_id')
+                    ->whereHas('component', function($query) {
+                        $query->where('ipl_num', 'LIKE', '5-90%');
+                    })
+                    ->with('component:id,ipl_num')
+                    ->get();
+                
+                if ($tdr590A->isNotEmpty()) {
+                    \Log::info('CAD Filtering - TDR records with 5-90 variants found', [
+                        'count' => $tdr590A->count(),
+                        'tdrs' => $tdr590A->map(function($tdr) {
+                            $code = $tdr->codes_id ? Code::find($tdr->codes_id) : null;
+                            $necessary = $tdr->necessaries_id ? Necessary::find($tdr->necessaries_id) : null;
+                            return [
+                                'id' => $tdr->id,
+                                'ipl_num' => $tdr->component->ipl_num ?? null,
+                                'codes_id' => $tdr->codes_id,
+                                'code_name' => $code ? $code->name : null,
+                                'necessaries_id' => $tdr->necessaries_id,
+                                'necessary_name' => $necessary ? $necessary->name : null,
+                            ];
+                        })->toArray()
+                    ]);
+                }
+                
+                foreach ($excludedTdrs as $tdr) {
+                    if ($tdr->component && $tdr->component->ipl_num) {
+                        // Нормализуем IPL номер для сравнения (убираем буквенные суффиксы)
+                        $normalizedIpl = $this->normalizeIplNum($tdr->component->ipl_num);
+                        if (!empty($normalizedIpl)) {
+                            $excludedIplNumsCad[$normalizedIpl] = true;
+                            $code = $tdr->codes_id ? Code::find($tdr->codes_id) : null;
+                            $necessary = $tdr->necessaries_id ? Necessary::find($tdr->necessaries_id) : null;
+                            \Log::info('CAD Filtering - Adding to excluded list', [
+                                'ipl_num' => $tdr->component->ipl_num,
+                                'normalized_ipl' => $normalizedIpl,
+                                'codes_id' => $tdr->codes_id,
+                                'code_name' => $code ? $code->name : null,
+                                'necessaries_id' => $tdr->necessaries_id,
+                                'necessary_name' => $necessary ? $necessary->name : null,
+                                'is_repair' => $tdr->necessaries_id == ($repairNecessary ? $repairNecessary->id : null),
+                            ]);
+                        }
+                    }
+                }
+                
+                \Log::info('CAD Filtering - Excluded IPL numbers', [
+                    'excluded_ipl_count' => count($excludedIplNumsCad),
+                    'excluded_ipls' => array_keys($excludedIplNumsCad)
+                ]);
+            } else {
+                \Log::warning('CAD Filtering - No excluded conditions found!', [
+                    'missing_code' => $missingCode ? $missingCode->id : null,
+                    'repair_code' => $repairCode ? $repairCode->id : null,
+                    'order_new' => $orderNewNecessary ? $orderNewNecessary->id : null,
+                ]);
+            }
 
             // Фильтруем компоненты из NdtCadCsv
             $cad_components = [];
             foreach ($ndtCadCsv->cad_components as $component) {
                 $itemNo = $component['ipl_num'];
                 $processName = $component['process'] ?? '';
+                
+                // Нормализуем IPL номер для сравнения
+                $normalizedIpl = $this->normalizeIplNum($itemNo);
+                
+                // Исключаем компоненты, присутствующие в TDR со статусами Missing, Repair, Order New
+                if (isset($excludedIplNumsCad[$normalizedIpl])) {
+                    \Log::info('CAD Filtering - Component excluded', [
+                        'ipl_num' => $itemNo,
+                        'normalized_ipl' => $normalizedIpl,
+                        'reason' => 'Found in excluded list (Missing/Repair/Order New)'
+                    ]);
+                    continue;
+                }
+                
+                // Логируем компоненты, которые проходят фильтрацию (для отладки)
+                if (stripos($itemNo, '5-90') !== false) {
+                    \Log::info('CAD Filtering - Component NOT excluded (5-90 variant)', [
+                        'ipl_num' => $itemNo,
+                        'normalized_ipl' => $normalizedIpl,
+                        'in_excluded_list' => isset($excludedIplNumsCad[$normalizedIpl]),
+                        'excluded_ipls' => array_keys($excludedIplNumsCad)
+                    ]);
+                }
 
                 // Проверяем и создаем процесс, если его нет
                 if (!empty($processName)) {
@@ -880,40 +1316,32 @@ class TdrController extends Controller
                     continue;
                 }
 
-                // Рассчитываем остаток количества: units_assy - сумма qty из TDR по совпадающим IPL
-                $unitsAssy = $unitsAssyByIplCad[$itemNo] ?? (int)($component['qty'] ?? self::DEFAULT_QTY);
-                $tdrQty = 0;
-                foreach ($tdrItemsCad as $tdrItem) {
-                    $tdrIpl = $tdrItem['ipl_num'];
-                    $matches = $this->shouldSkipItem($itemNo, [$tdrIpl]) || $this->shouldSkipItem($tdrIpl, [$itemNo]);
-                    if ($matches) {
-                        $tdrQty += (int)$tdrItem['qty'];
-                    }
-                }
-                $remaining = (int)$unitsAssy - (int)$tdrQty;
-
-                if ($remaining <= 0) {
-                    \Log::debug('Skipping CAD component due to qty fully covered by TDR', [
-                        'item_no' => $itemNo,
-                        'units_assy' => $unitsAssy,
-                        'tdr_qty' => $tdrQty
-                    ]);
-                    continue;
-                }
-
                 // Преобразуем в объект для совместимости с существующим кодом
+                // Примечание: QTY берется напрямую из CSV, все компоненты включаются без фильтрации
                 $componentObj = new \stdClass();
                 $componentObj->ipl_num = $component['ipl_num'];
                 $componentObj->part_number = $component['part_number'] ?? '';
                 $componentObj->name = $component['description'] ?? '';
-                $componentObj->qty = (int)$remaining;
+                // Количество в форме = значение QTY из CSV
+                $componentObj->qty = (int)($component['qty'] ?? self::DEFAULT_QTY);
                 $componentObj->process_name = $processName;
+                // Добавляем поле manual, если оно есть
+                $componentObj->manual = $component['manual'] ?? null;
 
                 $cad_components[] = $componentObj;
             }
 
-            // Сортируем CAD компоненты по ipl_num
+            // Сортируем CAD компоненты: сначала по manual (если есть), потом по ipl_num
             usort($cad_components, function($a, $b) {
+                // Сначала сравниваем по manual
+                $manualA = $a->manual ?? '';
+                $manualB = $b->manual ?? '';
+                $manualCompare = strnatcasecmp($manualA, $manualB);
+                if ($manualCompare !== 0) {
+                    return $manualCompare;
+                }
+
+                // Если manual одинаковые, сравниваем по ipl_num
                 $aParts = explode('-', $a->ipl_num ?? '');
                 $bParts = explode('-', $b->ipl_num ?? '');
 
@@ -939,8 +1367,11 @@ class TdrController extends Controller
                 ->whereIn('process_names_id', $cad_ids)
                 ->get();
 
-            // Рассчитываем общее количество деталей
-            $cadSum = $this->calcCadSums($workorder_id);
+            // Рассчитываем общее количество деталей на основе отфильтрованных компонентов
+            $cadSum = $this->calcCadSumsFromComponents($cad_components);
+
+            // Рассчитываем пагинацию с пустыми строками на бэкенде
+            $componentChunks = $this->paginateComponentsWithEmptyRows($cad_components, 18);
 
             return view('admin.tdrs.cadFormStd', [
                     'current_wo' => $current_wo,
@@ -949,6 +1380,7 @@ class TdrController extends Controller
                     'cad_processes' => $cad_processes,
                     'form_number' => $form_number,
                     'manuals' => [$manual],
+                    'componentChunks' => $componentChunks,
                     'process_name' => ProcessName::where('name', 'Cad plate')->first(),
                     'cadSum' => $cadSum,
                 ] + $cad_ids);
@@ -999,59 +1431,105 @@ class TdrController extends Controller
                 ->with('process')
                 ->get();
 
+            // Получаем IPL номера компонентов, которые должны быть исключены из paintFormStd
+            // Исключаем компоненты, присутствующие в TDR со статусами: Missing, Repair, Order New
+            $excludedIplNumsPaint = [];
+            
+            // Получаем ID для Missing, Repair, Order New
+            $missingCode = Code::where('name', 'Missing')->first();
+            $repairCode = Code::where('name', 'Repair')->first();
+            $orderNewNecessary = Necessary::where('name', 'Order New')->first();
+            
+            // Получаем TDR записи с этими статусами
+            $excludedTdrQuery = Tdr::where('workorder_id', $workorder_id)
+                ->whereNotNull('component_id')
+                ->with('component:id,ipl_num');
+            
+            $excludedConditions = [];
+            if ($missingCode) {
+                $excludedConditions[] = ['codes_id', $missingCode->id];
+            }
+            if ($repairCode) {
+                $excludedConditions[] = ['codes_id', $repairCode->id];
+            }
+            if ($orderNewNecessary) {
+                $excludedConditions[] = ['necessaries_id', $orderNewNecessary->id];
+            }
+            
+            if (!empty($excludedConditions)) {
+                $excludedTdrQuery->where(function($query) use ($excludedConditions) {
+                    foreach ($excludedConditions as $condition) {
+                        $query->orWhere($condition[0], $condition[1]);
+                    }
+                });
+                
+                $excludedTdrs = $excludedTdrQuery->get();
+                foreach ($excludedTdrs as $tdr) {
+                    if ($tdr->component && $tdr->component->ipl_num) {
+                        // Нормализуем IPL номер для сравнения (убираем буквенные суффиксы)
+                        $normalizedIpl = $this->normalizeIplNum($tdr->component->ipl_num);
+                        if (!empty($normalizedIpl)) {
+                            $excludedIplNumsPaint[$normalizedIpl] = true;
+                        }
+                    }
+                }
+            }
+
             // Получаем paint компоненты из NdtCadCsv
-            $paint_components = collect($ndtCadCsv->paint_components ?? [])->map(function ($component) use ($paint_processes) {
+            // Примечание: QTY берется напрямую из CSV, все компоненты включаются без фильтрации
+            $paint_components = collect($ndtCadCsv->paint_components ?? [])
+                ->filter(function ($component) use ($excludedIplNumsPaint) {
+                    $iplNum = $component['ipl_num'] ?? '';
+                    // Нормализуем IPL номер для сравнения
+                    $normalizedIpl = $this->normalizeIplNum($iplNum);
+                    // Исключаем компоненты, присутствующие в TDR со статусами Missing, Repair, Order New
+                    return !isset($excludedIplNumsPaint[$normalizedIpl]);
+                })
+                ->map(function ($component) use ($paint_processes) {
                 $process = $paint_processes->first(function ($p) use ($component) {
                     return $p->process->id == $component['process'];
                 });
 
-                return (object) [
-                    'ipl_num' => $component['ipl_num'] ?? '',
-                    'part_number' => $component['part_number'] ?? '',
-                    'name' => $component['description'] ?? '',
-                    'process_name' => $process ? $process->process->name :  $component['process'],
-                    'qty' => $component['qty'] ?? 1,
-                ];
-            });
+                $obj = new \stdClass();
+                $obj->ipl_num = $component['ipl_num'] ?? '';
+                $obj->part_number = $component['part_number'] ?? '';
+                $obj->name = $component['description'] ?? '';
+                $obj->process_name = $process ? $process->process->name :  $component['process'];
+                // Количество в форме = значение QTY из CSV
+                $obj->qty = (int)($component['qty'] ?? 1);
+                // Добавляем поле manual, если оно есть
+                $obj->manual = $component['manual'] ?? null;
 
-            // Получаем записи TDR с missing + order new для корректировки количества
-            $tdrAdjustments = Tdr::where('workorder_id', $workorder_id)
-                ->whereNotNull('component_id')
-                ->whereHas('codes', function($q) {
-                    $q->where('name', 'missing');
-                })
-                ->whereHas('necessaries', function($q) {
-                    $q->where('name', 'order new');
-                })
-                ->with('component:id,ipl_num,units_assy')
-                ->get()
-                ->mapWithKeys(function($tdr) {
-                    return [
-                        trim($tdr->component->ipl_num) => [
-                            'qty' => $tdr->qty,
-                            'units_assy' => $tdr->component->units_assy
-                        ]
-                    ];
-                });
+                return $obj;
+            })->toArray();
 
-            // Корректируем количество компонентов с учетом TDR записей
-            $paint_components = $paint_components->map(function($component) use ($tdrAdjustments) {
-                $ipl_num = trim($component->ipl_num);
-
-                if ($tdrAdjustments->has($ipl_num)) {
-                    $adjustment = $tdrAdjustments[$ipl_num];
-                    $original_qty = $component->qty;
-                    $tdr_qty = $adjustment['qty'];
-                    $units_assy = $adjustment['units_assy'];
-
-                    // Если units_assy больше чем qty в TDR, корректируем количество
-                    if ($units_assy > $tdr_qty) {
-                        $component->qty = $tdr_qty;
-                        $component->original_qty = $original_qty; // Сохраняем оригинальное количество для отображения
-                    }
+            // Сортируем Paint компоненты: сначала по manual (если есть), потом по ipl_num
+            usort($paint_components, function($a, $b) {
+                // Сначала сравниваем по manual
+                $manualA = $a->manual ?? '';
+                $manualB = $b->manual ?? '';
+                $manualCompare = strnatcasecmp($manualA, $manualB);
+                if ($manualCompare !== 0) {
+                    return $manualCompare;
                 }
 
-                return $component;
+                // Если manual одинаковые, сравниваем по ipl_num
+                $aParts = explode('-', $a->ipl_num ?? '');
+                $bParts = explode('-', $b->ipl_num ?? '');
+
+                // Сравниваем первую часть (до -)
+                $aFirst = (int)($aParts[0] ?? 0);
+                $bFirst = (int)($bParts[0] ?? 0);
+
+                if ($aFirst !== $bFirst) {
+                    return $aFirst - $bFirst;
+                }
+
+                // Если первая часть одинаковая, сравниваем вторую часть (после -)
+                $aSecond = (int)($aParts[1] ?? 0);
+                $bSecond = (int)($bParts[1] ?? 0);
+
+                return $aSecond - $bSecond;
             });
 
             // Генерируем номер формы
@@ -1059,6 +1537,9 @@ class TdrController extends Controller
 
             // Рассчитываем общее количество деталей
             $paintSum = $this->calcPaintSums($workorder_id);
+
+            // Рассчитываем пагинацию с пустыми строками на бэкенде
+            $componentChunks = $this->paginateComponentsWithEmptyRows($paint_components, 19);
 
             return view('admin.tdrs.paintFormStd', [
                     'current_wo' => $current_wo,
@@ -1069,6 +1550,7 @@ class TdrController extends Controller
                     'manuals' => [$manual],
                     'process_name' => $paintProcessName,
                     'paintSum' => $paintSum,
+                    'componentChunks' => $componentChunks,
                 ] + $paint_ids);
 
         } catch (\Exception $e) {
@@ -1151,20 +1633,85 @@ class TdrController extends Controller
                 ->values()
                 ->toArray();
 
-            $unitsAssyByIplStress = Component::where('manual_id', $manual->id)
-                ->get(['ipl_num', 'units_assy'])
-                ->pluck('units_assy', 'ipl_num')
-                ->map(function ($value) {
-                    $num = (int) ($value ?? 1);
-                    return $num > 0 ? $num : 1;
-                })
-                ->toArray();
+            // Мапа units_assy по IPL из Components всех manuals (с нормализацией IPL)
+            // Приоритет: компоненты из текущего manual
+            // Это необходимо, т.к. в CSV и TDR могут быть компоненты из других manuals
+            $unitsAssyByIplStress = [];
+            
+            // Получаем все компоненты, сортируя так, чтобы сначала шли компоненты из текущего manual
+            $allComponentsStress = Component::select('ipl_num', 'units_assy', 'manual_id')
+                ->orderByRaw("CASE WHEN manual_id = ? THEN 0 ELSE 1 END", [$manual->id])
+                ->get();
+            
+            foreach ($allComponentsStress as $component) {
+                if ($component->ipl_num) {
+                    $normalizedIpl = $this->normalizeIplNum($component->ipl_num);
+                    if (!empty($normalizedIpl)) {
+                        // Добавляем только если еще нет в мапе
+                        // Благодаря сортировке, компоненты из текущего manual будут добавлены первыми
+                        if (!isset($unitsAssyByIplStress[$normalizedIpl])) {
+                            $num = (int)($component->units_assy ?? 1);
+                            $unitsAssy = $num > 0 ? $num : 1;
+                            $unitsAssyByIplStress[$normalizedIpl] = $unitsAssy;
+                        }
+                    }
+                }
+            }
+
+            // Получаем IPL номера компонентов, которые должны быть исключены из stressFormStd
+            // Исключаем компоненты, присутствующие в TDR со статусами: Missing, Order New (НЕ Repair)
+            $excludedIplNumsStress = [];
+            
+            // Получаем ID для Missing и Order New (Repair НЕ исключаем)
+            $missingCode = Code::where('name', 'Missing')->first();
+            $orderNewNecessary = Necessary::where('name', 'Order New')->first();
+            
+            // Получаем TDR записи с этими статусами
+            $excludedTdrQuery = Tdr::where('workorder_id', $workorder_id)
+                ->whereNotNull('component_id')
+                ->with('component:id,ipl_num');
+            
+            $excludedConditions = [];
+            if ($missingCode) {
+                $excludedConditions[] = ['codes_id', $missingCode->id];
+            }
+            // Repair НЕ добавляем в исключения для Stress
+            if ($orderNewNecessary) {
+                $excludedConditions[] = ['necessaries_id', $orderNewNecessary->id];
+            }
+            
+            if (!empty($excludedConditions)) {
+                $excludedTdrQuery->where(function($query) use ($excludedConditions) {
+                    foreach ($excludedConditions as $condition) {
+                        $query->orWhere($condition[0], $condition[1]);
+                    }
+                });
+                
+                $excludedTdrs = $excludedTdrQuery->get();
+                foreach ($excludedTdrs as $tdr) {
+                    if ($tdr->component && $tdr->component->ipl_num) {
+                        // Нормализуем IPL номер для сравнения (убираем буквенные суффиксы)
+                        $normalizedIpl = $this->normalizeIplNum($tdr->component->ipl_num);
+                        if (!empty($normalizedIpl)) {
+                            $excludedIplNumsStress[$normalizedIpl] = true;
+                        }
+                    }
+                }
+            }
 
             // Фильтруем компоненты из NdtCadCsv
             $stress_components = [];
             foreach ($ndtCadCsv->stress_components as $component) {
                 $itemNo = $component['ipl_num'];
                 $processName = $component['process'] ?? '';
+                
+                // Нормализуем IPL номер для сравнения
+                $normalizedIpl = $this->normalizeIplNum($itemNo);
+                
+                // Исключаем компоненты, присутствующие в TDR со статусами Missing, Order New (Repair НЕ исключаем)
+                if (isset($excludedIplNumsStress[$normalizedIpl])) {
+                    continue;
+                }
 
                 // Проверяем и создаем процесс, если его нет
                 if (!empty($processName)) {
@@ -1212,40 +1759,32 @@ class TdrController extends Controller
                     continue;
                 }
 
-                // Рассчитываем остаток количества: units_assy - сумма qty из TDR по совпадающим IPL
-                $unitsAssy = $unitsAssyByIplStress[$itemNo] ?? (int)($component['qty'] ?? self::DEFAULT_QTY);
-                $tdrQty = 0;
-                foreach ($tdrItemsStress as $tdrItem) {
-                    $tdrIpl = $tdrItem['ipl_num'];
-                    $matches = $this->shouldSkipItem($itemNo, [$tdrIpl]) || $this->shouldSkipItem($tdrIpl, [$itemNo]);
-                    if ($matches) {
-                        $tdrQty += (int)$tdrItem['qty'];
-                    }
-                }
-                $remaining = (int)$unitsAssy - (int)$tdrQty;
-
-                if ($remaining <= 0) {
-                    \Log::debug('Skipping STRESS component due to qty fully covered by TDR', [
-                        'item_no' => $itemNo,
-                        'units_assy' => $unitsAssy,
-                        'tdr_qty' => $tdrQty
-                    ]);
-                    continue;
-                }
-
                 // Преобразуем в объект для совместимости с существующим кодом
+                // Примечание: QTY берется напрямую из CSV, все компоненты включаются без фильтрации
                 $componentObj = new \stdClass();
                 $componentObj->ipl_num = $component['ipl_num'];
                 $componentObj->part_number = $component['part_number'] ?? '';
                 $componentObj->name = $component['description'] ?? '';
-                $componentObj->qty = (int)$remaining;
+                // Количество в форме = значение QTY из CSV
+                $componentObj->qty = (int)($component['qty'] ?? self::DEFAULT_QTY);
                 $componentObj->process_name = $processName;
+                // Добавляем поле manual, если оно есть
+                $componentObj->manual = $component['manual'] ?? null;
 
                 $stress_components[] = $componentObj;
             }
 
-            // Сортируем Stress компоненты по ipl_num
+            // Сортируем Stress компоненты: сначала по manual (если есть), потом по ipl_num
             usort($stress_components, function($a, $b) {
+                // Сначала сравниваем по manual
+                $manualA = $a->manual ?? '';
+                $manualB = $b->manual ?? '';
+                $manualCompare = strnatcasecmp($manualA, $manualB);
+                if ($manualCompare !== 0) {
+                    return $manualCompare;
+                }
+
+                // Если manual одинаковые, сравниваем по ipl_num
                 $aParts = explode('-', $a->ipl_num ?? '');
                 $bParts = explode('-', $b->ipl_num ?? '');
 
@@ -1274,6 +1813,9 @@ class TdrController extends Controller
             // Рассчитываем общее количество деталей
             $stressSum = $this->calcStressSums($workorder_id);
 
+            // Рассчитываем пагинацию с пустыми строками на бэкенде
+            $componentChunks = $this->paginateComponentsWithEmptyRows($stress_components, 18);
+
             return view('admin.tdrs.stressFormStd', [
                     'current_wo' => $current_wo,
                     'manual' => $manual,
@@ -1283,6 +1825,7 @@ class TdrController extends Controller
                     'manuals' => [$manual],
                     'process_name' => ProcessName::where('id', 3)->first(),
                     'stressSum' => $stressSum,
+                    'componentChunks' => $componentChunks,
                 ] + $stress_ids);
 
         } catch (\Exception $e) {
@@ -1869,6 +2412,47 @@ class TdrController extends Controller
             return ['total' => 0, 'mpi' => 0, 'fpi' => 0];
         }
     }
+    private function calcCadSumsFromComponents($cad_components)
+    {
+        try {
+            $totalQty = 0;
+            $totalComponents = 0;
+            $componentList = [];
+            
+            foreach ($cad_components as $component) {
+                $qty = (int)($component->qty ?? 1);
+                $totalQty += $qty;
+                $totalComponents++;
+                $componentList[] = [
+                    'ipl_num' => $component->ipl_num ?? '',
+                    'qty' => $qty
+                ];
+            }
+            
+            \Log::info('CAD calcCadSumsFromComponents - Summary', [
+                'total_components' => $totalComponents,
+                'total_qty' => $totalQty,
+                'components_count' => count($componentList),
+                'components' => $componentList,
+                'ipl_numbers' => array_column($componentList, 'ipl_num')
+            ]);
+            
+            return [
+                'total_qty' => $totalQty,
+                'total_components' => $totalComponents
+            ];
+        } catch (\Exception $e) {
+            \Log::error('Error in CAD sums calculation from components:', [
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+            return [
+                'total_qty' => 0,
+                'total_components' => 0
+            ];
+        }
+    }
+
     private function calcCadSums($workorder_id)
     {
         try {
@@ -1905,18 +2489,99 @@ class TdrController extends Controller
                 ];
             }
 
-            // 2. Чтение TDR компонентов
+            // 1.5. Получаем валидные процессы (упрощенная логика - все процессы из CSV считаются валидными)
+            // В cadStd процессы создаются динамически, поэтому в calcCadSums мы просто принимаем все процессы из CSV
+            $validProcesses = [];
+            foreach ($cadComponents as $component) {
+                $processName = $component['process'] ?? '';
+                if (!empty($processName) && !in_array($processName, $validProcesses)) {
+                    $validProcesses[] = $processName;
+                }
+            }
+            
+            \Log::info('CAD calcCadSums - Valid processes (from CSV)', [
+                'valid_processes_count' => count($validProcesses),
+                'valid_processes' => $validProcesses
+            ]);
+
+            // 2. Получаем ID для Missing, Repair, Order New (та же логика, что в cadStd)
+            $missingCode = Code::where('name', 'Missing')->first();
+            $repairNecessary = Necessary::find(1);
+            if (!$repairNecessary || stripos($repairNecessary->name, 'repair') === false) {
+                $repairNecessary = Necessary::where('name', 'Repair')->first();
+                if (!$repairNecessary) {
+                    $repairNecessary = Necessary::where('name', 'REPAIR')->first();
+                }
+                if (!$repairNecessary) {
+                    $repairNecessary = Necessary::where('name', 'repair')->first();
+                }
+            }
+            $orderNewNecessary = Necessary::find(2);
+            if (!$orderNewNecessary || stripos($orderNewNecessary->name, 'order') === false) {
+                $orderNewNecessary = Necessary::where('name', 'Order New')->first();
+            }
+            
+            // Получаем TDR записи только с исключаемыми статусами (Missing, Repair, Order New)
+            $excludedTdrQuery = Tdr::where('workorder_id', $workorder_id)
+                ->whereNotNull('component_id')
+                ->with('component:id,ipl_num');
+            
+            $excludedConditions = [];
+            if ($missingCode) {
+                $excludedConditions[] = ['codes_id', $missingCode->id];
+            }
+            if ($repairNecessary) {
+                $excludedConditions[] = ['necessaries_id', $repairNecessary->id];
+            }
+            if ($orderNewNecessary) {
+                $excludedConditions[] = ['necessaries_id', $orderNewNecessary->id];
+            }
+            
+            // Создаем мапу исключенных IPL номеров (только с Missing/Repair/Order New)
+            $excludedIplNums = [];
+            if (!empty($excludedConditions)) {
+                $excludedTdrQuery->where(function($query) use ($excludedConditions) {
+                    foreach ($excludedConditions as $condition) {
+                        $query->orWhere($condition[0], $condition[1]);
+                    }
+                });
+                
+                $excludedTdrs = $excludedTdrQuery->get();
+                foreach ($excludedTdrs as $tdr) {
+                    if ($tdr->component && $tdr->component->ipl_num) {
+                        $normalizedIpl = $this->normalizeIplNum($tdr->component->ipl_num);
+                        if (!empty($normalizedIpl)) {
+                            $excludedIplNums[$normalizedIpl] = true;
+                        }
+                    }
+                }
+            }
+            
+            // Получаем все TDR компоненты для создания мапы (для логирования)
             $tdrComponents = Tdr::where('workorder_id', $workorder_id)
                 ->whereNotNull('component_id')
                 ->with('component')
                 ->get();
 
-            // Создаем мапу IPL номеров из TDR
-            $tdrIplMap = $tdrComponents->pluck('qty', 'component.ipl_num')->toArray();
+            // Создаем мапу IPL номеров из TDR (только для логирования)
+            $tdrIplMap = [];
+            foreach ($tdrComponents as $tdr) {
+                if ($tdr->component && $tdr->component->ipl_num) {
+                    $normalizedIpl = $this->normalizeIplNum($tdr->component->ipl_num);
+                    if (!empty($normalizedIpl)) {
+                        if (!isset($tdrIplMap[$normalizedIpl])) {
+                            $tdrIplMap[$normalizedIpl] = 0;
+                        }
+                        $tdrIplMap[$normalizedIpl] += (int)($tdr->qty ?? 0);
+                    }
+                }
+            }
 
-            \Log::info('TDR Components:', [
+            \Log::info('TDR Components (normalized):', [
                 'count' => count($tdrIplMap),
-                'ipl_numbers' => array_keys($tdrIplMap)
+                'ipl_numbers' => array_keys($tdrIplMap),
+                'excluded_ipl_count' => count($excludedIplNums),
+                'excluded_ipls' => array_keys($excludedIplNums)
             ]);
 
             // 3. Сравнение и подсчет
@@ -1924,6 +2589,7 @@ class TdrController extends Controller
             $totalComponents = 0;
             $processedIpls = [];
             $skippedCount = 0;
+            $skippedByProcess = 0;
             $combinedSkippedCount = 0;
 
             \Log::info('Starting CAD calculation loop', [
@@ -1934,37 +2600,56 @@ class TdrController extends Controller
             foreach ($cadComponents as $index => $component) {
                 $itemNo = trim($component['ipl_num'] ?? '');
                 $qty = (int)($component['qty'] ?? 1); // Получаем qty из JSON
+                $processName = $component['process'] ?? '';
+                
+                // Нормализуем IPL номер для сравнения (5-90A -> 5-90)
+                $normalizedIpl = $this->normalizeIplNum($itemNo);
 
                 \Log::debug('Processing CAD component', [
                     'index' => $index,
                     'item_no' => $itemNo,
+                    'normalized_ipl' => $normalizedIpl,
                     'qty' => $qty,
+                    'process' => $processName,
                     'component' => $component
                 ]);
 
-                // Если IPL номер есть в TDR - пропускаем
-                if (isset($tdrIplMap[$itemNo])) {
+                // Исключаем компоненты только с статусами Missing, Repair, Order New
+                if (!empty($normalizedIpl) && isset($excludedIplNums[$normalizedIpl])) {
                     $skippedCount++;
-                    \Log::debug('Skipping component as it exists in TDR:', ['ipl_num' => $itemNo]);
-                    continue;
-                }
-
-                // Проверяем совмещенные значения
-                if ($this->shouldSkipItem($itemNo, array_keys($tdrIplMap))) {
-                    $combinedSkippedCount++;
-                    \Log::debug('Skipping CAD component due to combined value match:', [
-                        'item_no' => $itemNo,
-                        'existing_ipls' => array_keys($tdrIplMap)
+                    \Log::debug('Skipping component as it has excluded status (Missing/Repair/Order New):', [
+                        'ipl_num' => $itemNo,
+                        'normalized_ipl' => $normalizedIpl
                     ]);
                     continue;
                 }
 
-                // Если IPL номер еще не был обработан
-                if (!in_array($itemNo, $processedIpls)) {
+                // Исключаем компоненты с невалидными процессами (та же логика, что в cadStd)
+                if (!empty($processName) && !in_array($processName, $validProcesses)) {
+                    $skippedByProcess++;
+                    \Log::debug('Skipping component as it has invalid process:', [
+                        'ipl_num' => $itemNo,
+                        'process' => $processName,
+                        'valid_processes' => $validProcesses
+                    ]);
+                    continue;
+                }
+
+                // Если нормализованный IPL номер еще не был обработан (используем нормализованный для проверки дубликатов)
+                if (!empty($normalizedIpl) && !in_array($normalizedIpl, $processedIpls)) {
                     $totalQty += $qty; // Используем qty из JSON
                     $totalComponents++;
-                    $processedIpls[] = $itemNo;
-                    \Log::debug('Adding component from NdtCadCsv:', ['ipl_num' => $itemNo, 'qty' => $qty]);
+                    $processedIpls[] = $normalizedIpl; // Сохраняем нормализованный IPL
+                    \Log::debug('Adding component from NdtCadCsv:', [
+                        'ipl_num' => $itemNo,
+                        'normalized_ipl' => $normalizedIpl,
+                        'qty' => $qty
+                    ]);
+                } else if (!empty($normalizedIpl) && in_array($normalizedIpl, $processedIpls)) {
+                    \Log::debug('Skipping duplicate component (normalized):', [
+                        'ipl_num' => $itemNo,
+                        'normalized_ipl' => $normalizedIpl
+                    ]);
                 }
             }
 
@@ -1973,7 +2658,18 @@ class TdrController extends Controller
                 'total_components' => $totalComponents,
                 'skipped_count' => $skippedCount,
                 'combined_skipped_count' => $combinedSkippedCount,
+                'processed_ipls_count' => count($processedIpls),
                 'processed_ipls' => $processedIpls
+            ]);
+            
+            \Log::info('CAD calcCadSums - Summary', [
+                'total_cad_components_in_csv' => count($cadComponents),
+                'excluded_by_status' => $skippedCount,
+                'excluded_by_process' => $skippedByProcess,
+                'total_qty' => $totalQty,
+                'total_components' => $totalComponents,
+                'valid_processes_count' => count($validProcesses),
+                'valid_processes' => $validProcesses
             ]);
 
             \Log::info('CAD calculation results:', [
@@ -2035,18 +2731,71 @@ class TdrController extends Controller
                 ];
             }
 
-            // 2. Чтение TDR компонентов
+            // 2. Получаем ID для Missing, Order New (та же логика, что в stressStd, но Repair НЕ исключаем)
+            $missingCode = Code::where('name', 'Missing')->first();
+            $orderNewNecessary = Necessary::find(2);
+            if (!$orderNewNecessary || stripos($orderNewNecessary->name, 'order') === false) {
+                $orderNewNecessary = Necessary::where('name', 'Order New')->first();
+            }
+            
+            // Получаем TDR записи только с исключаемыми статусами (Missing, Order New, но НЕ Repair)
+            $excludedTdrQuery = Tdr::where('workorder_id', $workorder_id)
+                ->whereNotNull('component_id')
+                ->with('component:id,ipl_num');
+            
+            $excludedConditions = [];
+            if ($missingCode) {
+                $excludedConditions[] = ['codes_id', $missingCode->id];
+            }
+            if ($orderNewNecessary) {
+                $excludedConditions[] = ['necessaries_id', $orderNewNecessary->id];
+            }
+            
+            // Создаем мапу исключенных IPL номеров (только с Missing/Order New)
+            $excludedIplNums = [];
+            if (!empty($excludedConditions)) {
+                $excludedTdrQuery->where(function($query) use ($excludedConditions) {
+                    foreach ($excludedConditions as $condition) {
+                        $query->orWhere($condition[0], $condition[1]);
+                    }
+                });
+                
+                $excludedTdrs = $excludedTdrQuery->get();
+                foreach ($excludedTdrs as $tdr) {
+                    if ($tdr->component && $tdr->component->ipl_num) {
+                        $normalizedIpl = $this->normalizeIplNum($tdr->component->ipl_num);
+                        if (!empty($normalizedIpl)) {
+                            $excludedIplNums[$normalizedIpl] = true;
+                        }
+                    }
+                }
+            }
+            
+            // Получаем все TDR компоненты для создания мапы (только для логирования)
             $tdrComponents = Tdr::where('workorder_id', $workorder_id)
                 ->whereNotNull('component_id')
                 ->with('component')
                 ->get();
 
-            // Создаем мапу IPL номеров из TDR
-            $tdrIplMap = $tdrComponents->pluck('qty', 'component.ipl_num')->toArray();
+            // Создаем мапу IPL номеров из TDR (только для логирования)
+            $tdrIplMap = [];
+            foreach ($tdrComponents as $tdr) {
+                if ($tdr->component && $tdr->component->ipl_num) {
+                    $normalizedIpl = $this->normalizeIplNum($tdr->component->ipl_num);
+                    if (!empty($normalizedIpl)) {
+                        if (!isset($tdrIplMap[$normalizedIpl])) {
+                            $tdrIplMap[$normalizedIpl] = 0;
+                        }
+                        $tdrIplMap[$normalizedIpl] += (int)($tdr->qty ?? 0);
+                    }
+                }
+            }
 
-            \Log::info('TDR Components:', [
+            \Log::info('TDR Components (normalized):', [
                 'count' => count($tdrIplMap),
-                'ipl_numbers' => array_keys($tdrIplMap)
+                'ipl_numbers' => array_keys($tdrIplMap),
+                'excluded_ipl_count' => count($excludedIplNums),
+                'excluded_ipls' => array_keys($excludedIplNums)
             ]);
 
             // 3. Сравнение и подсчет
@@ -2058,43 +2807,50 @@ class TdrController extends Controller
 
             \Log::info('Starting Stress calculation loop', [
                 'total_stress_components' => count($stressComponents),
-                'tdr_ipl_count' => count($tdrIplMap)
+                'tdr_ipl_count' => count($tdrIplMap),
+                'excluded_ipl_count' => count($excludedIplNums)
             ]);
 
             foreach ($stressComponents as $index => $component) {
                 $itemNo = trim($component['ipl_num'] ?? '');
                 $qty = (int)($component['qty'] ?? 1); // Получаем qty из JSON
+                
+                // Нормализуем IPL номер для сравнения (5-90A -> 5-90)
+                $normalizedIpl = $this->normalizeIplNum($itemNo);
 
-                \Log::debug('Processing Stress component', [
-                    'index' => $index,
-                    'item_no' => $itemNo,
-                    'qty' => $qty,
-                    'component' => $component
-                ]);
-
-                // Если IPL номер есть в TDR - пропускаем
-                if (isset($tdrIplMap[$itemNo])) {
+                // Исключаем компоненты только с статусами Missing, Order New (Repair НЕ исключаем)
+                if (!empty($normalizedIpl) && isset($excludedIplNums[$normalizedIpl])) {
                     $skippedCount++;
-                    \Log::debug('Skipping component as it exists in TDR:', ['ipl_num' => $itemNo]);
-                    continue;
-                }
-
-                // Проверяем совмещенные значения
-                if ($this->shouldSkipItem($itemNo, array_keys($tdrIplMap))) {
-                    $combinedSkippedCount++;
-                    \Log::debug('Skipping Stress component due to combined value match:', [
-                        'item_no' => $itemNo,
-                        'existing_ipls' => array_keys($tdrIplMap)
+                    \Log::debug('Skipping Stress component as it has excluded status (Missing/Order New):', [
+                        'ipl_num' => $itemNo,
+                        'normalized_ipl' => $normalizedIpl
                     ]);
                     continue;
                 }
 
-                // Если IPL номер еще не был обработан
+                // Если IPL номер пустой, пропускаем
+                if (empty($itemNo)) {
+                    \Log::debug('Skipping Stress component with empty IPL:', ['component' => $component]);
+                    continue;
+                }
+
+                // ВАЖНО: Для Stress НЕ используем нормализацию для проверки дубликатов
+                // Каждый компонент из CSV должен считаться отдельно, даже если IPL отличается только суффиксом
+                // Используем оригинальный IPL для подсчета компонентов
                 if (!in_array($itemNo, $processedIpls)) {
                     $totalQty += $qty; // Используем qty из JSON
                     $totalComponents++;
-                    $processedIpls[] = $itemNo;
-                    \Log::debug('Adding component from NdtCadCsv:', ['ipl_num' => $itemNo, 'qty' => $qty]);
+                    $processedIpls[] = $itemNo; // Сохраняем оригинальный IPL
+                    \Log::debug('Adding Stress component from NdtCadCsv:', [
+                        'ipl_num' => $itemNo,
+                        'normalized_ipl' => $normalizedIpl,
+                        'qty' => $qty
+                    ]);
+                } else {
+                    \Log::debug('Skipping duplicate Stress component (by original IPL):', [
+                        'ipl_num' => $itemNo,
+                        'normalized_ipl' => $normalizedIpl
+                    ]);
                 }
             }
 
@@ -2102,7 +2858,7 @@ class TdrController extends Controller
                 'total_qty' => $totalQty,
                 'total_components' => $totalComponents,
                 'skipped_count' => $skippedCount,
-                'combined_skipped_count' => $combinedSkippedCount,
+                'processed_ipls_count' => count($processedIpls),
                 'processed_ipls' => $processedIpls
             ]);
 

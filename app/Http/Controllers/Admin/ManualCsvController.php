@@ -17,14 +17,49 @@ class ManualCsvController extends Controller
             'csv_file' => 'required|file|mimes:csv,txt|max:10240', // Максимальный размер 10MB
         ]);
 
-        // Удаляем старый файл, если он существует
-        $manual->clearMediaCollection('csv_files');
+        $file = $request->file('csv_file');
+        $fileName = strtolower($file->getClientOriginalName());
+        
+        // Автоматически определяем process_type по имени файла
+        $processType = null;
+        if (strpos($fileName, 'cad_std') !== false || strpos($fileName, 'cad') !== false) {
+            $processType = 'cad';
+        } elseif (strpos($fileName, 'ndt_std') !== false || strpos($fileName, 'ndt') !== false) {
+            $processType = 'ndt';
+        } elseif (strpos($fileName, 'stress') !== false || strpos($fileName, 'stress_relief') !== false) {
+            $processType = 'stress';
+        } elseif (strpos($fileName, 'paint') !== false) {
+            $processType = 'paint';
+        }
+        
+        // Если process_type определен, проверяем существующий файл с таким типом
+        if ($processType) {
+            $existingFile = $manual->getMedia('csv_files')
+                ->first(function ($media) use ($processType) {
+                    return $media->getCustomProperty('process_type') === $processType;
+                });
+            
+            // Если файл существует, удаляем его
+            if ($existingFile) {
+                $existingFile->delete();
+            }
+        } else {
+            // Если не удалось определить тип, удаляем все файлы (старое поведение)
+            $manual->clearMediaCollection('csv_files');
+        }
 
-        // Сохраняем новый файл
-        $manual->addMediaFromRequest('csv_file')
+        // Сохраняем новый файл с process_type
+        $media = $manual->addMediaFromRequest('csv_file')
+            ->withCustomProperties(['process_type' => $processType])
             ->toMediaCollection('csv_files');
 
-        return redirect()->back()->with('success', 'CSV файл успешно загружен');
+        \Log::info('CSV file uploaded to manual', [
+            'manual_id' => $manual->id,
+            'file_name' => $fileName,
+            'process_type' => $processType
+        ]);
+
+        return redirect()->back()->with('success', 'CSV файл успешно загружен' . ($processType ? ' (тип: ' . strtoupper($processType) . ')' : ''));
     }
 
     public function download(Manual $manual)

@@ -160,6 +160,17 @@
                             </div>
 
                             <div class="table-responsive">
+                                @php
+                                    $ndtComponents = $ndtCadCsv->ndt_components ?? [];
+                                    // Проверяем, есть ли хотя бы один компонент с полем manual
+                                    $hasManual = false;
+                                    foreach ($ndtComponents as $component) {
+                                        if (isset($component['manual']) && $component['manual'] !== null && $component['manual'] !== '') {
+                                            $hasManual = true;
+                                            break;
+                                        }
+                                    }
+                                @endphp
                                 <table class="table table-striped table-hover" id="ndt-table">
                                     <thead>
                                         <tr>
@@ -168,13 +179,30 @@
                                             <th>Description</th>
                                             <th>Process</th>
                                             <th>QTY</th>
+                                            @if($hasManual)
+                                                <th>Manual</th>
+                                            @endif
                                             <th>Action</th>
                                         </tr>
                                     </thead>
                                      <tbody id="ndt-tbody">
                                          @php
-                                             $ndtComponents = $ndtCadCsv->ndt_components ?? [];
-                                             $sortedNdtComponents = collect($ndtComponents)->sortBy('ipl_num', SORT_NATURAL)->values();
+                                             // Сортировка: сначала по manual (если есть), потом по ipl_num
+                                             $sortedNdtComponents = collect($ndtComponents)->sort(function($a, $b) {
+                                                 $manualA = isset($a['manual']) && !empty($a['manual']) ? $a['manual'] : '';
+                                                 $manualB = isset($b['manual']) && !empty($b['manual']) ? $b['manual'] : '';
+                                                 $iplA = $a['ipl_num'] ?? '';
+                                                 $iplB = $b['ipl_num'] ?? '';
+
+                                                 // Сначала сравниваем по manual
+                                                 $manualCompare = strnatcasecmp($manualA, $manualB);
+                                                 if ($manualCompare !== 0) {
+                                                     return $manualCompare;
+                                                 }
+
+                                                 // Если manual одинаковые, сравниваем по ipl_num
+                                                 return strnatcasecmp($iplA, $iplB);
+                                             })->values();
                                          @endphp
                                          @forelse($sortedNdtComponents as $displayIndex => $component)
                                          @php
@@ -187,6 +215,9 @@
                                              <td>{{ $component['description'] }}</td>
                                              <td>{{ $component['process'] }}</td>
                                              <td>{{ $component['qty'] }}</td>
+                                             @if($hasManual)
+                                                 <td>{{ $component['manual'] ?? '' }}</td>
+                                             @endif
                                              <td>
                                                  <button class="btn btn-sm btn-primary me-1" onclick="editNdtComponent({{ $originalIndex }})" title="Edit">
                                                      <i class="fas fa-edit"></i>
@@ -198,7 +229,7 @@
                                          </tr>
                                          @empty
                                          <tr>
-                                             <td colspan="6" class="text-center text-muted">No NDT components</td>
+                                             <td colspan="{{ $hasManual ? 7 : 6 }}" class="text-center text-muted">No NDT components</td>
                                          </tr>
                                          @endforelse
                                      </tbody>
@@ -227,6 +258,17 @@
                             </div>
 
                             <div class="table-responsive">
+                                @php
+                                    $cadComponents = $ndtCadCsv->cad_components ?? [];
+                                    // Проверяем, есть ли хотя бы один компонент с полем manual
+                                    $hasManual = false;
+                                    foreach ($cadComponents as $component) {
+                                        if (isset($component['manual']) && $component['manual'] !== null && $component['manual'] !== '') {
+                                            $hasManual = true;
+                                            break;
+                                        }
+                                    }
+                                @endphp
                                 <table class="table table-striped table-hover" id="cad-table">
                                     <thead>
                                         <tr>
@@ -235,13 +277,30 @@
                                             <th>Description</th>
                                             <th>Process</th>
                                             <th>QTY</th>
+                                            @if($hasManual)
+                                                <th>Manual</th>
+                                            @endif
                                             <th>Action</th>
                                         </tr>
                                     </thead>
                                      <tbody id="cad-tbody">
                                          @php
-                                             $cadComponents = $ndtCadCsv->cad_components ?? [];
-                                             $sortedCadComponents = collect($cadComponents)->sortBy('ipl_num', SORT_NATURAL)->values();
+                                             // Сортировка: сначала по manual (если есть), потом по ipl_num
+                                             $sortedCadComponents = collect($cadComponents)->sort(function($a, $b) {
+                                                 $manualA = isset($a['manual']) && !empty($a['manual']) ? $a['manual'] : '';
+                                                 $manualB = isset($b['manual']) && !empty($b['manual']) ? $b['manual'] : '';
+                                                 $iplA = $a['ipl_num'] ?? '';
+                                                 $iplB = $b['ipl_num'] ?? '';
+
+                                                 // Сначала сравниваем по manual
+                                                 $manualCompare = strnatcasecmp($manualA, $manualB);
+                                                 if ($manualCompare !== 0) {
+                                                     return $manualCompare;
+                                                 }
+
+                                                 // Если manual одинаковые, сравниваем по ipl_num
+                                                 return strnatcasecmp($iplA, $iplB);
+                                             })->values();
                                          @endphp
                                          @forelse($sortedCadComponents as $displayIndex => $component)
                                          @php
@@ -254,6 +313,9 @@
                                              <td>{{ $component['description'] }}</td>
                                              <td>{{ $component['process'] }}</td>
                                              <td>{{ $component['qty'] }}</td>
+                                             @if($hasManual)
+                                                 <td>{{ $component['manual'] ?? '' }}</td>
+                                             @endif
                                              <td>
                                                  <button class="btn btn-sm btn-primary me-1" onclick="editCadComponent({{ $originalIndex }})" title="Edit">
                                                      <i class="fas fa-edit"></i>
@@ -265,7 +327,7 @@
                                          </tr>
                                          @empty
                                          <tr>
-                                             <td colspan="6" class="text-center text-muted">No CAD components</td>
+                                             <td colspan="{{ $hasManual ? 7 : 6 }}" class="text-center text-muted">No CAD components</td>
                                          </tr>
                                          @endforelse
                                      </tbody>
@@ -291,6 +353,17 @@
                             </div>
 
                             <div class="table-responsive">
+                                @php
+                                    $paintComponents = $ndtCadCsv->paint_components ?? [];
+                                    // Проверяем, есть ли хотя бы один компонент с полем manual
+                                    $hasManual = false;
+                                    foreach ($paintComponents as $component) {
+                                        if (isset($component['manual']) && $component['manual'] !== null && $component['manual'] !== '') {
+                                            $hasManual = true;
+                                            break;
+                                        }
+                                    }
+                                @endphp
                                 <table class="table table-striped table-hover" id="paint-table">
                                     <thead>
                                         <tr>
@@ -299,13 +372,30 @@
                                             <th>Description</th>
                                             <th>Process</th>
                                             <th>QTY</th>
+                                            @if($hasManual)
+                                                <th>Manual</th>
+                                            @endif
                                             <th>Action</th>
                                         </tr>
                                     </thead>
                                      <tbody id="paint-tbody">
                                          @php
-                                             $paintComponents = $ndtCadCsv->paint_components ?? [];
-                                             $sortedPaintComponents = collect($paintComponents)->sortBy('ipl_num', SORT_NATURAL)->values();
+                                             // Сортировка: сначала по manual (если есть), потом по ipl_num
+                                             $sortedPaintComponents = collect($paintComponents)->sort(function($a, $b) {
+                                                 $manualA = isset($a['manual']) && !empty($a['manual']) ? $a['manual'] : '';
+                                                 $manualB = isset($b['manual']) && !empty($b['manual']) ? $b['manual'] : '';
+                                                 $iplA = $a['ipl_num'] ?? '';
+                                                 $iplB = $b['ipl_num'] ?? '';
+
+                                                 // Сначала сравниваем по manual
+                                                 $manualCompare = strnatcasecmp($manualA, $manualB);
+                                                 if ($manualCompare !== 0) {
+                                                     return $manualCompare;
+                                                 }
+
+                                                 // Если manual одинаковые, сравниваем по ipl_num
+                                                 return strnatcasecmp($iplA, $iplB);
+                                             })->values();
                                          @endphp
                                          @forelse($sortedPaintComponents as $displayIndex => $component)
                                          @php
@@ -318,6 +408,9 @@
                                              <td>{{ $component['description'] }}</td>
                                              <td>{{ $component['process'] }}</td>
                                              <td>{{ $component['qty'] }}</td>
+                                             @if($hasManual)
+                                                 <td>{{ $component['manual'] ?? '' }}</td>
+                                             @endif
                                              <td>
                                                  <button class="btn btn-sm btn-primary me-1" onclick="editPaintComponent({{ $originalIndex }})" title="Edit">
                                                      <i class="fas fa-edit"></i>
@@ -329,7 +422,7 @@
                                          </tr>
                                          @empty
                                          <tr>
-                                             <td colspan="6" class="text-center text-muted">No Paint components</td>
+                                             <td colspan="{{ $hasManual ? 7 : 6 }}" class="text-center text-muted">No Paint components</td>
                                          </tr>
                                          @endforelse
                                      </tbody>
@@ -358,6 +451,17 @@
                             </div>
 
                             <div class="table-responsive">
+                                @php
+                                    $stressComponents = $ndtCadCsv->stress_components ?? [];
+                                    // Проверяем, есть ли хотя бы один компонент с полем manual
+                                    $hasManual = false;
+                                    foreach ($stressComponents as $component) {
+                                        if (isset($component['manual']) && $component['manual'] !== null && $component['manual'] !== '') {
+                                            $hasManual = true;
+                                            break;
+                                        }
+                                    }
+                                @endphp
                                 <table class="table table-striped table-hover" id="stress-table">
                                     <thead>
                                         <tr>
@@ -366,13 +470,30 @@
                                             <th>Description</th>
                                             <th>Process</th>
                                             <th>QTY</th>
+                                            @if($hasManual)
+                                                <th>Manual</th>
+                                            @endif
                                             <th>Action</th>
                                         </tr>
                                     </thead>
                                      <tbody id="stress-tbody">
                                          @php
-                                             $stressComponents = $ndtCadCsv->stress_components ?? [];
-                                             $sortedStressComponents = collect($stressComponents)->sortBy('ipl_num', SORT_NATURAL)->values();
+                                             // Сортировка: сначала по manual (если есть), потом по ipl_num
+                                             $sortedStressComponents = collect($stressComponents)->sort(function($a, $b) {
+                                                 $manualA = isset($a['manual']) && !empty($a['manual']) ? $a['manual'] : '';
+                                                 $manualB = isset($b['manual']) && !empty($b['manual']) ? $b['manual'] : '';
+                                                 $iplA = $a['ipl_num'] ?? '';
+                                                 $iplB = $b['ipl_num'] ?? '';
+
+                                                 // Сначала сравниваем по manual
+                                                 $manualCompare = strnatcasecmp($manualA, $manualB);
+                                                 if ($manualCompare !== 0) {
+                                                     return $manualCompare;
+                                                 }
+
+                                                 // Если manual одинаковые, сравниваем по ipl_num
+                                                 return strnatcasecmp($iplA, $iplB);
+                                             })->values();
                                          @endphp
                                          @forelse($sortedStressComponents as $displayIndex => $component)
                                          @php
@@ -385,6 +506,9 @@
                                              <td>{{ $component['description'] }}</td>
                                              <td>{{ $component['process'] }}</td>
                                              <td>{{ $component['qty'] }}</td>
+                                             @if($hasManual)
+                                                 <td>{{ $component['manual'] ?? '' }}</td>
+                                             @endif
                                              <td>
                                                  <button class="btn btn-sm btn-primary me-1" onclick="editStressComponent({{ $originalIndex }})" title="Edit">
                                                      <i class="fas fa-edit"></i>
@@ -396,7 +520,7 @@
                                          </tr>
                                          @empty
                                          <tr>
-                                             <td colspan="6" class="text-center text-muted">No Stress components</td>
+                                             <td colspan="{{ $hasManual ? 7 : 6 }}" class="text-center text-muted">No Stress components</td>
                                          </tr>
                                          @endforelse
                                      </tbody>
@@ -2011,7 +2135,7 @@ window.removeStressComponent = function(index) {
 window.reloadFromManual = function(type) {
     if (confirm(`Are you sure you want to reload ${type.toUpperCase()} components from Manual CSV? This will replace all existing data.`)) {
         if (typeof $ !== 'undefined') {
-            $.post(`/admin/${workorderId}/ndt-cad-csv/reload-from-manual`, {
+            $.post(`/${workorderId}/ndt-cad-csv/reload-from-manual`, {
                 type: type,
                 _token: $('meta[name="csrf-token"]').attr('content')
             }).done(function(response) {
@@ -2033,7 +2157,7 @@ window.reloadFromManual = function(type) {
 window.forceLoadFromManual = function(type) {
     if (confirm(`Force loading ${type.toUpperCase()} components from Manual CSV?`)) {
         if (typeof $ !== 'undefined') {
-            $.post(`/admin/${workorderId}/ndt-cad-csv/force-load-from-manual`, {
+            $.post(`/${workorderId}/ndt-cad-csv/force-load-from-manual`, {
                 type: type,
                 _token: $('meta[name="csrf-token"]').attr('content')
             }).done(function(response) {
@@ -2259,7 +2383,7 @@ window.editCadComponent = function(index) {
     } else {
         // Если процессы еще не загружены, загружаем их
         console.log('CAD processes not loaded, loading now...');
-        $.get(`/admin/${workorderId}/ndt-cad-csv/cad-processes`)
+        $.get(`/${workorderId}/ndt-cad-csv/cad-processes`)
             .done(function(response) {
                 if (response.success) {
                     cadProcesses = response.processes;
@@ -2345,7 +2469,7 @@ window.editPaintComponent = function(index) {
     } else {
         // Если процессы еще не загружены, загружаем их
         console.log('Paint processes not loaded, loading now...');
-        $.get(`/admin/${workorderId}/ndt-cad-csv/paint-processes`)
+        $.get(`/${workorderId}/ndt-cad-csv/paint-processes`)
             .done(function(response) {
                 if (response.success) {
                     paintProcesses = response.processes;
@@ -2431,7 +2555,7 @@ window.editStressComponent = function(index) {
     } else {
         // Если процессы еще не загружены, загружаем их
         console.log('Stress processes not loaded, loading now...');
-        $.get(`/admin/${workorderId}/ndt-cad-csv/stress-processes`)
+        $.get(`/${workorderId}/ndt-cad-csv/stress-processes`)
             .done(function(response) {
                 if (response.success) {
                     stressProcesses = response.processes;
@@ -2477,7 +2601,7 @@ window.removePaintComponent = function(index) {
 
     if (confirm('Are you sure you want to remove this component?')) {
         if (typeof $ !== 'undefined') {
-            $.post(`/admin/${workorderId}/ndt-cad-csv/remove-paint`, {
+            $.post(`/${workorderId}/ndt-cad-csv/remove-paint`, {
                 index: index,
                 _token: $('meta[name="csrf-token"]').attr('content')
             }).done(function(response) {

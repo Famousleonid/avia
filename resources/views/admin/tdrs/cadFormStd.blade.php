@@ -142,16 +142,43 @@
             display: inline-block;
             vertical-align: top;
         }
+        .data-row {
+            min-height: 32px;
+            max-height: 32px;
+        }
+        .data-row .details-cell {
+            height: 32px !important;
+            max-height: 32px !important;
+            min-height: 32px;
+            overflow: hidden;
+            box-sizing: border-box;
+        }
         .details-cell {
             display: flex;
             justify-content: center;
             align-items: center;
+            line-height: 1.1;
+            padding: 2px 4px;
+            word-wrap: break-word;
+            word-break: break-word;
+        }
+        .data-row {
+            min-height: 32px;
+            max-height: 32px;
+            box-sizing: border-box;
+        }
+        .data-row .details-cell {
+            height: 32px !important;
+            max-height: 32px !important;
+            min-height: 32px;
+            overflow: hidden;
+            box-sizing: border-box;
         }
     </style>
 </head>
 <body>
 <!-- Кнопка для печати -->
-<div class="text-start m-3">
+<div class="text-start m-1">
     <button class="btn btn-outline-primary no-print" onclick="window.print()">
         Print Form
     </button>
@@ -217,7 +244,7 @@
            <h5 class="ps-3 mt-2 mb-2 ">
                @foreach($manuals as $manual)
                    @if($manual->id == $current_wo->unit->manual_id)
-                       <h6 class="mt-4 ps-4">
+                       <h6 class="mt-2 ps-4">
                            <strong class="">
                            {{__('Perform the CAD plate as specified under Process No. and in accordance with SMM No. ')}}
                             <span class="ms-5">
@@ -244,73 +271,227 @@
         </div>
     </div>
 
-    <div class="page data-page">
-        @php
-            $totalRows = 17;
-            $dataRows = count($cad_components);
-            $emptyRows = $totalRows - $dataRows;
-        @endphp
+    @php
+        // componentChunks уже рассчитан в контроллере
+        $previousChunkLastManual = null;
+    @endphp
 
-        @php
-            $rowIndex = 1;
-        @endphp
-        @foreach($cad_components as $component)
-            <div class="row fs-85 data-row" data-row-index="{{ $rowIndex }}">
-                <div class="col-1 border-l-b details-cell text-center" style="min-height: 32px">
-                    {{ $component->ipl_num }}
+    @foreach($componentChunks as $chunkInfo)
+        @if($loop->iteration == 1)
+            <!-- Первая страница - используем оригинальный header, данные будут показаны ниже -->
+        @endif
+
+        @if($loop->iteration > 1)
+            <div class="header-page">
+                <div class="row">
+                    <div class="col-3">
+                        <img src="{{ asset('img/icons/AT_logo-rb.svg') }}" alt="Logo"
+                             style="width: 180px; margin: 6px 10px 0;">
+                    </div>
+                    <div class="col-9">
+                        <h2 class="mt-3 text-black"><strong>CAD PLATE PROCESS SHEET</strong></h2>
+                    </div>
                 </div>
-                <div class="col-2 border-l-b details-cell text-center" style="min-height: 32px">
-                    {{ $component->part_number }}
+                <div class="row ">
+                    <div class="col-6">
+                        <div class="row" style="height: 32px">
+                            <div class="col-6 pt-2 text-end"><strong>COMPONENT NAME</strong> :</div>
+                            <div class="col-6 fs-7 pt-2 border-b"><strong>
+                                    <span @if(strlen($current_wo->description) > 30) class="description-text-long"
+                                        @endif>{{$current_wo->description}}</span>
+                                </strong></div>
+                        </div>
+                        <div class="row" style="height: 32px">
+                            <div class="col-6 pt-2 text-end"><strong>PART NUMBER:</strong></div>
+                            <div class="col-6 fs-7 pt-2 border-b"><strong>{{$current_wo->unit->part_number}}</strong></div>
+                        </div>
+                        <div class="row" style="height: 32px">
+                            <div class="col-6 pt-2 text-end"><strong>WORK ORDER No:</strong></div>
+                            <div class="col-6 fs-7 pt-2 border-b"><strong>W{{$current_wo->number}}</strong></div>
+                        </div>
+                        <div class="row" style="height: 32px">
+                            <div class="col-6 pt-2 text-end"><strong>SERIAL No:</strong></div>
+                            <div class="col-6 fs-7 pt-2 border-b"><strong>{{$current_wo->serial_number}}</strong></div>
+                        </div>
+                    </div>
+                    <div class="col-6">
+                        <div class="row" style="height: 32px">
+                            <div class="col-4 pt-2 text-end"><strong>DATE:</strong></div>
+                            <div class="col-8 pt-2 border-b"></div>
+                        </div>
+                        <div class="row" style="height: 32px">
+                            <div class="col-4 pt-2 text-end"><strong>RO No:</strong></div>
+                            <div class="col-8 pt-2 border-b"></div>
+                        </div>
+                        <div class="row" style="height: 32px">
+                            <div class="col-4 pt-2 text-end"><strong>VENDOR:</strong></div>
+                            <div class="col-8 pt-2 border-b"><strong> Micro Custom</strong></div>
+                        </div>
+                    </div>
                 </div>
-                <div class="col-3 border-l-b details-cell text-center" style="min-height: 32px">
-                    {{ $component->name }}
-                </div>
-                <div class="col-3 border-l-b details-cell text-center process-cell" style="min-height: 32px">
-                    {{ $component->process_name }}
-                </div>
-                <div class="col-1 border-l-b details-cell text-center" style="min-height: 32px">
-                    {{ $component->qty }}
-                </div>
-                <div class="col-2 border-l-b-r details-cell text-center" style="min-height: 32px">
+                <h5 class="ps-3 mt-2 mb-2 ">
                     @foreach($manuals as $manual)
                         @if($manual->id == $current_wo->unit->manual_id)
-                            <h6 class="text-center mt-3">{{substr($manual->number, 0, 8)}}</h6>
+                            <h6 class="mt-4 ps-4">
+                                <strong class="">
+                                {{__('Perform the CAD plate as specified under Process No. and in accordance with SMM No. ')}}
+                                <span class="ms-5">
+                                    {{substr($manual->number, 0, 8)}}
+                                </span>
+                              </strong>
+                           </h6>
+                        @endif
+                    @endforeach
+                </h5>
+            </div>
+            <div class="page table-header">
+                <div class="row mt-2">
+                    <div class="col-1 border-l-t-b pt-2 details-row text-center" style="height: 42px"><h6 class="fs-7">
+                            <strong>ITEM No.</strong></h6></div>
+                    <div class="col-2 border-l-t-b pt-2 details-row text-center" style="height: 42px"><h6 class="fs-7"><strong>PART No.</strong></h6></div>
+                    <div class="col-3 border-l-t-b pt-2 details-row text-center" style="height: 42px"><h6
+                            class="fs-7"><strong>DESCRIPTION</strong></h6></div>
+                    <div class="col-3 border-l-t-b pt-2 details-row text-center" style="height: 42px"><h6 class="fs-7"><strong>PROCESS
+                                No.</strong></h6></div>
+                    <div class="col-1 border-l-t-b pt-2 details-row text-center" style="height: 42px"><h6 class="fs-7"><strong>QTY</strong></h6></div>
+                    <div class="col-2 border-all pt-2 details-row text-center" style="height: 42px"><h6 class="fs-7"><strong>CMM No.</strong></h6></div>
+                </div>
+            </div>
+        @endif
+
+        <div class="page data-page" data-page-index="{{ $loop->iteration }}">
+            @php
+                // Используем данные из chunkInfo, рассчитанные на бэкенде
+                $chunk = $chunkInfo['components'];
+                $previousManual = $previousChunkLastManual;
+                $chunkLastManual = null;
+                $rowIndex = 1;
+                $isLastPage = $loop->last;
+            @endphp
+
+            @foreach($chunk as $component)
+            @php
+                $currentManual = $component->manual ?? null;
+                $shouldInsertManualRow = ($currentManual !== null && $currentManual !== '' && $currentManual !== $previousManual);
+
+                // Логирование для отладки
+                if (in_array($component->ipl_num ?? '', ['2-260', '4-100'])) {
+                    \Log::info('CAD FormStd - Rendering component', [
+                        'chunk_index' => $loop->parent->iteration,
+                        'component_index' => $loop->iteration,
+                        'ipl_num' => $component->ipl_num ?? '',
+                        'qty' => $component->qty ?? 0,
+                        'row_index' => $rowIndex
+                    ]);
+                }
+            @endphp
+
+            @if($shouldInsertManualRow)
+                {{-- Строка с Manual --}}
+                <div class="row fs-85 data-row manual-row" data-row-index="{{ $rowIndex }}">
+                    <div class="col-1 border-l-b details-cell text-center" style="height: 32px; font-weight: bold;">
+                        <!-- Пустая ячейка -->
+                    </div>
+                    <div class="col-2 border-l-b details-cell text-center" style="height: 32px; font-weight: bold;">
+                        <!-- Пустая ячейка -->
+                    </div>
+                    <div class="col-3 border-l-b details-cell text-center" style="height: 32px; font-weight: bold;">
+                        <strong>{{ $currentManual }}</strong>
+                    </div>
+                    <div class="col-3 border-l-b details-cell text-center" style="height: 32px; font-weight: bold;">
+                        <!-- Пустая ячейка -->
+                    </div>
+                    <div class="col-1 border-l-b details-cell text-center" style="height: 32px; font-weight: bold;">
+                        <!-- Пустая ячейка -->
+                    </div>
+                    <div class="col-2 border-l-b-r details-cell text-center" style="height: 32px; font-weight: bold;">
+                        <!-- Пустая ячейка -->
+                    </div>
+                </div>
+                @php $rowIndex++; @endphp
+            @endif
+
+            <div class="row fs-85 data-row" data-row-index="{{ $rowIndex }}">
+                <div class="col-1 border-l-b details-cell text-center" style="height: 32px !important; max-height: 32px; line-height: 1.1; overflow: hidden; box-sizing: border-box;">
+                    {{ $component->ipl_num }}
+                </div>
+                <div class="col-2 border-l-b details-cell text-center" style="height: 32px !important; max-height: 32px; line-height: 1.1; overflow: hidden; box-sizing: border-box;">
+                    {{ $component->part_number }}
+                </div>
+                <div class="col-3 border-l-b details-cell text-center" style="height: 32px !important; max-height: 32px; line-height: 1.1; overflow: hidden; box-sizing: border-box;">
+                    {{ $component->name }}
+                </div>
+                <div class="col-3 border-l-b details-cell text-center process-cell" style="height: 32px !important; max-height: 32px; line-height: 1.1; overflow: hidden; box-sizing: border-box;">
+                    {{ $component->process_name }}
+                </div>
+                <div class="col-1 border-l-b details-cell text-center" style="height: 32px !important; max-height: 32px; line-height: 1.1; overflow: hidden; box-sizing: border-box;">
+                    {{ $component->qty }}
+                </div>
+                <div class="col-2 border-l-b-r details-cell text-center" style="height: 32px !important; max-height: 32px; line-height: 1.1; overflow: hidden; box-sizing: border-box;">
+                    @foreach($manuals as $manual)
+                        @if($manual->id == $current_wo->unit->manual_id)
+                            <span style="font-size: 0.85rem;">{{substr($manual->number, 0, 8)}}</span>
                         @endif
                     @endforeach
                 </div>
             </div>
-            @php $rowIndex++; @endphp
-        @endforeach
+                @php
+                    $rowIndex++;
+                    $previousManual = $currentManual;
+                    if ($currentManual !== null && $currentManual !== '') {
+                        $chunkLastManual = $currentManual;
+                    }
+                @endphp
+            @endforeach
 
-        @for ($i = 0; $i < $emptyRows; $i++)
-            <div class="row empty-row" data-row-index="{{ $rowIndex }}">
-                <div class="col-1 border-l-b text-center" style="height: 34px"></div>
-                <div class="col-2 border-l-b text-center" style="height: 34px"></div>
-                <div class="col-3 border-l-b text-center" style="height: 34px"></div>
-                <div class="col-3 border-l-b text-center" style="height: 34px"></div>
-                <div class="col-1 border-l-b text-center" style="height: 34px"></div>
-                <div class="col-2 border-l-b-r text-center" style="height: 34px"></div>
-            </div>
-            @php $rowIndex++; @endphp
-        @endfor
-    </div>
+            {{-- Генерируем пустые строки на бэкенде --}}
+            @if(isset($chunkInfo['empty_rows']) && $chunkInfo['empty_rows'] > 0)
+                @for($i = 0; $i < $chunkInfo['empty_rows']; $i++)
+                    <div class="row fs-85 data-row empty-row" data-row-index="{{ $rowIndex }}">
+                        <div class="col-1 border-l-b details-cell text-center" style="height: 32px"></div>
+                        <div class="col-2 border-l-b details-cell text-center" style="height: 32px"></div>
+                        <div class="col-3 border-l-b details-cell text-center" style="height: 32px"></div>
+                        <div class="col-3 border-l-b details-cell text-center" style="height: 32px"></div>
+                        <div class="col-1 border-l-b details-cell text-center" style="height: 32px"></div>
+                        <div class="col-2 border-l-b-r details-cell text-center" style="height: 32px"></div>
+                    </div>
+                    @php $rowIndex++; @endphp
+                @endfor
+            @endif
 
-
-    <footer>
-        <div class="row fs-85" style="width: 100%; padding: 5px 0;">
-            <div class="col-6 text-start">
-                {{__('Form # 014')}}
-{{--                {{$form_number}}--}}
-            </div>
-            <div class="col-6 text-end pe-4">
-                {{__('Rev#0, 15/Dec/2012   ')}}
-                <br>
-                {{'Total: '}} {{ $cadSum['total_qty'] }}
-            </div>
+            @php
+                // Сохраняем последний manual для следующего chunk
+                $previousChunkLastManual = $chunkLastManual ?? $previousManual;
+            @endphp
         </div>
-    </footer>
+
+        <footer>
+            <div class="row fs-85" style="width: 100%; padding: 5px 0;">
+                <div class="col-6 text-start">
+                    {{__('Form # 014')}}
+                </div>
+                <div class="col-3 text-center">
+                    {{__('Page')}} {{ $loop->iteration }} {{__('of')}} {{ count($componentChunks) }}
+                </div>
+                <div class="col-3 text-end pe-4">
+                    {{__('Rev#0, 15/Dec/2012   ')}}
+                    <br>
+                    {{'Total: '}} {{ $cadSum['total_qty'] }}
+                </div>
+            </div>
+        </footer>
+
+        @php
+            // Сохраняем последний manual для следующего chunk
+            $previousChunkLastManual = $chunkLastManual ?? $previousManual;
+        @endphp
+
+        @if(!$loop->last)
+            <div style="page-break-after: always;"></div>
+        @endif
+    @endforeach
 </div>
-</body>
+<script src="{{ asset('js/table-height-adjuster.js') }}"></script>
 <script>
     document.addEventListener("DOMContentLoaded", function() {
         // Функция для добавления пустой строки
@@ -334,7 +515,7 @@
             container.appendChild(row);
         }
 
-        // Функция для удаления строки
+        // Функция для удаления строки (только пустые строки, не строки с данными)
         function removeRowRegular(rowIndex, tableElement) {
             const container = typeof tableElement === 'string'
                 ? document.querySelector(tableElement)
@@ -342,53 +523,48 @@
             if (!container) return;
 
             const row = container.querySelector(`[data-row-index="${rowIndex}"]`);
-            if (row) row.remove();
+            // Удаляем только пустые строки, не строки с данными
+            if (row && row.classList.contains('empty-row')) {
+                row.remove();
+            } else if (row) {
+                // Если это строка с данными, не удаляем её
+                console.warn(`CAD: Попытка удалить строку с данными (rowIndex: ${rowIndex}), пропускаем`);
+            }
         }
 
-        // Настройка высоты таблицы
+        // Настройка высоты всех таблиц после загрузки (только визуальная настройка)
+        // Пустые строки уже сгенерированы на бэкенде
         setTimeout(function() {
-            const regularTableContainer = document.querySelector('.data-page');
-            const regularRows = document.querySelectorAll('.data-page .data-row');
-            if (regularTableContainer && regularRows.length > 0) {
-                adjustTableHeightToRange({
-                    min_height_tab: 600,
-                    max_height_tab: 650,
-                    tab_name: '.data-page',
-                    row_height: 34,
-                    row_selector: '.data-page [data-row-index]',
-                    addRowCallback: addEmptyRowRegular,
-                    removeRowCallback: removeRowRegular,
-                    getRowIndexCallback: function(rowElement) {
-                        return parseInt(rowElement.getAttribute('data-row-index')) || 0;
-                    },
-                    max_iterations: 50,
-                    onComplete: function(currentHeight, rowCount) {
-                        console.log(`CAD таблица настроена: высота ${currentHeight}px, строк ${rowCount}`);
-                    }
-                });
-            }
-
-            // Старый код для удаления пустых строк на основе высоты ячеек процесса
-            var processCells = document.querySelectorAll('.data-row .process-cell');
-            var totalExtraLines = 0;
-
-            processCells.forEach(function(cell) {
-                var cellHeight = cell.offsetHeight;
-                if(cellHeight > 32) {
-                    var extraLines = Math.floor((cellHeight - 32) / 16);
-                    totalExtraLines += extraLines;
+            const dataPages = document.querySelectorAll('.data-page');
+            
+            dataPages.forEach(function(pageContainer, pageIndex) {
+                const regularRows = pageContainer.querySelectorAll('.data-row');
+                
+                if (regularRows.length > 0) {
+                    // Только визуальная настройка высоты таблицы
+                    // Не добавляем/удаляем строки - это уже сделано на бэкенде
+                    adjustTableHeightToRange({
+                        min_height_tab: 550,
+                        max_height_tab: 620,
+                        tab_name: pageContainer,
+                        row_height: 32,
+                        row_selector: '.data-row[data-row-index]',
+                        addRowCallback: function() {}, // Не добавляем строки - они уже на бэкенде
+                        removeRowCallback: function() {}, // Не удаляем строки - только пустые можно удалить
+                        getRowIndexCallback: function(rowElement) {
+                            return parseInt(rowElement.getAttribute('data-row-index')) || 0;
+                        },
+                        max_iterations: 50,
+                        onComplete: function(currentHeight, rowCount) {
+                            console.log(`CAD страница ${pageIndex + 1}: высота настроена - ${currentHeight}px, строк ${rowCount}`);
+                        }
+                    });
                 }
             });
-
-            var emptyRowsToRemove = Math.floor(totalExtraLines / 2);
-            var emptyRows = document.querySelectorAll('.empty-row');
-            for (var i = 0; i < emptyRowsToRemove && i < emptyRows.length; i++) {
-                if (emptyRows[i] && !emptyRows[i].hasAttribute('data-keep')) {
-                    emptyRows[i].remove();
-                }
-            }
         }, 200);
     });
 </script>
 
+</body>
 </html>
+

@@ -363,12 +363,18 @@ class NdtCadCsv extends Model
 
             // Загружаем CAD компоненты
             $cadCsvMedia = $manual->getMedia('csv_files')->first(function ($media) {
-                return $media->getCustomProperty('process_type') === 'cad';
+                $processType = $media->getCustomProperty('process_type');
+                $fileName = strtolower($media->file_name ?? '');
+                // Проверяем process_type или имя файла
+                return $processType === 'cad' || 
+                       (strpos($fileName, 'cad_std') !== false || strpos($fileName, 'cad') !== false);
             });
 
             \Log::info('CAD CSV media found', [
                 'found' => $cadCsvMedia ? true : false,
-                'path' => $cadCsvMedia ? $cadCsvMedia->getPath() : null
+                'path' => $cadCsvMedia ? $cadCsvMedia->getPath() : null,
+                'file_name' => $cadCsvMedia ? $cadCsvMedia->file_name : null,
+                'process_type' => $cadCsvMedia ? $cadCsvMedia->getCustomProperty('process_type') : null
             ]);
 
             if ($cadCsvMedia) {
@@ -481,11 +487,18 @@ class NdtCadCsv extends Model
 
             // Загружаем CAD компоненты
             $cadCsvMedia = $manual->getMedia('csv_files')->first(function ($media) {
-                return $media->getCustomProperty('process_type') === 'cad';
+                $processType = $media->getCustomProperty('process_type');
+                $fileName = strtolower($media->file_name ?? '');
+                // Проверяем process_type или имя файла
+                return $processType === 'cad' || 
+                       (strpos($fileName, 'cad_std') !== false || strpos($fileName, 'cad') !== false);
             });
 
             if ($cadCsvMedia) {
-                \Log::info('Loading CAD components from CSV', ['file' => $cadCsvMedia->name]);
+                \Log::info('Loading CAD components from CSV', [
+                    'file' => $cadCsvMedia->name,
+                    'process_type' => $cadCsvMedia->getCustomProperty('process_type')
+                ]);
                 $ndtCadCsv->cad_components = self::loadComponentsFromCsv($cadCsvMedia->getPath(), 'cad');
             }
 
@@ -559,15 +572,26 @@ class NdtCadCsv extends Model
                 $description = $row['DESCRIPTION'] ?? $row['description'] ?? '';
                 $process = $row['PROCESS No.'] ?? $row['PROCESS'] ?? $row['process'] ?? '1';
                 $qty = $row['QTY'] ?? $row['qty'] ?? '1';
+                // Пробуем разные варианты названия колонки MANUAL
+                $manual = $row['MANUAL'] ?? $row['Manual'] ?? $row['manual'] ?? null;
+                // Убираем пробелы и проверяем, что значение не пустое
+                $manual = $manual !== null ? trim($manual) : null;
 
                 if (!empty($itemNo)) {
-                    $components[] = [
+                    $component = [
                         'ipl_num' => $itemNo,
                         'part_number' => $partNo,
                         'description' => $description,
                         'process' => $process,
                         'qty' => (int)$qty,
                     ];
+                    
+                    // Добавляем поле MANUAL, если оно есть в CSV и не пустое
+                    if ($manual !== null && $manual !== '') {
+                        $component['manual'] = $manual;
+                    }
+                    
+                    $components[] = $component;
                 }
             }
 

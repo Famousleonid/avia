@@ -548,11 +548,12 @@ $rowIndex = 1;
     <div class="col-4 border-l-b details-cell text-center process-cell"  style="min-height: 34px">
         @foreach($process_components as $component_process)
             @if($component_process->id == $process)
-                <span @if(strlen($component_process->process) > 40) class="process-text-long"
+                <span @if(strlen($component_process->process) > 25) class="process-text-long"
                     @endif>
                     {{$component_process->process}}
                     @if($component->description)
-                        <br><span class="description-text-long" >{{$component->description}}</span>
+                        <br><span>{{$component->description}}
+                        </span>
                     @endif
                     </span>
             @endif

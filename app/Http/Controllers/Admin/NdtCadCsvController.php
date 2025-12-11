@@ -581,13 +581,24 @@ class NdtCadCsvController extends Controller
             $components = [];
             foreach ($records as $row) {
                 if (!empty($row['ITEM   No.'])) {
-                    $components[] = [
+                    $component = [
                         'ipl_num' => $row['ITEM   No.'],
                         'part_number' => $row['PART No.'] ?? '',
                         'description' => $row['DESCRIPTION'] ?? '',
                         'process' => $row['PROCESS No.'] ?? '1',
                         'qty' => (int)($row['QTY'] ?? 1),
                     ];
+                    
+                    // Добавляем поле MANUAL, если оно есть в CSV
+                    // Пробуем разные варианты названия колонки MANUAL
+                    $manual = $row['MANUAL'] ?? $row['Manual'] ?? $row['manual'] ?? null;
+                    // Убираем пробелы и проверяем, что значение не пустое
+                    $manual = $manual !== null ? trim($manual) : null;
+                    if ($manual !== null && $manual !== '') {
+                        $component['manual'] = $manual;
+                    }
+                    
+                    $components[] = $component;
                 }
             }
 
@@ -661,7 +672,28 @@ class NdtCadCsvController extends Controller
 
             $type = $request->input('type');
             $csvMedia = $manual->getMedia('csv_files')->first(function ($media) use ($type) {
-                return $media->getCustomProperty('process_type') === $type;
+                $processType = $media->getCustomProperty('process_type');
+                $fileName = strtolower($media->file_name ?? '');
+                
+                // Проверяем process_type или имя файла
+                if ($processType === $type) {
+                    return true;
+                }
+                
+                // Если process_type не установлен, проверяем имя файла
+                if (!$processType) {
+                    if ($type === 'cad' && (strpos($fileName, 'cad_std') !== false || strpos($fileName, 'cad') !== false)) {
+                        return true;
+                    } elseif ($type === 'ndt' && (strpos($fileName, 'ndt_std') !== false || strpos($fileName, 'ndt') !== false)) {
+                        return true;
+                    } elseif ($type === 'stress' && (strpos($fileName, 'stress') !== false || strpos($fileName, 'stress_relief') !== false)) {
+                        return true;
+                    } elseif ($type === 'paint' && strpos($fileName, 'paint') !== false) {
+                        return true;
+                    }
+                }
+                
+                return false;
             });
 
             if (!$csvMedia) {
@@ -1062,7 +1094,28 @@ class NdtCadCsvController extends Controller
 
             $type = $request->input('type');
             $csvMedia = $manual->getMedia('csv_files')->first(function ($media) use ($type) {
-                return $media->getCustomProperty('process_type') === $type;
+                $processType = $media->getCustomProperty('process_type');
+                $fileName = strtolower($media->file_name ?? '');
+                
+                // Проверяем process_type или имя файла
+                if ($processType === $type) {
+                    return true;
+                }
+                
+                // Если process_type не установлен, проверяем имя файла
+                if (!$processType) {
+                    if ($type === 'cad' && (strpos($fileName, 'cad_std') !== false || strpos($fileName, 'cad') !== false)) {
+                        return true;
+                    } elseif ($type === 'ndt' && (strpos($fileName, 'ndt_std') !== false || strpos($fileName, 'ndt') !== false)) {
+                        return true;
+                    } elseif ($type === 'stress' && (strpos($fileName, 'stress') !== false || strpos($fileName, 'stress_relief') !== false)) {
+                        return true;
+                    } elseif ($type === 'paint' && strpos($fileName, 'paint') !== false) {
+                        return true;
+                    }
+                }
+                
+                return false;
             });
 
             if (!$csvMedia) {

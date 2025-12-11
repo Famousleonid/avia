@@ -377,7 +377,7 @@
                     <div class="col-10 border-b" style="height: 36px">
                         <p class="fs-75">
                         <!-- Заполняем значением из второго столбца, если оно есть -->
-                        {{ strtoupper($secondColumn[$i] ?? '') }}
+                        {!! strtoupper($secondColumn[$i] ?? '') !!}
                         </p>
                     </div>
                     <div class="col-1 border-l-b-r" style="height: 36px">

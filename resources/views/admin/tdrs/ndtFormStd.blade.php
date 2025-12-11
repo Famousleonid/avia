@@ -228,7 +228,7 @@
 </head>
 <body>
 <!-- Кнопка для печати -->
-<div class="text-start m-3">
+<div class="text-start m-1">
     <button class="btn btn-outline-primary no-print" onclick="window.print()">
         Print Form
     </button>
@@ -402,11 +402,11 @@
     </div>
 
     @php
-        $componentsPerPage = 16; // Количество компонентов на страницу
-        $componentChunks = collect($ndt_components)->chunk($componentsPerPage); // Разбиваем на группы
+        // componentChunks уже рассчитан в контроллере
+        $previousChunkLastManual = null;
     @endphp
 
-    @foreach($componentChunks as $chunk)
+    @foreach($componentChunks as $chunkInfo)
         @if($loop->iteration == 1)
             <!-- Первая страница - используем оригинальный header, данные будут показаны ниже -->
         @endif
@@ -561,13 +561,53 @@
 
         <div class="page data-page" data-page-index="{{ $loop->iteration }}">
             @php
-                $totalRows = 16; // Общее количество строк
-                $dataRows = count($chunk); // Количество строк с данными
-                $emptyRows = $totalRows - $dataRows; // Количество пустых строк
+                // Используем данные из chunkInfo, рассчитанные на бэкенде
+                $chunk = isset($chunkInfo['components']) ? $chunkInfo['components'] : [];
+                $previousManual = $previousChunkLastManual;
+                $chunkLastManual = null;
                 $rowIndex = 1;
+                $isLastPage = $loop->last;
             @endphp
 
             @foreach($chunk as $component)
+                @php
+                    $currentManual = $component->manual ?? null;
+                    // Если manual изменился и не пустой, вставляем строку с manual
+                    $shouldInsertManualRow = ($currentManual !== null && $currentManual !== '' && $currentManual !== $previousManual);
+                    // Сохраняем последний manual в chunk
+                    if ($currentManual !== null && $currentManual !== '') {
+                        $chunkLastManual = $currentManual;
+                    }
+                @endphp
+
+                @if($shouldInsertManualRow)
+                    {{-- Строка с Manual --}}
+                    <div class="row fs-85 data-row-ndt manual-row" data-row-index="{{ $rowIndex }}">
+                        <div class="col-1 border-l-b fs-75 details-row text-center" style="height: 32px; font-weight: bold;">
+                            <!-- Пустая ячейка -->
+                        </div>
+                        <div class="col-3 border-l-b details-row text-center" style="height: 32px; font-weight: bold;">
+                            <!-- Пустая ячейка -->
+                        </div>
+                        <div class="col-3 border-l-b details-row text-center" style="height: 32px; font-weight: bold;">
+                            <strong>{{ $currentManual }}</strong>
+                        </div>
+                        <div class="col-2 border-l-b details-row text-center" style="height: 32px; font-weight: bold;">
+                            <!-- Пустая ячейка -->
+                        </div>
+                        <div class="col-1 border-l-b details-row text-center" style="height: 32px; font-weight: bold;">
+                            <!-- Пустая ячейка -->
+                        </div>
+                        <div class="col-1 border-l-b details-row text-center" style="height: 32px; font-weight: bold;">
+                            <!-- Пустая ячейка -->
+                        </div>
+                        <div class="col-1 border-l-b-r details-row text-center" style="height: 32px; font-weight: bold;">
+                            <!-- Пустая ячейка -->
+                        </div>
+                    </div>
+                    @php $rowIndex++; @endphp
+                @endif
+
                 <div class="row fs-85 data-row-ndt" data-row-index="{{ $rowIndex }}">
                     <div class="col-1 border-l-b fs-75 details-row text-center" style="height: 32px">
                         {{ $component->ipl_num }}
@@ -591,35 +631,35 @@
                         <!-- Пустая ячейка -->
                     </div>
                 </div>
-                @php $rowIndex++; @endphp
+                @php
+                    $rowIndex++;
+                    $previousManual = $currentManual;
+                    if ($currentManual !== null && $currentManual !== '') {
+                        $chunkLastManual = $currentManual;
+                    }
+                @endphp
             @endforeach
 
-            @for ($i = 0; $i < $emptyRows; $i++)
-                <div class="row fs-85 data-row-ndt empty-row" data-row-index="{{ $rowIndex }}">
-                    <div class="col-1 border-l-b details-row text-center" style="height: 32px">
-                        <!-- Пустая ячейка -->
+            {{-- Генерируем пустые строки на бэкенде --}}
+            @if(isset($chunkInfo['empty_rows']) && $chunkInfo['empty_rows'] > 0)
+                @for($i = 0; $i < $chunkInfo['empty_rows']; $i++)
+                    <div class="row fs-85 data-row-ndt empty-row" data-row-index="{{ $rowIndex }}">
+                        <div class="col-1 border-l-b details-row text-center" style="height: 32px"></div>
+                        <div class="col-3 border-l-b details-row text-center" style="height: 32px"></div>
+                        <div class="col-3 border-l-b details-row text-center" style="height: 32px"></div>
+                        <div class="col-2 border-l-b details-row text-center" style="height: 32px"></div>
+                        <div class="col-1 border-l-b details-row text-center" style="height: 32px"></div>
+                        <div class="col-1 border-l-b details-row text-center" style="height: 32px"></div>
+                        <div class="col-1 border-l-b-r details-row text-center" style="height: 32px"></div>
                     </div>
-                    <div class="col-3 border-l-b details-row text-center" style="height: 32px">
-                        <!-- Пустая ячейка -->
-                    </div>
-                    <div class="col-3 border-l-b details-row text-center" style="height: 32px">
-                        <!-- Пустая ячейка -->
-                    </div>
-                    <div class="col-2 border-l-b details-row text-center" style="height: 32px">
-                        <!-- Пустая ячейка -->
-                    </div>
-                    <div class="col-1 border-l-b details-row text-center" style="height: 32px">
-                        <!-- Пустая ячейка -->
-                    </div>
-                    <div class="col-1 border-l-b details-row text-center" style="height: 32px">
-                        <!-- Пустая ячейка -->
-                    </div>
-                    <div class="col-1 border-l-b-r details-row text-center" style="height: 32px">
-                        <!-- Пустая ячейка -->
-                    </div>
-                </div>
-                @php $rowIndex++; @endphp
-            @endfor
+                    @php $rowIndex++; @endphp
+                @endfor
+            @endif
+
+            @php
+                // Сохраняем последний manual для следующего chunk
+                $previousChunkLastManual = $chunkLastManual ?? $previousManual;
+            @endphp
         </div>
 
         <footer>
@@ -628,7 +668,7 @@
                     {{__('Form #016')}}
                 </div>
                 <div class="col-3 text-center">
-                    {{__('Page')}} {{ $loop->iteration }} {{__('of')}} {{ $componentChunks->count() }}
+                    {{__('Page')}} {{ $loop->iteration }} {{__('of')}} {{ count($componentChunks) }}
                 </div>
                 <div class="col-6 text-end pe-4 ">
                     {{__('Rev#0, 15/Dec/2012   ')}}
@@ -660,7 +700,27 @@
         @endif
     @endforeach
 </div>
+<script src="{{ asset('js/table-height-adjuster.js') }}"></script>
 <script>
+// Предотвращаем ошибки Chart.js, если он загружен глобально
+if (typeof Chart !== 'undefined') {
+    // Переопределяем identifyDuplicates для предотвращения ошибок
+    const originalIdentifyDuplicates = Chart.helpers.identifyDuplicates;
+    if (originalIdentifyDuplicates) {
+        Chart.helpers.identifyDuplicates = function(statements) {
+            if (!statements || !Array.isArray(statements)) {
+                return [];
+            }
+            try {
+                return originalIdentifyDuplicates.call(this, statements);
+            } catch (e) {
+                console.warn('Chart.js identifyDuplicates error:', e);
+                return [];
+            }
+        };
+    }
+}
+
 document.addEventListener("DOMContentLoaded", function() {
     // Функция для добавления пустой строки NDT таблицы
     function addEmptyRowNDT(rowIndex, tableElement) {
@@ -695,27 +755,31 @@ document.addEventListener("DOMContentLoaded", function() {
         if (row) row.remove();
     }
 
-    // Настройка высоты всех таблиц после загрузки
+    // Настройка высоты всех таблиц после загрузки (только визуальная настройка)
+    // Пустые строки уже сгенерированы на бэкенде
     setTimeout(function() {
-        // Обрабатываем каждую страницу отдельно
         const dataPages = document.querySelectorAll('.data-page');
+        
         dataPages.forEach(function(pageContainer, pageIndex) {
             const ndtRows = pageContainer.querySelectorAll('.data-row-ndt');
+            
             if (ndtRows.length > 0) {
+                // Только визуальная настройка высоты таблицы
+                // Не добавляем/удаляем строки - это уже сделано на бэкенде
                 adjustTableHeightToRange({
                     min_height_tab: 500,
                     max_height_tab: 600,
                     tab_name: pageContainer,
                     row_height: 32,
                     row_selector: '.data-row-ndt[data-row-index]',
-                    addRowCallback: addEmptyRowNDT,
-                    removeRowCallback: removeRowNDT,
+                    addRowCallback: function() {}, // Не добавляем строки - они уже на бэкенде
+                    removeRowCallback: function() {}, // Не удаляем строки - только пустые можно удалить
                     getRowIndexCallback: function(rowElement) {
                         return parseInt(rowElement.getAttribute('data-row-index')) || 0;
                     },
                     max_iterations: 50,
                     onComplete: function(currentHeight, rowCount) {
-                        console.log(`NDT таблица страница ${pageIndex + 1} настроена: высота ${currentHeight}px, строк ${rowCount}`);
+                        console.log(`NDT страница ${pageIndex + 1}: высота настроена - ${currentHeight}px, строк ${rowCount}`);
                     }
                 });
             }

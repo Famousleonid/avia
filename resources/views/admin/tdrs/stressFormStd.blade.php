@@ -34,7 +34,16 @@
                 padding: 0;
             }
 
-            table, h1, p {
+            h1, p {
+                page-break-inside: avoid;
+            }
+
+            /* Разрешаем разрыв таблиц внутри страницы, но избегаем разрыва строк */
+            .data-page {
+                page-break-inside: auto;
+            }
+
+            .data-row {
                 page-break-inside: avoid;
             }
 
@@ -163,12 +172,13 @@
             display: flex;
             justify-content: center;
             align-items: center;
+            line-height: 1.2;
         }
     </style>
 </head>
 <body>
 <!-- Кнопка для печати -->
-<div class="text-start m-3">
+<div class="text-start m-1">
     <button class="btn btn-outline-primary no-print" onclick="window.print()">
         Print Form
     </button>
@@ -277,15 +287,147 @@
         </div>
     </div>
 
-    <div class="page data-page">
-        @php
-            $totalRows = 17;
-            $dataRows = count($stress_components);
-            $emptyRows = $totalRows - $dataRows;
-            $rowIndex = 1;
-        @endphp
+    @php
+        // componentChunks уже рассчитан в контроллере
+        $previousChunkLastManual = null;
+    @endphp
 
-        @foreach($stress_components as $component)
+    @foreach($componentChunks as $chunkInfo)
+        @if($loop->iteration == 1)
+            <!-- Первая страница - используем оригинальный header, данные будут показаны ниже -->
+        @endif
+
+        @if($loop->iteration > 1)
+            <div class="header-page">
+                <div class="row">
+                    <div class="col-3">
+                        <img src="{{ asset('img/icons/AT_logo-rb.svg') }}" alt="Logo"
+                             style="width: 180px; margin: 6px 10px 0;">
+                    </div>
+                    <div class="col-9">
+                        <h2 class="mt-3 text-black"><strong>STRESS RELIEF PROCESS SHEET</strong></h2>
+                    </div>
+                </div>
+                <div class="row ">
+                    <div class="col-6">
+                        <div class="row" style="height: 32px">
+                            <div class="col-6 pt-2 text-end"><strong>COMPONENT NAME</strong> :</div>
+                            <div class="col-6 fs-7 pt-2 border-b"><strong>
+                                    <span @if(strlen($current_wo->description) > 30) class="description-text-long"
+                                        @endif>{{$current_wo->description}}</span>
+                                </strong></div>
+                        </div>
+                        <div class="row" style="height: 32px">
+                            <div class="col-6 pt-2 text-end"><strong>PART NUMBER:</strong></div>
+                            <div class="col-6 fs-7 pt-2 border-b"><strong>{{$current_wo->unit->part_number}}</strong></div>
+                        </div>
+                        <div class="row" style="height: 32px">
+                            <div class="col-6 pt-2 text-end"><strong>WORK ORDER No:</strong></div>
+                            <div class="col-6 fs-7 pt-2 border-b"><strong>W{{$current_wo->number}}</strong></div>
+                        </div>
+                        <div class="row" style="height: 32px">
+                            <div class="col-6 pt-2 text-end"><strong>SERIAL No:</strong></div>
+                            <div class="col-6 fs-7 pt-2 border-b"><strong>{{$current_wo->serial_number}}</strong></div>
+                        </div>
+                    </div>
+                    <div class="col-6">
+                        <div class="row" style="height: 32px">
+                            <div class="col-4 pt-2 text-end"><strong>DATE:</strong></div>
+                            <div class="col-8 pt-2 border-b"></div>
+                        </div>
+                        <div class="row" style="height: 32px">
+                            <div class="col-4 pt-2 text-end"><strong>RO No:</strong></div>
+                            <div class="col-8 pt-2 border-b">INTERNAL</div>
+                        </div>
+                        <div class="row" style="height: 32px">
+                            <div class="col-4 pt-2 text-end"><strong>VENDOR:</strong></div>
+                            <div class="col-8 pt-2 border-b"><strong> AVIATECHNIK</strong></div>
+                        </div>
+                    </div>
+                </div>
+                <div class="row">
+                    <div class="col-6"></div>
+                    <div class="col-3 text-end pe-2 pt-3">
+                        <strong>
+                            MANUAL REF:
+                        </strong>
+                    </div>
+                    <div class="col-3 border-all text-center" style="height: 55px">
+                        @foreach($manuals as $manual)
+                            @if($manual->id == $current_wo->unit->manual_id)
+                                <h6 class="text-center mt-3"> <strong> {{substr($manual->number, 0, 8)}} </strong></h6>
+                            @endif
+                        @endforeach
+                    </div>
+                </div>
+                <h5 class="ps-3 mt-2 mb-2 ">
+                    @foreach($manuals as $manual)
+                        @if($manual->id == $current_wo->unit->manual_id)
+                            <h6 class="ps-4">
+                                <strong class="">
+                                {{__('Perform the Stress Relief as specified under Process No. and in accordance with SMM No. ')}}
+                              </strong>
+                           </h6>
+                        @endif
+                    @endforeach
+                </h5>
+            </div>
+            <div class="page table-header">
+                <div class="row mt-2">
+                    <div class="col-1 border-l-t-b pt-2 details-row text-center" style="height: 42px"><h6 class="fs-7">
+                            <strong>ITEM No.</strong></h6></div>
+                    <div class="col-2 border-l-t-b pt-2 details-row text-center" style="height: 42px"><h6 class="fs-7"><strong>PART No.</strong></h6></div>
+                    <div class="col-2 border-l-t-b pt-2 details-row text-center" style="height: 42px"><h6 class="fs-7"><strong>DESCRIPTION</strong></h6></div>
+                    <div class="col-4 border-l-t-b pt-2 details-row text-center" style="height: 42px"><h6 class="fs-7"><strong>PROCESS No.</strong></h6></div>
+                    <div class="col-1 border-l-t-b pt-2 details-row text-center" style="height: 42px"><h6 class="fs-7"><strong>QTY</strong></h6></div>
+                    <div class="col-2 border-all pt-2  details-row  text-center" style="height: 42px">
+                        <h6  class="fs-7" ><strong>PERFORMED</strong> </h6>
+                    </div>
+                </div>
+            </div>
+        @endif
+
+        <div class="page data-page" data-page-index="{{ $loop->iteration }}">
+            @php
+                // Используем данные из chunkInfo, рассчитанные на бэкенде
+                $chunk = isset($chunkInfo['components']) ? $chunkInfo['components'] : [];
+                $previousManual = $previousChunkLastManual;
+                $chunkLastManual = null;
+                $rowIndex = 1;
+                $isLastPage = $loop->last;
+            @endphp
+
+            @foreach($chunk as $component)
+            @php
+                $currentManual = $component->manual ?? null;
+                $shouldInsertManualRow = ($currentManual !== null && $currentManual !== '' && $currentManual !== $previousManual);
+            @endphp
+
+            @if($shouldInsertManualRow)
+                {{-- Строка с Manual --}}
+                <div class="row fs-85 data-row manual-row" data-row-index="{{ $rowIndex }}">
+                    <div class="col-1 border-l-b details-cell text-center" style="min-height: 34px; font-weight: bold;">
+                        <!-- Пустая ячейка -->
+                    </div>
+                    <div class="col-2 border-l-b details-cell text-center" style="min-height: 34px; font-weight: bold;">
+                        <!-- Пустая ячейка -->
+                    </div>
+                    <div class="col-2 border-l-b details-cell text-center" style="min-height: 34px; font-weight: bold;">
+                        <strong>{{ $currentManual }}</strong>
+                    </div>
+                    <div class="col-4 border-l-b details-cell text-center" style="min-height: 34px; font-weight: bold;">
+                        <!-- Пустая ячейка -->
+                    </div>
+                    <div class="col-1 border-l-b details-cell text-center" style="min-height: 34px; font-weight: bold;">
+                        <!-- Пустая ячейка -->
+                    </div>
+                    <div class="col-2 border-l-b-r details-cell text-center" style="min-height: 34px; font-weight: bold;">
+                        <!-- Пустая ячейка -->
+                    </div>
+                </div>
+                @php $rowIndex++; @endphp
+            @endif
+
             <div class="row fs-85 data-row" data-row-index="{{ $rowIndex }}">
                 <div class="col-1 border-l-b details-cell text-center" style="min-height: 34px">
                     {{ $component->ipl_num }}
@@ -310,39 +452,112 @@
 {{--                    @endforeach--}}
                 </div>
             </div>
-            @php $rowIndex++; @endphp
-        @endforeach
+                @php
+                    $rowIndex++;
+                    $previousManual = $currentManual;
+                    if ($currentManual !== null && $currentManual !== '') {
+                        $chunkLastManual = $currentManual;
+                    }
+                @endphp
+            @endforeach
 
-        @for ($i = 0; $i < $emptyRows; $i++)
-            <div class="row empty-row" data-row-index="{{ $rowIndex }}">
-                <div class="col-1 border-l-b text-center" style="height: 32px"></div>
-                <div class="col-2 border-l-b text-center" style="height: 32px"></div>
-                <div class="col-2 border-l-b text-center" style="height: 32px"></div>
-                <div class="col-4 border-l-b text-center" style="height: 32px"></div>
-                <div class="col-1 border-l-b text-center" style="height: 32px"></div>
-                <div class="col-2 border-l-b-r text-center" style="height: 32px"></div>
-            </div>
-            @php $rowIndex++; @endphp
-        @endfor
-    </div>
+            {{-- Генерируем пустые строки на бэкенде --}}
+            @if(isset($chunkInfo['empty_rows']) && $chunkInfo['empty_rows'] > 0)
+                @for($i = 0; $i < $chunkInfo['empty_rows']; $i++)
+                    <div class="row fs-85 data-row empty-row" data-row-index="{{ $rowIndex }}">
+                        <div class="col-1 border-l-b details-cell text-center" style="height: 32px"></div>
+                        <div class="col-2 border-l-b details-cell text-center" style="height: 32px"></div>
+                        <div class="col-2 border-l-b details-cell text-center" style="height: 32px"></div>
+                        <div class="col-4 border-l-b details-cell text-center" style="height: 32px"></div>
+                        <div class="col-1 border-l-b details-cell text-center" style="height: 32px"></div>
+                        <div class="col-2 border-l-b-r details-cell text-center" style="height: 32px"></div>
+                    </div>
+                    @php $rowIndex++; @endphp
+                @endfor
+            @endif
 
+            @php
+                // Сохраняем последний manual для следующего chunk
+                $previousChunkLastManual = $chunkLastManual ?? $previousManual;
+            @endphp
+        </div>
 
     <footer>
         <div class="row fs-85" style="width: 100%; padding: 5px 0;">
             <div class="col-6 text-start">
                 {{__('Form # 015')}}
-{{--                {{$form_number}}--}}
+                </div>
+                <div class="col-3 text-center">
+{{--                    {{__('Page')}} {{ $loop->iteration }} {{__('of')}} {{ $componentChunks->count() }}--}}
             </div>
-            <div class="col-6 text-end pe-4">
+                <div class="col-3 text-end pe-4">
                 {{__('Rev#0, 15/Dec/2012   ')}}
                 <br>
                 {{'Total: '}} {{ $stressSum['total_qty'] }}
             </div>
         </div>
     </footer>
+
+        @php
+            // Сохраняем последний manual для следующего chunk
+            $previousChunkLastManual = $chunkLastManual ?? $previousManual;
+        @endphp
+
+        @if(!$loop->last)
+            <div style="page-break-after: always;"></div>
+        @endif
+    @endforeach
 </div>
-</body>
 <script>
+// Предотвращаем ошибки Chart.js - переопределяем функцию как можно раньше
+(function() {
+    function patchChartJs() {
+        if (typeof Chart !== 'undefined' && Chart.helpers) {
+            const originalIdentifyDuplicates = Chart.helpers.identifyDuplicates;
+            if (originalIdentifyDuplicates && typeof originalIdentifyDuplicates === 'function') {
+                Chart.helpers.identifyDuplicates = function(statements) {
+                    if (!statements || !Array.isArray(statements)) {
+                        return [];
+                    }
+                    try {
+                        return originalIdentifyDuplicates.call(this, statements);
+                    } catch (e) {
+                        console.warn('Chart.js identifyDuplicates error:', e);
+                        return [];
+                    }
+                };
+            }
+        }
+    }
+
+    // Пытаемся переопределить сразу
+    patchChartJs();
+
+    // Также переопределяем после загрузки DOM
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', patchChartJs);
+    } else {
+        // DOM уже загружен
+        setTimeout(patchChartJs, 0);
+    }
+
+    // Переопределяем при каждом изменении Chart (на случай асинхронной загрузки)
+    let chartCheckInterval = setInterval(function() {
+        if (typeof Chart !== 'undefined' && Chart.helpers) {
+            patchChartJs();
+            clearInterval(chartCheckInterval);
+        }
+    }, 100);
+
+    // Останавливаем проверку через 5 секунд
+    setTimeout(function() {
+        clearInterval(chartCheckInterval);
+    }, 5000);
+})();
+</script>
+<script src="{{ asset('js/table-height-adjuster.js') }}"></script>
+<script>
+
     document.addEventListener("DOMContentLoaded", function() {
         // Функция для добавления пустой строки
         function addEmptyRowRegular(rowIndex, tableElement) {
@@ -376,50 +591,37 @@
             if (row) row.remove();
         }
 
-        // Настройка высоты таблицы
+        // Настройка высоты всех таблиц после загрузки (только визуальная настройка)
+        // Пустые строки уже сгенерированы на бэкенде
         setTimeout(function() {
-            const regularTableContainer = document.querySelector('.data-page');
-            const regularRows = document.querySelectorAll('.data-page .data-row');
-            if (regularTableContainer && regularRows.length > 0) {
-                adjustTableHeightToRange({
-                    min_height_tab: 650,
-                    max_height_tab: 700,
-                    tab_name: '.data-page',
-                    row_height: 34,
-                    row_selector: '.data-page [data-row-index]',
-                    addRowCallback: addEmptyRowRegular,
-                    removeRowCallback: removeRowRegular,
-                    getRowIndexCallback: function(rowElement) {
-                        return parseInt(rowElement.getAttribute('data-row-index')) || 0;
-                    },
-                    max_iterations: 50,
-                    onComplete: function(currentHeight, rowCount) {
-                        console.log(`Stress Relief таблица настроена: высота ${currentHeight}px, строк ${rowCount}`);
-                    }
-                });
-            }
-
-            // Старый код для удаления пустых строк на основе высоты ячеек процесса
-            var processCells = document.querySelectorAll('.data-row .process-cell');
-            var totalExtraLines = 0;
-
-            processCells.forEach(function(cell) {
-                var cellHeight = cell.offsetHeight;
-                if(cellHeight > 32) {
-                    var extraLines = Math.floor((cellHeight - 32) / 16);
-                    totalExtraLines += extraLines;
+            const dataPages = document.querySelectorAll('.data-page');
+            
+            dataPages.forEach(function(pageContainer, pageIndex) {
+                const regularRows = pageContainer.querySelectorAll('.data-row');
+                
+                if (regularRows.length > 0) {
+                    // Только визуальная настройка высоты таблицы
+                    // Не добавляем/удаляем строки - это уже сделано на бэкенде
+                    adjustTableHeightToRange({
+                        min_height_tab: 600,
+                        max_height_tab: 650,
+                        tab_name: pageContainer,
+                        row_height: 34,
+                        row_selector: '.data-row[data-row-index]',
+                        addRowCallback: function() {}, // Не добавляем строки - они уже на бэкенде
+                        removeRowCallback: function() {}, // Не удаляем строки - только пустые можно удалить
+                        getRowIndexCallback: function(rowElement) {
+                            return parseInt(rowElement.getAttribute('data-row-index')) || 0;
+                        },
+                        max_iterations: 50,
+                        onComplete: function(currentHeight, rowCount) {
+                            console.log(`Stress Relief страница ${pageIndex + 1}: высота настроена - ${currentHeight}px, строк ${rowCount}`);
+                        }
+                    });
                 }
             });
-
-            var emptyRowsToRemove = Math.floor(totalExtraLines / 2);
-            var emptyRows = document.querySelectorAll('.empty-row');
-            for (var i = 0; i < emptyRowsToRemove && i < emptyRows.length; i++) {
-                if (emptyRows[i] && !emptyRows[i].hasAttribute('data-keep')) {
-                    emptyRows[i].remove();
-                }
-            }
         }, 200);
     });
 </script>
-
+</body>
 </html>
