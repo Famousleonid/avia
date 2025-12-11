@@ -16,12 +16,21 @@
     <link rel="stylesheet" href="{{asset('css/main.css')}}">
     <link rel="stylesheet" href="{{ asset('css/paper-button.css') }}">
     <link rel="stylesheet" href="https://unpkg.com/tippy.js@6/dist/tippy.css">
-
     <script>
+        window.forceDarkTheme = @role('Technician') true @else false @endrole;
+
         (function () {
-            const savedTheme = localStorage.getItem('theme') || 'light';
-            document.documentElement.setAttribute('data-bs-theme', savedTheme);
+            if (window.forceDarkTheme) {
+                // Technician → только тёмная
+                document.documentElement.setAttribute('data-bs-theme', 'dark');
+                localStorage.setItem('theme', 'dark');
+            } else {
+                // Остальные → как было
+                const savedTheme = localStorage.getItem('theme') || 'light';
+                document.documentElement.setAttribute('data-bs-theme', savedTheme);
+            }
         })();
+
     </script>
     <script>
         (function () {
@@ -106,13 +115,14 @@
 <script src="https://unpkg.com/@popperjs/core@2"></script>
 <script src="https://unpkg.com/tippy.js@6"></script>
 <script src="{{ asset('js/main.js') }}"></script>
-
 <script>
     window.addEventListener('load', function () {
         hideLoadingSpinner();
+
         const themeToggle = document.getElementById('themeToggle');
         const themeToggleMobile = document.getElementById('themeToggleMobile');
 
+        // Tippy подсказки
         tippy('[data-tippy-content]', {
             placement: 'top',
             animation: 'scale',
@@ -120,56 +130,85 @@
             delay: [100, 50],
         });
 
+        // Bootstrap tooltips (атрибут data-toggle="tooltip")
+        $(function () {
+            $('[data-toggle="tooltip"]').tooltip();
+        });
+
+        // Обновление иконки темы (солнышко / луна)
         function updateThemeIcon(theme) {
             const iconClass = theme === 'dark' ? 'bi-sun' : 'bi-moon';
+
             if (themeToggle) {
                 const icon = themeToggle.querySelector('i');
                 if (icon) {
-                    icon.className = `bi ${iconClass}`;
+                    icon.className = 'bi ' + iconClass;
                 }
             }
+
             if (themeToggleMobile) {
                 const icon = themeToggleMobile.querySelector('i');
                 if (icon) {
-                    icon.className = `bi ${iconClass}`;
+                    icon.className = 'bi ' + iconClass;
                 }
             }
         }
 
-        function toggleTheme() {
-            let currentTheme = document.documentElement.getAttribute('data-bs-theme');
-            let newTheme = currentTheme === 'light' ? 'dark' : 'light';
-            document.documentElement.setAttribute('data-bs-theme', newTheme);
-            localStorage.setItem('theme', newTheme);
-            updateThemeIcon(newTheme);
+        // ------------------------------------
+        // 🔥 ТОЛЬКО ДЛЯ Technician: всегда DARK
+        // ------------------------------------
+        if (window.forceDarkTheme) {
+            // Форсим тёмную тему и в DOM, и в localStorage
+            document.documentElement.setAttribute('data-bs-theme', 'dark');
+            localStorage.setItem('theme', 'dark');
+            updateThemeIcon('dark');
+
+            // Кнопки темы отключаем (чтобы не путали)
+            if (themeToggle) {
+                themeToggle.addEventListener('click', function (e) {
+                    e.preventDefault();
+                });
+            }
+
+            if (themeToggleMobile) {
+                themeToggleMobile.addEventListener('click', function (e) {
+                    e.preventDefault();
+                });
+            }
+
+        } else {
+            // ------------------------------------
+            // 🔥 ДЛЯ ДРУГИХ РОЛЕЙ: нормальное переключение
+            // ------------------------------------
+            function toggleTheme() {
+                let currentTheme = document.documentElement.getAttribute('data-bs-theme');
+                let newTheme = currentTheme === 'light' ? 'dark' : 'light';
+                document.documentElement.setAttribute('data-bs-theme', newTheme);
+                localStorage.setItem('theme', newTheme);
+                updateThemeIcon(newTheme);
+            }
+
+            if (themeToggle) {
+                themeToggle.addEventListener('click', function (e) {
+                    e.preventDefault();
+                    toggleTheme();
+                });
+            }
+
+            if (themeToggleMobile) {
+                themeToggleMobile.addEventListener('click', function (e) {
+                    e.preventDefault();
+                    toggleTheme();
+                });
+            }
+
+            // Инициализируем тему из localStorage
+            let storedTheme = localStorage.getItem('theme') || 'light';
+            document.documentElement.setAttribute('data-bs-theme', storedTheme);
+            updateThemeIcon(storedTheme);
         }
 
-        if (themeToggle) {
-            themeToggle.addEventListener('click', function (e) {
-                e.preventDefault();
-                toggleTheme();
-            });
-            hideLoadingSpinner();
-        }
-
-        if (themeToggleMobile) {
-            themeToggleMobile.addEventListener('click', function (e) {
-                e.preventDefault();
-                toggleTheme();
-            });
-            hideLoadingSpinner();
-        }
-
-        let storedTheme = localStorage.getItem('theme') || 'light';
-        document.documentElement.setAttribute('data-bs-theme', storedTheme);
-        updateThemeIcon(storedTheme);
-
-        $(function () {
-            $('[data-toggle="tooltip"]').tooltip()
-        })
-
-        //------------------------------------------------------------------------------------------------------------------------
-
+        // Подсветка активного пункта в sidebar (один раз)
         $('#sidebarMenu a').each(function () {
             let location = window.location.protocol + '//' + window.location.host + window.location.pathname;
             let link = this.href;
@@ -181,7 +220,6 @@
 </script>
 
 @yield('scripts')
-
 
 <script>
     // Подавляем ошибки MetaMask и другие некритичные ошибки
@@ -199,7 +237,7 @@
         if (errorMessage.includes('is not iterable') ||
             errorMessage.includes('identifyDuplicates') ||
             errorMessage.includes('statements is not iterable') ||
-            errorMessage.includes('statements') && errorMessage.includes('iterable')) {
+            (errorMessage.includes('statements') && errorMessage.includes('iterable'))) {
             e.preventDefault();
             e.stopPropagation();
             return false;
@@ -228,14 +266,15 @@
         return true;
     });
 
-    // Подавляем необработанные промисы
+    // Дополнительный обработчик необработанных промисов
     window.addEventListener('unhandledrejection', function(e) {
         if (e.reason && e.reason.message && e.reason.message.includes('MetaMask')) {
             e.preventDefault();
             return false;
         }
         // Подавляем ошибки "is not iterable" в identifyDuplicates
-        if (e.reason && e.reason.message && (e.reason.message.includes('is not iterable') || e.reason.message.includes('identifyDuplicates'))) {
+        if (e.reason && e.reason.message &&
+            (e.reason.message.includes('is not iterable') || e.reason.message.includes('identifyDuplicates'))) {
             console.warn('Suppressed promise rejection:', e.reason.message);
             e.preventDefault();
             return false;
@@ -244,7 +283,7 @@
 
     //------------------------------------------------------------------------------------------------------------------------
 
-    // Подсветка активного пункта в sidebar
+    // Ещё раз подсветка активного пункта в sidebar (можно удалить, если дублируется)
     $('#sidebarMenu a').each(function () {
         let location = window.location.protocol + '//' + window.location.host + window.location.pathname;
         let link = this.href;
@@ -281,7 +320,6 @@
             setArrow(!collapsed);
         });
     }
-
 </script>
 
 </body>

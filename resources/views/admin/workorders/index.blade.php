@@ -40,11 +40,34 @@
             vertical-align: middle;
         }
 
-        .col-number { width: 100px; font-size: 0.9rem; }
-        .col-approve { width: 60px; font-size: 0.7rem; font-weight: normal; }
-        .col-edit { width: 60px; font-size: 0.8rem; font-weight: normal; }
-        .col-delete { width: 60px; font-size: 0.8rem; font-weight: normal; }
-        .col-date { width: 100px; font-size: 0.8rem; font-weight: normal; }
+        .col-number {
+            width: 100px;
+            font-size: 0.9rem;
+        }
+
+        .col-approve {
+            width: 60px;
+            font-size: 0.7rem;
+            font-weight: normal;
+        }
+
+        .col-edit {
+            width: 60px;
+            font-size: 0.8rem;
+            font-weight: normal;
+        }
+
+        .col-delete {
+            width: 60px;
+            font-size: 0.8rem;
+            font-weight: normal;
+        }
+
+        .col-date {
+            width: 100px;
+            font-size: 0.8rem;
+            font-weight: normal;
+        }
 
         .table thead th {
             position: sticky;
@@ -161,16 +184,15 @@
             content: "";
             position: absolute;
 
-            left: 0;                 /* начинаем ровно от края чекбокса */
-            right: 0;                /* тянем до конца текста */
-            bottom: 0;               /* под всем блоком */
+            left: 0; /* начинаем ровно от края чекбокса */
+            right: 0; /* тянем до конца текста */
+            bottom: 0; /* под всем блоком */
             height: 3px;
 
-            background: #0d6efd;     /* синий */
+            background: #0d6efd; /* синий */
             border-radius: 2px;
             opacity: 0.45;
         }
-
 
 
     </style>
@@ -203,9 +225,9 @@
                 </button>
             </div>
 
-            {{-- Фильтры справа --}}
             <div class="d-flex flex-wrap align-items-center gap-5">
 
+                @roles("Admin|Manager")
                 {{-- Customer filter --}}
                 <div class="d-flex align-items-end  filter-select-wrapper">
                     <div class="flex-grow-1">
@@ -239,6 +261,8 @@
                         <i class="bi bi-x"></i>
                     </button>
                 </div>
+                @endroles
+
 
                 <label class="checkbox-group">
                     <input type="checkbox" id="woDone">
@@ -255,19 +279,9 @@
                     <span>Approved</span>
                 </label>
 
-{{--                <div class="form-check d-flex align-items-center mb-0">--}}
-{{--                    <input class="form-check-input" type="checkbox" id="currentUserCheckbox" checked--}}
-{{--                           style="width: 1.2em; height: 1.2em;">--}}
-{{--                    <label class="form-check-label ms-2 checkbox-group" for="currentUserCheckbox">My workorders</label>--}}
-{{--                </div>--}}
-
-{{--                <div class="form-check d-flex align-items-center mb-0">--}}
-{{--                    <input class="form-check-input" type="checkbox" id="approvedCheckbox"--}}
-{{--                           style="width: 1.2em; height: 1.2em;">--}}
-{{--                    <label class="form-check-label ms-2 checkbox-group" for="approvedCheckbox">Approved</label>--}}
-{{--                </div>--}}
-
             </div>
+
+
         </div>
 
         @if(count($workorders))
@@ -426,27 +440,27 @@
 
 @section('scripts')
     <script>
-        const currentUserId   = {{ auth()->id() }};
+        const currentUserId = {{ auth()->id() }};
         const currentUserName = @json(trim(auth()->user()->name));
         const currentUserNameLC = currentUserName.toLowerCase();
 
         document.addEventListener('DOMContentLoaded', function () {
 
-            const searchInput    = document.getElementById('searchInput');
+            const searchInput = document.getElementById('searchInput');
             const clearSearchBtn = document.getElementById('clearSearch');
 
-            const checkboxMy       = document.getElementById('currentUserCheckbox');
-            const checkboxDone     = document.getElementById('woDone');
+            const checkboxMy = document.getElementById('currentUserCheckbox');
+            const checkboxDone = document.getElementById('woDone');
             const checkboxApproved = document.getElementById('approvedCheckbox');
 
-            const customerFilter   = document.getElementById('customerFilter');
-            const technikFilter    = document.getElementById('technikFilter');
+            const customerFilter = document.getElementById('customerFilter');
+            const technikFilter = document.getElementById('technikFilter');
             const clearCustomerBtn = document.getElementById('clearCustomerFilter');
-            const clearTechnikBtn  = document.getElementById('clearTechnikFilter');
+            const clearTechnikBtn = document.getElementById('clearTechnikFilter');
 
-            const table        = document.getElementById('show-workorder');
+            const table = document.getElementById('show-workorder');
             const tableWrapper = document.querySelector('.table-wrapper');
-            const headers      = document.querySelectorAll('.sortable');
+            const headers = document.querySelectorAll('.sortable');
 
             const tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
             tooltipTriggerList.map(function (tooltipTriggerEl) {
@@ -460,12 +474,12 @@
             clearSearchBtn.style.display = searchInput.value ? 'block' : 'none';
 
             // --- восстановление состояний чекбоксов из localStorage ---
-            const savedMy       = localStorage.getItem('myWorkordersCheckbox');
-            const savedDone     = localStorage.getItem('doneCheckbox');
+            const savedMy = localStorage.getItem('myWorkordersCheckbox');
+            const savedDone = localStorage.getItem('doneCheckbox');
             const savedApproved = localStorage.getItem('approvedCheckbox');
 
-            checkboxMy.checked       = savedMy       !== null ? savedMy       === 'true' : true;
-            checkboxDone.checked     = savedDone     !== null ? savedDone     === 'true' : false;
+            checkboxMy.checked = savedMy !== null ? savedMy === 'true' : true;
+            checkboxDone.checked = savedDone !== null ? savedDone === 'true' : false;
             checkboxApproved.checked = savedApproved !== null ? savedApproved === 'true' : false;
 
             localStorage.setItem('myWorkordersCheckbox', checkboxMy.checked);
@@ -474,10 +488,10 @@
 
             // восстановление фильтров select из localStorage
             const savedCustomer = localStorage.getItem('woCustomerFilter') || '';
-            const savedTechnik  = localStorage.getItem('woTechnikFilter')  || '';
+            const savedTechnik = localStorage.getItem('woTechnikFilter') || '';
 
             if (customerFilter) customerFilter.value = savedCustomer;
-            if (technikFilter)  technikFilter.value  = savedTechnik;
+            if (technikFilter) technikFilter.value = savedTechnik;
 
             function updateSelectClearButton(selectEl, buttonEl) {
                 if (!selectEl || !buttonEl) return;
@@ -495,31 +509,31 @@
             let firstFilterDone = false;
 
             function filterTable() {
-                const filterText   = searchInput.value.toLowerCase();
-                const onlyMy       = checkboxMy.checked;
-                const onlyActive   = checkboxDone.checked;
+                const filterText = searchInput.value.toLowerCase();
+                const onlyMy = checkboxMy.checked;
+                const onlyActive = checkboxDone.checked;
                 const onlyApproved = checkboxApproved.checked;
 
                 const selectedCustomer = customerFilter ? customerFilter.value : '';
-                const selectedTechnik  = technikFilter  ? technikFilter.value  : '';
+                const selectedTechnik = technikFilter ? technikFilter.value : '';
 
                 const rows = table.querySelectorAll('tbody tr');
 
                 if (typeof showLoadingSpinner === 'function') showLoadingSpinner();
 
                 rows.forEach(row => {
-                    const rowText       = row.innerText.toLowerCase();
-                    const rowTechId     = row.getAttribute('data-tech-id');
+                    const rowText = row.innerText.toLowerCase();
+                    const rowTechId = row.getAttribute('data-tech-id');
                     const rowCustomerId = row.getAttribute('data-customer-id');
-                    const rowStatus     = row.getAttribute('data-status') || 'active';
-                    const rowApproved   = row.getAttribute('data-approved') === '1';
+                    const rowStatus = row.getAttribute('data-status') || 'active';
+                    const rowApproved = row.getAttribute('data-approved') === '1';
 
-                    const matchesSearch   = !filterText || rowText.includes(filterText);
-                    const matchesUser     = onlyMy ? String(rowTechId) === String(currentUserId) : true;
-                    const matchesStatus   = onlyActive ? rowStatus === 'active' : true;
+                    const matchesSearch = !filterText || rowText.includes(filterText);
+                    const matchesUser = onlyMy ? String(rowTechId) === String(currentUserId) : true;
+                    const matchesStatus = onlyActive ? rowStatus === 'active' : true;
                     const matchesApproved = onlyApproved ? rowApproved : true;
                     const matchesCustomer = selectedCustomer ? String(rowCustomerId) === String(selectedCustomer) : true;
-                    const matchesTechnik  = selectedTechnik  ? String(rowTechId)     === String(selectedTechnik)   : true;
+                    const matchesTechnik = selectedTechnik ? String(rowTechId) === String(selectedTechnik) : true;
 
                     row.style.display =
                         (matchesSearch && matchesUser && matchesStatus &&
@@ -541,7 +555,7 @@
             headers.forEach(header => {
                 header.addEventListener('click', () => {
                     const columnIndex = Array.from(header.parentNode.children).indexOf(header) + 1;
-                    const direction   = header.dataset.direction === 'asc' ? 'desc' : 'asc';
+                    const direction = header.dataset.direction === 'asc' ? 'desc' : 'asc';
                     header.dataset.direction = direction;
 
                     headers.forEach(h => {
@@ -622,7 +636,7 @@
             // delete workorder (модалка)
             let currentFormId = null;
             const deleteModal = document.getElementById('useConfirmDelete');
-            const confirmBtn  = document.getElementById('confirmDeleteBtn');
+            const confirmBtn = document.getElementById('confirmDeleteBtn');
 
             deleteModal.addEventListener('show.bs.modal', event => {
                 const button = event.relatedTarget;
