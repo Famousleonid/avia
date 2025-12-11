@@ -134,14 +134,40 @@ function adjustTableHeightToRange(options) {
 
     // Получаем высоту заголовка таблицы (если есть)
     const headerHeight = options.header_height || 0;
-    const rowHeight = options.row_height || 34;
+    let rowHeight = options.row_height || 34;
+    
+    // Функция для динамического пересчета средней высоты строк
+    function recalculateAverageRowHeight() {
+        const rows = table.querySelectorAll(rowSelector);
+        if (rows.length === 0) return rowHeight;
+        
+        let totalHeight = 0;
+        let count = 0;
+        rows.forEach(row => {
+            const height = row.offsetHeight;
+            if (height > 0) {
+                totalHeight += height;
+                count++;
+            }
+        });
+        
+        if (count > 0) {
+            const newAvgHeight = Math.round(totalHeight / count);
+            // Обновляем rowHeight только если разница значительна (более 2px)
+            if (Math.abs(newAvgHeight - rowHeight) > 2) {
+                console.log(`adjustTableHeightToRange: Обновлена средняя высота строки с ${rowHeight}px на ${newAvgHeight}px`);
+                rowHeight = newAvgHeight;
+            }
+        }
+        return rowHeight;
+    }
     
     // Рассчитываем целевое количество строк на основе диапазона высот
     const availableMinHeight = MIN_HEIGHT - headerHeight;
     const availableMaxHeight = MAX_HEIGHT - headerHeight;
-    const targetMinRows = Math.floor(availableMinHeight / rowHeight);
-    const targetMaxRows = Math.floor(availableMaxHeight / rowHeight);
-    const targetAvgRows = Math.round((targetMinRows + targetMaxRows) / 2);
+    let targetMinRows = Math.floor(availableMinHeight / rowHeight);
+    let targetMaxRows = Math.floor(availableMaxHeight / rowHeight);
+    let targetAvgRows = Math.round((targetMinRows + targetMaxRows) / 2);
     
     // Основной цикл настройки высоты
     let iterations = 0;
@@ -152,6 +178,15 @@ function adjustTableHeightToRange(options) {
     while (iterations < MAX_ITERATIONS) {
         const currentHeight = table.offsetHeight;
         const currentRowCount = getCurrentRowCount();
+        
+        // Пересчитываем среднюю высоту строк каждые 3 итерации для более точного расчета
+        if (iterations > 0 && iterations % 3 === 0 && currentRowCount > 0) {
+            const recalculatedHeight = recalculateAverageRowHeight();
+            // Пересчитываем целевое количество строк с учетом новой высоты
+            targetMinRows = Math.floor(availableMinHeight / recalculatedHeight);
+            targetMaxRows = Math.floor(availableMaxHeight / recalculatedHeight);
+            targetAvgRows = Math.round((targetMinRows + targetMaxRows) / 2);
+        }
         
         // Проверка на стабильность (если высота и количество строк не меняются)
         if (currentHeight === lastHeight && currentRowCount === lastRowCount) {
@@ -178,6 +213,7 @@ function adjustTableHeightToRange(options) {
             };
             
             console.log(result.message);
+            console.log(`✓ Целевой диапазон достигнут за ${iterations} итераций`);
             
             if (options.onComplete && typeof options.onComplete === 'function') {
                 options.onComplete(currentHeight, rowCount);
@@ -185,19 +221,29 @@ function adjustTableHeightToRange(options) {
             
             return result;
         }
+        
+        // Дополнительная отладочная информация
+        if (iterations % 5 === 0) {
+            console.log(`Итерация ${iterations}: высота=${currentHeight}px (цель: ${MIN_HEIGHT}-${MAX_HEIGHT}px), строк=${currentRowCount} (цель: ${targetMinRows}-${targetMaxRows})`);
+        }
 
         // Улучшенная логика корректировки высоты с учетом целевого количества строк
         if (currentHeight < MIN_HEIGHT) {
             // Высота меньше минимума - добавляем строки
+            console.log(`Итерация ${iterations}: Высота ${currentHeight}px < минимум ${MIN_HEIGHT}px, нужно добавить строки`);
+            console.log(`Текущее количество строк: ${currentRowCount}, целевое минимальное: ${targetMinRows}, максимальное: ${targetMaxRows}`);
+            
             // Если текущее количество строк меньше минимального целевого, добавляем несколько строк сразу
             if (currentRowCount < targetMinRows) {
                 const rowsToAdd = Math.min(targetMinRows - currentRowCount, 3); // Добавляем до 3 строк за раз
+                console.log(`Добавляем ${rowsToAdd} строк(и) для достижения минимального целевого количества`);
                 for (let i = 0; i < rowsToAdd; i++) {
                     const maxIndex = getMaxRowIndex();
                     addRow(maxIndex + 1);
                 }
             } else {
                 // Если уже близко к целевому, добавляем по одной строке
+                console.log(`Добавляем 1 строку (уже близко к целевому)`);
                 const maxIndex = getMaxRowIndex();
                 addRow(maxIndex + 1);
             }

@@ -636,6 +636,7 @@
     </div>
 </footer>
 
+<script src="{{ asset('js/table-height-adjuster.js') }}"></script>
 <script>
 document.addEventListener("DOMContentLoaded", function() {
     // Функция для добавления пустой строки NDT таблицы
@@ -705,6 +706,12 @@ document.addEventListener("DOMContentLoaded", function() {
 
     // Настройка высоты таблиц после загрузки
     setTimeout(function() {
+        // Проверяем, что функция adjustTableHeightToRange загружена
+        if (typeof adjustTableHeightToRange === 'undefined') {
+            console.error('adjustTableHeightToRange не загружена. Проверьте подключение скрипта table-height-adjuster.js');
+            return;
+        }
+
         // Настройка таблицы NDT (если она есть)
         const ndtRows = document.querySelectorAll('.data-row-ndt');
         if (ndtRows.length > 0) {
