@@ -11,6 +11,7 @@
             <i class="bi bi-list-check me-2"></i> <span>Training</span>
         </a>
     </li>
+
     @roles("Admin|Team Leader|Manager")
 
     <li class="nav-item">
@@ -85,12 +86,13 @@
                 <i class="bi bi-phone me-2"></i> <span>Mobile</span>
             </a>
         </li>
+        <li class="nav-item border-top">
+            <a class="nav-link" href="#" id="{{ $themeToggleId }}">
+                <i class="bi bi-moon me-2"></i>&nbsp; <span>Thema</span>
+            </a>
+        </li>
     @endif
-    <li class="nav-item border-top">
-        <a class="nav-link" href="#" id="{{ $themeToggleId }}">
-            <i class="bi bi-moon me-2"></i>&nbsp; <span>Thema</span>
-        </a>
-    </li>
+
 
 </ul>
 

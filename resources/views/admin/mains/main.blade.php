@@ -324,17 +324,17 @@
                                                 <span class="badge bg-warning text-dark">Not approved</span>
                                             @endif
 
-                                            <span class="ms-2 fs-4"
+                                            <span class="ms-2 fs-4 me-5"
                                                   data-tippy-content="{{ $current_workorder->description }}"
                                                   style="cursor:help;">&#9432;</span>
 
                                             {{-- TDR --}}
                                             <a href="{{ route('tdrs.show', $current_workorder->id) }}"
-                                               class="btn btn-outline-success"
+                                               class="btn btn-outline-success ms-5"
                                                data-tippy-content="{{ __('TDR Report') }}"
                                                data-tippy-placement="top"
                                                onclick="showLoadingSpinner()">
-                                                <i class="bi bi-hammer" style="font-size:22px; line-height:0;"></i>
+                                                <i class="bi bi-hammer" style="font-size:20px; line-height:0;"></i>
                                             </a>
 
                                             <a class="btn btn-outline-info btn-sm open-photo-modal"

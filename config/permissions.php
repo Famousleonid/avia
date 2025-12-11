@@ -5,7 +5,7 @@ return [
         'viewAny' => ['Admin','Manager', 'Team Leader', 'Technician'],
         'view'    => ['Admin','Manager', 'Team Leader', 'Technician'],
         'create'  => ['Admin','Manager', 'Team Leader', 'Technician'],
-        'update'  => ['Admin'],
+        'update'  => ['Admin','Manager', 'Team Leader', 'Technician'],
         'delete'  => ['Admin'],
         'approve' => ['Admin','Manager'],
     ],
