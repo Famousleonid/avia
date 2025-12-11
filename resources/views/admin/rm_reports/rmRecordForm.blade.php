@@ -795,21 +795,21 @@
                 // Информационный блок скрыт
                 // Раскомментируйте код ниже, если нужно показать информационный блок на странице
 
-                const infoDiv = document.createElement('div');
-                infoDiv.className = 'no-print';
-                infoDiv.style.cssText = 'position: fixed; top: 10px; right: 10px; background: rgba(0,0,0,0.8); color: white; padding: 15px; border-radius: 5px; z-index: 10000; font-size: 12px;';
-                const rowInfo = heights.rowHeightInfo ?
-                    `<br><strong>Высоты строк:</strong><br>
-                    Мин: ${heights.rowHeightInfo.min}px, Макс: ${heights.rowHeightInfo.max}px, Средняя: ${heights.rowHeightInfo.avg}px` : '';
-                infoDiv.innerHTML = `
-                    <strong>Высота таблиц:</strong><br>
-                    Таблица 1 (.parent): ${heights.table1Height}px<br>
-                    Таблица 2 (.qc_stamp): ${heights.table2Height}px<br>
-                    Отступ: ${heights.marginBetween}px<br>
-                    <strong>Общая высота: ${heights.totalHeight}px</strong><br>
-                    <strong>Количество строк: ${getCurrentRowCount()}</strong>${rowInfo}
-                `;
-                document.body.appendChild(infoDiv);
+                // const infoDiv = document.createElement('div');
+                // infoDiv.className = 'no-print';
+                // infoDiv.style.cssText = 'position: fixed; top: 10px; right: 10px; background: rgba(0,0,0,0.8); color: white; padding: 15px; border-radius: 5px; z-index: 10000; font-size: 12px;';
+                // const rowInfo = heights.rowHeightInfo ?
+                //     `<br><strong>Высоты строк:</strong><br>
+                //     Мин: ${heights.rowHeightInfo.min}px, Макс: ${heights.rowHeightInfo.max}px, Средняя: ${heights.rowHeightInfo.avg}px` : '';
+                // infoDiv.innerHTML = `
+                //     <strong>Высота таблиц:</strong><br>
+                //     Таблица 1 (.parent): ${heights.table1Height}px<br>
+                //     Таблица 2 (.qc_stamp): ${heights.table2Height}px<br>
+                //     Отступ: ${heights.marginBetween}px<br>
+                //     <strong>Общая высота: ${heights.totalHeight}px</strong><br>
+                //     <strong>Количество строк: ${getCurrentRowCount()}</strong>${rowInfo}
+                // `;
+                // document.body.appendChild(infoDiv);
 
             }
         }, 100); // Небольшая задержка для полной отрисовки
