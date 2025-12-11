@@ -122,6 +122,7 @@ Route::group(['middleware' => ['auth']], function () {
         Route::get('tdrs/edit/{id}', [TdrController::class, 'edit'])->name('tdrs.edit');
         Route::get('tdrs/show/{id}', [TdrController::class, 'show'])->name('tdrs.show');
         Route::get('tdrs/processes/{workorder_id}',[TdrController::class, 'processes'])->name('tdrs.processes');
+        Route::get('tdrs/{id}/group-forms/{processNameId}', [TdrController::class, 'showGroupForms'])->name('tdrs.show_group_forms');
         Route::get('/tdrs/inspection/{workorder_id}',[TdrController::class, 'inspection'])->name('tdrs.inspection');
         Route::get('tdrs/logCardForm/{id}', [TdrController::class, 'logCardForm'])->name('tdrs.logCardForm');
         Route::get('log_card/logCardForm/{id}', [LogCardController::class, 'logCardForm'])->name('log_card.logCardForm');

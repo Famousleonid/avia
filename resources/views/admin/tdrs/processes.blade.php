@@ -78,6 +78,75 @@
             border: none;
             cursor: pointer;
         }
+
+        /* Стили для модального окна Group Process Forms */
+        .group-form-link {
+            text-decoration: none;
+            transition: all 0.3s ease;
+        }
+
+        .group-form-link:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+        }
+
+        .vendor-select {
+            transition: all 0.3s ease;
+        }
+
+        .vendor-select:focus {
+            border-color: #0d6efd;
+            box-shadow: 0 0 0 0.2rem rgba(13, 110, 253, 0.25);
+        }
+
+        /* Стили для модального окна Group Process Forms */
+        #groupFormsModal .table {
+            margin-bottom: 0;
+        }
+
+        #groupFormsModal .table th {
+            font-weight: 600;
+        }
+
+        #groupFormsModal .table td {
+            vertical-align: middle;
+            padding: 1rem;
+        }
+
+        .component-checkboxes {
+            max-height: 200px;
+            overflow-y: auto;
+            padding: 0.5rem;
+            color: inherit;
+        }
+
+        .component-checkbox:checked + .form-check-label {
+            font-weight: 500;
+            color: inherit;
+        }
+
+        .component-checkboxes .form-check {
+            margin-bottom: 0.5rem;
+            padding: 0.25rem;
+            border-radius: 4px;
+            transition: background-color 0.2s;
+            color: inherit;
+        }
+
+        .component-checkboxes .form-check:hover {
+            background-color: rgba(128, 128, 128, 0.1);
+        }
+
+        .component-checkboxes .form-check-label {
+            font-size: 0.9rem;
+            cursor: pointer;
+            margin-left: 0.5rem;
+            color: inherit;
+        }
+
+        .component-checkboxes strong {
+            color: inherit;
+        }
     </style>
 
     <div class="card shadow">
@@ -91,10 +160,19 @@
 
 
                     <div class="ps-2 d-flex" style="width: 540px">
-                        <button class="btn btn-outline-primary" data-bs-toggle="modal"
-                                data-bs-target="#formsModal" style=" height: 60px">
-                            {{__('Forms')}}
-                        </button>
+                        @if(isset($processGroups) && count($processGroups) > 0)
+                            <div style="width: 250px">
+                                <x-paper-button-multy
+                                    text="Group Process Forms"
+                                    color="outline-primary"
+                                    size="landscape"
+                                    width="100"
+                                    ariaLabel="Group Process Forms"
+                                    data-bs-toggle="modal"
+                                    data-bs-target="#groupFormsModal"
+                                />
+                            </div>
+                        @endif
                     </div>
 
                     <x-paper-button
@@ -216,100 +294,243 @@
                     </div>
                 </div><!---- Table  --->
                 <div>
-                    <!-- Modal Forms -->
-                    <div class="modal fade" id="formsModal" tabindex="-1" role="dialog" aria-labelledby="formsModalLabel"
-                         aria-hidden="true" >
-                        <div class="modal-dialog modal-dialog-centered modal-lg" role="document" style="width: 450px">
-                            <div class="modal-content ">
-                                <div class="modal-header bg-gradient">
-                                    <h5 class="modal-title" id="formsModalLabel">{{ __('Forms Processes') }}</h5>
-                                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="{{ __('Close') }}"></button>
-                                </div>
-                                <div class="modal-body">
-                                    @php
-                                        /*
-                                         * Формируем группировку процессов по типу для всех компонентов.
-                                         * Предполагается, что модель processName имеет свойство process_type, в котором хранится тип процесса
-                                         * (например, "NDT", "MACHINING", "HEAT TREATMENT" и т.д.).
-                                         * Если такого свойства нет, можно применить преобразование, например, анализ значения process_sheet_name.
-                                         */
-                                        $globalGroupedProcesses = [];
-                                        // Сортируем процессы по sort_order перед группировкой
-                                        $sortedProcesses = $tdrProcesses->sortBy('sort_order');
-                                        foreach($sortedProcesses as $process) {
-                                            // Используем process_type, если оно есть, иначе можно взять, например, process_sheet_name
-                                            $baseType = $process->processName->process_type ?? $process->processName->process_sheet_name;
-
-                                            // Если базовый тип определён и для него ещё не выбрана запись, сохраняем данные:
-                                            if($baseType) {
-                                                // Сохраняем КОНКРЕТНУЮ запись для открытия одиночной формы
-                                                $globalGroupedProcesses[] = [
-                                                    'label'           => $baseType,
-                                                    'tdr_process_id'  => $process->id,
-                                                    'process_name_id' => $process->process_names_id
-                                                ];
-                                            }
-                                        }
-                                    @endphp
-
-                                    <div class="row ">
-                                        @foreach($globalGroupedProcesses as $data)
-                                            <div class="mb-3 d-flex align-items-center justify-content-between">
-                                                <div class="flex-grow-1 me-2 text-center">
-                                                    <a href="{{ route('tdr-processes.show', [
-                                                               'tdr_process' => $data['tdr_process_id']
-                                                         ]) }}" target="_blank" class="btn btn-outline-primary w-100 form-link"
-                                                       data-tdr-process-id="{{ $data['tdr_process_id'] }}"
-                                                       data-process-name-id="{{ $data['process_name_id'] }}">
-                                                        {{ $data['label'] }}
-                                                    </a>
-                                                </div>
-                                                <div style="width: 160px;">
-                                                    <select class="form-select form-select-sm vendor-select"
-                                                            data-process-name-id="{{ $data['process_name_id'] }}"
-                                                            data-tdr-process-id="{{ $data['tdr_process_id'] }}">
-                                                        <option value="">Vendor</option>
-                                                        @foreach($vendors ?? [] as $vendor)
-                                                            <option value="{{ $vendor->id }}">{{ $vendor->name }}</option>
-                                                        @endforeach
-                                                    </select>
-                                                </div>
-                                            </div>
-                                        @endforeach
-                                    </div>
-
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
                 </div>
                 <div></div>
             </div>
         </div>
 
     </div>
+
+    <!-- Modal - Group Process Forms -->
+    @if(isset($processGroups) && count($processGroups) > 0)
+        <div class="modal fade" id="groupFormsModal" tabindex="-1" aria-labelledby="groupFormsModalLabel" aria-hidden="true">
+            <div class="modal-dialog modal-lg">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title" id="groupFormsModalLabel">
+                            <i class="fas fa-print"></i> {{ __('Group Process Forms') }}
+                        </h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+                    <div class="modal-body">
+                        <div class="row">
+                            <div class="col-12">
+                                <p class="text-muted mb-3">
+                                    <i class="fas fa-info-circle"></i>
+                                    Select a process type to generate a grouped form with all components that have the same process. Each process can have its own vendor and component selection.
+                                </p>
+                            </div>
+                        </div>
+
+                        <div class="table-responsive">
+                            <table class="table table-hover table-bordered bg-gradient shadow">
+                                <thead>
+                                    <tr>
+                                        <th class="text-primary text-center" style="width: 25%;">Process</th>
+                                        <th class="text-primary text-center" style="width: 25%;">Components</th>
+                                        <th class="text-primary text-center" style="width: 25%;">Vendor</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                            @foreach($processGroups as $groupKey => $group)
+                                        @php
+                                            // Для группы NDT используем ID процесса из process_name, иначе используем groupKey
+                                            $actualProcessNameId = ($groupKey == 'NDT_GROUP') ? $group['process_name']->id : $groupKey;
+                                            // Для группы NDT отображаем "NDT", иначе название процесса
+                                            $displayName = ($groupKey == 'NDT_GROUP') ? 'NDT' : $group['process_name']->name;
+                                        @endphp
+                                        <tr>
+                                            <td class="align-middle ">
+                                                <div class="position-relative d-inline-block ms-5">
+                                                <x-paper-button
+                                                    text="{{ $displayName }} "
+                                                    size="landscape"
+                                                    width="120px"
+                                                    href="{{ route('tdrs.show_group_forms', ['id' => $current_wo->id, 'processNameId' => $actualProcessNameId]) }}"
+                                                    target="_blank"
+                                                    class="group-form-button"
+                                                    data-process-name-id="{{ $actualProcessNameId }}"
+                                                > </x-paper-button>
+
+                                                    <span class="badge bg-success  mt-1 ms-1 process-qty-badge"
+                                                          style="position: absolute; top: -5px; left: 5px; min-width: 20px;
+                                                          height: 30px;
+                                              display: flex; align-items: center; justify-content: center; font-size: 0.7rem; padding: 0 5px;">
+                                                        {{$group['qty'] }} pcs</span>
+
+                                                </div>
+
+                                            </td>
+                                            <td class="align-middle">
+                                                <div class="component-checkboxes" data-process-name-id="{{ $actualProcessNameId }}">
+                                                    @if($group['count'] > 1)
+                                                        @foreach($group['components'] as $component)
+                                                            <div class="form-check">
+                                                                <input class=" ms-1 form-check-input component-checkbox"
+                                                                       type="checkbox"
+                                                                       value="{{ $component['id'] }}"
+                                                                       id="component_{{ $actualProcessNameId }}_{{ $component['id'] }}"
+                                                                       data-process-name-id="{{ $actualProcessNameId }}"
+                                                                       data-qty="{{ $component['qty'] }}"
+                                                                       checked>
+                                                                <label class="form-check-label" for="component_{{ $actualProcessNameId }}_{{ $component['id'] }}">
+                                                                    <strong>{{ $component['ipl_num'] }}</strong> -
+                                                                    {{ Str::limit($component['name'], 40) }}
+                                                                    <span class="">Qty: {{ $component['qty'] }}</span>
+                                                                </label>
+                                                            </div>
+                                                        @endforeach
+                                                    @else
+                                                        @foreach($group['components'] as $component)
+                                                            <div class="form-check">
+                                                                <input class="ms-1 form-check-input component-checkbox"
+                                                                       type="checkbox"
+                                                                       value="{{ $component['id'] }}"
+                                                                       id="component_{{ $actualProcessNameId }}_{{ $component['id'] }}"
+                                                                       data-process-name-id="{{ $actualProcessNameId }}"
+                                                                       data-qty="{{ $component['qty'] }}"
+                                                                       checked
+                                                                       disabled>
+                                                                <label class="form-check-label" for="component_{{ $actualProcessNameId }}_{{ $component['id'] }}">
+                                                                    <strong>{{ $component['ipl_num'] }}</strong> -
+                                                                    {{ Str::limit($component['name'], 40) }}
+                                                                    <span class="">Qty: {{ $component['qty'] }}</span>
+                                                                </label>
+                                                            </div>
+                                                        @endforeach
+                                                    @endif
+                                    </div>
+                                            </td>
+                                            <td class="align-middle">
+                                        <select class="form-select vendor-select"
+                                                data-process-name-id="{{ $actualProcessNameId }}"
+                                                style="font-size: 0.9rem;">
+                                            <option value="">No vendor</option>
+                                            @foreach($vendors as $vendor)
+                                                <option value="{{ $vendor->id }}">{{ $vendor->name }}</option>
+                                            @endforeach
+                                        </select>
+                                            </td>
+                                        </tr>
+                            @endforeach
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    @endif
+
     <script>
-        document.addEventListener('DOMContentLoaded', function () {
-            const formsModal = document.getElementById('formsModal');
-            if (!formsModal) return;
+        document.addEventListener('DOMContentLoaded', function() {
+            const vendorSelects = document.querySelectorAll('.vendor-select');
+            const groupFormLinks = document.querySelectorAll('.group-form-link');
+            const groupFormButtons = document.querySelectorAll('.group-form-button');
+            const componentCheckboxes = document.querySelectorAll('.component-checkbox');
 
-            formsModal.addEventListener('click', function (e) {
-                const target = e.target;
-                if (!(target instanceof HTMLElement)) return;
+            // Функция для обновления URL с учетом vendor и компонентов
+            function updateLinkUrl(processNameId) {
+                // Пробуем найти ссылку или кнопку
+                let link = document.querySelector(`.group-form-link[data-process-name-id="${processNameId}"]`);
+                if (!link) {
+                    link = document.querySelector(`.group-form-button[data-process-name-id="${processNameId}"]`);
+                }
+                if (!link) return;
 
-                if (target.matches('a.form-link')) {
-                    const processNameId = target.getAttribute('data-process-name-id');
-                    if (!processNameId) return;
+                const originalUrl = link.getAttribute('href');
+                if (!originalUrl) return;
 
-                    const vendorSelect = formsModal.querySelector(`select.vendor-select[data-process-name-id="${processNameId}"]`);
-                    if (vendorSelect && vendorSelect.value) {
-                        try {
-                            const url = new URL(target.href, window.location.origin);
-                            url.searchParams.set('vendor_id', vendorSelect.value);
-                            target.href = url.toString();
-                        } catch (_) {}
+                const url = new URL(originalUrl, window.location.origin);
+
+                // Добавляем vendor_id если выбран
+                const vendorSelect = document.querySelector(`.vendor-select[data-process-name-id="${processNameId}"]`);
+                if (vendorSelect && vendorSelect.value) {
+                    url.searchParams.set('vendor_id', vendorSelect.value);
+                } else {
+                    url.searchParams.delete('vendor_id');
+                }
+
+                // Добавляем component_ids из выбранных чекбоксов
+                const checkedBoxes = document.querySelectorAll(
+                    `.component-checkbox[data-process-name-id="${processNameId}"]:checked`
+                );
+                if (checkedBoxes.length > 0) {
+                    const selectedComponents = Array.from(checkedBoxes).map(checkbox => checkbox.value);
+                    url.searchParams.set('component_ids', selectedComponents.join(','));
+                } else {
+                    url.searchParams.delete('component_ids');
+                }
+
+                link.setAttribute('href', url.toString());
+            }
+
+            // Функция для обновления badge с количеством
+            function updateQuantityBadge(processNameId) {
+                const checkedBoxes = document.querySelectorAll(
+                    `.component-checkbox[data-process-name-id="${processNameId}"]:checked:not([disabled])`
+                );
+                const badge = document.querySelector(
+                    `.process-qty-badge[data-process-name-id="${processNameId}"]`
+                );
+
+                if (badge && checkedBoxes.length > 0) {
+                    let totalQty = 0;
+                    checkedBoxes.forEach(checkbox => {
+                        const qty = parseInt(checkbox.getAttribute('data-qty')) || 0;
+                        totalQty += qty;
+                    });
+                    badge.textContent = `${totalQty} pcs`;
+                }
+            }
+
+            // Обработчик изменения выбора vendor для каждого дропдауна
+            vendorSelects.forEach(vendorSelect => {
+                vendorSelect.addEventListener('change', function() {
+                    const processNameId = this.getAttribute('data-process-name-id');
+                    updateLinkUrl(processNameId);
+                });
+            });
+
+            // Обработчик изменения чекбоксов компонентов
+            componentCheckboxes.forEach(checkbox => {
+                checkbox.addEventListener('change', function() {
+                    const processNameId = this.getAttribute('data-process-name-id');
+                    updateLinkUrl(processNameId);
+                    updateQuantityBadge(processNameId);
+                });
+            });
+
+            // Обработчик клика по кнопкам форм
+            groupFormLinks.forEach(link => {
+                link.addEventListener('click', function(e) {
+                    const processNameId = this.getAttribute('data-process-name-id');
+                    updateLinkUrl(processNameId);
+                });
+            });
+
+            // Обработчик клика по paper-button кнопкам форм
+            groupFormButtons.forEach(button => {
+                button.addEventListener('click', function(e) {
+                    const processNameId = this.getAttribute('data-process-name-id');
+                    if (processNameId) {
+                        // Обновляем URL перед переходом
+                        updateLinkUrl(processNameId);
+                        // Получаем обновленный URL и устанавливаем его
+                        const updatedUrl = this.getAttribute('href');
+                        if (updatedUrl) {
+                            this.setAttribute('href', updatedUrl);
+                        }
                     }
+                });
+            });
+
+            // Инициализация URL и badge при загрузке страницы
+            document.querySelectorAll('.group-form-link, .group-form-button').forEach(link => {
+                const processNameId = link.getAttribute('data-process-name-id');
+                if (processNameId) {
+                    updateLinkUrl(processNameId);
+                    updateQuantityBadge(processNameId);
                 }
             });
         });

@@ -93,6 +93,7 @@ class ProcessController extends Controller
             ])['selected_process_id'];
 
             $processId = $validated['selected_process_id'];
+            $process = null; // Инициализируем переменную для случая выбора существующего процесса
         } else {
             // Сценарий 2: Создание нового процесса
             $validated['process'] = $request->validate([
@@ -109,11 +110,27 @@ class ProcessController extends Controller
         }
 
         try {
-            // Добавляем запись в таблицу manual_processes
-            DB::table('manual_processes')->insert([
-                'manual_id' => $validated['manual_id'],
-                'processes_id' => $processId,
-            ]);
+            // Проверяем, существует ли уже связь между manual_id и processes_id
+            $existingManualProcess = ManualProcess::where('manual_id', $validated['manual_id'])
+                ->where('processes_id', $processId)
+                ->first();
+
+            // Если связи не существует, создаем её
+            if (!$existingManualProcess) {
+                ManualProcess::create([
+                    'manual_id' => $validated['manual_id'],
+                    'processes_id' => $processId,
+                ]);
+                \Log::info('ProcessController::store - Created manual_processes record', [
+                    'manual_id' => $validated['manual_id'],
+                    'processes_id' => $processId
+                ]);
+            } else {
+                \Log::info('ProcessController::store - manual_processes record already exists', [
+                    'manual_id' => $validated['manual_id'],
+                    'processes_id' => $processId
+                ]);
+            }
 
             // Загружаем процесс для возврата (независимо от того, новый он или существующий)
             $processToReturn = $process ?? Process::find($processId);
@@ -130,7 +147,9 @@ class ProcessController extends Controller
 
             return redirect()->back()->with('success', 'Process added successfully.');
         } catch (\Exception $e) {
-            \Log::error('ProcessController::store - Error: ' . $e->getMessage());
+            \Log::error('ProcessController::store - Error: ' . $e->getMessage(), [
+                'trace' => $e->getTraceAsString()
+            ]);
 
             if ($request->ajax() || $request->wantsJson()) {
                 return response()->json([

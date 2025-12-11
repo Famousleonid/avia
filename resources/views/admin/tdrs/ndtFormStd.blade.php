@@ -673,13 +673,18 @@
                 <div class="col-6 text-end pe-4 ">
                     {{__('Rev#0, 15/Dec/2012   ')}}
                     <br>
-                    {{__('Total QTY:')}} {{ array_sum(array_column($ndt_components, 'qty')) }}
-                    ( {{__('MPI:')}} {{ array_sum(array_column(array_filter($ndt_components, function($item) {
-                                                return strpos($item->process_name, '1') !== false;
-                                            }), 'qty')) }} {{__(' ; ')}}
-                    {{__('FPI:')}} {{ array_sum(array_column(array_filter($ndt_components, function($item) {
-                                                return strpos($item->process_name, '1') === false;
-                                            }), 'qty')) }} )
+                    @php
+                        $totalQty = array_sum(array_map(function($item) { return $item->qty ?? 0; }, $ndt_components));
+                        $mpiQty = array_sum(array_map(function($item) { return $item->qty ?? 0; }, array_filter($ndt_components, function($item) {
+                            return strpos($item->process_name ?? '', '1') !== false;
+                        })));
+                        $fpiQty = array_sum(array_map(function($item) { return $item->qty ?? 0; }, array_filter($ndt_components, function($item) {
+                            return strpos($item->process_name ?? '', '1') === false;
+                        })));
+                    @endphp
+                    {{__('Total QTY:')}} {{ $totalQty }}
+                    ( {{__('MPI:')}} {{ $mpiQty }} {{__(' ; ')}}
+                    {{__('FPI:')}} {{ $fpiQty }} )
                     {{--                    @if($loop->iteration == 1)--}}
                     {{--                        <br class=" ">--}}
 
