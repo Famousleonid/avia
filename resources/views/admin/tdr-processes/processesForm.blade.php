@@ -240,10 +240,10 @@
         <div class="row">
             <div class="col-3">
                 <img src="{{ asset('img/icons/AT_logo-rb.svg') }}" alt="Logo"
-                     style="width: 180px; margin: 6px 10px 0;">
+                     style="width: 120px; margin: 6px 10px 0;">
             </div>
             <div class="col-9">
-                <h2 class=" mt-3 text-black text-"><strong>{{$process_name->process_sheet_name}} PROCESS SHEET</strong></h2>
+                <h2 class=" mt-4 text-black text-"><strong>{{$process_name->process_sheet_name}} PROCESS SHEET</strong></h2>
             </div>
         </div>
         <div class="row">
@@ -486,14 +486,14 @@
             @endif
 
 
-            <h6 class="mt-3 ms-3"><strong>
+            <h6 class="mt-4 ms-3 "><strong>
 Perform the {{ ucwords(strtolower($process_name->process_sheet_name)) }}
 as the specified under Process No. and in
 accordance with CMM No
 </strong>.</h6>
 
 <div class="page table-header">
-<div class="row mt-2 " >
+<div class="row mt-3 " >
 <div class="col-1 border-l-t-b pt-2 details-row text-center"><h6 class="fs-7" ><strong> ITEM No.</strong></h6></div>
 <div class="col-2 border-l-t-b pt-2 details-row text-center"><h6  class="fs-7" ><strong>PART No.</strong>
     </h6>
@@ -517,7 +517,7 @@ accordance with CMM No
 <div class="page data-page">
 
 @php
-$totalRows = 18; // Общее количество строк
+$totalRows = 21; // Общее количество строк
 $dataRows = count($process_tdr_components); // Количество строк с данными
 $emptyRows = $totalRows - $dataRows; // Количество пустых строк
 $rowIndex = 1;
@@ -624,6 +624,7 @@ $rowIndex = 1;
 </div>
 </footer>
 
+<script src="{{ asset('js/table-height-adjuster.js') }}"></script>
 <script>
 document.addEventListener("DOMContentLoaded", function() {
     // Функция для добавления пустой строки NDT таблицы
@@ -691,18 +692,47 @@ document.addEventListener("DOMContentLoaded", function() {
         if (row) row.remove();
     }
 
+    // Функция для вычисления реальной средней высоты строк
+    function calculateAverageRowHeight(rows) {
+        if (!rows || rows.length === 0) return 32; // Значение по умолчанию
+
+        let totalHeight = 0;
+        let count = 0;
+
+        rows.forEach(function(row) {
+            const rowHeight = row.offsetHeight;
+            if (rowHeight > 0) {
+                totalHeight += rowHeight;
+                count++;
+            }
+        });
+
+        const averageHeight = count > 0 ? Math.round(totalHeight / count) : 32;
+        console.log(`Средняя высота строк: ${averageHeight}px (из ${count} строк)`);
+        return averageHeight;
+    }
+
     // Настройка высоты таблиц после загрузки
     setTimeout(function() {
+        // Проверяем, что функция adjustTableHeightToRange загружена
+        if (typeof adjustTableHeightToRange === 'undefined') {
+            console.error('adjustTableHeightToRange не загружена. Проверьте подключение скрипта table-height-adjuster.js');
+            return;
+        }
+
         // Настройка таблицы NDT (если она есть)
         const ndtRows = document.querySelectorAll('.data-row-ndt');
         if (ndtRows.length > 0) {
             const ndtDataContainer = document.querySelector('.ndt-data-container');
             if (ndtDataContainer) {
+                // Вычисляем реальную среднюю высоту строк NDT
+                const ndtRowHeight = calculateAverageRowHeight(ndtRows);
+
                 adjustTableHeightToRange({
                     min_height_tab: 500,
                     max_height_tab: 600,
                     tab_name: '.ndt-data-container',
-                    row_height: 32,
+                    row_height: ndtRowHeight,
                     row_selector: '.data-row-ndt[data-row-index]',
                     addRowCallback: addEmptyRowNDT,
                     removeRowCallback: removeRowNDT,
@@ -711,7 +741,7 @@ document.addEventListener("DOMContentLoaded", function() {
                     },
                     max_iterations: 50,
                     onComplete: function(currentHeight, rowCount) {
-                        console.log(`NDT таблица настроена: высота ${currentHeight}px, строк ${rowCount}`);
+                        console.log(`NDT таблица настроена: высота ${currentHeight}px, строк ${rowCount}, средняя высота строки ${ndtRowHeight}px`);
                     }
                 });
             }
@@ -721,11 +751,30 @@ document.addEventListener("DOMContentLoaded", function() {
         const regularTableContainer = document.querySelector('.data-page');
         const regularRows = document.querySelectorAll('.data-page .data-row:not(.data-row-ndt)');
         if (regularTableContainer && regularRows.length > 0) {
+            // Вычисляем реальную среднюю высоту строк с данными
+            const dataRowHeight = calculateAverageRowHeight(regularRows);
+
+            // Также учитываем пустые строки для более точного расчета
+            const emptyRows = document.querySelectorAll('.data-page .empty-row');
+            const emptyRowHeight = emptyRows.length > 0 ? calculateAverageRowHeight(emptyRows) : 32;
+
+            // Используем среднее значение между высотой строк с данными и пустых строк
+            // или высоту строк с данными, если она больше (так как пустые строки могут быть меньше)
+            const avgRowHeight = Math.max(dataRowHeight, emptyRowHeight);
+
+            // Проверяем текущую высоту таблицы перед настройкой
+            const initialHeight = regularTableContainer.offsetHeight;
+            const initialRowCount = regularTableContainer.querySelectorAll('[data-row-index]').length;
+
+            console.log(`Обычная таблица: высота строк с данными ${dataRowHeight}px, пустых строк ${emptyRowHeight}px, используется ${avgRowHeight}px`);
+            console.log(`Текущая высота таблицы: ${initialHeight}px, текущее количество строк: ${initialRowCount}`);
+            console.log(`Целевой диапазон: 750-800px`);
+
             adjustTableHeightToRange({
                 min_height_tab: 700,
                 max_height_tab: 750,
                 tab_name: '.data-page',
-                row_height: 34,
+                row_height: avgRowHeight,
                 row_selector: '.data-page [data-row-index]',
                 addRowCallback: addEmptyRowRegular,
                 removeRowCallback: removeRowRegular,
@@ -734,32 +783,58 @@ document.addEventListener("DOMContentLoaded", function() {
                 },
                 max_iterations: 50,
                 onComplete: function(currentHeight, rowCount) {
-                    console.log(`Обычная таблица настроена: высота ${currentHeight}px, строк ${rowCount}`);
+                    console.log(`Обычная таблица настроена: высота ${currentHeight}px, строк ${rowCount}, средняя высота строки ${avgRowHeight}px`);
+                    console.log(`Изменение высоты: ${currentHeight - initialHeight}px (было ${initialHeight}px, стало ${currentHeight}px)`);
+
+                    // Если высота не изменилась, выводим предупреждение
+                    if (Math.abs(currentHeight - initialHeight) < 5) {
+                        console.warn('ВНИМАНИЕ: Высота таблицы практически не изменилась!');
+                        console.warn(`Возможные причины:`);
+                        console.warn(`1. Таблица уже находится в целевом диапазоне (${currentHeight}px между 750-800px)`);
+                        console.warn(`2. Недостаточно строк для достижения целевой высоты`);
+                        console.warn(`3. CSS ограничения (max-height, overflow)`);
+                    }
                 }
             });
         }
 
-        // Старый код для удаления пустых строк на основе высоты ячеек процесса (оставляем для совместимости)
-        var processCells = document.querySelectorAll('.data-row .process-cell');
-        var totalExtraLines = 0;
+        // Дополнительная проверка и корректировка на основе реальных высот строк
+        // После того как adjustTableHeightToRange завершил работу, проверяем реальную высоту таблицы
+        setTimeout(function() {
+            const regularTableContainer = document.querySelector('.data-page');
+            if (regularTableContainer) {
+                const allRows = regularTableContainer.querySelectorAll('[data-row-index]');
+                let totalActualHeight = 0;
 
-        processCells.forEach(function(cell) {
-            var cellHeight = cell.offsetHeight;
-            if(cellHeight > 32) {
-                var extraLines = Math.floor((cellHeight - 32) / 16);
-                totalExtraLines += extraLines;
-            }
-        });
+                allRows.forEach(function(row) {
+                    totalActualHeight += row.offsetHeight;
+                });
 
-        var emptyRowsToRemove = Math.floor(totalExtraLines / 2);
-        var emptyRows = document.querySelectorAll('.empty-row');
-        for (var i = 0; i < emptyRowsToRemove && i < emptyRows.length; i++) {
-            if (emptyRows[i] && !emptyRows[i].hasAttribute('data-keep')) {
-                emptyRows[i].remove();
+                const containerHeight = regularTableContainer.offsetHeight;
+                const actualRowsHeight = totalActualHeight;
+
+                console.log(`Проверка высоты обычной таблицы: контейнер ${containerHeight}px, сумма высот строк ${actualRowsHeight}px`);
+
+                // Если реальная высота строк значительно отличается от высоты контейнера,
+                // это может указывать на проблемы с расчетом
+                if (Math.abs(containerHeight - actualRowsHeight) > 50) {
+                    console.warn(`Внимание: разница между высотой контейнера и суммой высот строк составляет ${Math.abs(containerHeight - actualRowsHeight)}px`);
+                }
             }
-        }
-        console.log("Всего дополнительных строк:", totalExtraLines);
-        console.log("Пустых строк для удаления:", emptyRowsToRemove);
+
+            const ndtContainer = document.querySelector('.ndt-data-container');
+            if (ndtContainer) {
+                const ndtAllRows = ndtContainer.querySelectorAll('[data-row-index]');
+                let ndtTotalActualHeight = 0;
+
+                ndtAllRows.forEach(function(row) {
+                    ndtTotalActualHeight += row.offsetHeight;
+                });
+
+                const ndtContainerHeight = ndtContainer.offsetHeight;
+                console.log(`Проверка высоты NDT таблицы: контейнер ${ndtContainerHeight}px, сумма высот строк ${ndtTotalActualHeight}px`);
+            }
+        }, 100);
     }, 200);
 });
 </script>

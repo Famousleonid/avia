@@ -443,6 +443,16 @@
 
 <!-- Подключаем скрипт для автоматической настройки высоты таблиц -->
 <script src="{{ asset('js/table-height-adjuster.js') }}"></script>
+<script>
+    // Проверяем, что скрипт загрузился сразу после подключения
+    if (typeof adjustTableHeightToRange === 'undefined') {
+        console.error('❌ ВНИМАНИЕ: Функция adjustTableHeightToRange не найдена сразу после подключения скрипта!');
+        console.error('Путь к скрипту:', '{{ asset("js/table-height-adjuster.js") }}');
+        console.error('Проверьте, что файл существует и доступен.');
+    } else {
+        console.log('✅ Функция adjustTableHeightToRange успешно загружена');
+    }
+</script>
 
 <script>
     // Данные из PHP для использования в JavaScript
@@ -549,11 +559,44 @@
         const rowIndices = new Set();
         rows.forEach(row => {
             const index = parseInt(row.getAttribute('data-row-index'));
-            if (!isNaN(index)) {
+            if (!isNaN(index) && index > 0) {
                 rowIndices.add(index);
             }
         });
         return rowIndices.size;
+    }
+    
+    // Функция для проверки целостности строк (все строки должны иметь 7 ячеек)
+    function validateRowIntegrity() {
+        const rows = document.querySelectorAll('.parent .data-row[data-row-index]');
+        const rowGroups = {};
+        
+        // Группируем ячейки по индексу строки
+        rows.forEach(cell => {
+            const index = parseInt(cell.getAttribute('data-row-index'));
+            if (!isNaN(index) && index > 0) {
+                if (!rowGroups[index]) {
+                    rowGroups[index] = [];
+                }
+                rowGroups[index].push(cell);
+            }
+        });
+        
+        // Проверяем, что каждая строка имеет 7 ячеек
+        const issues = [];
+        Object.keys(rowGroups).forEach(index => {
+            const cellCount = rowGroups[index].length;
+            if (cellCount !== 7) {
+                issues.push(`Строка ${index} имеет ${cellCount} ячеек вместо 7`);
+            }
+        });
+        
+        return {
+            isValid: issues.length === 0,
+            issues: issues,
+            rowCount: Object.keys(rowGroups).length,
+            totalCells: rows.length
+        };
     }
 
     // Функция для получения максимального индекса строки
@@ -698,17 +741,166 @@
         return maxHeight;
     }
 
+    // Функция для расчета реальной суммы высот всех строк (учитывает разную высоту)
+    function getTotalRowsHeight() {
+        const rowStats = getRowHeightStatistics();
+        if (!rowStats || !rowStats.heights || rowStats.heights.length === 0) {
+            return 0;
+        }
+        // Суммируем реальные высоты всех строк, а не используем среднюю
+        return rowStats.heights.reduce((sum, height) => sum + height, 0);
+    }
+    
+    // Функция для детального анализа расчетов высоты таблицы
+    function analyzeTableHeightCalculations() {
+        const table = document.querySelector('.parent');
+        if (!table) {
+            console.error('Таблица .parent не найдена');
+            return null;
+        }
+        
+        const headerHeight = getHeaderHeight();
+        const rowStats = getRowHeightStatistics();
+        const actualTableHeight = table.offsetHeight;
+        const rowCount = getCurrentRowCount();
+        
+        // Получаем реальную сумму высот всех строк (учитывает разную высоту)
+        const totalRowsHeight = getTotalRowsHeight();
+        
+        // Получаем CSS свойства таблицы для учета отступов и границ
+        const computedStyle = window.getComputedStyle(table);
+        const paddingTop = parseFloat(computedStyle.paddingTop) || 0;
+        const paddingBottom = parseFloat(computedStyle.paddingBottom) || 0;
+        const borderTop = parseFloat(computedStyle.borderTopWidth) || 0;
+        const borderBottom = parseFloat(computedStyle.borderBottomWidth) || 0;
+        const marginTop = parseFloat(computedStyle.marginTop) || 0;
+        const marginBottom = parseFloat(computedStyle.marginBottom) || 0;
+        
+        const tableExtraHeight = paddingTop + paddingBottom + borderTop + borderBottom;
+        
+        // Расчеты на основе текущих данных
+        // Используем РЕАЛЬНУЮ сумму высот всех строк, а не среднюю * количество
+        const calculatedHeight = headerHeight + totalRowsHeight + tableExtraHeight;
+        // Для диапазона используем минимальную и максимальную высоту
+        const calculatedHeightMin = headerHeight + (rowCount * rowStats.min) + tableExtraHeight;
+        const calculatedHeightMax = headerHeight + (rowCount * rowStats.max) + tableExtraHeight;
+        
+        // Целевые параметры
+        const targetMinHeight = 611;
+        const targetMaxHeight = 680;
+        const targetRange = targetMaxHeight - targetMinHeight;
+        
+        // Расчет целевого количества строк (учитываем отступы и границы таблицы)
+        const availableMinHeight = targetMinHeight - headerHeight - tableExtraHeight;
+        const availableMaxHeight = targetMaxHeight - headerHeight - tableExtraHeight;
+        const targetMinRows = Math.floor(availableMinHeight / rowStats.avg);
+        const targetMaxRows = Math.floor(availableMaxHeight / rowStats.avg);
+        
+        // Проверка: если строки разной высоты, показываем разницу
+        const rowsHeightDifference = rowStats.max - rowStats.min;
+        const hasVariableRowHeights = rowsHeightDifference > 2; // Разница более 2px считается значительной
+        
+        const analysis = {
+            actualTableHeight: actualTableHeight,
+            headerHeight: headerHeight,
+            rowCount: rowCount,
+            rowStats: rowStats,
+            totalRowsHeight: totalRowsHeight, // Реальная сумма высот всех строк
+            calculatedHeight: calculatedHeight, // Использует реальную сумму высот
+            calculatedHeightMin: calculatedHeightMin,
+            calculatedHeightMax: calculatedHeightMax,
+            targetMinHeight: targetMinHeight,
+            targetMaxHeight: targetMaxHeight,
+            targetRange: targetRange,
+            availableMinHeight: availableMinHeight,
+            availableMaxHeight: availableMaxHeight,
+            targetMinRows: targetMinRows,
+            targetMaxRows: targetMaxRows,
+            isInRange: actualTableHeight >= targetMinHeight && actualTableHeight <= targetMaxHeight,
+            difference: actualTableHeight < targetMinHeight 
+                ? targetMinHeight - actualTableHeight 
+                : actualTableHeight > targetMaxHeight 
+                    ? actualTableHeight - targetMaxHeight 
+                    : 0,
+            tableExtraHeight: tableExtraHeight,
+            hasVariableRowHeights: hasVariableRowHeights,
+            rowsHeightDifference: rowsHeightDifference,
+            cssProperties: {
+                paddingTop: paddingTop,
+                paddingBottom: paddingBottom,
+                borderTop: borderTop,
+                borderBottom: borderBottom,
+                marginTop: marginTop,
+                marginBottom: marginBottom
+            }
+        };
+        
+        return analysis;
+    }
+    
     // Функция для автоматической настройки высоты таблицы (использует универсальную функцию)
     function adjustTableHeight() {
         // Сначала измеряем реальную высоту строк и заголовка
         let actualRowHeight = getActualRowHeight();
         const headerHeight = getHeaderHeight();
-        console.log('Начальная измеренная высота строки:', actualRowHeight + 'px');
+        
+        console.log('=== Начальные измерения ===');
+        console.log('Измеренная высота строки:', actualRowHeight + 'px');
         console.log('Высота заголовка таблицы:', headerHeight + 'px');
+        
+        // Проверка целостности строк
+        const integrityCheck = validateRowIntegrity();
+        if (!integrityCheck.isValid) {
+            console.warn('⚠️ Обнаружены проблемы с целостностью строк:');
+            integrityCheck.issues.forEach(issue => console.warn('  -', issue));
+        } else {
+            console.log('✅ Целостность строк проверена: все строки имеют по 7 ячеек');
+        }
+        
+        // Детальный анализ перед настройкой
+        const initialAnalysis = analyzeTableHeightCalculations();
+        if (initialAnalysis) {
+            console.log('--- Анализ до настройки ---');
+            console.log('Текущая высота таблицы:', initialAnalysis.actualTableHeight + 'px');
+            console.log('Высота заголовка:', initialAnalysis.headerHeight + 'px');
+            console.log('Количество строк:', initialAnalysis.rowCount);
+            
+            // Информация о высотах строк
+            if (initialAnalysis.hasVariableRowHeights) {
+                console.warn(`⚠️ Обнаружены строки с РАЗНОЙ высотой!`);
+                console.log('  - Минимальная:', initialAnalysis.rowStats.min + 'px');
+                console.log('  - Максимальная:', initialAnalysis.rowStats.max + 'px');
+                console.log('  - Средняя:', initialAnalysis.rowStats.avg + 'px');
+                console.log('  - Разница:', initialAnalysis.rowsHeightDifference + 'px');
+                console.log('  - Реальная сумма высот всех строк:', initialAnalysis.totalRowsHeight + 'px');
+                console.log('  ✅ Расчеты используют РЕАЛЬНУЮ сумму высот, а не среднюю * количество');
+            } else {
+                console.log('Высота строки (все одинаковые):', initialAnalysis.rowStats.avg + 'px');
+            }
+            
+            console.log('Целевой диапазон:', initialAnalysis.targetMinHeight + 'px - ' + initialAnalysis.targetMaxHeight + 'px');
+            console.log('Целевое количество строк:', initialAnalysis.targetMinRows + ' - ' + initialAnalysis.targetMaxRows);
+            console.log('В диапазоне:', initialAnalysis.isInRange ? 'ДА' : 'НЕТ');
+            if (!initialAnalysis.isInRange) {
+                console.log('Отклонение:', initialAnalysis.difference + 'px');
+            }
+            if (initialAnalysis.tableExtraHeight > 0) {
+                console.log('Дополнительная высота (padding + border):', initialAnalysis.tableExtraHeight + 'px');
+            }
+        }
 
         // Переменная для отслеживания изменений высоты строк
         let lastRowHeight = actualRowHeight;
         let iterationCount = 0;
+
+        // Проверяем, загружена ли функция adjustTableHeightToRange
+        if (typeof adjustTableHeightToRange === 'undefined') {
+            console.error('❌ Функция adjustTableHeightToRange не найдена! Убедитесь, что скрипт table-height-adjuster.js загружен.');
+            return {
+                success: false,
+                message: 'Функция adjustTableHeightToRange не загружена'
+            };
+        }
 
         // Используем универсальную функцию adjustTableHeightToRange
         const result = adjustTableHeightToRange({
@@ -747,6 +939,7 @@
                 setTimeout(() => {
                     const finalRowHeight = getActualRowHeight();
                     const rowStats = getRowHeightStatistics();
+                    const finalAnalysis = analyzeTableHeightCalculations();
 
                     console.log(`=== Настройка завершена ===`);
                     console.log(`Высота таблицы: ${currentHeight}px`);
@@ -759,6 +952,105 @@
                             console.warn(`⚠️ Обнаружены строки с разной высотой (разница: ${rowStats.max - rowStats.min}px)`);
                         }
                     }
+                    
+                    // Проверка целостности строк после настройки
+                    const finalIntegrityCheck = validateRowIntegrity();
+                    if (!finalIntegrityCheck.isValid) {
+                        console.warn('⚠️ После настройки обнаружены проблемы с целостностью строк:');
+                        finalIntegrityCheck.issues.forEach(issue => console.warn('  -', issue));
+                    }
+                    
+                    // Детальный анализ после настройки
+                    if (finalAnalysis) {
+                        console.log('--- Анализ после настройки ---');
+                        console.log('Фактическая высота таблицы:', finalAnalysis.actualTableHeight + 'px');
+                        console.log('Высота заголовка:', finalAnalysis.headerHeight + 'px');
+                        console.log('Количество строк:', finalAnalysis.rowCount);
+                        
+                        // Информация о высотах строк
+                        if (finalAnalysis.hasVariableRowHeights) {
+                            console.warn(`⚠️ Строки имеют РАЗНУЮ высоту!`);
+                            console.log('  - Минимальная высота строки:', finalAnalysis.rowStats.min + 'px');
+                            console.log('  - Максимальная высота строки:', finalAnalysis.rowStats.max + 'px');
+                            console.log('  - Средняя высота строки:', finalAnalysis.rowStats.avg + 'px');
+                            console.log('  - Разница:', finalAnalysis.rowsHeightDifference + 'px');
+                            console.log('  - Реальная сумма высот всех строк:', finalAnalysis.totalRowsHeight + 'px');
+                            console.log('  - Если бы все строки были средней высоты:', (finalAnalysis.rowCount * finalAnalysis.rowStats.avg) + 'px');
+                            const difference = Math.abs(finalAnalysis.totalRowsHeight - (finalAnalysis.rowCount * finalAnalysis.rowStats.avg));
+                            if (difference > 5) {
+                                console.warn(`  ⚠️ Расхождение: ${difference}px (используется реальная сумма высот)`);
+                            }
+                        } else {
+                            console.log('✅ Все строки имеют одинаковую высоту:', finalAnalysis.rowStats.avg + 'px');
+                        }
+                        
+                        console.log('Расчетная высота (заголовок + реальная сумма высот строк):', finalAnalysis.calculatedHeight + 'px');
+                        console.log('Расчетный диапазон (мин/макс высоты):', finalAnalysis.calculatedHeightMin + 'px - ' + finalAnalysis.calculatedHeightMax + 'px');
+                        console.log('Целевой диапазон:', finalAnalysis.targetMinHeight + 'px - ' + finalAnalysis.targetMaxHeight + 'px');
+                        console.log('В целевом диапазоне:', finalAnalysis.isInRange ? '✅ ДА' : '❌ НЕТ');
+                        
+                        if (!finalAnalysis.isInRange) {
+                            console.warn(`⚠️ Высота таблицы вне целевого диапазона! Отклонение: ${finalAnalysis.difference}px`);
+                            if (finalAnalysis.actualTableHeight < finalAnalysis.targetMinHeight) {
+                                // Используем среднюю высоту для оценки, но учитываем, что строки могут быть разной высоты
+                                const avgHeightForEstimation = finalAnalysis.hasVariableRowHeights 
+                                    ? finalAnalysis.rowStats.avg 
+                                    : finalAnalysis.rowStats.avg;
+                                const rowsToAdd = Math.ceil(finalAnalysis.difference / avgHeightForEstimation);
+                                console.warn(`   Нужно добавить примерно ${rowsToAdd} строк(и)`);
+                                if (finalAnalysis.hasVariableRowHeights) {
+                                    console.log(`   (оценка основана на средней высоте ${avgHeightForEstimation}px, реальные строки могут быть выше/ниже)`);
+                                }
+                            } else {
+                                const avgHeightForEstimation = finalAnalysis.hasVariableRowHeights 
+                                    ? finalAnalysis.rowStats.avg 
+                                    : finalAnalysis.rowStats.avg;
+                                const rowsToRemove = Math.ceil(finalAnalysis.difference / avgHeightForEstimation);
+                                console.warn(`   Нужно удалить примерно ${rowsToRemove} строк(и)`);
+                                if (finalAnalysis.hasVariableRowHeights) {
+                                    console.log(`   (оценка основана на средней высоте ${avgHeightForEstimation}px, реальные строки могут быть выше/ниже)`);
+                                }
+                            }
+                        } else {
+                            console.log('✅ Высота таблицы соответствует целевому диапазону!');
+                            if (finalAnalysis.hasVariableRowHeights) {
+                                console.log('   ✅ Учтена разная высота строк при расчетах');
+                            }
+                        }
+                        
+                        // Проверка расчетов
+                        const heightDifference = Math.abs(finalAnalysis.actualTableHeight - finalAnalysis.calculatedHeight);
+                        if (heightDifference > 5) {
+                            console.warn(`⚠️ Расхождение между фактической и расчетной высотой: ${heightDifference}px`);
+                            console.warn(`   Это может быть связано с отступами, границами или другими CSS свойствами`);
+                            console.log('   Проверьте CSS свойства таблицы: padding, margin, border, gap');
+                            
+                            // Дополнительная диагностика
+                            if (finalAnalysis.hasVariableRowHeights) {
+                                console.log('   Примечание: расчеты учитывают реальную сумму высот всех строк');
+                                console.log('   (не среднюю высоту * количество, так как строки разной высоты)');
+                            }
+                        } else {
+                            console.log(`✅ Расчеты точны (расхождение: ${heightDifference}px)`);
+                            if (finalAnalysis.hasVariableRowHeights) {
+                                console.log('   ✅ Учтена разная высота строк (использована реальная сумма высот)');
+                            }
+                        }
+                        
+                        // Дополнительная информация
+                        console.log('--- Дополнительная информация ---');
+                        console.log('Доступная высота для строк (мин):', finalAnalysis.availableMinHeight + 'px');
+                        console.log('Доступная высота для строк (макс):', finalAnalysis.availableMaxHeight + 'px');
+                        console.log('Целевое количество строк (мин):', finalAnalysis.targetMinRows);
+                        console.log('Целевое количество строк (макс):', finalAnalysis.targetMaxRows);
+                        console.log('Дополнительная высота таблицы (padding + border):', finalAnalysis.tableExtraHeight + 'px');
+                        if (finalAnalysis.tableExtraHeight > 0) {
+                            console.log('  - Padding top:', finalAnalysis.cssProperties.paddingTop + 'px');
+                            console.log('  - Padding bottom:', finalAnalysis.cssProperties.paddingBottom + 'px');
+                            console.log('  - Border top:', finalAnalysis.cssProperties.borderTop + 'px');
+                            console.log('  - Border bottom:', finalAnalysis.cssProperties.borderBottom + 'px');
+                        }
+                    }
                 }, 100);
             }
         });
@@ -768,6 +1060,14 @@
 
     // Вызываем функции после полной загрузки страницы
     window.addEventListener('load', function() {
+        // Проверяем, что функция adjustTableHeightToRange загружена
+        if (typeof adjustTableHeightToRange === 'undefined') {
+            console.error('❌ КРИТИЧЕСКАЯ ОШИБКА: Функция adjustTableHeightToRange не загружена!');
+            console.error('Проверьте, что файл js/table-height-adjuster.js существует и доступен.');
+            console.error('Путь к файлу:', '{{ asset("js/table-height-adjuster.js") }}');
+            return;
+        }
+        
         // Сначала настраиваем высоту таблицы
         setTimeout(function() {
             adjustTableHeight();
@@ -795,21 +1095,21 @@
                 // Информационный блок скрыт
                 // Раскомментируйте код ниже, если нужно показать информационный блок на странице
 
-                const infoDiv = document.createElement('div');
-                infoDiv.className = 'no-print';
-                infoDiv.style.cssText = 'position: fixed; top: 10px; right: 10px; background: rgba(0,0,0,0.8); color: white; padding: 15px; border-radius: 5px; z-index: 10000; font-size: 12px;';
-                const rowInfo = heights.rowHeightInfo ?
-                    `<br><strong>Высоты строк:</strong><br>
-                    Мин: ${heights.rowHeightInfo.min}px, Макс: ${heights.rowHeightInfo.max}px, Средняя: ${heights.rowHeightInfo.avg}px` : '';
-                infoDiv.innerHTML = `
-                    <strong>Высота таблиц:</strong><br>
-                    Таблица 1 (.parent): ${heights.table1Height}px<br>
-                    Таблица 2 (.qc_stamp): ${heights.table2Height}px<br>
-                    Отступ: ${heights.marginBetween}px<br>
-                    <strong>Общая высота: ${heights.totalHeight}px</strong><br>
-                    <strong>Количество строк: ${getCurrentRowCount()}</strong>${rowInfo}
-                `;
-                document.body.appendChild(infoDiv);
+                // const infoDiv = document.createElement('div');
+                // infoDiv.className = 'no-print';
+                // infoDiv.style.cssText = 'position: fixed; top: 10px; right: 10px; background: rgba(0,0,0,0.8); color: white; padding: 15px; border-radius: 5px; z-index: 10000; font-size: 12px;';
+                // const rowInfo = heights.rowHeightInfo ?
+                //     `<br><strong>Высоты строк:</strong><br>
+                //     Мин: ${heights.rowHeightInfo.min}px, Макс: ${heights.rowHeightInfo.max}px, Средняя: ${heights.rowHeightInfo.avg}px` : '';
+                // infoDiv.innerHTML = `
+                //     <strong>Высота таблиц:</strong><br>
+                //     Таблица 1 (.parent): ${heights.table1Height}px<br>
+                //     Таблица 2 (.qc_stamp): ${heights.table2Height}px<br>
+                //     Отступ: ${heights.marginBetween}px<br>
+                //     <strong>Общая высота: ${heights.totalHeight}px</strong><br>
+                //     <strong>Количество строк: ${getCurrentRowCount()}</strong>${rowInfo}
+                // `;
+                // document.body.appendChild(infoDiv);
 
             }
         }, 100); // Небольшая задержка для полной отрисовки

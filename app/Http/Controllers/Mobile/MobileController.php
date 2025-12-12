@@ -20,11 +20,14 @@ class MobileController extends Controller
 {
     public function index()
     {
+
+        $userId = Auth::id();
+
         $workorders = Workorder::with(['unit', 'media'])
             ->orderBy('number', 'desc')
             ->get();
 
-        return view('mobile.pages.index',compact('workorders'));
+        return view('mobile.pages.index',compact('workorders', 'userId'));
     }
 
     public function show(Workorder $workorder)

@@ -49,15 +49,6 @@
             position: relative;
         }
 
-        .category-header {
-            cursor: pointer;
-        }
-
-        .table-dark .category-header.active {
-            background: gold;
-            color: black;
-        }
-
         .table-wrapper {
             display: flex;
             flex-direction: column;
@@ -72,16 +63,12 @@
             box-sizing: border-box;
         }
 
-        .col-workorder {
-            width: 20%;
-        }
-
         .col-media {
-            width: 20%;
+            width: 35%;
         }
 
         .col-camera {
-            width: 20%;
+            width: 30%;
         }
 
         .table-body-scrollable .table-bordered {
@@ -97,86 +84,111 @@
             color: #f8f9fa;
         }
 
+        /* Левая колонка с названиями категорий */
+        .category-label {
+            cursor: pointer;
+            width: 35%;
+        }
+
+        .table-dark .category-label.active {
+            background: dodgerblue;
+            color: black;
+        }
     </style>
 @endsection
 
 @section('content')
 
-
     <div class="container-fluid d-flex flex-column bg-dark p-0" style="height: 100%;">
 
+        {{-- Блок с информацией по воркордеру --}}
         <div id="block-info" class="rounded-3 border border-info gradient-pane shadow-sm" style="margin: 5px; padding: 3px;">
 
-            <div class="d-flex justify-content-between align-items-center w-100 fw-bold  fs-2 ms-3">
-
+            <div class="d-flex justify-content-between align-items-center w-100 fw-bold fs-2 ms-3">
                 @if(!$workorder->isDone())
                     <span class="text-info">W {{ $workorder->number }}</span>
                 @else
-                    <span class="text-secondary"> {{ $workorder->number }}</span>
+                    <span class="text-secondary">{{ $workorder->number }}</span>
                 @endif
 
-                @if($workorder->open_at)<span class="text-secondary fw-normal fs-6 me-4">Open at: {{ $workorder->open_at->format('d-M-Y') }}</span>@endif
+                @if($workorder->open_at)
+                    <span class="text-secondary fw-normal fs-6 me-4">
+                        Open at: {{ $workorder->open_at->format('d-M-Y') }}
+                    </span>
+                @endif
             </div>
 
             <hr class="border-secondary opacity-50 my-2">
 
             <div class="d-flex justify-content-between align-items-center w-100 fw-bold text-info ms-3">
                 <div>
-                    <span class="text-secondary fw-normal">p/n: </span><span class="text-white">{{ $workorder->unit?->part_number ?? '-' }}</span>
+                    <span class="text-secondary fw-normal">p/n: </span>
+                    <span class="text-white">{{ $workorder->unit?->part_number ?? '-' }}</span>
                 </div>
                 <div>
-                    <span class="text-secondary fw-normal">s/n: </span><span class="text-white me-4">{{ $workorder->serial_number ?? '-' }}</span>
+                    <span class="text-secondary fw-normal">s/n: </span>
+                    <span class="text-white me-4">{{ $workorder->serial_number ?? '-' }}</span>
                 </div>
             </div>
 
             <div class="d-flex justify-content-between align-items-center w-100 fw-bold text-info ms-3">
                 <div>
-                    <span class="text-secondary fw-normal">Unit: </span><span class="text-white">{{ $workorder->unit?->name ?? '-' }}</span>
+                    <span class="text-secondary fw-normal">Unit: </span>
+                    <span class="text-white">{{ $workorder->unit?->name ?? '-' }}</span>
                 </div>
-
-            </div>
-
-            <hr class="border-secondary opacity-50 my-2">
-
-            <div class="d-flex justify-content-between align-items-center w-100 fw-bold text-info ms-3">
-
-                <div>
-                    <span class="text-secondary fw-normal">Customer: </span><span class="text-white">{{ $workorder->customer?->name ?? '-' }}</span>
-                </div>
-                <div>
-                    <span class="text-secondary fw-normal">Lib: </span><span class="text-white me-4">{{ $workorder->unit?->manual->lib ?? '-' }}</span>
-                </div>
-
             </div>
 
             <hr class="border-secondary opacity-50 my-2">
 
             <div class="d-flex justify-content-between align-items-center w-100 fw-bold text-info ms-3">
                 <div>
-                    <span class="text-secondary fw-normal">Instruction: </span><span class="text-white me-4">{{ $workorder->instruction?->name ?? '-' }}</span>
+                    <span class="text-secondary fw-normal">Customer: </span>
+                    <span class="text-white">{{ $workorder->customer?->name ?? '-' }}</span>
                 </div>
                 <div>
-                    <span class="text-secondary fw-normal">Manual:</span><span class="text-white me-4"> {{ $workorder->unit?->manual->number ?? '-' }}</span>
+                    <span class="text-secondary fw-normal">Lib: </span>
+                    <span class="text-white me-4">{{ $workorder->unit?->manual->lib ?? '-' }}</span>
                 </div>
             </div>
 
             <hr class="border-secondary opacity-50 my-2">
 
+            <div class="d-flex justify-content-between align-items-center w-100 fw-bold text-info ms-3">
+                <div>
+                    <span class="text-secondary fw-normal">Instruction: </span>
+                    <span class="text-white me-4">{{ $workorder->instruction?->name ?? '-' }}</span>
+                </div>
+                <div>
+                    <span class="text-secondary fw-normal">Manual: </span>
+                    <span class="text-white me-4">{{ $workorder->unit?->manual->number ?? '-' }}</span>
+                </div>
+            </div>
 
+            <hr class="border-secondary opacity-50 my-2">
 
             <div class="d-flex justify-content-between align-items-center w-100 fw-bold text-info ms-3 pb-2">
                 <div>
                     @if($workorder->approve_at)
-                        <span class="badge bg-success"><i class="bi bi-check-circle me-1"></i> Approved</span>
+                        <span class="badge bg-success">
+                            <i class="bi bi-check-circle me-1"></i> Approved
+                        </span>
                     @else
-                        <span class="badge bg-secondary"><i class="bi bi-x-circle me-1"></i> Not approved</span>
+                        <span class="badge bg-secondary">
+                            <i class="bi bi-x-circle me-1"></i> Not approved
+                        </span>
                     @endif
                 </div>
                 <div>
                     @if($workorder->isDone())
-                        <span class="text-success fw-bold"><i class="bi bi-check-circle-fill me-1"></i> Done: </span><span class="text-white me-4">{{ $workorder->doneDate()->format('d-M-Y') }}</span>
+                        <span class="text-success fw-bold">
+                            <i class="bi bi-check-circle-fill me-1"></i> Done:
+                        </span>
+                        <span class="text-white me-4">{{ $workorder->doneDate()->format('d-M-Y') }}</span>
                     @else
-                        <span class="text-secondary fw-normal"><i class="bi bi-circle me-1"></i> Done:</span><span class="text-secondary me-4">—</span>
+                        <span class="text-secondary fw-normal">
+                            <i class="bi bi-circle me-1"></i> Done:
+                        </span>
+                        <span class="text-secondary me-4">—</span>
                     @endif
                 </div>
             </div>
@@ -185,26 +197,30 @@
 
         <hr class="border-secondary opacity-50 my-2">
 
+        {{-- Таблица с 4 группами фото + общая камера --}}
         <div class="table-wrapper" style="flex-grow: 1; min-height: 0;">
 
-            <div class="table-header-sticky">
-                <table class="table-sm table-dark m-0 w-100 table-bordered">
-                    <thead>
-                    <tr>
-                        <th class="text-center bg-gradient category-header text-size col-media active" data-category="photos">Photo</th>
-                        <th class="text-center bg-gradient category-header text-size col-media" data-category="logs">Log card</th>
-                        <th class="text-center bg-gradient category-header text-size col-media" data-category="damages">Dam&corr</th>
-                        <th class="text-center bg-gradient text-size col-camera">Camera</th>
-                    </tr>
-                    </thead>
-                </table>
-            </div>
-
             <div class="table-body-scrollable">
-                <table class="table-sm table-dark table-striped m-0 w-100 table-bordered">
+                <table class="table-sm table-dark table-striped m-0 w-100 table-bordered align-middle">
                     <tbody>
-                    <tr>
-                        @foreach(['photos', 'logs', 'damages'] as $type)
+                    @php
+                        $categories = [
+                            'photos'  => 'Photo',
+                            'logs'    => 'Log card',
+                            'damages' => 'Damage',
+                            'final'   => 'Final assy',
+                        ];
+                    @endphp
+
+                    @foreach($categories as $type => $label)
+                        <tr>
+                            {{-- Левая колонка: название группы --}}
+                            <td class="category-label {{ $loop->first ? 'active' : '' }} ps-3"
+                                data-category="{{ $type }}">
+                                {{ $label }}
+                            </td>
+
+                            {{-- Средняя колонка: превью / счетчик --}}
                             <td class="text-center col-media"
                                 data-workorder-id="{{ $workorder->id }}"
                                 data-category="{{ $type }}">
@@ -219,6 +235,7 @@
                                             <a href="{{ $workorder->generateMediaUrl($media, '', $type) }}"
                                                data-fancybox="gallery-{{ $workorder->id }}-{{ $type }}"
                                                data-media-id="{{ $media->id }}"
+                                               data-workorder-number="{{ $workorder->number }}"
                                                data-caption="Workorder: {{ $workorder->number }} - {{ ucfirst($type) }}"
                                                style="{{ $index === 0 ? '' : 'display: none;' }}">
                                                 @if ($index === 0)
@@ -234,29 +251,36 @@
                                     <span class="text-white-50" style="font-size: 0.70rem;">No Photos</span>
                                 @endif
                             </td>
-                        @endforeach
 
-                        <td class="text-center col-camera">
-                            <a href="#"
-                               class="text-info js-camera-btn"
-                               data-workorder-id="{{ $workorder->id }}"
-                               data-workorder-number="{{ $workorder->number }}">
-                                <i class="bi bi-camera" style="font-size: 1.5rem;"></i>
-                            </a>
-                        </td>
-                    </tr>
+                            {{-- Правая колонка: одна камера на все 4 строки --}}
+                            @if($loop->first)
+                                <td class="text-center col-camera" rowspan="{{ count($categories) }}">
+                                    <a href="#"
+                                       class="text-info js-camera-btn"
+                                       data-workorder-id="{{ $workorder->id }}"
+                                       data-workorder-number="{{ $workorder->number }}">
+                                        <i class="bi bi-camera" style="font-size: 1.5rem;"></i>
+                                    </a>
+                                </td>
+                            @endif
+                        </tr>
+                    @endforeach
+
                     </tbody>
                 </table>
             </div>
 
-
         </div>
     </div>
 
-    <form id="photo-upload-form" data-url-template="/mobile/workorders/photo/WORKORDER_ID" method="POST" enctype="multipart/form-data" style="display: none;"></form>
+    {{-- скрытая форма для загрузки фото с камеры --}}
+    <form id="photo-upload-form"
+          data-url-template="/mobile/workorders/photo/WORKORDER_ID"
+          method="POST"
+          enctype="multipart/form-data"
+          style="display: none;"></form>
 
 @endsection
-
 
 @section('scripts')
     <script>
@@ -266,7 +290,7 @@
             let currentWorkorderId = null;
             let currentWorkorderNumber = null;
 
-            // ===== Утилита для HTTP-запросов (POST/DELETE и т.п.) через fetch =====
+            // ===== Утилита для HTTP-запросов (POST/DELETE/GET) через fetch =====
             async function makeRequest(url, method, body = null) {
                 const headers = {
                     'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
@@ -294,7 +318,6 @@
 
                 } catch (err) {
                     console.error('makeRequest error:', err);
-                    // Перебрасываем ошибку, чтобы вызывающий код мог ее обработать
                     throw err;
                 }
             }
@@ -313,12 +336,12 @@
                     return;
                 }
 
-                // Клик по заголовку категории
-                const categoryHeader = target.closest('.category-header');
-                if (categoryHeader) {
-                    document.querySelectorAll('.category-header').forEach(h => h.classList.remove('active'));
-                    categoryHeader.classList.add('active');
-                    currentPhotoCategory = categoryHeader.dataset.category;
+                // Клик по названию категории (левая колонка)
+                const categoryLabel = target.closest('.category-label');
+                if (categoryLabel) {
+                    document.querySelectorAll('.category-label').forEach(h => h.classList.remove('active'));
+                    categoryLabel.classList.add('active');
+                    currentPhotoCategory = categoryLabel.dataset.category;
                     return;
                 }
 
@@ -329,10 +352,13 @@
                 const slide = fancybox.getSlide();
                 if (!slide) return;
 
-                const workorderId = slide.triggerEl?.closest('td')?.dataset.workorderId;
-                const category = slide.triggerEl?.closest('td')?.dataset.category;
-                const workorderNumberEl = slide.triggerEl?.closest('tr')?.querySelector('.workorder-click');
-                const workorderNumber = workorderNumberEl?.dataset.number;
+                const triggerEl = slide.triggerEl;
+                const cell = triggerEl?.closest('td[data-workorder-id][data-category]');
+                if (!cell) return;
+
+                const workorderId = cell.dataset.workorderId;
+                const category = cell.dataset.category;
+                const workorderNumber = triggerEl.dataset.workorderNumber || '';
 
                 const btn = document.createElement('button');
                 btn.className = 'fancybox__button fancybox__button--delete';
@@ -340,7 +366,7 @@
                 btn.innerHTML = '🗑️';
 
                 btn.onclick = async () => {
-                    const mediaId = slide.triggerEl?.dataset.mediaId;
+                    const mediaId = triggerEl?.dataset.mediaId;
                     if (!mediaId) return alert('Media ID not found!');
                     if (!confirm('Are you sure you want to delete this photo?')) return;
 
@@ -368,7 +394,7 @@
                 try {
                     const response = await makeRequest(`/mobile/workorders/photos/${workorderId}?category=${category}`, 'GET');
                     updateGalleryUI(workorderId, workorderNumber, response, category);
-                    // Небольшая задержка перед перепривязкой Fancybox для гарантии отрисовки DOM
+                    // Небольшая задержка перед перепривязкой Fancybox
                     setTimeout(() => bindFancyboxForCell(workorderId, category), 100);
                 } catch (e) {
                     console.error('Failed to refresh gallery:', e);
@@ -391,6 +417,7 @@
                         a.href = photo.big_url;
                         a.dataset.fancybox = `gallery-${workorderId}-${category}`;
                         a.dataset.mediaId = photo.id;
+                        a.dataset.workorderNumber = workorderNumber;
                         a.dataset.caption = `Workorder: ${workorderNumber} - ${category}`;
                         if (index > 0) a.style.display = 'none';
 
@@ -427,7 +454,7 @@
 
             function openCamera() {
                 const form = document.getElementById('photo-upload-form');
-                // Удаляем старый input, если он есть, чтобы избежать проблем
+                // Удаляем старый input, если он есть
                 document.getElementById('camera-input')?.remove();
 
                 const fileInput = document.createElement('input');
