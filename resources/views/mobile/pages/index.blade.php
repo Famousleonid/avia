@@ -14,14 +14,16 @@
             right: 0;
             z-index: 1000;
             background: #000;
-            padding-bottom: 8px;
-            box-shadow: 0 2px 6px rgba(0,0,0,0.6);
+            padding: 20px;
+            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.6);
         }
+
         .search-input {
             border: 2px solid #444;
             background: #111;
             color: #fff;
         }
+
         .search-input:focus {
             background: #111;
             color: #fff;
@@ -31,7 +33,6 @@
 
         .search-wrapper {
             position: relative;
-            padding: 0 8px;
         }
 
         .search-icon {
@@ -48,6 +49,7 @@
             padding-left: 30px;
         }
 
+        /* список ниже фиксированной полосы поиска */
         .wo-list-wrapper {
             flex: 1 1 auto;
             min-height: 0;
@@ -55,7 +57,7 @@
             -webkit-overflow-scrolling: touch;
             padding-bottom: 20px;
 
-            margin-top: 60px !important;   /* 60 (меню) + ~70–80 (поиск) – подгони по факту */
+            margin-top: 70px !important; /* 60 меню + ~60 панель поиска с чекбоксами */
         }
 
         .wo-item {
@@ -63,16 +65,16 @@
             width: 100%;
             padding: 18px 12px;
 
-            border: 1px solid whitesmoke;
+            border: 1px solid #0DCAF0;
             border-radius: 6px;
 
-            background: #111;
+            background: #343A40;
             text-align: center;
 
             font-weight: 700;
             font-size: clamp(1.8rem, 4vw, 3rem);
 
-            color: #0DDDFD;
+            color: #0DCAF0;
             text-decoration: none;
 
             margin-bottom: 10px;
@@ -88,37 +90,73 @@
             text-align: center;
             margin-top: 20px;
         }
+
+        .filter-label {
+            font-size: 0.75rem;
+            color: #ccc;
+        }
+
+        .big-check {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+
+            font-size: 0.95rem;   /* крупнее текст */
+            font-weight: 600;     /* жирнее */
+            color: #fff;          /* белый текст */
+            column-gap: 6px;      /* расстояние между квадратом и текстом */
+        }
+
+        .big-check .form-check-input {
+            width: 1.3rem;        /* размер квадрата */
+            height: 1.3rem;       /* размер квадрата */
+            margin: 0;            /* убираем стандартный вверхний отступ */
+        }
     </style>
 @endsection
-
-
 
 @section('content')
     <div class="container-fluid d-flex flex-column mobile-page p-2">
 
-        <div class="search-bar p-2">
+        <div class="search-bar">
+            <div class="d-flex align-items-center w-100">
 
-            <div class="search-wrapper p-2 position-relative">
+                {{-- SEARCH 60% --}}
+                <div class="position-relative search-wrapper" style="flex: 0 0 60%;">
+            <span class="search-icon">
+                <i class="bi bi-search"></i>
+            </span>
 
-    <span class="search-icon">
-        <i class="bi bi-search"></i>
-    </span>
+                    <input type="text"
+                           id="searchWorkorder"
+                           class="form-control form-control-sm search-input search-input-with-icon"
+                           placeholder="Search workorder...">
 
-                <input type="text"
-                       id="searchWorkorder"
-                       class="form-control form-control-sm search-input search-input-with-icon"
-                       placeholder="Search workorder number...">
+                    <button type="button"
+                            id="clearSearch"
+                            class="btn btn-sm text-secondary position-absolute top-50 end-0 translate-middle-y me-2 px-1 py-0"
+                            style="display:none; background:none; border:none;">
+                        <i class="bi bi-x-circle" style="font-size: 1.1rem;"></i>
+                    </button>
+                </div>
+                {{-- чекбокс All – 20% --}}
+                <label class="form-check-label big-check d-flex align-items-center justify-content-center"
+                       style="flex: 0 0 20%;">
+                    <input class="form-check-input m-0" type="checkbox" id="showAllWo">
+                    All
+                </label>
 
-                <button type="button"
-                        id="clearSearch"
-                        class="btn btn-sm text-secondary position-absolute top-50 end-0 translate-middle-y me-3 px-1 py-0"
-                        style="display:none; background:none; border:none;">
-                    <i class="bi bi-x-circle" style="font-size: 1.1rem;"></i>
-                </button>
+                {{-- чекбокс Done – 20% --}}
+                <label class="form-check-label big-check d-flex align-items-center justify-content-center"
+                       style="flex: 0 0 20%;">
+                    <input class="form-check-input m-0" type="checkbox" id="showDoneWo">
+                    Done
+                </label>
 
             </div>
-
         </div>
+
+
 
         <div class="wo-list-wrapper">
             @if($workorders->count())
@@ -126,7 +164,10 @@
                     <a href="#"
                        class="wo-item js-wo-item {{ $workorder->isDone() ? 'text-secondary' : 'text-info' }}"
                        data-id="{{ $workorder->id }}"
-                       data-number="{{ $workorder->number }}">
+                       data-number="{{ $workorder->number }}"
+                       {{-- здесь подставь нужное поле владельца --}}
+                       data-own="{{ $workorder->user_id == $userId ? 1 : 0 }}"
+                       data-done="{{ $workorder->isDone() ? 1 : 0 }}">
                         {{ $workorder->number }}
                     </a>
                 @endforeach
@@ -138,61 +179,86 @@
     </div>
 @endsection
 
-
-
 @section('scripts')
     <script>
         document.addEventListener('DOMContentLoaded', () => {
 
             const input = document.getElementById('searchWorkorder');
-            const items = document.querySelectorAll('.js-wo-item');
-
             const clearBtn = document.getElementById('clearSearch');
-
-            input.addEventListener('input', () => {
-                const value = input.value.trim().toLowerCase();
-
-                // показать/скрыть крестик
-                clearBtn.style.display = value ? 'block' : 'none';
-
-                // фильтр списка
-                items.forEach(item => {
-                    const number = (item.dataset.number || '').toLowerCase();
-                    item.style.display = number.includes(value) ? 'block' : 'none';
-                });
-            });
-
-            clearBtn.addEventListener('click', () => {
-                input.value = '';
-                clearBtn.style.display = 'none';
-
-                // вернуть список
-                items.forEach(item => item.style.display = 'block');
-
-                input.focus();
-            });
-
-
-
-
+            const items = document.querySelectorAll('.js-wo-item');
+            const cbShowAll = document.getElementById('showAllWo');
+            const cbShowDone = document.getElementById('showDoneWo');
 
             // Шаблон ссылки
             const showUrlTemplate = "{{ route('mobile.show', ['workorder' => '__ID__']) }}";
 
-            document.querySelectorAll('.js-wo-item').forEach(item => {
+            // Форматируем номера (XXX XXX)
+            items.forEach(item => {
                 const raw = item.dataset.number;
-                item.textContent = formatWo(raw);
+                if (typeof formatWo === 'function') {
+                    item.textContent = formatWo(raw);
+                } else {
+                    item.textContent = raw;
+                }
             });
 
-            // Фильтрация
-            input.addEventListener('input', () => {
-                const value = input.value.trim().toLowerCase();
+            // ОДНА функция, которая применяет все фильтры
+            function applyFilters() {
+                const searchValue = input.value.trim().toLowerCase();
+                const showAll = cbShowAll.checked;
+                const showDone = cbShowDone.checked;
 
                 items.forEach(item => {
                     const number = (item.dataset.number || '').toLowerCase();
-                    item.style.display = number.includes(value) ? 'block' : 'none';
+                    const isOwn = item.dataset.own === '1';
+                    const isDone = item.dataset.done === '1';
+
+                    let visible = true;
+
+                    // 1) поиск по номеру
+                    if (searchValue && !number.includes(searchValue)) {
+                        visible = false;
+                    }
+
+                    // 2) свои / все
+                    if (!showAll && !isOwn) {
+                        visible = false;
+                    }
+
+                    // 3) Done / только не Done
+                    if (!showDone && isDone) {
+                        visible = false;
+                    }
+
+                    item.style.display = visible ? 'block' : 'none';
                 });
+            }
+
+            // По умолчанию:
+            // cbShowAll.checked = false;   // только свои
+            // cbShowDone.checked = false;  // без Done
+            applyFilters(); // сразу применим, чтобы скрыть лишнее
+
+            // --- события ---
+
+            // ввод в поиск
+            input.addEventListener('input', () => {
+                const value = input.value.trim();
+                clearBtn.style.display = value ? 'block' : 'none';
+                applyFilters();
             });
+
+            // очистка поиска
+            clearBtn.addEventListener('click', () => {
+                input.value = '';
+                clearBtn.style.display = 'none';
+                input.focus();
+                applyFilters();
+            });
+
+            // чекбоксы фильтров
+            cbShowAll.addEventListener('change', applyFilters);
+            cbShowDone.addEventListener('change', applyFilters);
 
             // Переход на воркордер
             items.forEach(item => {

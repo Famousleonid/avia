@@ -641,8 +641,11 @@
                                                         <thead>
                                                         <tr>
                                                             <th style="width:40%;">
-                                                                <div class="fw-semibold text-info">
-                                                                    {{ $cmp->name ?? ('#'.$cmp->id) }}
+                                                                <div class=" text-info">
+                                                                    {{ $cmp->name ?? ('#'.$cmp->id) }}&nbsp;&nbsp;
+                                                                <span class="text-muted" style="font-size: 12px;">
+                                                                    ({{ $cmp->ipl_num ?? '—' }}) &nbsp;&nbsp; p/n: {{ $cmp->part_number ?? '—' }}
+                                                                </span>
                                                                 </div>
                                                             </th>
                                                             <th style="width:30%; text-align: center"
@@ -1135,6 +1138,7 @@
             });
 
             // загрузка фото
+            // загрузка фото в модалку
             async function loadPhotoModal(workorderId) {
                 const modalContent = document.getElementById('photoModalContent');
                 if (!modalContent) return;
@@ -1144,39 +1148,63 @@
                 try {
                     const response = await fetch(`/workorders/${workorderId}/photos`);
 
-                    if (!response.ok) throw new Error('Response not ok');
+                    if (!response.ok) {
+                        throw new Error('Response not ok');
+                    }
+
                     const data = await response.json();
 
                     let html = '';
-                    ['photos', 'damages', 'logs'].forEach(group => {
+
+                    // какие группы есть и как их подписывать
+                    const groupsConfig = {
+                        photos:  'Photos',
+                        damages: 'Damage',
+                        logs:    'Log card',
+                        final:   'Final assy'
+                    };
+
+                    Object.entries(groupsConfig).forEach(([group, label]) => {
+                        const items = data[group] || [];
+
                         html += `
-                            <div class="col-12">
-                                <h6 class="text-primary text-uppercase mt-2">${group}</h6>
-                                <div class="row g-2">
-                        `;
+                <div class="col-12">
+                    <h6 class="text-primary text-uppercase mt-2">${label}</h6>
+                    <div class="row g-2">
+            `;
 
-                        data[group].forEach(media => {
+                        if (!items.length) {
                             html += `
-                                <div class="col-4 col-md-2 col-lg-1 photo-item">
-                                    <div class="position-relative d-inline-block w-100">
-                                        <a data-fancybox="${group}" href="${media.big}" data-caption="${group}">
-                                            <img src="${media.thumb}" class="photo-thumbnail border border-primary rounded" />
-                                        </a>
-                                        <button class="btn btn-danger btn-sm rounded-circle p-0 d-flex align-items-center justify-content-center position-absolute delete-photo-btn"
-                                            style="top: -6px; right: -6px; width: 20px; height: 20px; z-index: 10;"
-                                            data-id="${media.id}" title="Delete">
-                                            <i class="bi bi-x" style="font-size: 12px;"></i>
-                                        </button>
-                                    </div>
-                                </div>
-                            `;
-                        });
+                    <div class="col-12 text-muted small">No photos</div>
+                `;
+                        } else {
+                            items.forEach(media => {
+                                html += `
+                        <div class="col-4 col-md-2 col-lg-1 photo-item">
+                            <div class="position-relative d-inline-block w-100">
+                                <a data-fancybox="${group}" href="${media.big}" data-caption="${label}">
+                                    <img src="${media.thumb}" class="photo-thumbnail border border-primary rounded" />
+                                </a>
+                                <button class="btn btn-danger btn-sm rounded-circle p-0 d-flex align-items-center justify-content-center position-absolute delete-photo-btn"
+                                        style="top: -6px; right: -6px; width: 20px; height: 20px; z-index: 10;"
+                                        data-id="${media.id}" title="Delete">
+                                    <i class="bi bi-x" style="font-size: 12px;"></i>
+                                </button>
+                            </div>
+                        </div>
+                    `;
+                            });
+                        }
 
-                        html += `</div></div>`;
+                        html += `
+                    </div>
+                </div>
+            `;
                     });
 
                     modalContent.innerHTML = html;
                     bindDeleteButtons();
+
                 } catch (e) {
                     console.error('Load photo error', e);
                     modalContent.innerHTML = '<div class="text-danger">Failed to load photos</div>';
@@ -1184,6 +1212,7 @@
                     safeHideSpinner();
                 }
             }
+
 
             // навесить обработчики на кнопки удаления
             function bindDeleteButtons() {
