@@ -422,7 +422,7 @@ class TdrController extends Controller
 
             // Получаем все процессы для этого TDR
             $tdrProcessesForTdr = $tdrProcesses->where('tdrs_id', $tdr->id);
-            
+
             foreach ($tdrProcessesForTdr as $tdrProcess) {
                 if (!$tdrProcess->processName) {
                     continue;
@@ -431,7 +431,7 @@ class TdrController extends Controller
                 $processName = $tdrProcess->processName;
                 // Определяем ключ группы: для NDT процессов используем 'NDT_GROUP', иначе processNameId
                 $groupKey = ($processName->process_sheet_name == 'NDT') ? 'NDT_GROUP' : $processName->id;
-                
+
                 if (!isset($processGroups[$groupKey])) {
                     // Для NDT группы создаем виртуальный ProcessName или используем первый найденный NDT процесс
                     if ($groupKey == 'NDT_GROUP') {
@@ -459,12 +459,12 @@ class TdrController extends Controller
                         ];
                     }
                 }
-                
+
                 // Добавляем/обновляем количество по компоненту (для TDR обычно qty = 1, но можно использовать serial_number)
                 $qty = 1; // По умолчанию 1, можно изменить если есть поле qty в TDR
-                $processGroups[$groupKey]['components_qty'][$tdr->component->id] = 
+                $processGroups[$groupKey]['components_qty'][$tdr->component->id] =
                     ($processGroups[$groupKey]['components_qty'][$tdr->component->id] ?? 0) + $qty;
-                
+
                 // Сохраняем информацию о компоненте
                 if (!isset($processGroups[$groupKey]['components'][$tdr->component->id])) {
                     $processGroups[$groupKey]['components'][$tdr->component->id] = [
@@ -477,7 +477,7 @@ class TdrController extends Controller
                     // Обновляем qty если компонент уже есть
                     $processGroups[$groupKey]['components'][$tdr->component->id]['qty'] += $qty;
                 }
-                
+
                 $totalQty += $qty;
             }
         }
@@ -531,7 +531,7 @@ class TdrController extends Controller
 
         // Определяем, является ли это NDT группой
         $isNdtGroup = ($processName->process_sheet_name == 'NDT');
-        
+
         // Если это NDT группа, получаем все NDT process_name_ids
         $ndtProcessNameIds = [];
         if ($isNdtGroup) {
@@ -542,7 +542,7 @@ class TdrController extends Controller
 
         // Фильтруем TdrProcess по process_name_id
         $filteredTdrProcesses = collect();
-        
+
         foreach ($tdrProcesses as $tdrProcess) {
             if (!$tdrProcess->tdr || !$tdrProcess->tdr->component || !$tdrProcess->processName) {
                 continue;
@@ -586,7 +586,7 @@ class TdrController extends Controller
 
             // Фильтруем TdrProcess по выбранным component_id
             $filteredTdrProcesses = $filteredTdrProcesses->filter(function($tdrProcess) use ($filteredComponentIds) {
-                return $tdrProcess->tdr && $tdrProcess->tdr->component && 
+                return $tdrProcess->tdr && $tdrProcess->tdr->component &&
                        in_array($tdrProcess->tdr->component->id, $filteredComponentIds);
             });
         }
@@ -1117,7 +1117,7 @@ class TdrController extends Controller
                 if (isset($excludedQtyByIpl[$normalizedIpl])) {
                     continue;
                 }
-                
+
                 if (!isset($tdrItemsMap[$normalizedIpl])) {
                     $tdrItemsMap[$normalizedIpl] = 0;
                 }
@@ -1139,7 +1139,7 @@ class TdrController extends Controller
             $tdrQty = $tdrItemsMap[$normalizedIpl] ?? 0; // Сумма QTY из TDR для этого IPL (нормализованного) БЕЗ статусов Missing, Repair, Order New
             $excludedQty = $excludedQtyByIpl[$normalizedIpl] ?? 0; // Количество компонентов со статусами Missing, Repair, Order New
 
-            // Определяем units_assy: если в CSV есть поле manual (manual->number), 
+            // Определяем units_assy: если в CSV есть поле manual (manual->number),
             // ищем компонент в соответствующем manual, иначе используем общую мапу
             $unitsAssy = 1;
             if (!empty($component['manual'])) {
@@ -1187,32 +1187,32 @@ class TdrController extends Controller
             // 2. Затем вычитаем количество компонентов из TDR (без статусов Missing/Repair/Order New)
             // 3. Если результат <= 0, компонент скрывается
             // 4. Если результат > 0, показываем с qty = результат
-            
+
             // Пример 1: unitsAssy = 4, excludedQty = 2 (Missing), tdrQty = 0
             // remaining = 4 - 2 - 0 = 2 → показываем с qty = 2
-            
+
             // Пример 2: unitsAssy = 2, excludedQty = 1 (Repair), tdrQty = 0
             // remaining = 2 - 1 - 0 = 1 → показываем с qty = 1
-            
+
             // Пример 3: unitsAssy = 2, excludedQty = 1 (Order New), tdrQty = 0
             // remaining = 2 - 1 - 0 = 1 → показываем с qty = 1
-            
+
             // Пример 4: unitsAssy = 4, excludedQty = 1 (Missing) + 1 (Repair) = 2, tdrQty = 0
             // remaining = 4 - 2 - 0 = 2 → показываем с qty = 2
-            
+
             // Пример 5: unitsAssy = 4, excludedQty = 0, tdrQty = 4
             // remaining = 4 - 0 - 4 = 0 → скрываем
-            
+
             // Пример 6: unitsAssy = 4, excludedQty = 2 (Missing), tdrQty = 1
             // remaining = 4 - 2 - 1 = 1 → показываем с qty = 1
-            
+
             $remaining = $unitsAssy - $excludedQty - $tdrQty;
-            
+
             // Если результат <= 0, компонент скрывается
             if ($remaining <= 0) {
                 continue;
             }
-            
+
             // Если результат > 0, показываем с qty = remaining
             $displayQty = $remaining;
 
@@ -1507,7 +1507,7 @@ class TdrController extends Controller
                     if (isset($excludedQtyByIplCad[$normalizedIpl])) {
                         continue;
                     }
-                    
+
                     if (!isset($tdrItemsMapCad[$normalizedIpl])) {
                         $tdrItemsMapCad[$normalizedIpl] = 0;
                     }
@@ -1586,7 +1586,7 @@ class TdrController extends Controller
                 $tdrQty = $tdrItemsMapCad[$normalizedIpl] ?? 0; // Сумма QTY из TDR для этого IPL (нормализованного) БЕЗ статусов Missing, Repair, Order New
                 $excludedQty = $excludedQtyByIplCad[$normalizedIpl] ?? 0; // Количество компонентов со статусами Missing, Repair, Order New
 
-                // Определяем units_assy: если в CSV есть поле manual (manual->number), 
+                // Определяем units_assy: если в CSV есть поле manual (manual->number),
                 // ищем компонент в соответствующем manual, иначе используем общую мапу
                 $unitsAssy = 1;
                 if (!empty($component['manual'])) {
@@ -2064,7 +2064,7 @@ class TdrController extends Controller
                     if (isset($excludedQtyByIplStress[$normalizedIpl])) {
                         continue;
                     }
-                    
+
                     if (!isset($tdrItemsMapStress[$normalizedIpl])) {
                         $tdrItemsMapStress[$normalizedIpl] = 0;
                     }
@@ -2132,7 +2132,7 @@ class TdrController extends Controller
                 $tdrQty = $tdrItemsMapStress[$normalizedIpl] ?? 0; // Сумма QTY из TDR для этого IPL (нормализованного) БЕЗ статусов Missing, Order New
                 $excludedQty = $excludedQtyByIplStress[$normalizedIpl] ?? 0; // Количество компонентов со статусами Missing, Order New
 
-                // Определяем units_assy: если в CSV есть поле manual (manual->number), 
+                // Определяем units_assy: если в CSV есть поле manual (manual->number),
                 // ищем компонент в соответствующем manual, иначе используем общую мапу
                 $unitsAssy = 1;
                 if (!empty($component['manual'])) {
@@ -2521,15 +2521,24 @@ class TdrController extends Controller
                 $conditions = $tdr->conditions; // Получаем связанные данные о состоянии
                 if ($component && $conditions) {
                     // Формируем строку для компонента
-                    $componentString = sprintf(
-                        "(%s%s)<b> %s </b>: ( %s)", // Номер компонента и его имя
-                        strtoupper($component->ipl_num), // Номер компонента
-
-
-                        $tdr->qty == 1 ? '' : ', ' . $tdr->qty . 'pcs', //Если qty == 1, то пустая строка, иначе добавляем qty и "pcs"
-                        strtoupper($component->name), // Имя компонента
-                        strtoupper($tdr->description),
-                    );
+                    if (!empty($tdr->description)) {
+                        // Если description не пустой, выводим с описанием
+                        $componentString = sprintf(
+                            "(%s%s)<b> %s </b>: ( %s)", // Номер компонента и его имя
+                            strtoupper($component->ipl_num), // Номер компонента
+                            $tdr->qty == 1 ? '' : ', ' . $tdr->qty . 'pcs', //Если qty == 1, то пустая строка, иначе добавляем qty и "pcs"
+                            strtoupper($component->name), // Имя компонента
+                            strtoupper($tdr->description),
+                        );
+                    } else {
+                        // Если description пустой или null, выводим без описания
+                        $componentString = sprintf(
+                            "(%s%s)<b> %s </b> ", // Номер компонента и его имя
+                            strtoupper($component->ipl_num), // Номер компонента
+                            $tdr->qty == 1 ? '' : ', ' . $tdr->qty . 'pcs', //Если qty == 1, то пустая строка, иначе добавляем qty и "pcs"
+                            strtoupper($component->name), // Имя компонента
+                        );
+                    }
 
                     // Инициализируем массив для состояния, если он еще не существует
                     if (!isset($groupedByConditions[$conditions->name])) {
@@ -2561,15 +2570,26 @@ class TdrController extends Controller
                 $description = $tdr->description; // Description
                 if ($component && $necessaries && $codes) {
                     // Строим строку в нужном формате
-                    $necessaryComponents[] = sprintf(
-                        "(%s) <b>%s</b> IS NECESSARY: %s - %s ( %s )", // Формат вывода
-                        strtoupper($component->ipl_num), // Номер компонента
-                        strtoupper($component->name), // Имя компонента
-                        strtoupper($necessaries->name), // Название необходимости
-                        strtoupper($codes->name), // Название кода
-                        strtoupper($description), // Название кода
-
-                    );
+                    if (!empty($description)) {
+                        // Если description не пустой, выводим с описанием
+                        $necessaryComponents[] = sprintf(
+                            "(%s) <b>%s</b> IS NECESSARY: %s - %s ( %s )", // Формат вывода
+                            strtoupper($component->ipl_num), // Номер компонента
+                            strtoupper($component->name), // Имя компонента
+                            strtoupper($necessaries->name), // Название необходимости
+                            strtoupper($codes->name), // Название кода
+                            strtoupper($description), // Название кода
+                        );
+                    } else {
+                        // Если description пустой или null, выводим без описания
+                        $necessaryComponents[] = sprintf(
+                            "(%s) <b>%s</b> IS NECESSARY: %s - %s ", // Формат вывода
+                            strtoupper($component->ipl_num), // Номер компонента
+                            strtoupper($component->name), // Имя компонента
+                            strtoupper($necessaries->name), // Название необходимости
+                            strtoupper($codes->name), // Название кода
+                        );
+                    }
                 }
             }
 
@@ -2866,7 +2886,7 @@ class TdrController extends Controller
                     if (isset($excludedQtyByIpl[$normalizedIpl])) {
                         continue;
                     }
-                    
+
                     if (!isset($tdrItemsMap[$normalizedIpl])) {
                         $tdrItemsMap[$normalizedIpl] = 0;
                     }
