@@ -509,8 +509,7 @@
                                                             <span class="" id="orderedQty{{$current_workorder->number}}">{{ $orderedQty ?? 0 }}</span>
                                                            <br>
                                                             Received:
-                                                            <span id="receivedQty{{$current_workorder->number}}">{{
-                                                            $receivedQty ?? 0 }} </span>
+                                                            <span id="receivedQty{{$current_workorder->number}}">{{$receivedQty ?? 0 }} </span>
                                                         </div>
 
                                                     </div>

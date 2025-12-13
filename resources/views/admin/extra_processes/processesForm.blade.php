@@ -719,7 +719,7 @@ document.addEventListener("DOMContentLoaded", function() {
             if (ndtDataContainer) {
                 adjustTableHeightToRange({
                     min_height_tab: 570,
-                    max_height_tab: 620,
+                    max_height_tab: 621,
                     tab_name: '.ndt-data-container',
                     row_height: 32,
                     row_selector: '.data-row-ndt[data-row-index]',
@@ -742,7 +742,7 @@ document.addEventListener("DOMContentLoaded", function() {
         if (regularTableContainer && regularRows.length > 0) {
             adjustTableHeightToRange({
                 min_height_tab: 720,
-                max_height_tab: 770,
+                max_height_tab: 771,
                 tab_name: '.data-page',
                 row_height: 32,
                 row_selector: '.data-page [data-row-index]',

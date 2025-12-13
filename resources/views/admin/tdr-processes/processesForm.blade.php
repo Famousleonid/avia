@@ -733,8 +733,8 @@ document.addEventListener("DOMContentLoaded", function() {
                 const ndtRowHeight = calculateAverageRowHeight(ndtRows);
 
                 adjustTableHeightToRange({
-                    min_height_tab: 500,
-                    max_height_tab: 600,
+                    min_height_tab: 570,
+                    max_height_tab: 620,
                     tab_name: '.ndt-data-container',
                     row_height: ndtRowHeight,
                     row_selector: '.data-row-ndt[data-row-index]',
@@ -775,8 +775,8 @@ document.addEventListener("DOMContentLoaded", function() {
             console.log(`Целевой диапазон: 700-750px`);
 
             adjustTableHeightToRange({
-                min_height_tab: 700,
-                max_height_tab: 750,
+                min_height_tab: 720,
+                max_height_tab: 770,
                 tab_name: '.data-page',
                 row_height: avgRowHeight,
                 row_selector: '.data-page [data-row-index]',

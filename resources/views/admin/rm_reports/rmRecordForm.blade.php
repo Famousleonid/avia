@@ -921,7 +921,7 @@
         // Используем универсальную функцию adjustTableHeightToRange
         const result = adjustTableHeightToRange({
             min_height_tab: 593,
-            max_height_tab: 639,
+            max_height_tab: 640,
             tab_name: '.parent',
             row_height: actualRowHeight, // Используем реальную высоту строки
             header_height: headerHeight, // Учитываем высоту заголовка

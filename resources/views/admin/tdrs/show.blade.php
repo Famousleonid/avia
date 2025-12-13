@@ -127,7 +127,7 @@
                                class="btn  fs-8 btn-outline-primary ms-2 " style="height: 55px;width: 150px"
                                onclick="showLoadingSpinner
                                    ()">
-                                {{__('Repair & Modification Record')}}
+                                 {{__('Repair & Modification Record')}}
                             </a>
                         </div>
 {{--                        <div class="col-12 col-lg-3 d-flex ms-3">--}}
