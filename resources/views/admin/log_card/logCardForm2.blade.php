@@ -32,7 +32,7 @@
             @page {
                 /*size: letter landscape;*/
                 size: 11in 8.5in;
-                margin: 5mm;
+                margin: 6mm;
             }
 
             /* Убедитесь, что вся страница помещается на один лист */
@@ -485,7 +485,7 @@
         <div class="col-4">
             <div>
                 <img src="{{ asset('img/icons/AT_logo-rb.svg') }}" alt="Logo"
-                     style="width: 160px; margin: 0px 3px 0;">
+                     style="width: 140px; margin: 0px 3px 0;">
             </div>
 
 
@@ -670,7 +670,7 @@
     </div>
     {{--    <div style="page-break-before: always;"></div>--}}
     <div class="mt-3">
-        <div class="border-l-t-r">
+        <div class="border-l-t-r ">
             <div class="row">
                 <div class="col-10 pt-1  fs-75 " style="text-align: center; padding-left: 28ch;">
                     <strong>PRIMARY MEMBER RECORDS</strong>

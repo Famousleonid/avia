@@ -240,10 +240,10 @@
         <div class="row">
             <div class="col-3">
                 <img src="{{ asset('img/icons/AT_logo-rb.svg') }}" alt="Logo"
-                     style="width: 120px; margin: 6px 10px 0;">
+                     style="width: 180px; margin: 6px 10px 0;">
             </div>
             <div class="col-9">
-                <h2 class=" mt-4 text-black text-"><strong>{{$process_name->process_sheet_name}} PROCESS SHEET</strong></h2>
+                <h2 class=" mt-3 text-black text-"><strong>{{$process_name->process_sheet_name}} PROCESS SHEET</strong></h2>
             </div>
         </div>
         <div class="row">
@@ -414,23 +414,23 @@
                     @if($component->tdr->serial_number)
             SN {{$component->tdr->serial_number}}
                     @endif
-</div>
-<div class="col-3 border-l-b details-row text-center" style="height: 32px">
-{{ $component->tdr->component->name }}
-</div>
-<div class="col-2 border-l-b details-row text-center" style="height: 32px">
-{{ substr($component->processName->name, -1) }}
-</div>
-<div class="col-1 border-l-b details-row text-center" style="height: 32px">
-{{ $component->tdr->qty }}
-</div>
-<div class="col-1 border-l-b details-row text-center" style="height: 32px">
-<!-- Пустая ячейка -->
-</div>
-<div class="col-1 border-l-b-r details-row text-center" style="height: 32px">
+                </div>
+        <div class="col-3 border-l-b details-row text-center" style="height: 32px">
+        {{ $component->tdr->component->name }}
+        </div>
+        <div class="col-2 border-l-b details-row text-center" style="height: 32px">
+        {{ substr($component->processName->name, -1) }}
+        </div>
+        <div class="col-1 border-l-b details-row text-center" style="height: 32px">
+        {{ $component->tdr->qty }}
+        </div>
+        <div class="col-1 border-l-b details-row text-center" style="height: 32px">
+        <!-- Пустая ячейка -->
+        </div>
+        <div class="col-1 border-l-b-r details-row text-center" style="height: 32px">
 
-</div>
-</div>
+        </div>
+    </div>
 @php $rowIndex++; @endphp
 @endforeach
 
@@ -486,133 +486,137 @@
             @endif
 
 
-            <h6 class="mt-4 ms-3 "><strong>
-Perform the {{ ucwords(strtolower($process_name->process_sheet_name)) }}
-as the specified under Process No. and in
-accordance with CMM No
-</strong>.</h6>
-
-<div class="page table-header">
-<div class="row mt-3 " >
-<div class="col-1 border-l-t-b pt-2 details-row text-center"><h6 class="fs-7" ><strong> ITEM No.</strong></h6></div>
-<div class="col-2 border-l-t-b pt-2 details-row text-center"><h6  class="fs-7" ><strong>PART No.</strong>
-    </h6>
-</div>
-<div class="col-2 border-l-t-b pt-2  details-row text-center"><h6  class="fs-7" ><strong>DESCRIPTION</strong>
-    </h6></div>
-<div class="col-4 border-l-t-b pt-2 details-row text-center"><h6  class="fs-7" ><strong>PROCESS No.</strong>
-    </h6> </div>
-<div class="col-1 border-l-t-b pt-2  details-row  text-center"><h6  class="fs-7" ><strong>QTY</strong> </h6>
-</div>
-
-    @if($process_name->process_sheet_name == 'STRESS RELIEF')
-        <div class="col-2 border-all pt-2  details-row  text-center"><h6  class="fs-7" ><strong>PERFORMED</strong>
+            <h6 class="mt-3 ms-3">
+                <strong>
+                    Perform the {{ ucwords(strtolower($process_name->process_sheet_name)) }}
+                    as the specified under Process No. and in
+                    accordance with CMM No.
+                </strong>
             </h6>
-    @else
-         <div class="col-2 border-all pt-2  details-row  text-center"><h6  class="fs-7" ><strong>CMM No.</strong> </h6>
-    @endif
-        </div>
-</div>
-</div>
-<div class="page data-page">
 
-@php
-$totalRows = 21; // Общее количество строк
-$dataRows = count($process_tdr_components); // Количество строк с данными
-$emptyRows = $totalRows - $dataRows; // Количество пустых строк
-$rowIndex = 1;
-@endphp
-
-@foreach($process_tdr_components as $component)
-@php
-    $processData = json_decode($component->processes, true);
-                        // Получаем имя процесса из связанной модели ProcessName
-    $processesName = $component->processName->name;
-@endphp
-
-@foreach($processData as $process)
-
-<div class="row fs-85 data-row" data-row-index="{{ $rowIndex }}">
-    <div class="col-1 border-l-b details-cell text-center"  style="min-height: 34px">
-        {{ $component->tdr->component->ipl_num }}
+    <div class="page table-header">
+    <div class="row mt-2 " >
+    <div class="col-1 border-l-t-b pt-2 details-row text-center"><h6 class="fs-7" ><strong> ITEM No.</strong></h6></div>
+    <div class="col-2 border-l-t-b pt-2 details-row text-center"><h6  class="fs-7" ><strong>PART No.</strong>
+        </h6>
     </div>
-    <div class="col-2 border-l-b details-cell text-center" style="min-height: 34px">
-        {{ $component->tdr->component->part_number }}
-        @if($component->tdr->serial_number)
-            <br>SN {{$component->tdr->serial_number}}
+    <div class="col-2 border-l-t-b pt-2  details-row text-center"><h6  class="fs-7" ><strong>DESCRIPTION</strong>
+        </h6></div>
+    <div class="col-4 border-l-t-b pt-2 details-row text-center"><h6  class="fs-7" ><strong>PROCESS No.</strong>
+        </h6> </div>
+    <div class="col-1 border-l-t-b pt-2  details-row  text-center"><h6  class="fs-7" ><strong>QTY</strong> </h6>
+    </div>
+
+        @if($process_name->process_sheet_name == 'STRESS RELIEF')
+            <div class="col-2 border-all pt-2  details-row  text-center"><h6  class="fs-7" ><strong>PERFORMED</strong>
+                </h6>
+        @else
+             <div class="col-2 border-all pt-2  details-row  text-center"><h6  class="fs-7" ><strong>CMM No.</strong> </h6>
         @endif
+            </div>
     </div>
-    <div class="col-2 border-l-b details-cell text-center" style="min-height: 34px" >
-        {{ $component->tdr->component->name }}
     </div>
-    <div class="col-4 border-l-b details-cell text-center process-cell"  style="min-height: 34px">
-        @foreach($process_components as $component_process)
-            @if($component_process->id == $process)
-                <span @if(strlen($component_process->process) > 25) class="process-text-long"
-                    @endif>
-                    {{$component_process->process}}
-                    @if($component->description)
-                        <br><span>{{$component->description}}
-                        </span>
-                    @endif
-                    </span>
+    <div class="page data-page">
+
+    @php
+    $totalRows = 18; // Общее количество строк
+    $dataRows = count($process_tdr_components); // Количество строк с данными
+    $emptyRows = $totalRows - $dataRows; // Количество пустых строк
+    $rowIndex = 1;
+    @endphp
+
+    @foreach($process_tdr_components as $component)
+    @php
+        $processData = json_decode($component->processes, true);
+                            // Получаем имя процесса из связанной модели ProcessName
+        $processesName = $component->processName->name;
+    @endphp
+
+    @foreach($processData as $process)
+
+    <div class="row fs-85 data-row" data-row-index="{{ $rowIndex }}">
+        <div class="col-1 border-l-b details-cell text-center"  style="min-height: 34px">
+            {{ $component->tdr->component->ipl_num }}
+        </div>
+        <div class="col-2 border-l-b details-cell text-center" style="min-height: 34px">
+            {{ $component->tdr->component->part_number }}
+            @if($component->tdr->serial_number)
+                <br>SN {{$component->tdr->serial_number}}
             @endif
-        @endforeach
-    </div>
-    <div class="col-1 border-l-b details-cell text-center" style="min-height: 34px" >
-        {{ $component->tdr->qty }}
-    </div>
-    @if($process_name->process_sheet_name == 'STRESS RELIEF')
-        <div class="col-2 border-l-b-r details-cell text-center"  style="min-height: 34px"></div>
-    @else
-        <div class="col-2 border-l-b-r details-cell text-center"  style="min-height: 34px">
-            @foreach($manuals as $manual)
-                @if($manual->id == $current_wo->unit->manual_id)
-                    <h6 class="text-center mt-2">
-                        {{substr($manual->number, 0, 8)}}
-                    </h6>
+        </div>
+        <div class="col-2 border-l-b details-cell text-center" style="min-height: 34px" >
+            {{ $component->tdr->component->name }}
+        </div>
+        <div class="col-4 border-l-b details-cell text-center process-cell"  style="min-height: 34px">
+            @foreach($process_components as $component_process)
+                @if($component_process->id == $process)
+                    <span @if(strlen($component_process->process) > 25) class="process-text-long"
+                        @endif>
+                        {{$component_process->process}}
+                        @if($component->description)
+                            <br><span>{{$component->description}}
+                            </span>
+                        @endif
+                        </span>
                 @endif
             @endforeach
         </div>
+        <div class="col-1 border-l-b details-cell text-center" style="min-height: 34px" >
+            {{ $component->tdr->qty }}
+        </div>
+        @if($process_name->process_sheet_name == 'STRESS RELIEF')
+            <div class="col-2 border-l-b-r details-cell text-center"  style="min-height: 34px"></div>
+        @else
+            <div class="col-2 border-l-b-r details-cell text-center"  style="min-height: 34px">
+                @foreach($manuals as $manual)
+                    @if($manual->id == $current_wo->unit->manual_id)
+                        <h6 class="text-center mt-2">
+                            {{substr($manual->number, 0, 8)}}
+                        </h6>
+                    @endif
+                @endforeach
+            </div>
+        @endif
+
+    </div>
+    @php $rowIndex++; @endphp
+    @endforeach
+    @endforeach
+
+    @for ($i = 0; $i < $emptyRows; $i++)
+    <div class="row empty-row" data-row-index="{{ $rowIndex }}">
+        <div class="col-1 border-l-b  text-center" style="height: 32px">
+            <!-- Пустая ячейка -->
+        </div>
+        <div class="col-2 border-l-b  text-center" style="height: 32px">
+            <!-- Пустая ячейка -->
+        </div>
+        <div class="col-2 border-l-b  text-center" style="height: 32px">
+            <!-- Пустая ячейка -->
+        </div>
+        <div class="col-4 border-l-b  text-center" style="height: 32px">
+            <!-- Пустая ячейка -->
+        </div>
+        <div class="col-1 border-l-b  text-center" style="height: 32px">
+            <!-- Пустая ячейка -->
+        </div>
+
+        <div class="col-2 border-l-b-r  text-center" style="height: 32px">
+            <!-- Пустая ячейка -->
+        </div>
+    </div>
+    @php $rowIndex++; @endphp
+    @endfor
+
+    </div>
+
     @endif
 
-</div>
-@php $rowIndex++; @endphp
-@endforeach
-@endforeach
-
-@for ($i = 0; $i < $emptyRows; $i++)
-<div class="row empty-row" data-row-index="{{ $rowIndex }}">
-    <div class="col-1 border-l-b  text-center" style="height: 32px">
-        <!-- Пустая ячейка -->
-    </div>
-    <div class="col-2 border-l-b  text-center" style="height: 32px">
-        <!-- Пустая ячейка -->
-    </div>
-    <div class="col-2 border-l-b  text-center" style="height: 32px">
-        <!-- Пустая ячейка -->
-    </div>
-    <div class="col-4 border-l-b  text-center" style="height: 32px">
-        <!-- Пустая ячейка -->
-    </div>
-    <div class="col-1 border-l-b  text-center" style="height: 32px">
-        <!-- Пустая ячейка -->
-    </div>
-
-    <div class="col-2 border-l-b-r  text-center" style="height: 32px">
-        <!-- Пустая ячейка -->
-    </div>
-</div>
-@php $rowIndex++; @endphp
-@endfor
-
-</div>
-
-@endif
-
 
 
 </div>
+
+
 <footer>
 <div class="row fs-85" style="width: 100%; padding: 5px 0;">
 <div class="col-6 text-start">
@@ -768,7 +772,7 @@ document.addEventListener("DOMContentLoaded", function() {
 
             console.log(`Обычная таблица: высота строк с данными ${dataRowHeight}px, пустых строк ${emptyRowHeight}px, используется ${avgRowHeight}px`);
             console.log(`Текущая высота таблицы: ${initialHeight}px, текущее количество строк: ${initialRowCount}`);
-            console.log(`Целевой диапазон: 750-800px`);
+            console.log(`Целевой диапазон: 700-750px`);
 
             adjustTableHeightToRange({
                 min_height_tab: 700,
@@ -790,7 +794,7 @@ document.addEventListener("DOMContentLoaded", function() {
                     if (Math.abs(currentHeight - initialHeight) < 5) {
                         console.warn('ВНИМАНИЕ: Высота таблицы практически не изменилась!');
                         console.warn(`Возможные причины:`);
-                        console.warn(`1. Таблица уже находится в целевом диапазоне (${currentHeight}px между 750-800px)`);
+                        console.warn(`1. Таблица уже находится в целевом диапазоне (${currentHeight}px между 700-750px)`);
                         console.warn(`2. Недостаточно строк для достижения целевой высоты`);
                         console.warn(`3. CSS ограничения (max-height, overflow)`);
                     }
@@ -834,7 +838,7 @@ document.addEventListener("DOMContentLoaded", function() {
                 const ndtContainerHeight = ndtContainer.offsetHeight;
                 console.log(`Проверка высоты NDT таблицы: контейнер ${ndtContainerHeight}px, сумма высот строк ${ndtTotalActualHeight}px`);
             }
-        }, 100);
+        }, 300);
     }, 200);
 });
 </script>

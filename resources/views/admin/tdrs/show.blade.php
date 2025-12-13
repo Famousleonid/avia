@@ -32,8 +32,6 @@
                     <div style="width: 150px;">
                         <h5 class="text-primary  ps-1">{{__('Work Order')}}
                             <a class="text-success-emphasis " href="#" data-bs-toggle="modal"
-                               data-tippy-content="{{ __('Work Order Info') }}"
-                               data-tippy-placement="top"
                                data-bs-target=#infoModal{{$current_wo->number}}>{{$current_wo->number}}
                             </a>
                         </h5>
@@ -42,110 +40,9 @@
 
                     <div class="ps-2 d-flex" >
 
-                        <div class=" " style=" height: 46px; width: 250px;">
-                            <div class=" mt-0 d-flex">
-                                @if($trainings && $trainings->date_training && $user->id == $user_wo)
-                                    @php
-                                        $trainingDate = \Carbon\Carbon::parse($trainings->date_training);
-                                        $monthsDiff = $trainingDate->diffInMonths(now());
-                                        $daysDiff = $trainingDate->diffInDays(now());
-                                        $isThisMonth = $trainingDate->isCurrentMonth();
-                                        $isThisYear = $trainingDate->isCurrentYear();
-                                    @endphp
-                                    @if($monthsDiff<=12)
-                                        <div class="d-flex justify-content-center">
-                                            <div class=" pb-1 " style="color: lawngreen;">
-                                                @if($monthsDiff == 0  && $user->id == $user_wo)
-                                                    @if($isThisMonth)
-                                                        Last training this month
-                                                        <p>{{ $trainingDate->format('M d, Y') }}</p>
-                                                    @else
-                                                        {{--                                                    Last training {{ $monthsDiff }} months ago ({{ $trainingDate->format('M d,--}}
-                                                        {{--                                                    Y') }})--}}
-                                                        Last training for this unit
-                                                        <p>{{ $trainingDate->format('M d, Y') }} </p>
-
-                                                    @endif
-                                                @elseif($monthsDiff == 1)
-                                                    @if($user->id == $user_wo)
-                                                        Last training {{ $monthsDiff }} month ago
-                                                        <p>{{ $trainingDate->format('M d, Y') }}</p>
-                                                    @endif
-                                                @else
-                                                    @if($monthsDiff >= 6 && $user->id == $user_wo)
-
-                                                            Last training {{ $monthsDiff }} months ago
-                                                            <p>{{$trainingDate->format('M d, Y') }}</p>
-
-                                                    @else
-                                                        Last training {{ $monthsDiff }} months ago
-                                                        <p>{{ $trainingDate->format('M d, Y') }}</p>
-                                                    @endif
-                                                @endif
-                                            </div>
-                                            @if($monthsDiff >= 6 && $user->id == $user_wo)
-                                                <div class="text-center ms-2" style="height: 40px; width: 40px">
-                                                    <button class="btn btn-success btn-sm" style="height: 55px;width: 55px"
-{{--                                                            title="{{ __('Update to Today') }}"--}}
-                                                            data-tippy-content="{{ __('Update to Today') }}"
-                                                            data-tippy-placement="top"
-                                                            onclick="updateTrainingToToday({{
-                                                    $manual_id }}, '{{ $trainings->date_training }}')">
-                                                        <i class="bi bi-calendar-check" style="font-size: 28px;"></i>
-{{--                                                        Update to Today--}}
-                                                    </button>
-                                                </div>
-                                            @endif
-                                        </div>
-
-                                    @else
-                                        <div class=" " style="color: red; ">
-                                            Last training {{ $monthsDiff }} months ago ({{ $trainingDate->format('M d, Y') }}). Need Update
-                                            @if($user->id == $user_wo)
-                                                <div class="ms-2">
-                                                    <button class="btn btn-warning btn-sm" style="height: 55px;width: 55px"
-{{--                                                            title="{{ __('Update to Today') }}"--}}
-                                                            data-tippy-content="{{ __('Update to Today') }}"
-                                                            data-tippy-placement="top"
-                                                            onclick="updateTrainingToToday({{
-                                                    $manual_id }}, '{{ $trainings->date_training }}')">
-                                                        <i class="bi bi-calendar-check" style="font-size: 28px;" ></i>
-{{--                                                        Update to Today--}}
-                                                    </button>
-                                                </div>
-                                            @endif
-                                        </div>
-                                    @endif
-                                @else
-                                    @if($user->id == $user_wo)
-                                        <div class="d-flex " >
-                                            <div class="" style="color: red;">
-                                                There are no trainings
-                                                <p>for this unit.</p>
-                                            </div>
-                                                <div class="ms-2">
-                                                    <button class="fs-75 btn btn-primary btn-sm" style="height: 55px;width: 55px"
-{{--                                                            title="{{ __('Create Trainings') }}"--}}
-                                                            data-tippy-content="{{ __('Create Trainings') }}"
-                                                            data-tippy-placement="top"
-                                                            onclick="createTrainings({{
-                                                    $manual_id }})">
-                                                        <i class="bi bi-plus-circle" style="font-size: 28px;"></i>
-                                                    </button>
-                                            </div>
-                                        </div>
-
-                                    @endif
-                                @endif
-                            </div>
-                        </div>
-
                         <div class=" ms-4">
                             <a href="{{ route('mains.show', $current_wo->id) }}" class="btn
-                                            btn-outline-success "
-{{--                               title="{{ __('WO Tasks') }}"--}}
-                               data-tippy-content="{{ __('WO Tasks') }}"
-                               data-tippy-placement="top"
+                                            btn-outline-success " title="{{ __('WO Tasks') }}"
                                onclick="showLoadingSpinner()">
                                 <i class="bi bi-list-task " style="font-size: 28px;"></i>
 
@@ -153,9 +50,7 @@
                         </div>
                         <div class="me-2 position-relative">
                             <button class="btn  btn-outline-warning ms-2 open-pdf-modal text-center"
-{{--                                    title="{{ __('PDF Library') }}"--}}
-                                    data-tippy-content="{{ __('PDF Library') }}"
-                                    data-tippy-placement="top"
+                                    title="{{ __('PDF Library') }}"
                                     style="height: 55px;width: 55px"
                                     data-id="{{ $current_wo->id }}"
                                     data-number="{{ $current_wo->number }}" >
@@ -176,8 +71,6 @@
                             <div class="me-2">
                                 <a href="{{route('tdrs.processes',['workorder_id' => $current_wo->id])}}"
                                    class="btn fs-8 btn-outline-primary " style="height: 55px;width: 100px"
-                                   data-tippy-content="{{ __('All Component Processes') }}"
-                                   data-tippy-placement="top"
                                    onclick="showLoadingSpinner()">
                                     {{__('Component Processes')}}
                                 </a>
@@ -190,10 +83,8 @@
                                     ->count('component_id');
                             @endphp
                             <a href="{{route('extra_processes.show_all',['id'=>$current_wo->id])}}"
-                               class="btn fs-8 btn-outline-primary " style="height: 55px;width: 140px"
-                               data-tippy-content="{{ __('Create Processes for Extra Components ') }}"
-                               data-tippy-placement="top"
-                               onclick="showLoadingSpinner()">
+                               class="btn fs-8 btn-outline-primary " style="height: 55px;width: 140px" onclick="showLoadingSpinner
+                                       ()">
                                 {{__('Extra Component Processes')}}
                             </a>
                             @if($extraProcessesCount > 0)
@@ -213,8 +104,6 @@
                                             @if(!str_contains($plane->type, 'ATR'))
                                                 <a href="{{route('log_card.show',['id' => $current_wo->id])}}"
                                                       class="btn  fs-8 btn-outline-primary " style="min-height: 55px;width: 55px"
-                                                   data-tippy-content="{{ __('Create Log Card') }}"
-                                                   data-tippy-placement="top"
                                                       onclick="showLoadingSpinner ()">
                                                     {{__('Log Card')}}
                                                 </a>
@@ -227,9 +116,7 @@
                         </div>
                         <div>
                             <a href="{{route('wo_bushings.show',['wo_bushing' => $current_wo->id])}}"
-                               class="btn  fs-8 btn-outline-primary ms-2" style="min-height: 55px;width: 95px"
-                               data-tippy-content="{{ __('Create Processes for Bushings') }}"
-                               data-tippy-placement="top"
+                               class="btn  fs-8 btn-outline-primary ms-2" style="min-height: 55px;width: 85px"
                                onclick="showLoadingSpinner
                                    ()">
                                 {{__('Bushing Processes')}}
@@ -238,21 +125,17 @@
                         <div>
                             <a href="{{route('rm_reports.show',['rm_report' => $current_wo->id])}}"
                                class="btn  fs-8 btn-outline-primary ms-2 " style="height: 55px;width: 150px"
-                               data-tippy-content="{{ __('Create Repair and Modification Form') }}"
-                               data-tippy-placement="top"
                                onclick="showLoadingSpinner
                                    ()">
                                 {{__('Repair & Modification Record')}}
                             </a>
                         </div>
-
-{{--                @if($orderedQty>0)--}}
 {{--                        <div class="col-12 col-lg-3 d-flex ms-3">--}}
 {{--                            <div class="border rounded p-2 h-100 w-100">--}}
 {{--                                <div class="small d-flex justify-content-between">--}}
 {{--                                    <span class="text-info  me-2">Parts:</span>--}}
-{{--                                    Ordered: <span id="orderedQty{{$current_wo->number}}">{{ $orderedQty ?? 0 }}</span>--}}
-{{--                                    Received: <span id="receivedQty{{$current_wo->number}}">{{ $receivedQty ?? 0 }}</span>--}}
+{{--                                    <span class="me-2 text-center"> Ordered: <span id="orderedQty{{$current_wo->number}}">{{ $orderedQty ?? 0 }}</span></span>--}}
+{{--                                    <span class="me-2 text-center"> Received: <span id="receivedQty{{$current_wo->number}}">{{ $receivedQty ?? 0 }}</span></span>--}}
 {{--                                    <button type="button" class="btn btn-success fs-6"--}}
 {{--                                            style="--bs-btn-padding-y: .02rem; --bs-btn-padding-x: 1rem;--}}
 {{--                                                            --bs-btn-font-size: .7rem;"--}}
@@ -262,18 +145,16 @@
 {{--                                    </button>--}}
 {{--                                </div>--}}
 {{--                            </div>--}}
-{{--                        </div>--}}
-{{--                        @endif--}}
+
+
+
 
 
                         <div class="ms-5">
                             @if($current_wo->instruction_id == 1 )
                                 <div class="me-1 ">
                                     <a href="{{ route('ndt-cad-csv.index', $current_wo->id) }}"
-                                       class="btn fs-8 btn-outline-success"
-                                       data-tippy-content="{{ __('Create Standard Processes') }}"
-                                       data-tippy-placement="top"
-                                       style="min-height: 55px; width: 90px">
+                                       class="btn fs-8 btn-outline-success" style="min-height: 55px; width: 90px">
                                         {{--                                    <i class="bi bi-gear"></i> --}}
                                         STD Processes
                                     </a>
@@ -284,6 +165,8 @@
 
                     <div class="ms-3">
                         <div class="d-flex ">
+
+
                             @php
                                 $manual = null;
                                 $hasNdtComponents = false;
@@ -673,99 +556,82 @@
                                 </div>
                             </div>
                         </div>
-{{--                        <!--  Parts Modal -->--}}
-{{--                        <div class="modal fade" id="partsModal{{$current_wo->number}}" tabindex="-1"--}}
-{{--                             role="dialog" aria-labelledby="orderModalLabel{{$current_wo->number}}" aria-hidden="true">--}}
-{{--                            <div class="modal-dialog modal-dialog-centered" role="document">--}}
-{{--                                <div class="modal-content bg-gradient" style="width: 900px">--}}
-{{--                                    <div class="modal-header" style="width: 900px">--}}
-{{--                                        <div class="d-flex ">--}}
-{{--                                            <h4 class="modal-title">{{__('Work order ')}}{{$current_wo->number}}</h4>--}}
-{{--                                            <h4 class="modal-title ms-4">{{__('Extra Parts  ')}}</h4>--}}
-{{--                                        </div>--}}
-{{--                                        <button type="button" class="btn-close pb-2" data-bs-dismiss="modal" aria-label="Close"></button>--}}
-{{--                                    </div>--}}
-{{--                                    @if(count($ordersPartsNew))--}}
-{{--                                        <div class="table-wrapper">--}}
-{{--                                            <table class="display table table-cm table-hover table-striped align-middle table-bordered">--}}
-{{--                                                <thead class="bg-gradient">--}}
-{{--                                                <tr>--}}
-{{--                                                    <th class="text-primary  bg-gradient " data-direction="asc">{{__('IPL')}}</th>--}}
-{{--                                                    <th class="text-primary  bg-gradient " data-direction="asc">{{__('Part Description') }}</th>--}}
-{{--                                                    <th class="text-primary  bg-gradient " style="width: 250px;" data-direction="asc">{{__('Part Number')}}</th>--}}
-{{--                                                    <th class="text-primary  bg-gradient " data-direction="asc">{{__('QTY')}}</th>--}}
-{{--                                                    <th class="text-primary  bg-gradient ">{{__('PO NO.')}} </th>--}}
-{{--                                                    <th class="text-primary  bg-gradient ">{{__('Received')}}</th>--}}
-{{--                                                </tr>--}}
-{{--                                                </thead>--}}
-{{--                                                <tbody>--}}
+                        <!--  Parts Modal -->
+                        <div class="modal fade" id="partsModal{{$current_wo->number}}" tabindex="-1"
+                             role="dialog" aria-labelledby="orderModalLabel{{$current_wo->number}}" aria-hidden="true">
+                            <div class="modal-dialog modal-dialog-centered" role="document">
+                                <div class="modal-content bg-gradient" style="width: 900px">
+                                    <div class="modal-header" style="width: 900px">
+                                        <div class="d-flex ">
+                                            <h4 class="modal-title">{{__('Work order ')}}{{$current_wo->number}}</h4>
+                                            <h4 class="modal-title ms-4">{{__('Extra Parts  ')}}</h4>
+                                        </div>
+                                        <button type="button" class="btn-close pb-2" data-bs-dismiss="modal" aria-label="Close"></button>
+                                    </div>
+                                    @if(count($prl_parts))
+                                        <div class="table-wrapper">
+                                            <table class="display table table-cm table-hover table-striped align-middle table-bordered">
+                                                <thead class="bg-gradient">
+                                                <tr>
+                                                    <th class="text-primary  bg-gradient " data-direction="asc">{{__('IPL')}}</th>
+                                                    <th class="text-primary  bg-gradient " data-direction="asc">{{__('Part Description') }}</th>
+                                                    <th class="text-primary  bg-gradient " style="width: 250px;" data-direction="asc">{{__('Part Number')}}</th>
+                                                    <th class="text-primary  bg-gradient " data-direction="asc">{{__('QTY')}}</th>
+                                                    <th class="text-primary  bg-gradient ">{{__('PO NO.')}} </th>
+                                                    <th class="text-primary  bg-gradient ">{{__('Received')}}</th>
+                                                </tr>
+                                                </thead>
+                                                <tbody>
 
-{{--                                                --}}{{--                                                @foreach($prl_parts as $part)--}}
-{{--                                                --}}{{--                                                    <tr>--}}
-{{--                                                --}}{{--                                                        <td class="" style="width: 100px"> {{$part->component->ipl_num ??--}}
-{{--                                                --}}{{--                                                        ''}} </td>--}}
-{{--                                                --}}{{--                                                        <td class="" style="width: 250px"> {{$part->component->name ?? ''}}--}}
-{{--                                                --}}{{--                                                        </td>"--}}
-{{--                                                --}}{{--                                                        <td class="" style="width: 120px;"> {{$part->component->part_number--}}
-{{--                                                --}}{{--                                                        ?? ''}} </td>--}}
-{{--                                                --}}{{--                                                        <td class="" style="width: 150px;"> {{$part->qty}} </td>--}}
-{{--                                                --}}{{--                                                        <td class="" style="width: 150px;">--}}
+                                                @foreach($prl_parts as $part)
+                                                    @php
+                                                        $currentComponent = $part->orderComponent ?? $part->component;
+                                                    @endphp
+                                                    <tr>
 
-{{--                                                --}}{{--                                                        </td>--}}
-{{--                                                --}}{{--                                                        <td class="" style="width: 150px;">--}}
-
-{{--                                                --}}{{--                                                        </td>--}}
-{{--                                                --}}{{--                                                    </tr>--}}
-{{--                                                --}}{{--                                                @endforeach--}}
-{{--                                                @foreach($prl_parts as $part)--}}
-{{--                                                    @php--}}
-{{--                                                        $currentComponent = $part->orderComponent ?? $part->component;--}}
-{{--                                                    @endphp--}}
-{{--                                                    <tr>--}}
-
-{{--                                                        <td class="" style="width: 100px"> {{$currentComponent->ipl_num ?? ''}} </td>--}}
-{{--                                                        <td class="" style="width: 250px"> {{$currentComponent->name ?? ''}} </td>--}}
-{{--                                                        <td class="" style="width: 120px;"> {{$currentComponent->part_number ?? ''}} </td>--}}
-{{--                                                        <td class="" style="width: 150px;"> {{$part->qty}} </td>--}}
-{{--                                                        <td class="" style="width: 150px;">--}}
-{{--                                                            <div class="po-no-container">--}}
-{{--                                                                <select class="form-select form-select-sm po-no-select"--}}
-{{--                                                                        data-tdrs-id="{{ $part->id }}"--}}
-{{--                                                                        data-workorder-number="{{ $current_wo->number }}"--}}
-{{--                                                                        style="width: 100%;">--}}
-{{--                                                                    <option value="">-- Select --</option>--}}
-{{--                                                                    <option value="Customer" {{ $part->po_num === 'Customer' ? 'selected' : '' }}>Customer</option>--}}
-{{--                                                                    <option value="INPUT" {{ $part->po_num && $part->po_num !== 'Customer' ? 'selected' : '' }}>PO No.</option>--}}
-{{--                                                                </select>--}}
-{{--                                                                <input type="text"--}}
-{{--                                                                       class="form-control form-control-sm po-no-input mt-1"--}}
-{{--                                                                       data-tdrs-id="{{ $part->id }}"--}}
-{{--                                                                       data-workorder-number="{{ $current_wo->number }}"--}}
-{{--                                                                       placeholder="Po No."--}}
-{{--                                                                       value="{{ $part->po_num && $part->po_num !== 'Customer' ? $part->po_num : '' }}"--}}
-{{--                                                                       style="display: {{ $part->po_num && $part->po_num !== 'Customer' ? 'block' : 'none' }};">--}}
-{{--                                                            </div>--}}
-{{--                                                        </td>--}}
-{{--                                                        <td class="" style="width: 150px;">--}}
-{{--                                                            <input type="date"--}}
-{{--                                                                   class="form-control form-control-sm received-date"--}}
-{{--                                                                   data-tdrs-id="{{ $part->id }}"--}}
-{{--                                                                   data-workorder-number="{{ $current_wo->number }}"--}}
-{{--                                                                   value="{{ $part->received ? \Carbon\Carbon::parse($part->received)->format('Y-m-d') : '' }}">--}}
-{{--                                                        </td>--}}
-{{--                                                    </tr>--}}
-{{--                                                @endforeach--}}
-{{--                                                </tbody>--}}
-{{--                                            </table>--}}
-{{--                                        </div>--}}
-{{--                                    @else--}}
-{{--                                        <h5 class="text-center mt-3 mb-3 text-primary">{{__('No Ordered Parts')}}</h5>--}}
-{{--                                    @endif--}}
+                                                        <td class="" style="width: 100px"> {{$currentComponent->ipl_num ?? ''}} </td>
+                                                        <td class="" style="width: 250px"> {{$currentComponent->name ?? ''}} </td>
+                                                        <td class="" style="width: 120px;"> {{$currentComponent->part_number ?? ''}} </td>
+                                                        <td class="" style="width: 150px;"> {{$part->qty}} </td>
+                                                        <td class="" style="width: 150px;">
+                                                            <div class="po-no-container">
+                                                                <select class="form-select form-select-sm po-no-select"
+                                                                        data-tdrs-id="{{ $part->id }}"
+                                                                        data-workorder-number="{{ $current_wo->number }}"
+                                                                        style="width: 100%;">
+                                                                    <option value="">-- Select --</option>
+                                                                    <option value="Customer" {{ $part->po_num === 'Customer' ? 'selected' : '' }}>Customer</option>
+                                                                    <option value="INPUT" {{ $part->po_num && $part->po_num !== 'Customer' ? 'selected' : '' }}>Номер поставки</option>
+                                                                </select>
+                                                                <input type="text"
+                                                                       class="form-control form-control-sm po-no-input mt-1"
+                                                                       data-tdrs-id="{{ $part->id }}"
+                                                                       data-workorder-number="{{ $current_wo->number }}"
+                                                                       placeholder="Введите номер поставки"
+                                                                       value="{{ $part->po_num && $part->po_num !== 'Customer' ? $part->po_num : '' }}"
+                                                                       style="display: {{ $part->po_num && $part->po_num !== 'Customer' ? 'block' : 'none' }};">
+                                                            </div>
+                                                        </td>
+                                                        <td class="" style="width: 150px;">
+                                                            <input type="date"
+                                                                   class="form-control form-control-sm received-date"
+                                                                   data-tdrs-id="{{ $part->id }}"
+                                                                   data-workorder-number="{{ $current_wo->number }}"
+                                                                   value="{{ $part->received ? \Carbon\Carbon::parse($part->received)->format('Y-m-d') : '' }}">
+                                                        </td>
+                                                    </tr>
+                                                @endforeach
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                    @else
+                                        <h5 class="text-center mt-3 mb-3 text-primary">{{__('No Ordered Parts')}}</h5>
+                                    @endif
 
 
-{{--                                </div>--}}
-{{--                            </div>--}}
-{{--                        </div>--}}
+                                </div>
+                            </div>
+                        </div>
                         <!--  Forms Modal -->
                         <div class="modal fade" id="formsModal{{$current_wo->number}}" tabindex="-1" role="dialog"
                              aria-labelledby="formsModallabel{{$current_wo->number}}" aria-hidden="true">
@@ -939,13 +805,11 @@
                                         table-hover table-striped align-middle table-bordered bg-gradient">
                                 <thead>
                                 <tr>
-                                    <th class=" text-primary text-center  " style="width: 300px;">
-                                        {{__('Teardown Inspection')
+                                    <th class=" text-primary text-center  " style="width: 300px;">{{__('Teardown
+                                    Inspection')
                                     }}</th>
                                     <th class=" text-primary text-center " style="width: 150px;">
                                         <a href="{{ route('tdrs.inspection.unit', ['workorder_id' => $current_wo->id]) }}"
-                                           data-tippy-content="{{ __('Add Unit Inspection') }}"
-                                           data-tippy-placement="right"
                                            class="btn btn-outline-info btn-sm" style="height: 32px">
                                             {{ __('Add') }}
                                         </a>
@@ -1005,8 +869,6 @@
 
                                                 @if($tdr->conditions->name == 'PARTS MISSING UPON ARRIVAL AS INDICATED ON PARTS LIST')
                                                     <button class="btn btn-outline-info btn-sm" style="height: 32px"
-                                                            data-tippy-content="{{ __('List of Missing Parts') }}"
-                                                            data-tippy-placement="right"
                                                             data-bs-toggle="modal"
                                                             data-bs-target="#missingModal{{$current_wo->number}}">
                                                         {{ __('Missing Part') }}</button>
@@ -1014,8 +876,6 @@
                                                     @if($tdr->necessaries_id == $necessary->id)
                                                         <button class="btn btn-outline-info btn-sm" style="min-height: 32px"
                                                                 href="#"
-                                                                data-tippy-content="{{ __('List of Ordered Parts') }}"
-                                                                data-tippy-placement="right"
                                                                 data-bs-toggle="modal" data-bs-target="#orderModal{{$current_wo->number}}">
                                                             {{ __('Ordered Parts') }}</button>
                                                     @endif
@@ -1044,9 +904,7 @@
                                     <th class=" text-center  text-primary " style="width: 60px">{{__('EC')}}</th>
                                     <th class=" text-primary text-center" style="width: 150px"> {{__('Action')}}
                                         <a href="{{ route('tdrs.inspection.component', ['workorder_id' => $current_wo->id])}}"
-                                           class="btn btn-outline-info btn-sm ms-3" style="height: 32px"
-                                           data-tippy-content="{{ __('Add Component Inspection') }}"
-                                           data-tippy-placement="right">
+                                           class="btn btn-outline-info btn-sm ms-3" style="height: 32px">
                                             {{ __('Add') }}
                                         </a>
                                     </th>
@@ -1110,24 +968,18 @@
 
 
                                                 <a href="{{ route('tdr-processes.processes',['tdrId'=>$tdr->id])}}"
-                                                   class="btn btn-outline-primary btn-sm me-2"
-                                                   data-tippy-content="{{ __('Component Processes') }}"
-                                                   data-tippy-placement="top">
+                                                   class="btn btn-outline-primary btn-sm me-2">
                                                     <i class="bi bi-bar-chart-steps" title="Component Processes"></i>
                                                 </a>
                                                 <a href="{{ route('tdrs.edit',['id' => $tdr->id]) }}"
-                                                   class="btn btn-outline-primary btn-sm me-2"
-                                                   data-tippy-content="{{ __('Edit Component Inspection') }}"
-                                                   data-tippy-placement="top">
+                                                   class="btn btn-outline-primary btn-sm me-2">
                                                     <i class="bi bi-pencil-square" title="Component Inspection Edit"></i>
                                                 </a>
                                                 <form action="{{ route('tdrs.destroy', ['tdr' => $tdr->id]) }}" method="POST"
                                                       onsubmit="return confirm('Are you sure you want to delete this item?');">
                                                     @csrf
                                                     @method('DELETE')
-                                                    <button type="submit" class="btn btn-outline-danger btn-sm"
-                                                            data-tippy-content="{{ __('Delete Component Inspection') }}"
-                                                            data-tippy-placement="top">
+                                                    <button type="submit" class="btn btn-outline-danger btn-sm">
                                                         <i class="bi bi-trash"></i>
                                                         {{--                                                            {{__('Delete')}}--}}
                                                     </button>
@@ -1271,230 +1123,6 @@
                     alert('An error occurred.');
                 });
         });
-
-        // Функции для работы с тренировками
-        function createTrainings(manualId) {
-            if (confirm('Create new trainings for this unit?')) {
-                // Перенаправляем на страницу создания тренировок с предзаполненным manual_id и URL возврата
-                const currentUrl = window.location.href;
-                window.location.href = `{{ route('trainings.create') }}?manual_id=${manualId}&return_url=${encodeURIComponent(currentUrl)}`;
-            }
-        }
-
-        function updateTrainings(manualId, lastTrainingDate) {
-            if (confirm('Update trainings for this unit? This will create missing trainings based on the last training date.')) {
-                // Используем ту же логику, что и в trainings.index
-                const lastTraining = new Date(lastTrainingDate);
-                const lastTrainingYear = lastTraining.getFullYear();
-                const lastTrainingWeek = getWeekNumber(lastTraining);
-                const currentYear = new Date().getFullYear();
-                const currentDate = new Date();
-
-                let trainingData = {
-                    manuals_id: [],
-                    date_training: [],
-                    form_type: []
-                };
-
-                // Генерируем данные для создания тренингов за следующие годы
-                for (let year = lastTrainingYear + 1; year <= currentYear; year++) {
-                    const trainingDate = getDateFromWeekAndYear(lastTrainingWeek, year);
-
-                    // Проверяем, что дата тренировки не в будущем
-                    if (trainingDate <= currentDate) {
-                        trainingData.manuals_id.push(manualId);
-                        trainingData.date_training.push(trainingDate.toISOString().split('T')[0]);
-                        trainingData.form_type.push('112');
-                    }
-                }
-
-                if (trainingData.manuals_id.length === 0) {
-                    alert('No missing trainings to create. All possible training dates are in the future.');
-                    return;
-                }
-
-                // Проверяем, сколько лет пропущено
-                const yearsMissed = currentYear - lastTrainingYear;
-                if (yearsMissed > 3) {
-                    const warningMessage = `WARNING: ${yearsMissed} years have passed since last training!\n\n` +
-                        `This will create ${trainingData.manuals_id.length} training records.\n\n` +
-                        `Are you sure you want to create trainings for such a long period?\n\n` +
-                        `Consider if this is correct or if you need to create new initial training instead.`;
-
-                    if (!confirm(warningMessage)) {
-                        return;
-                    }
-                }
-
-                // Подготовка сообщения для подтверждения
-                let confirmationMessage = "Will create trainings:\n";
-                trainingData.manuals_id.forEach((id, index) => {
-                    const year = lastTrainingYear + index + 1;
-                    const dateStr = trainingData.date_training[index];
-                    confirmationMessage += `\nTraining for ${year}:\n`;
-                    confirmationMessage += `Date: ${dateStr}\n`;
-                    confirmationMessage += `Form: 112\n`;
-                });
-
-                // Добавляем информацию о форме 132
-                confirmationMessage += `\nNote: Form 132 will be created only if it doesn't exist for this unit.`;
-
-                if (confirm(confirmationMessage + "\nContinue?")) {
-                    fetch('{{ route('trainings.createTraining') }}', {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json',
-                            'X-CSRF-TOKEN': '{{ csrf_token() }}'
-                        },
-                        body: JSON.stringify(trainingData)
-                    })
-                    .then(response => response.json())
-                    .then(data => {
-                        if (data.success) {
-                            let message = `Trainings processed!\nCreated: ${data.created}`;
-                            if (data.skipped > 0) {
-                                message += `\nSkipped (already exist): ${data.skipped}`;
-                            }
-                            alert(message);
-                            location.reload();
-                        } else {
-                            alert('Error creating trainings: ' + (data.message || 'Unknown error'));
-                        }
-                    })
-                    .catch(error => {
-                        console.error('Error:', error);
-                        alert('An error occurred: ' + error.message);
-                    });
-                }
-            }
-        }
-
-        // Вспомогательные функции для расчета дат
-        function getWeekNumber(d) {
-            const oneJan = new Date(d.getFullYear(), 0, 1);
-            const numberOfDays = Math.floor((d - oneJan) / (24 * 60 * 60 * 1000));
-            return Math.ceil((numberOfDays + oneJan.getDay() + 1) / 7);
-        }
-
-        function getDateFromWeekAndYear(week, year) {
-            const firstJan = new Date(year, 0, 1);
-            const days = (week - 1) * 7 - firstJan.getDay() + 1;
-            return new Date(year, 0, 1 + days);
-        }
-
-        // Функция обновления тренировки на сегодняшнюю дату
-        function updateTrainingToToday(manualId, lastTrainingDate, autoUpdate = false) {
-            const today = new Date();
-            today.setHours(0, 0, 0, 0);
-
-            // Если сегодня пятница - используем сегодня, иначе последнюю прошедшую пятницу
-            let trainingDate;
-            if (today.getDay() === 5) { // 5 = пятница
-                trainingDate = today;
-            } else {
-                // Находим последнюю прошедшую пятницу
-                const dayOfWeek = today.getDay();
-                let daysToSubtract;
-                if (dayOfWeek === 0) { // Воскресенье - пятница была вчера (1 день назад)
-                    daysToSubtract = 1;
-                } else if (dayOfWeek === 6) { // Суббота - пятница была вчера (1 день назад)
-                    daysToSubtract = 1;
-                } else { // Понедельник-четверг - пятница была (dayOfWeek + 2) дней назад
-                    daysToSubtract = dayOfWeek + 2;
-                }
-                trainingDate = new Date(today);
-                trainingDate.setDate(today.getDate() - daysToSubtract);
-            }
-
-            const todayStr = trainingDate.toISOString().split('T')[0];
-            const lastTraining = new Date(lastTrainingDate);
-            const monthsDiff = Math.floor((today - lastTraining) / (1000 * 60 * 60 * 24 * 30));
-
-            // Если автоматическое обновление, не показываем подтверждение
-            if (!autoUpdate) {
-                const confirmationMessage = `Update training to today's date?\n\n` +
-                    `Last training: ${lastTrainingDate} (${monthsDiff} months ago)\n` +
-                    `New training date: ${todayStr}\n\n` +
-                    `This will create a new training record and update the training status.`;
-
-                if (!confirm(confirmationMessage)) {
-                    return;
-                }
-            }
-
-            const trainingData = {
-                manuals_id: [manualId],
-                date_training: [todayStr],
-                form_type: ['112']
-            };
-
-            fetch('{{ route('trainings.updateToToday') }}', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'X-CSRF-TOKEN': '{{ csrf_token() }}'
-                },
-                body: JSON.stringify(trainingData)
-            })
-            .then(response => response.json())
-            .then(data => {
-                if (data.success) {
-                    if (!autoUpdate) {
-                        alert(`Training updated to today!\nCreated: ${data.created} training record(s)`);
-                    }
-                    location.reload();
-                } else {
-                    if (!autoUpdate) {
-                        alert('Error updating training: ' + (data.message || 'Unknown error'));
-                    }
-                }
-            })
-            .catch(error => {
-                console.error('Error:', error);
-                if (!autoUpdate) {
-                    alert('An error occurred: ' + error.message);
-                }
-            });
-        }
-
-        // Предложение обновить тренинг при загрузке страницы, если больше 12 месяцев
-        @if($trainings && $trainings->date_training && $user->id == $user_wo)
-            @php
-                $trainingDate = \Carbon\Carbon::parse($trainings->date_training);
-                $monthsDiff = $trainingDate->diffInMonths(now());
-            @endphp
-            @if($monthsDiff > 12)
-                document.addEventListener('DOMContentLoaded', function() {
-                    // Предлагаем обновить тренинг на сегодняшнюю дату
-                    const today = new Date();
-                    today.setHours(0, 0, 0, 0);
-
-                    let trainingDateStr;
-                    if (today.getDay() === 5) {
-                        trainingDateStr = today.toISOString().split('T')[0];
-                    } else {
-                        const dayOfWeek = today.getDay();
-                        let daysToSubtract;
-                        if (dayOfWeek === 0 || dayOfWeek === 6) {
-                            daysToSubtract = 1;
-                        } else {
-                            daysToSubtract = dayOfWeek + 2;
-                        }
-                        const lastFriday = new Date(today);
-                        lastFriday.setDate(today.getDate() - daysToSubtract);
-                        trainingDateStr = lastFriday.toISOString().split('T')[0];
-                    }
-
-                    const confirmationMessage = `Last training was ${monthsDiff} months ago ({{ $trainings->date_training }}).\n\n` +
-                        `Would you like to update training to ${trainingDateStr}?\n\n` +
-                        `This will create a new training record and update the training status.`;
-
-                    if (confirm(confirmationMessage)) {
-                        updateTrainingToToday({{ $manual_id }}, '{{ $trainings->date_training }}', false);
-                    }
-                });
-            @endif
-        @endif
 
     </script>
 
@@ -1924,233 +1552,233 @@
             }
         });
     </script>
-{{--    <script>--}}
-{{--        (function() {--}}
-{{--            'use strict';--}}
 
-{{--            console.log('Parts Modal JavaScript loaded');--}}
+    <script>
+        (function() {
+            'use strict';
 
-{{--            // Конфигурация--}}
-{{--            const CONFIG = {--}}
-{{--                debounceDelay: 500,--}}
-{{--                modalOpenDelay: 300,--}}
-{{--                qtyColumnIndex: 4--}}
-{{--            };--}}
+            console.log('Parts Modal JavaScript loaded');
 
-{{--            // Утилиты для работы с CSRF токеном--}}
-{{--            const TokenUtils = {--}}
-{{--                getCsrfToken: function() {--}}
-{{--                    const metaTag = document.querySelector('meta[name="csrf-token"]');--}}
-{{--                    return metaTag--}}
-{{--                        ? metaTag.getAttribute('content')--}}
-{{--                        : '{{ csrf_token() }}';--}}
-{{--                }--}}
-{{--            };--}}
+            // Конфигурация
+            const CONFIG = {
+                debounceDelay: 500,
+                modalOpenDelay: 300,
+                qtyColumnIndex: 4
+            };
 
-{{--            // Утилиты для работы с DOM--}}
-{{--            const DomUtils = {--}}
-{{--                getModal: function(workorderNumber) {--}}
-{{--                    return document.getElementById('partsModal' + workorderNumber);--}}
-{{--                },--}}
+            // Утилиты для работы с CSRF токеном
+            const TokenUtils = {
+                getCsrfToken: function() {
+                    const metaTag = document.querySelector('meta[name="csrf-token"]');
+                    return metaTag
+                        ? metaTag.getAttribute('content')
+                        : '{{ csrf_token() }}';
+                }
+            };
 
-{{--                getReceivedCounter: function(workorderNumber) {--}}
-{{--                    return document.getElementById('receivedQty' + workorderNumber);--}}
-{{--                },--}}
+            // Утилиты для работы с DOM
+            const DomUtils = {
+                getModal: function(workorderNumber) {
+                    return document.getElementById('partsModal' + workorderNumber);
+                },
 
-{{--                getPoNoInput: function(selectElement) {--}}
-{{--                    return selectElement.closest('.po-no-container').querySelector('.po-no-input');--}}
-{{--                },--}}
+                getReceivedCounter: function(workorderNumber) {
+                    return document.getElementById('receivedQty' + workorderNumber);
+                },
 
-{{--                getTableRows: function(modal) {--}}
-{{--                    return modal ? modal.querySelectorAll('tbody tr') : [];--}}
-{{--                },--}}
+                getPoNoInput: function(selectElement) {
+                    return selectElement.closest('.po-no-container').querySelector('.po-no-input');
+                },
 
-{{--                getQtyFromRow: function(row) {--}}
-{{--                    const qtyCell = row.querySelector('td:nth-child(' + CONFIG.qtyColumnIndex + ')');--}}
-{{--                    return qtyCell ? parseInt(qtyCell.textContent.trim()) || 0 : 0;--}}
-{{--                }--}}
-{{--            };--}}
+                getTableRows: function(modal) {
+                    return modal ? modal.querySelectorAll('tbody tr') : [];
+                },
 
-{{--            // API для сохранения данных--}}
-{{--            const PartsApi = {--}}
-{{--                saveField: function(tdrsId, field, value, workorderNumber) {--}}
-{{--                    const csrfToken = TokenUtils.getCsrfToken();--}}
-{{--                    const url = '{{ route("tdrs.updatePartField", ":id") }}'.replace(':id', tdrsId);--}}
+                getQtyFromRow: function(row) {
+                    const qtyCell = row.querySelector('td:nth-child(' + CONFIG.qtyColumnIndex + ')');
+                    return qtyCell ? parseInt(qtyCell.textContent.trim()) || 0 : 0;
+                }
+            };
 
-{{--                    return fetch(url, {--}}
-{{--                        method: 'POST',--}}
-{{--                        headers: {--}}
-{{--                            'Content-Type': 'application/json',--}}
-{{--                            'X-CSRF-TOKEN': csrfToken--}}
-{{--                        },--}}
-{{--                        body: JSON.stringify({--}}
-{{--                            field: field,--}}
-{{--                            value: value--}}
-{{--                        })--}}
-{{--                    })--}}
-{{--                        .then(response => response.json())--}}
-{{--                        .then(data => {--}}
-{{--                            if (data.success) {--}}
-{{--                                if (field === 'received') {--}}
-{{--                                    PartsCounter.updateReceivedCount(workorderNumber);--}}
-{{--                                }--}}
-{{--                                return data;--}}
-{{--                            }--}}
-{{--                            throw new Error('Save failed');--}}
-{{--                        })--}}
-{{--                        .catch(error => {--}}
-{{--                            console.error('Error saving field:', error);--}}
-{{--                            throw error;--}}
-{{--                        });--}}
-{{--                }--}}
-{{--            };--}}
+            // API для сохранения данных
+            const PartsApi = {
+                saveField: function(tdrsId, field, value, workorderNumber) {
+                    const csrfToken = TokenUtils.getCsrfToken();
+                    const url = '{{ route("tdrs.updatePartField", ":id") }}'.replace(':id', tdrsId);
 
-{{--            // Управление счетчиками--}}
-{{--            const PartsCounter = {--}}
-{{--                updateReceivedCount: function(workorderNumber) {--}}
-{{--                    const modal = DomUtils.getModal(workorderNumber);--}}
-{{--                    if (!modal) return;--}}
+                    return fetch(url, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-CSRF-TOKEN': csrfToken
+                        },
+                        body: JSON.stringify({
+                            field: field,
+                            value: value
+                        })
+                    })
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.success) {
+                            if (field === 'received') {
+                                PartsCounter.updateReceivedCount(workorderNumber);
+                            }
+                            return data;
+                        }
+                        throw new Error('Save failed');
+                    })
+                    .catch(error => {
+                        console.error('Error saving field:', error);
+                        throw error;
+                    });
+                }
+            };
 
-{{--                    const rows = DomUtils.getTableRows(modal);--}}
-{{--                    let receivedQty = 0;--}}
+            // Управление счетчиками
+            const PartsCounter = {
+                updateReceivedCount: function(workorderNumber) {
+                    const modal = DomUtils.getModal(workorderNumber);
+                    if (!modal) return;
 
-{{--                    rows.forEach(function(row) {--}}
-{{--                        const receivedInput = row.querySelector('.received-date');--}}
-{{--                        if (receivedInput && receivedInput.value) {--}}
-{{--                            receivedQty += DomUtils.getQtyFromRow(row);--}}
-{{--                        }--}}
-{{--                    });--}}
+                    const rows = DomUtils.getTableRows(modal);
+                    let receivedQty = 0;
 
-{{--                    const receivedSpan = DomUtils.getReceivedCounter(workorderNumber);--}}
-{{--                    if (receivedSpan) {--}}
-{{--                        receivedSpan.textContent = receivedQty;--}}
-{{--                    }--}}
-{{--                }--}}
-{{--            };--}}
+                    rows.forEach(function(row) {
+                        const receivedInput = row.querySelector('.received-date');
+                        if (receivedInput && receivedInput.value) {
+                            receivedQty += DomUtils.getQtyFromRow(row);
+                        }
+                    });
 
-{{--            // Управление полем PO NO--}}
-{{--            const PoNoManager = {--}}
-{{--                handleSelectChange: function(selectElement) {--}}
-{{--                    const tdrsId = selectElement.getAttribute('data-tdrs-id');--}}
-{{--                    const workorderNumber = selectElement.getAttribute('data-workorder-number');--}}
-{{--                    const value = selectElement.value;--}}
-{{--                    const input = DomUtils.getPoNoInput(selectElement);--}}
+                    const receivedSpan = DomUtils.getReceivedCounter(workorderNumber);
+                    if (receivedSpan) {
+                        receivedSpan.textContent = receivedQty;
+                    }
+                }
+            };
 
-{{--                    if (value === 'INPUT') {--}}
-{{--                        PoNoManager.showInput(input);--}}
-{{--                    } else {--}}
-{{--                        PoNoManager.hideInput(input);--}}
-{{--                        const saveValue = value === 'Customer' ? 'Customer' : '';--}}
-{{--                        PartsApi.saveField(tdrsId, 'po_num', saveValue, workorderNumber);--}}
-{{--                    }--}}
-{{--                },--}}
+            // Управление полем PO NO
+            const PoNoManager = {
+                handleSelectChange: function(selectElement) {
+                    const tdrsId = selectElement.getAttribute('data-tdrs-id');
+                    const workorderNumber = selectElement.getAttribute('data-workorder-number');
+                    const value = selectElement.value;
+                    const input = DomUtils.getPoNoInput(selectElement);
 
-{{--                showInput: function(input) {--}}
-{{--                    if (input) {--}}
-{{--                        input.style.display = 'block';--}}
-{{--                        input.focus();--}}
-{{--                    }--}}
-{{--                },--}}
+                    if (value === 'INPUT') {
+                        PoNoManager.showInput(input);
+                    } else {
+                        PoNoManager.hideInput(input);
+                        const saveValue = value === 'Customer' ? 'Customer' : '';
+                        PartsApi.saveField(tdrsId, 'po_num', saveValue, workorderNumber);
+                    }
+                },
 
-{{--                hideInput: function(input) {--}}
-{{--                    if (input) {--}}
-{{--                        input.style.display = 'none';--}}
-{{--                        input.value = '';--}}
-{{--                    }--}}
-{{--                },--}}
+                showInput: function(input) {
+                    if (input) {
+                        input.style.display = 'block';
+                        input.focus();
+                    }
+                },
 
-{{--                handleInputChange: function(inputElement) {--}}
-{{--                    const tdrsId = inputElement.getAttribute('data-tdrs-id');--}}
-{{--                    const workorderNumber = inputElement.getAttribute('data-workorder-number');--}}
-{{--                    const value = inputElement.value;--}}
+                hideInput: function(input) {
+                    if (input) {
+                        input.style.display = 'none';
+                        input.value = '';
+                    }
+                },
 
-{{--                    PoNoDebounceManager.debounceSave(tdrsId, workorderNumber, value);--}}
-{{--                }--}}
-{{--            };--}}
+                handleInputChange: function(inputElement) {
+                    const tdrsId = inputElement.getAttribute('data-tdrs-id');
+                    const workorderNumber = inputElement.getAttribute('data-workorder-number');
+                    const value = inputElement.value;
 
-{{--            // Debounce менеджер для PO NO input--}}
-{{--            const PoNoDebounceManager = {--}}
-{{--                timeouts: {},--}}
+                    PoNoDebounceManager.debounceSave(tdrsId, workorderNumber, value);
+                }
+            };
 
-{{--                debounceSave: function(tdrsId, workorderNumber, value) {--}}
-{{--                    const timeoutKey = tdrsId + '_' + workorderNumber;--}}
+            // Debounce менеджер для PO NO input
+            const PoNoDebounceManager = {
+                timeouts: {},
 
-{{--                    if (this.timeouts[timeoutKey]) {--}}
-{{--                        clearTimeout(this.timeouts[timeoutKey]);--}}
-{{--                    }--}}
+                debounceSave: function(tdrsId, workorderNumber, value) {
+                    const timeoutKey = tdrsId + '_' + workorderNumber;
 
-{{--                    this.timeouts[timeoutKey] = setTimeout(function() {--}}
-{{--                        PartsApi.saveField(tdrsId, 'po_num', value, workorderNumber);--}}
-{{--                        delete PoNoDebounceManager.timeouts[timeoutKey];--}}
-{{--                    }, CONFIG.debounceDelay);--}}
-{{--                }--}}
-{{--            };--}}
+                    if (this.timeouts[timeoutKey]) {
+                        clearTimeout(this.timeouts[timeoutKey]);
+                    }
 
-{{--            // Управление полем Received--}}
-{{--            const ReceivedManager = {--}}
-{{--                handleDateChange: function(inputElement) {--}}
-{{--                    const tdrsId = inputElement.getAttribute('data-tdrs-id');--}}
-{{--                    const workorderNumber = inputElement.getAttribute('data-workorder-number');--}}
-{{--                    const value = inputElement.value;--}}
+                    this.timeouts[timeoutKey] = setTimeout(function() {
+                        PartsApi.saveField(tdrsId, 'po_num', value, workorderNumber);
+                        delete PoNoDebounceManager.timeouts[timeoutKey];
+                    }, CONFIG.debounceDelay);
+                }
+            };
 
-{{--                    PartsApi.saveField(tdrsId, 'received', value, workorderNumber);--}}
-{{--                }--}}
-{{--            };--}}
+            // Управление полем Received
+            const ReceivedManager = {
+                handleDateChange: function(inputElement) {
+                    const tdrsId = inputElement.getAttribute('data-tdrs-id');
+                    const workorderNumber = inputElement.getAttribute('data-workorder-number');
+                    const value = inputElement.value;
 
-{{--            // Обработчики событий--}}
-{{--            const EventHandlers = {--}}
-{{--                handleChange: function(e) {--}}
-{{--                    if (e.target.classList.contains('po-no-select')) {--}}
-{{--                        PoNoManager.handleSelectChange(e.target);--}}
-{{--                    } else if (e.target.classList.contains('received-date')) {--}}
-{{--                        ReceivedManager.handleDateChange(e.target);--}}
-{{--                    }--}}
-{{--                },--}}
+                    PartsApi.saveField(tdrsId, 'received', value, workorderNumber);
+                }
+            };
 
-{{--                handleInput: function(e) {--}}
-{{--                    if (e.target.classList.contains('po-no-input')) {--}}
-{{--                        PoNoManager.handleInputChange(e.target);--}}
-{{--                    }--}}
-{{--                },--}}
+            // Обработчики событий
+            const EventHandlers = {
+                handleChange: function(e) {
+                    if (e.target.classList.contains('po-no-select')) {
+                        PoNoManager.handleSelectChange(e.target);
+                    } else if (e.target.classList.contains('received-date')) {
+                        ReceivedManager.handleDateChange(e.target);
+                    }
+                },
 
-{{--                handleModalOpen: function(button) {--}}
-{{--                    const target = button.getAttribute('data-bs-target');--}}
-{{--                    const workorderNumber = target.replace('#partsModal', '');--}}
+                handleInput: function(e) {
+                    if (e.target.classList.contains('po-no-input')) {
+                        PoNoManager.handleInputChange(e.target);
+                    }
+                },
 
-{{--                    setTimeout(function() {--}}
-{{--                        PartsCounter.updateReceivedCount(workorderNumber);--}}
-{{--                    }, CONFIG.modalOpenDelay);--}}
-{{--                }--}}
-{{--            };--}}
+                handleModalOpen: function(button) {
+                    const target = button.getAttribute('data-bs-target');
+                    const workorderNumber = target.replace('#partsModal', '');
 
-{{--            // Инициализация--}}
-{{--            const PartsModal = {--}}
-{{--                init: function() {--}}
-{{--                    this.attachEventListeners();--}}
-{{--                    this.initModalButtons();--}}
-{{--                },--}}
+                    setTimeout(function() {
+                        PartsCounter.updateReceivedCount(workorderNumber);
+                    }, CONFIG.modalOpenDelay);
+                }
+            };
 
-{{--                attachEventListeners: function() {--}}
-{{--                    document.addEventListener('change', EventHandlers.handleChange);--}}
-{{--                    document.addEventListener('input', EventHandlers.handleInput);--}}
-{{--                },--}}
+            // Инициализация
+            const PartsModal = {
+                init: function() {
+                    this.attachEventListeners();
+                    this.initModalButtons();
+                },
 
-{{--                initModalButtons: function() {--}}
-{{--                    document.addEventListener('DOMContentLoaded', function() {--}}
-{{--                        document.querySelectorAll('[data-bs-target^="#partsModal"]').forEach(function(button) {--}}
-{{--                            button.addEventListener('click', function() {--}}
-{{--                                EventHandlers.handleModalOpen(this);--}}
-{{--                            });--}}
-{{--                        });--}}
-{{--                    });--}}
-{{--                }--}}
-{{--            };--}}
+                attachEventListeners: function() {
+                    document.addEventListener('change', EventHandlers.handleChange);
+                    document.addEventListener('input', EventHandlers.handleInput);
+                },
 
-{{--            // Запуск при загрузке--}}
-{{--            PartsModal.init();--}}
+                initModalButtons: function() {
+                    document.addEventListener('DOMContentLoaded', function() {
+                        document.querySelectorAll('[data-bs-target^="#partsModal"]').forEach(function(button) {
+                            button.addEventListener('click', function() {
+                                EventHandlers.handleModalOpen(this);
+                            });
+                        });
+                    });
+                }
+            };
 
-{{--        })();--}}
-{{--    </script>--}}
+            // Запуск при загрузке
+            PartsModal.init();
 
+        })();
+    </script>
 
 @endsection

@@ -172,6 +172,7 @@
                         <!-- Тело модального окна -->
                         <div class="modal-body">
                             <!-- Поле для ввода нового процесса -->
+
                             <div class="mb-3">
                                 <label for="newProcessInput" class="form-label">New Process</label>
                                 <input type="text" class="form-control" id="newProcessInput" placeholder="Enter new process">
@@ -705,9 +706,22 @@
                                                 container.appendChild(div);
                                             });
                                         }
+
+                                        // Закрываем модальное окно после успешного сохранения
+                                        const modalEl = document.getElementById('addProcessModal');
+                                        const modalInstance = bootstrap.Modal.getInstance(modalEl);
+                                        if (modalInstance) {
+                                            modalInstance.hide();
+                                        }
                                     })
                                     .catch(error => {
                                         console.error('Error reloading processes:', error);
+                                        // Закрываем модальное окно даже при ошибке перезагрузки списка
+                                        const modalEl = document.getElementById('addProcessModal');
+                                        const modalInstance = bootstrap.Modal.getInstance(modalEl);
+                                        if (modalInstance) {
+                                            modalInstance.hide();
+                                        }
                                     });
                             } else {
                                 alert(data.message || "Ошибка при добавлении нового процесса.");
@@ -719,27 +733,141 @@
                         });
                 }
 
-                // Если выбраны существующие процессы – добавляем их в контейнер текущей строки
+                // Если выбраны существующие процессы – сохраняем их в manual_processes и добавляем в контейнер
                 if (selectedCheckboxes.length > 0) {
+                    // Создаем массив промисов для всех запросов
+                    const savePromises = [];
+
                     selectedCheckboxes.forEach(checkbox => {
                         const processId = checkbox.value;
                         const processLabel = checkbox.nextElementSibling.innerText;
-                        const div = document.createElement('div');
-                        div.classList.add('form-check');
-                        div.innerHTML = `
-                    <input type="checkbox" class="form-check-input" name="processes[${processNameId}][process][]" value="${processId}" checked>
-                    <label class="form-check-label">${processLabel}</label>
-                `;
-                        processOptionsContainer.appendChild(div);
+
+                        // Отправляем AJAX-запрос для сохранения связи в manual_processes
+                        const savePromise = fetch("{{ route('processes.store') }}", {
+                            method: 'POST',
+                            headers: {
+                                'X-Requested-With': 'XMLHttpRequest',
+                                'Accept': 'application/json',
+                                'Content-Type': 'application/json',
+                                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content
+                            },
+                            body: JSON.stringify({
+                                process_names_id: processNameId,
+                                selected_process_id: processId,
+                                manual_id: manualId
+                            })
+                        })
+                        .then(response => {
+                            if (!response.ok) {
+                                throw new Error('Network response was not ok');
+                            }
+                            return response.json();
+                        })
+                        .then(data => {
+                            if (data.success) {
+                                // Добавляем процесс в виде чекбокса в контейнер текущей строки
+                                const div = document.createElement('div');
+                                div.classList.add('form-check');
+                                div.innerHTML = `
+                                    <input type="checkbox" class="form-check-input" name="processes[${processNameId}][process][]" value="${processId}" checked>
+                                    <label class="form-check-label">${processLabel}</label>
+                                `;
+                                processOptionsContainer.appendChild(div);
+                                return data;
+                            } else {
+                                throw new Error(data.message || 'Error saving process');
+                            }
+                        })
+                        .catch(error => {
+                            console.error('Ошибка при сохранении процесса:', error);
+                            alert("Ошибка при сохранении процесса " + processLabel + ": " + error.message);
+                            return null;
+                        });
+
+                        savePromises.push(savePromise);
                     });
-                    saveButton.disabled = false; // Активируем кнопку Save
+
+                    // Ждем завершения всех запросов
+                    Promise.all(savePromises).then(results => {
+                        const successCount = results.filter(r => r !== null).length;
+                        if (successCount > 0) {
+                            saveButton.disabled = false; // Активируем кнопку Save
+
+                            // Очищаем сообщение "No specification"
+                            const noSpecLabel = processOptionsContainer.querySelector('.text-muted');
+                            if (noSpecLabel) {
+                                noSpecLabel.remove();
+                            }
+
+                            // Очищаем выбранные чекбоксы в модальном окне
+                            selectedCheckboxes.forEach(checkbox => {
+                                checkbox.checked = false;
+                            });
+
+                            // Перезагружаем список существующих процессов в модальном окне
+                            fetch(`{{ route('processes.getProcesses') }}?processNameId=${processNameId}&manualId=${manualId}`)
+                                .then(response => response.json())
+                                .then(data => {
+                                    const container = document.getElementById('existingProcessContainer');
+                                    container.innerHTML = '';
+                                    if (data.availableProcesses && data.availableProcesses.length > 0) {
+                                        data.availableProcesses.forEach(process => {
+                                            const div = document.createElement('div');
+                                            div.className = 'form-check';
+                                            div.innerHTML = `
+                                                <input type="checkbox" class="form-check-input" name="modal_processes[]" value="${process.id}" id="modal_process_${process.id}">
+                                                <label class="form-check-label" for="modal_process_${process.id}">${process.process}</label>
+                                            `;
+                                            container.appendChild(div);
+                                        });
+                                    }
+                                })
+                                .catch(error => {
+                                    console.error('Error reloading processes:', error);
+                                });
+
+                            // Показываем сообщение об успехе
+                            if (successCount === selectedCheckboxes.length) {
+                                alert('Все процессы успешно добавлены!');
+                            } else {
+                                alert(`Добавлено ${successCount} из ${selectedCheckboxes.length} процессов.`);
+                            }
+                        }
+
+                        // Закрываем модальное окно после завершения всех запросов
+                        const modalEl = document.getElementById('addProcessModal');
+                        const modalInstance = bootstrap.Modal.getInstance(modalEl);
+                        if (modalInstance) {
+                            modalInstance.hide();
+                        }
+                    }).catch(error => {
+                        console.error('Ошибка при сохранении процессов:', error);
+                        // Закрываем модальное окно даже при ошибке
+                        const modalEl = document.getElementById('addProcessModal');
+                        const modalInstance = bootstrap.Modal.getInstance(modalEl);
+                        if (modalInstance) {
+                            modalInstance.hide();
+                        }
+                    });
+                } else {
+                    // Если не было выбрано существующих процессов и не был введен новый процесс,
+                    // закрываем модальное окно (это уже обработано выше для нового процесса)
+                    if (newProcess === '') {
+                        const modalEl = document.getElementById('addProcessModal');
+                        const modalInstance = bootstrap.Modal.getInstance(modalEl);
+                        if (modalInstance) {
+                            modalInstance.hide();
+                        }
+                    }
+                }
+            } else {
+                // Если currentRow не определен, просто закрываем модальное окно
+                const modalEl = document.getElementById('addProcessModal');
+                const modalInstance = bootstrap.Modal.getInstance(modalEl);
+                if (modalInstance) {
+                    modalInstance.hide();
                 }
             }
-
-            // Закрываем модальное окно
-            const modalEl = document.getElementById('addProcessModal');
-            const modalInstance = bootstrap.Modal.getInstance(modalEl);
-            modalInstance.hide();
         });
 
         // Инициализация отображения id и чекбокса EC для всех существующих строк при загрузке страницы

@@ -213,14 +213,14 @@ class TrainingController extends Controller
         // Проверяем, есть ли URL для возврата в запросе
         $returnUrl = $request->input('return_url');
 
-        // Если есть URL возврата и он содержит TDR, используем его
-        if ($returnUrl && str_contains($returnUrl, '/tdrs/')) {
+        // Если есть URL возврата и он содержит TDR или mains, используем его
+        if ($returnUrl && (str_contains($returnUrl, '/tdrs/') || str_contains($returnUrl, '/mains/'))) {
             return redirect($returnUrl)->with('success', 'Unit added for trainings.');
         }
 
         // Проверяем referer как fallback
         $referer = request()->header('referer');
-        if ($referer && str_contains($referer, '/tdrs/')) {
+        if ($referer && (str_contains($referer, '/tdrs/') || str_contains($referer, '/mains/'))) {
             return redirect()->back()->with('success', 'Unit added for trainings.');
         }
 

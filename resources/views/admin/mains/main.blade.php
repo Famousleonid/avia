@@ -277,6 +277,9 @@
             border-radius: .25rem;
         }
 
+        .fs-8 {
+            font-size: 0.8rem;
+        }
     </style>
 @endsection
 
@@ -344,6 +347,101 @@
                                                 <i class="bi bi-images text-decoration-none"
                                                    style="font-size: 18px"></i>
                                             </a>
+
+                                            @if($current_workorder->user->name == auth()->user()->name)
+                                            {{-- Training status block --}}
+                                            <div class="">
+                                            @if($manual_id)
+                                                <div class="ms-4 fs-8 text-center border rounded  " style="height: 40px;
+                                                width: 210px;">
+                                                    <div class="ms-1 d-flex justify-content-center">
+                                                        @if($trainings && $trainings->date_training && $user->id == $user_wo)
+                                                            @php
+                                                                $trainingDate = \Carbon\Carbon::parse($trainings->date_training);
+                                                                $monthsDiff = $trainingDate->diffInMonths(now());
+                                                                $daysDiff = $trainingDate->diffInDays(now());
+                                                                $isThisMonth = $trainingDate->isCurrentMonth();
+                                                                $isThisYear = $trainingDate->isCurrentYear();
+                                                            @endphp
+                                                            @if($monthsDiff<=12)
+                                                                <div class="d-flex justify-content-center">
+                                                                    <div class="pb-0" style="color: lawngreen;">
+                                                                        @if($monthsDiff == 0 && $user->id == $user_wo)
+                                                                            @if($isThisMonth)
+                                                                                Last training this month
+                                                                                <p>{{ $trainingDate->format('M d, Y') }}</p>
+                                                                            @else
+                                                                                Last training for this unit
+                                                                                <p>{{ $trainingDate->format('M d, Y') }}</p>
+                                                                            @endif
+                                                                        @elseif($monthsDiff == 1)
+                                                                            @if($user->id == $user_wo)
+                                                                                Last training {{ $monthsDiff }} month ago
+                                                                                <p>{{ $trainingDate->format('M d, Y') }}</p>
+                                                                            @endif
+                                                                        @else
+                                                                            @if($monthsDiff >= 6 && $user->id == $user_wo)
+                                                                                Last training {{ $monthsDiff }} months ago
+                                                                                <p>{{ $trainingDate->format('M d, Y') }}</p>
+                                                                            @else
+                                                                                Last training {{ $monthsDiff }} months ago
+                                                                                <p>{{ $trainingDate->format('M d, Y') }}</p>
+                                                                            @endif
+                                                                        @endif
+                                                                    </div>
+                                                                    @if($monthsDiff >= 6 && $user->id == $user_wo)
+                                                                        <div class="text-center ms-2" style="height: 32px;
+                                                                        width: 32px">
+                                                                            <button class="btn mt-1 btn-outline-success btn-sm"
+                                                                                    style="height: 32px;width: 32px" title="{{
+                                                                                    __('Update to Today') }}"
+                                                                                    onclick="updateTrainingToToday({{ $manual_id }}, '{{ $trainings->date_training }}')">
+                                                                                <i class="bi bi-calendar-check"
+                                                                                   style="font-size: 14px;"></i>
+                                                                            </button>
+                                                                        </div>
+                                                                    @endif
+                                                                </div>
+                                                            @else
+                                                                <div style="color: red;">
+                                                                    Last training {{ $monthsDiff }} months ago ({{ $trainingDate->format('M d, Y') }}). Need Update
+                                                                    @if($user->id == $user_wo)
+                                                                        <div class="ms-2">
+                                                                            <button class="btn mt-1 btn-outline-warning btn-sm"
+                                                                                    style="height:32px;width: 32px" title="{{
+                                                                                    __('Update to Today') }}"
+                                                                                    onclick="updateTrainingToToday({{ $manual_id }}, '{{ $trainings->date_training }}')">
+                                                                                <i class="bi bi-calendar-check"
+                                                                                   style="font-size: 14px;"></i>
+                                                                            </button>
+                                                                        </div>
+                                                                    @endif
+                                                                </div>
+                                                            @endif
+                                                        @else
+                                                            @if($user->id == $user_wo)
+                                                                <div class="d-flex">
+                                                                    <div style="color: red;">
+                                                                        There are no trainings
+                                                                        <p>for this unit.</p>
+                                                                    </div>
+                                                                    <div class="ms-2">
+                                                                        <button class=" mt-1 btn btn-outline-primary btn-sm"
+                                                                                style="height: 32px;width: 32px" title="{{ __
+                                                                                ('Create Trainings') }}" onclick="createTrainings({{ $manual_id }})">
+                                                                            <i class="bi bi-plus-circle" style="font-size: 14px;
+                                                                            "></i>
+                                                                        </button>
+                                                                    </div>
+                                                                </div>
+                                                            @endif
+                                                        @endif
+                                                    </div>
+                                                </div>
+                                            @endif
+                                            </div>
+                                            @endif
+
                                             @admin
                                             <a class="btn btn-outline-warning btn-sm open-log-modal"
                                                data-tippy-content="{{ __('Logs') }}"
@@ -399,17 +497,28 @@
                                                 </div>
                                             </div>
                                         </div>
-                                        <div class="col-12 col-lg-3 d-flex">
-                                            <div class="border rounded p-2 h-100 w-100">
+                                        <div class=" d-flex" style="width: 210px">
+                                            <div class="border rounded  h-100 w-100">
                                                 <div class="small d-flex justify-content-between">
-                                                    <span class="text-info  me-2">Parts:</span>
-                                                    Ordered: <span
-                                                        id="orderedQty{{$current_workorder->number}}">{{ $orderedQty ?? 0 }}</span>
-                                                    Received: <span
-                                                        id="receivedQty{{$current_workorder->number}}">{{ $receivedQty ?? 0 }}</span>
-                                                    <button type="button" class="btn btn-success fs-6"
-                                                            style="--bs-btn-padding-y: .02rem; --bs-btn-padding-x: 1rem;
-                                                            --bs-btn-font-size: .7rem;"
+                                                    <div class="ms-1 d-flex">
+                                                        <div>
+                                                            <span class="text-info  me-2">Parts:</span>
+                                                        </div>
+                                                        <div>
+                                                            Ordered:
+                                                            <span class="" id="orderedQty{{$current_workorder->number}}">{{ $orderedQty ?? 0 }}</span>
+                                                           <br>
+                                                            Received:
+                                                            <span id="receivedQty{{$current_workorder->number}}">{{
+                                                            $receivedQty ?? 0 }} </span>
+                                                        </div>
+
+                                                    </div>
+
+                                                    <button type="button" class="btn btn-success mt-1 me-1 fs-6"
+                                                            style="--bs-btn-padding-y: .02rem; --bs-btn-padding-x:.6rem;
+                                                            --bs-btn-font-size: .7rem; height: 32px"
+
                                                             data-bs-toggle="modal"
                                                             data-bs-target="#partsModal{{$current_workorder->number}}">
                                                         Parts
@@ -1601,6 +1710,93 @@
             PartsModal.init();
 
         })();
+    </script>
+
+    {{-- Training functions --}}
+    <script>
+        function createTrainings(manualId) {
+            if (confirm('Create new trainings for this unit?')) {
+                // Перенаправляем на страницу создания тренировок с предзаполненным manual_id и URL возврата на mains.main
+                const returnUrl = '{{ route('mains.show', $current_workorder->id) }}';
+                window.location.href = `{{ route('trainings.create') }}?manual_id=${manualId}&return_url=${encodeURIComponent(returnUrl)}`;
+            }
+        }
+
+        // Функция обновления тренировки на сегодняшнюю дату
+        function updateTrainingToToday(manualId, lastTrainingDate, autoUpdate = false) {
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
+
+            // Если сегодня пятница - используем сегодня, иначе последнюю прошедшую пятницу
+            let trainingDate;
+            if (today.getDay() === 5) { // 5 = пятница
+                trainingDate = today;
+            } else {
+                // Находим последнюю прошедшую пятницу
+                const dayOfWeek = today.getDay();
+                let daysToSubtract;
+                if (dayOfWeek === 0) { // Воскресенье - пятница была вчера (1 день назад)
+                    daysToSubtract = 1;
+                } else if (dayOfWeek === 6) { // Суббота - пятница была вчера (1 день назад)
+                    daysToSubtract = 1;
+                } else { // Понедельник-четверг - пятница была (dayOfWeek + 2) дней назад
+                    daysToSubtract = dayOfWeek + 2;
+                }
+                trainingDate = new Date(today);
+                trainingDate.setDate(today.getDate() - daysToSubtract);
+            }
+
+            const todayStr = trainingDate.toISOString().split('T')[0];
+            const lastTraining = new Date(lastTrainingDate);
+            const monthsDiff = Math.floor((today - lastTraining) / (1000 * 60 * 60 * 24 * 30));
+
+            // Если автоматическое обновление, не показываем подтверждение
+            if (!autoUpdate) {
+                const confirmationMessage = `Update training to today's date?\n\n` +
+                    `Last training: ${lastTrainingDate} (${monthsDiff} months ago)\n` +
+                    `New training date: ${todayStr}\n\n` +
+                    `This will create a new training record and update the training status.`;
+
+                if (!confirm(confirmationMessage)) {
+                    return;
+                }
+            }
+
+            const trainingData = {
+                manuals_id: [manualId],
+                date_training: [todayStr],
+                form_type: ['112']
+            };
+
+            fetch('{{ route('trainings.updateToToday') }}', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN': '{{ csrf_token() }}'
+                },
+                body: JSON.stringify(trainingData)
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    if (!autoUpdate) {
+                        alert(`Training updated to today!\nCreated: ${data.created} training record(s)`);
+                    }
+                    // Возврат на страницу mains.main
+                    window.location.href = '{{ route('mains.show', $current_workorder->id) }}';
+                } else {
+                    if (!autoUpdate) {
+                        alert('Error updating training: ' + (data.message || 'Unknown error'));
+                    }
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                if (!autoUpdate) {
+                    alert('An error occurred: ' + error.message);
+                }
+            });
+        }
     </script>
 
 @endsection

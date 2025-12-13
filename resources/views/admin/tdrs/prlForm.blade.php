@@ -251,7 +251,7 @@
             <div class="row">
                 <div class="col-4">
                     <img src="{{ asset('img/icons/AT_logo-rb.svg') }}" alt="Logo"
-                         style="width: 180px; margin: 6px 10px 0;">
+                         style="width: 120px; margin: 6px 10px 0;">
                 </div>
                 <div class="col-8">
                     <h2 class="p-2 mt-3 text-black text-"><strong>PART REPLACEMENT LIST</strong></h2>
@@ -364,7 +364,7 @@
                             $ipl_parts = explode('-', $ipl_num);
                             $first_part = $ipl_parts[0] ?? '';
                             $second_part = $ipl_parts[1] ?? '';
-                            
+
                             // Логика выбора IPL номера: используем assy_ipl_num если он есть, иначе ipl_num
                         } else {
                             $first_part = '';
@@ -603,10 +603,10 @@
     <footer>
         <div class="row" style="width: 100%; padding: 5px 0;">
             <div class="col-6 text-start">
-                {{__("Form #028")}}
+               <h6>{{__("Form #028")}}</h6>
             </div>
             <div class="col-6 text-end pe-4 ">
-                {{__('Rev#0, 15/Dec/2012   ')}}
+                <h6>{{__('Rev#0, 15/Dec/2012   ')}}</h6>
             </div>
         </div>
     </footer>

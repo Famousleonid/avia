@@ -12,10 +12,12 @@ use App\Models\Necessary;
 use App\Models\Task;
 use App\Models\Tdr;
 use App\Models\TdrProcess;
+use App\Models\Training;
 use App\Models\User;
 use App\Models\Workorder;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\Auth;
 
 
 class MainController extends Controller
@@ -150,13 +152,27 @@ class MainController extends Controller
         // Подсчет полученных деталей (сумма QTY деталей с заполненным полем received)
         $receivedQty = $prl_parts->whereNotNull('received')->sum('qty');
 
-
+        // Training logic (same as in TdrController)
+        $user = Auth::user();
+        $user_wo = $current_workorder->user_id;
+        $manual_id = $current_workorder->unit->manual_id ?? null;
+        
+        $trainings = null;
+        if ($manual_id) {
+            $form_type = 112;
+            $trainings = Training::where('manuals_id', $manual_id)
+                ->where('user_id', $user_wo)
+                ->where('form_type', $form_type)
+                ->orderBy('date_training', 'desc')
+                ->first();
+        }
 
         return view('admin.mains.main', compact(
             'users','current_workorder','mains','general_tasks','tasks','tasksByGeneral',
             'imgThumb','imgFull','manual','components','showAll',
             'tdrProcessesTotal','tdrProcessesOpen',
             'ordersPartsNew','prl_parts','orderedQty', 'receivedQty',
+            'trainings','user_wo','manual_id','user'
         ));
     }
 
