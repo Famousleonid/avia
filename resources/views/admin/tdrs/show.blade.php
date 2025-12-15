@@ -130,36 +130,23 @@
                                  {{__('Repair & Modification Record')}}
                             </a>
                         </div>
-{{--                        <div class="col-12 col-lg-3 d-flex ms-3">--}}
-{{--                            <div class="border rounded p-2 h-100 w-100">--}}
-{{--                                <div class="small d-flex justify-content-between">--}}
-{{--                                    <span class="text-info  me-2">Parts:</span>--}}
-{{--                                    <span class="me-2 text-center"> Ordered: <span id="orderedQty{{$current_wo->number}}">{{ $orderedQty ?? 0 }}</span></span>--}}
-{{--                                    <span class="me-2 text-center"> Received: <span id="receivedQty{{$current_wo->number}}">{{ $receivedQty ?? 0 }}</span></span>--}}
-{{--                                    <button type="button" class="btn btn-success fs-6"--}}
-{{--                                            style="--bs-btn-padding-y: .02rem; --bs-btn-padding-x: 1rem;--}}
-{{--                                                            --bs-btn-font-size: .7rem;"--}}
-{{--                                            data-bs-toggle="modal"--}}
-{{--                                            data-bs-target="#partsModal{{$current_wo->number}}">--}}
-{{--                                        Parts--}}
-{{--                                    </button>--}}
-{{--                                </div>--}}
-{{--                            </div>--}}
 
-
-
-
-
-                        <div class="ms-5">
+                        <div class="ms-5 d-flex">
                             @if($current_wo->instruction_id == 1 )
                                 <div class="me-1 ">
                                     <a href="{{ route('ndt-cad-csv.index', $current_wo->id) }}"
-                                       class="btn fs-8 btn-outline-success" style="min-height: 55px; width: 90px">
-                                        {{--                                    <i class="bi bi-gear"></i> --}}
+                                       class="btn fs-8 btn-outline-success" style="min-height: 55px; width: 110px">
                                         STD Processes
                                     </a>
                                 </div>
                             @endif
+                            <div class="ms-2">
+                                <a href="{{ route('transfers.show', $current_wo->id) }}"
+                                   class="btn fs-8 btn-outline-info"
+                                   style="min-height: 55px; width: 110px">
+                                    Transfers
+                                </a>
+                            </div>
                         </div>
                     </div>
 
@@ -542,82 +529,6 @@
                                                                 @method('DELETE')
                                                                 <button type="submit" class="btn btn-danger btn-sm">{{__('Delete')}}</button>
                                                             </form>
-                                                        </td>
-                                                    </tr>
-                                                @endforeach
-                                                </tbody>
-                                            </table>
-                                        </div>
-                                    @else
-                                        <h5 class="text-center mt-3 mb-3 text-primary">{{__('No Ordered Parts')}}</h5>
-                                    @endif
-
-
-                                </div>
-                            </div>
-                        </div>
-                        <!--  Parts Modal -->
-                        <div class="modal fade" id="partsModal{{$current_wo->number}}" tabindex="-1"
-                             role="dialog" aria-labelledby="orderModalLabel{{$current_wo->number}}" aria-hidden="true">
-                            <div class="modal-dialog modal-dialog-centered" role="document">
-                                <div class="modal-content bg-gradient" style="width: 900px">
-                                    <div class="modal-header" style="width: 900px">
-                                        <div class="d-flex ">
-                                            <h4 class="modal-title">{{__('Work order ')}}{{$current_wo->number}}</h4>
-                                            <h4 class="modal-title ms-4">{{__('Extra Parts  ')}}</h4>
-                                        </div>
-                                        <button type="button" class="btn-close pb-2" data-bs-dismiss="modal" aria-label="Close"></button>
-                                    </div>
-                                    @if(count($prl_parts))
-                                        <div class="table-wrapper">
-                                            <table class="display table table-cm table-hover table-striped align-middle table-bordered">
-                                                <thead class="bg-gradient">
-                                                <tr>
-                                                    <th class="text-primary  bg-gradient " data-direction="asc">{{__('IPL')}}</th>
-                                                    <th class="text-primary  bg-gradient " data-direction="asc">{{__('Part Description') }}</th>
-                                                    <th class="text-primary  bg-gradient " style="width: 250px;" data-direction="asc">{{__('Part Number')}}</th>
-                                                    <th class="text-primary  bg-gradient " data-direction="asc">{{__('QTY')}}</th>
-                                                    <th class="text-primary  bg-gradient ">{{__('PO NO.')}} </th>
-                                                    <th class="text-primary  bg-gradient ">{{__('Received')}}</th>
-                                                </tr>
-                                                </thead>
-                                                <tbody>
-
-                                                @foreach($prl_parts as $part)
-                                                    @php
-                                                        $currentComponent = $part->orderComponent ?? $part->component;
-                                                    @endphp
-                                                    <tr>
-
-                                                        <td class="" style="width: 100px"> {{$currentComponent->ipl_num ?? ''}} </td>
-                                                        <td class="" style="width: 250px"> {{$currentComponent->name ?? ''}} </td>
-                                                        <td class="" style="width: 120px;"> {{$currentComponent->part_number ?? ''}} </td>
-                                                        <td class="" style="width: 150px;"> {{$part->qty}} </td>
-                                                        <td class="" style="width: 150px;">
-                                                            <div class="po-no-container">
-                                                                <select class="form-select form-select-sm po-no-select"
-                                                                        data-tdrs-id="{{ $part->id }}"
-                                                                        data-workorder-number="{{ $current_wo->number }}"
-                                                                        style="width: 100%;">
-                                                                    <option value="">-- Select --</option>
-                                                                    <option value="Customer" {{ $part->po_num === 'Customer' ? 'selected' : '' }}>Customer</option>
-                                                                    <option value="INPUT" {{ $part->po_num && $part->po_num !== 'Customer' ? 'selected' : '' }}>Номер поставки</option>
-                                                                </select>
-                                                                <input type="text"
-                                                                       class="form-control form-control-sm po-no-input mt-1"
-                                                                       data-tdrs-id="{{ $part->id }}"
-                                                                       data-workorder-number="{{ $current_wo->number }}"
-                                                                       placeholder="Введите номер поставки"
-                                                                       value="{{ $part->po_num && $part->po_num !== 'Customer' ? $part->po_num : '' }}"
-                                                                       style="display: {{ $part->po_num && $part->po_num !== 'Customer' ? 'block' : 'none' }};">
-                                                            </div>
-                                                        </td>
-                                                        <td class="" style="width: 150px;">
-                                                            <input type="date"
-                                                                   class="form-control form-control-sm received-date"
-                                                                   data-tdrs-id="{{ $part->id }}"
-                                                                   data-workorder-number="{{ $current_wo->number }}"
-                                                                   value="{{ $part->received ? \Carbon\Carbon::parse($part->received)->format('Y-m-d') : '' }}">
                                                         </td>
                                                     </tr>
                                                 @endforeach
@@ -1553,232 +1464,5 @@
         });
     </script>
 
-    <script>
-        (function() {
-            'use strict';
-
-            console.log('Parts Modal JavaScript loaded');
-
-            // Конфигурация
-            const CONFIG = {
-                debounceDelay: 500,
-                modalOpenDelay: 300,
-                qtyColumnIndex: 4
-            };
-
-            // Утилиты для работы с CSRF токеном
-            const TokenUtils = {
-                getCsrfToken: function() {
-                    const metaTag = document.querySelector('meta[name="csrf-token"]');
-                    return metaTag
-                        ? metaTag.getAttribute('content')
-                        : '{{ csrf_token() }}';
-                }
-            };
-
-            // Утилиты для работы с DOM
-            const DomUtils = {
-                getModal: function(workorderNumber) {
-                    return document.getElementById('partsModal' + workorderNumber);
-                },
-
-                getReceivedCounter: function(workorderNumber) {
-                    return document.getElementById('receivedQty' + workorderNumber);
-                },
-
-                getPoNoInput: function(selectElement) {
-                    return selectElement.closest('.po-no-container').querySelector('.po-no-input');
-                },
-
-                getTableRows: function(modal) {
-                    return modal ? modal.querySelectorAll('tbody tr') : [];
-                },
-
-                getQtyFromRow: function(row) {
-                    const qtyCell = row.querySelector('td:nth-child(' + CONFIG.qtyColumnIndex + ')');
-                    return qtyCell ? parseInt(qtyCell.textContent.trim()) || 0 : 0;
-                }
-            };
-
-            // API для сохранения данных
-            const PartsApi = {
-                saveField: function(tdrsId, field, value, workorderNumber) {
-                    const csrfToken = TokenUtils.getCsrfToken();
-                    const url = '{{ route("tdrs.updatePartField", ":id") }}'.replace(':id', tdrsId);
-
-                    return fetch(url, {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json',
-                            'X-CSRF-TOKEN': csrfToken
-                        },
-                        body: JSON.stringify({
-                            field: field,
-                            value: value
-                        })
-                    })
-                    .then(response => response.json())
-                    .then(data => {
-                        if (data.success) {
-                            if (field === 'received') {
-                                PartsCounter.updateReceivedCount(workorderNumber);
-                            }
-                            return data;
-                        }
-                        throw new Error('Save failed');
-                    })
-                    .catch(error => {
-                        console.error('Error saving field:', error);
-                        throw error;
-                    });
-                }
-            };
-
-            // Управление счетчиками
-            const PartsCounter = {
-                updateReceivedCount: function(workorderNumber) {
-                    const modal = DomUtils.getModal(workorderNumber);
-                    if (!modal) return;
-
-                    const rows = DomUtils.getTableRows(modal);
-                    let receivedQty = 0;
-
-                    rows.forEach(function(row) {
-                        const receivedInput = row.querySelector('.received-date');
-                        if (receivedInput && receivedInput.value) {
-                            receivedQty += DomUtils.getQtyFromRow(row);
-                        }
-                    });
-
-                    const receivedSpan = DomUtils.getReceivedCounter(workorderNumber);
-                    if (receivedSpan) {
-                        receivedSpan.textContent = receivedQty;
-                    }
-                }
-            };
-
-            // Управление полем PO NO
-            const PoNoManager = {
-                handleSelectChange: function(selectElement) {
-                    const tdrsId = selectElement.getAttribute('data-tdrs-id');
-                    const workorderNumber = selectElement.getAttribute('data-workorder-number');
-                    const value = selectElement.value;
-                    const input = DomUtils.getPoNoInput(selectElement);
-
-                    if (value === 'INPUT') {
-                        PoNoManager.showInput(input);
-                    } else {
-                        PoNoManager.hideInput(input);
-                        const saveValue = value === 'Customer' ? 'Customer' : '';
-                        PartsApi.saveField(tdrsId, 'po_num', saveValue, workorderNumber);
-                    }
-                },
-
-                showInput: function(input) {
-                    if (input) {
-                        input.style.display = 'block';
-                        input.focus();
-                    }
-                },
-
-                hideInput: function(input) {
-                    if (input) {
-                        input.style.display = 'none';
-                        input.value = '';
-                    }
-                },
-
-                handleInputChange: function(inputElement) {
-                    const tdrsId = inputElement.getAttribute('data-tdrs-id');
-                    const workorderNumber = inputElement.getAttribute('data-workorder-number');
-                    const value = inputElement.value;
-
-                    PoNoDebounceManager.debounceSave(tdrsId, workorderNumber, value);
-                }
-            };
-
-            // Debounce менеджер для PO NO input
-            const PoNoDebounceManager = {
-                timeouts: {},
-
-                debounceSave: function(tdrsId, workorderNumber, value) {
-                    const timeoutKey = tdrsId + '_' + workorderNumber;
-
-                    if (this.timeouts[timeoutKey]) {
-                        clearTimeout(this.timeouts[timeoutKey]);
-                    }
-
-                    this.timeouts[timeoutKey] = setTimeout(function() {
-                        PartsApi.saveField(tdrsId, 'po_num', value, workorderNumber);
-                        delete PoNoDebounceManager.timeouts[timeoutKey];
-                    }, CONFIG.debounceDelay);
-                }
-            };
-
-            // Управление полем Received
-            const ReceivedManager = {
-                handleDateChange: function(inputElement) {
-                    const tdrsId = inputElement.getAttribute('data-tdrs-id');
-                    const workorderNumber = inputElement.getAttribute('data-workorder-number');
-                    const value = inputElement.value;
-
-                    PartsApi.saveField(tdrsId, 'received', value, workorderNumber);
-                }
-            };
-
-            // Обработчики событий
-            const EventHandlers = {
-                handleChange: function(e) {
-                    if (e.target.classList.contains('po-no-select')) {
-                        PoNoManager.handleSelectChange(e.target);
-                    } else if (e.target.classList.contains('received-date')) {
-                        ReceivedManager.handleDateChange(e.target);
-                    }
-                },
-
-                handleInput: function(e) {
-                    if (e.target.classList.contains('po-no-input')) {
-                        PoNoManager.handleInputChange(e.target);
-                    }
-                },
-
-                handleModalOpen: function(button) {
-                    const target = button.getAttribute('data-bs-target');
-                    const workorderNumber = target.replace('#partsModal', '');
-
-                    setTimeout(function() {
-                        PartsCounter.updateReceivedCount(workorderNumber);
-                    }, CONFIG.modalOpenDelay);
-                }
-            };
-
-            // Инициализация
-            const PartsModal = {
-                init: function() {
-                    this.attachEventListeners();
-                    this.initModalButtons();
-                },
-
-                attachEventListeners: function() {
-                    document.addEventListener('change', EventHandlers.handleChange);
-                    document.addEventListener('input', EventHandlers.handleInput);
-                },
-
-                initModalButtons: function() {
-                    document.addEventListener('DOMContentLoaded', function() {
-                        document.querySelectorAll('[data-bs-target^="#partsModal"]').forEach(function(button) {
-                            button.addEventListener('click', function() {
-                                EventHandlers.handleModalOpen(this);
-                            });
-                        });
-                    });
-                }
-            };
-
-            // Запуск при загрузке
-            PartsModal.init();
-
-        })();
-    </script>
 
 @endsection

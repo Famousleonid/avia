@@ -18,6 +18,7 @@ use App\Http\Controllers\Admin\ScopeController;
 use App\Http\Controllers\Admin\TaskController;
 use App\Http\Controllers\Admin\TdrController;
 use App\Http\Controllers\Admin\TdrProcessController;
+use App\Http\Controllers\Admin\TransferController;
 use App\Http\Controllers\Admin\TeamController;
 use App\Http\Controllers\Admin\ManualController;
 use App\Http\Controllers\Admin\MaterialController;
@@ -99,7 +100,7 @@ Route::group(['middleware' => ['auth']], function () {
     Route::resource('/users', UserController::class);
     Route::resource('/mains',  MainController::class);
 
-    Route::get('/progress', [MainController::class, 'progress'])->name('progress.index');
+        Route::get('/progress', [MainController::class, 'progress'])->name('progress.index');
 
     Route::resource('/workorders', WorkorderController::class);
 
@@ -144,12 +145,16 @@ Route::group(['middleware' => ['auth']], function () {
         Route::get('tdrs/tdrForm/{id}', [TdrController::class, 'tdrForm'])->name('tdrs.tdrForm');
         Route::get('tdrs/prlForm/{id}', [TdrController::class, 'prlForm'])->name('tdrs.prlForm');
         Route::get('tdrs/specProcessForm/{id}', [TdrController::class, 'specProcessForm'])->name('tdrs.specProcessForm');
-        Route::get('tdrs/specProcessFormEmp/{id}', [TdrController::class, 'specProcessFormEmp'])->name('tdrs.specProcessFormEmp');
+    Route::get('tdrs/specProcessFormEmp/{id}', [TdrController::class, 'specProcessFormEmp'])->name('tdrs.specProcessFormEmp');
         Route::post('tdrs/update-part-field/{id}', [TdrController::class, 'updatePartField'])->name('tdrs.updatePartField');
-        Route::patch('/tdrprocesses/{tdrprocess}/repair-order', [MainController::class, 'updateRepairOrder'])->name('tdrprocesses.updateRepairOrder');
+        Route::get('transfers/{workorder}', [TransferController::class, 'show'])->name('transfers.show');
+        Route::post('transfers/create/{id}', [TransferController::class, 'create'])->name('transfers.create');
+        Route::delete('transfers/delete-by-tdr/{id}', [TransferController::class, 'deleteByTdr'])->name('transfers.deleteByTdr');
 
     Route::resource('/manuals', ManualController::class);
     Route::resource('/materials',  MaterialController::class);
+
+
 
         Route::get('trainings/show-all', [TrainingController::class, 'showAll'])->name('trainings.showAll');
         Route::get('trainings/form112/{id}', [TrainingController::class, 'showForm112'])->name('trainings.form112');
@@ -203,6 +208,7 @@ Route::group(['middleware' => ['auth']], function () {
     Route::get('/get-processes', [ProcessController::class, 'getProcesses'])->name('processes.getProcesses');
 
     Route::patch('/tdr-processes/{tdrProcess}/dates', [TdrProcessController::class, 'updateDate'])->name('tdrprocesses.updateDate');
+    Route::patch('/tdr-processes/{tdrProcess}/repair-order', [MainController::class, 'updateRepairOrder'])->name('tdrprocesses.updateRepairOrder');
 
     Route::get('/extra_processes/create/{id}', [ExtraProcessController::class, 'create'])->name('extra_process.create');
     Route::get('/extra_processes/create_processes/{workorderId}/{componentId}', [ExtraProcessController::class, 'createProcesses'])->name('extra_processes.create_processes');

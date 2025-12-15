@@ -12,19 +12,24 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::create('planes', function (Blueprint $table) {
-            $table->id();
-            $table->timestamps();
-            $table->string('type');
-        });
+        if (!Schema::hasTable('planes')) {
+            Schema::create('planes', function (Blueprint $table) {
+                $table->id();
+                $table->timestamps();
+                $table->string('type');
+            });
+        }
 
-        DB::table('planes')->insert([
-            ['type' => 'ERJ-175'],
-            ['type' => 'ATR-72'],
-            ['type' => 'ATR-42'],
-            ['type' => 'ERJ-190/195'],
-            ['type' => 'CL-601'],
-        ]);
+        // Проверяем, нужно ли вставлять данные
+        if (Schema::hasTable('planes') && DB::table('planes')->count() == 0) {
+            DB::table('planes')->insert([
+                ['type' => 'ERJ-175'],
+                ['type' => 'ATR-72'],
+                ['type' => 'ATR-42'],
+                ['type' => 'ERJ-190/195'],
+                ['type' => 'CL-601'],
+            ]);
+        }
     }
 
     /**

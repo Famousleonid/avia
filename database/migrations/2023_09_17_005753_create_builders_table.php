@@ -12,17 +12,17 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::create('builders', function (Blueprint $table) {
-            $table->id();
-            $table->timestamps();
-            $table->string('name');
-        });
-        DB::table('builders')->insert([
-            ['name' => 'LIEBHERR'],
-            ['name' => 'SAFRAN LS'],
-            ['name' => 'GOODRICH'],
-            ['name' => 'ELEB'],
-        ]);
+            Schema::create('builders', function (Blueprint $table) {
+                $table->id();
+                $table->timestamps();
+                $table->string('name');
+            });
+            DB::table('builders')->insert([
+                ['name' => 'LIEBHERR'],
+                ['name' => 'SAFRAN LS'],
+                ['name' => 'GOODRICH'],
+                ['name' => 'ELEB'],
+            ]);
     }
 
     /**

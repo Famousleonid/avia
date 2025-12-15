@@ -761,21 +761,14 @@ class TdrController extends Controller
             }])
             ->get();
 
-        $tdr_proc = TdrProcess::where('ec',1)->get();
-
-        // Подсчет заказанных деталей (сумма QTY всех деталей в prl_parts)
-        $orderedQty = $prl_parts->sum('qty');
-
-        // Подсчет полученных деталей (сумма QTY деталей с заполненным полем received)
-        $receivedQty = $prl_parts->whereNotNull('received')->sum('qty');
+         $tdr_proc = TdrProcess::where('ec',1)->get();
 
         return view('admin.tdrs.show', compact(
             'current_wo', 'tdrs', 'units', 'components', 'user', 'customers',
             'manuals', 'builders', 'planes', 'instruction', 'necessary',
             'necessaries', 'unit_conditions', 'component_conditions',
             'codes', 'conditions', 'missingParts', 'ordersParts', 'inspectsUnit',
-            'processParts', 'ordersPartsNew','trainings','user_wo', 'manual_id','log_card','woBushing','prl_parts','tdr_proc',
-            'orderedQty', 'receivedQty'
+            'processParts', 'ordersPartsNew','trainings','user_wo', 'manual_id','log_card','woBushing','prl_parts','tdr_proc'
         ));
     }
 

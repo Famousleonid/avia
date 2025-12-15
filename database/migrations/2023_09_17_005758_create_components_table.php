@@ -9,19 +9,20 @@ return new class extends Migration {
 
     public function up()
     {
-        Schema::create('components', function (Blueprint $table) {
-            $table->id();
-            $table->string('part_number');
-            $table->string('assy_part_number')->nullable();
-            $table->string('name');
-            $table->string('ipl_num');
-            $table->string('assy_ipl_num')->nullable();
-            $table->boolean('log_card')->default(false);
-            $table->foreignId('manual_id')->nullable()->constrained()->onDelete('set null');
-            $table->timestamps();
-            $table->softDeletes();
-        });
-
+        if (!Schema::hasTable('components')) {
+            Schema::create('components', function (Blueprint $table) {
+                $table->id();
+                $table->string('part_number');
+                $table->string('assy_part_number')->nullable();
+                $table->string('name');
+                $table->string('ipl_num');
+                $table->string('assy_ipl_num')->nullable();
+                $table->boolean('log_card')->default(false);
+                $table->foreignId('manual_id')->nullable()->constrained()->onDelete('set null');
+                $table->timestamps();
+                $table->softDeletes();
+            });
+        }
     }
 
     public function down()

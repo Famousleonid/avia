@@ -1111,7 +1111,11 @@
                                                         Customer
                                                     </option>
                                                     <option
-                                                        value="INPUT" {{ $part->po_num && $part->po_num !== 'Customer' ? 'selected' : '' }}>
+                                                        value="Transfer from WO" {{ $part->po_num && \Illuminate\Support\Str::startsWith($part->po_num, 'Transfer from WO') ? 'selected' : '' }}>
+                                                        Transfer from WO
+                                                    </option>
+                                                    <option
+                                                        value="INPUT" {{ $part->po_num && !\Illuminate\Support\Str::startsWith($part->po_num, ['Customer', 'Transfer from WO']) ? 'selected' : '' }}>
                                                         PO No.
                                                     </option>
                                                 </select>
@@ -1120,8 +1124,8 @@
                                                        data-tdrs-id="{{ $part->id }}"
                                                        data-workorder-number="{{ $current_workorder->number }}"
                                                        placeholder="Po No."
-                                                       value="{{ $part->po_num && $part->po_num !== 'Customer' ? $part->po_num : '' }}"
-                                                       style="display: {{ $part->po_num && $part->po_num !== 'Customer' ? 'block' : 'none' }};">
+                                                       value="{{ $part->po_num && !\Illuminate\Support\Str::startsWith($part->po_num, ['Customer', 'Transfer from WO']) ? $part->po_num : '' }}"
+                                                       style="display: {{ $part->po_num && !\Illuminate\Support\Str::startsWith($part->po_num, ['Customer', 'Transfer from WO']) ? 'block' : 'none' }};">
                                             </div>
                                         </td>
                                         <td class="" style="width: 150px;">
@@ -1856,6 +1860,38 @@
                         }
                     };
 
+                    // API для работы с transfers
+                    const TransferApi = {
+                        createTransfer: function (tdrsId, workorderNumber, targetWorkorderNumber) {
+                            const csrfToken = TokenUtils.getCsrfToken();
+                            const url = '{{ route("transfers.create", ":id") }}'.replace(':id', tdrsId);
+
+                            return fetch(url, {
+                                method: 'POST',
+                                headers: {
+                                    'Content-Type': 'application/json',
+                                    'X-CSRF-TOKEN': csrfToken
+                                },
+                                body: JSON.stringify({
+                                    workorder_number: workorderNumber,
+                                    target_workorder_number: targetWorkorderNumber
+                                })
+                            }).then(response => response.json());
+                        },
+
+                        deleteByTdr: function (tdrsId) {
+                            const csrfToken = TokenUtils.getCsrfToken();
+                            const url = '{{ route("transfers.deleteByTdr", ":id") }}'.replace(':id', tdrsId);
+
+                            return fetch(url, {
+                                method: 'DELETE',
+                                headers: {
+                                    'X-CSRF-TOKEN': csrfToken
+                                }
+                            }).then(response => response.json());
+                        }
+                    };
+
                     // Управление счетчиками
                     const PartsCounter = {
                         updateReceivedCount: function (workorderNumber) {
@@ -1881,18 +1917,81 @@
 
                     // Управление полем PO NO
                     const PoNoManager = {
+                        setReceivedToday: function (selectElement, tdrsId, workorderNumber) {
+                            const row = selectElement.closest('tr');
+                            const receivedInput = row ? row.querySelector('.received-date') : null;
+                            if (!receivedInput) return;
+
+                            // Если уже есть дата — не трогаем, пользователь может менять её вручную через календарь
+                            if (receivedInput.value) return;
+
+                            const today = new Date();
+                            const yyyy = today.getFullYear();
+                            const mm = String(today.getMonth() + 1).padStart(2, '0');
+                            const dd = String(today.getDate()).padStart(2, '0');
+                            const dateStr = `${yyyy}-${mm}-${dd}`;
+
+                            receivedInput.value = dateStr;
+                            PartsApi.saveField(tdrsId, 'received', dateStr, workorderNumber);
+                        },
+
                         handleSelectChange: function (selectElement) {
                             const tdrsId = selectElement.getAttribute('data-tdrs-id');
                             const workorderNumber = selectElement.getAttribute('data-workorder-number');
                             const value = selectElement.value;
+                            const prevValue = selectElement.dataset.prevValue || '';
                             const input = DomUtils.getPoNoInput(selectElement);
 
                             if (value === 'INPUT') {
                                 PoNoManager.showInput(input);
+                            } else if (value === 'Transfer from WO') {
+                                PoNoManager.hideInput(input);
+
+                                const targetWo = prompt('Enter source Work Order number (from which to transfer part):', '');
+                                if (!targetWo) {
+                                    // Отменили или не ввели номер – откатываем выбор
+                                    selectElement.value = prevValue;
+                                    return;
+                                }
+
+                                TransferApi.createTransfer(tdrsId, workorderNumber, targetWo)
+                                    .then(data => {
+                                        if (!data?.success) {
+                                            alert(data?.message || 'Failed to create transfer');
+                                            selectElement.value = prevValue;
+                                            return;
+                                        }
+                                        const specialValues = ['Customer', 'Transfer from WO'];
+                                        const saveValue = specialValues.includes(value) ? value : '';
+                                        const fullValue = `${saveValue} ${targetWo}`;
+                                        return PartsApi.saveField(tdrsId, 'po_num', fullValue, workorderNumber)
+                                            .then(() => {
+                                                PoNoManager.setReceivedToday(selectElement, tdrsId, workorderNumber);
+                                            });
+                                    })
+                                    .catch(err => {
+                                        console.error('Transfer create error:', err);
+                                        alert('Error creating transfer');
+                                        selectElement.value = prevValue;
+                                    });
                             } else {
                                 PoNoManager.hideInput(input);
-                                const saveValue = value === 'Customer' ? 'Customer' : '';
-                                PartsApi.saveField(tdrsId, 'po_num', saveValue, workorderNumber);
+                                const specialValues = ['Customer', 'Transfer from WO'];
+                                const saveValue = specialValues.includes(value) ? value : '';
+                                // Если раньше был Transfer from WO, удаляем transfer-запись
+                                const deletePromise = prevValue === 'Transfer from WO'
+                                    ? TransferApi.deleteByTdr(tdrsId)
+                                    : Promise.resolve();
+
+                                deletePromise
+                                    .then(() => PartsApi.saveField(tdrsId, 'po_num', saveValue, workorderNumber))
+                                    .then(() => {
+                                        PoNoManager.setReceivedToday(selectElement, tdrsId, workorderNumber);
+                                    })
+                                    .catch(err => {
+                                        console.error('Transfer delete error:', err);
+                                        alert('Error deleting transfer');
+                                    });
                             }
                         },
 
@@ -1958,6 +2057,12 @@
                             }
                         },
 
+                        handleFocus: function (e) {
+                            if (e.target.classList.contains('po-no-select')) {
+                                e.target.dataset.prevValue = e.target.value || '';
+                            }
+                        },
+
                         handleInput: function (e) {
                             if (e.target.classList.contains('po-no-input')) {
                                 PoNoManager.handleInputChange(e.target);
@@ -1984,6 +2089,7 @@
                         attachEventListeners: function () {
                             document.addEventListener('change', EventHandlers.handleChange);
                             document.addEventListener('input', EventHandlers.handleInput);
+                            document.addEventListener('focusin', EventHandlers.handleFocus);
                         },
 
                         initModalButtons: function () {

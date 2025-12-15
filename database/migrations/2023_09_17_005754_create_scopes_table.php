@@ -12,17 +12,17 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::create('scopes', function (Blueprint $table) {
-            $table->id();
-            $table->timestamps();
+            Schema::create('scopes', function (Blueprint $table) {
+                $table->id();
+                $table->timestamps();
 
-            $table->string('scope');
-        });
+                $table->string('scope');
+            });
 
         DB::table('scopes')->insert([
-            ['scope' => 'Mechanical'],
-            ['scope' => 'Hydraulic'],
-        ]);
+                ['scope' => 'Mechanical'],
+                ['scope' => 'Hydraulic'],
+            ]);
 
 
     }

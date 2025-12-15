@@ -14,15 +14,15 @@ return new class extends Migration
      */
     public function up()
     {
-        Schema::create('units', function (Blueprint $table) {
-            $table->id();
-            $table->string('part_number')->unique();
-            $table->boolean('verified')->default(false);
-            $table->foreignId('manual_id')->nullable()->constrained()->onDelete('set null');
-            $table->timestamps();
-            $table->softDeletes();
+            Schema::create('units', function (Blueprint $table) {
+                $table->id();
+                $table->string('part_number')->unique();
+                $table->boolean('verified')->default(false);
+                $table->foreignId('manual_id')->nullable()->constrained()->onDelete('set null');
+                $table->timestamps();
+                $table->softDeletes();
 
-        });
+            });
 
 
     }
