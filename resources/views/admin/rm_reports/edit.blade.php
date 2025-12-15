@@ -138,30 +138,22 @@
                 </div>
 
 
-            <!-- Technical Notes Table -->
+            <!-- Technical Notes (dynamic, через модальное окно) -->
             <div class="card mt-3">
-                <div class="card-header">
-                    <h5 class="text-primary">{{ __('Technical Notes') }}</h5>
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="text-primary mb-0">{{ __('Technical Notes') }}</h5>
+                    <button type="button"
+                            class="btn btn-outline-primary btn-sm"
+                            data-bs-toggle="modal"
+                            data-bs-target="#technicalNoteModal">
+                        {{ __('Add Notes') }}
+                    </button>
                 </div>
                 <div class="card-body">
                     <div class="table-responsive">
                         <table class="table table-bordered">
-                            <tbody>
-                                @php
-                                    $technicalNotes = $savedData['technical_notes'] ?? [];
-                                @endphp
-                                @for($i = 1; $i <= 7; $i++)
-                                    <tr>
-                                        <td>
-                                            <input type="text"
-                                                   class="form-control technical-note"
-                                                   id="note{{ $i }}"
-                                                   name="note{{ $i }}"
-                                                   value="{{ old('note' . $i, $technicalNotes['note' . $i] ?? '') }}"
-                                                   placeholder="{{ __('Enter technical note') }} {{ $i }}">
-                                        </td>
-                                    </tr>
-                                @endfor
+                            <tbody id="technicalNotesTableBody">
+                                <!-- Строки заметок будут добавляться через JS -->
                             </tbody>
                         </table>
                     </div>
@@ -290,24 +282,124 @@
             </div>
         </div>
 
-    </div>
+        </div>
+
+        <!-- Модальное окно для добавления/редактирования Technical Note -->
+        <div class="modal fade" id="technicalNoteModal" tabindex="-1" aria-labelledby="technicalNoteModalLabel" aria-hidden="true">
+            <div class="modal-dialog">
+                <div class="modal-content bg-gradient">
+                    <div class="modal-header">
+                        <h5 class="modal-title" id="technicalNoteModalLabel">{{ __('Enter Note') }}</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+                    <div class="modal-body">
+                        <textarea id="technicalNoteInput" class="form-control" rows="3" placeholder="{{ __('Enter technical note') }}"></textarea>
+                        <input type="hidden" id="technicalNoteIndex" value="-1">
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">{{ __('Cancel') }}</button>
+                        <button type="button" class="btn btn-outline-primary" onclick="saveTechnicalNote()">{{ __('Save') }}</button>
+                    </div>
+                </div>
+            </div>
+        </div>
 
         <script>
-        $(document).ready(function() {
+        // Хранилище технических заметок (динамический массив)
+        let technicalNotes = [];
+
+        document.addEventListener('DOMContentLoaded', function() {
             // Обработка отправки формы - обычная отправка без AJAX
-            $('#addRmRecordForm').on('submit', function() {
-                // Форма будет отправлена обычным способом
-                // После успешной отправки страница перезагрузится с сообщением об успехе
-            });
+            const addForm = document.getElementById('addRmRecordForm');
+            if (addForm) {
+                addForm.addEventListener('submit', function() {
+                    // стандартная отправка, ничего не делаем
+                });
+            }
 
-            // Обработка отправки формы редактирования
-            $('#editRmRecordForm').on('submit', function() {
-                // Форма будет отправлена обычным способом
-                // После успешной отправки страница перезагрузится с сообщением об успехе
-            });
+            const editForm = document.getElementById('editRmRecordForm');
+            if (editForm) {
+                editForm.addEventListener('submit', function() {
+                    // стандартная отправка, ничего не делаем
+                });
+            }
 
-            // Записи загружаются при загрузке страницы через Blade
+            // Инициализируем технические заметки из сохранённых данных
+            @php
+                $rawNotes = $savedData['technical_notes'] ?? [];
+                $initialNotes = is_array($rawNotes) ? array_values($rawNotes) : [];
+            @endphp
+            technicalNotes = @json($initialNotes);
+            renderTechnicalNotesTable();
         });
+
+        // Рендер таблицы технических заметок
+        function renderTechnicalNotesTable() {
+            const tbody = $('#technicalNotesTableBody');
+            tbody.empty();
+
+            if (technicalNotes.length === 0) {
+                return;
+            }
+
+            technicalNotes.forEach((note, index) => {
+                const row = $(`
+                    <tr>
+                        <td class="align-middle">${note}</td>
+                        <td class="text-end" style="width: 120px;">
+                            <button type="button" class="btn btn-sm btn-outline-primary me-1" onclick="editTechnicalNote(${index})">
+                                <i class="fas fa-edit"></i>
+                            </button>
+                            <button type="button" class="btn btn-sm btn-outline-danger" onclick="deleteTechnicalNote(${index})">
+                                <i class="fas fa-trash"></i>
+                            </button>
+                        </td>
+                    </tr>
+                `);
+                tbody.append(row);
+            });
+        }
+
+        // Открыть модал для редактирования заметки
+        function editTechnicalNote(index) {
+            const note = technicalNotes[index] || '';
+            $('#technicalNoteInput').val(note);
+            $('#technicalNoteIndex').val(index);
+            const modal = new bootstrap.Modal(document.getElementById('technicalNoteModal'));
+            modal.show();
+        }
+
+        // Удалить заметку
+        function deleteTechnicalNote(index) {
+            technicalNotes.splice(index, 1);
+            renderTechnicalNotesTable();
+        }
+
+        // Сохранить заметку из модального окна (новую или отредактированную)
+        function saveTechnicalNote() {
+            const noteText = $('#technicalNoteInput').val().trim();
+            const index = parseInt($('#technicalNoteIndex').val(), 10);
+
+            if (noteText === '') {
+                alert('Please enter a note text.');
+                return;
+            }
+
+            if (!isNaN(index) && index >= 0 && index < technicalNotes.length) {
+                technicalNotes[index] = noteText;
+            } else {
+                technicalNotes.push(noteText);
+            }
+
+            $('#technicalNoteInput').val('');
+            $('#technicalNoteIndex').val('-1');
+
+            const modalEl = document.getElementById('technicalNoteModal');
+            const modal = bootstrap.Modal.getInstance(modalEl);
+            modal.hide();
+
+            renderTechnicalNotesTable();
+        }
 
                 // Функция для выбора всех записей
         function selectAllRecords() {
@@ -335,11 +427,10 @@
                 _method: 'PUT'
             };
 
-            // Добавляем технические заметки как отдельные поля
-            for (var i = 1; i <= 7; i++) {
-                var noteValue = $('#note' + i).val();
-                formData['note' + i] = noteValue;
-            }
+            // Добавляем технические заметки как массив notes[]
+            technicalNotes.forEach(function(note, index) {
+                formData['notes[' + index + ']'] = note;
+            });
 
             // Отправляем данные на сервер
             $.ajax({

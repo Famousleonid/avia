@@ -256,34 +256,33 @@
 
                 @if($savedData)
                     <!-- Technical Notes Section -->
-                    @if(isset($savedData['technical_notes']))
-                        <div class="card mb-4">
-                            <div class="card-header">
-                                <h5 class="text-primary">{{ __('Technical Notes') }}</h5>
-                            </div>
-                            <div class="card-body">
-                                <div class="table-responsive">
-                                    <table class="table table-bordered">
-                                        <tbody>
-                                            @for($i = 1; $i <= 7; $i++)
-                                                @php
-                                                    $noteKey = 'note' . $i;
-                                                    $noteValue = $savedData['technical_notes'][$noteKey] ?? '';
-                                                @endphp
-                                                @if(!empty($noteValue))
-                                                    <tr>
-{{--                                                        <td style="width: 150px; background-color: #f8f9fa;">--}}
-{{--                                                            <strong>{{ __('Note') }} {{ $i }}</strong>--}}
-{{--                                                        </td>--}}
-                                                        <td>{{ $noteValue }}</td>
-                                                    </tr>
-                                                @endif
-                                            @endfor
-                                        </tbody>
-                                    </table>
+                    @if(isset($savedData['technical_notes']) && is_array($savedData['technical_notes']))
+                        @php
+                            // Приводим технические заметки к простому списку строк
+                            $technicalNotes = array_values($savedData['technical_notes']);
+                        @endphp
+                        @if(!empty($technicalNotes))
+                            <div class="card mb-4">
+                                <div class="card-header">
+                                    <h5 class="text-primary">{{ __('Technical Notes') }}</h5>
+                                </div>
+                                <div class="card-body">
+                                    <div class="table-responsive">
+                                        <table class="table table-bordered">
+                                            <tbody>
+                                                @foreach($technicalNotes as $noteValue)
+                                                    @if(!empty($noteValue))
+                                                        <tr>
+                                                            <td>{{ $noteValue }}</td>
+                                                        </tr>
+                                                    @endif
+                                                @endforeach
+                                            </tbody>
+                                        </table>
+                                    </div>
                                 </div>
                             </div>
-                        </div>
+                        @endif
                     @endif
 
                     <!-- R&M Records Section -->

@@ -364,13 +364,13 @@ class MainController extends Controller
         ));
     }
 
-    public function updateRepairOrder(Request $request, \App\Models\TdrProcess $tdrprocess)
+    public function updateRepairOrder(Request $request, \App\Models\TdrProcess $tdrProcess)
     {
         $data = $request->validate([
             'repair_order' => ['nullable', 'string', 'max:50'],
         ]);
 
-        $tdrprocess->update([
+        $tdrProcess->update([
             'repair_order' => $data['repair_order'] ?? null,
         ]);
 
