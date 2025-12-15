@@ -159,6 +159,7 @@
                                     <th class="text-primary text-center">NDT</th>
                                     <th class="text-primary text-center">Passivation</th>
                                     <th class="text-primary text-center">CAD</th>
+                                    <th class="text-primary text-center">Anodizing</th>
                                     <th class="text-primary text-center">Xylan</th>
                                 </tr>
                             </thead>
@@ -178,6 +179,7 @@
                                                     'ndt' => $bushItem['processes']['ndt'] ?? null,
                                                     'passivation' => $bushItem['processes']['passivation'] ?? null,
                                                     'cad' => $bushItem['processes']['cad'] ?? null,
+                                                    'anodizing' => $bushItem['processes']['anodizing'] ?? null,
                                                     'xylan' => $bushItem['processes']['xylan'] ?? null,
                                                 ];
                                             }
@@ -274,6 +276,19 @@
                                                 @foreach($cadProcesses as $process)
                                                     <option value="{{ $process->id }}"
                                                             {{ isset($groupData['cad']) && $groupData['cad'] == $process->id ? 'selected' : '' }}>
+                                                        <span @if(strlen($process->process) > 40) class="process-text-long" @endif>{{ $process->process }}</span>
+                                                    </option>
+                                                @endforeach
+                                            </select>
+                                        </td>
+                                        <td>
+                                            <select name="group_bushings[{{ $bushIplNum ?: 'no_ipl' }}][anodizing]"
+                                                    class="form-select" data-group="{{ $bushIplNum ?: 'no_ipl' }}"
+                                                    {{ !$groupSelected ? 'disabled' : '' }}>
+                                                <option value="">-- Select Anodizing --</option>
+                                                @foreach($anodizingProcesses as $process)
+                                                    <option value="{{ $process->id }}"
+                                                            {{ isset($groupData['anodizing']) && $groupData['anodizing'] == $process->id ? 'selected' : '' }}>
                                                         <span @if(strlen($process->process) > 40) class="process-text-long" @endif>{{ $process->process }}</span>
                                                     </option>
                                                 @endforeach

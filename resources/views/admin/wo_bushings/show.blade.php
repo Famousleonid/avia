@@ -34,7 +34,8 @@
         .table th:nth-child(4), .table td:nth-child(4),
         .table th:nth-child(5), .table td:nth-child(5),
         .table th:nth-child(6), .table td:nth-child(6),
-        .table th:nth-child(7), .table td:nth-child(7) {
+        .table th:nth-child(7), .table td:nth-child(7),
+        .table th:nth-child(8), .table td:nth-child(8) {
             min-width: 140px;
             max-width: 190px;
             text-align: center;
@@ -149,27 +150,7 @@
             </div>
         </div>
 
-{{--        --}}{{-- Success/Error Messages --}}
-{{--        @if(session('success'))--}}
-{{--            <div class="alert alert-success alert-dismissible fade show mx-3 mt-3" role="alert">--}}
-{{--                {{ session('success') }}--}}
-{{--                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>--}}
-{{--            </div>--}}
-{{--        @endif--}}
 
-{{--        @if(session('error'))--}}
-{{--            <div class="alert alert-danger alert-dismissible fade show mx-3 mt-3" role="alert">--}}
-{{--                {{ session('error') }}--}}
-{{--                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>--}}
-{{--            </div>--}}
-{{--        @endif--}}
-
-{{--        @if(session('warning'))--}}
-{{--            <div class="alert alert-warning alert-dismissible fade show mx-3 mt-3" role="alert">--}}
-{{--                {{ session('warning') }}--}}
-{{--                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>--}}
-{{--            </div>--}}
-{{--        @endif--}}
 
         @if($woBushing && $bushData)
             {{-- Показ сохраненных данных в режиме просмотра --}}
@@ -357,6 +338,50 @@
                                     @endif
                                 </th>
                                 <th class="text-primary text-center">
+                                    Anodizing<br>
+                                    @if($woBushing)
+                                        @php
+                                            $anodizingProcessName = \App\Models\ProcessName::where('name', 'Anodizing')->first();
+                                            // Проверяем, есть ли сохраненные данные для Anodizing
+                                            $hasAnodizingData = false;
+                                            if (!empty($bushData)) {
+                                                foreach ($bushData as $bushItem) {
+                                                    if (isset($bushItem['processes']['anodizing']) && !empty($bushItem['processes']['anodizing'])) {
+                                                        $hasAnodizingData = true;
+                                                        break;
+                                                    }
+                                                }
+                                            }
+                                        @endphp
+                                        <div class="d-flex align-items-center justify-content-center gap-2 mt-1">
+                                            <select class="form-select form-select-sm" style="width: auto; min-width: 80px;" name="vendor_id" id="vendor_anodizing">
+                                                <option value="">Vendor</option>
+                                                @foreach($vendors as $vendor)
+                                                    <option value="{{ $vendor->id }}">{{ $vendor->name }}</option>
+                                                @endforeach
+                                            </select>
+                                            @if($anodizingProcessName && $hasAnodizingData)
+                                                <a href="{{ route('wo_bushings.processesForm', ['id' => $woBushing->id,
+                                                'processNameId' => $anodizingProcessName->id]) }}" target="_blank"
+                                                class="btn btn-sm btn-outline-warning form-btn"
+                                                data-vendor-select="vendor_anodizing">Form</a>
+                                            @else
+                                                <span class="text-muted">Form</span>
+                                            @endif
+                                        </div>
+                                    @else
+                                        <div class="d-flex align-items-center justify-content-center gap-2 mt-1">
+                                            <select class="form-select form-select-sm" style="width: auto; min-width: 80px;" name="vendor_id" id="vendor_anodizing">
+                                                <option value="">Vendor</option>
+                                                @foreach($vendors as $vendor)
+                                                    <option value="{{ $vendor->id }}">{{ $vendor->name }}</option>
+                                                @endforeach
+                                            </select>
+                                            <span class="text-muted">Form</span>
+                                        </div>
+                                    @endif
+                                </th>
+                                <th class="text-primary text-center">
                                     Xylan<br>
                                     @if($woBushing)
                                         @php
@@ -418,11 +443,12 @@
                                                 'component' => $component,
                                                 'data' => [
                                                     'qty' => $bushItem['qty'],
-                                                    'machining' => $bushItem['processes']['machining'] ?? null,
-                                                    'ndt' => $bushItem['processes']['ndt'] ?? null,
-                                                    'passivation' => $bushItem['processes']['passivation'] ?? null,
-                                                    'cad' => $bushItem['processes']['cad'] ?? null,
-                                                    'xylan' => $bushItem['processes']['xylan'] ?? null,
+                                                'machining' => $bushItem['processes']['machining'] ?? null,
+                                                'ndt' => $bushItem['processes']['ndt'] ?? null,
+                                                'passivation' => $bushItem['processes']['passivation'] ?? null,
+                                                'cad' => $bushItem['processes']['cad'] ?? null,
+                                                'anodizing' => $bushItem['processes']['anodizing'] ?? null,
+                                                'xylan' => $bushItem['processes']['xylan'] ?? null,
                                                 ]
                                             ]);
                                         }
@@ -442,6 +468,7 @@
                                         $ndtProcess = $ndtProcesses->firstWhere('id', $data['ndt'] ?? null);
                                         $passivationProcess = $passivationProcesses->firstWhere('id', $data['passivation'] ?? null);
                                         $cadProcess = $cadProcesses->firstWhere('id', $data['cad'] ?? null);
+                                        $anodizingProcess = $anodizingProcesses->firstWhere('id', $data['anodizing'] ?? null);
                                         $xylanProcess = $xylanProcesses->firstWhere('id', $data['xylan'] ?? null);
                                     @endphp
                                     <tr>
@@ -462,6 +489,9 @@
                                         </td>
                                         <td>
                                             {{ $cadProcess ? $cadProcess->process : '-' }}
+                                        </td>
+                                        <td>
+                                            {{ $anodizingProcess ? $anodizingProcess->process : '-' }}
                                         </td>
                                         <td>
                                             {{ $xylanProcess ? $xylanProcess->process : '-' }}

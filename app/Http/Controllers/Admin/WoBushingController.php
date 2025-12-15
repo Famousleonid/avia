@@ -89,6 +89,16 @@ class WoBushingController extends Controller
             ->with('process_name')
             ->get();
 
+        // Anodizing processes - все процессы для 'Anodizing'
+        $anodizingProcesses = Process::whereHas('process_name', function($query) {
+                $query->where('name', 'Anodizing');
+            })
+            ->whereHas('manuals', function($query) use ($manual_id) {
+                $query->where('manual_id', $manual_id);
+            })
+            ->with('process_name')
+            ->get();
+
         // Xylan processes - все процессы для 'Xylan coating'
         $xylanProcesses = Process::whereHas('process_name', function($query) {
                 $query->where('name', 'Xylan coating');
@@ -109,6 +119,7 @@ class WoBushingController extends Controller
             'ndtProcesses',
             'passivationProcesses',
             'cadProcesses',
+            'anodizingProcesses',
             'xylanProcesses',
             'manuals'
         ));
@@ -151,6 +162,7 @@ class WoBushingController extends Controller
                             'ndt' => $groupData['ndt'] ? (int)$groupData['ndt'] : null,
                             'passivation' => $groupData['passivation'] ? (int)$groupData['passivation'] : null,
                             'cad' => $groupData['cad'] ? (int)$groupData['cad'] : null,
+                            'anodizing' => $groupData['anodizing'] ? (int)$groupData['anodizing'] : null,
                             'xylan' => $groupData['xylan'] ? (int)$groupData['xylan'] : null,
                         ]
                     ];
@@ -239,6 +251,16 @@ class WoBushingController extends Controller
             ->with('process_name')
             ->get();
 
+        // Anodizing processes - все процессы для 'Anodizing'
+        $anodizingProcesses = Process::whereHas('process_name', function($query) {
+                $query->where('name', 'Anodizing');
+            })
+            ->whereHas('manuals', function($query) use ($manual_id) {
+                $query->where('manual_id', $manual_id);
+            })
+            ->with('process_name')
+            ->get();
+
         // Xylan processes - все процессы для 'Xylan coating'
         $xylanProcesses = Process::whereHas('process_name', function($query) {
                 $query->where('name', 'Xylan coating');
@@ -268,6 +290,7 @@ class WoBushingController extends Controller
             'ndtProcesses',
             'passivationProcesses',
             'cadProcesses',
+            'anodizingProcesses',
             'xylanProcesses',
             'woBushing',
             'bushData',
@@ -342,6 +365,16 @@ class WoBushingController extends Controller
             ->with('process_name')
             ->get();
 
+        // Anodizing processes - все процессы для 'Anodizing'
+        $anodizingProcesses = Process::whereHas('process_name', function($query) {
+                $query->where('name', 'Anodizing');
+            })
+            ->whereHas('manuals', function($query) use ($manual_id) {
+                $query->where('manual_id', $manual_id);
+            })
+            ->with('process_name')
+            ->get();
+
         // Xylan processes - все процессы для 'Xylan coating'
         $xylanProcesses = Process::whereHas('process_name', function($query) {
                 $query->where('name', 'Xylan coating');
@@ -365,6 +398,7 @@ class WoBushingController extends Controller
             'ndtProcesses',
             'passivationProcesses',
             'cadProcesses',
+            'anodizingProcesses',
             'xylanProcesses',
             'bushData'
         ));
@@ -405,6 +439,7 @@ class WoBushingController extends Controller
                             'ndt' => $groupData['ndt'] ? (int)$groupData['ndt'] : null,
                             'passivation' => $groupData['passivation'] ? (int)$groupData['passivation'] : null,
                             'cad' => $groupData['cad'] ? (int)$groupData['cad'] : null,
+                            'anodizing' => $groupData['anodizing'] ? (int)$groupData['anodizing'] : null,
                             'xylan' => $groupData['xylan'] ? (int)$groupData['xylan'] : null,
                         ]
                     ];
@@ -559,6 +594,9 @@ class WoBushingController extends Controller
                             case 'Cad plate':
                                 $processId = $bushItem['processes']['cad'] ?? null;
                                 break;
+                            case 'Anodizing':
+                                $processId = $bushItem['processes']['anodizing'] ?? null;
+                                break;
                             case 'Xylan coating':
                                 $processId = $bushItem['processes']['xylan'] ?? null;
                                 break;
@@ -621,7 +659,7 @@ class WoBushingController extends Controller
                         $processes = $bushItem['processes'];
                         // Собираем активные процессы в правильном порядке
                         $activeProcesses = [];
-                        $processOrder = ['Machining', 'NDT', 'Passivation', 'CAD', 'Xylan'];
+                        $processOrder = ['Machining', 'NDT', 'Passivation', 'CAD', 'Anodizing', 'Xylan'];
                         
                         foreach ($processOrder as $processType) {
                             $processKey = strtolower($processType);
@@ -674,6 +712,7 @@ class WoBushingController extends Controller
             'BNI',
             'Passivation',
             'Cad plate',
+            'Anodizing',
             'Xylan coating'
         ])->get();
 
@@ -762,6 +801,15 @@ class WoBushingController extends Controller
             ->with('process_name')
             ->get();
 
+        $anodizingProcesses = Process::whereHas('process_name', function($query) {
+                $query->where('name', 'Anodizing');
+            })
+            ->whereHas('manuals', function($query) use ($current_manual_id) {
+                $query->where('manual_id', $current_manual_id);
+            })
+            ->with('process_name')
+            ->get();
+
         $xylanProcesses = Process::whereHas('process_name', function($query) {
                 $query->where('name', 'Xylan coating');
             })
@@ -802,6 +850,9 @@ class WoBushingController extends Controller
                     return ['id' => $p->id, 'process' => $p->process];
                 }),
                 'cad' => $cadProcesses->map(function($p) {
+                    return ['id' => $p->id, 'process' => $p->process];
+                }),
+                'anodizing' => $anodizingProcesses->map(function($p) {
                     return ['id' => $p->id, 'process' => $p->process];
                 }),
                 'xylan' => $xylanProcesses->map(function($p) {
