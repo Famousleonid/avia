@@ -1986,7 +1986,10 @@
                                 deletePromise
                                     .then(() => PartsApi.saveField(tdrsId, 'po_num', saveValue, workorderNumber))
                                     .then(() => {
-                                        PoNoManager.setReceivedToday(selectElement, tdrsId, workorderNumber);
+                                        // Для Customer дату НЕ трогаем, для остальных (PO No. и т.п.) — авто-дата
+                                        if (value !== 'Customer') {
+                                            PoNoManager.setReceivedToday(selectElement, tdrsId, workorderNumber);
+                                        }
                                     })
                                     .catch(err => {
                                         console.error('Transfer delete error:', err);
@@ -2015,6 +2018,13 @@
                             const value = inputElement.value;
 
                             PoNoDebounceManager.debounceSave(tdrsId, workorderNumber, value);
+
+                            // Если это первое заполнение PO No. и дата Received ещё пустая — считаем, что деталь пришла сегодня
+                            const row = inputElement.closest('tr');
+                            const selectElement = row ? row.querySelector('.po-no-select') : null;
+                            if (row && selectElement) {
+                                PoNoManager.setReceivedToday(selectElement, tdrsId, workorderNumber);
+                            }
                         }
                     };
 

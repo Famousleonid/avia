@@ -172,30 +172,22 @@
                 </div>
 
 
-            <!-- Technical Notes Table -->
+            <!-- Technical Notes (dynamic, через модальное окно) -->
             <div class="card mt-3">
-                <div class="card-header">
-                    <h5 class="text-primary">{{ __('Technical Notes') }}</h5>
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="text-primary mb-0">{{ __('Technical Notes') }}</h5>
+                    <button type="button"
+                            class="btn btn-outline-primary btn-sm"
+                            data-bs-toggle="modal"
+                            data-bs-target="#technicalNoteModal">
+                        {{ __('Add Notes') }}
+                    </button>
                 </div>
                 <div class="card-body">
                     <div class="table-responsive">
                         <table class="table table-bordered">
-                            <tbody>
-                                @for($i = 1; $i <= 7; $i++)
-                                    <tr>
-{{--                                        <td style="width: 150px; background-color: #f8f9fa;">--}}
-{{--                                            <strong>{{ __('Note') }} {{ $i }}</strong>--}}
-{{--                                        </td>--}}
-                                        <td>
-                                            <input type="text"
-                                                   class="form-control technical-note"
-                                                   id="note{{ $i }}"
-                                                   name="note{{ $i }}"
-{{--                                                   value="{{ old('note' . $i, $current_wo->rm_report ? json_decode($current_wo->rm_report, true)['technical_notes']['note' . $i] ?? '' : '') }}"--}}
-                                                   placeholder="{{ __('Enter technical note') }} {{ $i }}">
-                                        </td>
-                                    </tr>
-                                @endfor
+                            <tbody id="technicalNotesTableBody">
+                                <!-- Строки заметок будут добавляться через JS -->
                             </tbody>
                         </table>
                     </div>
@@ -264,6 +256,26 @@
             </div>
         </div>
 
+        <!-- Модальное окно для добавления/редактирования Technical Note -->
+        <div class="modal fade" id="technicalNoteModal" tabindex="-1" aria-labelledby="technicalNoteModalLabel" aria-hidden="true">
+            <div class="modal-dialog">
+                <div class="modal-content bg-gradient">
+                    <div class="modal-header">
+                        <h5 class="modal-title" id="technicalNoteModalLabel">{{ __('Enter Note') }}</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+                    <div class="modal-body">
+                        <textarea id="technicalNoteInput" class="form-control" rows="3" placeholder="{{ __('Enter technical note') }}"></textarea>
+                        <input type="hidden" id="technicalNoteIndex" value="-1">
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">{{ __('Cancel') }}</button>
+                        <button type="button" class="btn btn-outline-primary" onclick="saveTechnicalNote()">{{ __('Save') }}</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
         <!-- Модальное окно для редактирования R&M Record -->
         <div class="modal fade" id="editRmRecordModal" tabindex="-1" aria-labelledby="editRmRecordLabel"
              aria-hidden="true">
@@ -327,46 +339,141 @@
     </div>
 
         <script>
-        $(document).ready(function() {
+        // Хранилище технических заметок (динамический массив)
+        let technicalNotes = [];
+
+        // Инициализация после загрузки DOM
+        document.addEventListener('DOMContentLoaded', function() {
             // Обработка отправки формы - обычная отправка без AJAX
-            $('#addRmRecordForm').on('submit', function() {
-                // Форма будет отправлена обычным способом
-                // После успешной отправки страница перезагрузится с сообщением об успехе
-            });
+            const addForm = document.getElementById('addRmRecordForm');
+            if (addForm) {
+                addForm.addEventListener('submit', function() {
+                    // стандартная отправка
+                });
+            }
 
-            // Обработка отправки формы редактирования
-            $('#editRmRecordForm').on('submit', function() {
-                // Форма будет отправлена обычным способом
-                // После успешной отправки страница перезагрузится с сообщением об успехе
-            });
-
-            // Записи загружаются при загрузке страницы через Blade
+            const editForm = document.getElementById('editRmRecordForm');
+            if (editForm) {
+                editForm.addEventListener('submit', function() {
+                    // стандартная отправка
+                });
+            }
         });
 
-                // Функция для выбора всех записей
+        // Функция для выбора всех записей
         function selectAllRecords() {
-            $('.record-checkbox').prop('checked', true);
+            document.querySelectorAll('.record-checkbox').forEach(function(cb) {
+                cb.checked = true;
+            });
         }
 
         // Функция для снятия выбора со всех записей
         function deselectAllRecords() {
-            $('.record-checkbox').prop('checked', false);
+            document.querySelectorAll('.record-checkbox').forEach(function(cb) {
+                cb.checked = false;
+            });
+        }
+
+        // Рендер таблицы технических заметок
+        function renderTechnicalNotesTable() {
+            const tbody = document.getElementById('technicalNotesTableBody');
+            if (!tbody) return;
+
+            tbody.innerHTML = '';
+
+            if (technicalNotes.length === 0) {
+                return;
+            }
+
+            technicalNotes.forEach((note, index) => {
+                const tr = document.createElement('tr');
+
+                const tdText = document.createElement('td');
+                tdText.className = 'align-middle';
+                tdText.textContent = note;
+
+                const tdActions = document.createElement('td');
+                tdActions.className = 'text-end';
+                tdActions.style.width = '120px';
+
+                const editBtn = document.createElement('button');
+                editBtn.type = 'button';
+                editBtn.className = 'btn btn-sm btn-outline-primary me-1';
+                editBtn.innerHTML = '<i class="fas fa-edit"></i>';
+                editBtn.onclick = function() { editTechnicalNote(index); };
+
+                const deleteBtn = document.createElement('button');
+                deleteBtn.type = 'button';
+                deleteBtn.className = 'btn btn-sm btn-outline-danger';
+                deleteBtn.innerHTML = '<i class="fas fa-trash"></i>';
+                deleteBtn.onclick = function() { deleteTechnicalNote(index); };
+
+                tdActions.appendChild(editBtn);
+                tdActions.appendChild(deleteBtn);
+
+                tr.appendChild(tdText);
+                tr.appendChild(tdActions);
+
+                tbody.appendChild(tr);
+            });
+        }
+
+        // Открыть модал для редактирования заметки
+        function editTechnicalNote(index) {
+            const note = technicalNotes[index] || '';
+            const input = document.getElementById('technicalNoteInput');
+            const idxInput = document.getElementById('technicalNoteIndex');
+            if (!input || !idxInput) return;
+
+            input.value = note;
+            idxInput.value = index;
+            const modal = new bootstrap.Modal(document.getElementById('technicalNoteModal'));
+            modal.show();
+        }
+
+        // Удалить заметку
+        function deleteTechnicalNote(index) {
+            technicalNotes.splice(index, 1);
+            renderTechnicalNotesTable();
+        }
+
+        // Сохранить заметку из модального окна (новую или отредактированную)
+        function saveTechnicalNote() {
+            const input = document.getElementById('technicalNoteInput');
+            const idxInput = document.getElementById('technicalNoteIndex');
+            if (!input || !idxInput) return;
+
+            const noteText = input.value.trim();
+            const index = parseInt(idxInput.value, 10);
+
+            if (noteText === '') {
+                alert('Please enter a note text.');
+                return;
+            }
+
+            if (!isNaN(index) && index >= 0 && index < technicalNotes.length) {
+                technicalNotes[index] = noteText;
+            } else {
+                technicalNotes.push(noteText);
+            }
+
+            input.value = '';
+            idxInput.value = '-1';
+
+            const modalEl = document.getElementById('technicalNoteModal');
+            const modal = bootstrap.Modal.getInstance(modalEl);
+            if (modal) modal.hide();
+
+            renderTechnicalNotesTable();
         }
 
         // Функция для сохранения выбранных записей в workorder
         function saveSelectedRecords() {
-            var selectedRecords = $('.record-checkbox:checked').map(function() {
-                return this.value;
-            }).get();
+            const selectedRecords = Array.from(document.querySelectorAll('.record-checkbox:checked'))
+                .map(cb => cb.value);
 
             // Проверяем, есть ли хотя бы одна заметка
-            var hasNotes = false;
-            for (var i = 1; i <= 7; i++) {
-                if ($('#note' + i).val().trim() !== '') {
-                    hasNotes = true;
-                    break;
-                }
-            }
+            var hasNotes = technicalNotes.length > 0;
 
             // Проверяем, что есть либо выбранные записи, либо заметки
             if (selectedRecords.length === 0 && !hasNotes) {
@@ -396,7 +503,8 @@
                 var csrfToken = document.createElement('input');
                 csrfToken.type = 'hidden';
                 csrfToken.name = '_token';
-                csrfToken.value = $('meta[name="csrf-token"]').attr('content');
+                var meta = document.querySelector('meta[name="csrf-token"]');
+                csrfToken.value = meta ? meta.getAttribute('content') : '';
                 form.appendChild(csrfToken);
 
                 // Добавляем workorder_id
@@ -413,15 +521,14 @@
                 recordsField.value = JSON.stringify(selectedRecords);
                 form.appendChild(recordsField);
 
-                // Добавляем технические заметки
-                for (var i = 1; i <= 7; i++) {
-                    var noteValue = $('#note' + i).val();
+                // Добавляем технические заметки как notes[]
+                technicalNotes.forEach(function(note) {
                     var noteField = document.createElement('input');
                     noteField.type = 'hidden';
-                    noteField.name = 'note' + i;
-                    noteField.value = noteValue;
+                    noteField.name = 'notes[]';
+                    noteField.value = note;
                     form.appendChild(noteField);
-                }
+                });
 
                 // Добавляем форму в документ и отправляем
                 document.body.appendChild(form);
@@ -431,40 +538,35 @@
 
         // Функция для редактирования записи
         function editRecord(recordId) {
-            // Получаем данные записи через AJAX
-            $.ajax({
-                url: '{{ route("rm_reports.getRecord", ":id") }}'.replace(':id', recordId),
-                type: 'GET',
-                success: function(response) {
-                    if (response.success) {
-                        var record = response.data;
+            const url = '{{ route("rm_reports.getRecord", ":id") }}'.replace(':id', recordId);
 
-                        // Заполняем форму данными
-                        $('#edit_record_id').val(record.id);
-                        $('#edit_part_description').val(record.part_description);
-                        $('#edit_mod_repair_description').val(record.description);
-                        $('#edit_ident_method').val(record.ident_method);
+            fetch(url)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        const record = data.data;
 
-                        // Устанавливаем выбранную радиокнопку
-                        var modRepairValue = record.mod_repair;
-                        if (modRepairValue === 'Mod') {
-                            $('#edit_mod_repair_mod').prop('checked', true);
-                        } else if (modRepairValue === 'Repair') {
-                            $('#edit_mod_repair_repair').prop('checked', true);
-                        } else if (modRepairValue === 'SB') {
-                            $('#edit_mod_repair_sb').prop('checked', true);
-                        }
+                        document.getElementById('edit_record_id').value = record.id;
+                        document.getElementById('edit_part_description').value = record.part_description;
+                        document.getElementById('edit_mod_repair_description').value = record.description;
+                        document.getElementById('edit_ident_method').value = record.ident_method;
 
-                        // Устанавливаем action для формы
-                        $('#editRmRecordForm').attr('action', '{{ route("rm_reports.updateRecord", ":id") }}'.replace(':id', record.id));
+                        const modRepairValue = record.mod_repair;
+                        document.getElementById('edit_mod_repair_mod').checked = (modRepairValue === 'Mod');
+                        document.getElementById('edit_mod_repair_repair').checked = (modRepairValue === 'Repair');
+                        document.getElementById('edit_mod_repair_sb').checked = (modRepairValue === 'SB');
+
+                        document.getElementById('editRmRecordForm').setAttribute(
+                            'action',
+                            '{{ route("rm_reports.updateRecord", ":id") }}'.replace(':id', record.id)
+                        );
                     } else {
                         alert('Error loading record data');
                     }
-                },
-                error: function() {
+                })
+                .catch(() => {
                     alert('Error loading record data');
-                }
-            });
+                });
         }
 
         // Функция для удаления одной записи

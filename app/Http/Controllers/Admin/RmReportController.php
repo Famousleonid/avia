@@ -175,11 +175,16 @@ public function rmRecordForm(Request $request, $id)
         $selectedRecords = json_decode($request->selected_records, true);
         $workorder_id = $request->workorder_id;
         
-        // Собираем технические заметки
-        $technicalNotes = [];
-        for ($i = 1; $i <= 7; $i++) {
-            $noteKey = 'note' . $i;
-            $technicalNotes[$noteKey] = $request->input($noteKey, '');
+        // Собираем технические заметки (новый формат: notes[])
+        $technicalNotes = $request->input('notes', []);
+        // Обратная совместимость: если notes[] нет, пробуем старые поля note1..note7
+        if (empty($technicalNotes)) {
+            for ($i = 1; $i <= 7; $i++) {
+                $noteValue = $request->input('note' . $i, '');
+                if ($noteValue !== '') {
+                    $technicalNotes[] = $noteValue;
+                }
+            }
         }
         
         $dataToSave = [];
@@ -415,11 +420,16 @@ public function rmRecordForm(Request $request, $id)
         
         $workorder_id = $request->workorder_id;
         
-        // Собираем технические заметки
-        $technicalNotes = [];
-        for ($i = 1; $i <= 7; $i++) {
-            $noteKey = 'note' . $i;
-            $technicalNotes[$noteKey] = $request->input($noteKey, '');
+        // Собираем технические заметки (новый формат: notes[])
+        $technicalNotes = $request->input('notes', []);
+        // Обратная совместимость: если notes[] нет, пробуем старые поля note1..note7
+        if (empty($technicalNotes)) {
+            for ($i = 1; $i <= 7; $i++) {
+                $noteValue = $request->input('note' . $i, '');
+                if ($noteValue !== '') {
+                    $technicalNotes[] = $noteValue;
+                }
+            }
         }
         
         $dataToSave = [];

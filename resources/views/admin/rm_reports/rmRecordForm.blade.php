@@ -228,6 +228,11 @@
             font-size: 0.4rem; /* или любое другое подходящее значение */
         }
 
+        /* Минимальный межстрочный интервал в строках таблицы R&M */
+        .parent .data-row {
+            line-height: 1; /* можно уменьшить до 0.95, если визуально будет нормально */
+        }
+
         .details-row {
             display: flex;
             align-items: center; /* Выравнивание элементов по вертикали */
@@ -246,7 +251,9 @@
             margin: 0 5px; /* Отступы вокруг изображения */
         }
         .page-break {
-            page-break-after: always;
+            /* Начинать новый лист перед элементом (для 2-й и последующих страниц) */
+            page-break-before: always;
+            break-before: page;
         }
 
 
@@ -277,31 +284,7 @@
         }
 
 
-        /*.div12 {*/
-        /*    grid-column: span 2 / span 2;*/
-        /*}*/
 
-        /*.div13 {*/
-        /*    grid-column-start: 4;*/
-        /*}*/
-
-        /*.div14 {*/
-        /*    grid-column: span 3 / span 3;*/
-        /*    grid-column-start: 5;*/
-        /*}*/
-
-        /*.div15 {*/
-        /*    grid-column-start: 8;*/
-        /*}*/
-
-        /*.div16 {*/
-        /*    grid-column-start: 9;*/
-        /*}*/
-
-        /*.div17 {*/
-        /*    grid-column: span 3 / span 3;*/
-        /*    grid-column-start: 10;*/
-        /*}*/
 
 
 
@@ -313,23 +296,7 @@
             gap: 0px;
         }
 
-        /*.div21 {*/
-        /*    grid-column: span 3 / span 3;*/
-        /*}*/
 
-        /*.div22 {*/
-        /*    grid-column: span 4 / span 4;*/
-        /*    grid-column-start: 4;*/
-        /*}*/
-
-        /*.div23 {*/
-        /*    grid-column-start: 8;*/
-        /*}*/
-
-        /*.div24 {*/
-        /*    grid-column: span 4 / span 4;*/
-        /*    grid-column-start: 9;*/
-        /*}*/
 
 
 
@@ -347,7 +314,89 @@
         Print Form
     </button>
 </div>
-<div class="container-fluid">
+@php
+    // Базовые параметры для оценки высоты таблицы
+    // Максимальная допустимая "высота" строк данных на странице (в условных пикселях)
+    // Чуть меньше реального диапазона (593–640), т.к. часть съедает заголовок и QC-блок
+    $maxRowsHeightPerPage = 560;
+    // Оценочная высота одной текстовой "линии" в строке (после уменьшения line-height)
+    $rowHeightPerLine = 16;
+    // Сколько символов помещается в одну строку description
+    $charsPerLine = 39;
+
+    // Максимальное количество строк отображения (включая пустые) на странице
+    $rowsPerPage = 18;
+    // Максимальное количество НЕПУСТЫХ записей (с данными) на странице для ровной нумерации
+    $maxDataRowsPerPage = 16;
+
+    $rmRecordsCollection = $rmRecords ?? collect();
+
+    // Разбиваем записи на страницы с учётом как лимита по количеству, так и оценочной высоты по description
+    $pages = [];
+    $currentPage = collect();
+    $currentHeight = 0;
+    $currentDataCount = 0; // количество непустых записей на текущей странице
+
+    foreach ($rmRecordsCollection as $record) {
+        $description = $record->description ?? '';
+
+        // Оцениваем, сколько "текстовых строк" займёт description, исходя из 39 символов на строку
+        $descLength = function_exists('mb_strlen') ? mb_strlen($description) : strlen($description);
+        $descLines = max(1, (int)ceil($descLength / $charsPerLine));
+
+        // Оценочная высота строки данных (только по описанию, остальные поля обычно короче)
+        $estimatedRowHeight = $descLines * $rowHeightPerLine;
+
+        $willExceedHeight = $currentPage->isNotEmpty() && ($currentHeight + $estimatedRowHeight > $maxRowsHeightPerPage);
+        // ограничиваем именно количество реальных записей, а не общее число строк
+        $willExceedCount = $currentDataCount >= $maxDataRowsPerPage;
+
+        // Если добавление этой записи переполнит страницу по высоте или по количеству — начинаем новую страницу
+        if ($willExceedHeight || $willExceedCount) {
+            $pages[] = $currentPage;
+            $currentPage = collect();
+            $currentHeight = 0;
+            $currentDataCount = 0;
+        }
+
+        $currentPage->push($record);
+        $currentHeight += $estimatedRowHeight;
+        $currentDataCount++;
+    }
+
+    if ($currentPage->isNotEmpty()) {
+        $pages[] = $currentPage;
+    }
+
+    $rmRecordPages = collect($pages);
+
+    // Если записей нет, всё равно рисуем одну пустую страницу
+    if ($rmRecordPages->isEmpty()) {
+        $rmRecordPages = collect([collect()]);
+    }
+
+    // Общее количество НЕПУСТЫХ записей (данных) — для начала нумерации пустых строк
+    $totalDataCount = $rmRecordsCollection->count();
+
+    // Подготовка технических заметок (новый формат: простой список строк)
+    $technicalNotesList = [];
+    if (!empty($technicalNotes) && is_array($technicalNotes)) {
+        // Если сохранены как ассоциативный массив note1..noteN — берём значения
+        $technicalNotesList = array_values($technicalNotes);
+    }
+@endphp
+
+@php
+    // Глобальный сквозной индекс только для строк с данными (1..N)
+    $globalRowIndex = 1;
+    // Индекс для пустых строк (начинается с N+1)
+    $blankRowIndex = $totalDataCount + 1;
+    // Отдельный глобальный индекс для JS (data-row-index), чтобы все строки (включая пустые) имели уникальные ID
+    $globalJsIndex = 1;
+@endphp
+
+@foreach($rmRecordPages as $pageIndex => $pageRecords)
+<div class="container-fluid {{ $pageIndex > 0 ? 'page-break' : '' }}">
 
 
     <div class="title">
@@ -367,17 +416,23 @@
         </div>
     </div>
 
+    {{-- Технические заметки: по 7 строк на страницу.
+         Если заметок меньше 7 — оставшиеся строки пустые.
+         Если заметок больше 7 — оставшиеся уходят на следующую страницу и т.д. --}}
     <div class="row border-all-b  m-sm-0">
         <h5 class="ps-1 fs-9">Technical Notes:</h5>
-        @for($i = 1; $i <= 7; $i++)
+        @php
+            $notesPerPage = 7;
+            $notesStartIndex = $pageIndex * $notesPerPage;
+        @endphp
+        @for($i = 0; $i < $notesPerPage; $i++)
             @php
-                $noteKey = 'note' . $i;
-                $noteValue = $technicalNotes[$noteKey] ?? '';
+                $noteValue = $technicalNotesList[$notesStartIndex + $i] ?? '';
             @endphp
             <div class="border-b pt-2" style="height: 30px">{{ $noteValue }}</div>
         @endfor
     </div>
-<p></p>
+    <p></p>
 
     <div class="parent mt-3">
         <div class="div11 border-l-t-b text-center align-content-center fs-75" >Item</div>
@@ -389,32 +444,34 @@
         <div class="div16 border-l-t-b text-center align-content-center fs-75">Carried out by AT</div>
         <div class="div17 border-all text-center align-content-center fs-75">Identification Method</div>
         @php
-            // Максимальное количество строк для рендеринга (больше, чем нужно, чтобы было из чего выбирать)
-            $max_row = 25;
-            // Сохраняем данные для использования в JavaScript
-            $rmRecordsData = [];
-            if ($rmRecords && count($rmRecords) > 0) {
-                foreach($rmRecords as $record) {
-                    $rmRecordsData[] = [
-                        'part_description' => $record->part_description ?? '',
-                        'mod_repair' => $record->mod_repair ?? '',
-                        'description' => $record->description ?? '',
-                        'ident_method' => $record->ident_method ?? ''
-                    ];
-                }
-            }
+            // Количество строк на этой странице:
+            // - на первой странице выводим только реальные записи (без добивки пустыми строками);
+            // - на последующих страницах добиваем до $rowsPerPage пустыми строками, чтобы держать высоту.
+            $max_row = ($pageIndex === 0)
+                ? $pageRecords->count()
+                : $rowsPerPage;
         @endphp
-        @for($i=1; $i<$max_row; $i++)
+        @for($i = 1; $i <= $max_row; $i++)
             @php
-                $rmRecord = $rmRecords->get($i-1);
+                $rmRecord = $pageRecords->get($i-1);
+                // Уникальный индекс для JS (для всех строк)
+                $jsIndex = $globalJsIndex++;
+                // Нумерация:
+                // - для строк с данными: 1..N (сквозная по всему документу)
+                // - для пустых строк: N+1, N+2, ... (продолжение после всех данных)
+                if ($rmRecord) {
+                    $displayIndex = $globalRowIndex++;
+                } else {
+                    $displayIndex = $blankRowIndex++;
+                }
             @endphp
-            <div class="div11 border-l-b text-center align-content-center fs-75 data-row" style="min-height: 37px" data-row-index="{{$i}}">{{$i}}</div>
-            <div class="div12 border-l-b text-center align-content-center fs-75 data-row" data-row-index="{{$i}}">{{ $rmRecord ? $rmRecord->part_description : '' }}</div>
-            <div class="div13 border-l-b text-center align-content-center fs-75 data-row" data-row-index="{{$i}}">{{ $rmRecord ? $rmRecord->mod_repair : '' }}</div>
-            <div class="div14 border-l-b text-center align-content-center fs-75 data-row" data-row-index="{{$i}}">{{ $rmRecord ? $rmRecord->description : '' }}</div>
-            <div class="div15 border-l-b text-center align-content-center fs-75 data-row" style="color: lightgray" data-row-index="{{$i}}">tech stamp</div>
-            <div class="div16 border-l-b text-center align-content-center fs-75 data-row" style="color: lightgray" data-row-index="{{$i}}">tech stamp</div>
-            <div class="div17 border-l-b-r text-center align-content-center fs-75 data-row" data-row-index="{{$i}}">{{ $rmRecord ? $rmRecord->ident_method : '' }}</div>
+            <div class="div11 border-l-b text-center align-content-center fs-75 data-row" style="min-height: 37px" data-row-index="{{$jsIndex}}">{{$displayIndex}}</div>
+            <div class="div12 border-l-b text-center align-content-center fs-75 data-row" data-row-index="{{$jsIndex}}">{{ $rmRecord ? $rmRecord->part_description : '' }}</div>
+            <div class="div13 border-l-b text-center align-content-center fs-75 data-row" data-row-index="{{$jsIndex}}">{{ $rmRecord ? $rmRecord->mod_repair : '' }}</div>
+            <div class="div14 border-l-b text-center align-content-center fs-75 data-row" data-row-index="{{$jsIndex}}">{{ $rmRecord ? $rmRecord->description : '' }}</div>
+            <div class="div15 border-l-b text-center align-content-center fs-75 data-row" style="color: lightgray" data-row-index="{{$jsIndex}}">tech stamp</div>
+            <div class="div16 border-l-b text-center align-content-center fs-75 data-row" style="color: lightgray" data-row-index="{{$jsIndex}}">tech stamp</div>
+            <div class="div17 border-l-b-r text-center align-content-center fs-75 data-row" data-row-index="{{$jsIndex}}">{{ $rmRecord ? $rmRecord->ident_method : '' }}</div>
         @endfor
 
     </div>
@@ -428,14 +485,16 @@
 
 
 </div>
+@endforeach
+
+</div>
 
 <footer >
-    <div class="row" style="width: 100%; padding: 1px 1px;">
-        <div class="col-6 text-start">
+    <div class="d-flex justify-content-between" style=" padding: 1px 1px;">
+        <div class=" ms-1" style="font-size: 10px">
             {{__("Form #005")}}
         </div>
-
-        <div class="col-6 text-end pe-4 ">
+        <div class=" text-end pe-4 ">
             {{__('Rev#0, 15/Dec/2012   ')}}
         </div>
     </div>
@@ -455,9 +514,6 @@
 </script>
 
 <script>
-    // Данные из PHP для использования в JavaScript
-    const rmRecordsData = @json($rmRecordsData ?? []);
-
     // Функция для определения общей высоты двух основных таблиц
     function getTablesHeight() {
         // Находим первую таблицу (блок с классом "parent")
@@ -621,10 +677,25 @@
         return maxIndex;
     }
 
-    // Функция для удаления строки по индексу
+    // ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ ДЛЯ РАБОТЫ СО СТРОКАМИ
+
+    // Функция для удаления строки по индексу (по data-row-index)
     function removeRow(rowIndex) {
         const rows = document.querySelectorAll(`.parent .data-row[data-row-index="${rowIndex}"]`);
         rows.forEach(row => row.remove());
+    }
+
+    // Получить максимальный номер в колонке "Item"
+    function getMaxItemNumber() {
+        let max = 0;
+        const itemCells = document.querySelectorAll('.parent .div11.data-row');
+        itemCells.forEach(cell => {
+            const num = parseInt((cell.textContent || '').trim(), 10);
+            if (!isNaN(num) && num > max) {
+                max = num;
+            }
+        });
+        return max;
     }
 
     // Функция для добавления пустой строки
@@ -637,7 +708,9 @@
         div11.className = 'div11 border-l-b text-center align-content-center fs-75 data-row';
         div11.style.minHeight = '37px';
         div11.setAttribute('data-row-index', rowIndex);
-        div11.textContent = rowIndex;
+        // Нумерация для пустых строк продолжается от последнего используемого Item
+        const nextItemNumber = getMaxItemNumber() + 1;
+        div11.textContent = nextItemNumber;
 
         const div12 = document.createElement('div');
         div12.className = 'div12 border-l-b text-center align-content-center fs-75 data-row';
@@ -666,18 +739,6 @@
         const div17 = document.createElement('div');
         div17.className = 'div17 border-l-b-r text-center align-content-center fs-75 data-row';
         div17.setAttribute('data-row-index', rowIndex);
-
-        // Добавляем данные, если они есть
-        // ВАЖНО: Данные добавляются ДО вставки в DOM, чтобы браузер мог правильно рассчитать высоту
-        const recordData = rmRecordsData[rowIndex - 1];
-        if (recordData) {
-            div12.textContent = recordData.part_description || '';
-            div13.textContent = recordData.mod_repair || '';
-            div14.textContent = recordData.description || '';
-            div17.textContent = recordData.ident_method || '';
-            // Примечание: Если данные длинные, ячейки могут иметь разную высоту из-за переноса текста
-            // Это учитывается в функциях getRowHeightStatistics() и getActualRowHeight()
-        }
 
         // Добавляем все ячейки в контейнер
         parent.appendChild(div11);
