@@ -22,17 +22,6 @@ use Spatie\Activitylog\Models\Activity;
 class WorkorderController extends Controller
 {
 
-    public function __construct()
-    {
-//        $this->middleware('can:workorders.viewAny')->only('index');
-//        $this->middleware('can:workorders.view')->only('show');
-//        $this->middleware('can:workorders.create')->only(['create', 'store']);
-//        $this->middleware('can:workorders.update')->only(['edit', 'update']);
-//        $this->middleware('can:workorders.delete')->only('destroy');
-//        $this->middleware('can:workorders.approve')->only('approve');
-    }
-
-
     public function logs()
     {
         $activities = Activity::query()
@@ -95,6 +84,13 @@ class WorkorderController extends Controller
             'approve_name'   => 'Approved by',
             'description'    => 'Description',
             'serial_number'  => 'Serial number',
+
+            // кастомные поля для task deleted
+            'task'           => 'Task',
+            'assigned_user'  => 'Technik',
+            'date_start'     => 'Start',
+            'date_finish'    => 'Finish',
+            'main_id'        => 'Main ID',
         ];
 
         $formatValue = function ($field, $value) use ($unitsMap, $customersMap, $instructionsMap, $usersMap) {
@@ -110,12 +106,17 @@ class WorkorderController extends Controller
         };
 
         $data = $activities->map(function (Activity $log) use ($fieldLabels, $formatValue) {
-            $props      = $log->properties ?? [];
+
+            // ✅ важно: properties приводим к массиву
+            $props = $log->properties ? $log->properties->toArray() : [];
+
+            // стандартная структура Spatie для updated
             $attributes = $props['attributes'] ?? [];
             $old        = $props['old'] ?? [];
 
             $changes = [];
 
+            // 1) обычные изменения (update)
             foreach ($attributes as $field => $newValue) {
                 $oldValue = $old[$field] ?? null;
 
@@ -127,6 +128,65 @@ class WorkorderController extends Controller
                     'old'   => $formatValue($field, $oldValue),
                     'new'   => $formatValue($field, $newValue),
                 ];
+            }
+
+            // 2) кастомные логи (например "task deleted") — данные лежат НЕ в attributes/old
+            if (empty($changes)) {
+
+                // task deleted: props.task / props.dates / props.assigned_user / props.main_id
+                if (!empty($props['task']) || !empty($props['dates']) || !empty($props['assigned_user'])) {
+
+                    $taskText = trim(
+                        ($props['task']['general'] ?? '') .
+                        (($props['task']['general'] ?? null) ? ' → ' : '') .
+                        ($props['task']['name'] ?? '')
+                    );
+
+                    if ($taskText !== '') {
+                        $changes[] = [
+                            'field' => 'task',
+                            'label' => $fieldLabels['task'],
+                            'old'   => null,
+                            'new'   => $taskText,
+                        ];
+                    }
+
+                    if (!empty($props['assigned_user'])) {
+                        $changes[] = [
+                            'field' => 'assigned_user',
+                            'label' => $fieldLabels['assigned_user'],
+                            'old'   => null,
+                            'new'   => $props['assigned_user'],
+                        ];
+                    }
+
+                    if (!empty($props['dates']['start'])) {
+                        $changes[] = [
+                            'field' => 'date_start',
+                            'label' => $fieldLabels['date_start'],
+                            'old'   => null,
+                            'new'   => $props['dates']['start'],
+                        ];
+                    }
+
+                    if (array_key_exists('finish', $props['dates'] ?? [])) {
+                        $changes[] = [
+                            'field' => 'date_finish',
+                            'label' => $fieldLabels['date_finish'],
+                            'old'   => null,
+                            'new'   => $props['dates']['finish'] ?? null,
+                        ];
+                    }
+
+                    if (!empty($props['main_id'])) {
+                        $changes[] = [
+                            'field' => 'main_id',
+                            'label' => $fieldLabels['main_id'],
+                            'old'   => null,
+                            'new'   => $props['main_id'],
+                        ];
+                    }
+                }
             }
 
             return [
@@ -157,7 +217,6 @@ class WorkorderController extends Controller
 
         return view('admin.workorders.index', compact('workorders', 'units', 'manuals','customers','users'));
     }
-
 
     public function create()
     {
@@ -289,7 +348,6 @@ class WorkorderController extends Controller
 
     }
 
-
     public function updateInspect(Request $request, $id)
     {
 
@@ -392,9 +450,6 @@ class WorkorderController extends Controller
         }
     }
 
-    /**
-     * Получить список всех PDF файлов для workorder
-     */
     public function pdfs($id)
     {
         try {

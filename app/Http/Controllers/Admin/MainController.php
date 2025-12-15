@@ -119,10 +119,10 @@ class MainController extends Controller
 
             ->pluck('id');
 
-        $tdrProcessesTotal = TdrProcess::whereIn('tdrs_id', $tdrIds)->count();
-        $tdrProcessesOpen  = TdrProcess::whereIn('tdrs_id', $tdrIds)
-            ->whereNull('date_finish')
-            ->count();
+//        $tdrProcessesTotal = TdrProcess::whereIn('tdrs_id', $tdrIds)->count();
+//        $tdrProcessesOpen  = TdrProcess::whereIn('tdrs_id', $tdrIds)
+//            ->whereNull('date_finish')
+//            ->count();
 
         $code = Code::where('name', 'Missing')->first();
         $necessary = Necessary::where('name', 'Order New')->first();
@@ -156,7 +156,7 @@ class MainController extends Controller
         $user = Auth::user();
         $user_wo = $current_workorder->user_id;
         $manual_id = $current_workorder->unit->manual_id ?? null;
-        
+
         $trainings = null;
         if ($manual_id) {
             $form_type = 112;
@@ -170,13 +170,10 @@ class MainController extends Controller
         return view('admin.mains.main', compact(
             'users','current_workorder','mains','general_tasks','tasks','tasksByGeneral',
             'imgThumb','imgFull','manual','components','showAll',
-            'tdrProcessesTotal','tdrProcessesOpen',
             'ordersPartsNew','prl_parts','orderedQty', 'receivedQty',
             'trainings','user_wo','manual_id','user'
         ));
     }
-
-
 
     public function edit($id)
     {
@@ -266,12 +263,33 @@ class MainController extends Controller
 
     public function destroy($id)
     {
+        $main = Main::with([
+            'task.generalTask',
+            'user',
+            'workorder'
+        ])->findOrFail($id);
 
-        Main::destroy($id);
+        activity()
+            ->useLog('workorder')
+            ->performedOn($main->workorder)
+            ->causedBy(auth()->user())
+            ->event('deleted')
+            ->withProperties([
+                'main_id' => $main->id,
+                'task' => [
+                    'general' => $main->task->generalTask->name ?? null,
+                    'name'    => $main->task->name ?? null,
+                ],
+                'assigned_user' => $main->user->name ?? null,
+                'dates' => [
+                    'start'  => optional($main->date_start)->format('Y-m-d'),
+                    'finish' => optional($main->date_finish)->format('Y-m-d'),
+                ],
+            ])
+            ->log('task deleted');
 
-        return redirect()->back()->with('success', 'General row deleted');
+        return redirect()->back()->with('success', 'Task deleted');
     }
-
 
     public function progress(Request $request)
     {
@@ -346,6 +364,18 @@ class MainController extends Controller
         ));
     }
 
+    public function updateRepairOrder(Request $request, \App\Models\TdrProcess $tdrprocess)
+    {
+        $data = $request->validate([
+            'repair_order' => ['nullable', 'string', 'max:50'],
+        ]);
 
+        $tdrprocess->update([
+            'repair_order' => $data['repair_order'] ?? null,
+        ]);
+
+        // если это авто-сабмит из формы — можно просто назад
+        return back();
+    }
 
 }

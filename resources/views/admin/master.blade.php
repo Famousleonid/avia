@@ -66,9 +66,8 @@
         })();
     </script>
 
-    @yield('style')
-
     <style>
+
         .content {
             height: 100vh;
             overflow-y: auto;
@@ -82,7 +81,12 @@
             flex-direction: column;
             position: relative;
         }
+
     </style>
+
+    @yield('style')
+
+
 </head>
 
 <body class="p-0 m-0 g-0">
@@ -91,7 +95,7 @@
     <span class="visually-hidden">Loading...</span>
 </div>
 
-<div class="row vh-100 g-0">
+<div class="row g-0 page-layout">
 
     <div id="sidebarColumn" class="bg-body p-0 col-auto">
         @include('components.sidebar')
@@ -104,8 +108,10 @@
         </div>
     </div>
 
-    @include('components.footer')
 </div>
+
+@include('components.footer')
+
 
 <script src="{{asset('assets/jquery/jquery371min.js')}}"></script>
 <script src="{{asset('assets/Bootstrap 5/bootstrap.bundle.min.js')}}"></script>
