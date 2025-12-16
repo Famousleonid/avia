@@ -808,10 +808,10 @@
             </div>
         </div>
 
-        <!-- Строка 7: Xylan -->
+        <!-- Строка 7: Anodizing -->
         <div class="row g-0 ">
             <div class="col-2 border-l-t ps-1">
-                <div style="height: 30px"><strong>Xylan</strong></div>
+                <div style="height: 30px"><strong>Anodizing</strong></div>
             </div>
             <div class="col-10">
                 <div class="row g-0">
@@ -821,13 +821,15 @@
                             30px; position: relative;">
                                 <div class="row g-0">
                                     <div class="col-2 text-center border-r" style="height: 30px;">
-                                        @if(in_array('Xylan', $group['processes']))
-                                            <span class="">{{ $group['process_numbers']['Xylan'] ?? '' }}</span>
+                                        @if(in_array('Anodizing', $group['processes']))
+                                            <span class="">{{ $group['process_numbers']['Anodizing'] ?? '' }}</span>
                                         @endif
                                     </div>
                                     <div class="col-6 text-center" style="height: 30px;">
-                                        @if(in_array('Xylan', $group['processes']))
-                                            <span class="">{{ $group['process_numbers']['Xylan'] ?? '' }}</span>
+                                        @if(in_array('Anodizing', $group['processes']))
+                                            <span class="">
+{{--                                                {{ $group['process_numbers']['Anodizing'] ?? '' }}--}}
+                                            </span>
                                         @endif
                                     </div>
                                 </div>
@@ -862,8 +864,64 @@
             </div>
         </div>
 
-        <!-- Строки 8-15: Пустые строки -->
-        @for($row = 8; $row <= 13; $row++)
+        <!-- Строка 8: Xylan -->
+        <div class="row g-0 ">
+            <div class="col-2 border-l-t ps-1">
+                <div style="height: 30px"><strong>Xylan</strong></div>
+            </div>
+            <div class="col-10">
+                <div class="row g-0">
+                    @if(isset($processGroups) && count($processGroups) > 0)
+                        @foreach($processGroups as $groupIndex => $group)
+                            <div class="col {{ $groupIndex < 5 ? 'border-l-t-r' : 'border-l-t' }} text-center" style="height:
+                            30px; position: relative;">
+                                <div class="row g-0">
+                                    <div class="col-2 text-center border-r" style="height: 30px;">
+                                        @if(in_array('Xylan', $group['processes']))
+                                            <span class="">{{ $group['process_numbers']['Xylan'] ?? '' }}</span>
+                                        @endif
+                                    </div>
+                                    <div class="col-6 text-center" style="height: 30px;">
+                                        @if(in_array('Xylan', $group['processes']))
+                                            <span class="">
+{{--                                                {{ $group['process_numbers']['Xylan'] ?? '' }}--}}
+                                            </span>
+                                        @endif
+                                    </div>
+                                </div>
+                            </div>
+                        @endforeach
+                        <!-- Дополняем до 6 столбцов пустыми -->
+                        @for($i = count($processGroups); $i < 6; $i++)
+                            <div class="col {{ $i < 5 ? 'border-l-t' : 'border-l-t-r' }} text-center" style="height: 30px;
+                            position: relative;">
+                                <div class="row g-0">
+                                    <div class="col-2 text-center border-r" style="height: 30px;">
+                                    </div>
+                                    <div class="col-6 text-center" style="height: 30px;">
+                                    </div>
+                                </div>
+                            </div>
+                        @endfor
+                    @else
+                        @for($i = 0; $i < 6; $i++)
+                            <div class="col {{ $i < 5 ? 'border-l-t' : 'border-l-t-r' }} text-center" style="height: 30px;
+                            position: relative;">
+                                <div class="row g-0">
+                                    <div class="col-2 text-center border-r" style="height: 30px;">
+                                    </div>
+                                    <div class="col-6 text-center" style="height: 30px;">
+                                    </div>
+                                </div>
+                            </div>
+                        @endfor
+                    @endif
+                </div>
+            </div>
+        </div>
+
+        <!-- Строки 9-15: Пустые строки -->
+        @for($row = 9; $row <= 13; $row++)
         <div class="row g-0 ">
             <div class="col-2 border-l-t ps-1">
                 <div style="height: 30px"></div>

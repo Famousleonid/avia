@@ -99,6 +99,7 @@ Route::group(['middleware' => ['auth']], function () {
 
     Route::resource('/users', UserController::class);
     Route::resource('/mains',  MainController::class);
+    Route::patch('/mains/general-task/{workorder}/{generalTask}', [MainController::class, 'updateGeneralTaskDates'])->name('mains.updateGeneralTaskDates');
 
         Route::get('/progress', [MainController::class, 'progress'])->name('progress.index');
 

@@ -270,27 +270,7 @@
             </div>
         </div>
 
-        {{-- Success/Error Messages --}}
-{{--        @if(session('success'))--}}
-{{--            <div class="alert alert-success alert-dismissible fade show mx-3 mt-3" role="alert">--}}
-{{--                {{ session('success') }}--}}
-{{--                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>--}}
-{{--            </div>--}}
-{{--        @endif--}}
 
-{{--        @if(session('error'))--}}
-{{--            <div class="alert alert-danger alert-dismissible fade show mx-3 mt-3" role="alert">--}}
-{{--                {{ session('error') }}--}}
-{{--                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>--}}
-{{--            </div>--}}
-{{--        @endif--}}
-
-{{--        @if(session('warning'))--}}
-{{--            <div class="alert alert-warning alert-dismissible fade show mx-3 mt-3" role="alert">--}}
-{{--                {{ session('warning') }}--}}
-{{--                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>--}}
-{{--            </div>--}}
-{{--        @endif--}}
 
         @if($bushings->flatten()->count() > 0)
             <div class="d-flex justify-content-center mt-3">
@@ -309,6 +289,7 @@
                                     <th class="text-primary text-center">NDT</th>
                                     <th class="text-primary text-center">Passivation</th>
                                     <th class="text-primary text-center">CAD</th>
+                                    <th class="text-primary text-center">Anodizing</th>
                                     <th class="text-primary text-center">Xylan</th>
                                 </tr>
                             </thead>
@@ -380,6 +361,17 @@
                                                     class="form-select" data-group="{{ $bushIplNum ?: 'no_ipl' }}" disabled>
                                                 <option value="">-- Select CAD --</option>
                                                 @foreach($cadProcesses as $process)
+                                                    <option value="{{ $process->id }}">
+                                                        <span @if(strlen($process->process) > 40) class="process-text-long" @endif>{{ $process->process }}</span>
+                                                    </option>
+                                                @endforeach
+                                            </select>
+                                        </td>
+                                        <td>
+                                            <select name="group_bushings[{{ $bushIplNum ?: 'no_ipl' }}][anodizing]"
+                                                    class="form-select" data-group="{{ $bushIplNum ?: 'no_ipl' }}" disabled>
+                                                <option value="">-- Select Anodizing --</option>
+                                                @foreach($anodizingProcesses as $process)
                                                     <option value="{{ $process->id }}">
                                                         <span @if(strlen($process->process) > 40) class="process-text-long" @endif>{{ $process->process }}</span>
                                                     </option>
@@ -559,13 +551,14 @@
     <script>
         let selectedManualBushings = [];
         let selectedManualProcesses = {};
-        
+
         // Store current manual processes for use when adding bushings from other manuals
         const currentManualProcesses = {
             machining: @json($machiningProcesses->map(function($p) { return ['id' => $p->id, 'process' => $p->process]; })),
             ndt: @json($ndtProcesses->map(function($p) { return ['id' => $p->id, 'name' => $p->process_name->name]; })),
             passivation: @json($passivationProcesses->map(function($p) { return ['id' => $p->id, 'process' => $p->process]; })),
             cad: @json($cadProcesses->map(function($p) { return ['id' => $p->id, 'process' => $p->process]; })),
+            anodizing: @json($anodizingProcesses->map(function($p) { return ['id' => $p->id, 'process' => $p->process]; })),
             xylan: @json($xylanProcesses->map(function($p) { return ['id' => $p->id, 'process' => $p->process]; }))
         };
 
@@ -587,7 +580,7 @@
             // Handle change event for Select2
             $(manualSelect).on('change', function() {
                 const selectedManualId = $(this).val();
-                
+
                 if (!selectedManualId) {
                     bushingsSelection.style.display = 'none';
                     addSelectedBtn.style.display = 'none';
@@ -652,7 +645,7 @@
                     html += `Bush IPL: ${groupKey || 'No IPL'}`;
                     html += `</label>`;
                     html += `</div>`;
-                    
+
                     // Sort components within group by ipl_num
                     const sortedComponents = [...group.components].sort(function(a, b) {
                         // Extract numeric part for sorting
@@ -662,7 +655,7 @@
                         const bNum = parseInt(bParts[bParts.length - 1].replace(/[^0-9]/g, '')) || 0;
                         return aNum - bNum;
                     });
-                    
+
                     sortedComponents.forEach(function(component, compIndex) {
                         const checkboxId = `comp_${groupIndex}_${compIndex}`;
                         html += `<div class="form-check ms-4 mb-1">`;
@@ -708,7 +701,7 @@
                     const componentId = parseInt(checkbox.value);
                     const groupKey = checkbox.getAttribute('data-group');
                     const groupIndex = parseInt(checkbox.getAttribute('data-group-index'));
-                    
+
                     // Find the group data by groupKey (since we sorted, need to find by key)
                     const group = selectedManualBushings.find(g => (g.bush_ipl_num || 'no_ipl') === groupKey);
                     if (group) {
@@ -741,21 +734,21 @@
                 // Add rows to the table
                 const tbody = document.querySelector('#bushings-form table tbody');
                 let groupCounter = 0;
-                
+
                 Object.keys(groupedComponents).forEach(function(groupKey) {
                     const components = groupedComponents[groupKey];
                     const uniqueGroupKey = `manual_${Date.now()}_${groupCounter++}`;
-                    
+
                     // Create table row
                     let rowHtml = '<tr>';
-                    
+
                     // First column - Bushings list
                     rowHtml += '<td class="ps-2">';
                     components.forEach(function(comp) {
                         rowHtml += `<div class="mb-1"><span><strong>${comp.ipl_num}</strong> - ${comp.part_number}</span></div>`;
                     });
                     rowHtml += '</td>';
-                    
+
                     // Second column - Checkboxes
                     rowHtml += '<td class="text-center"><div class="text-start">';
                     components.forEach(function(comp) {
@@ -765,14 +758,14 @@
                         rowHtml += `</div>`;
                     });
                     rowHtml += '</div></td>';
-                    
+
                     // Third column - QTY
                     rowHtml += `<td class="text-center">`;
                     rowHtml += `<input type="number" name="group_bushings[${uniqueGroupKey}][qty]" class="form-control qty-input" min="0" value="1" data-group="${uniqueGroupKey}" disabled>`;
                     rowHtml += `</td>`;
-                    
+
                     // Process columns - use processes from current manual
-                    const processTypes = ['machining', 'ndt', 'passivation', 'cad', 'xylan'];
+                    const processTypes = ['machining', 'ndt', 'passivation', 'cad', 'anodizing', 'xylan'];
                     const processLabels = {
                         'machining': 'Machining',
                         'ndt': 'NDT',
@@ -780,12 +773,12 @@
                         'cad': 'CAD',
                         'xylan': 'Xylan'
                     };
-                    
+
                     processTypes.forEach(function(processType) {
                         rowHtml += `<td>`;
                         rowHtml += `<select name="group_bushings[${uniqueGroupKey}][${processType}]" class="form-select" data-group="${uniqueGroupKey}" disabled>`;
                         rowHtml += `<option value="">-- Select ${processLabels[processType]} --</option>`;
-                        
+
                         // Use processes from current manual
                         if (selectedManualProcesses[processType] && selectedManualProcesses[processType].length > 0) {
                             selectedManualProcesses[processType].forEach(function(process) {
@@ -794,11 +787,11 @@
                                 rowHtml += `<option value="${process.id}">${escapedText}</option>`;
                             });
                         }
-                        
+
                         rowHtml += `</select>`;
                         rowHtml += `</td>`;
                     });
-                    
+
                     rowHtml += '</tr>';
                     tbody.insertAdjacentHTML('beforeend', rowHtml);
                 });
@@ -806,7 +799,7 @@
                 // Close modal
                 const modal = bootstrap.Modal.getInstance(document.getElementById('addBushingsFromManualModal'));
                 modal.hide();
-                
+
                 // Reset modal
                 $(manualSelect).val(null).trigger('change');
                 bushingsSelection.style.display = 'none';

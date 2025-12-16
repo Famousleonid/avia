@@ -7,9 +7,7 @@
             font-size: 12px;
         }
 
-        [data-fp] {
-            opacity: 0;
-        }
+        body.fp-ready [data-fp]{ opacity:0; }
 
         .flatpickr-input[readonly] {
             opacity: 1 !important;
@@ -30,13 +28,13 @@
             color: #f8f9fa;
         }
 
-        .card-body{
+        .card-body {
             display: flex;
             flex-direction: column;
             min-height: 0;
         }
 
-        .vh-layout{
+        .vh-layout {
             flex: 1 1 auto;
             display: flex;
             flex-direction: column;
@@ -182,12 +180,12 @@
         .gradient-table th {
             background-color: rgba(0, 0, 0, .25);
             color: #dee2e6;
-            font-size: .8rem;
+            font-size: 18px;
         }
 
         .gradient-table td {
             background-color: rgba(255, 255, 255, .02);
-            font-size: .85rem;
+            font-size: 18px;
             vertical-align: middle;
         }
 
@@ -346,19 +344,15 @@
 
         /* ширины колонок (у тебя colgroup уже есть — оставляем) */
         .tasks-table col.col-tech {
-            width: 95px;
-        }
-
-        .tasks-table col.col-start {
-            width: 80px;
-        }
-
-        .tasks-table col.col-finish {
             width: 140px;
         }
 
-        .tasks-table col.col-actions {
-            width: 50px;
+        .tasks-table col.col-start {
+            width: 180px;
+        }
+
+        .tasks-table col.col-finish {
+            width: 180px;
         }
 
         .tasks-table col.col-task {
@@ -406,44 +400,45 @@
         }
 
         /* 3) Задаём таблице реальную высоту через viewport */
-        .table-wrap .table-responsive{
+        .table-wrap .table-responsive {
             overflow-y: auto !important;
             overflow-x: auto !important;
             max-height: calc(100vh - 420px) !important; /* ← ключ */
         }
 
         /* если top-pane выше/ниже — меняй 420px на 380/460 */
-        @media (max-width: 992px){
-            .table-wrap .table-responsive{
+        @media (max-width: 992px) {
+            .table-wrap .table-responsive {
                 max-height: calc(100vh - 520px) !important;
             }
         }
 
         /* 4) Task никогда не переносим */
         .tasks-table td.task-col,
-        .tasks-table th{
+        .tasks-table th {
             white-space: nowrap !important;
         }
+
         .tasks-table td,
-        .tasks-table th{
+        .tasks-table th {
             overflow: hidden !important;
             text-overflow: ellipsis !important;
         }
 
         .tasks-table .fp-alt,
-        .table.table-dark .fp-alt{
-            height: calc(1.8125rem + 2px) !important;  /* как твой eqh-sm */
+        .table.table-dark .fp-alt {
+            height: calc(1.8125rem + 2px) !important; /* как твой eqh-sm */
             padding: .25rem .5rem !important;
             line-height: 1.2 !important;
         }
 
         /* чтобы ячейки не растягивались из-за форм */
-        .tasks-table td form{
+        .tasks-table td form {
             margin: 0 !important;
         }
 
 
-        .tasks-table td.task-col .task-text{
+        .tasks-table td.task-col .task-text {
             display: block;
             width: 100%;
             white-space: nowrap;
@@ -451,28 +446,29 @@
             text-overflow: ellipsis;
         }
 
-        .tasks-table{
+        .tasks-table {
             table-layout: fixed;
             width: 100%;
         }
 
-        .tasks-table col.col-task{
+        .tasks-table col.col-task {
             width: calc(100% - 95px - 92px - 170px - 64px) !important;
         }
 
         /* ✅ текст внутри занимает всю ширину колонки */
-        .tasks-table td.task-col .task-text{
+        .tasks-table td.task-col .task-text {
             display: block;
             width: 100%;
             white-space: nowrap;
             overflow: hidden;
             text-overflow: ellipsis;
         }
-        .auto-submit-order{
+
+        .auto-submit-order {
             position: relative;
         }
 
-        .auto-submit-order .save-indicator{
+        .auto-submit-order .save-indicator {
             position: absolute;
             right: 6px;
             top: 50%;
@@ -749,179 +745,99 @@
                         <div class="bottom-col left gradient-pane border-info">
                             <div class="left-pane">
 
-                                {{-- Add task form --}}
-                                <form id="general_task_form" method="POST" action="{{ route('mains.store') }}"
-                                      class="w-100">
-                                    @csrf
-                                    <input type="hidden" name="workorder_id" value="{{ $current_workorder->id }}">
-                                    <input type="hidden" name="task_id" id="task_id" value="{{ old('task_id') }}">
-
-                                    {{-- Task picker --}}
-                                    <div class="dropdown mb-2">
-                                        <button id="taskPickerBtn"
-                                                class="btn btn-outline-primary eqh w-100 d-flex align-items-center justify-content-between dropdown-toggle"
-                                                type="button" data-bs-toggle="dropdown" data-bs-auto-close="outside"
-                                                aria-expanded="false">
-                                            <span>Choose task</span>
-                                            <span id="pickedSummary" class="picked text-truncate"></span>
-                                        </button>
-
-                                        <div class="dropdown-menu p-3" style="min-width:100%;max-width:100%;">
-                                            <div class="row g-3">
-                                                <div class="col-5">
-                                                    <ul class="nav nav-pills flex-column" id="generalTab" role="tablist">
-                                                        @foreach ($general_tasks as $general)
-                                                            <li class="nav-item">
-                                                                <button
-                                                                    class="nav-link @if($loop->first) active @endif w-100 text-start"
-                                                                    id="tab-g-{{ $general->id }}"
-                                                                    data-bs-toggle="pill"
-                                                                    data-bs-target="#pane-g-{{ $general->id }}"
-                                                                    type="button" role="tab"
-                                                                    aria-controls="pane-g-{{ $general->id }}"
-                                                                    aria-selected="{{ $loop->first ? 'true' : 'false' }}"
-                                                                    data-general-id="{{ $general->id }}">
-                                                                    {{ $general->name }}
-                                                                </button>
-                                                            </li>
-                                                        @endforeach
-                                                    </ul>
-                                                </div>
-
-                                                <div class="col-7">
-                                                    <div class="tab-content" id="taskTabContent">
-                                                        @foreach ($general_tasks as $general)
-                                                            <div class="tab-pane fade @if($loop->first) show active @endif"
-                                                                 id="pane-g-{{ $general->id }}" role="tabpanel"
-                                                                 aria-labelledby="tab-g-{{ $general->id }}">
-                                                                @php
-                                                                    $group = $tasks->where('general_task_id', $general->id);
-                                                                @endphp
-
-                                                                @forelse ($group as $task)
-                                                                    <button type="button"
-                                                                            class="select-task list-group-item list-group-item-action mb-1"
-                                                                            data-task-id="{{ $task->id }}"
-                                                                            data-task-name="{{ $task->name }}"
-                                                                            data-general-id="{{ $general->id }}">
-                                                                        {{ $task->name }}
-                                                                    </button>
-                                                                @empty
-                                                                    <div class="text-muted small">No tasks</div>
-                                                                @endforelse
-                                                            </div>
-                                                        @endforeach
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </div>
-
-                                    {{-- Row with user + dates + Add btn --}}
-                                    <div class="row g-2 align-items-stretch">
-                                        <div class="col-12 col-sm-6 col-xl-4 border-secondary">
-                                            <select name="user_id" class="form-select-sm eqh-sm">
-                                                <option value="">Current ({{ auth()->user()->name ?? 'You' }})</option>
-                                                @foreach($users as $u)
-                                                    <option value="{{ $u->id }}" @selected(old('user_id')==$u->id)>
-                                                        {{ $u->name }}
-                                                    </option>
-                                                @endforeach
-                                            </select>
-                                        </div>
-
-                                        <div class="col-6 col-xl-3">
-                                            <input type="text" data-fp name="date_start"
-                                                   class="form-control-sm eqh-sm"
-                                                   value="{{ old('date_start', now()->format('Y-m-d')) }}"
-                                                   placeholder="Start...">
-                                        </div>
-
-                                        <div class="col-6 col-xl-3">
-                                            <input type="text" data-fp name="date_finish"
-                                                   class="form-control-sm eqh-sm"
-                                                   value="{{ old('date_finish') }}"
-                                                   placeholder="Finish...">
-                                        </div>
-
-                                        <div class="col-12 col-xl-2 d-grid" data-tippy-content="{{ __('Add task') }}">
-                                            <button type="submit" id="addBtn"
-                                                    class="btn-sm btn-success" disabled
-                                            >Add
-                                            </button>
-                                        </div>
-                                    </div>
-                                </form>
-
                                 {{-- Tasks table --}}
                                 <div class="table-wrap">
                                     <div class="table-responsive">
-                                        <table class="table table-sm align-middle gradient-table table-striped table-hover tasks-table">
+                                        <table class="table table align-middle gradient-table table-striped table-hover tasks-table">
                                             <colgroup>
                                                 <col class="col-tech">
                                                 <col class="col-task">
                                                 <col class="col-start">
                                                 <col class="col-finish">
-                                                <col class="col-actions">
                                             </colgroup>
                                             <thead>
                                             <tr>
                                                 <th class="fw-normal">Technik</th>
-                                                <th class="fw-normal">Task</th>
+                                                <th class="fw-normal">Status</th>
                                                 <th class="fw-normal">Start</th>
                                                 <th class="fw-normal">Finish (edit)</th>
-                                                <th class="text-end fw-normal">Actions</th>
                                             </tr>
                                             </thead>
                                             <tbody>
-                                            @forelse($mains as $m)
-                                                <tr id="main-row-{{ $m->id }}">
-                                                    <td>{{ $m->user->name ?? '—' }}</td>
+                                            @foreach($general_tasks as $gt)
+                                                @php
+                                                    $row = $generalMains[$gt->id] ?? null;
+                                                @endphp
 
-                                                    <td class="task-col text-info">
-    <span class="task-text"
-          data-tippy-content="{{ ($m->task->generalTask->name ?? '—').' → '.($m->task->name ?? '—') }}">
-        {{ $m->task->generalTask->name ?? '—' }}
-        <span class="arrow">→</span>
-        {{ $m->task->name ?? '—' }}
-    </span>
+                                                <tr>
+                                                    <td class="">{{ $row?->user?->name ?? '—' }}</td>
+                                                    <td>
+                                                        @php
+                                                            $cls = $row?->date_finish ? 'text-success fw-semibold' : 'text-danger fw-semibold';
+                                                        @endphp
+
+
+                                                        @if($gt->name === 'Assembly')
+                                                            <a href="#"
+                                                               class="{{ $cls }}"
+                                                               data-bs-toggle="offcanvas"
+                                                               data-bs-target="#assemblyCanvas">
+                                                                {{ $gt->name }}
+                                                            </a>
+                                                        @else
+                                                            <span class="{{ $cls }}"> {{ $gt->name }} </span>
+                                                        @endif
                                                     </td>
 
+                                                    <td>
+                                                        @if($gt->has_start_date)
+                                                            <form method="POST"
+                                                                  action="{{ route('mains.updateGeneralTaskDates', [$current_workorder->id, $gt->id]) }}"
+                                                                  class="auto-submit-form">
+                                                                @csrf
+                                                                @method('PATCH')
+
+                                                                <input type="text"
+                                                                       name="date_start"
+                                                                       class="form-control form-control finish-input"
+                                                                       value="{{ $row?->date_start?->format('Y-m-d') }}"
+                                                                       placeholder="..."
+                                                                       data-fp>
+
+                                                                <input type="hidden"
+                                                                       name="date_finish"
+                                                                       value="{{ $row?->date_finish?->format('Y-m-d') }}">
+                                                            </form>
+                                                        @else
+                                                            <span class="text-muted small">—</span>
+                                                        @endif
+                                                    </td>
 
                                                     <td>
-                                                        {{ optional($m->date_start)->format('d-M-y') }}
-                                                    </td>
-                                                    <td>
-                                                        {{-- Форма с автосабмитом --}}
                                                         <form method="POST"
-                                                              action="{{ route('mains.update', $m) }}"
+                                                              action="{{ route('mains.updateGeneralTaskDates', [$current_workorder->id, $gt->id]) }}"
                                                               class="auto-submit-form">
                                                             @csrf
                                                             @method('PATCH')
-                                                            <input type="text"
-                                                                   name="date_finish"
-                                                                   class="form-control form-control-sm finish-input"
-                                                                   value="{{ optional($m->date_finish)->format('Y-m-d') }}"
-                                                                   placeholder="..."
-                                                                   data-fp>
+
+                                                            <div class="input-group input-group">
+                                                                <input type="text"
+                                                                       name="date_finish"
+                                                                       class="form-control finish-input {{ $row?->date_finish ? 'has-finish' : '' }}"
+                                                                       value="{{ $row?->date_finish?->format('Y-m-d') }}"
+                                                                       placeholder="..."
+                                                                       data-fp>
+
+                                                                {{--                                                                <span class="input-group-text">📅</span>--}}
+                                                            </div>
+
+                                                            <input type="hidden"
+                                                                   name="date_start"
+                                                                   value="{{ $row?->date_start?->format('Y-m-d') }}">
                                                         </form>
                                                     </td>
-                                                    <td class="text-end">
-                                                        <button type="button"
-                                                                class="btn btn-outline-danger btn-sm btn-icon-compact"
-                                                                data-bs-toggle="modal"
-                                                                data-bs-target="#useConfirmDelete"
-                                                                data-action="{{ route('mains.destroy', $m) }}"
-                                                                title="Delete">
-                                                            <i class="bi bi-trash"></i>
-                                                        </button>
-                                                    </td>
                                                 </tr>
-                                            @empty
-                                                <tr>
-                                                    <td colspan="5" class="text-muted">No tasks yet</td>
-                                                </tr>
-                                            @endforelse
+                                            @endforeach
                                             </tbody>
                                         </table>
                                     </div>
@@ -938,8 +854,8 @@
                                     <h6 class="mb-0 text-primary">Components</h6>
                                     <span class="text-info">({{ $components->count() }})</span>
                                     <h6 class="mb-0 text-primary">&nbsp;& Processes</h6>
-{{--                                    <span class="badge text-info">{{ $tdrProcessesTotal }} total</span>--}}
-{{--                                    <span class="badge text-info">{{ $tdrProcessesOpen }} open</span>--}}
+                                    {{--                                    <span class="badge text-info">{{ $tdrProcessesTotal }} total</span>--}}
+                                    {{--                                    <span class="badge text-info">{{ $tdrProcessesOpen }} open</span>--}}
                                 </div>
 
                                 <form method="get"
@@ -1005,7 +921,8 @@
                                                                             <i class="bi bi-save save-indicator d-none"></i>
                                                                         </form>
                                                                     </td>
-                                                                    <td><form method="POST"
+                                                                    <td>
+                                                                        <form method="POST"
                                                                               action="{{ route('tdrprocesses.updateDate', $pr) }}"
                                                                               class="auto-submit-form">
                                                                             @csrf
@@ -1059,7 +976,19 @@
 
         @include('components.delete')
 
-    <!--  Parts Modal -->
+        {{-- modal Assembly --}}
+        <div class="offcanvas offcanvas-end text-bg-dark" tabindex="-1" id="assemblyCanvas">
+            <div class="offcanvas-header border-bottom border-secondary">
+                <h5 class="mb-0">Assembly</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="offcanvas"></button>
+            </div>
+            <div class="offcanvas-body">
+                <div class="text-muted small">Future data</div>
+            </div>
+        </div>
+
+
+        <!--  Parts Modal -->
         <div class="modal fade" id="partsModal{{$current_workorder->number}}" tabindex="-1"
              role="dialog" aria-labelledby="orderModalLabel{{$current_workorder->number}}" aria-hidden="true">
             <div class="modal-dialog modal-dialog-centered" role="document">
@@ -1233,7 +1162,7 @@
         @section('scripts')
             <script>
                 document.addEventListener('DOMContentLoaded', () => {
-                    // безопасные врапперы вокруг спиннера
+
                     const safeShowSpinner = () => {
                         try {
                             if (typeof showLoadingSpinner === 'function') showLoadingSpinner();
@@ -1338,62 +1267,51 @@
                         });
                     }
 
-                    // ----- flatpickr для всех input[data-fp] -----
+                    //       ----- flatpickr для всех input[data-fp] -----
                     function initDatePickers() {
                         if (typeof flatpickr === 'undefined') return;
 
                         document.querySelectorAll('input[data-fp]').forEach(src => {
+                            if (src._flatpickr) return;
+
                             flatpickr(src, {
                                 altInput: true,
-                                altFormat: "d-M-y",
+                                altFormat: "d.m.Y",
                                 dateFormat: "Y-m-d",
                                 allowInput: true,
                                 disableMobile: true,
+
                                 onChange(selectedDates, dateStr, instance) {
-                                    instance.altInput?.dispatchEvent(new Event('change', {bubbles: true}));
+                                    const form = src.closest('form');
+                                    if (!form) return;
+
+                                    safeShowSpinner();
+                                    if (form.requestSubmit) form.requestSubmit();
+                                    else form.submit();
                                 },
+
                                 onReady(selectedDates, dateStr, instance) {
-                                    if (src.getAttribute('placeholder')) {
-                                        instance.altInput.setAttribute('placeholder', src.getAttribute('placeholder'));
-                                    }
                                     instance.altInput.classList.add('form-control', 'form-control-sm', 'w-100');
-                                    instance.altInput.classList.add('fp-alt');
+
+                                    // если хочешь сохранить стили для finish
                                     if (src.classList.contains('finish-input')) instance.altInput.classList.add('finish-input');
-                                    if ((src.name === 'date_finish' || src.classList.contains('finish-input')) && src.value) {
-                                        instance.altInput.classList.add('has-finish');
-                                    }
+                                    if (src.value) instance.altInput.classList.add('has-finish');
+
                                     src.style.display = 'none';
-                                    instance.altInput.style.opacity = '1';
                                 }
                             });
                         });
+
+                        document.body.classList.add('fp-ready');
                     }
 
-                    // ----- автосабмит дат (левая + правая панель) -----
-                    function initAutoSubmit() {
-                        document.querySelectorAll('.auto-submit-form .fp-alt').forEach(inp => {
-                            const submitDebounced = debounce(form => form.submit(), 250);
-                            inp.addEventListener('change', function () {
-                                if (this.name === 'date_finish' || this.classList.contains('finish-input')) {
-                                    if (this.value) this.classList.add('has-finish', 'is-valid');
-                                    else {
-                                        this.classList.remove('has-finish');
-                                        this.classList.add('is-valid');
-                                    }
-                                    setTimeout(() => this.classList.remove('is-valid'), 800);
-                                }
-                                safeShowSpinner();
-                                submitDebounced(this.form);
-                            });
-                        });
-                    }
 
-                    function initAutoSubmitOrder(){
+                    function initAutoSubmitOrder() {
 
                         document.querySelectorAll('.auto-submit-order').forEach(form => {
 
                             const input = form.querySelector('input[name="repair_order"]');
-                            const icon  = form.querySelector('.save-indicator');
+                            const icon = form.querySelector('.save-indicator');
                             if (!input || !icon) return;
 
                             // текущее сохранённое значение
@@ -1407,7 +1325,7 @@
                             }
 
                             // ✏️ при вводе — показываем 💾, убираем зелёный
-                            input.addEventListener('input', function(){
+                            input.addEventListener('input', function () {
                                 if (this.value !== savedValue) {
                                     icon.classList.remove('d-none');
                                     this.classList.remove('is-valid');
@@ -1418,7 +1336,7 @@
                             });
 
                             // 💾 сохранение ТОЛЬКО по Enter
-                            input.addEventListener('keydown', function(e){
+                            input.addEventListener('keydown', function (e) {
                                 if (e.key === 'Enter') {
                                     e.preventDefault();
 
@@ -1442,7 +1360,7 @@
 
                             // (опционально) при потере фокуса без Enter — ничего не сохраняем,
                             // просто возвращаем корректный визуал
-                            input.addEventListener('blur', function(){
+                            input.addEventListener('blur', function () {
                                 if (this.value === savedValue) {
                                     icon.classList.add('d-none');
                                     if (this.value) this.classList.add('is-valid');
@@ -1451,7 +1369,6 @@
                             });
                         });
                     }
-
 
 
                     // ----- delete (tasks / mains / tdrprocesses через общий modal) -----
@@ -1675,7 +1592,8 @@
                     initTaskPicker();
                     bindFormSubmit();
                     initDatePickers();
-                    initAutoSubmit();
+                    document.body.classList.add('fp-ready');
+                    if (typeof initAutoSubmit === 'function') initAutoSubmit();
                     initAutoSubmitOrder();
 
                     // ===== ЛОГИ =====

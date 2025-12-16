@@ -14,7 +14,7 @@ return new class extends Migration {
     {
         Schema::create('mains', function (Blueprint $table) {
             $table->id();
-            $table->foreignId('user_id')->constrained()->onDelete('cascade');
+            $table->foreignId('user_id')->nullable()->constrained()->onDelete('cascade');
             $table->foreignId('workorder_id')->constrained()->onDelete('cascade');
             $table->foreignId('general_task_id')->constrained()->onDelete('cascade');
             $table->unsignedBigInteger('task_id')->nullable()->after('workorder_id');
