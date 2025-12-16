@@ -140,13 +140,15 @@
                                     </a>
                                 </div>
                             @endif
-                            <div class="ms-2">
-                                <a href="{{ route('transfers.show', $current_wo->id) }}"
-                                   class="btn fs-8 btn-outline-info"
-                                   style="min-height: 55px; width: 110px">
-                                    Transfers
-                                </a>
-                            </div>
+                            @if($hasTransfers)
+                                <div class="ms-2">
+                                    <a href="{{ route('transfers.show', $current_wo->id) }}"
+                                       class="btn fs-8 btn-outline-info"
+                                       style="min-height: 55px; width: 110px">
+                                        Transfers
+                                    </a>
+                                </div>
+                            @endif
                         </div>
                     </div>
 

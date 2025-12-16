@@ -21,6 +21,122 @@ class TransferController extends Controller
     }
 
     /**
+     * Store a newly created resource in storage.
+     *
+     * @param  \Illuminate\Http\Request  $request
+     * @return \Illuminate\Http\Response
+     */
+    public function store(Request $request)
+    {
+        //
+    }
+
+    /**
+     * Show the form for editing the specified resource.
+     *
+     * @param  int  $id
+     * @return \Illuminate\Http\Response
+     */
+    public function edit($id)
+    {
+        //
+    }
+
+    /**
+     * Update the specified resource in storage.
+     *
+     * @param  \Illuminate\Http\Request  $request
+     * @param  int  $id
+     * @return \Illuminate\Http\Response
+     */
+    public function update(Request $request, $id)
+    {
+        //
+    }
+
+    /**
+     * Remove the specified resource from storage.
+     *
+     * @param  int  $id
+     * @return \Illuminate\Http\Response
+     */
+    public function destroy($id)
+    {
+        //
+    }
+
+    /**
+     * Display all transfers related to given workorder.
+     *
+     * Workorder can be either target (workorder_id) or source (workorder_source).
+     *
+     * @param  \App\Models\Workorder  $workorder
+     * @return \Illuminate\Contracts\View\View
+     */
+    public function show(Workorder $workorder)
+    {
+        $incomingTransfers = Transfer::with(['workorderSource', 'component', 'reasonCode'])
+            ->where('workorder_id', $workorder->id)
+            ->get();
+
+        $outgoingTransfers = Transfer::with(['workorder', 'component', 'reasonCode'])
+            ->where('workorder_source', $workorder->id)
+            ->get();
+
+        return view('admin.transfers.show', [
+            'workorder' => $workorder,
+            'incomingTransfers' => $incomingTransfers,
+            'outgoingTransfers' => $outgoingTransfers,
+        ]);
+    }
+
+    /**
+     * Show printable Transfer Form for specific transfer.
+     *
+     * @param int $id
+     * @return \Illuminate\Contracts\View\View
+     */
+    public function transferForm($id)
+    {
+        $transfer = Transfer::with([
+            'workorder.unit.manuals.builder',
+            'workorder.unit.manuals.plane',
+            'workorder.instruction',
+            'workorderSource.unit.manuals.builder',
+            'workorderSource.unit.manuals.plane',
+            'workorderSource.instruction',
+            'component',
+            'reasonCode'
+        ])->findOrFail($id);
+
+        // HTML view: resources/views/admin/transfers/transferForm.blade.php
+        return view('admin.transfers.transferForm', compact('transfer'));
+    }
+
+    /**
+     * Update component serial number for transfer (AJAX).
+     *
+     * @param  \Illuminate\Http\Request  $request
+     * @param  int  $id  Transfer ID
+     * @return \Illuminate\Http\JsonResponse
+     */
+    public function updateSn(Request $request, $id)
+    {
+        $request->validate([
+            'component_sn' => 'nullable|string|max:255',
+        ]);
+
+        $transfer = Transfer::findOrFail($id);
+        $transfer->component_sn = $request->input('component_sn');
+        $transfer->save();
+
+        return response()->json([
+            'success' => true,
+            'component_sn' => $transfer->component_sn,
+        ]);
+    }
+
+    /**
      * Create a transfer record from TDR
      *
      * @param  \Illuminate\Http\Request  $request
@@ -77,76 +193,6 @@ class TransferController extends Controller
                 'message' => 'Error creating transfer: ' . $e->getMessage()
             ], 500);
         }
-    }
-
-    /**
-     * Store a newly created resource in storage.
-     *
-     * @param  \Illuminate\Http\Request  $request
-     * @return \Illuminate\Http\Response
-     */
-    public function store(Request $request)
-    {
-        //
-    }
-
-    /**
-     * Display all transfers related to given workorder.
-     *
-     * Workorder can be either target (workorder_id) or source (workorder_source).
-     *
-     * @param  \App\Models\Workorder  $workorder
-     * @return \Illuminate\Contracts\View\View
-     */
-    public function show(Workorder $workorder)
-    {
-        $incomingTransfers = Transfer::with(['workorderSource', 'component', 'reasonCode'])
-            ->where('workorder_id', $workorder->id)
-            ->get();
-
-        $outgoingTransfers = Transfer::with(['workorder', 'component', 'reasonCode'])
-            ->where('workorder_source', $workorder->id)
-            ->get();
-
-        return view('admin.transfers.show', [
-            'workorder' => $workorder,
-            'incomingTransfers' => $incomingTransfers,
-            'outgoingTransfers' => $outgoingTransfers,
-        ]);
-    }
-
-    /**
-     * Show the form for editing the specified resource.
-     *
-     * @param  int  $id
-     * @return \Illuminate\Http\Response
-     */
-    public function edit($id)
-    {
-        //
-    }
-
-    /**
-     * Update the specified resource in storage.
-     *
-     * @param  \Illuminate\Http\Request  $request
-     * @param  int  $id
-     * @return \Illuminate\Http\Response
-     */
-    public function update(Request $request, $id)
-    {
-        //
-    }
-
-    /**
-     * Remove the specified resource from storage.
-     *
-     * @param  int  $id
-     * @return \Illuminate\Http\Response
-     */
-    public function destroy($id)
-    {
-        //
     }
 
     /**

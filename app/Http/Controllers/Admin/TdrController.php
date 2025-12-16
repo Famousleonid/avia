@@ -763,12 +763,17 @@ class TdrController extends Controller
 
          $tdr_proc = TdrProcess::where('ec',1)->get();
 
+        // Transfers existence flag for current workorder
+        $hasTransfers = \App\Models\Transfer::where('workorder_id', $current_wo->id)
+            ->orWhere('workorder_source', $current_wo->id)
+            ->exists();
+
         return view('admin.tdrs.show', compact(
             'current_wo', 'tdrs', 'units', 'components', 'user', 'customers',
             'manuals', 'builders', 'planes', 'instruction', 'necessary',
             'necessaries', 'unit_conditions', 'component_conditions',
             'codes', 'conditions', 'missingParts', 'ordersParts', 'inspectsUnit',
-            'processParts', 'ordersPartsNew','trainings','user_wo', 'manual_id','log_card','woBushing','prl_parts','tdr_proc'
+            'processParts', 'ordersPartsNew','trainings','user_wo', 'manual_id','log_card','woBushing','prl_parts','tdr_proc','hasTransfers'
         ));
     }
 

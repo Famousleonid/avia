@@ -228,7 +228,6 @@
         <div class="col-8">
             <h5 class="pt-1   text-black text-"><strong>Process</strong></h5>
         </div>
-
     </div>
 
 
