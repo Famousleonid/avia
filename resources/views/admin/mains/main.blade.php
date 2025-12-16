@@ -1,481 +1,272 @@
 @extends('admin.master')
 
 @section('style')
-
     <style>
-        .sf {
-            font-size: 12px;
+
+    .sf { font-size: 12px; }
+    .fs-8 { font-size: .8rem; }
+
+    input::placeholder,
+    .flatpickr-input::placeholder {
+    color: #6c757d;
+    opacity: 1;
+    }
+
+    .gradient-pane,
+    .gradient-table,
+    .gradient-top {
+    background: linear-gradient(135deg, #212529 0%, #2c3035 100%);
+    color: #f8f9fa;
+    }
+
+    .gradient-table {
+    border-radius: .5rem;
+    overflow: hidden;
+    }
+
+    /* =========================================================
+    1) Flatpickr visibility / stacking
+    ========================================================= */
+    body.fp-ready [data-fp] { opacity: 0; }
+
+    .flatpickr-input[readonly] { opacity: 1 !important; }
+    .flatpickr-calendar { z-index: 2000 !important; }
+
+    .fp-alt,
+    .finish-input.fp-alt { cursor: pointer; }
+
+    /* =========================================================
+    2) Main layout (card -> vh-layout -> top + bottom)
+    ========================================================= */
+
+    .card-body {
+    height: 100%;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    }
+
+    .vh-layout {
+    flex: 1 1 auto;
+        height: calc(100vh - 80px);
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    }
+
+    /* ---------- Top window (fixed by content) ---------- */
+    .top-pane {
+    flex: 0 0 auto;
+    border: 1px solid rgba(0, 0, 0, .125);
+    border-radius: .5rem;
+    padding: 5px;
+    overflow: hidden;
+    }
+
+    /* ---------- Bottom area (fills remaining height) ---------- */
+    .bottom-row {
+    flex: 1 1 auto;
+    min-height: 0;
+    display: flex;
+    gap: .75rem;
+    margin-top: 5px;
+    overflow: hidden;
+    }
+
+    .bottom-col {
+    border: 1px solid rgba(0, 0, 0, .125);
+    border-radius: .5rem;
+    padding: 1rem;
+    overflow: auto;
+
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+
+    /* равные колонки и разрешить сжиматься (таблица не раздувает ширину) */
+    flex: 1 1 0 !important;
+    min-width: 0 !important;
+    }
+
+    /* =========================================================
+    3) Left window (Tasks)
+    ========================================================= */
+    .left-pane {
+    height: auto;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    gap: .75rem;
+    }
+
+    /* table wrapper gets the remaining height */
+    /*.table-wrap {*/
+    /*flex: 1 1 auto;*/
+    /*min-height: 0;*/
+    /*overflow: hidden;*/
+    /*}*/
+
+    /*.table-wrap .table-responsive {*/
+    /*height: 100%;*/
+    /*overflow: auto !important;*/
+    /*}*/
+
+    /* Tasks table */
+    .tasks-table {
+    width: 100%;
+    table-layout: fixed;
+    margin-bottom: 0;
+    }
+
+    .tasks-table thead th {
+    position: sticky;
+    top: 0;
+    z-index: 5;
+    background: rgba(0, 0, 0, .25);
+    }
+
+    .tasks-table th,
+    .tasks-table td {
+    vertical-align: middle !important;
+    white-space: nowrap !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+    }
+
+    /* col widths (from your <colgroup>) */
+        .tasks-table col.col-tech   { width: 140px; }
+        .tasks-table col.col-start  { width: 180px; }
+        .tasks-table col.col-finish { width: 180px; }
+        .tasks-table col.col-task   { width: auto; }
+
+        /* If you REALLY need calculated task width — keep only ONE rule (optional) */
+        /*
+        .tasks-table col.col-task {
+        width: calc(100% - 140px - 180px - 180px) !important;
+        }
+        */
+
+        /* Flatpickr inputs inside table cells */
+        .tasks-table .fp-alt,
+        .table.table-dark .fp-alt {
+        height: calc(1.8125rem + 2px) !important;
+        padding: .25rem .5rem !important;
+        line-height: 1.2 !important;
         }
 
-        body.fp-ready [data-fp]{ opacity:0; }
+        /* avoid table row height jumps by forms */
+        .tasks-table td form { margin: 0 !important; }
 
-        .flatpickr-input[readonly] {
-            opacity: 1 !important;
-        }
-
-        .flatpickr-calendar {
-            z-index: 2000 !important;
-        }
-
-        input::placeholder,
-        .flatpickr-input::placeholder {
-            color: #6c757d;
-            opacity: 1;
-        }
-
-        .gradient-pane {
-            background: linear-gradient(135deg, #212529 0%, #2c3035 100%);
-            color: #f8f9fa;
-        }
-
-        .card-body {
-            display: flex;
-            flex-direction: column;
-            min-height: 0;
-        }
-
-        .vh-layout {
-            flex: 1 1 auto;
-            display: flex;
-            flex-direction: column;
-            min-height: 0;
-        }
-
-        .top-pane {
-            flex: 0 0 auto;
-            height: auto;
-            min-height: unset;
-            border: 1px solid rgba(0, 0, 0, .125);
-            border-radius: .5rem;
-            padding: 5px;
-            overflow: hidden;
-        }
-
-        .bottom-row {
-            flex: 1 1 auto;
-            display: flex;
-            gap: .75rem;
-            min-height: 260px;
-            margin-top: 5px;
-        }
-
-        .bottom-col {
-            border: 1px solid rgba(0, 0, 0, .125);
-            border-radius: .5rem;
-            padding: 1rem;
-            overflow: hidden;
-            display: flex;
-            flex-direction: column;
-            min-height: 200px;
-        }
-
-        @media (min-width: 992px) {
-            .bottom-col.left {
-                width: 50%
-            }
-
-            .bottom-col.right {
-                width: 50%
-            }
-        }
-
-        @media (max-width: 991.98px) {
-            .bottom-row {
-                flex-direction: column
-            }
-
-            .bottom-col {
-                width: 100%
-            }
-        }
-
-        .select-task {
-            border: 0;
-            width: 100%;
-            text-align: left;
-            padding: .5rem .75rem;
-            background: transparent;
-            border-radius: .5rem;
-        }
-
-        .select-task:hover {
-            background: rgba(0, 123, 255, .15);
-            cursor: pointer;
-        }
-
-        #taskTabContent {
-            max-height: 40vh;
-            overflow: auto;
-        }
-
-        .eqh-sm {
-            height: calc(1.8125rem + 2px);
-        }
-
-        .is-valid {
-            box-shadow: 0 0 0 .2rem rgba(25, 135, 84, .25);
-        }
-
-        #taskPickerBtn.eqh {
-            height: calc(1.8125rem + 2px);
-        }
-
-        .left-pane {
-            display: flex;
-            flex-direction: column;
-            gap: .75rem;
-            height: 100%;
-        }
-
-        .table-wrap {
-            flex: 1 1 auto;
-            min-height: 180px;
-        }
-
-        .table-wrap .table-responsive {
-            height: 100%;
-            max-height: 100%;
-            overflow: auto;
-        }
-
-        @media (max-width: 991.98px) {
-            #taskTabContent {
-                max-height: 50vh;
-            }
-
-            .table-wrap .table-responsive {
-                max-height: 50vh;
-            }
-
-            .table td, .table th {
-                white-space: nowrap;
-            }
-        }
-
-        .task-cell {
-            background: linear-gradient(90deg, rgba(0, 123, 255, .1), rgba(0, 200, 255, .05));
-            border-radius: .25rem;
-            padding: .25rem .5rem;
-            font-size: .8rem;
-            line-height: 1.2;
-        }
-
-        .task-cell .general-name {
-            font-weight: 600;
-            color: #0d6efd;
-        }
-
-        .task-cell .task-name {
-            font-weight: 400;
-            color: #333;
-        }
-
-        .gradient-table {
-            background: linear-gradient(135deg, #212529 0%, #2c3035 100%);
-            color: #f8f9fa;
-            border-radius: .5rem;
-            overflow: hidden;
-        }
-
-        .gradient-table th {
-            background-color: rgba(0, 0, 0, .25);
-            color: #dee2e6;
-            font-size: 18px;
-        }
-
-        .gradient-table td {
-            background-color: rgba(255, 255, 255, .02);
-            font-size: 18px;
-            vertical-align: middle;
-        }
-
-        .task-col {
-            font-size: .8rem;
-            font-weight: 500;
-            color: #f8f9fa;
-        }
-
-        .task-col .arrow {
-            margin: 0 .25rem;
-            color: #adb5bd;
-        }
-
-        /* Календарик + галочка */
+        /* =========================================================
+        4) Inputs: calendar icon + “has finish” state
+        ========================================================= */
         .finish-input {
-            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='%236c757d' viewBox='0 0 16 16'%3E%3Cpath d='M3 0a1 1 0 0 0-1 1v1H1.5A1.5 1.5 0 0 0 0 3.5v11A1.5 1.5 0 0 0 1.5 16h13a1.5 1.5 0 0 0 1.5-1.5v-11A1.5 1.5 0 0 0 14.5 2H14V1a1 1 0 0 0-2 0v1H4V1a1 1 0 0 0-1-1zM1 5h14v9.5a.5.5 0 0 1-.5.5h-13a.5.5 0 0 1-.5-.5V5z'/%3E%3C/svg%3E");
-            background-repeat: no-repeat;
-            background-position: right .5rem center;
-            background-size: 1rem 1rem;
-            padding-right: 3.5rem;
+        background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='%236c757d' viewBox='0 0 16 16'%3E%3Cpath d='M3 0a1 1 0 0 0-1 1v1H1.5A1.5 1.5 0 0 0 0 3.5v11A1.5 1.5 0 0 0 1.5 16h13a1.5 1.5 0 0 0 1.5-1.5v-11A1.5 1.5 0 0 0 14.5 2H14V1a1 1 0 0 0-2 0v1H4V1a1 1 0 0 0-1-1zM1 5h14v9.5a.5.5 0 0 1-.5.5h-13a.5.5 0 0 1-.5-.5V5z'/%3E%3C/svg%3E");
+        background-repeat: no-repeat;
+        background-position: right .5rem center;
+        background-size: 1rem 1rem;
+        padding-right: 3.5rem;
         }
 
         .finish-input.has-finish {
-            background-color: rgba(25, 135, 84, .1);
-            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='%236c757d' viewBox='0 0 16 16'%3E%3Cpath d='M3 0a1 1 0 0 0-1 1v1H1.5A1.5 1.5 0 0 0 0 3.5v11A1.5 1.5 0 0 0 1.5 16h13a1.5 1.5 0 0 0 1.5-1.5v-11A1.5 1.5 0 0 0 14.5 2H14V1a1 1 0 0 0-2 0v1H4V1a1 1 0 0 0-1-1zM1 5h14v9.5a.5.5 0 0 1-.5.5h-13a.5.5 0 0 1-.5-.5V5z'/%3E%3C/svg%3E"),
-            url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='%23198754' viewBox='0 0 16 16'%3E%3Cpath d='M13.485 1.929a.75.75 0 010 1.06L6.818 9.657a.75.75 0 01-1.06 0L2.515 6.414a.75.75 0 111.06-1.06L6 7.778l6.425-6.425a.75.75 0 011.06 0z'/%3E%3C/svg%3E");
-            background-repeat: no-repeat, no-repeat;
-            background-position: right .5rem center, right 2rem center;
-            background-size: 1rem 1rem, 1rem 1rem;
+        background-color: rgba(25, 135, 84, .1);
+        background-image:
+        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='%236c757d' viewBox='0 0 16 16'%3E%3Cpath d='M3 0a1 1 0 0 0-1 1v1H1.5A1.5 1.5 0 0 0 0 3.5v11A1.5 1.5 0 0 0 1.5 16h13a1.5 1.5 0 0 0 1.5-1.5v-11A1.5 1.5 0 0 0 14.5 2H14V1a1 1 0 0 0-2 0v1H4V1a1 1 0 0 0-1-1zM1 5h14v9.5a.5.5 0 0 1-.5.5h-13a.5.5 0 0 1-.5-.5V5z'/%3E%3C/svg%3E"),
+        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='%23198754' viewBox='0 0 16 16'%3E%3Cpath d='M13.485 1.929a.75.75 0 010 1.06L6.818 9.657a.75.75 0 01-1.06 0L2.515 6.414a.75.75 0 111.06-1.06L6 7.778l6.425-6.425a.75.75 0 011.06 0z'/%3E%3C/svg%3E");
+        background-repeat: no-repeat, no-repeat;
+        background-position: right .5rem center, right 2rem center;
+        background-size: 1rem 1rem, 1rem 1rem;
         }
+
+        /* =========================================================
+        5) Small UI pieces
+        ========================================================= */
+        .select-task {
+        border: 0;
+        width: 100%;
+        text-align: left;
+        padding: .5rem .75rem;
+        background: transparent;
+        border-radius: .5rem;
+        }
+        .select-task:hover {
+        background: rgba(0, 123, 255, .15);
+        cursor: pointer;
+        }
+
+        #taskTabContent { max-height: 40vh; overflow: auto; }
 
         #taskPickerBtn .picked {
-            max-width: 55%;
-            font-size: .8rem;
-            opacity: .95;
-            text-align: right;
-            direction: rtl;
-            unicode-bidi: plaintext;
-            color: var(--bs-info);
+        max-width: 55%;
+        font-size: .8rem;
+        opacity: .95;
+        text-align: right;
+        direction: rtl;
+        unicode-bidi: plaintext;
+        color: var(--bs-info);
         }
 
-        @media (max-width: 575.98px) {
-            #taskPickerBtn .picked {
-                max-width: 60%;
-                font-size: .8rem;
-            }
+        .task-cell {
+        background: linear-gradient(90deg, rgba(0, 123, 255, .1), rgba(0, 200, 255, .05));
+        border-radius: .25rem;
+        padding: .25rem .5rem;
+        font-size: .8rem;
+        line-height: 1.2;
         }
+        .task-cell .general-name { font-weight: 600; color: #0d6efd; }
+        .task-cell .task-name { font-weight: 400; color: #333; }
 
-        .gradient-top {
-            background: linear-gradient(135deg, #212529 0%, #2c3035 100%);
-            color: #f8f9fa;
+        .task-col {
+        font-size: .8rem;
+        font-weight: 500;
+        color: #f8f9fa;
         }
+        .task-col .arrow { margin: 0 .25rem; color: #adb5bd; }
+
+        .eqh-sm { height: calc(1.8125rem + 2px); }
+        .is-valid { box-shadow: 0 0 0 .2rem rgba(25, 135, 84, .25); }
+        #taskPickerBtn.eqh { height: calc(1.8125rem + 2px); }
+
+        .parts-line .text-info { width: auto !important; display: inline !important; }
 
         #addBtn.btn-success {
-            background-color: var(--bs-success) !important;
-            border-color: var(--bs-success) !important;
-            color: #fff !important;
-            border-width: 1px;
+        background-color: var(--bs-success) !important;
+        border-color: var(--bs-success) !important;
+        color: #fff !important;
+        border-width: 1px;
         }
-
-        #addBtn.btn-success:focus {
-            box-shadow: 0 0 0 .2rem rgba(25, 135, 84, .35);
-        }
-
-        #addBtn:not(:disabled) {
-            opacity: 1;
-        }
-
-        .fp-alt, .finish-input.fp-alt {
-            cursor: pointer;
-        }
+        #addBtn.btn-success:focus { box-shadow: 0 0 0 .2rem rgba(25, 135, 84, .35); }
+        #addBtn:not(:disabled) { opacity: 1; }
 
         .photo-thumbnail {
-            width: 100%;
-            aspect-ratio: 1 / 1;
-            object-fit: cover;
+        width: 100%;
+        aspect-ratio: 1 / 1;
+        object-fit: cover;
         }
 
-        .log-entry {
-            font-size: .85rem;
-        }
-
-        .log-entry .log-meta {
-            font-size: .75rem;
-            color: #adb5bd;
-        }
-
+        .log-entry { font-size: .85rem; }
+        .log-entry .log-meta { font-size: .75rem; color: #adb5bd; }
         .log-entry pre {
-            white-space: pre-wrap;
-            word-break: break-word;
-            font-size: .75rem;
-            background: rgba(0, 0, 0, .15);
-            padding: .25rem .5rem;
-            border-radius: .25rem;
+        white-space: pre-wrap;
+        word-break: break-word;
+        font-size: .75rem;
+        background: rgba(0, 0, 0, .15);
+        padding: .25rem .5rem;
+        border-radius: .25rem;
         }
 
-        .fs-8 {
-            font-size: 0.8rem;
-        }
-
-        .parts-line .text-info {
-            width: auto !important;
-            display: inline !important;
-        }
-
-        /* ===== TASKS TABLE (final) ===== */
-
-        /* =========================
-      FIX: внутренний скролл таблицы + не переносить Task
-      ========================= */
-
-        /* 1) КРИТИЧНО для flex-скролла: разрешаем детям "ужиматься" */
-        .vh-layout,
-        .bottom-row,
-        .bottom-col.left,
-        .left-pane,
-        .table-wrap {
-            min-height: 0 !important;
-        }
-
-        /* 2) Левую панель делаем нормальным flex-контейнером по высоте */
-        .bottom-col.left {
-            display: flex;
-            flex-direction: column;
-            overflow: hidden; /* важно: чтобы скролл был внутри таблицы */
-        }
-
-        /* 3) Контейнер таблицы занимает остаток высоты */
-        .left-pane {
-            flex: 1 1 auto;
-            display: flex;
-            flex-direction: column;
-            overflow: hidden;
-        }
-
-        /* 4) Скролл именно ВНУТРИ table-responsive */
-        .table-wrap {
-            flex: 1 1 auto;
-            overflow: hidden;
-        }
-
-        .table-wrap .table-responsive {
-            flex: 1 1 auto;
-            height: 100%;
-            max-height: 100%;
-            overflow: auto !important; /* вертикальный скролл */
-        }
-
-        /* 5) Таблица: фиксированная раскладка, без "дрыганья" ширин */
-        .tasks-table {
-            table-layout: fixed;
-            width: 100%;
-            margin-bottom: 0;
-        }
-
-        /* ширины колонок (у тебя colgroup уже есть — оставляем) */
-        .tasks-table col.col-tech {
-            width: 140px;
-        }
-
-        .tasks-table col.col-start {
-            width: 180px;
-        }
-
-        .tasks-table col.col-finish {
-            width: 180px;
-        }
-
-        .tasks-table col.col-task {
-            width: auto;
-        }
-
-        /* 6) Липкая шапка */
-        .tasks-table thead th {
-            position: sticky;
-            top: 0;
-            z-index: 5;
-            background: rgba(0, 0, 0, .25);
-        }
-
-        /* 7) ВООБЩЕ не переносим текст в ячейках + эллипсис */
-        .tasks-table th,
-        .tasks-table td {
-            vertical-align: middle !important;
-            white-space: nowrap !important;
-            overflow: hidden;
-            text-overflow: ellipsis;
-        }
-
-        /* 8) Task — одна строка, и при этом гарантируем ellipsis (часто ломается без блока) */
-        .tasks-table td.task-col {
-            padding-right: .5rem;
-        }
-
-        .tasks-table td.task-col .task-text {
-            display: block;
-            width: 100%;
-            overflow: hidden;
-            text-overflow: ellipsis;
-            white-space: nowrap;
-        }
-
-        /* 9) Compact actions */
-        .btn-icon-compact {
-            width: 34px;
-            height: 34px;
-            padding: 0;
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-        }
-
-        /* 3) Задаём таблице реальную высоту через viewport */
-        .table-wrap .table-responsive {
-            overflow-y: auto !important;
-            overflow-x: auto !important;
-            max-height: calc(100vh - 420px) !important; /* ← ключ */
-        }
-
-        /* если top-pane выше/ниже — меняй 420px на 380/460 */
-        @media (max-width: 992px) {
-            .table-wrap .table-responsive {
-                max-height: calc(100vh - 520px) !important;
-            }
-        }
-
-        /* 4) Task никогда не переносим */
-        .tasks-table td.task-col,
-        .tasks-table th {
-            white-space: nowrap !important;
-        }
-
-        .tasks-table td,
-        .tasks-table th {
-            overflow: hidden !important;
-            text-overflow: ellipsis !important;
-        }
-
-        .tasks-table .fp-alt,
-        .table.table-dark .fp-alt {
-            height: calc(1.8125rem + 2px) !important; /* как твой eqh-sm */
-            padding: .25rem .5rem !important;
-            line-height: 1.2 !important;
-        }
-
-        /* чтобы ячейки не растягивались из-за форм */
-        .tasks-table td form {
-            margin: 0 !important;
-        }
-
-
-        .tasks-table td.task-col .task-text {
-            display: block;
-            width: 100%;
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
-        }
-
-        .tasks-table {
-            table-layout: fixed;
-            width: 100%;
-        }
-
-        .tasks-table col.col-task {
-            width: calc(100% - 95px - 92px - 170px - 64px) !important;
-        }
-
-        /* ✅ текст внутри занимает всю ширину колонки */
-        .tasks-table td.task-col .task-text {
-            display: block;
-            width: 100%;
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
-        }
-
-        .auto-submit-order {
-            position: relative;
-        }
-
+        /* =========================================================
+        6) Save indicator (Repair order)
+        ========================================================= */
+        .auto-submit-order { position: relative; }
         .auto-submit-order .save-indicator {
-            position: absolute;
-            right: 6px;
-            top: 50%;
-            transform: translateY(-50%);
-            font-size: 0.9rem;
-            color: #ffc107; /* жёлтый */
-            pointer-events: none;
+        position: absolute;
+        right: 6px;
+        top: 50%;
+        transform: translateY(-50%);
+        font-size: .9rem;
+        color: #ffc107;
+        pointer-events: none;
         }
 
     </style>
@@ -483,6 +274,7 @@
 @endsection
 
 @section('content')
+
     <div class="card ">
         <div class="card-body p-0 shadow-lg">
             <div class="vh-layout">
@@ -737,245 +529,245 @@
                         </div>
 
                     </div>
+                </div>
 
-                    {{-- Bottom --}}
-                    <div class="bottom-row">
+                {{-- Bottom --}}
+                <div class="bottom-row">
 
-                        {{-- Left panel: tasks --}}
-                        <div class="bottom-col left gradient-pane border-info">
-                            <div class="left-pane">
+                    {{-- Left panel: tasks --}}
+                    <div class="bottom-col left gradient-pane border-info">
+                        <div class="left-pane">
 
-                                {{-- Tasks table --}}
-                                <div class="table-wrap">
-                                    <div class="table-responsive">
-                                        <table class="table table align-middle gradient-table table-striped table-hover tasks-table">
-                                            <colgroup>
-                                                <col class="col-tech">
-                                                <col class="col-task">
-                                                <col class="col-start">
-                                                <col class="col-finish">
-                                            </colgroup>
-                                            <thead>
+
+                            {{-- Tasks table --}}
+                            <div class="table-wrap">
+                                <div class="table-responsive">
+                                    <table class="table table align-middle gradient-table table-striped table-hover tasks-table">
+                                        <colgroup>
+                                            <col class="col-tech">
+                                            <col class="col-task">
+                                            <col class="col-start">
+                                            <col class="col-finish">
+                                        </colgroup>
+                                        <thead>
+                                        <tr>
+                                            <th class="fw-normal">Technik</th>
+                                            <th class="fw-normal">Status</th>
+                                            <th class="fw-normal">Start</th>
+                                            <th class="fw-normal">Finish (edit)</th>
+                                        </tr>
+                                        </thead>
+                                        <tbody>
+                                        @foreach($general_tasks as $gt)
+                                            @php
+                                                $row = $generalMains[$gt->id] ?? null;
+                                            @endphp
+
                                             <tr>
-                                                <th class="fw-normal">Technik</th>
-                                                <th class="fw-normal">Status</th>
-                                                <th class="fw-normal">Start</th>
-                                                <th class="fw-normal">Finish (edit)</th>
-                                            </tr>
-                                            </thead>
-                                            <tbody>
-                                            @foreach($general_tasks as $gt)
-                                                @php
-                                                    $row = $generalMains[$gt->id] ?? null;
-                                                @endphp
-
-                                                <tr>
-                                                    <td class="">{{ $row?->user?->name ?? '—' }}</td>
-                                                    <td>
-                                                        @php
-                                                            $cls = $row?->date_finish ? 'text-success fw-semibold' : 'text-danger fw-semibold';
-                                                        @endphp
+                                                <td class="">{{ $row?->user?->name ?? '—' }}</td>
+                                                <td>
+                                                    @php
+                                                        $cls = $row?->date_finish ? 'text-success fw-semibold' : 'text-danger fw-semibold';
+                                                    @endphp
 
 
-                                                        @if($gt->name === 'Assembly')
-                                                            <a href="#"
-                                                               class="{{ $cls }}"
-                                                               data-bs-toggle="offcanvas"
-                                                               data-bs-target="#assemblyCanvas">
-                                                                {{ $gt->name }}
-                                                            </a>
-                                                        @else
-                                                            <span class="{{ $cls }}"> {{ $gt->name }} </span>
-                                                        @endif
-                                                    </td>
+                                                    @if($gt->name === 'Assembly')
+                                                        <a href="#"
+                                                           class="{{ $cls }}"
+                                                           data-bs-toggle="offcanvas"
+                                                           data-bs-target="#assemblyCanvas">
+                                                            {{ $gt->name }}
+                                                        </a>
+                                                    @else
+                                                        <span class="{{ $cls }}"> {{ $gt->name }} </span>
+                                                    @endif
+                                                </td>
 
-                                                    <td>
-                                                        @if($gt->has_start_date)
-                                                            <form method="POST"
-                                                                  action="{{ route('mains.updateGeneralTaskDates', [$current_workorder->id, $gt->id]) }}"
-                                                                  class="auto-submit-form">
-                                                                @csrf
-                                                                @method('PATCH')
-
-                                                                <input type="text"
-                                                                       name="date_start"
-                                                                       class="form-control form-control finish-input"
-                                                                       value="{{ $row?->date_start?->format('Y-m-d') }}"
-                                                                       placeholder="..."
-                                                                       data-fp>
-
-                                                                <input type="hidden"
-                                                                       name="date_finish"
-                                                                       value="{{ $row?->date_finish?->format('Y-m-d') }}">
-                                                            </form>
-                                                        @else
-                                                            <span class="text-muted small">—</span>
-                                                        @endif
-                                                    </td>
-
-                                                    <td>
+                                                <td>
+                                                    @if($gt->has_start_date)
                                                         <form method="POST"
                                                               action="{{ route('mains.updateGeneralTaskDates', [$current_workorder->id, $gt->id]) }}"
                                                               class="auto-submit-form">
                                                             @csrf
                                                             @method('PATCH')
 
-                                                            <div class="input-group input-group">
-                                                                <input type="text"
-                                                                       name="date_finish"
-                                                                       class="form-control finish-input {{ $row?->date_finish ? 'has-finish' : '' }}"
-                                                                       value="{{ $row?->date_finish?->format('Y-m-d') }}"
-                                                                       placeholder="..."
-                                                                       data-fp>
-
-                                                                {{--                                                                <span class="input-group-text">📅</span>--}}
-                                                            </div>
+                                                            <input type="text"
+                                                                   name="date_start"
+                                                                   class="form-control form-control finish-input"
+                                                                   value="{{ $row?->date_start?->format('Y-m-d') }}"
+                                                                   placeholder="..."
+                                                                   data-fp>
 
                                                             <input type="hidden"
-                                                                   name="date_start"
-                                                                   value="{{ $row?->date_start?->format('Y-m-d') }}">
+                                                                   name="date_finish"
+                                                                   value="{{ $row?->date_finish?->format('Y-m-d') }}">
                                                         </form>
-                                                    </td>
-                                                </tr>
-                                            @endforeach
-                                            </tbody>
-                                        </table>
-                                    </div>
-                                </div>
+                                                    @else
+                                                        <span class="text-muted small">—</span>
+                                                    @endif
+                                                </td>
 
+                                                <td>
+                                                    <form method="POST"
+                                                          action="{{ route('mains.updateGeneralTaskDates', [$current_workorder->id, $gt->id]) }}"
+                                                          class="auto-submit-form">
+                                                        @csrf
+                                                        @method('PATCH')
+
+                                                        <div class="input-group input-group">
+                                                            <input type="text"
+                                                                   name="date_finish"
+                                                                   class="form-control finish-input {{ $row?->date_finish ? 'has-finish' : '' }}"
+                                                                   value="{{ $row?->date_finish?->format('Y-m-d') }}"
+                                                                   placeholder="..."
+                                                                   data-fp>
+
+                                                            {{--                                                                <span class="input-group-text">📅</span>--}}
+                                                        </div>
+
+                                                        <input type="hidden"
+                                                               name="date_start"
+                                                               value="{{ $row?->date_start?->format('Y-m-d') }}">
+                                                    </form>
+                                                </td>
+                                            </tr>
+                                        @endforeach
+                                        </tbody>
+                                    </table>
+                                </div>
                             </div>
+
+                        </div>
+                    </div>
+
+                    {{-- Right panel: Components / Processes --}}
+                    <div class="bottom-col right border-info gradient-pane">
+
+                        <div class="d-flex align-items-center justify-content-between mb-2">
+                            <div class="d-flex align-items-center gap-2">
+                                <h6 class="mb-0 text-primary">Components</h6>
+                                <span class="text-info">({{ $components->count() }})</span>
+                                <h6 class="mb-0 text-primary">&nbsp;& Processes</h6>
+                                {{--                                    <span class="badge text-info">{{ $tdrProcessesTotal }} total</span>--}}
+                                {{--                                    <span class="badge text-info">{{ $tdrProcessesOpen }} open</span>--}}
+                            </div>
+
+                            <form method="get"
+                                  action="{{ route('mains.show', $current_workorder->id) }}"
+                                  class="d-flex align-items-center gap-2">
+                                <div class="form-check form-switch">
+                                    <input class="form-check-input" type="checkbox"
+                                           id="showAll" name="show_all" value="1"
+                                           {{ $showAll ? 'checked' : '' }} autocomplete="off">
+                                    <label class="form-check-label small" for="showAll">Show all</label>
+                                </div>
+                            </form>
                         </div>
 
-                        {{-- Right panel: Components / Processes --}}
-                        <div class="bottom-col right border-info gradient-pane">
-
-                            <div class="d-flex align-items-center justify-content-between mb-2">
-                                <div class="d-flex align-items-center gap-2">
-                                    <h6 class="mb-0 text-primary">Components</h6>
-                                    <span class="text-info">({{ $components->count() }})</span>
-                                    <h6 class="mb-0 text-primary">&nbsp;& Processes</h6>
-                                    {{--                                    <span class="badge text-info">{{ $tdrProcessesTotal }} total</span>--}}
-                                    {{--                                    <span class="badge text-info">{{ $tdrProcessesOpen }} open</span>--}}
-                                </div>
-
-                                <form method="get"
-                                      action="{{ route('mains.show', $current_workorder->id) }}"
-                                      class="d-flex align-items-center gap-2">
-                                    <div class="form-check form-switch">
-                                        <input class="form-check-input" type="checkbox"
-                                               id="showAll" name="show_all" value="1"
-                                               {{ $showAll ? 'checked' : '' }} autocomplete="off">
-                                        <label class="form-check-label small" for="showAll">Show all</label>
-                                    </div>
-                                </form>
+                        @if($components->isEmpty())
+                            <div class="text-muted small">
+                                No components with processes {{ $showAll ? '(all)' : '(open only)' }}.
                             </div>
-
-                            @if($components->isEmpty())
-                                <div class="text-muted small">
-                                    No components with processes {{ $showAll ? '(all)' : '(open only)' }}.
-                                </div>
-                            @else
-                                <div class="list-group list-group-flush" style="overflow:auto;">
-                                    @foreach($components as $cmp)
-                                        <div class="list-group-item bg-transparent text-light border-secondary">
-                                            @forelse($cmp->tdrs as $tdr)
-                                                @php $prs = $tdr->tdrProcesses; @endphp
-                                                @if($prs->isNotEmpty())
-                                                    <div class="mt-2 ps-2">
-                                                        <table class="table table-sm table-dark table-bordered mb-2 align-middle">
-                                                            <thead>
-                                                            <tr>
-                                                                <th style="width:40%;">
-                                                                    <div class=" text-info">
-                                                                        {{ $cmp->name ?? ('#'.$cmp->id) }}&nbsp;&nbsp;
-                                                                        <span class="text-muted" style="font-size: 12px;">
+                        @else
+                            <div class="list-group list-group-flush" style="overflow:auto;">
+                                @foreach($components as $cmp)
+                                    <div class="list-group-item bg-transparent text-light border-secondary">
+                                        @forelse($cmp->tdrs as $tdr)
+                                            @php $prs = $tdr->tdrProcesses; @endphp
+                                            @if($prs->isNotEmpty())
+                                                <div class="mt-2 ps-2">
+                                                    <table class="table table-sm table-dark table-bordered mb-2 align-middle">
+                                                        <thead>
+                                                        <tr>
+                                                            <th style="width:40%;">
+                                                                <div class=" text-info">
+                                                                    {{ $cmp->name ?? ('#'.$cmp->id) }}&nbsp;&nbsp;
+                                                                    <span class="text-muted" style="font-size: 12px;">
                                                                         ({{ $cmp->ipl_num ?? '—' }}) &nbsp;&nbsp; p/n: {{ $cmp->part_number ?? '—' }}
                                                                         </span>
-                                                                    </div>
-                                                                </th>
-                                                                <th style="width:20%; text-align: center" class="fw-normal text-muted">Repair Order</th>
-                                                                <th style="width:20%; text-align: center" class="fw-normal text-muted">Sent (edit)</th>
-                                                                <th style="width:20%; text-align: center" class="fw-normal text-muted">Returned (edit)</th>
+                                                                </div>
+                                                            </th>
+                                                            <th style="width:20%; text-align: center" class="fw-normal text-muted">Repair Order</th>
+                                                            <th style="width:20%; text-align: center" class="fw-normal text-muted">Sent (edit)</th>
+                                                            <th style="width:20%; text-align: center" class="fw-normal text-muted">Returned (edit)</th>
+                                                        </tr>
+                                                        </thead>
+                                                        <tbody>
+                                                        @foreach($prs as $pr)
+                                                            <tr>
+                                                                <td>{{ $pr->processName->name ?? '—' }}</td>
+                                                                <td>
+                                                                    <form method="POST"
+                                                                          action="{{ route('tdrprocesses.updateRepairOrder', $pr) }}"
+                                                                          class="auto-submit-form auto-submit-order position-relative">
+                                                                        @csrf
+                                                                        @method('PATCH')
+
+                                                                        <input type="text"
+                                                                               name="repair_order"
+                                                                               class="form-control form-control-sm pe-4"
+                                                                               value="{{ $pr->repair_order ?? '' }}"
+                                                                               placeholder="..."
+                                                                               autocomplete="off"
+                                                                               data-original="{{ $pr->repair_order ?? '' }}">
+
+                                                                        {{-- 💾 индикатор несохранённого --}}
+                                                                        <i class="bi bi-save save-indicator d-none"></i>
+                                                                    </form>
+                                                                </td>
+                                                                <td>
+                                                                    <form method="POST"
+                                                                          action="{{ route('tdrprocesses.updateDate', $pr) }}"
+                                                                          class="auto-submit-form">
+                                                                        @csrf
+                                                                        @method('PATCH')
+                                                                        <input type="text" data-fp name="date_start"
+                                                                               class="form-control form-control-sm finish-input"
+                                                                               value="{{ $pr->date_start?->format('Y-m-d') }}"
+                                                                               placeholder="...">
+                                                                    </form>
+                                                                </td>
+                                                                <td>
+                                                                    <form method="POST"
+                                                                          action="{{ route('tdrprocesses.updateDate', $pr) }}"
+                                                                          class="auto-submit-form">
+                                                                        @csrf
+                                                                        @method('PATCH')
+                                                                        <input type="text" data-fp name="date_finish"
+                                                                               class="form-control form-control-sm finish-input"
+                                                                               value="{{ $pr->date_finish?->format('Y-m-d') }}"
+                                                                               placeholder="...">
+                                                                    </form>
+                                                                </td>
                                                             </tr>
-                                                            </thead>
-                                                            <tbody>
-                                                            @foreach($prs as $pr)
-                                                                <tr>
-                                                                    <td>{{ $pr->processName->name ?? '—' }}</td>
-                                                                    <td>
-                                                                        <form method="POST"
-                                                                              action="{{ route('tdrprocesses.updateRepairOrder', $pr) }}"
-                                                                              class="auto-submit-form auto-submit-order position-relative">
-                                                                            @csrf
-                                                                            @method('PATCH')
-
-                                                                            <input type="text"
-                                                                                   name="repair_order"
-                                                                                   class="form-control form-control-sm pe-4"
-                                                                                   value="{{ $pr->repair_order ?? '' }}"
-                                                                                   placeholder="..."
-                                                                                   autocomplete="off"
-                                                                                   data-original="{{ $pr->repair_order ?? '' }}">
-
-                                                                            {{-- 💾 индикатор несохранённого --}}
-                                                                            <i class="bi bi-save save-indicator d-none"></i>
-                                                                        </form>
-                                                                    </td>
-                                                                    <td>
-                                                                        <form method="POST"
-                                                                              action="{{ route('tdrprocesses.updateDate', $pr) }}"
-                                                                              class="auto-submit-form">
-                                                                            @csrf
-                                                                            @method('PATCH')
-                                                                            <input type="text" data-fp name="date_start"
-                                                                                   class="form-control form-control-sm finish-input"
-                                                                                   value="{{ $pr->date_start?->format('Y-m-d') }}"
-                                                                                   placeholder="...">
-                                                                        </form>
-                                                                    </td>
-                                                                    <td>
-                                                                        <form method="POST"
-                                                                              action="{{ route('tdrprocesses.updateDate', $pr) }}"
-                                                                              class="auto-submit-form">
-                                                                            @csrf
-                                                                            @method('PATCH')
-                                                                            <input type="text" data-fp name="date_finish"
-                                                                                   class="form-control form-control-sm finish-input"
-                                                                                   value="{{ $pr->date_finish?->format('Y-m-d') }}"
-                                                                                   placeholder="...">
-                                                                        </form>
-                                                                    </td>
-                                                                </tr>
-                                                            @endforeach
-                                                            </tbody>
-                                                        </table>
-                                                    </div>
-                                                @endif
-                                            @empty
-                                                <div class="text-muted small">
-                                                    No TDRs for this component on this workorder.
+                                                        @endforeach
+                                                        </tbody>
+                                                    </table>
                                                 </div>
-                                            @endforelse
-                                        </div>
-                                    @endforeach
-                                </div>
-                            @endif
-                        </div>
-
+                                            @endif
+                                        @empty
+                                            <div class="text-muted small">
+                                                No TDRs for this component on this workorder.
+                                            </div>
+                                        @endforelse
+                                    </div>
+                                @endforeach
+                            </div>
+                        @endif
                     </div>
 
                 </div>
+
             </div>
         </div>
+    </div>
 
         {{-- Форма для delete через модалку (mains / tdrprocesses) --}}
         <form id="deleteForm" method="POST" class="d-none">
             @csrf
             @method('DELETE')
         </form>
-
         @include('components.delete')
-
         {{-- modal Assembly --}}
         <div class="offcanvas offcanvas-end text-bg-dark" tabindex="-1" id="assemblyCanvas">
             <div class="offcanvas-header border-bottom border-secondary">
@@ -986,8 +778,6 @@
                 <div class="text-muted small">Future data</div>
             </div>
         </div>
-
-
         <!--  Parts Modal -->
         <div class="modal fade" id="partsModal{{$current_workorder->number}}" tabindex="-1"
              role="dialog" aria-labelledby="orderModalLabel{{$current_workorder->number}}" aria-hidden="true">
@@ -1077,7 +867,6 @@
                 </div>
             </div>
         </div>
-
         {{-- Photo modal --}}
         <div class="modal fade" id="photoModal" tabindex="-1"
              aria-labelledby="photoModalLabel" aria-hidden="true">
@@ -1100,7 +889,6 @@
                 </div>
             </div>
         </div>
-
         {{-- Confirm delete photo --}}
         <div class="modal fade" id="confirmDeletePhotoModal" tabindex="-1"
              aria-labelledby="confirmDeletePhotoLabel" aria-hidden="true">
@@ -1122,7 +910,6 @@
                 </div>
             </div>
         </div>
-
         {{-- Toast --}}
         <div class="position-fixed bottom-0 end-0 p-3" style="z-index: 1055">
             <div id="photoDeletedToast"
@@ -1133,7 +920,6 @@
                 </div>
             </div>
         </div>
-
         {{-- LOG MODAL --}}
         <div class="modal fade" id="logModal" tabindex="-1"
              aria-labelledby="logModalLabel" aria-hidden="true">
@@ -1155,11 +941,10 @@
                 </div>
             </div>
         </div>
-
         @endsection
 
+@section('scripts')
 
-        @section('scripts')
             <script>
                 document.addEventListener('DOMContentLoaded', () => {
 
@@ -2036,7 +1821,6 @@
 
                 })();
             </script>
-
             {{-- Training functions --}}
             <script>
                 function createTrainings(manualId) {

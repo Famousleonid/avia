@@ -114,9 +114,7 @@ class MainController extends Controller
         }
         $imgThumb = $imgThumb ?? asset('img/placeholder-160x160.png');
 
-        $tdrIds = Tdr::where('workorder_id', $workorder_id)
-
-            ->pluck('id');
+        $tdrIds = Tdr::where('workorder_id', $workorder_id)->pluck('id');
 
         $code = Code::where('name', 'Missing')->first();
         $necessary = Necessary::where('name', 'Order New')->first();

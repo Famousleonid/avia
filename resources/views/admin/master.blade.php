@@ -16,34 +16,31 @@
     <link rel="stylesheet" href="{{asset('css/main.css')}}">
     <link rel="stylesheet" href="{{ asset('css/paper-button.css') }}">
     <link rel="stylesheet" href="https://unpkg.com/tippy.js@6/dist/tippy.css">
+
+
     <script>
+        window.forceDarkTheme = {{ auth()->check() && auth()->user()->roleIs('Technician') ? 'true' : 'false' }};
+    </script>
 
-        window.forceDarkTheme = @role('Technician') true @else false @endrole;
-
+    <script>
         (function () {
             if (window.forceDarkTheme) {
-                // Technician → только тёмная
                 document.documentElement.setAttribute('data-bs-theme', 'dark');
                 localStorage.setItem('theme', 'dark');
             } else {
-                // Остальные → как было
                 const savedTheme = localStorage.getItem('theme') || 'light';
                 document.documentElement.setAttribute('data-bs-theme', savedTheme);
             }
         })();
 
-    </script>
-    <script>
         (function () {
             const collapsed = localStorage.getItem('adminSidebarCollapsed') === '1';
             document.documentElement.setAttribute('data-sidebar-collapsed', collapsed ? '1' : '0');
         })();
-    </script>
 
-    <script>
         // Ранняя обработка ошибок для подавления некритичных ошибок
-        (function() {
-            window.addEventListener('error', function(e) {
+        (function () {
+            window.addEventListener('error', function (e) {
                 const errorMessage = e.message || '';
                 if (errorMessage.includes('is not iterable') ||
                     errorMessage.includes('identifyDuplicates') ||
@@ -54,7 +51,7 @@
                 }
             }, true);
 
-            window.addEventListener('unhandledrejection', function(e) {
+            window.addEventListener('unhandledrejection', function (e) {
                 const reason = e.reason || {};
                 const message = reason.message || String(reason) || '';
                 if (message.includes('is not iterable') ||
@@ -69,24 +66,28 @@
 
     <style>
 
+        .page-layout {
+            height: calc(100vh - var(--footer-h));
+            overflow: hidden;
+        }
+
         .content {
-            height: 100vh;
-            overflow-y: auto;
-            padding-right: 12px;
-            padding-bottom: 5vh;
+            height: 100%;
+            min-height: 0;
+            overflow: hidden; /* скролл не тут */
+            padding-bottom: 0; /* убираем 5vh, он больше не нужен */
         }
 
         .content-inner {
-            min-height: 100%;
+            height: 100%;
+            min-height: 0;
             display: flex;
             flex-direction: column;
-            position: relative;
         }
 
     </style>
 
     @yield('style')
-
 
 </head>
 
@@ -96,19 +97,18 @@
     <span class="visually-hidden">Loading...</span>
 </div>
 
-<div class="row g-0 page-layout">
-
-    <div id="sidebarColumn" class="bg-body p-0 col-auto">
-        @include('components.sidebar')
-    </div>
-
-    <div class="content col bg-body pt-2">
-        <div class="content-inner px-2">
-            @include('components.status')
-            @yield('content')
+<div class="container-fluid p-0">
+    <div class="row g-0 page-layout">
+        <div id="sidebarColumn" class="bg-body p-0 col-auto">
+            @include('components.sidebar')
+        </div>
+        <div class="content col bg-body pt-2">
+            <div class="content-inner px-2">
+                @include('components.status')
+                @yield('content')
+            </div>
         </div>
     </div>
-
 </div>
 
 @include('components.footer')
@@ -138,8 +138,8 @@
         });
 
         // Bootstrap tooltips (атрибут data-toggle="tooltip")
-        $(function () {
-            $('[data-toggle="tooltip"]').tooltip();
+        document.querySelectorAll('[data-bs-toggle="tooltip"]').forEach(el => {
+            new bootstrap.Tooltip(el);
         });
 
         // Обновление иконки темы (солнышко / луна)
@@ -230,7 +230,7 @@
 
 <script>
     // Подавляем ошибки MetaMask и другие некритичные ошибки
-    window.addEventListener('error', function(e) {
+    window.addEventListener('error', function (e) {
         const errorMessage = e.message || '';
         const errorSource = e.filename || '';
 
@@ -253,51 +253,6 @@
         return true;
     }, true);
 
-    // Также обрабатываем необработанные промисы
-    window.addEventListener('unhandledrejection', function(e) {
-        const reason = e.reason || {};
-        const message = reason.message || String(reason) || '';
-
-        if (message.includes('MetaMask')) {
-            e.preventDefault();
-            return false;
-        }
-
-        if (message.includes('is not iterable') ||
-            message.includes('identifyDuplicates') ||
-            message.includes('statements is not iterable')) {
-            e.preventDefault();
-            return false;
-        }
-
-        return true;
-    });
-
-    // Дополнительный обработчик необработанных промисов
-    window.addEventListener('unhandledrejection', function(e) {
-        if (e.reason && e.reason.message && e.reason.message.includes('MetaMask')) {
-            e.preventDefault();
-            return false;
-        }
-        // Подавляем ошибки "is not iterable" в identifyDuplicates
-        if (e.reason && e.reason.message &&
-            (e.reason.message.includes('is not iterable') || e.reason.message.includes('identifyDuplicates'))) {
-            console.warn('Suppressed promise rejection:', e.reason.message);
-            e.preventDefault();
-            return false;
-        }
-    });
-
-    //------------------------------------------------------------------------------------------------------------------------
-
-    // Ещё раз подсветка активного пункта в sidebar (можно удалить, если дублируется)
-    $('#sidebarMenu a').each(function () {
-        let location = window.location.protocol + '//' + window.location.host + window.location.pathname;
-        let link = this.href;
-        if (link === location) {
-            $(this).addClass('text-white bg-primary');
-        }
-    });
 
     // ---------- СВЕРТЫВАНИЕ САЙДБАРА С ПЛАВНОЙ АНИМАЦИЕЙ ----------
     const sidebarToggleBtn = document.getElementById('collapseSidebarBtn');
