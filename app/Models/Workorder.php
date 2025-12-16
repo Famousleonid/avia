@@ -86,20 +86,20 @@ class Workorder extends Model implements HasMedia
             ->logOnlyDirty()                // логировать ТОЛЬКО изменившиеся поля
             ->dontSubmitEmptyLogs();        // не создавать пустые записи
     }
+
     public function getDoneMainRecord()
     {
         return $this->main
-            ->first(function ($m) {
-                return $m->task && $m->task->name === 'Done';
-            });
+            ->first(fn ($m) =>
+                $m->generalTaskRelation?->name === 'Completed'
+                && $m->date_finish !== null
+            );
     }
 
     public function isDone(): bool
     {
-        $done = $this->getDoneMainRecord();
-        return $done && $done->date_finish !== null;
+        return (bool) $this->getDoneMainRecord();
     }
-
 
     public function doneDate()
     {

@@ -17,6 +17,7 @@
     <link rel="stylesheet" href="{{ asset('css/paper-button.css') }}">
     <link rel="stylesheet" href="https://unpkg.com/tippy.js@6/dist/tippy.css">
     <script>
+
         window.forceDarkTheme = @role('Technician') true @else false @endrole;
 
         (function () {

@@ -15,17 +15,6 @@ return new class extends Migration {
 
         });
 
-        $dataGeneralTask = [
-            ['name' => 'Start'],
-            ['name' => 'Disassembly'],
-            ['name' => 'Standard processes'],
-            ['name' => 'Assembly'],
-            ['name' => 'Final Test'],
-            ['name' => 'Done.'],
-
-        ];
-
-        GeneralTask::insert($dataGeneralTask);
     }
 
 

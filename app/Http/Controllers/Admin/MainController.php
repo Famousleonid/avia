@@ -114,15 +114,9 @@ class MainController extends Controller
         }
         $imgThumb = $imgThumb ?? asset('img/placeholder-160x160.png');
 
-        // Counters
         $tdrIds = Tdr::where('workorder_id', $workorder_id)
 
             ->pluck('id');
-
-//        $tdrProcessesTotal = TdrProcess::whereIn('tdrs_id', $tdrIds)->count();
-//        $tdrProcessesOpen  = TdrProcess::whereIn('tdrs_id', $tdrIds)
-//            ->whereNull('date_finish')
-//            ->count();
 
         $code = Code::where('name', 'Missing')->first();
         $necessary = Necessary::where('name', 'Order New')->first();
@@ -167,11 +161,20 @@ class MainController extends Controller
                 ->first();
         }
 
+        $general_tasks = GeneralTask::orderBy('sort_order')->orderBy('id')->get();
+
+        $generalMains = Main::with('user')
+            ->where('workorder_id', $workorder_id)
+            ->whereNull('task_id')
+            ->get()
+            ->keyBy('general_task_id');
+
+
         return view('admin.mains.main', compact(
             'users','current_workorder','mains','general_tasks','tasks','tasksByGeneral',
             'imgThumb','imgFull','manual','components','showAll',
             'ordersPartsNew','prl_parts','orderedQty', 'receivedQty',
-            'trainings','user_wo','manual_id','user'
+            'trainings','user_wo','manual_id','user','generalMains'
         ));
     }
 
@@ -374,8 +377,102 @@ class MainController extends Controller
             'repair_order' => $data['repair_order'] ?? null,
         ]);
 
-        // если это авто-сабмит из формы — можно просто назад
         return back();
+    }
+
+    private function prevGeneralTask(GeneralTask $gt): ?GeneralTask
+    {
+        $order = $this->generalTaskOrder();
+        $i = array_search($gt->name, $order, true);
+        if ($i === false || $i === 0) return null;
+
+        return GeneralTask::where('name', $order[$i - 1])->first();
+    }
+
+
+    public function updateGeneralTaskDates(Request $request, Workorder $workorder, GeneralTask $generalTask)
+    {
+
+        $prev = GeneralTask::where('sort_order', '<', $generalTask->sort_order)
+            ->orderByDesc('sort_order')
+            ->first();
+
+        if ($prev) {
+            $prevMain = Main::where('workorder_id', $workorder->id)
+                ->where('general_task_id', $prev->id)
+                ->whereNull('task_id')
+                ->first();
+
+            if (empty($prevMain?->date_finish)) {
+                return back()->with('error', "First complete the previous step:  {$prev->name}");
+            }
+        }
+
+        $data = $request->validate([
+            'date_start'  => ['nullable', 'date_format:Y-m-d'],
+            'date_finish' => ['nullable', 'date_format:Y-m-d', 'after_or_equal:date_start'],
+        ]);
+
+        if (!$generalTask->has_start_date) {
+            unset($data['date_start']);
+        }
+
+        $main = Main::firstOrNew([
+            'workorder_id'    => $workorder->id,
+            'general_task_id' => $generalTask->id,
+            'task_id'         => null,
+        ]);
+
+        $beforeStart  = $main->date_start?->format('Y-m-d');
+        $beforeFinish = $main->date_finish?->format('Y-m-d');
+        $beforeUserId = $main->user_id;
+
+        if ($request->has('date_start')) {
+            $main->date_start = $data['date_start'] ?? null;   // clear -> null
+        }
+
+        if ($request->has('date_finish')) {
+            $main->date_finish = $data['date_finish'] ?? null; // clear -> null
+        }
+
+        $anchorDate = $generalTask->has_start_date ? $main->date_start : $main->date_finish;
+
+        if (empty($anchorDate)) {
+            $main->user_id = null;
+        } elseif (empty($main->user_id)) {
+            $main->user_id = auth()->id();
+        }
+
+        $main->save();
+
+        //  ЛОГИРОВАНИЕ УДАЛЕНИЯ ДАТ
+
+        $afterStart  = $main->date_start?->format('Y-m-d');
+        $afterFinish = $main->date_finish?->format('Y-m-d');
+
+        $deletedStart  = $request->has('date_start')  && !empty($beforeStart)  && empty($afterStart);
+        $deletedFinish = $request->has('date_finish') && !empty($beforeFinish) && empty($afterFinish);
+
+        if ($deletedStart || $deletedFinish) {
+            $what = [];
+            if ($deletedStart)  $what[] = "date_start {$beforeStart} → NULL";
+            if ($deletedFinish) $what[] = "date_finish {$beforeFinish} → NULL";
+
+            activity('mains')
+                ->performedOn($main)
+                ->causedBy(auth()->user())
+                ->withProperties([
+                    'workorder_id'     => $workorder->id,
+                    'general_task_id'  => $generalTask->id,
+                    'general_task'     => $generalTask->name,
+                    'changes'          => $what,
+                    'user_id_before'   => $beforeUserId,
+                    'user_id_after'    => $main->user_id,
+                ])
+                ->log('Deleted date(s) in general task row');
+        }
+
+        return back()->with('success', 'Saved');
     }
 
 }

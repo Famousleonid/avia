@@ -25,4 +25,8 @@ class Main extends Model
         return $this->task?->generalTask; // Task::belongsTo(GeneralTask::class)
     }
 
+    public function generalTaskRelation()
+    {
+        return $this->belongsTo(GeneralTask::class, 'general_task_id');
+    }
 }

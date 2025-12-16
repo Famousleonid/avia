@@ -7,7 +7,12 @@ use Illuminate\Database\Eloquent\Model;
 class GeneralTask extends Model
 {
 
-    protected $fillable = ['name'];
+    protected $fillable = ['name','sort_order'];
+
+    protected $casts = [
+        'has_start_date' => 'boolean',
+    ];
+
     public $timestamps = false;
 
     public function main()
