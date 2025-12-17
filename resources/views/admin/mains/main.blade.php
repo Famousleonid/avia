@@ -1,6 +1,7 @@
 @extends('admin.master')
 
 @section('style')
+
     <style>
 
     .sf { font-size: 12px; }
@@ -519,13 +520,9 @@
 
                                             </div>
                                         </div>
-
-
                                     </div>
-
                                 </div>
                             </div>
-
                         </div>
 
                     </div>
@@ -534,111 +531,168 @@
                 {{-- Bottom --}}
                 <div class="bottom-row">
 
-                    {{-- Left panel: tasks --}}
+                    {{-- Left panel --}}
                     <div class="bottom-col left gradient-pane border-info">
-                        <div class="left-pane">
+                        <div class="left-pane d-flex flex-column gap-2 h-100">
 
+                            {{-- GeneralTask buttons --}}
+                            <div class="d-flex gap-2">
+                                @foreach($general_tasks as $i => $gt)
+                                    <button type="button"
+                                            class="btn flex-fill js-gt-btn {{ ($gtAllFinished[$gt->id] ?? false) ? 'btn-success' : 'btn-danger' }} {{ $i === 0 ? 'active' : '' }}"
+                                            data-gt-id="{{ $gt->id }}">
+                                        {{ $gt->name }}
+                                    </button>
+                                @endforeach
+                            </div>
 
-                            {{-- Tasks table --}}
-                            <div class="table-wrap">
-                                <div class="table-responsive">
-                                    <table class="table table align-middle gradient-table table-striped table-hover tasks-table">
-                                        <colgroup>
-                                            <col class="col-tech">
-                                            <col class="col-task">
-                                            <col class="col-start">
-                                            <col class="col-finish">
-                                        </colgroup>
-                                        <thead>
-                                        <tr>
-                                            <th class="fw-normal">Technik</th>
-                                            <th class="fw-normal">Status</th>
-                                            <th class="fw-normal">Start</th>
-                                            <th class="fw-normal">Finish (edit)</th>
-                                        </tr>
-                                        </thead>
-                                        <tbody>
-                                        @foreach($general_tasks as $gt)
-                                            @php
-                                                $row = $generalMains[$gt->id] ?? null;
-                                            @endphp
+                            {{-- Tables --}}
+                            <div class="flex-grow-1 min-h-0 js-gt-container">
 
-                                            <tr>
-                                                <td class="">{{ $row?->user?->name ?? '—' }}</td>
-                                                <td>
+                                @foreach($general_tasks as $i => $gt)
+
+                                    <div class="js-gt-pane h-100 {{ $i === 0 ? '' : 'd-none' }}"
+                                         data-gt-id="{{ $gt->id }}">
+
+                                        <div class="table-responsive border border-secondary rounded h-100"
+                                             style="overflow:auto;">
+
+                                            <table class="table table-dark table-hover table-bordered mb-0 align-middle">
+                                                <thead class="sticky-top">
+                                                <tr>
+                                                    <th class="fw-normal text-secondary bg-gradient" style="width:22%;">Technik</th>
+                                                    <th class="fw-normal text-secondary bg-gradient">Task</th>
+                                                    @if($gt?->has_start_date)
+                                                        <th class="fw-normal text-secondary bg-gradient" style="width:20%;">Start</th>
+                                                    @endif
+                                                    <th class="fw-normal text-secondary bg-gradient" style="width:20%;">Finish</th>
+                                                    @role('Admin')
+                                                        <th style="width:44px;"></th>
+                                                    @endrole
+                                                </tr>
+                                                </thead>
+
+                                                <tbody>
+                                                @forelse(($tasksByGeneral[$gt->id] ?? collect()) as $task)
+
                                                     @php
-                                                        $cls = $row?->date_finish ? 'text-success fw-semibold' : 'text-danger fw-semibold';
+                                                        $main   = $mainsByTask[$task->id] ?? null;
+                                                        $action = $main
+                                                            ? route('mains.update', $main->id)
+                                                            : route('mains.store');
                                                     @endphp
 
+                                                    <tr>
+                                                        <td class="small">{{ $main?->user?->name ?? '—' }}</td>
+                                                        <td class="small" title="{{ $task->name }}">{{ $task->name }}</td>
 
-                                                    @if($gt->name === 'Assembly')
-                                                        <a href="#"
-                                                           class="{{ $cls }}"
-                                                           data-bs-toggle="offcanvas"
-                                                           data-bs-target="#assemblyCanvas">
-                                                            {{ $gt->name }}
-                                                        </a>
-                                                    @else
-                                                        <span class="{{ $cls }}"> {{ $gt->name }} </span>
+                                                    @if($gt?->has_start_date)
+                                                        {{-- Start --}}
+                                                        <td>
+                                                            <form method="POST"
+                                                                  action="{{ $action }}"
+                                                                  class="js-auto-submit">
+                                                                @csrf
+                                                                @if($main) @method('PATCH') @endif
+
+                                                                @unless($main)
+                                                                    <input type="hidden" name="workorder_id"
+                                                                           value="{{ $current_workorder->id }}">
+                                                                    <input type="hidden" name="task_id"
+                                                                           value="{{ $task->id }}">
+                                                                @endunless
+
+                                                                    <input type="text"
+                                                                           name="date_start"
+                                                                           class="form-control form-control-sm finish-input"
+                                                                           value="{{ optional($main?->date_start)->format('Y-m-d') }}"
+                                                                           placeholder="..."
+                                                                           data-fp>
+
+                                                            </form>
+                                                        </td>
                                                     @endif
-                                                </td>
+                                                        {{-- Finish --}}
+                                                        <td>
+                                                            <form method="POST"
+                                                                  action="{{ $action }}"
+                                                                  class="js-auto-submit">
+                                                                @csrf
+                                                                @if($main) @method('PATCH') @endif
 
-                                                <td>
-                                                    @if($gt->has_start_date)
-                                                        <form method="POST"
-                                                              action="{{ route('mains.updateGeneralTaskDates', [$current_workorder->id, $gt->id]) }}"
-                                                              class="auto-submit-form">
-                                                            @csrf
-                                                            @method('PATCH')
+                                                                @unless($main)
+                                                                    <input type="hidden" name="workorder_id"
+                                                                           value="{{ $current_workorder->id }}">
+                                                                    <input type="hidden" name="task_id"
+                                                                           value="{{ $task->id }}">
+                                                                @endunless
 
-                                                            <input type="text"
-                                                                   name="date_start"
-                                                                   class="form-control form-control finish-input"
-                                                                   value="{{ $row?->date_start?->format('Y-m-d') }}"
-                                                                   placeholder="..."
-                                                                   data-fp>
+                                                                <input type="text"
+                                                                       name="date_finish"
+                                                                       class="form-control form-control-sm finish-input"
+                                                                       value="{{ optional($main?->date_finish)->format('Y-m-d') }}"
+                                                                       placeholder="..."
+                                                                       data-fp>
+                                                            </form>
+                                                        </td>
 
-                                                            <input type="hidden"
-                                                                   name="date_finish"
-                                                                   value="{{ $row?->date_finish?->format('Y-m-d') }}">
-                                                        </form>
-                                                    @else
-                                                        <span class="text-muted small">—</span>
-                                                    @endif
-                                                </td>
+                                                        @role('Admin')
+                                                        {{-- Logs --}}
+                                                        <td class="text-center">
+                                                            @if($main)
+                                                                <button type="button"
+                                                                        class="btn btn-outline-info btn-sm js-open-log"
+                                                                        data-main-id="{{ $main->id }}"
+                                                                        data-url="{{ route('mains.activity', $main->id) }}"
+                                                                        title="Activity log">
+                                                                    <i class="bi bi-journal-text"></i>
+                                                                </button>
+                                                            @else
+                                                                <span class="text-muted small">—</span>
+                                                            @endif
+                                                        </td>
+                                                        @endrole
+                                                    </tr>
 
-                                                <td>
-                                                    <form method="POST"
-                                                          action="{{ route('mains.updateGeneralTaskDates', [$current_workorder->id, $gt->id]) }}"
-                                                          class="auto-submit-form">
-                                                        @csrf
-                                                        @method('PATCH')
+                                                @empty
+                                                    <tr>
+                                                        <td colspan="5"
+                                                            class="text-center text-muted small py-3">
+                                                            No tasks
+                                                        </td>
+                                                    </tr>
+                                                @endforelse
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                    </div>
 
-                                                        <div class="input-group input-group">
-                                                            <input type="text"
-                                                                   name="date_finish"
-                                                                   class="form-control finish-input {{ $row?->date_finish ? 'has-finish' : '' }}"
-                                                                   value="{{ $row?->date_finish?->format('Y-m-d') }}"
-                                                                   placeholder="..."
-                                                                   data-fp>
+                                @endforeach
 
-                                                            {{--                                                                <span class="input-group-text">📅</span>--}}
-                                                        </div>
-
-                                                        <input type="hidden"
-                                                               name="date_start"
-                                                               value="{{ $row?->date_start?->format('Y-m-d') }}">
-                                                    </form>
-                                                </td>
-                                            </tr>
-                                        @endforeach
-                                        </tbody>
-                                    </table>
-                                </div>
                             </div>
 
                         </div>
                     </div>
+
+
+                    {{-- LOG MODAL (твой) --}}
+                    <div class="modal fade" id="logModal" tabindex="-1" aria-labelledby="logModalLabel" aria-hidden="true">
+                        <div class="modal-dialog modal-lg modal-dialog-scrollable">
+                            <div class="modal-content" style="background-color:#212529;color:#f8f9fa;">
+                                <div class="modal-header">
+                                    <h5 class="modal-title" id="logModalLabel">Activity log</h5>
+                                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                                </div>
+                                <div class="modal-body">
+                                    <div id="logModalContent"></div>
+                                </div>
+                                <div class="modal-footer">
+                                    <button class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
 
                     {{-- Right panel: Components / Processes --}}
                     <div class="bottom-col right border-info gradient-pane">
@@ -757,7 +811,6 @@
                     </div>
 
                 </div>
-
             </div>
         </div>
     </div>
@@ -767,7 +820,9 @@
             @csrf
             @method('DELETE')
         </form>
+
         @include('components.delete')
+
         {{-- modal Assembly --}}
         <div class="offcanvas offcanvas-end text-bg-dark" tabindex="-1" id="assemblyCanvas">
             <div class="offcanvas-header border-bottom border-secondary">
@@ -778,6 +833,7 @@
                 <div class="text-muted small">Future data</div>
             </div>
         </div>
+
         <!--  Parts Modal -->
         <div class="modal fade" id="partsModal{{$current_workorder->number}}" tabindex="-1"
              role="dialog" aria-labelledby="orderModalLabel{{$current_workorder->number}}" aria-hidden="true">
@@ -863,10 +919,10 @@
                         <h5 class="text-center mt-3 mb-3 text-primary">{{__('No Ordered Parts')}}</h5>
                     @endif
 
-
                 </div>
             </div>
         </div>
+
         {{-- Photo modal --}}
         <div class="modal fade" id="photoModal" tabindex="-1"
              aria-labelledby="photoModalLabel" aria-hidden="true">
@@ -889,6 +945,7 @@
                 </div>
             </div>
         </div>
+
         {{-- Confirm delete photo --}}
         <div class="modal fade" id="confirmDeletePhotoModal" tabindex="-1"
              aria-labelledby="confirmDeletePhotoLabel" aria-hidden="true">
@@ -910,6 +967,7 @@
                 </div>
             </div>
         </div>
+
         {{-- Toast --}}
         <div class="position-fixed bottom-0 end-0 p-3" style="z-index: 1055">
             <div id="photoDeletedToast"
@@ -920,6 +978,7 @@
                 </div>
             </div>
         </div>
+
         {{-- LOG MODAL --}}
         <div class="modal fade" id="logModal" tabindex="-1"
              aria-labelledby="logModalLabel" aria-hidden="true">
@@ -1076,7 +1135,7 @@
                                 },
 
                                 onReady(selectedDates, dateStr, instance) {
-                                    instance.altInput.classList.add('form-control', 'form-control-sm', 'w-100');
+                                    instance.altInput.classList.add('form-control', 'form-control-sm', 'w-100','fp-alt');
 
                                     // если хочешь сохранить стили для finish
                                     if (src.classList.contains('finish-input')) instance.altInput.classList.add('finish-input');
@@ -1089,7 +1148,6 @@
 
                         document.body.classList.add('fp-ready');
                     }
-
 
                     function initAutoSubmitOrder() {
 
@@ -1155,7 +1213,6 @@
                         });
                     }
 
-
                     // ----- delete (tasks / mains / tdrprocesses через общий modal) -----
                     const modalEl = document.getElementById('useConfirmDelete');
                     const confirmBt = document.getElementById('confirmDeleteBtn');
@@ -1186,7 +1243,6 @@
                     });
 
                     // ===== ЛОГИКА ФОТО =====
-
                     const confirmPhotoBtn = document.getElementById('confirmPhotoDeleteBtn');
 
                     confirmPhotoBtn?.addEventListener('click', async function () {
@@ -1250,7 +1306,6 @@
                         });
                     });
 
-                    // загрузка фото
                     // загрузка фото в модалку
                     async function loadPhotoModal(workorderId) {
                         const modalContent = document.getElementById('photoModalContent');
@@ -1326,7 +1381,6 @@
                         }
                     }
 
-
                     // навесить обработчики на кнопки удаления
                     function bindDeleteButtons() {
                         document.querySelectorAll('.delete-photo-btn').forEach(btn => {
@@ -1389,7 +1443,6 @@
                             new bootstrap.Modal(document.getElementById('logModal')).show();
                         });
                     });
-
 
                     async function loadLogModal(url) {
                         const container = document.getElementById('logModalContent');
@@ -1481,9 +1534,9 @@
                         }
                     }
 
-
                 });
             </script>
+
             <script>
                 (function () {
                     'use strict';
@@ -1821,6 +1874,7 @@
 
                 })();
             </script>
+
             {{-- Training functions --}}
             <script>
                 function createTrainings(manualId) {
@@ -1907,5 +1961,67 @@
                         });
                 }
             </script>
+
+            <script>
+                document.addEventListener('DOMContentLoaded', () => {
+                    document.addEventListener('click', (e) => {
+                        const btn = e.target.closest('.js-gt-btn');
+                        if (!btn) return;
+                        const gtId = btn.dataset.gtId;
+                        document.querySelectorAll('.js-gt-btn').forEach(b => {
+                            const on = (b === btn);
+                            b.classList.toggle('active', on);
+                            b.setAttribute('aria-pressed', on ? 'true' : 'false');
+                        });
+
+                        document.querySelectorAll('.js-gt-pane').forEach(p => {
+                            p.classList.toggle('d-none', p.dataset.gtId !== gtId);
+                        });
+
+                        if (typeof initDatePickers === 'function') initDatePickers();
+                    });
+
+                    // autosubmit on change
+                    document.addEventListener('change', (e) => {
+                        const input = e.target.closest('form.js-auto-submit input');
+                        if (!input) return;
+                        input.form.submit();
+                    });
+
+                    // open logs
+                    const logModalEl = document.getElementById('logModal');
+                    const logModal = logModalEl ? new bootstrap.Modal(logModalEl) : null;
+
+                    document.addEventListener('click', async (e) => {
+                        const b = e.target.closest('.js-open-log');
+                        if (!b) return;
+
+                        const url = b.dataset.url;
+                        const box = document.getElementById('logModalContent');
+
+                        box.innerHTML = `<div class="text-muted small">Loading…<br><span class="text-muted">${url}</span></div>`;
+                        new bootstrap.Modal(document.getElementById('logModal')).show();
+
+                        try {
+                            const r = await fetch(url, { headers: { 'X-Requested-With': 'XMLHttpRequest' }});
+                            const text = await r.text();
+
+                            if (!r.ok) {
+                                box.innerHTML = `<div class="text-danger small">
+        HTTP ${r.status} ${r.statusText}<br>
+        <div class="mt-2 text-muted" style="white-space:pre-wrap;max-height:240px;overflow:auto;">${text}</div>
+      </div>`;
+                                return;
+                            }
+
+                            box.innerHTML = text;
+                        } catch (err) {
+                            box.innerHTML = `<div class="text-danger small">Fetch failed: ${err.message}</div>`;
+                        }
+                    });
+
+                });
+            </script>
+
 
 @endsection

@@ -16,12 +16,12 @@ function hideLoadingSpinner() {
             console.log('table-height-adjuster.js уже загружается или загружен');
             return;
         }
-        
+
         var script = document.createElement('script');
-        
+
         // Определяем путь к table-height-adjuster.js
         var scriptPath = '/js/table-height-adjuster.js'; // Путь по умолчанию
-        
+
         // Пытаемся найти скрипт main.js в DOM для определения базового пути
         var mainScript = document.querySelector('script[src*="main.js"]');
         if (mainScript && mainScript.src) {
@@ -30,11 +30,10 @@ function hideLoadingSpinner() {
             var basePath = mainScriptPath.substring(0, mainScriptPath.lastIndexOf('/'));
             scriptPath = basePath + '/table-height-adjuster.js';
         }
-        
+
         script.src = scriptPath;
         script.async = false; // Загружаем синхронно, чтобы функции были доступны сразу
         script.onload = function() {
-            console.log('table-height-adjuster.js загружен глобально через main.js');
             // Генерируем событие для уведомления других скриптов
             window.dispatchEvent(new Event('tableHeightAdjusterLoaded'));
         };

@@ -35,10 +35,16 @@ class TaskController extends Controller
 
     public function store(Request $request)
     {
-        $validated = $request->validate([
-            'name'              => ['required','string','max:255'],
-            'general_task_id'   => ['nullable','exists:general_tasks,id'],
-        ]);
+        $validated = $request->validate(
+            [
+                'name'            => ['required', 'string', 'max:255'],
+                'general_task_id' => ['required', 'exists:general_tasks,id'],
+            ],
+            [
+                'general_task_id.required' => 'Please select a general task.',
+                'general_task_id.exists'   => 'Selected general task does not exist.',
+            ]
+        );
 
         Task::create($validated);
 
