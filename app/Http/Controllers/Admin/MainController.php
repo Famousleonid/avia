@@ -27,7 +27,6 @@ class MainController extends Controller
     {
         return 1;
     }
-
     public function store(Request $request)
     {
         $data = $request->validate([
@@ -102,8 +101,6 @@ class MainController extends Controller
 
         return back()->with('success', 'Record created.');
     }
-
-
     public function show($workorder_id, Request $request)
     {
         $users          = User::all();
@@ -237,14 +234,14 @@ class MainController extends Controller
             'trainings','user_wo','manual_id','user','generalMains', 'mainsByTask','gtAllFinished'
         ));
     }
-
     public function edit($id)
     {
         return 1;
     }
-
     public function update(Request $request, Main $main)
     {
+
+       // "ignore_finish" => "1"
 
 
         $beforeStart  = $main->date_start ? Carbon::parse($main->date_start)->format('Y-m-d') : null;
@@ -319,13 +316,11 @@ class MainController extends Controller
 
         return back()->with('success', 'Record updated.');
     }
-
     public function destroy($id)
     {
 
         return redirect()->back();
     }
-
     public function progress(Request $request)
     {
 
@@ -398,7 +393,6 @@ class MainController extends Controller
             'team_techniks','customers','technikId','customerId','hideDone','byWorkorder','totals'
         ));
     }
-
     public function updateRepairOrder(Request $request, \App\Models\TdrProcess $tdrProcess)
     {
         $data = $request->validate([
@@ -411,7 +405,6 @@ class MainController extends Controller
 
         return back();
     }
-
     private function prevGeneralTask(GeneralTask $gt): ?GeneralTask
     {
         $order = $this->generalTaskOrder();
@@ -420,7 +413,6 @@ class MainController extends Controller
 
         return GeneralTask::where('name', $order[$i - 1])->first();
     }
-
     public function activity(Main $main)
     {
         $logs = Activity::query()
@@ -432,7 +424,6 @@ class MainController extends Controller
 
         return view('admin.mains.partials.activity_list', compact('main','logs'));
     }
-
     public function updateGeneralTaskDates(Request $request, Workorder $workorder, GeneralTask $generalTask)
     {
 

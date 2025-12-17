@@ -7,7 +7,7 @@ use Illuminate\Database\Eloquent\Model;
 class GeneralTask extends Model
 {
 
-    protected $fillable = ['name','sort_order'];
+    protected $fillable = ['name','sort_order', 'has_start_date'];
 
     protected $casts = [
         'has_start_date' => 'boolean',

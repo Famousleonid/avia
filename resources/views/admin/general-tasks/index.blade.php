@@ -76,6 +76,8 @@
                     <thead class="bg-gradient">
                     <tr>
                         <th class="text-primary sortable bg-gradient " data-direction="asc">{{__('Name')}}<i class="bi bi-chevron-expand ms-1"></i></th>
+                        <th class="text-primary sortable bg-gradient text-center" data-direction="asc">{{__('Sort line order')}}<i class="bi bi-chevron-expand ms-1"></i></th>
+                        <th class="text-primary sortable bg-gradient text-center" data-direction="asc">{{__('Has start date')}}<i class="bi bi-chevron-expand ms-1"></i></th>
                         <th class="text-primary text-center bg-gradient">{{__('Action')}}</th>
                     </tr>
                     </thead>
@@ -83,9 +85,19 @@
                     @foreach($general_tasks as $general_tasks)
                         <tr>
                             <td class="">{{$general_tasks->name}}</td>
+                            <td class="text-center">{{$general_tasks->sort_order}}</td>
+                            <td class="text-center">{{$general_tasks->has_start_date}}</td>
                             <td class="text-center">
-                                <button class="btn btn-outline-primary btn-sm me-2" data-bs-toggle="modal"
-                                        data-bs-target="#editModal" onclick="populateEditModal({{ $general_tasks->id }}, '{{ $general_tasks->name }}')">
+                                <button
+                                    type="button"
+                                    class="btn btn-outline-primary btn-sm me-2 js-edit-gt"
+                                    data-bs-toggle="modal"
+                                    data-bs-target="#editModal"
+                                    data-id="{{ $general_tasks->id }}"
+                                    data-name='@json($general_tasks->name)'
+                                    data-sort="{{ $general_tasks->sort_order }}"
+                                    data-hasstart="{{ (int)$general_tasks->has_start_date }}"
+                                >
                                     <i class="bi bi-pencil-square"></i>
                                 </button>
                                 <button class="btn btn-outline-danger btn-sm" data-bs-toggle="modal" data-bs-target="#deleteModal"
@@ -119,36 +131,64 @@
                             <label for="createName" class="form-label">Name</label>
                             <input type="text" id="createName" name="name" class="form-control" required>
                         </div>
+                        <div class="mb-3">
+                            <label for="createSort" class="form-label">Sort order</label>
+                            <input type="text" id="createSort" name="sort_order" class="form-control" required>
+                        </div>
+                        <div class="mb-3">
+                            <label for="createStart" class="form-label">Has start date</label>
+                            <input type="text" id="createStart" name="has_start_date" class="form-control" required>
+                        </div>
+
                         <button type="submit" class="btn btn-primary">Save</button>
                     </form>
                 </div>
             </div>
         </div>
     </div>
-
-    <!-- Edit Modal -->
     <div class="modal fade" id="editModal" tabindex="-1" aria-hidden="true">
         <div class="modal-dialog">
             <div class="modal-content">
+
                 <div class="modal-header">
                     <h5 class="modal-title">Edit General Task</h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                 </div>
+
                 <div class="modal-body">
-                    <form id="editForm" method="POST" action="{{ route('general-tasks.update', ':id') }}">
+                    <form id="editForm"
+                          method="POST"
+                          data-action="{{ route('general-tasks.update', ':id') }}"
+                          action="{{ route('general-tasks.update', ':id') }}">
                         @csrf
                         @method('PUT')
+
                         <input type="hidden" id="editId" name="id">
+
                         <div class="mb-3">
                             <label for="editName" class="form-label">Name</label>
                             <input type="text" id="editName" name="name" class="form-control" required>
                         </div>
+
+                        <div class="mb-3">
+                            <label for="sortName" class="form-label">Sort order</label>
+                            <input type="number" id="sortName" name="sort_order" class="form-control" min="0" required>
+                        </div>
+
+                        <div class="form-check mb-3">
+                            <input type="hidden" name="has_start_date" value="0">
+                            <input class="form-check-input" type="checkbox" id="hasStart" name="has_start_date" value="1">
+                            <label class="form-check-label" for="hasStart">Has start date</label>
+                        </div>
+
                         <button type="submit" class="btn btn-primary" onclick="showLoadingSpinner()">Update</button>
                     </form>
                 </div>
+
             </div>
         </div>
     </div>
+
 
     <!-- Delete Modal -->
     <div class="modal fade" id="deleteModal" tabindex="-1" aria-hidden="true">
@@ -173,28 +213,33 @@
 @endsection
 
 @section('scripts')
+
     <script>
         document.addEventListener('DOMContentLoaded', function () {
+
             const table = document.getElementById('cmmTable');
             const searchInput = document.getElementById('searchInput');
             const headers = document.querySelectorAll('.sortable');
 
-            // Sorting
+            // =========================
+            // SORTING
+            // =========================
             headers.forEach(header => {
                 header.addEventListener('click', () => {
                     const columnIndex = Array.from(header.parentNode.children).indexOf(header) + 1;
                     const direction = header.dataset.direction === 'asc' ? 'desc' : 'asc';
                     header.dataset.direction = direction;
 
-                    // Icon
+                    // icon
                     headers.forEach(h => {
                         const icon = h.querySelector('i');
-                        if (icon) icon.className = 'bi bi-chevron-expand';
+                        if (icon) icon.className = 'bi bi-chevron-expand ms-1';
                     });
                     const currentIcon = header.querySelector('i');
-                    if (currentIcon) currentIcon.className = direction === 'asc' ? 'bi bi-arrow-up' : 'bi bi-arrow-down';
+                    if (currentIcon) currentIcon.className = direction === 'asc'
+                        ? 'bi bi-arrow-up ms-1'
+                        : 'bi bi-arrow-down ms-1';
 
-                    // Sorting row
                     const rows = Array.from(table.querySelectorAll('tbody tr'));
                     rows.sort((a, b) => {
                         const aText = a.querySelector(`td:nth-child(${columnIndex})`).innerText.trim();
@@ -202,36 +247,86 @@
                         return direction === 'asc' ? aText.localeCompare(bText) : bText.localeCompare(aText);
                     });
 
-                    // Updating the table
                     rows.forEach(row => table.querySelector('tbody').appendChild(row));
                 });
             });
 
-            // Search
-            searchInput.addEventListener('input', () => {
-                const filter = searchInput.value.toLowerCase();
-                showLoadingSpinner();
-                setTimeout(() => {
-                    const rows = table.querySelectorAll('tbody tr');
-                    rows.forEach(row => {
-                        const text = row.innerText.toLowerCase();
-                        row.style.display = text.includes(filter) ? '' : 'none';
-                    });
-                    hideLoadingSpinner();
-                }, 100);
-            });
+            // =========================
+            // SEARCH
+            // =========================
+            if (searchInput) {
+                searchInput.addEventListener('input', () => {
+                    const filter = searchInput.value.toLowerCase();
+                    showLoadingSpinner?.();
+
+                    setTimeout(() => {
+                        const rows = table.querySelectorAll('tbody tr');
+                        rows.forEach(row => {
+                            const text = row.innerText.toLowerCase();
+                            row.style.display = text.includes(filter) ? '' : 'none';
+                        });
+                        hideLoadingSpinner?.();
+                    }, 80);
+                });
+            }
+
+            // =========================
+            // EDIT MODAL: FILL FROM data-*
+            // =========================
+            const editModalEl = document.getElementById('editModal');
+            if (editModalEl) {
+                editModalEl.addEventListener('show.bs.modal', function (event) {
+                    const btn = event.relatedTarget; // кнопка, которая открыла модалку
+                    if (!btn) return;
+
+                    // читаем data-*
+                    const id = btn.getAttribute('data-id') ?? '';
+                    const nameJson = btn.getAttribute('data-name') ?? '""';
+                    const sort = btn.getAttribute('data-sort') ?? '';
+                    const hasStart = btn.getAttribute('data-hasstart') ?? '0';
+
+                    // парсим name (оно в JSON)
+                    let name = '';
+                    try { name = JSON.parse(nameJson); } catch (e) { name = nameJson; }
+
+                    // заполняем поля
+                    document.getElementById('editId').value = id;
+                    document.getElementById('editName').value = name;
+                    document.getElementById('sortName').value = sort;
+                    document.getElementById('hasStart').checked = String(hasStart) === '1';
+
+                    // action по шаблону (без поломки)
+                    const form = document.getElementById('editForm');
+                    const baseAction = form.dataset.action;
+                    form.action = baseAction.replace(':id', id);
+                });
+
+                // (опционально) чистим форму при закрытии
+                editModalEl.addEventListener('hidden.bs.modal', function () {
+                    document.getElementById('editId').value = '';
+                    document.getElementById('editName').value = '';
+                    document.getElementById('sortName').value = '';
+                    document.getElementById('hasStart').checked = false;
+
+                    const form = document.getElementById('editForm');
+                    form.action = form.dataset.action; // вернём шаблон
+                });
+            }
+
         });
 
-        function populateEditModal(id, name) {
-            document.getElementById('editId').value = id;
-            document.getElementById('editName').value = name;
-            document.getElementById('editForm').action = `{{ route('general-tasks.update', ':id') }}`.replace(':id', id);
-        }
-
+        // =========================
+        // DELETE MODAL
+        // =========================
         function populateDeleteModal(id, name) {
             document.getElementById('deleteId').value = id;
-            document.getElementById('deleteForm').action = `{{ route('general-tasks.destroy', ':id') }}`.replace(':id', id);
-            document.getElementById('deleteModalTitle').innerText = `Delete general task (${name})`;
+            document.getElementById('deleteForm').action =
+                `{{ route('general-tasks.destroy', ':id') }}`.replace(':id', id);
+
+            document.getElementById('deleteModalTitle').innerText =
+                `Delete general task (${name})`;
         }
     </script>
+
+
 @endsection
