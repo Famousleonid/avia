@@ -60,9 +60,9 @@ class WoBushingController extends Controller
             ->with('process_name')
             ->get();
 
-        // Stress Relief processes - все процессы для 'Stress Relief'
+        // Stress Relief processes - все процессы для 'Bake (Stress relief)'
         $stressReliefProcesses = Process::whereHas('process_name', function($query) {
-                $query->where('name', 'Stress Relief');
+                $query->where('name', 'Bake (Stress relief)');
             })
             ->whereHas('manuals', function($query) use ($manual_id) {
                 $query->where('manual_id', $manual_id);
@@ -234,9 +234,9 @@ class WoBushingController extends Controller
             ->with('process_name')
             ->get();
 
-        // Stress Relief processes - все процессы для 'Stress Relief'
+        // Stress Relief processes - все процессы для 'Bake (Stress relief)'
         $stressReliefProcesses = Process::whereHas('process_name', function($query) {
-                $query->where('name', 'Stress Relief');
+                $query->where('name', 'Bake (Stress relief)');
             })
             ->whereHas('manuals', function($query) use ($manual_id) {
                 $query->where('manual_id', $manual_id);
@@ -359,9 +359,9 @@ class WoBushingController extends Controller
             ->with('process_name')
             ->get();
 
-        // Stress Relief processes - все процессы для 'Stress Relief'
+        // Stress Relief processes - все процессы для 'Bake (Stress relief)'
         $stressReliefProcesses = Process::whereHas('process_name', function($query) {
-                $query->where('name', 'Stress Relief');
+                $query->where('name', 'Bake (Stress relief)');
             })
             ->whereHas('manuals', function($query) use ($manual_id) {
                 $query->where('manual_id', $manual_id);
@@ -623,7 +623,7 @@ class WoBushingController extends Controller
                             case 'Machining':
                                 $processId = $bushItem['processes']['machining'] ?? null;
                                 break;
-                            case 'Stress Relief':
+                            case 'Bake (Stress relief)':
                                 $processId = $bushItem['processes']['stress_relief'] ?? null;
                                 break;
                             case 'Passivation':
@@ -699,7 +699,7 @@ class WoBushingController extends Controller
                         $activeProcesses = [];
                         $processOrder = [
                             'Machining' => 'machining',
-                            'Stress Relief' => 'stress_relief',
+                            'Bake (Stress relief)' => 'stress_relief',
                             'NDT' => 'ndt',
                             'Passivation' => 'passivation',
                             'CAD' => 'cad',
@@ -751,7 +751,7 @@ class WoBushingController extends Controller
         // Получаем названия процессов для отображения
         $processNames = ProcessName::whereIn('name', [
             'Machining',
-            'Stress Relief',
+            'Bake (Stress relief)',
             'NDT-1',
             'NDT-4',
             'Eddy Current Test',

@@ -209,7 +209,7 @@
                                     Stress Relief<br>
                                     @if($woBushing)
                                         @php
-                                            $stressReliefProcessName = \App\Models\ProcessName::where('name', 'Stress Relief')->first();
+                                            $stressReliefProcessName = \App\Models\ProcessName::where('name', 'Bake (Stress relief)')->first();
                                             // Проверяем, есть ли сохраненные данные для Stress Relief
                                             $hasStressReliefData = false;
                                             if (!empty($bushData)) {

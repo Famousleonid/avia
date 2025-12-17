@@ -696,6 +696,62 @@
             </div>
         </div>
 
+        <!-- Строка 4.5: Stress Relief -->
+        <div class="row g-0 ">
+            <div class="col-2 border-l-t ps-1">
+                <div style="height: 30px"><strong>Stress Relief</strong></div>
+            </div>
+            <div class="col-10">
+                <div class="row g-0">
+                    @if(isset($processGroups) && count($processGroups) > 0)
+                        @foreach($processGroups as $groupIndex => $group)
+                            <div class="col {{ $groupIndex < 5 ? 'border-l-t-r' : 'border-l-t' }} text-center" style="height:
+                            30px; position: relative;">
+                                <div class="row g-0">
+                                    <div class="col-2 text-center border-r" style="height: 30px;">
+                                        @if(in_array('Bake (Stress relief)', $group['processes']))
+                                            <span class="">{{ $group['process_numbers']['Bake (Stress relief)'] ?? '' }}</span>
+                                        @endif
+                                    </div>
+                                    <div class="col-6 text-center" style="height: 30px;">
+                                        @if(in_array('Bake (Stress relief)', $group['processes']))
+                                            <span class="">
+ {{--                                                {{ $group['process_numbers']['Bake (Stress relief)'] ?? '' }}--}}
+                                            </span>
+                                        @endif
+                                    </div>
+                                </div>
+                            </div>
+                        @endforeach
+                        <!-- Дополняем до 6 столбцов пустыми -->
+                        @for($i = count($processGroups); $i < 6; $i++)
+                            <div class="col {{ $i < 5 ? 'border-l-t' : 'border-l-t-r' }} text-center" style="height: 30px;
+                            position: relative;">
+                                <div class="row g-0">
+                                    <div class="col-2 text-center border-r" style="height: 30px;">
+                                    </div>
+                                    <div class="col-6 text-center" style="height: 30px;">
+                                    </div>
+                                </div>
+                            </div>
+                        @endfor
+                    @else
+                        @for($i = 0; $i < 6; $i++)
+                            <div class="col {{ $i < 5 ? 'border-l-t' : 'border-l-t-r' }} text-center" style="height: 30px;
+                            position: relative;">
+                                <div class="row g-0">
+                                    <div class="col-2 text-center border-r" style="height: 30px;">
+                                    </div>
+                                    <div class="col-6 text-center" style="height: 30px;">
+                                    </div>
+                                </div>
+                            </div>
+                        @endfor
+                    @endif
+                </div>
+            </div>
+        </div>
+
         <!-- Строка 5: Passivation -->
         <div class="row g-0 ">
             <div class="col-2 border-l-t ps-1">
