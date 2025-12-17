@@ -369,7 +369,7 @@
                     @else
                         <!-- Если нет данных о группах, показываем базовую структуру -->
                         @for($i = 0; $i < 6; $i++)
-                            <div class="col {{ $i < 5 ? 'border-l-t' : 'border-l-t-r' }} text-center" style="height: 30px">
+                            <div class="col {{ $i < 5 ? 'border-l-t' : 'border-t-r' }} text-center" style="height: 30px">
                                 <span class="">
 {{--                                    Component {{ $i + 1 }}--}}
                                 </span>
@@ -383,23 +383,46 @@
         <!-- Строка для Part No. -->
         <div class="row g-0 ">
             <div class="col-2 border-l-t ps-1">
-                <div style="height: 28px"><strong> Part No.</strong></div>
+                <div style="min-height: 28px"><strong> Part No.</strong></div>
             </div>
             <!-- Данные Part No. -->
             <div class="col-10">
                 <div class="row g-0 ">
                     @if(isset($processGroups) && count($processGroups) > 0)
                         @foreach($processGroups as $groupIndex => $group)
-                            <div class="col {{ $groupIndex < 5 ? 'border-l-t-r' : 'border-l-t'}} text-center" style="height:
-                            30px">
-                                <span class="">
-{{--                                    Part Number--}}
-                                </span>
+                            <div class="col {{ ($groupIndex == count($processGroups) - 1 && count($processGroups) < 6) ?
+                            'border-l-t-r' : 'border-l-t' }} text-center" style="min-height: 30px; padding: 2px;">
+                                @php
+                                    // Собираем уникальные part_number с количеством из всех компонентов группы
+                                    $partNumbersWithQty = [];
+                                    if (isset($group['components']) && is_array($group['components'])) {
+                                        foreach ($group['components'] as $compItem) {
+                                            if (isset($compItem['component']) && $compItem['component']->part_number) {
+                                                $partNum = trim($compItem['component']->part_number);
+                                                if (!empty($partNum)) {
+                                                    $qty = isset($compItem['qty']) ? (int)$compItem['qty'] : 1;
+                                                    if (!isset($partNumbersWithQty[$partNum])) {
+                                                        $partNumbersWithQty[$partNum] = 0;
+                                                    }
+                                                    $partNumbersWithQty[$partNum] += $qty;
+                                                }
+                                            }
+                                        }
+                                    }
+                                @endphp
+                                @if(count($partNumbersWithQty) > 0)
+                                    <div style="font-size: calc(1rem - 0.3rem); line-height: calc(1rem - 0.3rem); text-align: center;">
+                                        @foreach($partNumbersWithQty as $partNum => $qty)
+                                            <div>{{ $partNum }}{{__(' : ')}}{{ $qty }}</div>
+                                        @endforeach
+                                    </div>
+                                @endif
                             </div>
                         @endforeach
                         <!-- Дополняем до 6 столбцов пустыми -->
                         @for($i = count($processGroups); $i < 6; $i++)
-                            <div class="col {{ $i < 5 ? 'border-l-t' : 'border-l-t-r'}} text-center" style="height: 30px">
+                            <div class="col {{ $i < 5 ? 'border-l-t' : 'border-l-t-r'}} text-center" style="min-height: 30px;
+                            padding: 2px;">
                                 <span class="">
 {{--                                    Part {{ $i + 1 }}--}}
                                 </span>
@@ -408,7 +431,8 @@
                     @else
                         <!-- Если нет данных о группах, показываем базовую структуру -->
                         @for($i = 0; $i < 6; $i++)
-                            <div class="col {{ $i < 5 ? 'border-l-t' : 'border-l-t-r'}} text-center" style="height: 30px">
+                            <div class="col {{ $i < 5 ? 'border-l-t' : 'border-t-r'}} text-center" style="min-height: 30px;
+                            padding: 2px;">
                                 <span class="">
 {{--                                    Part {{ $i + 1 }}--}}
                                 </span>
@@ -444,7 +468,7 @@
                     @else
                         <!-- Если нет данных о группах, показываем базовую структуру -->
                         @for($i = 0; $i < 6; $i++)
-                            <div class="col {{ $i < 5 ? 'border-l-t' : 'border-l-t-r'}} text-center" style="height: 30px">
+                            <div class="col {{ $i < 5 ? 'border-l-t' : 'border-t-r'}} text-center" style="height: 30px">
                                 <span class="">
 {{--                                    Serial {{ $i + 1 }}--}}
                                 </span>
@@ -491,7 +515,7 @@
         <!-- Строка 1: N.D.T. -->
         <div class="row g-0 ">
             <div class="col-2 border-l-t ps-1">
-                <div style="height: 30px"><strong>N.D.T.</strong></div>
+                <div style="height: 30px"><strong></strong></div>
             </div>
             <div class="col-10">
                 <div class="row g-0">
@@ -547,7 +571,7 @@
         <!-- Строка 2: N.D.T. -->
         <div class="row g-0 ">
             <div class="col-2 border-l ps-1">
-                <div style="height: 30px"><strong> </strong></div>
+                <div style="height: 30px"><strong> N.D.T.</strong></div>
             </div>
             <div class="col-10">
                 <div class="row g-0">
@@ -977,7 +1001,7 @@
         </div>
 
         <!-- Строки 9-15: Пустые строки -->
-        @for($row = 9; $row <= 13; $row++)
+        @for($row = 1; $row <= 1; $row++)
         <div class="row g-0 ">
             <div class="col-2 border-l-t ps-1">
                 <div style="height: 30px"></div>

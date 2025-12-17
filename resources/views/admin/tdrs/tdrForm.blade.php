@@ -223,16 +223,16 @@
     <div class="row">
         <div class="col-4">
             <img src="{{ asset('img/icons/AT_logo-rb.svg') }}" alt="Logo"
-                 style="width: 180px; margin: 6px 10px 0;">
+                 style="width: 120px; margin: 6px 10px 0;">
         </div>
         <div class="col-8">
-            <h5 class="pt-1   text-black text-"><strong>WORK ORDER TEAR DOWN REPORT</strong></h5>
+            <h5 class="pt-3 text-black text-"><strong>WORK ORDER TEAR DOWN REPORT</strong></h5>
         </div>
 
     </div>
 
     <div class="row" style="height: 30px">
-        <div class="col-5 pt-1">
+        <div class="col-5 pt-2">
             <p class="fs-6 text-end " >COMPONENT DESCRPTION:</p>
         </div>
         <div class="col-5 border-all pt-1" style="height: 32px">
@@ -335,7 +335,7 @@
     </div>
     @php
         // Количество строк для каждого столбца
-        $totalRows = 20;
+        $totalRows = 19;
         // Разделяем значения массива на два столбца
         $firstColumn = array_slice($tdrInspections, 0, $totalRows);
         $secondColumn = array_slice($tdrInspections, $totalRows, $totalRows);

@@ -240,10 +240,10 @@
         <div class="row">
             <div class="col-3">
                 <img src="{{ asset('img/icons/AT_logo-rb.svg') }}" alt="Logo"
-                     style="width: 180px; margin: 6px 10px 0;">
+                     style="width: 120px; margin: 6px 10px 0;">
             </div>
             <div class="col-9">
-                <h2 class=" mt-3 text-black text-"><strong>{{$process_name->process_sheet_name}} PROCESS SHEET</strong></h2>
+                <h4 class=" mt-3 text-black text-"><strong>{{$process_name->process_sheet_name}} PROCESS SHEET</strong></h4>
             </div>
         </div>
         <div class="row">

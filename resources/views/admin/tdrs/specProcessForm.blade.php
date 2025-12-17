@@ -255,7 +255,7 @@
 
 <body>
 <!-- Кнопка для печати -->
-<div class="text-start m-3">
+<div class="text-start m-2">
     <button class="btn btn-primary no-print" onclick="window.print()">
         Print Form
     </button>
@@ -273,7 +273,7 @@
         <div class="row">
             <div class="col-1">
                 <img src="{{ asset('img/icons/AT_logo-rb.svg') }}" alt="Logo"
-                     style="width: 160px; margin: 0px 6px 0;">
+                     style="width: 120px; margin: 0px 4px 0;">
             </div>
             <div class="col-11">
                 <h5 class="  text-black text-center"><strong>Special Process Form</strong></h5>
@@ -306,24 +306,23 @@
                 </div>
                 <div class="border-l-t-b text-center pt-0 fs-75" style="width: 25px;height: 20px">
                     @if($current_wo->instruction_id ==1)
-                        {{ !isset($ndtSums['mpi']) || $ndtSums['mpi'] === null ? 'N/A' : $ndtSums['mpi'] }}
+                        {{ !isset($ndtSums['mpi']) || $ndtSums['mpi'] === null ? ' ' : $ndtSums['mpi'] }}
                     @else
-                        {{__('N/A')}}
+                        {{__(' ')}}
                     @endif
                 </div>
                 <div class="border-l-t-b ps-2 fs-8 " style="width: 130px;height: 20px; color: lightgray; font-style: italic" >RO
                     No.</div>
                 <div class="border-all text-center pt-0 fs-75" style="width: 25px;height: 20px">
                     @if($current_wo->instruction_id ==1)
-                         {{ !isset($ndtSums['fpi']) || $ndtSums['fpi'] === null ? 'N/A' : $ndtSums['fpi'] }}
+                         {{ !isset($ndtSums['fpi']) || $ndtSums['fpi'] === null ? ' ' : $ndtSums['fpi'] }}
                     @else
-                        {{__('N/A')}}
+                        {{__(' ')}}
                     @endif
                 </div>
                 <div class=" text-center fs-8" style="width: 20px;height: 20px"></div>
                 <div class="border-l-t-b ps-2 fs-8 " style="width: 100px;height: 20px; color: lightgray; font-style:
-                italic" >RO
-                    No.</div>
+                italic" >RO No.</div>
                 <div class="border-all text-center pt-0 fs-75" style="width: 25px;height: 20px">
 
 {{--                    {{ empty($cadSum['total_qty']) ? 'N/A' : $cadSum['total_qty']  }}--}}
@@ -335,15 +334,15 @@
                         $result = ($hasA && $hasB) ? ((int)$a + (int)$b) : (($hasA ? (int)$a : ($hasB ? (int)$b : null)));
                     @endphp
                     @if($current_wo->instruction_id==1)
-                        {{ ($result !== null && $result > 0) ? $result : 'N/A' }}
+                        {{ ($result !== null && $result > 0) ? $result : ' ' }}
                     @else
-                        {{ ($cadSum_ex > 0) ? $cadSum_ex : 'N/A'}}
+                        {{ ($cadSum_ex > 0) ? $cadSum_ex : ' '}}
                     @endif
 
 
                 </div>
-                <div class=" text-center fs-7" style="width: 305px;height: 20px"></div>
-                <div class=" text-end pt-2 fs-8" style="width: 75px;height: 10px">Technician</div>
+                <div class=" text-center fs-7" style="width: 305px;height: 10px"></div>
+                <div class=" text-end pt-2 fs-8" style="width: 75px;height: 6px">Technician</div>
                 <div class="border-b " style="width: 120px"></div>
                 <div class="border-l-t-r" style="width: 40px;height: 28px"></div>
 
@@ -351,11 +350,11 @@
             <div class="d-flex">
                 <div class="text-end fs-7 pe-4" style="width: 880px; height: 15px">Name</div>
                 <div class=" " style="width: 29px"></div>
-                <div class="border-l-b-r" style="width: 40px;height: 12px"></div>
+                <div class="border-l-b-r" style="width: 40px;height: 6px"></div>
             </div>
 
         </div>
-        <div class="d-flex mb-1">
+        <div class="d-flex mb-0">
             <div class="" style="width: 80px"></div>
             <img src="{{ asset('img/icons/arrow_ld.png')}}" alt="arrow"
                  style="height: 5px;width: 60px" class="mt-2">
