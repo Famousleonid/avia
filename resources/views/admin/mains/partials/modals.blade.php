@@ -1,0 +1,178 @@
+{{-- modal Assembly --}}
+<div class="offcanvas offcanvas-end text-bg-dark" tabindex="-1" id="assemblyCanvas">
+    <div class="offcanvas-header border-bottom border-secondary">
+        <h5 class="mb-0">Assembly</h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="offcanvas"></button>
+    </div>
+    <div class="offcanvas-body">
+        <div class="text-muted small">Future data</div>
+    </div>
+</div>
+
+<!--  Parts Modal -->
+<div class="modal fade" id="partsModal{{$current_workorder->number}}" tabindex="-1"
+     role="dialog" aria-labelledby="orderModalLabel{{$current_workorder->number}}" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered" role="document">
+        <div class="modal-content bg-gradient" style="width: 900px">
+            <div class="modal-header" style="width: 900px">
+                <div class="d-flex ">
+                    <h4 class="modal-title">{{__('Work order ')}}{{$current_workorder->number}}</h4>
+                    <h4 class="modal-title ms-4">{{__('Extra Parts  ')}}</h4>
+                </div>
+                <button type="button" class="btn-close pb-2" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+
+            @if(count($ordersPartsNew))
+                <div class="table-wrapper">
+                    <table class="display table table-cm table-hover table-striped align-middle table-bordered">
+                        <thead class="bg-gradient">
+                        <tr>
+                            <th class="text-primary  bg-gradient " data-direction="asc">{{__('IPL')}}</th>
+                            <th class="text-primary  bg-gradient "
+                                data-direction="asc">{{__('Part Description') }}</th>
+                            <th class="text-primary  bg-gradient " style="width: 250px;"
+                                data-direction="asc">{{__('Part Number')}}</th>
+                            <th class="text-primary  bg-gradient " data-direction="asc">{{__('QTY')}}</th>
+                            <th class="text-primary  bg-gradient ">{{__('PO NO.')}} </th>
+                            <th class="text-primary  bg-gradient ">{{__('Received')}}</th>
+                        </tr>
+                        </thead>
+                        <tbody>
+
+                        @foreach($prl_parts as $part)
+                            @php
+                                $currentComponent = $part->orderComponent ?? $part->component;
+                            @endphp
+                            <tr>
+
+                                <td class="" style="width: 100px"> {{$currentComponent->ipl_num ?? ''}} </td>
+                                <td class="" style="width: 250px"> {{$currentComponent->name ?? ''}} </td>
+                                <td class="" style="width: 120px;"> {{$currentComponent->part_number ?? ''}} </td>
+                                <td class="" style="width: 150px;"> {{$part->qty}} </td>
+                                <td class="" style="width: 150px;">
+                                    <div class="po-no-container">
+                                        <select class="form-select form-select-sm po-no-select"
+                                                data-tdrs-id="{{ $part->id }}"
+                                                data-workorder-number="{{ $current_workorder->number }}"
+                                                style="width: 100%;">
+                                            <option value="">-- Select --</option>
+                                            <option
+                                                value="Customer" {{ $part->po_num === 'Customer' ? 'selected' : '' }}>
+                                                Customer
+                                            </option>
+                                            <option
+                                                value="Transfer from WO" {{ $part->po_num && \Illuminate\Support\Str::startsWith($part->po_num, 'Transfer from WO') ? 'selected' : '' }}>
+                                                Transfer from WO
+                                            </option>
+                                            <option
+                                                value="INPUT" {{ $part->po_num && !\Illuminate\Support\Str::startsWith($part->po_num, ['Customer', 'Transfer from WO']) ? 'selected' : '' }}>
+                                                PO No.
+                                            </option>
+                                        </select>
+                                        <input type="text"
+                                               class="form-control form-control-sm po-no-input mt-1"
+                                               data-tdrs-id="{{ $part->id }}"
+                                               data-workorder-number="{{ $current_workorder->number }}"
+                                               placeholder="Po No."
+                                               value="{{ $part->po_num && !\Illuminate\Support\Str::startsWith($part->po_num, ['Customer', 'Transfer from WO']) ? $part->po_num : '' }}"
+                                               style="display: {{ $part->po_num && !\Illuminate\Support\Str::startsWith($part->po_num, ['Customer', 'Transfer from WO']) ? 'block' : 'none' }};">
+                                    </div>
+                                </td>
+                                <td class="" style="width: 150px;">
+                                    <input type="date"
+                                           class="form-control form-control-sm received-date"
+                                           data-tdrs-id="{{ $part->id }}"
+                                           data-workorder-number="{{ $current_workorder->number }}"
+                                           value="{{ $part->received ? \Carbon\Carbon::parse($part->received)->format('Y-m-d') : '' }}">
+                                </td>
+                            </tr>
+                        @endforeach
+                        </tbody>
+                    </table>
+                </div>
+            @else
+                <h5 class="text-center mt-3 mb-3 text-primary">{{__('No Ordered Parts')}}</h5>
+            @endif
+
+        </div>
+    </div>
+</div>
+
+{{-- Photo modal --}}
+<div class="modal fade" id="photoModal" tabindex="-1"
+     aria-labelledby="photoModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-xl modal-dialog-scrollable">
+        <div class="modal-content" style="background-color: #343A40">
+            <div class="modal-header">
+                <h5 class="modal-title" id="photoModalLabel">Photos</h5>
+                <button type="button"
+                        class="btn-close"
+                        data-bs-dismiss="modal"
+                        aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div id="photoModalContent" class="row g-3"></div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                <button class="btn btn-primary" id="saveAllPhotos">Download All</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+{{-- Confirm delete photo --}}
+<div class="modal fade" id="confirmDeletePhotoModal" tabindex="-1"
+     aria-labelledby="confirmDeletePhotoLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content text-center">
+            <div class="modal-header">
+                <h5 class="modal-title" id="confirmDeletePhotoLabel">Confirm Deletion</h5>
+            </div>
+            <div class="modal-body">
+                Are you sure you want to delete this photo?
+            </div>
+            <div class="modal-footer justify-content-center">
+                <button type="button"
+                        class="btn btn-secondary"
+                        data-bs-dismiss="modal">Cancel
+                </button>
+                <button id="confirmPhotoDeleteBtn" class="btn btn-danger">Delete</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+{{-- Toast --}}
+<div class="position-fixed bottom-0 end-0 p-3" style="z-index: 1055">
+    <div id="photoDeletedToast"
+         class="toast bg-success text-white" role="alert"
+         aria-live="assertive" aria-atomic="true">
+        <div class="toast-body">
+            Photo deleted successfully.
+        </div>
+    </div>
+</div>
+
+{{-- LOG MODAL --}}
+<div class="modal fade" id="logModal" tabindex="-1"
+     aria-labelledby="logModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-scrollable">
+        <div class="modal-content" style="background-color:#212529;color:#f8f9fa;">
+            <div class="modal-header">
+                <h5 class="modal-title" id="logModalLabel">Activity log</h5>
+                <button type="button" class="btn-close btn-close-white"
+                        data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div id="logModalContent">
+                    {{-- сюда подставится список логов --}}
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+            </div>
+        </div>
+    </div>
+</div>
+

@@ -19,7 +19,9 @@ class GeneralTaskController extends Controller
     public function store(Request $request)
     {
         $validated = $request->validate([
-            'name' => 'required|string|max:250'
+            'name' => 'required|string|max:250',
+            'sort_order' => ['required', 'integer', 'min:0'],
+            'has_start_date' => ['required', 'boolean'],
         ]);
 
         GeneralTask::create($validated);
@@ -31,7 +33,9 @@ class GeneralTaskController extends Controller
     public function update(Request $request, GeneralTask $generalTask)
     {
         $validated = $request->validate([
-            'name' => 'required|string|max:250'
+            'name' => ['required', 'string', 'max:250'],
+            'sort_order' => ['required', 'integer', 'min:0'],
+            'has_start_date' => ['required', 'boolean'],
         ]);
 
         $generalTask->update($validated);
