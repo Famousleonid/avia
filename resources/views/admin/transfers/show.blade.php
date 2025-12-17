@@ -11,6 +11,29 @@
                     <span class="text-white-50">{{ __('Work Order') }}:</span>
                     <span class="text-success fw-bold">W{{ $workorder->number }}</span>
                 </div>
+                {{-- Кнопка для исходящих трансферов (текущий WO - источник) --}}
+                @if($hasOutgoingGroup)
+                    <a href="{{ route('transfers.transfersForm', $workorder->id) }}"
+                       class="btn btn-outline-info me-2"
+                       target="_blank"
+                       title="{{ __('Transfers Form for outgoing transfers from WO') }} W{{ $workorder->number }}">
+                        {{ __('Transfers Form') }} (Outgoing)
+                    </a>
+                @endif
+                {{-- Кнопки для входящих трансферов (текущий WO - получатель, группируем по источнику) --}}
+                @foreach($incomingGroupsWithMultiple as $sourceWoId => $transfers)
+                    @php
+                        $sourceWo = $transfers->first()->workorderSource;
+                    @endphp
+                    @if($sourceWo)
+                        <a href="{{ route('transfers.transfersForm', $sourceWoId) }}"
+                           class="btn btn-outline-info me-2"
+                           target="_blank"
+                           title="{{ __('Transfers Form for transfers from WO') }} W{{ $sourceWo->number }}">
+                            {{ __('Transfers Form') }} (From W{{ $sourceWo->number }})
+                        </a>
+                    @endif
+                @endforeach
                 <a href="{{ route('tdrs.show', $workorder->id) }}"
                    class="btn btn-outline-secondary">
                     {{ __('Back to TDR') }}

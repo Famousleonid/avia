@@ -414,7 +414,16 @@
                                 <h6 style="margin-left: -10px">{{ $i < $totalParts ? ($ordersParts[$i]->codes->code ?? '') : '' }}</h6>
                             </div>
                             <div class="col-2 border-l-b text-center pt-1 align-content-center">
-                                <h6>{{ $i < $totalParts ? $ordersParts[$i]->po_number : '' }}</h6>
+                                @php
+                                    $poRaw = $i < $totalParts ? ($ordersParts[$i]->po_num ?? '') : '';
+                                    if (\Illuminate\Support\Str::startsWith($poRaw, 'Transfer from WO')) {
+                                        // Оставляем только номер WO после "Transfer from WO"
+                                        $poDisplay = trim(\Illuminate\Support\Str::after($poRaw, 'Transfer from WO'));
+                                    } else {
+                                        $poDisplay = $poRaw;
+                                    }
+                                @endphp
+                                <h6>{{ $poDisplay }}</h6>
                             </div>
                             <div class="col-2 border-l-b-r text-center pt-1 align-content-center">
                                 <h6>{{ $i < $totalParts ? $ordersParts[$i]->notes : '' }}</h6>

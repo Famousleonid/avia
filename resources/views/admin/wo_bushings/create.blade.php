@@ -286,6 +286,7 @@
                                     <th class="text-primary text-center "> Select</th>
                                     <th class="text-primary text-center">QTY</th>
                                     <th class="text-primary text-center">Machining</th>
+                                    <th class="text-primary text-center">Stress Relief</th>
                                     <th class="text-primary text-center">NDT</th>
                                     <th class="text-primary text-center">Passivation</th>
                                     <th class="text-primary text-center">CAD</th>
@@ -328,6 +329,17 @@
                                                     class="form-select" data-group="{{ $bushIplNum ?: 'no_ipl' }}" disabled>
                                                 <option value="">-- Select Machining --</option>
                                                 @foreach($machiningProcesses as $process)
+                                                    <option value="{{ $process->id }}">
+                                                        <span @if(strlen($process->process) > 40) class="process-text-long" @endif>{{ $process->process }}</span>
+                                                    </option>
+                                                @endforeach
+                                            </select>
+                                        </td>
+                                        <td>
+                                            <select name="group_bushings[{{ $bushIplNum ?: 'no_ipl' }}][stress_relief]"
+                                                    class="form-select" data-group="{{ $bushIplNum ?: 'no_ipl' }}" disabled>
+                                                <option value="">-- Select Stress Relief --</option>
+                                                @foreach($stressReliefProcesses as $process)
                                                     <option value="{{ $process->id }}">
                                                         <span @if(strlen($process->process) > 40) class="process-text-long" @endif>{{ $process->process }}</span>
                                                     </option>
@@ -555,6 +567,7 @@
         // Store current manual processes for use when adding bushings from other manuals
         const currentManualProcesses = {
             machining: @json($machiningProcesses->map(function($p) { return ['id' => $p->id, 'process' => $p->process]; })),
+            stress_relief: @json($stressReliefProcesses->map(function($p) { return ['id' => $p->id, 'process' => $p->process]; })),
             ndt: @json($ndtProcesses->map(function($p) { return ['id' => $p->id, 'name' => $p->process_name->name]; })),
             passivation: @json($passivationProcesses->map(function($p) { return ['id' => $p->id, 'process' => $p->process]; })),
             cad: @json($cadProcesses->map(function($p) { return ['id' => $p->id, 'process' => $p->process]; })),
@@ -765,12 +778,14 @@
                     rowHtml += `</td>`;
 
                     // Process columns - use processes from current manual
-                    const processTypes = ['machining', 'ndt', 'passivation', 'cad', 'anodizing', 'xylan'];
+                    const processTypes = ['machining', 'stress_relief', 'ndt', 'passivation', 'cad', 'anodizing', 'xylan'];
                     const processLabels = {
                         'machining': 'Machining',
+                        'stress_relief': 'Stress Relief',
                         'ndt': 'NDT',
                         'passivation': 'Passivation',
                         'cad': 'CAD',
+                        'anodizing': 'Anodizing',
                         'xylan': 'Xylan'
                     };
 

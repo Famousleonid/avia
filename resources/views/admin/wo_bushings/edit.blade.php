@@ -156,6 +156,7 @@
                                     <th class="text-primary text-center">Select</th>
                                     <th class="text-primary text-center">QTY</th>
                                     <th class="text-primary text-center">Machining</th>
+                                    <th class="text-primary text-center">Stress Relief</th>
                                     <th class="text-primary text-center">NDT</th>
                                     <th class="text-primary text-center">Passivation</th>
                                     <th class="text-primary text-center">CAD</th>
@@ -176,6 +177,7 @@
                                                 $selectedComponentsMap[$componentId] = [
                                                     'qty' => $bushItem['qty'],
                                                     'machining' => $bushItem['processes']['machining'] ?? null,
+                                                    'stress_relief' => $bushItem['processes']['stress_relief'] ?? null,
                                                     'ndt' => $bushItem['processes']['ndt'] ?? null,
                                                     'passivation' => $bushItem['processes']['passivation'] ?? null,
                                                     'cad' => $bushItem['processes']['cad'] ?? null,
@@ -237,6 +239,19 @@
                                                 @foreach($machiningProcesses as $process)
                                                     <option value="{{ $process->id }}"
                                                             {{ isset($groupData['machining']) && $groupData['machining'] == $process->id ? 'selected' : '' }}>
+                                                        <span @if(strlen($process->process) > 40) class="process-text-long" @endif>{{ $process->process }}</span>
+                                                    </option>
+                                                @endforeach
+                                            </select>
+                                        </td>
+                                        <td>
+                                            <select name="group_bushings[{{ $bushIplNum ?: 'no_ipl' }}][stress_relief]"
+                                                    class="form-select" data-group="{{ $bushIplNum ?: 'no_ipl' }}"
+                                                    {{ !$groupSelected ? 'disabled' : '' }}>
+                                                <option value="">-- Select Stress Relief --</option>
+                                                @foreach($stressReliefProcesses as $process)
+                                                    <option value="{{ $process->id }}"
+                                                            {{ isset($groupData['stress_relief']) && $groupData['stress_relief'] == $process->id ? 'selected' : '' }}>
                                                         <span @if(strlen($process->process) > 40) class="process-text-long" @endif>{{ $process->process }}</span>
                                                     </option>
                                                 @endforeach

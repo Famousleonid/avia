@@ -424,10 +424,13 @@
                                             </thead>
                                             <tbody>
                                             @foreach($missingParts as $part)
+                                                @php
+                                                    $currentComponent = $part->orderComponent ?? $part->component;
+                                                @endphp
                                                 <tr>
-                                                    <td class="p-3"> {{$part->component->ipl_num ?? ''}} </td>
-                                                    <td class="p-3"> {{$part->component->name ?? ''}} </td>
-                                                    <td class="p-3"> {{$part->component->part_number ?? ''}} </td>
+                                                    <td class="p-3"> {{$currentComponent->ipl_num ?? ''}} </td>
+                                                    <td class="p-3"> {{$currentComponent->name ?? ''}} </td>
+                                                    <td class="p-3"> {{$currentComponent->part_number ?? ''}} </td>
                                                     <td class="p-3"> {{$part->qty}} </td>
                                                     <td class="p-3">
                                                         <!-- Кнопка удаления -->
@@ -780,7 +783,7 @@
                                                 @endif
                                                 @endforeach
 
-                                                @if($tdr->conditions->name == 'PARTS MISSING UPON ARRIVAL AS INDICATED ON PARTS LIST')
+                                                @if($tdr->conditions && $tdr->conditions->name == 'PARTS MISSING UPON ARRIVAL AS INDICATED ON PARTS LIST')
                                                     <button class="btn btn-outline-info btn-sm" style="height: 32px"
                                                             data-bs-toggle="modal"
                                                             data-bs-target="#missingModal{{$current_wo->number}}">

@@ -20,6 +20,7 @@ use App\Models\ProcessName;
 use App\Models\Tdr;
 use App\Models\TdrProcess;
 use App\Models\Training;
+use App\Models\Transfer;
 use App\Models\Vendor;
 use App\Models\WoBushing;
 use Illuminate\Support\Facades\Cache;
@@ -711,11 +712,24 @@ class TdrController extends Controller
             ->with(['conditions', 'necessaries'])
             ->get();
 
+        // Получаем Missing компоненты (codes_id = 7 или код "Missing")
         $missingParts = Tdr::where('workorder_id', $current_wo->id)
-            ->where('codes_id', $code->id)
-            ->with(['component' => function($query) {
-                $query->select('id', 'name', 'part_number', 'ipl_num');
-            }])
+            ->where(function($query) use ($code) {
+                if ($code) {
+                    $query->where('codes_id', $code->id);
+                } else {
+                    // Если код не найден, используем ID = 7 напрямую (стандартный ID для Missing)
+                    $query->where('codes_id', 7);
+                }
+            })
+            ->with([
+                'component' => function($query) {
+                    $query->select('id', 'name', 'part_number', 'ipl_num', 'assy_part_number');
+                },
+                'orderComponent' => function($query) {
+                    $query->select('id', 'name', 'part_number', 'ipl_num', 'assy_part_number');
+                }
+            ])
             ->get();
 
         $ordersParts = Tdr::where('workorder_id', $current_wo->id)
@@ -756,9 +770,12 @@ class TdrController extends Controller
         $codes = Code::all();
 
         $tdrs = Tdr::where('workorder_id', $current_wo->id)
-            ->with(['component' => function($query) {
-                $query->select('id', 'name', 'part_number', 'ipl_num');
-            }])
+            ->with([
+                'component' => function($query) {
+                    $query->select('id', 'name', 'part_number', 'ipl_num');
+                },
+                'conditions'
+            ])
             ->get();
 
          $tdr_proc = TdrProcess::where('ec',1)->get();
@@ -2651,6 +2668,87 @@ class TdrController extends Controller
         // Удалить связанные записи из tdr_processes
         TdrProcess::where('tdrs_id', $id)->delete();
         Log::info('Удалены связанные процессы для TDR с ID: ' . $id);
+
+        // Определяем component_id для поиска transfers
+        $componentId = $tdr->order_component_id ?? $tdr->component_id;
+
+        // Удалить связанные записи из transfers и клонированные TDR в WO-источниках (если есть)
+        if ($componentId) {
+            // Находим все transfers, связанные с этим TDR
+            $transfers = Transfer::where('workorder_id', $workorderId)
+                ->where('component_id', $componentId)
+                ->get();
+
+            $deletedTransfers = 0;
+            $deletedClonedTdrs = 0;
+
+            // Код Missing (для управления флагом part_missing в workorders источников)
+            $missingCode = Code::where('name', 'Missing')->first();
+
+            foreach ($transfers as $transfer) {
+                // Для каждого transfer пытаемся удалить "клонированный" TDR в workorder_source
+                if ($transfer->workorder_source) {
+                    $cloned = Tdr::where('workorder_id', $transfer->workorder_source)
+                        ->where(function ($q) use ($tdr) {
+                            // Пытаемся найти запись, максимально похожую на исходный TDR
+                            $q->where('component_id', $tdr->component_id)
+                                ->where('order_component_id', $tdr->order_component_id)
+                                ->where('codes_id', $tdr->codes_id)
+                                ->where('conditions_id', $tdr->conditions_id)
+                                ->where('necessaries_id', $tdr->necessaries_id)
+                                ->where('qty', $tdr->qty)
+                                ->where('serial_number', $tdr->serial_number);
+                        })
+                        ->where('id', '!=', $tdr->id)
+                        ->orderByDesc('id') // берём самую "свежую" как вероятный клон
+                        ->first();
+
+                    if ($cloned) {
+                        $cloned->delete();
+                        $deletedClonedTdrs++;
+                        Log::info('Удалён клонированный TDR с ID: ' . $cloned->id . ' в WO-источнике: ' . $transfer->workorder_source);
+
+                        // Если это была запись с кодом Missing, возможно нужно обновить part_missing для WO-источника
+                        if ($missingCode && $tdr->codes_id === $missingCode->id) {
+                            $remainingMissingForSource = Tdr::where('workorder_id', $transfer->workorder_source)
+                                ->where('codes_id', $missingCode->id)
+                                ->count();
+
+                            if ($remainingMissingForSource === 0) {
+                                $sourceWo = Workorder::find($transfer->workorder_source);
+                                if ($sourceWo && $sourceWo->part_missing) {
+                                    $sourceWo->part_missing = false;
+                                    $sourceWo->save();
+                                    Log::info('Флаг part_missing для WO-источника ' . $transfer->workorder_source . ' обновлён на false (после удаления клонированного Missing TDR).');
+                                }
+
+                                // Если не осталось записей с codes_id = 7, удаляем запись с condition_id = 1, component_id = null, codes_id = null
+                                $missingCondition = Condition::where('name', 'PARTS MISSING UPON ARRIVAL AS INDICATED ON PARTS LIST')->first();
+                                if ($missingCondition) {
+                                    $unitInspectionRecord = Tdr::where('workorder_id', $transfer->workorder_source)
+                                        ->where('conditions_id', $missingCondition->id)
+                                        ->whereNull('component_id')
+                                        ->whereNull('codes_id')
+                                        ->first();
+
+                                    if ($unitInspectionRecord) {
+                                        $unitInspectionRecord->delete();
+                                        Log::info('Удалена запись Unit Inspection (condition_id = 1, component_id = null, codes_id = null) для WO-источника ' . $transfer->workorder_source . ' (после удаления всех Missing записей).');
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+
+                $transfer->delete();
+                $deletedTransfers++;
+            }
+
+            if ($deletedTransfers > 0) {
+                Log::info('Удалены связанные transfers для TDR с ID: ' . $id . ' (удалено transfers: ' . $deletedTransfers . ', удалено клонированных TDR: ' . $deletedClonedTdrs . ')');
+            }
+        }
 
         // Удалить запись Tdr
         $tdr->delete();

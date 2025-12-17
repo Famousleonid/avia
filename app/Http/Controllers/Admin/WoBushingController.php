@@ -60,6 +60,16 @@ class WoBushingController extends Controller
             ->with('process_name')
             ->get();
 
+        // Stress Relief processes - все процессы для 'Stress Relief'
+        $stressReliefProcesses = Process::whereHas('process_name', function($query) {
+                $query->where('name', 'Stress Relief');
+            })
+            ->whereHas('manuals', function($query) use ($manual_id) {
+                $query->where('manual_id', $manual_id);
+            })
+            ->with('process_name')
+            ->get();
+
         // NDT processes - показываем process_name (NDT-1, NDT-4 и т.д.)
         $ndtProcesses = Process::whereHas('process_name', function($query) {
                 $query->where('name', 'LIKE', 'NDT%');
@@ -116,6 +126,7 @@ class WoBushingController extends Controller
             'current_wo',
             'bushings',
             'machiningProcesses',
+            'stressReliefProcesses',
             'ndtProcesses',
             'passivationProcesses',
             'cadProcesses',
@@ -159,6 +170,7 @@ class WoBushingController extends Controller
                         'qty' => (int)($groupData['qty'] ?? 1),
                         'processes' => [
                             'machining' => $groupData['machining'] ? (int)$groupData['machining'] : null,
+                            'stress_relief' => $groupData['stress_relief'] ? (int)$groupData['stress_relief'] : null,
                             'ndt' => $groupData['ndt'] ? (int)$groupData['ndt'] : null,
                             'passivation' => $groupData['passivation'] ? (int)$groupData['passivation'] : null,
                             'cad' => $groupData['cad'] ? (int)$groupData['cad'] : null,
@@ -215,6 +227,16 @@ class WoBushingController extends Controller
         // Get processes for each process type for this manual
         $machiningProcesses = Process::whereHas('process_name', function($query) {
                 $query->where('name', 'Machining');
+            })
+            ->whereHas('manuals', function($query) use ($manual_id) {
+                $query->where('manual_id', $manual_id);
+            })
+            ->with('process_name')
+            ->get();
+
+        // Stress Relief processes - все процессы для 'Stress Relief'
+        $stressReliefProcesses = Process::whereHas('process_name', function($query) {
+                $query->where('name', 'Stress Relief');
             })
             ->whereHas('manuals', function($query) use ($manual_id) {
                 $query->where('manual_id', $manual_id);
@@ -287,6 +309,7 @@ class WoBushingController extends Controller
             'current_wo',
             'bushings',
             'machiningProcesses',
+            'stressReliefProcesses',
             'ndtProcesses',
             'passivationProcesses',
             'cadProcesses',
@@ -329,6 +352,16 @@ class WoBushingController extends Controller
         // Get processes for each process type for this manual
         $machiningProcesses = Process::whereHas('process_name', function($query) {
                 $query->where('name', 'Machining');
+            })
+            ->whereHas('manuals', function($query) use ($manual_id) {
+                $query->where('manual_id', $manual_id);
+            })
+            ->with('process_name')
+            ->get();
+
+        // Stress Relief processes - все процессы для 'Stress Relief'
+        $stressReliefProcesses = Process::whereHas('process_name', function($query) {
+                $query->where('name', 'Stress Relief');
             })
             ->whereHas('manuals', function($query) use ($manual_id) {
                 $query->where('manual_id', $manual_id);
@@ -395,6 +428,7 @@ class WoBushingController extends Controller
             'woBushing',
             'bushings',
             'machiningProcesses',
+            'stressReliefProcesses',
             'ndtProcesses',
             'passivationProcesses',
             'cadProcesses',
@@ -436,6 +470,7 @@ class WoBushingController extends Controller
                         'qty' => (int)($groupData['qty'] ?? 1),
                         'processes' => [
                             'machining' => $groupData['machining'] ? (int)$groupData['machining'] : null,
+                            'stress_relief' => $groupData['stress_relief'] ? (int)$groupData['stress_relief'] : null,
                             'ndt' => $groupData['ndt'] ? (int)$groupData['ndt'] : null,
                             'passivation' => $groupData['passivation'] ? (int)$groupData['passivation'] : null,
                             'cad' => $groupData['cad'] ? (int)$groupData['cad'] : null,
@@ -588,6 +623,9 @@ class WoBushingController extends Controller
                             case 'Machining':
                                 $processId = $bushItem['processes']['machining'] ?? null;
                                 break;
+                            case 'Stress Relief':
+                                $processId = $bushItem['processes']['stress_relief'] ?? null;
+                                break;
                             case 'Passivation':
                                 $processId = $bushItem['processes']['passivation'] ?? null;
                                 break;
@@ -659,10 +697,17 @@ class WoBushingController extends Controller
                         $processes = $bushItem['processes'];
                         // Собираем активные процессы в правильном порядке
                         $activeProcesses = [];
-                        $processOrder = ['Machining', 'NDT', 'Passivation', 'CAD', 'Anodizing', 'Xylan'];
+                        $processOrder = [
+                            'Machining' => 'machining',
+                            'Stress Relief' => 'stress_relief',
+                            'NDT' => 'ndt',
+                            'Passivation' => 'passivation',
+                            'CAD' => 'cad',
+                            'Anodizing' => 'anodizing',
+                            'Xylan' => 'xylan'
+                        ];
                         
-                        foreach ($processOrder as $processType) {
-                            $processKey = strtolower($processType);
+                        foreach ($processOrder as $processType => $processKey) {
                             // Проверяем, что процесс существует и не равен null
                             if (isset($processes[$processKey]) && $processes[$processKey] !== null) {
                                 $activeProcesses[] = $processType;
@@ -706,6 +751,7 @@ class WoBushingController extends Controller
         // Получаем названия процессов для отображения
         $processNames = ProcessName::whereIn('name', [
             'Machining',
+            'Stress Relief',
             'NDT-1',
             'NDT-4',
             'Eddy Current Test',
@@ -767,6 +813,15 @@ class WoBushingController extends Controller
         // Get processes for each process type for the current manual (not the selected one)
         $machiningProcesses = Process::whereHas('process_name', function($query) {
                 $query->where('name', 'Machining');
+            })
+            ->whereHas('manuals', function($query) use ($current_manual_id) {
+                $query->where('manual_id', $current_manual_id);
+            })
+            ->with('process_name')
+            ->get();
+
+        $stressReliefProcesses = Process::whereHas('process_name', function($query) {
+                $query->where('name', 'Stress Relief');
             })
             ->whereHas('manuals', function($query) use ($current_manual_id) {
                 $query->where('manual_id', $current_manual_id);
@@ -841,6 +896,9 @@ class WoBushingController extends Controller
             'bushings' => $formattedBushings,
             'processes' => [
                 'machining' => $machiningProcesses->map(function($p) {
+                    return ['id' => $p->id, 'process' => $p->process];
+                }),
+                'stress_relief' => $stressReliefProcesses->map(function($p) {
                     return ['id' => $p->id, 'process' => $p->process];
                 }),
                 'ndt' => $ndtProcesses->map(function($p) {

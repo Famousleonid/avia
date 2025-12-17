@@ -153,6 +153,7 @@ Route::group(['middleware' => ['auth']], function () {
 
         Route::get('transfers/{workorder}', [TransferController::class, 'show'])->name('transfers.show');
         Route::get('transfers/transferForm/{id}', [TransferController::class, 'transferForm'])->name('transfers.transferForm');
+        Route::get('transfers/transfersForm/{source_wo}', [TransferController::class, 'transfersForm'])->name('transfers.transfersForm');
         Route::post('transfers/create/{id}', [TransferController::class, 'create'])->name('transfers.create');
         Route::patch('transfers/{id}/sn', [TransferController::class, 'updateSn'])->name('transfers.updateSn');
         Route::delete('transfers/delete-by-tdr/{id}', [TransferController::class, 'deleteByTdr'])->name('transfers.deleteByTdr');

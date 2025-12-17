@@ -206,6 +206,50 @@
                                     @endif
                                 </th>
                                 <th class="text-primary text-center">
+                                    Stress Relief<br>
+                                    @if($woBushing)
+                                        @php
+                                            $stressReliefProcessName = \App\Models\ProcessName::where('name', 'Stress Relief')->first();
+                                            // Проверяем, есть ли сохраненные данные для Stress Relief
+                                            $hasStressReliefData = false;
+                                            if (!empty($bushData)) {
+                                                foreach ($bushData as $bushItem) {
+                                                    if (isset($bushItem['processes']['stress_relief']) && !empty($bushItem['processes']['stress_relief'])) {
+                                                        $hasStressReliefData = true;
+                                                        break;
+                                                    }
+                                                }
+                                            }
+                                        @endphp
+                                        <div class="d-flex align-items-center justify-content-center gap-2 mt-1">
+                                            <select class="form-select form-select-sm" style="width: auto; min-width: 80px;" name="vendor_id" id="vendor_stress_relief">
+                                                <option value="">Vendor</option>
+                                                @foreach($vendors as $vendor)
+                                                    <option value="{{ $vendor->id }}">{{ $vendor->name }}</option>
+                                                @endforeach
+                                            </select>
+                                            @if($stressReliefProcessName && $hasStressReliefData)
+                                                <a href="{{ route('wo_bushings.processesForm', ['id' => $woBushing->id,
+                                                'processNameId' => $stressReliefProcessName->id]) }}" target="_blank"
+                                                class="btn btn-sm btn-outline-warning form-btn"
+                                                data-vendor-select="vendor_stress_relief">Form</a>
+                                            @else
+                                                <span class="text-muted">Form</span>
+                                            @endif
+                                        </div>
+                                    @else
+                                        <div class="d-flex align-items-center justify-content-center gap-2 mt-1">
+                                            <select class="form-select form-select-sm" style="width: auto; min-width: 80px;" name="vendor_id" id="vendor_stress_relief">
+                                                <option value="">Vendor</option>
+                                                @foreach($vendors as $vendor)
+                                                    <option value="{{ $vendor->id }}">{{ $vendor->name }}</option>
+                                                @endforeach
+                                            </select>
+                                            <span class="text-muted">Form</span>
+                                        </div>
+                                    @endif
+                                </th>
+                                <th class="text-primary text-center">
                                     NDT<br>
                                     @if($woBushing)
                                         @php
@@ -444,6 +488,7 @@
                                                 'data' => [
                                                     'qty' => $bushItem['qty'],
                                                 'machining' => $bushItem['processes']['machining'] ?? null,
+                                                'stress_relief' => $bushItem['processes']['stress_relief'] ?? null,
                                                 'ndt' => $bushItem['processes']['ndt'] ?? null,
                                                 'passivation' => $bushItem['processes']['passivation'] ?? null,
                                                 'cad' => $bushItem['processes']['cad'] ?? null,
@@ -465,6 +510,7 @@
 
                                         // Получаем названия процессов
                                         $machiningProcess = $machiningProcesses->firstWhere('id', $data['machining'] ?? null);
+                                        $stressReliefProcess = $stressReliefProcesses->firstWhere('id', $data['stress_relief'] ?? null);
                                         $ndtProcess = $ndtProcesses->firstWhere('id', $data['ndt'] ?? null);
                                         $passivationProcess = $passivationProcesses->firstWhere('id', $data['passivation'] ?? null);
                                         $cadProcess = $cadProcesses->firstWhere('id', $data['cad'] ?? null);
@@ -480,6 +526,9 @@
                                         </td>
                                         <td>
                                             {{ $machiningProcess ? $machiningProcess->process : '-' }}
+                                        </td>
+                                        <td>
+                                            {{ $stressReliefProcess ? $stressReliefProcess->process : '-' }}
                                         </td>
                                         <td>
                                             {{ $ndtProcess ? $ndtProcess->process_name->name : '-' }}
