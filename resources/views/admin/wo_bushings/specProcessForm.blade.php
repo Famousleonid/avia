@@ -411,7 +411,8 @@
                                     }
                                 @endphp
                                 @if(count($partNumbersWithQty) > 0)
-                                    <div style="font-size: calc(1rem - 0.3rem); line-height: calc(1rem - 0.3rem); text-align: center;">
+                                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 2px; font-size: calc(1rem -
+                                     0.5rem); line-height: calc(1rem - 0.5rem); text-align: center;">
                                         @foreach($partNumbersWithQty as $partNum => $qty)
                                             <div>{{ $partNum }}{{__(' : ')}}{{ $qty }}</div>
                                         @endforeach
