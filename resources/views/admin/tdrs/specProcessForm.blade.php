@@ -315,7 +315,7 @@
                     No.</div>
                 <div class="border-all text-center pt-0 fs-75" style="width: 25px;height: 20px">
                     @if($current_wo->instruction_id ==1)
-                         {{ !isset($ndtSums['fpi']) || $ndtSums['fpi'] === null ? ' ' : $ndtSums['fpi'] }}
+                         {{ !isset($ndtSums['fpi']) || $ndtSums['fpi'] === null || $ndtSums['fpi'] === 0 ? ' ' : $ndtSums['fpi'] }}
                     @else
                         {{__(' ')}}
                     @endif
@@ -334,7 +334,7 @@
                         $result = ($hasA && $hasB) ? ((int)$a + (int)$b) : (($hasA ? (int)$a : ($hasB ? (int)$b : null)));
                     @endphp
                     @if($current_wo->instruction_id==1)
-                        {{ ($result !== null && $result > 0) ? $result : ' ' }}
+                        {{ ($result !== null && $result > 0) ? $result : ' rr' }}
                     @else
                         {{ ($cadSum_ex > 0) ? $cadSum_ex : ' '}}
                     @endif
