@@ -400,7 +400,7 @@ class TdrProcessController extends Controller
         // Получаем параметры из запроса
         $repairNum = $request->input('repair_num', 'N/A');
         $vendorId = $request->input('vendor');
-        
+
         // Получаем данные о vendor для каждой строки
         $vendorsData = [];
         $vendorsDataJson = $request->input('vendors_data');
@@ -411,7 +411,7 @@ class TdrProcessController extends Controller
                 \Log::error('Error parsing vendors_data: ' . $e->getMessage());
             }
         }
-        
+
         // Получаем данные о отмеченных чекбоксах AT
         $atData = [];
         $atDataJson = $request->input('at_data');
@@ -422,7 +422,7 @@ class TdrProcessController extends Controller
                 \Log::error('Error parsing at_data: ' . $e->getMessage());
             }
         }
-        
+
         // Получаем имя вендора если передан ID (для обратной совместимости)
         $vendorName = null;
         if ($vendorId) {
@@ -656,8 +656,97 @@ class TdrProcessController extends Controller
         // Получаем всех поставщиков
         $vendors = Vendor::all();
 
+        // Группируем процессы для создания кнопок групповых форм
+        $processGroups = [];
+        $totalQty = 0;
+
+        if ($current_tdr->component) {
+            // Получаем все процессы для этого TDR
+            $tdrProcessesForTdr = $tdrProcesses->where('tdrs_id', $current_tdr->id);
+
+            foreach ($tdrProcessesForTdr as $tdrProcess) {
+                if (!$tdrProcess->processName) {
+                    continue;
+                }
+
+                $processName = $tdrProcess->processName;
+                // Определяем ключ группы: для NDT процессов используем 'NDT_GROUP', иначе processNameId
+                $groupKey = ($processName->process_sheet_name == 'NDT') ? 'NDT_GROUP' : $processName->id;
+
+                if (!isset($processGroups[$groupKey])) {
+                    // Для NDT группы создаем виртуальный ProcessName или используем первый найденный NDT процесс
+                    if ($groupKey == 'NDT_GROUP') {
+                        // Находим первый ProcessName с process_sheet_name == 'NDT' для использования в группе
+                        $ndtProcessName = ProcessName::where('process_sheet_name', 'NDT')->first();
+                        if ($ndtProcessName) {
+                            $processGroups[$groupKey] = [
+                                'process_name' => $ndtProcessName,
+                                'processes_qty' => [],
+                                'processes' => []
+                            ];
+                        } else {
+                            // Если не найден, используем текущий процесс
+                            $processGroups[$groupKey] = [
+                                'process_name' => $processName,
+                                'processes_qty' => [],
+                                'processes' => []
+                            ];
+                        }
+                    } else {
+                        $processGroups[$groupKey] = [
+                            'process_name' => $processName,
+                            'processes_qty' => [],
+                            'processes' => []
+                        ];
+                    }
+                }
+
+                // Декодируем JSON-поле processes
+                $processData = json_decode($tdrProcess->processes, true);
+                if (is_array($processData)) {
+                    foreach ($processData as $processId) {
+                        // Находим процесс по ID
+                        $process = $proces->firstWhere('id', $processId);
+                        if ($process) {
+                            // Добавляем/обновляем количество по процессу (для TDR обычно qty = 1)
+                            $qty = 1;
+                            $processGroups[$groupKey]['processes_qty'][$processId] =
+                                ($processGroups[$groupKey]['processes_qty'][$processId] ?? 0) + $qty;
+
+                            // Сохраняем информацию о процессе
+                            if (!isset($processGroups[$groupKey]['processes'][$processId])) {
+                                $processGroups[$groupKey]['processes'][$processId] = [
+                                    'id' => $processId,
+                                    'name' => $process->process,
+                                    'tdr_process_id' => $tdrProcess->id,
+                                    'ec' => $tdrProcess->ec ?? false,
+                                    'qty' => $qty
+                                ];
+                            } else {
+                                // Обновляем qty если процесс уже есть
+                                $processGroups[$groupKey]['processes'][$processId]['qty'] += $qty;
+                            }
+
+                            $totalQty += $qty;
+                        }
+                    }
+                }
+            }
+        }
+
+        // Подсчитываем уникальные процессы и суммы qty для каждого процесса
+        foreach ($processGroups as $processNameId => &$group) {
+            $processesQty = $group['processes_qty'];
+            $uniqueProcesses = array_keys($processesQty);
+            $group['count'] = count($uniqueProcesses);
+            $group['qty'] = array_sum($processesQty);
+            // Преобразуем массив процессов в обычный массив для удобства в представлении
+            $group['processes'] = array_values($group['processes']);
+            unset($group['processes_qty']); // Удаляем техническое поле
+        }
+
         return view('admin.tdr-processes.processes',compact('current_tdr',
-            'current_wo','tdrProcesses','proces','vendors'
+            'current_wo','tdrProcesses','proces','vendors','processGroups','totalQty'
         ));
     }
 

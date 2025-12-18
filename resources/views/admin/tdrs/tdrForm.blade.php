@@ -14,7 +14,7 @@
         }
 
         .container-fluid {
-            max-width: 960px;
+            max-width: 940px;
 
             height: 99%;
             padding: 5px;
@@ -345,13 +345,13 @@
         <div class="row">
             <div class="col-6"> <!-- первый столбец -->
                 <div class="row">
-                    <div class="col-1 border-l-b-r" style="height: 36px">
+                    <div class="col-1 border-l-b-r" style="height: 40px">
                         <img class="pt-1 ps-1" src="{{ asset('img/icons/reqs.png') }}" alt="reqs" style="height: 24px;
                         margin-left:
                             -10px" >
                     </div>
-                    <div class="col-10 border-b" style="height: 36px">
-                        <p class="fs-75">
+                    <div class="col-10 border-b" style="height: 40px">
+                        <p class="fs-75"  style="line-height: .8rem;font-size: 11px">
                             <!-- Заполняем значением из первого столбца, если оно есть -->
 {{--                            {!! isset($firstColumn[$i]) ? $firstColumn[$i] : '' !!}--}}
                             {!! strtoupper($firstColumn[$i] ?? '') !!}
@@ -360,7 +360,7 @@
                     <div class="col-1 border-l-b">
                         @if(isset($firstColumn[$i]) && $firstColumn[$i] !== '')
                             <img src="{{ asset('img/icons/check.svg') }}" alt="Check"
-                                 style="width: 32px; margin-left: -14px">
+                                 style="width: 32px; margin-left: -14px;">
                         @endif
                     </div>
 
@@ -368,19 +368,19 @@
             </div>
             <div class="col-6"> <!-- второй столбец -->
                 <div class="row">
-                    <div class="d-flex  col-1 border-b-r" style="height: 36px ">
-                        <img src="{{ asset('img/icons/reqs_bb.png') }}" alt="reqs" style="height: 36px; margin-left:
+                    <div class="d-flex  col-1 border-b-r" style="height: 40px ">
+                        <img src="{{ asset('img/icons/reqs_bb.png') }}" alt="reqs" style="height: 40px; margin-left:
                             -16px" >
                         <img class="pt-1 ps-1" src="{{ asset('img/icons/reqs.png') }}" alt="reqs" style="height: 24px;" >
 
                     </div>
-                    <div class="col-10 border-b" style="height: 36px">
-                        <p class="fs-75">
+                    <div class="col-10 border-b" style="height: 40px">
+                        <p class="fs-75" style="line-height: .8rem;font-size: 11px">
                         <!-- Заполняем значением из второго столбца, если оно есть -->
                         {!! strtoupper($secondColumn[$i] ?? '') !!}
                         </p>
                     </div>
-                    <div class="col-1 border-l-b-r" style="height: 36px">
+                    <div class="col-1 border-l-b-r" style="height: 40px">
                         @if(isset($secondColumn[$i]) && $secondColumn[$i] !== '')
                             <img src="{{ asset('img/icons/check.svg') }}" alt="Check"
                                  style="width: 32px; margin-left: -16px">

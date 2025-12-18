@@ -254,7 +254,7 @@
                          style="width: 120px; margin: 6px 10px 0;">
                 </div>
                 <div class="col-8">
-                    <h2 class="p-2 mt-3 text-black text-"><strong>PART REPLACEMENT LIST</strong></h2>
+                    <h4 class="p-2 mt-3 text-black text-"><strong>PART REPLACEMENT LIST</strong></h4>
                 </div>
             </div>
             <div class="row">
@@ -266,7 +266,7 @@
                 </div>
                 <div class="col-3 ">
                     <div class="row ">
-                        <div class="col-5 border-b">
+                        <div class="col-10 border-b">
                             <div class="d-flex ">
                                 <h6 class=" "><strong>MFR: </strong></h6>
                                 @foreach($manuals as $manual)
@@ -276,7 +276,7 @@
                                 @endforeach
                             </div>
                         </div>
-                        <div class="col-5 border-b"> </div>
+                        <div class="col-2 border-b"> </div>
                     </div>
                 </div>
                 <div class="col-3">
@@ -298,19 +298,19 @@
                         </div>
                     </div>
                 </div>
-                <div class="col-6 ">
+                <div class="col-5 ">
                     <div class="row">
                         <div class="col-2 border-b">
                             <h6 class="" ><strong>CMM: </strong></h6>
                         </div>
-                        <div class="col-3 border-b">
+                        <div class="col-5 border-b">
                             @foreach($manuals as $manual)
                                 @if($manual->id == $current_wo->unit->manual_id)
                                     <h6 class=""><strong> {{substr($manual->number, 0, 8)}}</strong></h6>
                                 @endif
                             @endforeach
                         </div>
-                        <div class="col-6"></div>
+                        <div class="col-3"></div>
                     </div>
                 </div>
             </div>

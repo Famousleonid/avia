@@ -286,9 +286,9 @@
             </div>
             <div class="border-l-t-b text-center pt-0 fs-75 filled-data" style="width: 25px;height: 20px">
                 @if($current_wo->instruction_id==1)
-                    {{ !isset($ndtSums['mpi']) || $ndtSums['mpi'] === null ? 'N/A' : $ndtSums['mpi'] }}
+                    {{ !isset($ndtSums['mpi']) || $ndtSums['mpi'] == null ? ' ' : $ndtSums['mpi'] }}
                 @else
-                    {{__('N/A')}}
+                    {{__(' ')}}
                 @endif
 
             </div>
@@ -297,9 +297,9 @@
             </div>
             <div class="border-all text-center pt-0 fs-75 filled-data" style="width: 25px;height: 20px">
                 @if($current_wo->instruction_id==1)
-                {{ !isset($ndtSums['fpi']) || $ndtSums['fpi'] === null ? 'N/A' : $ndtSums['fpi'] }}
+                {{ !isset($ndtSums['fpi']) || $ndtSums['fpi'] == null || $ndtSums['fpi'] === 0 ? ' ' : $ndtSums['fpi'] }}
                 @else
-                    {{__('N/A')}}
+                    {{__(' ')}}
                 @endif
 
             </div>
@@ -316,9 +316,9 @@
                     $result = ($hasA && $hasB) ? ((int)$a + (int)$b) : (($hasA ? (int)$a : ($hasB ? (int)$b : null)));
                 @endphp
                 @if($current_wo->instruction_id==1)
-                     {{ ($result !== null && $result > 0) ? $result : 'N/A' }}
+                     {{ ($result !== null && $result > 0) ? $result : ' ' }}
                 @else
-                    {{($cadSum_ex >0) ? $cadSum_ex : 'N/A' }}
+                    {{($cadSum_ex >0) ? $cadSum_ex : ' ' }}
                 @endif
             </div>
             <div class="text-center fs-7" style="width: 305px;height: 20px"></div>
