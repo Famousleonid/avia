@@ -9,7 +9,7 @@ class Main extends Model
 {
     use HasFactory;
 
-    protected $fillable = ['user_id', 'workorder_id', 'general_task_id', 'task_id', 'description', 'date_start', 'date_finish'];
+    protected $fillable = ['user_id', 'workorder_id', 'general_task_id', 'task_id', 'description', 'date_start', 'date_finish','ignore_row'];
 
     protected $casts = [
         'date_start' =>'date:Y-m-d',

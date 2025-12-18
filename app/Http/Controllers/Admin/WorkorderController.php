@@ -23,7 +23,6 @@ use Spatie\Activitylog\Models\Activity;
 
 class WorkorderController extends Controller
 {
-
     public function logs()
     {
         $activities = Activity::query()

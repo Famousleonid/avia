@@ -300,17 +300,21 @@
 
                                 @foreach($general_tasks as $i => $gt)
 
-                                    <div class="js-gt-pane h-100 {{ $i === 0 ? '' : 'd-none' }}" data-gt-id="{{ $gt->id }}">
-                                        <div class="table-responsive border border-secondary rounded h-100" style="overflow:auto;">
+                                    <div class="js-gt-pane h-100 {{ $i === 0 ? '' : 'd-none' }}"
+                                         data-gt-id="{{ $gt->id }}">
+                                        <div class="table-responsive border border-secondary rounded h-100"
+                                             style="overflow:auto;">
 
-                                            <table class="table table-dark table-hover table-bordered mb-0 align-middle tasks-table mt-4">
+                                            <table
+                                                class="table table-dark table-hover table-bordered mb-0 align-middle tasks-table mt-4">
                                                 <colgroup>
-                                                    <col class="col-tech">      {{-- техник --}}
-                                                    <col class="col-task">      {{-- task --}}
-                                                    <col class="col-start">     {{-- start --}}
-                                                    <col class="col-finish">    {{-- finish --}}
+                                                    <col class="col-ignore">
+                                                    <col class="col-tech">
+                                                    <col class="col-task">
+                                                    <col class="col-start">
+                                                    <col class="col-finish">
                                                     @role('Admin')
-                                                    <col class="col-log">                       {{-- logs --}}
+                                                        <col class="col-log">
                                                     @endrole
                                                 </colgroup>
 
@@ -323,18 +327,46 @@
                                                     @endphp
 
                                                     <tr>
-                                                        <td class="">
-                                                              {{ $main?->user?->name ?? '' }}
-                                                        </td>
+                                                        <td class="text-center align-middle">
+                                                            <form method="POST"
+                                                                  action="{{ $action }}"
+                                                                  class="js-auto-submit js-row-form"
+                                                                  data-gt-id="{{ $gt->id }}">
+                                                                @csrf
+                                                                @if($main)
+                                                                    @method('PATCH')
+                                                                @endif
 
+                                                                @unless($main)
+                                                                    <input type="hidden" name="workorder_id" value="{{ $current_workorder->id }}">
+                                                                    <input type="hidden" name="task_id" value="{{ $task->id }}">
+                                                                @endunless
+
+                                                                {{-- скрытое поле, чтобы всегда было 0/1 --}}
+                                                                <input type="hidden"
+                                                                       name="ignore_row"
+                                                                       value="{{ (int)($main?->ignore_row ?? 0) }}"
+                                                                       class="js-ignore-hidden">
+
+                                                                <input class="form-check-input m-0 js-ignore-row"
+                                                                       type="checkbox"
+                                                                       value="1"
+                                                                       {{ ($main?->ignore_row ?? false) ? 'checked' : '' }}
+                                                                       title="Ignore this row">
+                                                            </form>
+                                                        </td>
+                                                        <td class="">{{ $main?->user?->name ?? '' }}</td>
                                                         <td class="" title="{{ $task->name }}">{{ $task->name }}</td>
 
-                                                            {{-- Start --}}
-                                                            <td>
-                                                                @if($task?->task_has_start_date)
-                                                                <form method="POST" action="{{ $action }}" class="js-auto-submit">
+                                                        {{-- Start --}}
+                                                        <td>
+                                                            @if($task?->task_has_start_date)
+                                                                <form method="POST" action="{{ $action }}"
+                                                                      class="js-auto-submit">
                                                                     @csrf
-                                                                    @if($main) @method('PATCH') @endif
+                                                                    @if($main)
+                                                                        @method('PATCH')
+                                                                    @endif
 
                                                                     @unless($main)
                                                                         <input type="hidden" name="workorder_id"
@@ -351,7 +383,7 @@
                                                                            data-fp>
                                                                     @endif
                                                                 </form>
-                                                            </td>
+                                                        </td>
 
 
                                                         {{-- Finish --}}
@@ -377,16 +409,7 @@
                                                                            value="{{ optional($main?->date_finish)->format('Y-m-d') }}"
                                                                            placeholder="..."
                                                                            data-fp>
-{{--                                                                    --}}{{-- всегда отправляем 0/1 --}}
-{{--                                                                    <input type="hidden" name="ignore_finish"--}}
-{{--                                                                           value="{{ (int)($main?->ignore_finish ?? 0) }}"--}}
-{{--                                                                           class="js-ignore-hidden">--}}
 
-{{--                                                                    <input class="form-check-input m-0 js-ignore-finish"--}}
-{{--                                                                           type="checkbox"--}}
-{{--                                                                           value="1"--}}
-{{--                                                                           {{ ($main?->ignore_finish ?? false) ? 'checked' : '' }}--}}
-{{--                                                                           title="Ignore finish date">--}}
                                                                 </div>
 
                                                             </form>
@@ -432,24 +455,24 @@
 
 
                     {{-- LOG MODAL  --}}
-{{--                    <div class="modal fade" id="logModal" tabindex="-1" aria-labelledby="logModalLabel"--}}
-{{--                         aria-hidden="true">--}}
-{{--                        <div class="modal-dialog modal-lg modal-dialog-scrollable">--}}
-{{--                            <div class="modal-content" style="background-color:#212529;color:#f8f9fa;">--}}
-{{--                                <div class="modal-header">--}}
-{{--                                    <h5 class="modal-title" id="logModalLabel">Activity log</h5>--}}
-{{--                                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"--}}
-{{--                                            aria-label="Close"></button>--}}
-{{--                                </div>--}}
-{{--                                <div class="modal-body">--}}
-{{--                                    <div id="logModalContent"></div>--}}
-{{--                                </div>--}}
-{{--                                <div class="modal-footer">--}}
-{{--                                    <button class="btn btn-secondary" data-bs-dismiss="modal">Close</button>--}}
-{{--                                </div>--}}
-{{--                            </div>--}}
-{{--                        </div>--}}
-{{--                    </div>--}}
+                    {{--                    <div class="modal fade" id="logModal" tabindex="-1" aria-labelledby="logModalLabel"--}}
+                    {{--                         aria-hidden="true">--}}
+                    {{--                        <div class="modal-dialog modal-lg modal-dialog-scrollable">--}}
+                    {{--                            <div class="modal-content" style="background-color:#212529;color:#f8f9fa;">--}}
+                    {{--                                <div class="modal-header">--}}
+                    {{--                                    <h5 class="modal-title" id="logModalLabel">Activity log</h5>--}}
+                    {{--                                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"--}}
+                    {{--                                            aria-label="Close"></button>--}}
+                    {{--                                </div>--}}
+                    {{--                                <div class="modal-body">--}}
+                    {{--                                    <div id="logModalContent"></div>--}}
+                    {{--                                </div>--}}
+                    {{--                                <div class="modal-footer">--}}
+                    {{--                                    <button class="btn btn-secondary" data-bs-dismiss="modal">Close</button>--}}
+                    {{--                                </div>--}}
+                    {{--                            </div>--}}
+                    {{--                        </div>--}}
+                    {{--                    </div>--}}
 
 
                     {{-- Right panel: Components / Processes --}}

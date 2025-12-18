@@ -39,7 +39,7 @@ class MainController extends Controller
 
         // один запрос вместо двух
         $task = Task::with('generalTask')->findOrFail($data['task_id']);
-        $hasStart = (bool) $task->generalTask?->has_start_date;
+        $hasStart = (bool) $task->task_has_start_date;
 
         // ✅ проверки только если у general_task есть start
         if ($hasStart) {
@@ -105,24 +105,27 @@ class MainController extends Controller
 
     public function show($workorder_id, Request $request)
     {
-        $users          = User::all();
-        $general_tasks  = GeneralTask::orderBy('id')->get();
-        $tasks          = Task::orderBy('name')->get();
-        $showAll        = $request->boolean('show_all', false);
-
-        $mains = Main::with(['user','task'])
-            ->where('workorder_id', $workorder_id)
-            ->whereNotNull('task_id')
-            ->get();
-
-        $tasksByGeneral = $tasks->groupBy('general_task_id');
-        $mainsByTask = $mains->keyBy('task_id');
 
         $current_workorder = Workorder::with([
             'customer','user','instruction',
             'unit.manual.media',
             'unit.manual.components',
         ])->findOrFail($workorder_id);
+
+        $users          = User::all();
+        $general_tasks = GeneralTask::orderBy('sort_order')->orderBy('id')->get();
+        $tasks       = Task::whereIn('general_task_id', $general_tasks->pluck('id'))->get();
+        $tasksByGeneral = $tasks->groupBy('general_task_id');
+
+        $showAll        = $request->boolean('show_all', false);
+
+        $mains = Main::with(['user','task'])
+            ->where('workorder_id', $workorder_id)
+            ->whereNotNull('task_id')
+            ->get();
+        $mainsByTask = $mains->keyBy('task_id');
+
+//--------------------------------------------------------------------------------------------------
 
         // Components & TDRs (логика "open only" / "all" управляется show_all)
         $components = collect();
@@ -209,7 +212,7 @@ class MainController extends Controller
                 ->first();
         }
 
-        $general_tasks = GeneralTask::orderBy('sort_order')->orderBy('id')->get();
+ //--------------------------------------------------------------------------------------------------
 
         $generalMains = Main::with('user')
             ->where('workorder_id', $workorder_id)
@@ -217,16 +220,37 @@ class MainController extends Controller
             ->get()
             ->keyBy('general_task_id');
 
+//--------------------------------------------------------------------------------------------------
+
         $gtAllFinished = [];
 
         foreach ($general_tasks as $gt) {
+
             $taskIds = ($tasksByGeneral[$gt->id] ?? collect())->pluck('id');
 
-            $gtAllFinished[$gt->id] = $taskIds->count() > 0
-                && $taskIds->every(function ($taskId) use ($mainsByTask) {
-                    $main = $mainsByTask->get($taskId);
-                    return $main && !empty($main->date_finish);
-                });
+            // Если у general нет задач – считаем не завершённым
+            if ($taskIds->isEmpty()) {
+                $gtAllFinished[$gt->id] = false;
+                continue;
+            }
+
+            $gtAllFinished[$gt->id] = $taskIds->every(function ($taskId) use ($mainsByTask) {
+
+                $main = $mainsByTask->get($taskId);
+
+                // нет строки main → задача точно не завершена
+                if (!$main) {
+                    return false;
+                }
+
+                // если ignore_row = 1, строка игнорируется и НЕ мешает стать зелёным
+                if ($main->ignore_row) {
+                    return true;
+                }
+
+                // обычная проверка: есть ли дата финиша
+                return !empty($main->date_finish);
+            });
         }
 
         return view('admin.mains.main', compact(
@@ -244,14 +268,24 @@ class MainController extends Controller
 
     public function update(Request $request, Main $main)
     {
-
+        $oldIgnore = (int) $main->ignore_row;
         $beforeStart  = $main->date_start ? Carbon::parse($main->date_start)->format('Y-m-d') : null;
         $beforeFinish = $main->date_finish ? Carbon::parse($main->date_finish)->format('Y-m-d') : null;
 
         $data = $request->validate([
             'date_start'  => ['nullable','date'],
             'date_finish' => ['nullable','date'],
+            'ignore_row'  => ['nullable', 'boolean'],
         ]);
+        $ignoreRow = $request->boolean('ignore_row');
+        $main->ignore_row = $request->boolean('ignore_row');
+
+        if ($main->ignore_row) {
+            // либо очищаем дату, либо просто не меняем
+            // $main->date_finish = null;
+        } else {
+            $main->date_finish = $data['date_finish'] ?? null;
+        }
 
         $hasStart  = $request->has('date_start');
         $hasFinish = $request->has('date_finish');
@@ -267,16 +301,18 @@ class MainController extends Controller
         }
 
         // finish не раньше start
-        if ($newStart && $newFinish && $newFinish->lt($newStart)) {
-            return back()->withErrors(['date_finish' => 'Finish date cannot be earlier than the start date.'])->withInput();
+        if (!$main->ignore_row && $main->date_start && $main->date_finish && $main->date_finish < $main->date_start) {
+            return back()->withErrors(['date_finish' => 'Finish cannot be before Start']);
         }
 
         if ($hasStart)  $main->date_start = $newStart;
         if ($hasFinish) $main->date_finish = $newFinish;
 
+
+
+        $main->ignore_row  = $ignoreRow;
         $main->user_id = auth()->id(); // кто менял (техник)
         $main->save();
-
 
 
         $main->loadMissing(['task.generalTask']);
@@ -290,6 +326,22 @@ class MainController extends Controller
             $clearedFinish = !empty($beforeFinish) && empty($afterFinish);
 
             $action = ($clearedStart || $clearedFinish) ? 'cleared' : 'updated';
+
+
+
+            activity('ignore')
+                ->performedOn($main)
+                ->causedBy(auth()->user())
+                ->withProperties([
+                    'attribute'    => 'ignore_row',
+                    'from'         => $oldIgnore,
+                    'to'           => (int) $main->ignore_row,
+                    'workorder_id' => $main->workorder_id,
+                    'task_id'      => $main->task_id,
+                ])
+                ->event('ignore_row_toggled')
+                ->log('Toggle ignore_row on Main row');
+
 
             activity('mains')
                 ->performedOn($main)

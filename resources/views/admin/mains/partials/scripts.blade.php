@@ -1,6 +1,24 @@
 <script>
     document.addEventListener('DOMContentLoaded', () => {
 
+
+        document.querySelectorAll('.js-ignore-row:checked').forEach(cb => {
+            const form   = cb.closest('form');
+            if (!form) return;
+
+            const tr     = form.closest('tr');
+            const finish = tr?.querySelector('.js-finish');
+            const hidden = form.querySelector('.js-ignore-hidden');
+
+            if (hidden) hidden.value = '1';
+            if (finish) {
+                finish.disabled = true;
+                finish.classList.add('is-ignored');
+            }
+        });
+
+
+
         const safeShowSpinner = () => {
             try {
                 if (typeof showLoadingSpinner === 'function') showLoadingSpinner();
@@ -1007,7 +1025,7 @@
       </div>`;
                     return;
                 }
-                js-ignore-finish
+                ignore-row
                 box.innerHTML = text;
             } catch (err) {
                 box.innerHTML = `<div class="text-danger small">Fetch failed: ${err.message}</div>`;
@@ -1029,7 +1047,7 @@
         }, true);
 
         document.addEventListener('change', function (e) {
-            const cb = e.target.closest('.js-ignore-finish');
+            const cb = e.target.closest('.js-ignore-row');
             if (!cb) return;
 
             const form = cb.closest('form');

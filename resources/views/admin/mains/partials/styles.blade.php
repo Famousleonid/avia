@@ -202,9 +202,10 @@
     }
 
     /* col widths (from your <colgroup>) */
-    .tasks-table col.col-tech {width: 140px;}
-    .tasks-table col.col-start {width: 180px;}
-    .tasks-table col.col-finish {width: 180px;}
+    .tasks-table col.col-ignore {width: 30px;}
+    .tasks-table col.col-tech {width: 12%;}
+    .tasks-table col.col-start {width: 22%;}
+    .tasks-table col.col-finish {width: 22%;}
     .tasks-table col.col-log {width: 50px;}
     .tasks-table col.col-task {width: auto;}
 
