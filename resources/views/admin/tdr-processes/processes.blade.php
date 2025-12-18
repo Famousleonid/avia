@@ -98,6 +98,12 @@
             grid-template-rows: repeat(1, 1fr);
             gap: 8px;
         }
+        .fs-75 {
+            font-size: 0.75rem; /* или любое другое подходящее значение */
+        }
+        .fs-7 {
+            font-size: 0.7rem; /* или любое другое подходящее значение */
+        }
     </style>
 
     <div class="container mt-3">
@@ -118,12 +124,35 @@
                         SN: {{ $current_tdr->serial_number }}</p>
                     </div>
 
+                    <a href="{{ route('tdrs.processes', ['workorder_id'=>$current_tdr->workorder->id]) }}"
+                       class="btn btn-outline-secondary " style="line-height: .9rem;width: 150px;height: 42px">
+                        {{ __('All Components Processes') }}
+                    </a>
+                    <div class="ms-2 d-flex" style="width: 300px">
+                        @if(isset($processGroups) && count($processGroups) > 0)
+                            <div style="width: 150px">
+                                <x-paper-button-multy
+                                    text="Group Process Forms"
+                                    color="outline-primary"
+                                    size="landscape"
+                                    width="100"
+                                    ariaLabel="Group Process Forms"
+                                    data-bs-toggle="modal"
+                                    data-bs-target="#groupFormsModal"
+                                />
+                            </div>
+                        @else
+                            {{-- Отладка: проверяем наличие переменной --}}
+                            {{-- @if(isset($processGroups)) Debug: processGroups exists but empty ({{ count($processGroups) }}) @else Debug: processGroups not set @endif --}}
+                        @endif
+                            <a href="{{ route('tdr-processes.traveler', ['tdrId' => $current_tdr->id]) }}"
+                               class="btn btn-outline-info  me-2" style="height: 42px">
+                                <i class="fas fa-file-alt"></i> Traveler
+                            </a>
+                    </div>
                     <div class="d-flex parent">
                         <div class="ms-5">
-                        <a href="{{ route('tdr-processes.traveler', ['tdrId' => $current_tdr->id]) }}"
-                           class="btn btn-outline-info mt-2 me-2">
-                            <i class="fas fa-file-alt"></i> Traveler
-                        </a>
+
 
                             <a href="{{ route('tdr-processes.createProcesses', ['tdrId' => $current_tdr->id]) }}"
                                class="btn btn-outline-success mt-2 me-2">
@@ -231,11 +260,135 @@
                         </table>
                     </div>
                 </div>
-                <a href="{{ route('tdrs.processes', ['workorder_id'=>$current_tdr->workorder->id]) }}"
-                   class="btn btn-outline-secondary mt-3">{{ __('All Components Processes') }} </a>
+
             </div>
         </div>
     </div>
+
+    <!-- Modal - Group Process Forms -->
+    @if(isset($processGroups) && count($processGroups) > 0)
+        <div class="modal fade" id="groupFormsModal" tabindex="-1" aria-labelledby="groupFormsModalLabel" aria-hidden="true">
+            <div class="modal-dialog modal-lg">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title" id="groupFormsModalLabel">
+                            <i class="fas fa-print"></i> {{ __('Group Process Forms') }}
+                        </h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+                    <div class="modal-body">
+                        <div class="row">
+                            <div class="col-12">
+                                <p class="text-muted mb-3">
+                                    <i class="fas fa-info-circle"></i>
+                                    Select a process type to generate a grouped form. Each process type can have its own vendor and process selection.
+                                </p>
+                            </div>
+                        </div>
+
+                        <div class="table-responsive">
+                            <table class="table table-hover table-bordered bg-gradient shadow">
+                                <thead>
+                                <tr>
+                                    <th class="text-primary text-center" style="width: 25%;">Process</th>
+                                    <th class="text-primary text-center" style="width: 25%;">Processes</th>
+                                    <th class="text-primary text-center" style="width: 25%;">Vendor</th>
+                                </tr>
+                                </thead>
+                                <tbody>
+                                @foreach($processGroups as $groupKey => $group)
+                                    @php
+                                        // Для группы NDT используем ID процесса из process_name, иначе используем groupKey
+                                        $actualProcessNameId = ($groupKey == 'NDT_GROUP') ? $group['process_name']->id : $groupKey;
+                                        // Для группы NDT отображаем "NDT", иначе название процесса
+                                        $displayName = ($groupKey == 'NDT_GROUP') ? 'NDT' : $group['process_name']->name;
+                                    @endphp
+                                    <tr>
+                                        <td class="align-middle ">
+                                            <div class="position-relative d-inline-block ms-5">
+                                                <x-paper-button
+                                                    text="{{ $displayName }} "
+                                                    size="landscape"
+                                                    width="120px"
+                                                    href="{{ route('tdrs.show_group_forms', ['id' => $current_tdr->workorder->id, 'processNameId' => $actualProcessNameId]) }}"
+                                                    target="_blank"
+                                                    class="group-form-button"
+                                                    data-process-name-id="{{ $actualProcessNameId }}"
+                                                > </x-paper-button>
+
+                                                <span class="badge bg-success  mt-1 ms-1 process-qty-badge"
+                                                      data-process-name-id="{{ $actualProcessNameId }}"
+                                                      style="position: absolute; top: -5px; left: 5px; min-width: 20px;
+                                                          height: 30px;
+                                              display: flex; align-items: center; justify-content: center; font-size: 0.7rem; padding: 0 5px;">
+                                                        {{$group['qty'] }} pcs</span>
+
+                                            </div>
+
+                                        </td>
+                                        <td class="align-middle">
+                                            <div class="process-checkboxes" data-process-name-id="{{ $actualProcessNameId }}">
+                                                @if($group['count'] > 1)
+                                                    @foreach($group['processes'] as $processItem)
+                                                        <div class="form-check">
+                                                            <input class="ms-1 form-check-input process-checkbox"
+                                                                   type="checkbox"
+                                                                   value="{{ $processItem['id'] }}"
+                                                                   id="process_{{ $actualProcessNameId }}_{{ $processItem['id'] }}"
+                                                                   data-process-name-id="{{ $actualProcessNameId }}"
+                                                                   data-qty="{{ $processItem['qty'] }}"
+                                                                   data-tdr-process-id="{{ $processItem['tdr_process_id'] }}"
+                                                                   checked>
+                                                            <label class="form-check-label fs-7" for="process_{{
+                                                            $actualProcessNameId }}_{{ $processItem['id'] }}">
+                                                                <strong>{{ $processItem['name'] }}</strong>@if($processItem['ec']) (EC)@endif
+                                                                <span class="">Qty: {{ $processItem['qty'] }}</span>
+                                                            </label>
+                                                        </div>
+                                                    @endforeach
+                                                @else
+                                                    @foreach($group['processes'] as $processItem)
+                                                        <div class="form-check">
+                                                            <input class="ms-1 form-check-input process-checkbox"
+                                                                   type="checkbox"
+                                                                   value="{{ $processItem['id'] }}"
+                                                                   id="process_{{ $actualProcessNameId }}_{{ $processItem['id'] }}"
+                                                                   data-process-name-id="{{ $actualProcessNameId }}"
+                                                                   data-qty="{{ $processItem['qty'] }}"
+                                                                   data-tdr-process-id="{{ $processItem['tdr_process_id'] }}"
+                                                                   checked
+                                                                   disabled>
+                                                            <label class="form-check-label fs-7" for="process_{{
+                                                            $actualProcessNameId }}_{{ $processItem['id'] }}">
+                                                                <strong>{{ $processItem['name'] }}</strong>@if($processItem['ec']) (EC)@endif
+                                                                <span class="">Qty: {{ $processItem['qty'] }}</span>
+                                                            </label>
+                                                        </div>
+                                                    @endforeach
+                                                @endif
+                                            </div>
+                                        </td>
+                                        <td class="align-middle">
+                                            <select class="form-select vendor-select"
+                                                    data-process-name-id="{{ $actualProcessNameId }}"
+                                                    style="font-size: 0.9rem;">
+                                                <option value="">No vendor</option>
+                                                @foreach($vendors as $vendor)
+                                                    <option value="{{ $vendor->id }}">{{ $vendor->name }}</option>
+                                                @endforeach
+                                            </select>
+                                        </td>
+                                    </tr>
+                                @endforeach
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    @endif
+
     <!-- Модальное окно для подтверждения удаления -->
     <div class="modal fade" id="useConfirmDelete" tabindex="-1" aria-labelledby="useConfirmDeleteLabel" aria-hidden="true">
         <div class="modal-dialog">
@@ -286,6 +439,79 @@
     <!-- Скрипт для обработки подтверждения удаления -->
     <script>
         document.addEventListener('DOMContentLoaded', function () {
+            // Обработчик для кнопок "Group Process Forms"
+            // Обрабатываем клики по кнопкам, которые должны открывать модальное окно Group Process Forms
+            function openGroupFormsModal(e) {
+                e.preventDefault();
+                e.stopPropagation();
+                const modalElement = document.getElementById('groupFormsModal');
+                if (modalElement) {
+                    const modal = bootstrap.Modal.getOrCreateInstance(modalElement);
+                    modal.show();
+                } else {
+                    console.error('Modal #groupFormsModal not found!');
+                }
+            }
+
+            // Вариант 1: По атрибуту data-bs-target
+            document.querySelectorAll('[data-bs-target="#groupFormsModal"]').forEach(function(button) {
+                button.addEventListener('click', openGroupFormsModal);
+            });
+
+            // Вариант 2: По классу paper-btn-multy и тексту (для компонента x-paper-button-multy)
+            document.querySelectorAll('.paper-btn-multy').forEach(function(button) {
+                // Проверяем, содержит ли кнопка или её родитель атрибут data-bs-target
+                if (button.hasAttribute('data-bs-target') && button.getAttribute('data-bs-target') === '#groupFormsModal') {
+                    button.addEventListener('click', openGroupFormsModal);
+                } else {
+                    // Проверяем по тексту внутри SVG
+                    const svg = button.querySelector('svg');
+                    if (svg) {
+                        const foreignObject = svg.querySelector('foreignObject');
+                        if (foreignObject) {
+                            const text = foreignObject.textContent.trim();
+                            if (text.includes('Group Process Forms')) {
+                                button.addEventListener('click', openGroupFormsModal);
+                            }
+                        }
+                    }
+                }
+            });
+
+            // Вариант 3: Обработчик на уровне документа для любых кликов по элементам внутри кнопки
+            document.addEventListener('click', function(e) {
+                // Проверяем, кликнули ли по элементу внутри кнопки с data-bs-target="#groupFormsModal"
+                const button = e.target.closest('[data-bs-target="#groupFormsModal"]');
+                if (button) {
+                    openGroupFormsModal(e);
+                    return;
+                }
+
+                // Проверяем, кликнули ли по SVG или его содержимому внутри paper-btn-multy
+                const clickedElement = e.target;
+                const paperButton = clickedElement.closest('.paper-btn-multy');
+                if (paperButton) {
+                    // Проверяем атрибут или текст
+                    if (paperButton.hasAttribute('data-bs-target') &&
+                        paperButton.getAttribute('data-bs-target') === '#groupFormsModal') {
+                        openGroupFormsModal(e);
+                        return;
+                    }
+
+                    // Проверяем по тексту
+                    const svg = paperButton.querySelector('svg');
+                    if (svg) {
+                        const foreignObject = svg.querySelector('foreignObject');
+                        if (foreignObject) {
+                            const text = foreignObject.textContent.trim();
+                            if (text.includes('Group Process Forms')) {
+                                openGroupFormsModal(e);
+                            }
+                        }
+                    }
+                }
+            });
+
             // Инициализация drag & drop
             const sortable = Sortable.create(document.getElementById('sortable-tbody'), {
                 animation: 150,
@@ -395,35 +621,35 @@
                         name: vendorName
                     })
                 })
-                .then(response => response.json())
-                .then(data => {
-                    if (data.success) {
-                        // Добавляем новый vendor в дропдауны
-                        const newOption = document.createElement('option');
-                        newOption.value = data.vendor.id;
-                        newOption.textContent = data.vendor.name;
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.success) {
+                            // Добавляем новый vendor в дропдауны
+                            const newOption = document.createElement('option');
+                            newOption.value = data.vendor.id;
+                            newOption.textContent = data.vendor.name;
 
-                        // Добавляем во все дропдауны
-                        document.querySelectorAll('.vendor-select').forEach(select => {
-                            select.appendChild(newOption.cloneNode(true));
-                        });
+                            // Добавляем во все дропдауны
+                            document.querySelectorAll('.vendor-select').forEach(select => {
+                                select.appendChild(newOption.cloneNode(true));
+                            });
 
-                        // Закрываем модальное окно
-                        const modal = bootstrap.Modal.getInstance(document.getElementById('addVendorModal'));
-                        modal.hide();
+                            // Закрываем модальное окно
+                            const modal = bootstrap.Modal.getInstance(document.getElementById('addVendorModal'));
+                            modal.hide();
 
-                        // Очищаем форму
-                        addVendorForm.reset();
+                            // Очищаем форму
+                            addVendorForm.reset();
 
-                        alert('Vendor added successfully!');
-                    } else {
-                        alert('Error: ' + data.message);
-                    }
-                })
-                .catch(error => {
-                    console.error('Error:', error);
-                    alert('Error adding vendor');
-                });
+                            alert('Vendor added successfully!');
+                        } else {
+                            alert('Error: ' + data.message);
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Error:', error);
+                        alert('Error adding vendor');
+                    });
             });
 
             // Функция для обновления порядка процессов
@@ -441,24 +667,24 @@
                         process_ids: processIds
                     })
                 })
-                .then(response => response.json())
-                .then(data => {
-                    if (data.success) {
-                        console.log('Order updated successfully');
-                        // Показываем уведомление пользователю
-                        showNotification('Порядок процессов обновлен', 'success');
-                    } else {
-                        console.error('Error updating order:', data.message);
-                        showNotification('Ошибка обновления порядка: ' + data.message, 'error');
-                        // Восстанавливаем предыдущий порядок
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.success) {
+                            console.log('Order updated successfully');
+                            // Показываем уведомление пользователю
+                            showNotification('Порядок процессов обновлен', 'success');
+                        } else {
+                            console.error('Error updating order:', data.message);
+                            showNotification('Ошибка обновления порядка: ' + data.message, 'error');
+                            // Восстанавливаем предыдущий порядок
+                            location.reload();
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Error:', error);
+                        showNotification('Ошибка сети при обновлении порядка', 'error');
                         location.reload();
-                    }
-                })
-                .catch(error => {
-                    console.error('Error:', error);
-                    showNotification('Ошибка сети при обновлении порядка', 'error');
-                    location.reload();
-                });
+                    });
             }
 
             // Функция для показа уведомлений
@@ -481,6 +707,117 @@
                     }
                 }, 3000);
             }
+
+            // Обработчики для Group Process Forms модального окна
+            const groupVendorSelects = document.querySelectorAll('#groupFormsModal .vendor-select');
+            const groupFormLinks = document.querySelectorAll('.group-form-link');
+            const groupFormButtons = document.querySelectorAll('#groupFormsModal .group-form-button');
+            const groupComponentCheckboxes = document.querySelectorAll('#groupFormsModal .component-checkbox');
+
+            // Функция для обновления URL с учетом vendor и компонентов
+            function updateGroupLinkUrl(processNameId) {
+                // Пробуем найти ссылку или кнопку
+                let link = document.querySelector(`.group-form-link[data-process-name-id="${processNameId}"]`);
+                if (!link) {
+                    link = document.querySelector(`.group-form-button[data-process-name-id="${processNameId}"]`);
+                }
+                if (!link) return;
+
+                const originalUrl = link.getAttribute('href');
+                if (!originalUrl) return;
+
+                const url = new URL(originalUrl, window.location.origin);
+
+                // Добавляем vendor_id если выбран
+                const vendorSelect = document.querySelector(`#groupFormsModal .vendor-select[data-process-name-id="${processNameId}"]`);
+                if (vendorSelect && vendorSelect.value) {
+                    url.searchParams.set('vendor_id', vendorSelect.value);
+                } else {
+                    url.searchParams.delete('vendor_id');
+                }
+
+                // Добавляем component_ids из выбранных чекбоксов
+                const checkedBoxes = document.querySelectorAll(
+                    `#groupFormsModal .component-checkbox[data-process-name-id="${processNameId}"]:checked`
+                );
+                if (checkedBoxes.length > 0) {
+                    const selectedComponents = Array.from(checkedBoxes).map(checkbox => checkbox.value);
+                    url.searchParams.set('component_ids', selectedComponents.join(','));
+                } else {
+                    url.searchParams.delete('component_ids');
+                }
+
+                link.setAttribute('href', url.toString());
+            }
+
+            // Функция для обновления badge с количеством
+            function updateGroupQuantityBadge(processNameId) {
+                const checkedBoxes = document.querySelectorAll(
+                    `#groupFormsModal .component-checkbox[data-process-name-id="${processNameId}"]:checked:not([disabled])`
+                );
+                const badge = document.querySelector(
+                    `#groupFormsModal .process-qty-badge[data-process-name-id="${processNameId}"]`
+                );
+
+                if (badge && checkedBoxes.length > 0) {
+                    let totalQty = 0;
+                    checkedBoxes.forEach(checkbox => {
+                        const qty = parseInt(checkbox.getAttribute('data-qty')) || 0;
+                        totalQty += qty;
+                    });
+                    badge.textContent = `${totalQty} pcs`;
+                }
+            }
+
+            // Обработчик изменения выбора vendor для каждого дропдауна
+            groupVendorSelects.forEach(vendorSelect => {
+                vendorSelect.addEventListener('change', function() {
+                    const processNameId = this.getAttribute('data-process-name-id');
+                    updateGroupLinkUrl(processNameId);
+                });
+            });
+
+            // Обработчик изменения чекбоксов компонентов
+            groupComponentCheckboxes.forEach(checkbox => {
+                checkbox.addEventListener('change', function() {
+                    const processNameId = this.getAttribute('data-process-name-id');
+                    updateGroupLinkUrl(processNameId);
+                    updateGroupQuantityBadge(processNameId);
+                });
+            });
+
+            // Обработчик клика по кнопкам форм
+            groupFormLinks.forEach(link => {
+                link.addEventListener('click', function(e) {
+                    const processNameId = this.getAttribute('data-process-name-id');
+                    updateGroupLinkUrl(processNameId);
+                });
+            });
+
+            // Обработчик клика по paper-button кнопкам форм
+            groupFormButtons.forEach(button => {
+                button.addEventListener('click', function(e) {
+                    const processNameId = this.getAttribute('data-process-name-id');
+                    if (processNameId) {
+                        // Обновляем URL перед переходом
+                        updateGroupLinkUrl(processNameId);
+                        // Получаем обновленный URL и устанавливаем его
+                        const updatedUrl = this.getAttribute('href');
+                        if (updatedUrl) {
+                            this.setAttribute('href', updatedUrl);
+                        }
+                    }
+                });
+            });
+
+            // Инициализация URL и badge при загрузке страницы
+            document.querySelectorAll('#groupFormsModal .group-form-link, #groupFormsModal .group-form-button').forEach(link => {
+                const processNameId = link.getAttribute('data-process-name-id');
+                if (processNameId) {
+                    updateGroupLinkUrl(processNameId);
+                    updateGroupQuantityBadge(processNameId);
+                }
+            });
 
         });
     </script>
