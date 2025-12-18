@@ -7,6 +7,75 @@
     .fs-8 {
         font-size: .8rem;
     }
+    /* Убираем красный фон на hover */
+    .js-gt-btn.btn-outline-danger:hover {
+        background-color: transparent !important;
+        color: #dc3545 !important;
+    }
+
+    /* Убираем красный фон на active */
+    .js-gt-btn.btn-outline-danger.active,
+    .js-gt-btn.btn-outline-danger:active,
+    .js-gt-btn.btn-outline-danger:focus,
+    .js-gt-btn.btn-outline-danger:focus-visible,
+    .js-gt-btn.btn-outline-danger.show {
+        background-color: transparent !important;
+        color: #dc3545 !important;
+        box-shadow: none !important;
+    }
+    /* и зеленый фон на active */
+    .js-gt-btn.btn-outline-success:active,
+    .js-gt-btn.btn-outline-success.active,
+    .js-gt-btn.btn-outline-success:focus,
+    .js-gt-btn.btn-outline-success:focus-visible,
+    .js-gt-btn.btn-outline-success.show {
+        background-color: transparent !important;
+        box-shadow: none !important;
+    }
+
+
+    .js-gt-btn.btn-outline-success {
+        border-color: #28d27d !important;   /* ярче */
+        color: #28d27d !important;
+    }
+    .js-gt-btn.btn-outline-success:hover {
+        border-color: #4fffa0 !important;   /* чуть ярче */
+        color: #4fffa0 !important;
+        background-color: transparent !important;
+    }
+    /* Белая рамка на active */
+    .js-gt-btn.btn-outline-danger.active  {
+        border-color: #fff !important;
+    }
+    .js-gt-btn.btn-outline-success.active  {
+        border-width: 2px !important;
+        border-color: #fff !important;
+    }
+
+    /* hover  */
+    .js-gt-btn.btn-outline-danger:hover {
+        color: #ff6b6b !important;
+
+    }
+
+
+    /* чтобы не прыгала высота при смене рамки */
+    .js-gt-btn.btn-outline-danger {
+        border-width: 2px !important;
+    }
+
+    /*.flatpickr-input.form-control.form-control-sm.w-100.fp-alt {*/
+    /*    width: 115px !important;     !* фиксируем ширину *!*/
+    /*    min-width: 115px !important;*/
+    /*    max-width: 115px !important;*/
+    /*}*/
+
+    .finish-input.noedit,
+    .finish-input.noedit + .flatpickr-input {
+        pointer-events: none !important;
+        background-color: rgba(255,255,255,.08) !important;
+    }
+
 
     input::placeholder,
     .flatpickr-input::placeholder {
@@ -136,14 +205,9 @@
     .tasks-table col.col-tech {width: 140px;}
     .tasks-table col.col-start {width: 180px;}
     .tasks-table col.col-finish {width: 180px;}
+    .tasks-table col.col-log {width: 50px;}
     .tasks-table col.col-task {width: auto;}
 
-    /* If you REALLY need calculated task width — keep only ONE rule (optional) */
-    /*
-    .tasks-table col.col-task {
-    width: calc(100% - 140px - 180px - 180px) !important;
-    }
-    */
 
     /* Flatpickr inputs inside table cells */
     .tasks-table .fp-alt,
@@ -181,19 +245,19 @@
     /* =========================================================
     5) Small UI pieces
     ========================================================= */
-    .select-task {
-        border: 0;
-        width: 100%;
-        text-align: left;
-        padding: .5rem .75rem;
-        background: transparent;
-        border-radius: .5rem;
-    }
+    /*.select-task {*/
+    /*    border: 0;*/
+    /*    width: 100%;*/
+    /*    text-align: left;*/
+    /*    padding: .5rem .75rem;*/
+    /*    background: transparent;*/
+    /*    border-radius: .5rem;*/
+    /*}*/
 
-    .select-task:hover {
-        background: rgba(0, 123, 255, .15);
-        cursor: pointer;
-    }
+    /*.select-task:hover {*/
+    /*    background: rgba(0, 123, 255, .15);*/
+    /*    cursor: pointer;*/
+    /*}*/
 
     #taskTabContent {
         max-height: 40vh;

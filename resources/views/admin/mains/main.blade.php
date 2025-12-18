@@ -288,7 +288,7 @@
                             <div class="d-flex gap-2">
                                 @foreach($general_tasks as $i => $gt)
                                     <button type="button"
-                                            class="btn flex-fill js-gt-btn {{ ($gtAllFinished[$gt->id] ?? false) ? 'btn-success' : 'btn-danger' }} {{ $i === 0 ? 'active' : '' }}"
+                                            class="btn flex-fill js-gt-btn {{ ($gtAllFinished[$gt->id] ?? false) ? 'btn-outline-success' : 'btn-outline-danger' }} {{ $i === 0 ? 'active' : '' }}"
                                             data-gt-id="{{ $gt->id }}">
                                         {{ $gt->name }}
                                     </button>
@@ -300,41 +300,41 @@
 
                                 @foreach($general_tasks as $i => $gt)
 
-                                    <div class="js-gt-pane h-100 {{ $i === 0 ? '' : 'd-none' }}"
-                                         data-gt-id="{{ $gt->id }}">
+                                    <div class="js-gt-pane h-100 {{ $i === 0 ? '' : 'd-none' }}" data-gt-id="{{ $gt->id }}">
+                                        <div class="table-responsive border border-secondary rounded h-100" style="overflow:auto;">
 
-                                        <div class="table-responsive border border-secondary rounded h-100"
-                                             style="overflow:auto;">
-
-                                            <table
-                                                class="table table-dark table-hover table-bordered mb-0 align-middle">
-
+                                            <table class="table table-dark table-hover table-bordered mb-0 align-middle tasks-table mt-4">
+                                                <colgroup>
+                                                    <col class="col-tech">      {{-- техник --}}
+                                                    <col class="col-task">      {{-- task --}}
+                                                    <col class="col-start">     {{-- start --}}
+                                                    <col class="col-finish">    {{-- finish --}}
+                                                    @role('Admin')
+                                                    <col class="col-log">                       {{-- logs --}}
+                                                    @endrole
+                                                </colgroup>
 
                                                 <tbody>
                                                 @forelse(($tasksByGeneral[$gt->id] ?? collect()) as $task)
-
                                                     @php
                                                         $main   = $mainsByTask[$task->id] ?? null;
-                                                        $action = $main
-                                                            ? route('mains.update', $main->id)
-                                                            : route('mains.store');
+                                                        $action = $main ? route('mains.update', $main->id) : route('mains.store');
+                                                        $isWaitingApprove = ($task->name === 'Waiting approve');
                                                     @endphp
 
                                                     <tr>
-                                                        <td class="small">{{ $main?->user?->name ?? '—' }}</td>
-                                                        <td class="small"
-                                                            title="{{ $task->name }}">{{ $task->name }}</td>
+                                                        <td class="">
+                                                              {{ $main?->user?->name ?? '' }}
+                                                        </td>
 
-                                                        @if($gt?->has_start_date)
+                                                        <td class="" title="{{ $task->name }}">{{ $task->name }}</td>
+
                                                             {{-- Start --}}
                                                             <td>
-                                                                <form method="POST"
-                                                                      action="{{ $action }}"
-                                                                      class="js-auto-submit">
+                                                                @if($task?->task_has_start_date)
+                                                                <form method="POST" action="{{ $action }}" class="js-auto-submit">
                                                                     @csrf
-                                                                    @if($main)
-                                                                        @method('PATCH')
-                                                                    @endif
+                                                                    @if($main) @method('PATCH') @endif
 
                                                                     @unless($main)
                                                                         <input type="hidden" name="workorder_id"
@@ -345,14 +345,15 @@
 
                                                                     <input type="text"
                                                                            name="date_start"
-                                                                           class="form-control form-control-sm finish-input"
+                                                                           class="form-control form-control-sm finish-input "
                                                                            value="{{ optional($main?->date_start)->format('Y-m-d') }}"
                                                                            placeholder="..."
                                                                            data-fp>
-
+                                                                    @endif
                                                                 </form>
                                                             </td>
-                                                        @endif
+
+
                                                         {{-- Finish --}}
                                                         <td>
                                                             <form method="POST"
@@ -372,20 +373,20 @@
                                                                 <div class="d-flex align-items-center gap-2">
                                                                     <input type="text"
                                                                            name="date_finish"
-                                                                           class="form-control form-control-sm finish-input"
+                                                                           class="form-control form-control-sm finish-input {{ $isWaitingApprove ? 'noedit' : '' }}"
                                                                            value="{{ optional($main?->date_finish)->format('Y-m-d') }}"
                                                                            placeholder="..."
                                                                            data-fp>
-                                                                    {{-- всегда отправляем 0/1 --}}
-                                                                    <input type="hidden" name="ignore_finish"
-                                                                           value="{{ (int)($main?->ignore_finish ?? 0) }}"
-                                                                           class="js-ignore-hidden">
+{{--                                                                    --}}{{-- всегда отправляем 0/1 --}}
+{{--                                                                    <input type="hidden" name="ignore_finish"--}}
+{{--                                                                           value="{{ (int)($main?->ignore_finish ?? 0) }}"--}}
+{{--                                                                           class="js-ignore-hidden">--}}
 
-                                                                    <input class="form-check-input m-0 js-ignore-finish"
-                                                                           type="checkbox"
-                                                                           value="1"
-                                                                           {{ ($main?->ignore_finish ?? false) ? 'checked' : '' }}
-                                                                           title="Ignore finish date">
+{{--                                                                    <input class="form-check-input m-0 js-ignore-finish"--}}
+{{--                                                                           type="checkbox"--}}
+{{--                                                                           value="1"--}}
+{{--                                                                           {{ ($main?->ignore_finish ?? false) ? 'checked' : '' }}--}}
+{{--                                                                           title="Ignore finish date">--}}
                                                                 </div>
 
                                                             </form>
@@ -430,25 +431,25 @@
                     </div>
 
 
-                    {{-- LOG MODAL (твой) --}}
-                    <div class="modal fade" id="logModal" tabindex="-1" aria-labelledby="logModalLabel"
-                         aria-hidden="true">
-                        <div class="modal-dialog modal-lg modal-dialog-scrollable">
-                            <div class="modal-content" style="background-color:#212529;color:#f8f9fa;">
-                                <div class="modal-header">
-                                    <h5 class="modal-title" id="logModalLabel">Activity log</h5>
-                                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"
-                                            aria-label="Close"></button>
-                                </div>
-                                <div class="modal-body">
-                                    <div id="logModalContent"></div>
-                                </div>
-                                <div class="modal-footer">
-                                    <button class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
+                    {{-- LOG MODAL  --}}
+{{--                    <div class="modal fade" id="logModal" tabindex="-1" aria-labelledby="logModalLabel"--}}
+{{--                         aria-hidden="true">--}}
+{{--                        <div class="modal-dialog modal-lg modal-dialog-scrollable">--}}
+{{--                            <div class="modal-content" style="background-color:#212529;color:#f8f9fa;">--}}
+{{--                                <div class="modal-header">--}}
+{{--                                    <h5 class="modal-title" id="logModalLabel">Activity log</h5>--}}
+{{--                                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"--}}
+{{--                                            aria-label="Close"></button>--}}
+{{--                                </div>--}}
+{{--                                <div class="modal-body">--}}
+{{--                                    <div id="logModalContent"></div>--}}
+{{--                                </div>--}}
+{{--                                <div class="modal-footer">--}}
+{{--                                    <button class="btn btn-secondary" data-bs-dismiss="modal">Close</button>--}}
+{{--                                </div>--}}
+{{--                            </div>--}}
+{{--                        </div>--}}
+{{--                    </div>--}}
 
 
                     {{-- Right panel: Components / Processes --}}

@@ -77,7 +77,6 @@
                     <tr>
                         <th class="text-primary sortable bg-gradient " data-direction="asc">{{__('Name')}}<i class="bi bi-chevron-expand ms-1"></i></th>
                         <th class="text-primary sortable bg-gradient text-center" data-direction="asc">{{__('Sort line order')}}<i class="bi bi-chevron-expand ms-1"></i></th>
-                        <th class="text-primary sortable bg-gradient text-center" data-direction="asc">{{__('Has start date')}}<i class="bi bi-chevron-expand ms-1"></i></th>
                         <th class="text-primary text-center bg-gradient">{{__('Action')}}</th>
                     </tr>
                     </thead>
@@ -86,7 +85,6 @@
                         <tr>
                             <td class="">{{$general_tasks->name}}</td>
                             <td class="text-center">{{$general_tasks->sort_order}}</td>
-                            <td class="text-center">{{$general_tasks->has_start_date}}</td>
                             <td class="text-center">
                                 <button
                                     type="button"
@@ -135,10 +133,6 @@
                             <label for="createSort" class="form-label">Sort order</label>
                             <input type="text" id="createSort" name="sort_order" class="form-control" required>
                         </div>
-                        <div class="mb-3">
-                            <label for="createStart" class="form-label">Has start date</label>
-                            <input type="text" id="createStart" name="has_start_date" class="form-control" required>
-                        </div>
 
                         <button type="submit" class="btn btn-primary">Save</button>
                     </form>
@@ -146,6 +140,8 @@
             </div>
         </div>
     </div>
+
+    <!-- Edit Modal -->
     <div class="modal fade" id="editModal" tabindex="-1" aria-hidden="true">
         <div class="modal-dialog">
             <div class="modal-content">
@@ -173,12 +169,6 @@
                         <div class="mb-3">
                             <label for="sortName" class="form-label">Sort order</label>
                             <input type="number" id="sortName" name="sort_order" class="form-control" min="0" required>
-                        </div>
-
-                        <div class="form-check mb-3">
-                            <input type="hidden" name="has_start_date" value="0">
-                            <input class="form-check-input" type="checkbox" id="hasStart" name="has_start_date" value="1">
-                            <label class="form-check-label" for="hasStart">Has start date</label>
                         </div>
 
                         <button type="submit" class="btn btn-primary" onclick="showLoadingSpinner()">Update</button>

@@ -39,12 +39,15 @@ class TaskController extends Controller
             [
                 'name'            => ['required', 'string', 'max:255'],
                 'general_task_id' => ['required', 'exists:general_tasks,id'],
+                'task_has_start_date' => ['nullable', 'boolean'],
             ],
             [
                 'general_task_id.required' => 'Please select a general task.',
                 'general_task_id.exists'   => 'Selected general task does not exist.',
             ]
         );
+
+        $validated['task_has_start_date'] = $request->boolean('task_has_start_date');
 
         Task::create($validated);
 
@@ -56,7 +59,10 @@ class TaskController extends Controller
         $validated = $request->validate([
             'name'              => ['required','string','max:255'],
             'general_task_id'   => ['nullable','exists:general_tasks,id'],
+            'task_has_start_date' => ['nullable', 'boolean'],
         ]);
+
+        $validated['task_has_start_date'] = $request->boolean('task_has_start_date');
 
         $task->update($validated);
 

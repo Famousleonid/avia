@@ -158,10 +158,7 @@
                 <div class="modal-body">
                     <form id="createForm" method="POST" action="{{ route('tasks.store') }}">
                         @csrf
-                        <div class="mb-3">
-                            <label for="createName" class="form-label">{{ __('Name') }}</label>
-                            <input type="text" id="createName" name="name" class="form-control" required>
-                        </div>
+
 
                         <div class="mb-3">
                             <label for="createGeneralTask" class="form-label">{{ __('Category (General Task)') }}</label>
@@ -172,6 +169,25 @@
                                 @endforeach
                             </select>
                         </div>
+
+                        <div class="mb-3">
+                            <label for="createName" class="form-label">{{ __('Name') }}</label>
+                            <input type="text" id="createName" name="name" class="form-control" required>
+                        </div>
+
+                        <div class="form-check form-switch mb-3">
+                            <input class="form-check-input"
+                                   type="checkbox"
+                                   role="switch"
+                                   id="hasStart"
+                                   name="task_has_start_date"
+                                   value="1"
+                                   checked>
+                            <label class="form-check-label" for="hasStart">
+                                {{ __('Has start date') }}
+                            </label>
+                        </div>
+
 
                         <button type="submit" class="btn btn-primary" onclick="showLoadingSpinner()">{{ __('Save') }}</button>
                     </form>
@@ -208,6 +224,20 @@
                                 @endforeach
                             </select>
                         </div>
+
+                        <div class="form-check form-switch mb-3">
+                            <input class="form-check-input"
+                                   type="checkbox"
+                                   role="switch"
+                                   id="hasStart"
+                                   name="task_has_start_date"
+                                   value="1"
+                                   checked>
+                            <label class="form-check-label" for="hasStart">
+                                {{ __('Has start date') }}
+                            </label>
+                        </div>
+
 
                         <button type="submit" class="btn btn-primary" onclick="showLoadingSpinner()">{{ __('Update') }}</button>
                     </form>

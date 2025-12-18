@@ -5,7 +5,9 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\Customer;
 use App\Models\Instruction;
+use App\Models\Main;
 use App\Models\Manual;
+use App\Models\Task;
 use App\Models\Unit;
 use App\Models\User;
 use App\Models\Workorder;
@@ -203,7 +205,6 @@ class WorkorderController extends Controller
         return response()->json($data);
     }
 
-
     public function index()
     {
         $workorders = Workorder::with(['main.task', 'unit.manuals', 'customer', 'instruction', 'user'])
@@ -331,19 +332,52 @@ class WorkorderController extends Controller
     public function approve($id)
     {
 
-        $current = Workorder::find($id);
+        $current = Workorder::findOrFail($id);
+        $user    = Auth::user();
 
-        if ($current->approve_at == NULL) {
-            $current->approve_at = 1;
-            $current->approve_at = now();
-            $current->approve_name = auth()->user()->name;
-            $current->save();
-        } else {
-            $current->approve_at = 0;
-            $current->approve_at = NULL;
-            $current->approve_name = NULL;
-            $current->save();
+        $waitingTask = Task::where('name', 'Waiting approve')->first();
+        if (!$waitingTask) {
+            return redirect()->back();
         }
+
+        $waitingTaskId = $waitingTask->id;
+        $generalTaskId = $waitingTask->general_task_id;
+
+        $mainQuery = Main::where('workorder_id', $current->id)
+            ->where('task_id', $waitingTaskId);
+
+        if (is_null($current->approve_at)) {
+
+            $current->approve_at = now();
+            $current->approve_name = $user->name;
+            $current->save();
+
+            $main = $mainQuery->first();
+
+            if (!$main) {
+                $main = new Main();
+                $main->workorder_id = $current->id;
+                $main->task_id = $waitingTaskId;
+                $main->general_task_id = $generalTaskId; // ← ключевая строка
+            }
+
+            $main->user_id = $user->id;
+            $main->date_finish = $current->approve_at;
+            $main->save();
+
+        } else {
+
+            $current->approve_at = null;
+            $current->approve_name = null;
+            $current->save();
+
+            if ($main = $mainQuery->first()) {
+                $main->date_finish = null;
+                $main->user_id = null;
+                $main->save();
+            }
+        }
+
         return redirect()->back();
 
     }
