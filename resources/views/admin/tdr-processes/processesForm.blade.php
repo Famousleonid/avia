@@ -14,7 +14,7 @@
         }
 
         .container-fluid {
-            max-width: 920px;
+            max-width: 960px;
             height: 98%;
             padding: 5px;
             margin-left: 10px;
@@ -22,45 +22,144 @@
         }
 
         @media print {
-            /* Задаем размер страницы Letter (8.5 x 11 дюймов) */
+            /* Фиксированный размер страницы Letter (8.5 x 11 дюймов = 215.9 x 279.4 мм) */
             @page {
-                size: letter;
-                margin: 1mm;
-            }
-
-            /* Убедитесь, что вся страница помещается на один лист */
-            html, body {
-                height: 99%;
-                width: 98%;
-                margin-left: 2px;
+                size: letter portrait;
+                margin: 1cm 1cm 1cm 1cm; /* Фиксированные поля для всех браузеров */
                 padding: 0;
             }
 
+            /* Сброс всех отступов и полей для консистентности */
+            * {
+                -webkit-print-color-adjust: exact !important;
+                color-adjust: exact !important;
+                print-color-adjust: exact !important;
+            }
+
+            /* Фиксированные размеры для body и html */
+            html, body {
+                width: 100% !important;
+                height: 100% !important;
+                margin: 0 !important;
+                padding: 0 !important;
+                font-size: 10pt !important; /* Фиксированный размер шрифта */
+                line-height: 1.2 !important;
+            }
+
+            /* Контейнер с фиксированной шириной */
+            .container-fluid {
+                width: 100% !important;
+                max-width: 100% !important;
+                margin: 0 !important;
+                padding: 0.2cm !important;
+                height: auto !important;
+                box-sizing: border-box !important;
+            }
+
             /* Отключаем разрывы страниц внутри элементов */
-            table, h1, p {
-                page-break-inside: avoid;
+            table, h1, h2, h3, h4, h5, h6, p {
+                page-break-inside: avoid !important;
             }
 
             /* Скрываем ненужные элементы при печати */
             .no-print {
-                display: none;
+                display: none !important;
             }
 
-            /* Колонтитул внизу страницы */
+            /* Колонтитул внизу страницы с фиксированными размерами */
             footer {
-                position: fixed;
-                bottom: 0;
-                width: 800px;
-                text-align: center;
-                font-size: 10px;
-                background-color: #fff;
-                padding: 3px 3px;
+                position: fixed !important;
+                bottom: 0.3cm !important;
+                width: 100% !important;
+                max-width: 20cm !important;
+                text-align: center !important;
+                font-size: 8pt !important;
+                background-color: #fff !important;
+                padding: 2pt !important;
             }
 
             /* Обрезка контента и размещение на одной странице */
             .container {
-                max-height: 100vh;
-                overflow: hidden;
+                max-height: none !important;
+                overflow: visible !important;
+            }
+
+            /* Фиксированные размеры для таблиц */
+            table {
+                width: 100% !important;
+                border-collapse: collapse !important;
+                font-size: 9pt !important;
+                table-layout: fixed !important;
+            }
+
+            /* Предотвращение выхода таблицы за края страницы */
+            .page {
+                width: 100% !important;
+                max-width: 100% !important;
+                margin: 0 !important;
+                padding: 0 !important;
+                overflow: hidden !important;
+                box-sizing: border-box !important;
+            }
+
+            .row {
+                margin-left: 0 !important;
+                margin-right: 0 !important;
+                width: 100% !important;
+                box-sizing: border-box !important;
+            }
+
+            [class*="col-"] {
+                padding-left: 2px !important;
+                padding-right: 2px !important;
+                word-wrap: break-word !important;
+                overflow-wrap: break-word !important;
+                box-sizing: border-box !important;
+            }
+
+            /* Дополнительные стили для предотвращения выхода за края */
+            .table-header .row,
+            .data-page .row,
+            .ndt-data-container .row {
+                width: 100% !important;
+                max-width: 100% !important;
+                margin-left: 0 !important;
+                margin-right: 0 !important;
+            }
+
+            /* Убираем градиенты и тени при печати */
+            .bg-gradient {
+                background: #fff !important;
+            }
+
+            /* Фиксированные размеры шрифтов */
+            h1, h2, h3, h4, h5, h6 {
+                font-size: 14pt !important;
+                margin: 5pt 0 !important;
+            }
+
+            /* Управление размером шрифта в шапке таблицы при печати */
+            .table-header h6 {
+                font-size: 12pt !important;
+                margin: 0 !important;
+                padding: 2px !important;
+                line-height: 1.1 !important;
+                align-content: center;
+            }
+
+            .table-header .fs-8,
+            .table-header .fs-7 {
+                font-size: 10pt !important;
+            }
+
+            .table-header .fs-85 {
+                font-size: 9pt !important;
+            }
+
+            p {
+                font-size: 11pt !important;
+                margin: 3pt 0 !important;
+                line-height: 1.1;
             }
         }
 
@@ -193,19 +292,19 @@
             width: 99px;
         }
         .fs-7 {
-            font-size: 0.9rem; /* или любое другое подходящее значение */
+            font-size: 0.7rem; /* или любое другое подходящее значение */
         }
         .fs-75 {
-            font-size: 0.8rem; /* или любое другое подходящее значение */
+            font-size: 0.75rem; /* или любое другое подходящее значение */
         }
         .fs-85 {
             font-size: 0.85rem; /* или любое другое подходящее значение */
         }
         .fs-8 {
-            font-size: 0.7rem; /* или любое другое подходящее значение */
+            font-size: 0.8rem; /* или любое другое подходящее значение */
         }
         .fs-9 {
-            font-size: 0.4rem; /* или любое другое подходящее значение */
+            font-size: 0.9rem; /* или любое другое подходящее значение */
         }
 
         .details-row {
@@ -386,19 +485,19 @@
 
     <div class="page table-header">
         <div class="row mt-2 ">
-            <div class="col-1 border-l-t-b pt-2 details-row text-center"><h6 class="fs-7">ITEM No.</h6></div>
-            <div class="col-3 border-l-t-b details-row text-center"><h6  class="fs-7">Part No</h6> </div>
-            <div class="col-3 border-l-t-b details-row text-center"><h6  class="fs-7">DESCRIPTION</h6></div>
-            <div class="col-2 border-l-t-b pt-2 details-row text-center"><h6  class="fs-75">PROCESS No.</h6> </div>
-            <div class="col-1 border-l-t-b details-row  text-center"><h6  class="fs-7">QTY</h6> </div>
-            <div class="col-1 border-l-t-b details-row  text-center"><h6  class="fs-7">ACCEPT</h6> </div>
-            <div class="col-1 border-all details-row  text-center"><h6  class="fs-7">REJECT</h6> </div>
+            <div class="col-1 border-l-t-b pt-2 details-row text-center"><h6 class="fs-8">ITEM No.</h6></div>
+            <div class="col-3 border-l-t-b details-row text-center"><h6  class="fs-8">Part No</h6> </div>
+            <div class="col-3 border-l-t-b details-row text-center"><h6  class="fs-8">DESCRIPTION</h6></div>
+            <div class="col-2 border-l-t-b pt-2 details-row text-center"><h6  class="fs-85">PROCESS No.</h6> </div>
+            <div class="col-1 border-l-t-b details-row  text-center"><h6  class="fs-8">QTY</h6> </div>
+            <div class="col-1 border-l-t-b details-row  text-center"><h6  class="fs-8">ACCEPT</h6> </div>
+            <div class="col-1 border-all details-row  text-center"><h6  class="fs-8">REJECT</h6> </div>
         </div>
     </div>
     <div class="page ndt-data-container">
 
         @php
-            $totalRows = 17; // Общее количество строк
+            $totalRows = 20; // Общее количество строк
             $dataRows = count($ndt_components); // Количество строк с данными
             $emptyRows = $totalRows - $dataRows; // Количество пустых строк
             $rowIndex = 1;
@@ -486,32 +585,32 @@
             @endif
 
 
-            <h6 class="mt-3 ms-3">
+            <div class="mt-3 ms-3 fs-9">
                 <strong>
                     Perform the {{ ucwords(strtolower($process_name->process_sheet_name)) }}
                     as the specified under Process No. and in
                     accordance with CMM No.
                 </strong>
-            </h6>
+            </div>
 
     <div class="page table-header">
     <div class="row mt-2 " >
-    <div class="col-1 border-l-t-b pt-2 details-row text-center"><h6 class="fs-7" ><strong> ITEM No.</strong></h6></div>
-    <div class="col-2 border-l-t-b pt-2 details-row text-center"><h6  class="fs-7" ><strong>PART No.</strong>
+    <div class="col-1 border-l-t-b pt-2 details-row text-center"><h6 class="fs-8" ><strong> ITEM No.</strong></h6></div>
+    <div class="col-2 border-l-t-b pt-2 details-row text-center"><h6  class="fs-8" ><strong>PART No.</strong>
         </h6>
     </div>
-    <div class="col-2 border-l-t-b pt-2  details-row text-center"><h6  class="fs-7" ><strong>DESCRIPTION</strong>
+    <div class="col-2 border-l-t-b pt-2  details-row text-center"><h6  class="fs-8" ><strong>DESCRIPTION</strong>
         </h6></div>
-    <div class="col-4 border-l-t-b pt-2 details-row text-center"><h6  class="fs-7" ><strong>PROCESS No.</strong>
+    <div class="col-4 border-l-t-b pt-2 details-row text-center"><h6  class="fs-8" ><strong>PROCESS No.</strong>
         </h6> </div>
-    <div class="col-1 border-l-t-b pt-2  details-row  text-center"><h6  class="fs-7" ><strong>QTY</strong> </h6>
+    <div class="col-1 border-l-t-b pt-2  details-row  text-center"><h6  class="fs-8" ><strong>QTY</strong> </h6>
     </div>
 
         @if($process_name->process_sheet_name == 'STRESS RELIEF')
-            <div class="col-2 border-all pt-2  details-row  text-center"><h6  class="fs-7" ><strong>PERFORMED</strong>
+            <div class="col-2 border-all pt-2  details-row  text-center"><h6  class="fs-8" ><strong>PERFORMED</strong>
                 </h6>
         @else
-             <div class="col-2 border-all pt-2  details-row  text-center"><h6  class="fs-7" ><strong>CMM No.</strong> </h6>
+             <div class="col-2 border-all pt-2  details-row  text-center"><h6  class="fs-8" ><strong>CMM No.</strong> </h6>
         @endif
             </div>
     </div>
@@ -628,220 +727,14 @@
 </div>
 </footer>
 
+<!-- Подключение библиотеки table-height-adjuster -->
 <script src="{{ asset('js/table-height-adjuster.js') }}"></script>
-<script>
-document.addEventListener("DOMContentLoaded", function() {
-    // Функция для добавления пустой строки NDT таблицы
-    function addEmptyRowNDT(rowIndex, tableElement) {
-        const container = typeof tableElement === 'string'
-            ? document.querySelector(tableElement)
-            : tableElement;
-        if (!container) return;
 
-        const row = document.createElement('div');
-        row.className = 'row fs-85 data-row-ndt empty-row';
-        row.setAttribute('data-row-index', rowIndex);
-        row.innerHTML = `
-            <div class="col-1 border-l-b details-row text-center" style="height: 32px"></div>
-            <div class="col-3 border-l-b details-row text-center" style="height: 32px"></div>
-            <div class="col-3 border-l-b details-row text-center" style="height: 32px"></div>
-            <div class="col-2 border-l-b details-row text-center" style="height: 32px"></div>
-            <div class="col-1 border-l-b details-row text-center" style="height: 32px"></div>
-            <div class="col-1 border-l-b details-row text-center" style="height: 32px"></div>
-            <div class="col-1 border-l-b-r details-row text-center" style="height: 32px"></div>
-        `;
-        container.appendChild(row);
-    }
-
-    // Функция для удаления строки NDT таблицы
-    function removeRowNDT(rowIndex, tableElement) {
-        const container = typeof tableElement === 'string'
-            ? document.querySelector(tableElement)
-            : tableElement;
-        if (!container) return;
-
-        const row = container.querySelector(`.data-row-ndt[data-row-index="${rowIndex}"]`);
-        if (row) row.remove();
-    }
-
-    // Функция для добавления пустой строки обычной таблицы
-    function addEmptyRowRegular(rowIndex, tableElement) {
-        const container = typeof tableElement === 'string'
-            ? document.querySelector(tableElement)
-            : tableElement;
-        if (!container) return;
-
-        const row = document.createElement('div');
-        row.className = 'row empty-row';
-        row.setAttribute('data-row-index', rowIndex);
-        row.innerHTML = `
-            <div class="col-1 border-l-b text-center" style="height: 32px"></div>
-            <div class="col-2 border-l-b text-center" style="height: 32px"></div>
-            <div class="col-2 border-l-b text-center" style="height: 32px"></div>
-            <div class="col-4 border-l-b text-center" style="height: 32px"></div>
-            <div class="col-1 border-l-b text-center" style="height: 32px"></div>
-            <div class="col-2 border-l-b-r text-center" style="height: 32px"></div>
-        `;
-        container.appendChild(row);
-    }
-
-    // Функция для удаления строки обычной таблицы
-    function removeRowRegular(rowIndex, tableElement) {
-        const container = typeof tableElement === 'string'
-            ? document.querySelector(tableElement)
-            : tableElement;
-        if (!container) return;
-
-        const row = container.querySelector(`[data-row-index="${rowIndex}"]`);
-        if (row) row.remove();
-    }
-
-    // Функция для вычисления реальной средней высоты строк
-    function calculateAverageRowHeight(rows) {
-        if (!rows || rows.length === 0) return 32; // Значение по умолчанию
-
-        let totalHeight = 0;
-        let count = 0;
-
-        rows.forEach(function(row) {
-            const rowHeight = row.offsetHeight;
-            if (rowHeight > 0) {
-                totalHeight += rowHeight;
-                count++;
-            }
-        });
-
-        const averageHeight = count > 0 ? Math.round(totalHeight / count) : 32;
-        console.log(`Средняя высота строк: ${averageHeight}px (из ${count} строк)`);
-        return averageHeight;
-    }
-
-    // Настройка высоты таблиц после загрузки
-    setTimeout(function() {
-        // Проверяем, что функция adjustTableHeightToRange загружена
-        if (typeof adjustTableHeightToRange === 'undefined') {
-            console.error('adjustTableHeightToRange не загружена. Проверьте подключение скрипта table-height-adjuster.js');
-            return;
-        }
-
-        // Настройка таблицы NDT (если она есть)
-        const ndtRows = document.querySelectorAll('.data-row-ndt');
-        if (ndtRows.length > 0) {
-            const ndtDataContainer = document.querySelector('.ndt-data-container');
-            if (ndtDataContainer) {
-                // Вычисляем реальную среднюю высоту строк NDT
-                const ndtRowHeight = calculateAverageRowHeight(ndtRows);
-
-                adjustTableHeightToRange({
-                    min_height_tab: 570,
-                    max_height_tab: 620,
-                    tab_name: '.ndt-data-container',
-                    row_height: ndtRowHeight,
-                    row_selector: '.data-row-ndt[data-row-index]',
-                    addRowCallback: addEmptyRowNDT,
-                    removeRowCallback: removeRowNDT,
-                    getRowIndexCallback: function(rowElement) {
-                        return parseInt(rowElement.getAttribute('data-row-index')) || 0;
-                    },
-                    max_iterations: 50,
-                    onComplete: function(currentHeight, rowCount) {
-                        console.log(`NDT таблица настроена: высота ${currentHeight}px, строк ${rowCount}, средняя высота строки ${ndtRowHeight}px`);
-                    }
-                });
-            }
-        }
-
-        // Настройка обычной таблицы (если она есть)
-        const regularTableContainer = document.querySelector('.data-page');
-        const regularRows = document.querySelectorAll('.data-page .data-row:not(.data-row-ndt)');
-        if (regularTableContainer && regularRows.length > 0) {
-            // Вычисляем реальную среднюю высоту строк с данными
-            const dataRowHeight = calculateAverageRowHeight(regularRows);
-
-            // Также учитываем пустые строки для более точного расчета
-            const emptyRows = document.querySelectorAll('.data-page .empty-row');
-            const emptyRowHeight = emptyRows.length > 0 ? calculateAverageRowHeight(emptyRows) : 32;
-
-            // Используем среднее значение между высотой строк с данными и пустых строк
-            // или высоту строк с данными, если она больше (так как пустые строки могут быть меньше)
-            const avgRowHeight = Math.max(dataRowHeight, emptyRowHeight);
-
-            // Проверяем текущую высоту таблицы перед настройкой
-            const initialHeight = regularTableContainer.offsetHeight;
-            const initialRowCount = regularTableContainer.querySelectorAll('[data-row-index]').length;
-
-            console.log(`Обычная таблица: высота строк с данными ${dataRowHeight}px, пустых строк ${emptyRowHeight}px, используется ${avgRowHeight}px`);
-            console.log(`Текущая высота таблицы: ${initialHeight}px, текущее количество строк: ${initialRowCount}`);
-            console.log(`Целевой диапазон: 700-750px`);
-
-            adjustTableHeightToRange({
-                min_height_tab: 720,
-                max_height_tab: 770,
-                tab_name: '.data-page',
-                row_height: avgRowHeight,
-                row_selector: '.data-page [data-row-index]',
-                addRowCallback: addEmptyRowRegular,
-                removeRowCallback: removeRowRegular,
-                getRowIndexCallback: function(rowElement) {
-                    return parseInt(rowElement.getAttribute('data-row-index')) || 0;
-                },
-                max_iterations: 50,
-                onComplete: function(currentHeight, rowCount) {
-                    console.log(`Обычная таблица настроена: высота ${currentHeight}px, строк ${rowCount}, средняя высота строки ${avgRowHeight}px`);
-                    console.log(`Изменение высоты: ${currentHeight - initialHeight}px (было ${initialHeight}px, стало ${currentHeight}px)`);
-
-                    // Если высота не изменилась, выводим предупреждение
-                    if (Math.abs(currentHeight - initialHeight) < 5) {
-                        console.warn('ВНИМАНИЕ: Высота таблицы практически не изменилась!');
-                        console.warn(`Возможные причины:`);
-                        console.warn(`1. Таблица уже находится в целевом диапазоне (${currentHeight}px между 700-750px)`);
-                        console.warn(`2. Недостаточно строк для достижения целевой высоты`);
-                        console.warn(`3. CSS ограничения (max-height, overflow)`);
-                    }
-                }
-            });
-        }
-
-        // Дополнительная проверка и корректировка на основе реальных высот строк
-        // После того как adjustTableHeightToRange завершил работу, проверяем реальную высоту таблицы
-        setTimeout(function() {
-            const regularTableContainer = document.querySelector('.data-page');
-            if (regularTableContainer) {
-                const allRows = regularTableContainer.querySelectorAll('[data-row-index]');
-                let totalActualHeight = 0;
-
-                allRows.forEach(function(row) {
-                    totalActualHeight += row.offsetHeight;
-                });
-
-                const containerHeight = regularTableContainer.offsetHeight;
-                const actualRowsHeight = totalActualHeight;
-
-                console.log(`Проверка высоты обычной таблицы: контейнер ${containerHeight}px, сумма высот строк ${actualRowsHeight}px`);
-
-                // Если реальная высота строк значительно отличается от высоты контейнера,
-                // это может указывать на проблемы с расчетом
-                if (Math.abs(containerHeight - actualRowsHeight) > 50) {
-                    console.warn(`Внимание: разница между высотой контейнера и суммой высот строк составляет ${Math.abs(containerHeight - actualRowsHeight)}px`);
-                }
-            }
-
-            const ndtContainer = document.querySelector('.ndt-data-container');
-            if (ndtContainer) {
-                const ndtAllRows = ndtContainer.querySelectorAll('[data-row-index]');
-                let ndtTotalActualHeight = 0;
-
-                ndtAllRows.forEach(function(row) {
-                    ndtTotalActualHeight += row.offsetHeight;
-                });
-
-                const ndtContainerHeight = ndtContainer.offsetHeight;
-                console.log(`Проверка высоты NDT таблицы: контейнер ${ndtContainerHeight}px, сумма высот строк ${ndtTotalActualHeight}px`);
-            }
-        }, 300);
-    }, 200);
-});
-</script>
+<!-- Модульные JavaScript файлы -->
+<script src="{{ asset('js/tdr-processes/processes-form/height-calculator.js') }}"></script>
+<script src="{{ asset('js/tdr-processes/processes-form/row-manager.js') }}"></script>
+<script src="{{ asset('js/tdr-processes/processes-form/table-height-manager.js') }}"></script>
+<script src="{{ asset('js/tdr-processes/processes-form/processes-form-main.js') }}"></script>
 </div>
 </body>
 </html>

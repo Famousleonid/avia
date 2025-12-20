@@ -491,79 +491,15 @@
         @endif
     @endforeach
 </div>
+<!-- Подключение библиотеки table-height-adjuster -->
 <script src="{{ asset('js/table-height-adjuster.js') }}"></script>
-<script>
-    document.addEventListener("DOMContentLoaded", function() {
-        // Функция для добавления пустой строки
-        function addEmptyRowRegular(rowIndex, tableElement) {
-            const container = typeof tableElement === 'string'
-                ? document.querySelector(tableElement)
-                : tableElement;
-            if (!container) return;
 
-            const row = document.createElement('div');
-            row.className = 'row empty-row';
-            row.setAttribute('data-row-index', rowIndex);
-            row.innerHTML = `
-                <div class="col-1 border-l-b text-center" style="height: 32px"></div>
-                <div class="col-2 border-l-b text-center" style="height: 32px"></div>
-                <div class="col-3 border-l-b text-center" style="height: 32px"></div>
-                <div class="col-3 border-l-b text-center" style="height: 32px"></div>
-                <div class="col-1 border-l-b text-center" style="height: 32px"></div>
-                <div class="col-2 border-l-b-r text-center" style="height: 32px"></div>
-            `;
-            container.appendChild(row);
-        }
+<!-- Общие модули -->
+<script src="{{ asset('js/tdrs/forms/common/multi-page-handler.js') }}"></script>
 
-        // Функция для удаления строки (только пустые строки, не строки с данными)
-        function removeRowRegular(rowIndex, tableElement) {
-            const container = typeof tableElement === 'string'
-                ? document.querySelector(tableElement)
-                : tableElement;
-            if (!container) return;
-
-            const row = container.querySelector(`[data-row-index="${rowIndex}"]`);
-            // Удаляем только пустые строки, не строки с данными
-            if (row && row.classList.contains('empty-row')) {
-                row.remove();
-            } else if (row) {
-                // Если это строка с данными, не удаляем её
-                console.warn(`CAD: Попытка удалить строку с данными (rowIndex: ${rowIndex}), пропускаем`);
-            }
-        }
-
-        // Настройка высоты всех таблиц после загрузки (только визуальная настройка)
-        // Пустые строки уже сгенерированы на бэкенде
-        setTimeout(function() {
-            const dataPages = document.querySelectorAll('.data-page');
-            
-            dataPages.forEach(function(pageContainer, pageIndex) {
-                const regularRows = pageContainer.querySelectorAll('.data-row');
-                
-                if (regularRows.length > 0) {
-                    // Только визуальная настройка высоты таблицы
-                    // Не добавляем/удаляем строки - это уже сделано на бэкенде
-                    adjustTableHeightToRange({
-                        min_height_tab: 550,
-                        max_height_tab: 620,
-                        tab_name: pageContainer,
-                        row_height: 32,
-                        row_selector: '.data-row[data-row-index]',
-                        addRowCallback: function() {}, // Не добавляем строки - они уже на бэкенде
-                        removeRowCallback: function() {}, // Не удаляем строки - только пустые можно удалить
-                        getRowIndexCallback: function(rowElement) {
-                            return parseInt(rowElement.getAttribute('data-row-index')) || 0;
-                        },
-                        max_iterations: 50,
-                        onComplete: function(currentHeight, rowCount) {
-                            console.log(`CAD страница ${pageIndex + 1}: высота настроена - ${currentHeight}px, строк ${rowCount}`);
-                        }
-                    });
-                }
-            });
-        }, 200);
-    });
-</script>
+<!-- Модули для CAD формы -->
+<script src="{{ asset('js/tdrs/forms/cad/cad-row-manager.js') }}"></script>
+<script src="{{ asset('js/tdrs/forms/cad/cad-form-main.js') }}"></script>
 
 </body>
 </html>

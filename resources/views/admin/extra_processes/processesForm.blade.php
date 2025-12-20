@@ -636,153 +636,17 @@
     </div>
 </footer>
 
+<!-- Подключение библиотеки table-height-adjuster -->
 <script src="{{ asset('js/table-height-adjuster.js') }}"></script>
-<script>
-document.addEventListener("DOMContentLoaded", function() {
-    // Функция для добавления пустой строки NDT таблицы
-    function addEmptyRowNDT(rowIndex, tableElement) {
-        const container = typeof tableElement === 'string'
-            ? document.querySelector(tableElement)
-            : tableElement;
-        if (!container) return;
 
-        const row = document.createElement('div');
-        row.className = 'row fs-85 data-row-ndt empty-row';
-        row.setAttribute('data-row-index', rowIndex);
-        row.innerHTML = `
-            <div class="col-1 border-l-b details-row text-center" style="height: 32px"></div>
-            <div class="col-3 border-l-b details-row text-center" style="height: 32px"></div>
-            <div class="col-3 border-l-b details-row text-center" style="height: 32px"></div>
-            <div class="col-2 border-l-b details-row text-center" style="height: 32px"></div>
-            <div class="col-1 border-l-b details-row text-center" style="height: 32px"></div>
-            <div class="col-1 border-l-b details-row text-center" style="height: 32px"></div>
-            <div class="col-1 border-l-b-r details-row text-center" style="height: 32px"></div>
-        `;
-        container.appendChild(row);
-    }
+<!-- Переиспользуемые модули из tdr-processes -->
+<script src="{{ asset('js/tdr-processes/processes-form/height-calculator.js') }}"></script>
+<script src="{{ asset('js/tdr-processes/processes-form/row-manager.js') }}"></script>
+<script src="{{ asset('js/tdr-processes/processes-form/table-height-manager.js') }}"></script>
 
-    // Функция для удаления строки NDT таблицы
-    function removeRowNDT(rowIndex, tableElement) {
-        const container = typeof tableElement === 'string'
-            ? document.querySelector(tableElement)
-            : tableElement;
-        if (!container) return;
-
-        const row = container.querySelector(`.data-row-ndt[data-row-index="${rowIndex}"]`);
-        if (row) row.remove();
-    }
-
-    // Функция для добавления пустой строки обычной таблицы
-    function addEmptyRowRegular(rowIndex, tableElement) {
-        const container = typeof tableElement === 'string'
-            ? document.querySelector(tableElement)
-            : tableElement;
-        if (!container) return;
-
-        const row = document.createElement('div');
-        row.className = 'row empty-row';
-        row.setAttribute('data-row-index', rowIndex);
-        row.innerHTML = `
-            <div class="col-1 border-l-b text-center" style="height: 32px"></div>
-            <div class="col-2 border-l-b text-center" style="height: 32px"></div>
-            <div class="col-3 border-l-b text-center" style="height: 32px"></div>
-            <div class="col-3 border-l-b text-center" style="height: 32px"></div>
-            <div class="col-1 border-l-b text-center" style="height: 32px"></div>
-            <div class="col-2 border-l-b-r text-center" style="height: 32px"></div>
-        `;
-        container.appendChild(row);
-    }
-
-    // Функция для удаления строки обычной таблицы
-    function removeRowRegular(rowIndex, tableElement) {
-        const container = typeof tableElement === 'string'
-            ? document.querySelector(tableElement)
-            : tableElement;
-        if (!container) return;
-
-        const row = container.querySelector(`[data-row-index="${rowIndex}"]`);
-        if (row) row.remove();
-    }
-
-    // Настройка высоты таблиц после загрузки
-    setTimeout(function() {
-        // Проверяем, что функция adjustTableHeightToRange загружена
-        if (typeof adjustTableHeightToRange === 'undefined') {
-            console.error('adjustTableHeightToRange не загружена. Проверьте подключение скрипта table-height-adjuster.js');
-            return;
-        }
-
-        // Настройка таблицы NDT (если она есть)
-        const ndtRows = document.querySelectorAll('.data-row-ndt');
-        if (ndtRows.length > 0) {
-            const ndtDataContainer = document.querySelector('.ndt-data-container');
-            if (ndtDataContainer) {
-                adjustTableHeightToRange({
-                    min_height_tab: 570,
-                    max_height_tab: 621,
-                    tab_name: '.ndt-data-container',
-                    row_height: 32,
-                    row_selector: '.data-row-ndt[data-row-index]',
-                    addRowCallback: addEmptyRowNDT,
-                    removeRowCallback: removeRowNDT,
-                    getRowIndexCallback: function(rowElement) {
-                        return parseInt(rowElement.getAttribute('data-row-index')) || 0;
-                    },
-                    max_iterations: 50,
-                    onComplete: function(currentHeight, rowCount) {
-                        console.log(`NDT таблица настроена: высота ${currentHeight}px, строк ${rowCount}`);
-                    }
-                });
-            }
-        }
-
-        // Настройка обычной таблицы (если она есть)
-        const regularTableContainer = document.querySelector('.data-page');
-        const regularRows = document.querySelectorAll('.data-page .data-row:not(.data-row-ndt)');
-        if (regularTableContainer && regularRows.length > 0) {
-            adjustTableHeightToRange({
-                min_height_tab: 720,
-                max_height_tab: 771,
-                tab_name: '.data-page',
-                row_height: 32,
-                row_selector: '.data-page [data-row-index]',
-                addRowCallback: addEmptyRowRegular,
-                removeRowCallback: removeRowRegular,
-                getRowIndexCallback: function(rowElement) {
-                    return parseInt(rowElement.getAttribute('data-row-index')) || 0;
-                },
-                max_iterations: 50,
-                onComplete: function(currentHeight, rowCount) {
-                    console.log(`Обычная таблица настроена: высота ${currentHeight}px, строк ${rowCount}`);
-                }
-            });
-        }
-
-        // Старый код для удаления пустых строк на основе высоты ячеек процесса (оставляем для совместимости)
-        var processCells = document.querySelectorAll('.data-row .process-cell');
-        var totalExtraLines = 0;
-
-        processCells.forEach(function(cell) {
-            var cellHeight = cell.offsetHeight;
-            if(cellHeight > 32) {
-                var extraLines = Math.floor((cellHeight - 32) / 16);
-                totalExtraLines += extraLines;
-            }
-        });
-
-        var emptyRowsToRemove = Math.floor(totalExtraLines / 2);
-        var emptyRows = document.querySelectorAll('.empty-row');
-        for (var i = 0; i < emptyRowsToRemove && i < emptyRows.length; i++) {
-            // Удаляем только если строка не была добавлена функцией adjustTableHeightToRange
-            if (emptyRows[i] && !emptyRows[i].hasAttribute('data-keep')) {
-                emptyRows[i].remove();
-            }
-        }
-        console.log("Всего дополнительных строк:", totalExtraLines);
-        console.log("Пустых строк для удаления:", emptyRowsToRemove);
-    }, 200);
-});
-</script>
+<!-- Специфичные модули для extra_processes -->
+<script src="{{ asset('js/extra-processes/processes-form/empty-row-processor.js') }}"></script>
+<script src="{{ asset('js/extra-processes/processes-form/processes-form-main.js') }}"></script>
 </div>
 </body>
 </html>

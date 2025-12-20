@@ -23,45 +23,88 @@
         }
 
         @media print {
-            /* Задаем размер страницы Letter (8.5 x 11 дюймов) */
+            /* Фиксированный размер страницы Letter в альбомной ориентации (11 x 8.5 дюймов = 279.4 x 215.9 мм) */
             @page {
-                size: landscape;
-                margin: 2mm;
-            }
-
-            /* Убедитесь, что вся страница помещается на один лист */
-            html, body {
-                height: 86%;
-                width: 98%;
-                margin-left: 3px;
+                size: letter landscape;
+                margin: 0.5cm 0.5cm 0.5cm 0.5cm; /* Фиксированные поля для всех браузеров */
                 padding: 0;
             }
 
+            /* Сброс всех отступов и полей для консистентности */
+            * {
+                -webkit-print-color-adjust: exact !important;
+                color-adjust: exact !important;
+                print-color-adjust: exact !important;
+            }
+
+            /* Фиксированные размеры для body и html */
+            html, body {
+                width: 100% !important;
+                height: 100% !important;
+                margin: 0 !important;
+                padding: 0 !important;
+                font-size: 12pt !important; /* Фиксированный размер шрифта */
+                line-height: 1.2 !important;
+            }
+
+            /* Контейнер с фиксированной шириной */
+            .container-fluid {
+                width: 100% !important;
+                max-width: 100% !important;
+                margin: 0 !important;
+                padding: 0.3cm !important;
+                height: auto !important;
+            }
+
             /* Отключаем разрывы страниц внутри элементов */
-            table, h1, p {
-                page-break-inside: avoid;
+            table, h1, h2, h3, h4, h5, h6, p {
+                page-break-inside: avoid !important;
             }
 
             /* Скрываем ненужные элементы при печати */
             .no-print {
-                display: none;
+                display: none !important;
             }
 
-            /* Колонтитул внизу страницы */
+            /* Колонтитул внизу страницы с фиксированными размерами */
             footer {
-                position: fixed;
-                bottom: 0;
-                width: 92%;
-                text-align: center;
-                font-size: 10px;
-                background-color: #fff;
-                padding: 3px 3px;
+                position: fixed !important;
+                bottom: 0.3cm !important;
+                width: 100% !important;
+                max-width: 27cm !important;
+                text-align: center !important;
+                font-size: 8pt !important;
+                background-color: #fff !important;
+                padding: 2pt !important;
             }
 
             /* Обрезка контента и размещение на одной странице */
             .container {
-                max-height: 100vh;
-                overflow: hidden;
+                max-height: none !important;
+                overflow: visible !important;
+            }
+
+            /* Фиксированные размеры для таблиц */
+            table {
+                width: 100% !important;
+                border-collapse: collapse !important;
+                font-size: 10pt !important;
+            }
+
+            /* Убираем градиенты и тени при печати */
+            .bg-gradient {
+                background: #fff !important;
+            }
+
+            /* Фиксированные размеры шрифтов */
+            h1, h2, h3, h4, h5, h6 {
+                font-size: 14pt !important;
+                margin: 5pt 0 !important;
+            }
+
+            p {
+                font-size: 11pt !important;
+                margin: 3pt 0 !important;
             }
         }
 

@@ -453,65 +453,13 @@
         </div>
     </footer>
 </div>
-<script>
-document.addEventListener("DOMContentLoaded", function() {
-    // Функция для добавления пустой строки NDT таблицы
-    function addEmptyRowNDT(rowIndex, tableElement) {
-        const container = typeof tableElement === 'string'
-            ? document.querySelector(tableElement)
-            : tableElement;
-        if (!container) return;
+<!-- Подключение библиотеки table-height-adjuster -->
+<script src="{{ asset('js/table-height-adjuster.js') }}"></script>
 
-        const row = document.createElement('div');
-        row.className = 'row fs-85 data-row-ndt empty-row';
-        row.setAttribute('data-row-index', rowIndex);
-        row.innerHTML = `
-            <div class="col-1 border-l-b details-row text-center" style="height: 32px"></div>
-            <div class="col-3 border-l-b details-row text-center" style="height: 32px"></div>
-            <div class="col-3 border-l-b details-row text-center" style="height: 32px"></div>
-            <div class="col-2 border-l-b details-row text-center" style="height: 32px"></div>
-            <div class="col-1 border-l-b details-row text-center" style="height: 32px"></div>
-            <div class="col-1 border-l-b details-row text-center" style="height: 32px"></div>
-            <div class="col-1 border-l-b-r details-row text-center" style="height: 32px"></div>
-        `;
-        container.appendChild(row);
-    }
+<!-- Переиспользуемые модули из tdr-processes -->
+<script src="{{ asset('js/tdr-processes/processes-form/row-manager.js') }}"></script>
 
-    // Функция для удаления строки NDT таблицы
-    function removeRowNDT(rowIndex, tableElement) {
-        const container = typeof tableElement === 'string'
-            ? document.querySelector(tableElement)
-            : tableElement;
-        if (!container) return;
-
-        const row = container.querySelector(`.data-row-ndt[data-row-index="${rowIndex}"]`);
-        if (row) row.remove();
-    }
-
-    // Настройка высоты таблицы после загрузки
-    setTimeout(function() {
-        const ndtDataContainer = document.querySelector('.data-page');
-        const ndtRows = document.querySelectorAll('.data-row-ndt');
-        if (ndtDataContainer && ndtRows.length > 0) {
-            adjustTableHeightToRange({
-                min_height_tab: 500,
-                max_height_tab: 600,
-                tab_name: '.data-page',
-                row_height: 32,
-                row_selector: '.data-row-ndt[data-row-index]',
-                addRowCallback: addEmptyRowNDT,
-                removeRowCallback: removeRowNDT,
-                getRowIndexCallback: function(rowElement) {
-                    return parseInt(rowElement.getAttribute('data-row-index')) || 0;
-                },
-                max_iterations: 50,
-                onComplete: function(currentHeight, rowCount) {
-                    console.log(`NDT таблица настроена: высота ${currentHeight}px, строк ${rowCount}`);
-                }
-            });
-        }
-    }, 200);
-});
-</script>
+<!-- Модули для NDT формы -->
+<script src="{{ asset('js/tdrs/forms/ndt/ndt-form-main.js') }}"></script>
 </body>
 </html>

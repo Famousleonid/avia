@@ -470,72 +470,14 @@
         @endif
     @endforeach
 </div>
+<!-- Подключение библиотеки table-height-adjuster -->
 <script src="{{ asset('js/table-height-adjuster.js') }}"></script>
-<script>
-    document.addEventListener("DOMContentLoaded", function() {
-        // Функция для добавления пустой строки
-        function addEmptyRowRegular(rowIndex, tableElement) {
-            const container = typeof tableElement === 'string'
-                ? document.querySelector(tableElement)
-                : tableElement;
-            if (!container) return;
 
-            const row = document.createElement('div');
-            row.className = 'row empty-row';
-            row.setAttribute('data-row-index', rowIndex);
-            row.innerHTML = `
-                <div class="col-1 border-l-b text-center" style="height: 30px"></div>
-                <div class="col-2 border-l-b text-center" style="height: 30px"></div>
-                <div class="col-2 border-l-b text-center" style="height: 30px"></div>
-                <div class="col-4 border-l-b text-center" style="height: 30px"></div>
-                <div class="col-1 border-l-b text-center" style="height: 30px"></div>
-                <div class="col-2 border-l-b-r text-center" style="height: 30px"></div>
-            `;
-            container.appendChild(row);
-        }
+<!-- Общие модули -->
+<script src="{{ asset('js/tdrs/forms/common/multi-page-handler.js') }}"></script>
 
-        // Функция для удаления строки
-        function removeRowRegular(rowIndex, tableElement) {
-            const container = typeof tableElement === 'string'
-                ? document.querySelector(tableElement)
-                : tableElement;
-            if (!container) return;
-
-            const row = container.querySelector(`[data-row-index="${rowIndex}"]`);
-            if (row) row.remove();
-        }
-
-        // Настройка высоты всех таблиц после загрузки (только визуальная настройка)
-        // Пустые строки уже сгенерированы на бэкенде
-        setTimeout(function() {
-            const dataPages = document.querySelectorAll('.data-page');
-            
-            dataPages.forEach(function(pageContainer, pageIndex) {
-                const regularRows = pageContainer.querySelectorAll('.data-row');
-                
-                if (regularRows.length > 0) {
-                    // Только визуальная настройка высоты таблицы
-                    // Не добавляем/удаляем строки - это уже сделано на бэкенде
-                    adjustTableHeightToRange({
-                        min_height_tab: 700,
-                        max_height_tab: 750,
-                        tab_name: pageContainer,
-                        row_height: 34,
-                        row_selector: '.data-row[data-row-index]',
-                        addRowCallback: function() {}, // Не добавляем строки - они уже на бэкенде
-                        removeRowCallback: function() {}, // Не удаляем строки - только пустые можно удалить
-                        getRowIndexCallback: function(rowElement) {
-                            return parseInt(rowElement.getAttribute('data-row-index')) || 0;
-                        },
-                        max_iterations: 50,
-                        onComplete: function(currentHeight, rowCount) {
-                            console.log(`Paint страница ${pageIndex + 1}: высота настроена - ${currentHeight}px, строк ${rowCount}`);
-                        }
-                    });
-                }
-            });
-        }, 200);
-    });
-</script>
+<!-- Модули для Paint формы -->
+<script src="{{ asset('js/tdrs/forms/paint/paint-row-manager.js') }}"></script>
+<script src="{{ asset('js/tdrs/forms/paint/paint-form-main.js') }}"></script>
 </body>
 </html>

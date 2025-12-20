@@ -14,19 +14,27 @@
         }
 
         .container-fluid {
-            max-width: 920px;
-
+            max-width: 1020px;
+            width: 100%;
             height: 99%;
-            padding: 5px;
-            margin-left: 30px;
-            margin-right: 5px;
+            padding: 0;
+            margin: 0;
+        }
+
+        @media print {
+            .container-fluid {
+                max-width: 100%;
+                width: 100%;
+                padding: 0;
+                margin: 0;
+            }
         }
 
         @media print {
             /* Задаем размер страницы Letter (8.5 x 11 дюймов) */
             @page {
                 size: letter;
-                margin: 2mm;
+                margin: 5mm 5mm 5mm 5mm;
             }
             /* Убираем фиксированное позиционирование */
             .header-page {
@@ -47,14 +55,23 @@
             /* Убедитесь, что вся страница помещается на один лист */
             html, body {
                 height: 86%;
-                width: 98%;
-                margin-left: 3px;
+                width: 102%;
+                margin: 0;
                 padding: 0;
+            }
+
+            /* Контейнер использует всю ширину без дополнительных отступов */
+            .container-fluid {
+                max-width: 100%;
+                width: 100%;
+                padding: 0;
+                margin: 0;
             }
 
             /* Отключаем разрывы страниц внутри элементов */
             table, h1, p {
                 page-break-inside: avoid;
+
             }
 
             /* Скрываем ненужные элементы при печати */
@@ -66,7 +83,7 @@
             footer {
                 position: fixed;
                 bottom: 0;
-                width: 800px;
+                width: 100%;
                 text-align: center;
                 font-size: 10px;
                 background-color: #fff;
@@ -78,6 +95,45 @@
                 max-height: 100vh;
                 overflow: hidden;
             }
+
+            /* Оптимизация таблицы для печати */
+            .data-row-prl {
+                width: 100% !important;
+                margin: 0 !important;
+                padding: 0;
+            }
+
+            .row {
+                margin-left: 10px !important;
+                margin-right: 0 !important;
+            }
+
+            /* Убираем отступы от ms-2 и других классов */
+            /*.ms-2 {*/
+            /*    margin-left: 0 !important;*/
+            /*}*/
+
+            /* Убеждаемся, что таблица использует всю ширину */
+            .col-1, .col-2, .col-3, .col-4, .col-5, .col-6, .col-7, .col-8, .col-9, .col-10 {
+                padding-left: 0;
+                padding-right: 0;
+            }
+            
+            /* Убираем пробел между col-5 и col-7 */
+            .col-5 {
+                padding-right: 0 !important;
+            }
+            
+            .col-7 {
+                padding-left: 0 !important;
+            }
+
+            /* Убираем все отступы у контейнера и его дочерних элементов */
+            .container-fluid > * {
+                margin-left: 0;
+                margin-right: 0;
+            }
+
         }
 
         .border-all {
@@ -150,6 +206,12 @@
             border-right: 1px solid black;
             border-bottom: 1px solid black;
         }
+        .border-l-t-r-b {
+            border-left: 1px solid black;
+            border-top: 1px solid black;
+            border-right: 1px solid black;
+            border-bottom: 1px solid black;
+        }
         .border-r-b {
 
             border-right: 1px solid black;
@@ -208,7 +270,7 @@
         .details-row {
             display: flex;
             align-items: center; /* Выравнивание элементов по вертикали */
-            height: 36px; /* Фиксированная высота строки */
+            height: 40px; /* Фиксированная высота строки */
         }
         .details-cell {
             flex-grow: 1; /* Позволяет колонкам растягиваться и занимать доступное пространство */
@@ -222,6 +284,7 @@
             height: auto;
             margin: 0 5px; /* Отступы вокруг изображения */
         }
+
     </style>
 </head>
 
@@ -237,7 +300,7 @@
     <!-- Данные (отображаются на каждой странице под верхней частью) -->
     @php
         $ordersParts = $ordersParts ?? [];
-        $partsPerPage = 28; // Количество строк на странице
+        $partsPerPage = 20; // Количество строк на странице (уменьшено для увеличенной высоты строк)
         $totalParts = count($ordersParts); // Общее количество строк данных
         $totalPages = ceil($totalParts / $partsPerPage); // Общее количество страниц
     @endphp
@@ -254,12 +317,12 @@
                          style="width: 120px; margin: 6px 10px 0;">
                 </div>
                 <div class="col-8">
-                    <h4 class="p-2 mt-3 text-black text-"><strong>PART REPLACEMENT LIST</strong></h4>
+                    <h5 class="p-2 mt-3 text-black text-"><strong>PART REPLACEMENT LIST</strong></h5>
                 </div>
             </div>
             <div class="row">
                 <div class="col-1 text-end"><h6><strong>P/N:</strong> </h6></div>
-                <div class="col-5 ">
+                <div class="col-4 ">
                     <div class="border-b">
                         <h6 class=""><strong> {{$current_wo->unit->part_number}}</strong></h6>
                     </div>
@@ -279,24 +342,22 @@
                         <div class="col-2 border-b"> </div>
                     </div>
                 </div>
-                <div class="col-3">
-                    <h5 class="p-1 border-all text-center">
-                        <strong>{{__('WO No: W')}}{{$current_wo->number}}</strong>
+                <div class="col-3 ">
+                    <h5 class=" border-all text-center  " style="height: 40px;align-content: center">
+                        <strong>{{__('WO No:     W')}}{{$current_wo->number}}</strong>
                     </h5>
                 </div>
             </div>
-            <div class="row mt-3">
-                <div class="col-6 ">
-                    <div class="d-flex border-b">
-                        <h6 class="ms-4 me-3"><strong>DESC: </strong></h6>
-                        <div class="">
-                            @foreach($manuals as $manual)
-                                @if($manual->id == $current_wo->unit->manual_id)
-                                    <h6 class=""><strong> {{$manual->title}}</strong></h6>
-                                @endif
-                            @endforeach
-                        </div>
-                    </div>
+            <div class="row mt-1">
+                <div class="col-1"><h6 class="ms-3 me-3"><strong>DESC: </strong></h6></div>
+                <div class="col-4  ">
+                            <div class="  border-b">
+                                @foreach($manuals as $manual)
+                                    @if($manual->id == $current_wo->unit->manual_id)
+                                        <h6 class=""><strong> {{$manual->title}}</strong></h6>
+                                    @endif
+                                @endforeach
+                            </div>
                 </div>
                 <div class="col-5 ">
                     <div class="row">
@@ -314,33 +375,37 @@
                     </div>
                 </div>
             </div>
-            <div class="row mt-4 " style="width: 1020px">
-                <div class="col-5">
+
+
+            <div class="row mt-2 ms-3" style="width: 100%">
+                <div class="col-5 ">
                     <div class="row">
                         <div class="col-1 border-l-t-b text-center align-content-center">
-                            <h6 style="margin-left: -8px;margin-top: 5px">FIG No.</h6>
+                            <h6 style="margin-top: 5px; font-size: 0.75rem;">FIG No.</h6>
                         </div>
-                        <div class="col-2 border-l-t-b" >
-                            <h6 style="margin-top: 5px">ITEM No.</h6></div>
-                        <div class="col-9 border-l-t-b  text-center align-content-center">DESCRIPTION</div>
+                        <div class="col-2 border-l-t-b text-center align-content-center" >
+                            <h6 style="margin-top: 5px; font-size: 0.75rem;">ITEM No.</h6></div>
+                        <div class="col-9 border-l-t-b  text-center align-content-center">
+                            <h6 style="font-size: 0.8rem; ">DESCRIPTION</h6>
+                        </div>
                     </div>
                 </div>
                 <div class="col-7" >
-                    <div class="row" style="height: 53px">
-                        <div class="col-4 border-l-t-b text-center align-content-center">
-                            <h6 style="margin-top: 10px">PART NUMBER</h6>
+                    <div class="row" style="height: 44px">
+                        <div class="col-4 border-l-t-b text-center align-content-center ">
+                            <h6 style="margin-top: 10px; font-size: 0.75rem;">PART NUMBER</h6>
                         </div>
-                        <div class="col-1 border-l-t-b  align-content-center">
-                            <h6 style="margin-left: -7px ;margin-top: 10px">QTY</h6>
+                        <div class="col-1 border-l-t-b text-center align-content-center">
+                            <h6 style="margin-top: 10px; font-size: 0.75rem;">QTY</h6>
                         </div>
-                        <div class="col-1 border-l-t-b  align-content-center">
-                            <h6 style="margin-left: -10px ;margin-top: 10px">CODE</h6>
+                        <div class="col-1 border-l-t-b text-center align-content-center">
+                            <h6 style="margin-top: 10px; font-size: 0.75rem;">CODE</h6>
                         </div>
                         <div class="col-2 border-l-t-b text-center align-content-center">
-                            <h6 style="margin-top: 10px">PO No.</h6>
+                            <h6 style="margin-top: 10px; font-size: 0.75rem;">PO No.</h6>
                         </div>
                         <div class="col-2 border-all text-center align-content-center">
-                            <h6 style="margin-top: 10px">Notes</h6>
+                            <h6 style="margin-top: 10px; font-size: 0.75rem;">Notes</h6>
                         </div>
                     </div>
                 </div>
@@ -377,9 +442,9 @@
                     }
                 @endphp
 
-                <div class="row data-row-prl" style="width: 1020px" data-row-index="{{ $rowIndex }}">
+                <div class="row data-row-prl ms-3" style="width: 100%" data-row-index="{{ $rowIndex }}">
                     <div class="col-5">
-                        <div class="row" style="height: 36px">
+                        <div class="row" style="height: 40px">
                             <div class="col-1 border-l-b text-center pt-1 align-content-center">
                                 <h6>{{ $first_part }} </h6>
                             </div>
@@ -397,7 +462,7 @@
 
 
                     <div class="col-7">
-                        <div class="row" style="height: 36px">
+                        <div class="row" style="height: 40px">
                             <div class="col-4 border-l-b text-center pt-2 align-content-center">
                                 @if($i < $totalParts && isset($component) && $component)
                                     <h6>
@@ -408,10 +473,10 @@
                                 @endif
                             </div>
                             <div class="col-1 border-l-b text-center pt-2 align-content-center">
-                                <h6 style="margin-left: -7px">{{ $i < $totalParts ? $ordersParts[$i]->qty : '' }}</h6>
+                                <h6>{{ $i < $totalParts ? $ordersParts[$i]->qty : '' }}</h6>
                             </div>
                             <div class="col-1 border-l-b text-center pt-2 align-content-center">
-                                <h6 style="margin-left: -10px">{{ $i < $totalParts ? ($ordersParts[$i]->codes->code ?? '') : '' }}</h6>
+                                <h6>{{ $i < $totalParts ? ($ordersParts[$i]->codes->code ?? '') : '' }}</h6>
                             </div>
                             <div class="col-2 border-l-b text-center pt-1 align-content-center">
                                 @php
@@ -436,15 +501,15 @@
 
                 <!-- Проверка на последнюю страницу и добавление специального блока -->
                 @if ($page == $totalPages - 1)
-                    <div class="row mt-2">
+                    <div class="row mt-2" style="width: 100%">
                         <div class="col-8"></div>
-                        <div class="col-1 border-l-t-b" style="width: 48px; height: 46px">
+                        <div class="col-1 border-l-t-b text-center align-content-center d-flex justify-content-center align-items-center" style="width: 48px; height: 46px">
                             <img src="{{ asset('img/icons/prod_st.png') }}" alt="stamp"
-                                 style="width: 42px; margin-left: -8px">
+                                 style="width: 40px; max-height: 42px;">
                         </div>
-                        <div class="col-1 border-all" style="width: 48px; height: 46px">
+                        <div class="col-1 border-all text-center align-content-center d-flex justify-content-center align-items-center" style="width: 48px; height: 46px">
                             <img src="{{ asset('img/icons/qual_st.png') }}" alt="stamp"
-                                 style="width: 42px; margin-left: -10px; margin-top: 1px">
+                                 style="width: 40px; max-height: 42px;">
                         </div>
                         <div class="col-2"></div>
                     </div>
@@ -460,7 +525,7 @@
                          style="width: 180px; margin: 6px 10px 0;">
                 </div>
                 <div class="col-8">
-                    <h2 class="p-2 mt-3 text-black text-"><strong>PART REPLACEMENT LIST</strong></h2>
+                    <h5 class="p-2 mt-3 text-black text-"><strong>PART REPLACEMENT LIST</strong></h5>
                 </div>
             </div>
             <div class="row">
@@ -494,7 +559,7 @@
             <div class="row mt-3">
                 <div class="col-6 ">
                     <div class="d-flex border-b">
-                        <h6 class="ms-4 me-3"><strong>DESC: </strong></h6>
+                        <h6 class="ms-3 me-3"><strong>DESC: </strong></h6>
                         <div class="">
                             @foreach($manuals as $manual)
                                 @if($manual->id == $current_wo->unit->manual_id)
@@ -520,33 +585,36 @@
                     </div>
                 </div>
             </div>
-            <div class="row mt-4 " style="width: 1020px">
+
+            <div class="row mt-4" style="width: 100%">
                 <div class="col-5">
                     <div class="row">
                         <div class="col-1 border-l-t-b text-center align-content-center">
-                            <h6 style="margin-left: -8px;margin-top: 5px">FIG No.</h6>
+                            <h6 style="margin-top: 5px; font-size: 0.75rem;">FIG No.</h6>
                         </div>
-                        <div class="col-2 border-l-t-b" >
-                            <h6 style="margin-top: 5px">ITEM No.</h6></div>
-                        <div class="col-9 border-l-t-b  text-center align-content-center">DESCRIPTION</div>
+                        <div class="col-2 border-l-t-b text-center align-content-center" >
+                            <h6 style="margin-top: 5px; font-size: 0.75rem;">ITEM No.</h6></div>
+                        <div class="col-9 border-l-t-b  text-center align-content-center">
+                            <h6 style="font-size: 0.75rem;">DESCRIPTION</h6>
+                        </div>
                     </div>
                 </div>
                 <div class="col-7" >
                     <div class="row" style="height: 53px">
                         <div class="col-4 border-l-t-b text-center align-content-center">
-                            <h6 style="margin-top: 10px">PART NUMBER</h6>
+                            <h6 style="margin-top: 10px; font-size: 0.75rem;">PART NUMBER</h6>
                         </div>
-                        <div class="col-1 border-l-t-b  align-content-center">
-                            <h6 style="margin-left: -7px ;margin-top: 10px">QTY</h6>
+                        <div class="col-1 border-l-t-b text-center align-content-center">
+                            <h6 style="margin-top: 10px; font-size: 0.75rem;">QTY</h6>
                         </div>
-                        <div class="col-1 border-l-t-b  align-content-center">
-                            <h6 style="margin-left: -10px ;margin-top: 10px">CODE</h6>
+                        <div class="col-1 border-l-t-b text-center align-content-center">
+                            <h6 style="margin-top: 10px; font-size: 0.75rem;">CODE</h6>
                         </div>
                         <div class="col-2 border-l-t-b text-center align-content-center">
-                            <h6 style="margin-top: 10px">PO No.</h6>
+                            <h6 style="margin-top: 10px; font-size: 0.75rem;">PO No.</h6>
                         </div>
                         <div class="col-2 border-all text-center align-content-center">
-                            <h6 style="margin-top: 10px">Notes</h6>
+                            <h6 style="margin-top: 10px; font-size: 0.75rem;">Notes</h6>
                         </div>
                     </div>
                 </div>
@@ -557,13 +625,13 @@
                 $rowIndex = 1;
             @endphp
             @for($i = 0; $i < $partsPerPage ; $i++)
-                <div class="row data-row-prl empty-row" style="width: 1020px" data-row-index="{{ $rowIndex }}">
+                <div class="row data-row-prl empty-row" style="width: 100%" data-row-index="{{ $rowIndex }}">
                     <div class="col-5">
-                        <div class="row" style="height: 36px">
-                            <div class="col-1 border-l-b align-content-center">
+                        <div class="row" style="height: 40px">
+                            <div class="col-1 border-l-b text-center align-content-center">
                                 <h6></h6>
                             </div>
-                            <div class="col-2 border-l-b">
+                            <div class="col-2 border-l-b text-center align-content-center">
                                 <h6></h6>
                             </div>
                             <div class="col-9 border-l-b align-content-center">
@@ -572,15 +640,15 @@
                         </div>
                     </div>
                     <div class="col-7">
-                        <div class="row" style="height: 36px">
+                        <div class="row" style="height: 40px">
                             <div class="col-4 border-l-b text-center align-content-center">
                                 <h6></h6>
                             </div>
-                            <div class="col-1 border-l-b align-content-center">
-                                <h6 style="margin-left: -7px"></h6>
+                            <div class="col-1 border-l-b text-center align-content-center">
+                                <h6></h6>
                             </div>
-                            <div class="col-1 border-l-b align-content-center">
-                                <h6 style="margin-left: -10px"></h6>
+                            <div class="col-1 border-l-b text-center align-content-center">
+                                <h6></h6>
                             </div>
                             <div class="col-2 border-l-b text-center align-content-center">
                                 <h6></h6>
@@ -593,15 +661,15 @@
                 </div>
                 @php $rowIndex++; @endphp
             @endfor
-                <div class="row mt-2">
+                <div class="row mt-2" style="width: 100%">
                     <div class="col-8"></div>
-                    <div class="col-1 border-l-t-b" style="width: 48px; height: 46px">
+                    <div class="col-1 border-l-t-b text-center align-content-center d-flex justify-content-center align-items-center" style="width: 48px; height: 46px">
                         <img src="{{ asset('img/icons/prod_st.png') }}" alt="stamp"
-                             style="width: 42px; margin-left: -8px">
+                             style="width: 40px; max-height: 42px;">
                     </div>
-                    <div class="col-1 border-all" style="width: 48px; height: 46px">
+                    <div class="col-1 border-all text-center align-content-center d-flex justify-content-center align-items-center" style="width: 48px; height: 46px">
                         <img src="{{ asset('img/icons/qual_st.png') }}" alt="stamp"
-                             style="width: 42px; margin-left: -10px; margin-top: 1px">
+                             style="width: 40px; max-height: 42px;">
                     </div>
                     <div class="col-2"></div>
                 </div>
@@ -620,78 +688,14 @@
         </div>
     </footer>
 </div>
-<script>
-document.addEventListener("DOMContentLoaded", function() {
-    // Функция для добавления пустой строки PRL таблицы
-    function addEmptyRowPRL(rowIndex, tableElement) {
-        const container = typeof tableElement === 'string'
-            ? document.querySelector(tableElement)
-            : tableElement;
-        if (!container) return;
+<!-- Подключение библиотеки table-height-adjuster -->
+<script src="{{ asset('js/table-height-adjuster.js') }}"></script>
 
-        const row = document.createElement('div');
-        row.className = 'row data-row-prl empty-row';
-        row.style.width = '1020px';
-        row.setAttribute('data-row-index', rowIndex);
-        row.innerHTML = `
-            <div class="col-5">
-                <div class="row" style="height: 36px">
-                    <div class="col-1 border-l-b align-content-center"><h6></h6></div>
-                    <div class="col-2 border-l-b"><h6></h6></div>
-                    <div class="col-9 border-l-b align-content-center"><h6></h6></div>
-                </div>
-            </div>
-            <div class="col-7">
-                <div class="row" style="height: 36px">
-                    <div class="col-4 border-l-b text-center align-content-center"><h6></h6></div>
-                    <div class="col-1 border-l-b align-content-center"><h6 style="margin-left: -7px"></h6></div>
-                    <div class="col-1 border-l-b align-content-center"><h6 style="margin-left: -10px"></h6></div>
-                    <div class="col-2 border-l-b text-center align-content-center"><h6></h6></div>
-                    <div class="col-2 border-l-b-r align-content-center"><h6></h6></div>
-                </div>
-            </div>
-        `;
-        container.appendChild(row);
-    }
+<!-- Общие модули -->
+<script src="{{ asset('js/tdrs/forms/common/multi-page-handler.js') }}"></script>
 
-    // Функция для удаления строки PRL таблицы
-    function removeRowPRL(rowIndex, tableElement) {
-        const container = typeof tableElement === 'string'
-            ? document.querySelector(tableElement)
-            : tableElement;
-        if (!container) return;
-
-        const row = container.querySelector(`.data-row-prl[data-row-index="${rowIndex}"]`);
-        if (row) row.remove();
-    }
-
-    // Настройка высоты всех таблиц после загрузки
-    setTimeout(function() {
-        // Обрабатываем каждую страницу отдельно
-        const dataPages = document.querySelectorAll('.data-page');
-        dataPages.forEach(function(pageContainer, pageIndex) {
-            const prlRows = pageContainer.querySelectorAll('.data-row-prl');
-            if (prlRows.length > 0) {
-                adjustTableHeightToRange({
-                    min_height_tab: 700,
-                    max_height_tab: 850,
-                    tab_name: pageContainer,
-                    row_height: 36,
-                    row_selector: '.data-row-prl[data-row-index]',
-                    addRowCallback: addEmptyRowPRL,
-                    removeRowCallback: removeRowPRL,
-                    getRowIndexCallback: function(rowElement) {
-                        return parseInt(rowElement.getAttribute('data-row-index')) || 0;
-                    },
-                    max_iterations: 50,
-                    onComplete: function(currentHeight, rowCount) {
-                        console.log(`PRL таблица страница ${pageIndex + 1} настроена: высота ${currentHeight}px, строк ${rowCount}`);
-                    }
-                });
-            }
-        });
-    }, 200);
-});
-</script>
+<!-- Модули для PRL формы -->
+<script src="{{ asset('js/tdrs/forms/prl/prl-row-manager.js') }}"></script>
+<script src="{{ asset('js/tdrs/forms/prl/prl-form-main.js') }}"></script>
 </body>
 </html>

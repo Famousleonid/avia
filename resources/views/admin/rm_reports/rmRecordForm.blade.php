@@ -499,7 +499,7 @@
     </div>
 </footer>
 
-<!-- Подключаем скрипт для автоматической настройки высоты таблиц -->
+<!-- Подключение библиотеки table-height-adjuster -->
 <script src="{{ asset('js/table-height-adjuster.js') }}"></script>
 <script>
     // Проверяем, что скрипт загрузился сразу после подключения
@@ -512,6 +512,18 @@
     }
 </script>
 
+<!-- Переиспользуемые модули из tdr-processes (опционально, для базовых вычислений) -->
+<script src="{{ asset('js/tdr-processes/processes-form/height-calculator.js') }}"></script>
+
+<!-- Модули для R&M Record формы -->
+<script src="{{ asset('js/rm-reports/rm-record-form/row-manager.js') }}"></script>
+<script src="{{ asset('js/rm-reports/rm-record-form/height-analyzer.js') }}"></script>
+<script src="{{ asset('js/rm-reports/rm-record-form/table-integrity-validator.js') }}"></script>
+<script src="{{ asset('js/rm-reports/rm-record-form/table-diagnostics.js') }}"></script>
+<script src="{{ asset('js/rm-reports/rm-record-form/table-height-manager.js') }}"></script>
+<script src="{{ asset('js/rm-reports/rm-record-form/rm-record-form-main.js') }}"></script>
+
+<!-- Старый код для совместимости (можно удалить после тестирования) -->
 <script>
     // Функция для определения общей высоты двух основных таблиц
     function getTablesHeight() {
