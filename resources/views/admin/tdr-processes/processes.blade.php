@@ -537,10 +537,10 @@
                                 <tbody>
                             @foreach($processGroups as $groupKey => $group)
                                         @php
-                                            // Для группы NDT используем ID процесса из process_name, иначе используем groupKey
-                                            $actualProcessNameId = ($groupKey == 'NDT_GROUP') ? $group['process_name']->id : $groupKey;
-                                            // Для группы NDT отображаем "NDT", иначе название процесса
-                                            $displayName = ($groupKey == 'NDT_GROUP') ? 'NDT' : $group['process_name']->name;
+                                            // Используем processNameId как ключ для всех процессов
+                                            $actualProcessNameId = $groupKey;
+                                            // Отображаем название процесса
+                                            $displayName = $group['process_name']->name;
                                         @endphp
                                         <tr>
                                             <td class="align-middle ">
@@ -549,7 +549,7 @@
                                                     text="{{ $displayName }} "
                                                     size="landscape"
                                                     width="120px"
-                                                    href="{{ route('tdrs.show_group_forms', ['id' => $current_tdr->workorder->id, 'processNameId' => $actualProcessNameId]) }}"
+                                                    href="{{ route('tdrs.show_group_forms', ['id' => $current_tdr->workorder->id, 'processNameId' => $actualProcessNameId, 'tdrId' => $current_tdr->id]) }}"
                                                     target="_blank"
                                                     class="group-form-button"
                                                     data-process-name-id="{{ $actualProcessNameId }}"
@@ -632,12 +632,13 @@
             <div class="modal-content">
                 <div class="modal-header">
                     <h5 class="modal-title" id="packageModalLabel">
-                        <i class="fas fa-box"></i> Package processes forms for Component
+                        <i class="fas fa-box"></i> Package processes forms for {{ $current_tdr->component->name ?? 'Component' }}
+
                     </h5>
                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
                 <div class="modal-body">
-                    <div class="row mb-3">
+                    <div class=" mb-3">
                         <div class="col-md-6">
                             <strong>PN:</strong> <span id="packagePartNumber">{{ $current_tdr->component->part_number ?? 'N/A' }}</span>
                         </div>
@@ -649,9 +650,10 @@
                         <table class="table table-hover table-bordered bg-gradient shadow" id="packageProcessesTable">
                             <thead>
                                 <tr>
-                                    <th class="text-primary text-center" style="width: 40%;">Process</th>
-                                    <th class="text-primary text-center" style="width: 35%;">Vendor</th>
-                                    <th class="text-primary text-center" style="width: 25%;">Select</th>
+                                    <th class="text-primary text-center" style="width: 20%;">Process Name</th>
+                                    <th class="text-primary text-center" style="width: 30%;">Process</th>
+                                    <th class="text-primary text-center" style="width: 30%;">Vendor</th>
+                                    <th class="text-primary text-center" style="width: 20%;">Select</th>
                                 </tr>
                             </thead>
                             <tbody id="packageProcessesTableBody">
@@ -728,10 +730,22 @@
     <script src="{{ asset('js/tdr-processes/package-modal-handler.js') }}"></script>
 
     <!-- Главный файл инициализации с конфигурацией -->
-    <script>
-        // Конфигурация для модулей
-        ProcessesConfig.updateOrderUrl = '{{ route("tdr-processes.update-order") }}';
-        ProcessesConfig.storeVendorUrl = '{{ route("vendors.store") }}';
-    </script>
     <script src="{{ asset('js/tdr-processes/processes-main.js') }}"></script>
+    <script>
+        // Конфигурация для модулей (устанавливается после загрузки processes-main.js)
+        @php
+            try {
+                $updateOrderUrl = route("tdr-processes.update-order");
+            } catch (\Exception $e) {
+                $updateOrderUrl = null;
+                \Log::error('Route tdr-processes.update-order not found: ' . $e->getMessage());
+            }
+        @endphp
+        if (typeof ProcessesConfig !== 'undefined') {
+            ProcessesConfig.updateOrderUrl = @if($updateOrderUrl)'{{ $updateOrderUrl }}'@else null @endif;
+            ProcessesConfig.storeVendorUrl = '{{ route("vendors.store") }}';
+        } else {
+            console.error('ProcessesConfig is not defined. Check that processes-main.js is loaded correctly.');
+        }
+    </script>
 @endsection

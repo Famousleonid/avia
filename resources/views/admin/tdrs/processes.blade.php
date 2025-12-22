@@ -334,10 +334,10 @@
                                 <tbody>
                             @foreach($processGroups as $groupKey => $group)
                                         @php
-                                            // Для группы NDT используем ID процесса из process_name, иначе используем groupKey
-                                            $actualProcessNameId = ($groupKey == 'NDT_GROUP') ? $group['process_name']->id : $groupKey;
-                                            // Для группы NDT отображаем "NDT", иначе название процесса
-                                            $displayName = ($groupKey == 'NDT_GROUP') ? 'NDT' : $group['process_name']->name;
+                                            // Используем processNameId как ключ для всех процессов
+                                            $actualProcessNameId = $groupKey;
+                                            // Отображаем название процесса
+                                            $displayName = $group['process_name']->name;
                                         @endphp
                                         <tr>
                                             <td class="align-middle ">
@@ -364,36 +364,68 @@
                                             <td class="align-middle">
                                                 <div class="component-checkboxes" data-process-name-id="{{ $actualProcessNameId }}">
                                                     @if($group['count'] > 1)
-                                                        @foreach($group['components'] as $component)
+                                                        @foreach($group['components'] as $componentKey => $component)
+                                                            @php
+                                                                // Создаем составной ключ для идентификации компонента
+                                                                $componentIdentifier = sprintf(
+                                                                    '%s_%s_%s',
+                                                                    $component['ipl_num'] ?? '',
+                                                                    $component['part_number'] ?? '',
+                                                                    $component['serial_number'] ?? ''
+                                                                );
+                                                            @endphp
                                                             <div class="form-check">
                                                                 <input class=" ms-1 form-check-input component-checkbox"
                                                                        type="checkbox"
-                                                                       value="{{ $component['id'] }}"
-                                                                       id="component_{{ $actualProcessNameId }}_{{ $component['id'] }}"
+                                                                       value="{{ $componentIdentifier }}"
+                                                                       data-component-id="{{ $component['id'] }}"
+                                                                       data-ipl-num="{{ $component['ipl_num'] ?? '' }}"
+                                                                       data-part-number="{{ $component['part_number'] ?? '' }}"
+                                                                       data-serial-number="{{ $component['serial_number'] ?? '' }}"
+                                                                       id="component_{{ $actualProcessNameId }}_{{ $componentKey }}"
                                                                        data-process-name-id="{{ $actualProcessNameId }}"
                                                                        data-qty="{{ $component['qty'] }}"
                                                                        checked>
-                                                                <label class="form-check-label" for="component_{{ $actualProcessNameId }}_{{ $component['id'] }}">
+                                                                <label class="form-check-label" for="component_{{ $actualProcessNameId }}_{{ $componentKey }}">
                                                                     <strong>{{ $component['ipl_num'] }}</strong> -
                                                                     {{ Str::limit($component['name'], 40) }}
+                                                                    @if(isset($component['serial_number']) && $component['serial_number'])
+                                                                        <span class="text-muted">(SN: {{ $component['serial_number'] }})</span>
+                                                                    @endif
                                                                     <span class="">Qty: {{ $component['qty'] }}</span>
                                                                 </label>
                                                             </div>
                                                         @endforeach
                                                     @else
-                                                        @foreach($group['components'] as $component)
+                                                        @foreach($group['components'] as $componentKey => $component)
+                                                            @php
+                                                                // Создаем составной ключ для идентификации компонента
+                                                                $componentIdentifier = sprintf(
+                                                                    '%s_%s_%s',
+                                                                    $component['ipl_num'] ?? '',
+                                                                    $component['part_number'] ?? '',
+                                                                    $component['serial_number'] ?? ''
+                                                                );
+                                                            @endphp
                                                             <div class="form-check">
                                                                 <input class="ms-1 form-check-input component-checkbox"
                                                                        type="checkbox"
-                                                                       value="{{ $component['id'] }}"
-                                                                       id="component_{{ $actualProcessNameId }}_{{ $component['id'] }}"
+                                                                       value="{{ $componentIdentifier }}"
+                                                                       data-component-id="{{ $component['id'] }}"
+                                                                       data-ipl-num="{{ $component['ipl_num'] ?? '' }}"
+                                                                       data-part-number="{{ $component['part_number'] ?? '' }}"
+                                                                       data-serial-number="{{ $component['serial_number'] ?? '' }}"
+                                                                       id="component_{{ $actualProcessNameId }}_{{ $componentKey }}"
                                                                        data-process-name-id="{{ $actualProcessNameId }}"
                                                                        data-qty="{{ $component['qty'] }}"
                                                                        checked
                                                                        disabled>
-                                                                <label class="form-check-label" for="component_{{ $actualProcessNameId }}_{{ $component['id'] }}">
+                                                                <label class="form-check-label" for="component_{{ $actualProcessNameId }}_{{ $componentKey }}">
                                                                     <strong>{{ $component['ipl_num'] }}</strong> -
                                                                     {{ Str::limit($component['name'], 40) }}
+                                                                    @if(isset($component['serial_number']) && $component['serial_number'])
+                                                                        <span class="text-muted">(SN: {{ $component['serial_number'] }})</span>
+                                                                    @endif
                                                                     <span class="">Qty: {{ $component['qty'] }}</span>
                                                                 </label>
                                                             </div>
@@ -451,15 +483,25 @@
                     url.searchParams.delete('vendor_id');
                 }
 
-                // Добавляем component_ids из выбранных чекбоксов
+                // Добавляем component_ids и serial_numbers из выбранных чекбоксов
                 const checkedBoxes = document.querySelectorAll(
                     `.component-checkbox[data-process-name-id="${processNameId}"]:checked`
                 );
                 if (checkedBoxes.length > 0) {
-                    const selectedComponents = Array.from(checkedBoxes).map(checkbox => checkbox.value);
-                    url.searchParams.set('component_ids', selectedComponents.join(','));
+                    const selectedComponentIds = Array.from(checkedBoxes).map(checkbox => checkbox.getAttribute('data-component-id'));
+                    const selectedSerialNumbers = Array.from(checkedBoxes).map(checkbox => checkbox.getAttribute('data-serial-number') || '');
+                    const selectedIplNums = Array.from(checkedBoxes).map(checkbox => checkbox.getAttribute('data-ipl-num') || '');
+                    const selectedPartNumbers = Array.from(checkedBoxes).map(checkbox => checkbox.getAttribute('data-part-number') || '');
+                    
+                    url.searchParams.set('component_ids', selectedComponentIds.join(','));
+                    url.searchParams.set('serial_numbers', selectedSerialNumbers.join(','));
+                    url.searchParams.set('ipl_nums', selectedIplNums.join(','));
+                    url.searchParams.set('part_numbers', selectedPartNumbers.join(','));
                 } else {
                     url.searchParams.delete('component_ids');
+                    url.searchParams.delete('serial_numbers');
+                    url.searchParams.delete('ipl_nums');
+                    url.searchParams.delete('part_numbers');
                 }
 
                 link.setAttribute('href', url.toString());

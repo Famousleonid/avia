@@ -430,53 +430,52 @@ class TdrController extends Controller
                 }
 
                 $processName = $tdrProcess->processName;
-                // Определяем ключ группы: для NDT процессов используем 'NDT_GROUP', иначе processNameId
-                $groupKey = ($processName->process_sheet_name == 'NDT') ? 'NDT_GROUP' : $processName->id;
+                // Используем processNameId как ключ группы для всех процессов, включая NDT
+                // Это позволяет разделять NDT-1, NDT-4 и другие типы NDT в отдельные группы
+                $groupKey = $processName->id;
 
                 if (!isset($processGroups[$groupKey])) {
-                    // Для NDT группы создаем виртуальный ProcessName или используем первый найденный NDT процесс
-                    if ($groupKey == 'NDT_GROUP') {
-                        // Находим первый ProcessName с process_sheet_name == 'NDT' для использования в группе
-                        $ndtProcessName = ProcessName::where('process_sheet_name', 'NDT')->first();
-                        if ($ndtProcessName) {
-                            $processGroups[$groupKey] = [
-                                'process_name' => $ndtProcessName,
-                                'components_qty' => [],
-                                'components' => []
-                            ];
-                        } else {
-                            // Если не найден, используем текущий процесс
-                            $processGroups[$groupKey] = [
-                                'process_name' => $processName,
-                                'components_qty' => [],
-                                'components' => []
-                            ];
-                        }
-                    } else {
-                        $processGroups[$groupKey] = [
-                            'process_name' => $processName,
-                            'components_qty' => [],
-                            'components' => []
-                        ];
-                    }
+                    $processGroups[$groupKey] = [
+                        'process_name' => $processName,
+                        'components_qty' => [],
+                        'components' => []
+                    ];
                 }
 
                 // Добавляем/обновляем количество по компоненту (для TDR обычно qty = 1, но можно использовать serial_number)
                 $qty = 1; // По умолчанию 1, можно изменить если есть поле qty в TDR
-                $processGroups[$groupKey]['components_qty'][$tdr->component->id] =
-                    ($processGroups[$groupKey]['components_qty'][$tdr->component->id] ?? 0) + $qty;
+                
+                // Создаем составной ключ для группировки: ipl_num + part_number + serial_number
+                // Это позволяет различать компоненты с одинаковыми ipl_num и part_number, но разными serial_number
+                $componentKey = sprintf(
+                    '%s_%s_%s',
+                    $tdr->component->ipl_num ?? '',
+                    $tdr->component->part_number ?? '',
+                    $tdr->serial_number ?? ''
+                );
+                
+                $processGroups[$groupKey]['components_qty'][$componentKey] =
+                    ($processGroups[$groupKey]['components_qty'][$componentKey] ?? 0) + $qty;
 
                 // Сохраняем информацию о компоненте
-                if (!isset($processGroups[$groupKey]['components'][$tdr->component->id])) {
-                    $processGroups[$groupKey]['components'][$tdr->component->id] = [
+                if (!isset($processGroups[$groupKey]['components'][$componentKey])) {
+                    $processGroups[$groupKey]['components'][$componentKey] = [
                         'id' => $tdr->component->id,
                         'name' => $tdr->component->name,
                         'ipl_num' => $tdr->component->ipl_num,
+                        'part_number' => $tdr->component->part_number,
+                        'serial_number' => $tdr->serial_number,
+                        'tdr_id' => $tdr->id, // Добавляем TDR ID для точной фильтрации
                         'qty' => $qty
                     ];
                 } else {
                     // Обновляем qty если компонент уже есть
-                    $processGroups[$groupKey]['components'][$tdr->component->id]['qty'] += $qty;
+                    $processGroups[$groupKey]['components'][$componentKey]['qty'] += $qty;
+                    // Если TDR ID еще не сохранен, добавляем его
+                    if (!isset($processGroups[$groupKey]['components'][$componentKey]['tdr_ids'])) {
+                        $processGroups[$groupKey]['components'][$componentKey]['tdr_ids'] = [];
+                    }
+                    $processGroups[$groupKey]['components'][$componentKey]['tdr_ids'][] = $tdr->id;
                 }
 
                 $totalQty += $qty;
@@ -515,14 +514,27 @@ class TdrController extends Controller
         $manual_id = $current_wo->unit->manual_id;
         $necessary = Necessary::where('name', 'Order New')->first();
 
-        // Получаем все TDR для этого work order
-        $tdrIds = Tdr::where('workorder_id', $current_wo->id)
-            ->where('component_id', '!=', null)
-            ->when($necessary, function ($query) use ($necessary) {
-                return $query->where('necessaries_id', '!=', $necessary->id);
-            })
-            ->where('use_process_forms', true)
-            ->pluck('id');
+        // Проверяем, передан ли tdrId для фильтрации по конкретному компоненту
+        $tdrId = $request->input('tdrId');
+        
+        if ($tdrId) {
+            // Если передан tdrId, фильтруем только процессы для этого компонента
+            $tdr = Tdr::findOrFail($tdrId);
+            // Проверяем, что TDR принадлежит этому workorder
+            if ($tdr->workorder_id != $current_wo->id) {
+                abort(403, 'TDR does not belong to this workorder');
+            }
+            $tdrIds = collect([$tdrId]);
+        } else {
+            // Получаем все TDR для этого work order
+            $tdrIds = Tdr::where('workorder_id', $current_wo->id)
+                ->where('component_id', '!=', null)
+                ->when($necessary, function ($query) use ($necessary) {
+                    return $query->where('necessaries_id', '!=', $necessary->id);
+                })
+                ->where('use_process_forms', true)
+                ->pluck('id');
+        }
 
         // Получаем все TdrProcess для этих TDR
         $tdrProcesses = TdrProcess::whereIn('tdrs_id', $tdrIds)
@@ -530,18 +542,8 @@ class TdrController extends Controller
             ->orderBy('sort_order')
             ->get();
 
-        // Определяем, является ли это NDT группой
-        $isNdtGroup = ($processName->process_sheet_name == 'NDT');
-
-        // Если это NDT группа, получаем все NDT process_name_ids
-        $ndtProcessNameIds = [];
-        if ($isNdtGroup) {
-            $ndtProcessNameIds = ProcessName::where('process_sheet_name', 'NDT')
-                ->pluck('id')
-                ->toArray();
-        }
-
         // Фильтруем TdrProcess по process_name_id
+        // Теперь каждый тип NDT (NDT-1, NDT-4 и т.д.) обрабатывается отдельно по его processNameId
         $filteredTdrProcesses = collect();
 
         foreach ($tdrProcesses as $tdrProcess) {
@@ -551,17 +553,10 @@ class TdrController extends Controller
 
             $currentProcessName = $tdrProcess->processName;
 
-            // Проверяем, подходит ли этот процесс для группировки
-            if ($isNdtGroup) {
-                // Для NDT группы обрабатываем все NDT процессы
-                if (in_array($currentProcessName->id, $ndtProcessNameIds)) {
-                    $filteredTdrProcesses->push($tdrProcess);
-                }
-            } else {
-                // Для обычных процессов обрабатываем только указанный processNameId
-                if ($currentProcessName->id == $processNameId) {
-                    $filteredTdrProcesses->push($tdrProcess);
-                }
+            // Обрабатываем только процессы с указанным processNameId
+            // Это работает для всех типов процессов, включая NDT-1, NDT-4 и т.д.
+            if ($currentProcessName->id == $processNameId) {
+                $filteredTdrProcesses->push($tdrProcess);
             }
         }
 
@@ -577,18 +572,83 @@ class TdrController extends Controller
             $selectedVendor = Vendor::find($vendorId);
         }
 
-        // Фильтруем компоненты по выбранным component_ids (если переданы)
+        // Фильтруем компоненты по выбранным component_ids и serial_numbers (если переданы)
+        // Теперь учитываем не только component_id, но и serial_number для точной идентификации
+        // Если передан tdrId, то фильтрация по component_ids не нужна, так как уже фильтруем по одному компоненту
         $componentIds = $request->input('component_ids');
-        if ($componentIds) {
-            // Разбиваем строку с ID на массив
+        $serialNumbers = $request->input('serial_numbers');
+        $iplNums = $request->input('ipl_nums');
+        $partNumbers = $request->input('part_numbers');
+        
+        // Если передан tdrId, пропускаем фильтрацию по component_ids, так как уже фильтруем по одному компоненту
+        if ($componentIds && !$tdrId) {
+            // Разбиваем строки на массивы
             $filteredComponentIds = is_array($componentIds)
                 ? array_map('intval', $componentIds)
                 : array_map('intval', explode(',', $componentIds));
+            
+            $filteredSerialNumbers = [];
+            if ($serialNumbers) {
+                $filteredSerialNumbers = is_array($serialNumbers)
+                    ? $serialNumbers
+                    : explode(',', $serialNumbers);
+            }
+            
+            $filteredIplNums = [];
+            if ($iplNums) {
+                $filteredIplNums = is_array($iplNums)
+                    ? $iplNums
+                    : explode(',', $iplNums);
+            }
+            
+            $filteredPartNumbers = [];
+            if ($partNumbers) {
+                $filteredPartNumbers = is_array($partNumbers)
+                    ? $partNumbers
+                    : explode(',', $partNumbers);
+            }
 
-            // Фильтруем TdrProcess по выбранным component_id
-            $filteredTdrProcesses = $filteredTdrProcesses->filter(function($tdrProcess) use ($filteredComponentIds) {
-                return $tdrProcess->tdr && $tdrProcess->tdr->component &&
-                       in_array($tdrProcess->tdr->component->id, $filteredComponentIds);
+            // Фильтруем TdrProcess по выбранным component_id, ipl_num, part_number и serial_number
+            $filteredTdrProcesses = $filteredTdrProcesses->filter(function($tdrProcess) use (
+                $filteredComponentIds, 
+                $filteredSerialNumbers, 
+                $filteredIplNums, 
+                $filteredPartNumbers
+            ) {
+                if (!$tdrProcess->tdr || !$tdrProcess->tdr->component) {
+                    return false;
+                }
+                
+                // Проверяем, соответствует ли component_id
+                if (!in_array($tdrProcess->tdr->component->id, $filteredComponentIds)) {
+                    return false;
+                }
+                
+                // Если переданы serial_numbers, проверяем их
+                if (!empty($filteredSerialNumbers)) {
+                    $tdrSerialNumber = $tdrProcess->tdr->serial_number ?? '';
+                    if (!in_array($tdrSerialNumber, $filteredSerialNumbers)) {
+                        return false;
+                    }
+                }
+                
+                // Если переданы ipl_nums, проверяем их
+                if (!empty($filteredIplNums)) {
+                    $tdrIplNum = $tdrProcess->tdr->component->ipl_num ?? '';
+                    if (!in_array($tdrIplNum, $filteredIplNums)) {
+                        return false;
+                    }
+                }
+                
+                // Если переданы part_numbers, проверяем их
+                if (!empty($filteredPartNumbers)) {
+                    $tdrPartNumber = $tdrProcess->tdr->component->part_number ?? '';
+                    if (!in_array($tdrPartNumber, $filteredPartNumbers)) {
+                        return false;
+                    }
+                }
+                
+                return true;
             });
         }
 

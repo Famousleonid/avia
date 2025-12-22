@@ -43,20 +43,52 @@ class SortableHandler {
      * @param {Function} onOrderUpdated - Callback при успехе
      */
     static updateProcessOrder(newOrder, updateOrderUrl, onOrderUpdated) {
+        // Проверяем, что URL установлен
+        if (!updateOrderUrl) {
+            console.error('Update order URL is not defined');
+            if (window.NotificationHandler) {
+                window.NotificationHandler.error('Ошибка: URL для обновления порядка не найден. Проверьте конфигурацию роутов.');
+            }
+            location.reload();
+            return;
+        }
+
         const processIds = newOrder.map(item => item.id);
+        const csrfToken = document.querySelector('meta[name="csrf-token"]');
+        
+        if (!csrfToken) {
+            console.error('CSRF token not found');
+            if (window.NotificationHandler) {
+                window.NotificationHandler.error('Ошибка: CSRF токен не найден');
+            }
+            return;
+        }
 
         fetch(updateOrderUrl, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
-                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
+                'X-CSRF-TOKEN': csrfToken.content,
                 'Accept': 'application/json',
             },
             body: JSON.stringify({
                 process_ids: processIds
             })
         })
-        .then(response => response.json())
+        .then(response => {
+            // Проверяем статус ответа
+            if (!response.ok) {
+                // Если роут не найден (404) или другая ошибка сервера
+                if (response.status === 404) {
+                    throw new Error('Роут не найден. Проверьте, что роут tdr-processes.update-order зарегистрирован в routes/web.php');
+                } else if (response.status === 419) {
+                    throw new Error('Сессия истекла. Пожалуйста, обновите страницу.');
+                } else {
+                    throw new Error(`Ошибка сервера: ${response.status} ${response.statusText}`);
+                }
+            }
+            return response.json();
+        })
         .then(data => {
             if (data.success) {
                 console.log('Order updated successfully');
@@ -66,7 +98,7 @@ class SortableHandler {
             } else {
                 console.error('Error updating order:', data.message);
                 if (window.NotificationHandler) {
-                    window.NotificationHandler.error('Ошибка обновления порядка: ' + data.message);
+                    window.NotificationHandler.error('Ошибка обновления порядка: ' + (data.message || 'Неизвестная ошибка'));
                 }
                 // Восстанавливаем предыдущий порядок
                 location.reload();
@@ -75,7 +107,9 @@ class SortableHandler {
         .catch(error => {
             console.error('Error:', error);
             if (window.NotificationHandler) {
-                window.NotificationHandler.error('Ошибка сети при обновлении порядка');
+                window.NotificationHandler.error(error.message || 'Ошибка сети при обновлении порядка');
+            } else {
+                alert('Ошибка при обновлении порядка: ' + (error.message || 'Неизвестная ошибка'));
             }
             location.reload();
         });

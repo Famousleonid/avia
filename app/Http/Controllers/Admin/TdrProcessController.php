@@ -650,7 +650,10 @@ class TdrProcessController extends Controller
         // Находим связанный Workorder
         $current_wo = Workorder::find($workorder_id);
 
-        $tdrProcesses = TdrProcess::orderBy('sort_order')->get();
+        // Загружаем только процессы для текущего TDR, отсортированные по sort_order
+        $tdrProcesses = TdrProcess::where('tdrs_id', $current_tdr->id)
+            ->orderBy('sort_order')
+            ->get();
         $proces = Process::all();
 
         // Получаем всех поставщиков
@@ -661,8 +664,8 @@ class TdrProcessController extends Controller
         $totalQty = 0;
 
         if ($current_tdr->component) {
-            // Получаем все процессы для этого TDR
-            $tdrProcessesForTdr = $tdrProcesses->where('tdrs_id', $current_tdr->id);
+            // Процессы уже отфильтрованы по текущему TDR
+            $tdrProcessesForTdr = $tdrProcesses;
 
             foreach ($tdrProcessesForTdr as $tdrProcess) {
                 if (!$tdrProcess->processName) {
@@ -670,35 +673,16 @@ class TdrProcessController extends Controller
                 }
 
                 $processName = $tdrProcess->processName;
-                // Определяем ключ группы: для NDT процессов используем 'NDT_GROUP', иначе processNameId
-                $groupKey = ($processName->process_sheet_name == 'NDT') ? 'NDT_GROUP' : $processName->id;
+                // Используем processNameId как ключ группы для всех процессов, включая NDT
+                // Это позволяет разделять NDT-1, NDT-4 и другие типы NDT в отдельные группы
+                $groupKey = $processName->id;
 
                 if (!isset($processGroups[$groupKey])) {
-                    // Для NDT группы создаем виртуальный ProcessName или используем первый найденный NDT процесс
-                    if ($groupKey == 'NDT_GROUP') {
-                        // Находим первый ProcessName с process_sheet_name == 'NDT' для использования в группе
-                        $ndtProcessName = ProcessName::where('process_sheet_name', 'NDT')->first();
-                        if ($ndtProcessName) {
-                            $processGroups[$groupKey] = [
-                                'process_name' => $ndtProcessName,
-                                'processes_qty' => [],
-                                'processes' => []
-                            ];
-                        } else {
-                            // Если не найден, используем текущий процесс
-                            $processGroups[$groupKey] = [
-                                'process_name' => $processName,
-                                'processes_qty' => [],
-                                'processes' => []
-                            ];
-                        }
-                    } else {
-                        $processGroups[$groupKey] = [
-                            'process_name' => $processName,
-                            'processes_qty' => [],
-                            'processes' => []
-                        ];
-                    }
+                    $processGroups[$groupKey] = [
+                        'process_name' => $processName,
+                        'processes_qty' => [],
+                        'processes' => []
+                    ];
                 }
 
                 // Декодируем JSON-поле processes
@@ -925,13 +909,29 @@ class TdrProcessController extends Controller
         try {
             $processIds = $request->input('process_ids');
 
-            if (!is_array($processIds)) {
+            if (!is_array($processIds) || empty($processIds)) {
                 return response()->json(['success' => false, 'message' => 'Invalid process IDs'], 400);
             }
 
-            DB::transaction(function() use ($processIds) {
+            // Проверяем, что все процессы принадлежат одному TDR
+            $tdrProcesses = TdrProcess::whereIn('id', $processIds)->get();
+            if ($tdrProcesses->isEmpty()) {
+                return response()->json(['success' => false, 'message' => 'No processes found'], 404);
+            }
+
+            // Получаем уникальные TDR ID из процессов
+            $tdrIds = $tdrProcesses->pluck('tdrs_id')->unique();
+            if ($tdrIds->count() > 1) {
+                return response()->json(['success' => false, 'message' => 'Processes must belong to the same TDR'], 400);
+            }
+
+            $tdrId = $tdrIds->first();
+
+            // Обновляем порядок процессов в транзакции
+            DB::transaction(function() use ($processIds, $tdrId) {
                 foreach ($processIds as $index => $processId) {
                     TdrProcess::where('id', $processId)
+                             ->where('tdrs_id', $tdrId) // Дополнительная проверка безопасности
                              ->update(['sort_order' => $index + 1]);
                 }
             });

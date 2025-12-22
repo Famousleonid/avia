@@ -39,7 +39,7 @@ class PackageModalHandler {
         const tdrId = PackageModalHandler.getTdrId();
         if (!tdrId) {
             console.error('TDR ID not found');
-            tbody.innerHTML = '<tr><td colspan="3" class="text-center">Error: TDR ID not found</td></tr>';
+            tbody.innerHTML = '<tr><td colspan="4" class="text-center">Error: TDR ID not found</td></tr>';
             return;
         }
 
@@ -47,7 +47,7 @@ class PackageModalHandler {
         const processes = PackageModalHandler.extractProcessesFromPage();
         
         if (processes.length === 0) {
-            tbody.innerHTML = '<tr><td colspan="3" class="text-center">No processes found for this component</td></tr>';
+            tbody.innerHTML = '<tr><td colspan="4" class="text-center">No processes found for this component</td></tr>';
             return;
         }
 
@@ -123,10 +123,16 @@ class PackageModalHandler {
         row.setAttribute('data-tdr-process-id', process.tdrProcessId);
         row.setAttribute('data-process-id', process.processId);
 
+        // Колонка Process Name
+        const processNameCell = document.createElement('td');
+        processNameCell.className = 'align-middle';
+        processNameCell.textContent = process.processName;
+        row.appendChild(processNameCell);
+
         // Колонка Process
         const processCell = document.createElement('td');
         processCell.className = 'align-middle';
-        processCell.textContent = process.processName;
+        processCell.textContent = process.processText;
         row.appendChild(processCell);
 
         // Колонка Vendor

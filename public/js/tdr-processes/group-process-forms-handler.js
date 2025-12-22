@@ -80,6 +80,12 @@ class GroupProcessFormsHandler {
 
         const url = new URL(originalUrl, window.location.origin);
 
+        // Сохраняем tdrId из исходного URL (если есть) - это важно для фильтрации по компоненту
+        const existingTdrId = url.searchParams.get('tdrId');
+        if (existingTdrId) {
+            url.searchParams.set('tdrId', existingTdrId);
+        }
+
         // Добавляем vendor_id если выбран
         const vendorSelect = document.querySelector(
             `#groupFormsModal .vendor-select[data-process-name-id="${processNameId}"]`

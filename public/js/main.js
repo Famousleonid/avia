@@ -20,16 +20,10 @@ function hideLoadingSpinner() {
         var script = document.createElement('script');
 
         // Определяем путь к table-height-adjuster.js
-        var scriptPath = '/js/table-height-adjuster.js'; // Путь по умолчанию
-
-        // Пытаемся найти скрипт main.js в DOM для определения базового пути
-        var mainScript = document.querySelector('script[src*="main.js"]');
-        if (mainScript && mainScript.src) {
-            // Извлекаем базовый путь из src main.js
-            var mainScriptPath = mainScript.src;
-            var basePath = mainScriptPath.substring(0, mainScriptPath.lastIndexOf('/'));
-            scriptPath = basePath + '/table-height-adjuster.js';
-        }
+        // Файл всегда находится в /js/table-height-adjuster.js относительно корня приложения
+        // Используем window.location.origin для получения базового URL
+        var baseUrl = window.location.origin;
+        var scriptPath = baseUrl + '/js/table-height-adjuster.js';
 
         script.src = scriptPath;
         script.async = false; // Загружаем синхронно, чтобы функции были доступны сразу

@@ -27,12 +27,19 @@ function initTdrProcesses() {
 
     // Инициализируем drag & drop
     if (typeof Sortable !== 'undefined') {
-        SortableHandler.init(
-            ProcessesConfig.updateOrderUrl,
-            function(data) {
-                NotificationHandler.success('Порядок процессов обновлен');
+        if (!ProcessesConfig.updateOrderUrl) {
+            console.error('ProcessesConfig.updateOrderUrl is not set. Please check that the route is defined in the Blade template.');
+            if (window.NotificationHandler) {
+                window.NotificationHandler.error('Ошибка конфигурации: URL для обновления порядка не установлен');
             }
-        );
+        } else {
+            SortableHandler.init(
+                ProcessesConfig.updateOrderUrl,
+                function(data) {
+                    NotificationHandler.success('Порядок процессов обновлен');
+                }
+            );
+        }
     } else {
         console.warn('SortableJS library not loaded');
     }
