@@ -319,10 +319,11 @@
                         <tr
                             data-tech-id="{{ $workorder->user_id }}"
                             data-customer-id="{{ $workorder->customer_id }}"
-                            data-status="{{ $workorder->main->whereIn('task.name', ['Submitted Wo Assembly', 'Done'])->isNotEmpty() ? 'done' : 'active' }}"
+                            data-status="{{ $workorder->main->whereIn('task.name', ['Completed'])->isNotEmpty() ? 'Completed' : 'active' }}"
                             data-approved="{{ $workorder->approve_at ? '1' : '0' }}"
                         >
                             <td class="text-center">
+
                                 @if($workorder->isDone())
                                     <a href="{{ route('mains.show', $workorder->id) }}" class="text-decoration-none">
                                         <span class="text-muted">{{ $workorder->number }}</span>

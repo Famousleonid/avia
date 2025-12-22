@@ -36,6 +36,7 @@ class MainController extends Controller
             'task_id'      => ['required', 'exists:tasks,id'],
             'date_start'   => ['nullable', 'date'],
             'date_finish'  => ['nullable', 'date'],
+            'ignore_row'   => ['nullable', 'boolean'],
         ]);
 
         // один запрос вместо двух
@@ -77,7 +78,10 @@ class MainController extends Controller
         $main->date_start  = $data['date_start'] ?? null;
         $main->date_finish = $data['date_finish'] ?? null;
 
+        $main->ignore_row  = $request->boolean('ignore_row');
+
         $main->save();
+
         $main->loadMissing(['task.generalTask']);
 
         activity('mains')

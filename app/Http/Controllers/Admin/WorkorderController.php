@@ -210,6 +210,12 @@ class WorkorderController extends Controller
             ->orderByDesc('number')
             ->get();
 
+        foreach ($workorders as $wo) {
+            dump($wo->number, $wo->isDone());
+        }
+        dd('END');
+
+
         $manuals = Manual::all();
         $units = Unit::with('manuals')->get();
         $customers = Customer::orderBy('name')->get();

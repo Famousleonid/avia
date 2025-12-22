@@ -89,11 +89,19 @@ class Workorder extends Model implements HasMedia
 
     public function getDoneMainRecord()
     {
-        return $this->main
-            ->first(fn ($m) =>
-                $m->generalTaskRelation?->name === 'Completed'
-                && $m->date_finish !== null
-            );
+        $mains = $this->relationLoaded('main')
+            ? $this->main
+            : $this->main()->with('task')->get();
+
+        return $mains
+            ->filter(function ($m) {
+                return !$m->ignore_row                              // не игнорированная строка
+                    && $m->task                                     // есть связанная задача
+                    && $m->task->name === 'Completed'              // или 'Complete' — как у тебя в БД
+                    && $m->date_finish !== null;                   // завершена
+            })
+            ->sortByDesc('date_finish')    // на всякий случай — самая поздняя дата
+            ->first();
     }
 
     public function isDone(): bool

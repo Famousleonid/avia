@@ -282,6 +282,15 @@
             setArrow(!collapsed);
         });
     }
+
+    document.addEventListener('submit', function (e) {
+        if (!e.target.matches('form.js-auto-submit')) return;
+        if (typeof showLoadingSpinner === 'function') {
+            showLoadingSpinner();
+        }
+    });
+
+
 </script>
 
 </body>

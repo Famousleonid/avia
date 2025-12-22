@@ -349,14 +349,15 @@
                                                                     <input type="hidden" name="task_id" value="{{ $task->id }}">
                                                                 @endunless
 
-                                                                {{-- скрытое поле, чтобы всегда было 0/1 --}}
+                                                                {{-- hidden всегда 0, а JS (applyIgnoreState) перепишет на 1/0 при клике --}}
                                                                 <input type="hidden"
                                                                        name="ignore_row"
-                                                                       value="{{ $isIgnored ? 1 : 0 }}"
+                                                                       value="0"
                                                                        class="js-ignore-hidden">
 
                                                                 <input class="form-check-input m-0 js-ignore-row {{ $isIgnored ? 'is-ignored' : '' }}"
                                                                        type="checkbox"
+                                                                       name="ignore_row"
                                                                        value="1"
                                                                        {{ $isIgnored ? 'checked' : '' }}
                                                                        title="Ignore this row">
