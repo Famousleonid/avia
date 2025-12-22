@@ -66,7 +66,10 @@
                 <i class="bi bi-microsoft-teams me-2"></i> <span>Teams</span>
             </a>
         </li>
-        <li class="nav-item press-spinner">
+    @endif
+
+    @roles("Admin|Manager")
+    <li class="nav-item press-spinner">
             <a href="{{route('tasks.index')}}" class="nav-link">
                 <i class="bi bi-list-task me-2"></i> <span>Tasks</span>
             </a>
@@ -76,11 +79,15 @@
                 <i class="bi bi-stickies me-2"></i> <span>General Tasks</span>
             </a>
         </li>
+    @endrole
+
+    @if (auth()->user()->roleIs('Admin'))
         <li class="nav-item press-spinner">
             <a href="{{route('workorders.logs')}}" class="nav-link">
                 <i class="bi bi-stickies me-2"></i> <span>Log</span>
             </a>
         </li>
+
         <li class="nav-item press-spinner">
             <a href="{{route('mobile.index')}}" class="nav-link">
                 <i class="bi bi-phone me-2"></i> <span>Mobile</span>

@@ -45,11 +45,14 @@
     }
     /* Белая рамка на active */
     .js-gt-btn.btn-outline-danger.active  {
+        border-width: 3px !important;
         border-color: #fff !important;
+        box-shadow: 0 0 8px 3px rgba(255,255,255,0.6) !important;
     }
     .js-gt-btn.btn-outline-success.active  {
-        border-width: 2px !important;
+        border-width: 3px !important;
         border-color: #fff !important;
+        box-shadow: 0 0 8px 3px rgba(255,255,255,0.6) !important;
     }
 
     /* hover  */
@@ -203,7 +206,7 @@
 
     /* col widths (from your <colgroup>) */
     .tasks-table col.col-ignore {width: 30px;}
-    .tasks-table col.col-tech {width: 12%;}
+    .tasks-table col.col-tech {width: 10%;}
     .tasks-table col.col-start {width: 22%;}
     .tasks-table col.col-finish {width: 22%;}
     .tasks-table col.col-log {width: 50px;}
@@ -398,6 +401,31 @@
     .finish-input:disabled {
         background-color: rgba(0, 0, 0, .35) !important;
         opacity: 1 !important; /* Bootstrap по умолчанию делает слишком бледным */
+    }
+    .is-ignored {
+        opacity: 0.5;
+    }
+
+    .is-ignored-row {
+        opacity: 0.5;
+    }
+
+    .is-ignored input,
+    .is-ignored .form-check-input {
+        pointer-events: none;
+    }
+
+    .lock-icon {
+        position: absolute;
+        top: 50%;
+        right: 6px;
+        transform: translateY(-50%);
+        font-size: 14px;
+        cursor: help;
+        opacity: 0.7;
+    }
+    .lock-icon:hover {
+        opacity: 1;
     }
 
 </style>

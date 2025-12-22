@@ -288,7 +288,7 @@
                             <div class="d-flex gap-2">
                                 @foreach($general_tasks as $i => $gt)
                                     <button type="button"
-                                            class="btn flex-fill js-gt-btn {{ ($gtAllFinished[$gt->id] ?? false) ? 'btn-outline-success' : 'btn-outline-danger' }} {{ $i === 0 ? 'active' : '' }}"
+                                            class="btn flex-fill js-gt-btn {{ ($gtAllFinished[$gt->id] ?? false) ? 'btn-outline-success' : 'btn-outline-danger' }}"
                                             data-gt-id="{{ $gt->id }}">
                                         {{ $gt->name }}
                                     </button>
@@ -296,11 +296,11 @@
                             </div>
 
                             {{-- Tables --}}
-                            <div class="flex-grow-1 min-h-0 js-gt-container">
+                            <div class="flex-grow-1 min-h-0 js-gt-container" data-wo-id="{{$current_workorder->id}}" hidden>
 
                                 @foreach($general_tasks as $i => $gt)
 
-                                    <div class="js-gt-pane h-100 {{ $i === 0 ? '' : 'd-none' }}"
+                                    <div class="js-gt-pane h-100 d-none"
                                          data-gt-id="{{ $gt->id }}">
                                         <div class="table-responsive border border-secondary rounded h-100"
                                              style="overflow:auto;">
@@ -314,19 +314,26 @@
                                                     <col class="col-start">
                                                     <col class="col-finish">
                                                     @role('Admin')
-                                                        <col class="col-log">
+                                                    <col class="col-log">
                                                     @endrole
                                                 </colgroup>
 
                                                 <tbody>
                                                 @forelse(($tasksByGeneral[$gt->id] ?? collect()) as $task)
+
                                                     @php
                                                         $main   = $mainsByTask[$task->id] ?? null;
                                                         $action = $main ? route('mains.update', $main->id) : route('mains.store');
                                                         $isWaitingApprove = ($task->name === 'Waiting approve');
+                                                        $isCompleteTask   = ($task->name === 'Completed');
+                                                        $isRestrictedFinish = $isWaitingApprove || $isCompleteTask;
+                                                        $isIgnored = (bool) ($main?->ignore_row ?? false);
+                                                        $canEditFinish = !$isRestrictedFinish  || (auth()->check() && auth()->user()->hasAnyRole('Admin|Manager'));
+
                                                     @endphp
 
-                                                    <tr>
+                                                    <tr class="align-middle">
+                                                        {{-- чекбокс ignore --}}
                                                         <td class="text-center align-middle">
                                                             <form method="POST"
                                                                   action="{{ $action }}"
@@ -345,23 +352,35 @@
                                                                 {{-- скрытое поле, чтобы всегда было 0/1 --}}
                                                                 <input type="hidden"
                                                                        name="ignore_row"
-                                                                       value="{{ (int)($main?->ignore_row ?? 0) }}"
+                                                                       value="{{ $isIgnored ? 1 : 0 }}"
                                                                        class="js-ignore-hidden">
 
-                                                                <input class="form-check-input m-0 js-ignore-row"
+                                                                <input class="form-check-input m-0 js-ignore-row {{ $isIgnored ? 'is-ignored' : '' }}"
                                                                        type="checkbox"
                                                                        value="1"
-                                                                       {{ ($main?->ignore_row ?? false) ? 'checked' : '' }}
+                                                                       {{ $isIgnored ? 'checked' : '' }}
                                                                        title="Ignore this row">
                                                             </form>
                                                         </td>
-                                                        <td class="">{{ $main?->user?->name ?? '' }}</td>
-                                                        <td class="" title="{{ $task->name }}">{{ $task->name }}</td>
 
-                                                        {{-- Start --}}
-                                                        <td>
-                                                            @if($task?->task_has_start_date)
-                                                                <form method="POST" action="{{ $action }}"
+                                                        {{-- user --}}
+                                                        <td class="js-fade-on-ignore {{ $isIgnored ? 'is-ignored' : '' }}">
+                                                            {{ $main?->user?->name ?? '' }}
+
+                                                        </td>
+
+                                                        {{-- task --}}
+                                                        <td class="js-fade-on-ignore {{ $isIgnored ? 'is-ignored' : '' }}"
+                                                            title="{{ $main?->task?->name ?? $task->name }}">
+                                                             <span class="text-truncate d-inline-block" style="max-width: 200px;">
+                                                             {{ $main?->task?->name ?? $task->name }}</span>
+                                                        </td>
+
+                                                        {{-- START (если он вообще есть у таска) --}}
+                                                        <td class="js-fade-on-ignore {{ $isIgnored ? 'is-ignored' : '' }}">
+                                                            @if($task->task_has_start_date)
+                                                                <form method="POST"
+                                                                      action="{{ $action }}"
                                                                       class="js-auto-submit">
                                                                     @csrf
                                                                     @if($main)
@@ -369,50 +388,57 @@
                                                                     @endif
 
                                                                     @unless($main)
-                                                                        <input type="hidden" name="workorder_id"
-                                                                               value="{{ $current_workorder->id }}">
-                                                                        <input type="hidden" name="task_id"
-                                                                               value="{{ $task->id }}">
+                                                                        <input type="hidden" name="workorder_id" value="{{ $current_workorder->id }}">
+                                                                        <input type="hidden" name="task_id" value="{{ $task->id }}">
                                                                     @endunless
 
                                                                     <input type="text"
                                                                            name="date_start"
-                                                                           class="form-control form-control-sm finish-input "
+                                                                           class="form-control form-control-sm js-start finish-input {{ $isIgnored ? 'is-ignored' : '' }}"
                                                                            value="{{ optional($main?->date_start)->format('Y-m-d') }}"
                                                                            placeholder="..."
-                                                                           data-fp>
-                                                                    @endif
+                                                                           data-fp
+                                                                           @if($isIgnored) disabled @endif>
+
                                                                 </form>
+                                                            @else
+                                                                <span class="text-muted small">—</span>
+                                                            @endif
                                                         </td>
 
+                                                        {{-- FINISH --}}
+                                                        <td class="js-fade-on-ignore {{ $isIgnored ? 'is-ignored' : '' }}">
+                                                            <div class="position-relative d-inline-block w-100">
+                                                                <form method="POST"
+                                                                      action="{{ $action }}"
+                                                                      class="js-auto-submit">
+                                                                    @csrf
+                                                                    @if($main)
+                                                                        @method('PATCH')
+                                                                    @endif
 
-                                                        {{-- Finish --}}
-                                                        <td>
-                                                            <form method="POST"
-                                                                  action="{{ $action }}"
-                                                                  class="js-auto-submit">
-                                                                @csrf
-                                                                @if($main)
-                                                                    @method('PATCH')
-                                                                @endif
+                                                                    @unless($main)
+                                                                        <input type="hidden" name="workorder_id" value="{{ $current_workorder->id }}">
+                                                                        <input type="hidden" name="task_id" value="{{ $task->id }}">
+                                                                    @endunless
 
-                                                                @unless($main)
-                                                                    <input type="hidden" name="workorder_id"
-                                                                           value="{{ $current_workorder->id }}">
-                                                                    <input type="hidden" name="task_id"
-                                                                           value="{{ $task->id }}">
-                                                                @endunless
-                                                                <div class="d-flex align-items-center gap-2">
                                                                     <input type="text"
                                                                            name="date_finish"
-                                                                           class="form-control form-control-sm finish-input {{ $isWaitingApprove ? 'noedit' : '' }}"
+                                                                           class="form-control form-control-sm js-finish finish-input {{ $isIgnored ? 'is-ignored' : '' }}"
                                                                            value="{{ optional($main?->date_finish)->format('Y-m-d') }}"
                                                                            placeholder="..."
-                                                                           data-fp>
+                                                                           data-fp
+                                                                           @if($isIgnored || !$canEditFinish) disabled @endif>
 
-                                                                </div>
+                                                                    @if($isIgnored || !$canEditFinish)
+                                                                        <span class="lock-icon text-warning"
+                                                                              data-tippy-content="Only the manager can edit">
+                                                                              <i class="bi bi-lock-fill"></i>
+                                                                        </span>
+                                                                    @endif
 
-                                                            </form>
+                                                                </form>
+                                                            </div>
                                                         </td>
 
                                                         @role('Admin')
@@ -453,28 +479,6 @@
                         </div>
                     </div>
 
-
-                    {{-- LOG MODAL  --}}
-                    {{--                    <div class="modal fade" id="logModal" tabindex="-1" aria-labelledby="logModalLabel"--}}
-                    {{--                         aria-hidden="true">--}}
-                    {{--                        <div class="modal-dialog modal-lg modal-dialog-scrollable">--}}
-                    {{--                            <div class="modal-content" style="background-color:#212529;color:#f8f9fa;">--}}
-                    {{--                                <div class="modal-header">--}}
-                    {{--                                    <h5 class="modal-title" id="logModalLabel">Activity log</h5>--}}
-                    {{--                                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"--}}
-                    {{--                                            aria-label="Close"></button>--}}
-                    {{--                                </div>--}}
-                    {{--                                <div class="modal-body">--}}
-                    {{--                                    <div id="logModalContent"></div>--}}
-                    {{--                                </div>--}}
-                    {{--                                <div class="modal-footer">--}}
-                    {{--                                    <button class="btn btn-secondary" data-bs-dismiss="modal">Close</button>--}}
-                    {{--                                </div>--}}
-                    {{--                            </div>--}}
-                    {{--                        </div>--}}
-                    {{--                    </div>--}}
-
-
                     {{-- Right panel: Components / Processes --}}
                     <div class="bottom-col right border-info gradient-pane">
 
@@ -483,17 +487,26 @@
                                 <h6 class="mb-0 text-primary">Components</h6>
                                 <span class="text-info">({{ $components->count() }})</span>
                                 <h6 class="mb-0 text-primary">&nbsp;& Processes</h6>
-                                {{--                                    <span class="badge text-info">{{ $tdrProcessesTotal }} total</span>--}}
-                                {{--                                    <span class="badge text-info">{{ $tdrProcessesOpen }} open</span>--}}
                             </div>
 
                             <form method="get"
                                   action="{{ route('mains.show', $current_workorder->id) }}"
                                   class="d-flex align-items-center gap-2">
                                 <div class="form-check form-switch">
-                                    <input class="form-check-input" type="checkbox"
-                                           id="showAll" name="show_all" value="1"
-                                           {{ $showAll ? 'checked' : '' }} autocomplete="off">
+
+                                    {{-- всегда отправляем 0, если чекбокс снят --}}
+                                    <input type="hidden" name="show_all" value="0">
+
+                                    {{-- если чекбокс включён, уйдёт show_all=1 и перекроет 0 --}}
+                                    <input class="form-check-input"
+                                           type="checkbox"
+                                           id="showAll"
+                                           name="show_all"
+                                           value="1"
+                                           {{ $showAll ? 'checked' : '' }}
+                                           autocomplete="off"
+                                           onclick="this.form.submit()">
+
                                     <label class="form-check-label small" for="showAll">Show all</label>
                                 </div>
                             </form>
@@ -617,6 +630,16 @@
 
 @section('scripts')
 
-    @include('admin.mains.partials.scripts')
+    {{--  Общие --}}
+    @include('admin.mains.partials.js.mains-common')
+
+    {{--  GeneralTask, Task, date, ignore_row --}}
+    @include('admin.mains.partials.js.mains-general-tasks')
+
+    {{-- Photo and Logs --}}
+    @include('admin.mains.partials.js.mains-photos-logs')
+
+    {{-- Parts / PO / TDRS / Training --}}
+    @include('admin.mains.partials.js.mains-parts-training')
 
 @endsection
