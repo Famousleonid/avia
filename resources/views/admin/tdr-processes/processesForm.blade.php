@@ -328,12 +328,14 @@
     </style>
 </head>
 <body>
+@if(!isset($hidePrintButton) || !$hidePrintButton)
 <!-- Кнопка для печати -->
 <div class="text-start m-3">
     <button class="btn btn-outline-primary no-print" onclick="window.print()">
         Print Form
     </button>
 </div>
+@endif
 <div class="container-fluid">
     <div class="header-page">
         <div class="row">

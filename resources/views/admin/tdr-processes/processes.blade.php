@@ -330,9 +330,6 @@
                     <h5>{{ __('Component Processes') }}</h5>
                     <h5 class="text-primary me-5">{{__('Work Order: ')}} {{$current_tdr->workorder->number}}</h5>
                 </div>
-
-
-
                 <div class="d-flex justify-content-between ">
                     <div>
                         {{ $current_tdr->component->name }}
@@ -355,6 +352,24 @@
                                     ariaLabel="Group Process Forms"
                                     data-bs-toggle="modal"
                                     data-bs-target="#groupFormsModal"
+                                />
+                            </div>
+                            <div class="me-2">
+{{--                                <button type="button"--}}
+{{--                                        class="btn btn-outline-primary"--}}
+{{--                                        style="height: 40px; width: 100px;"--}}
+{{--                                        data-bs-toggle="modal"--}}
+{{--                                        data-bs-target="#packageModal">--}}
+{{--                                    Package--}}
+{{--                                </button>--}}
+                                <x-paper-button-multy
+                                    text="Package"
+                                    color="outline-primary"
+                                    size="landscape"
+                                    width="80"
+                                    ariaLabel="Group Process Forms"
+                                    data-bs-toggle="modal"
+                                    data-bs-target="#packageModal"
                                 />
                             </div>
                         @endif
@@ -514,9 +529,9 @@
                             <table class="table table-hover table-bordered bg-gradient shadow">
                                 <thead>
                                     <tr>
-                                        <th class="text-primary text-center" style="width: 25%;">Process</th>
-                                        <th class="text-primary text-center" style="width: 25%;">Processes</th>
-                                        <th class="text-primary text-center" style="width: 25%;">Vendor</th>
+                                        <th class="text-primary ps-2" style="width: 15%;">Process</th>
+                                        <th class="text-primary text-center" style="width: 45%;">Processes</th>
+                                        <th class="text-primary text-center" style="width: 20%;">Vendor</th>
                                     </tr>
                                 </thead>
                                 <tbody>
@@ -611,6 +626,50 @@
         </div>
     @endif
 
+    <!-- Modal - Package Process Forms -->
+    <div class="modal fade" id="packageModal" tabindex="-1" aria-labelledby="packageModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-xl">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="packageModalLabel">
+                        <i class="fas fa-box"></i> Package processes forms for Component
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <strong>PN:</strong> <span id="packagePartNumber">{{ $current_tdr->component->part_number ?? 'N/A' }}</span>
+                        </div>
+                        <div class="col-md-6">
+                            <strong>SN:</strong> <span id="packageSerialNumber">{{ $current_tdr->serial_number ?? 'N/A' }}</span>
+                        </div>
+                    </div>
+                    <div class="table-responsive">
+                        <table class="table table-hover table-bordered bg-gradient shadow" id="packageProcessesTable">
+                            <thead>
+                                <tr>
+                                    <th class="text-primary text-center" style="width: 40%;">Process</th>
+                                    <th class="text-primary text-center" style="width: 35%;">Vendor</th>
+                                    <th class="text-primary text-center" style="width: 25%;">Select</th>
+                                </tr>
+                            </thead>
+                            <tbody id="packageProcessesTableBody">
+                                <!-- Данные будут загружены через JavaScript -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="button" class="btn btn-primary" id="packageButton">
+                        <i class="fas fa-box"></i> Package
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- Модальное окно для подтверждения удаления -->
     <div class="modal fade" id="useConfirmDelete" tabindex="-1" aria-labelledby="useConfirmDeleteLabel" aria-hidden="true">
         <div class="modal-dialog">
@@ -666,7 +725,8 @@
     <script src="{{ asset('js/tdr-processes/vendor-handler.js') }}"></script>
     <script src="{{ asset('js/tdr-processes/form-link-handler.js') }}"></script>
     <script src="{{ asset('js/tdr-processes/group-process-forms-handler.js') }}"></script>
-    
+    <script src="{{ asset('js/tdr-processes/package-modal-handler.js') }}"></script>
+
     <!-- Главный файл инициализации с конфигурацией -->
     <script>
         // Конфигурация для модулей

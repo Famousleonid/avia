@@ -400,7 +400,7 @@ class TdrProcessController extends Controller
         // Получаем параметры из запроса
         $repairNum = $request->input('repair_num', 'N/A');
         $vendorId = $request->input('vendor');
-
+        
         // Получаем данные о vendor для каждой строки
         $vendorsData = [];
         $vendorsDataJson = $request->input('vendors_data');
@@ -411,7 +411,7 @@ class TdrProcessController extends Controller
                 \Log::error('Error parsing vendors_data: ' . $e->getMessage());
             }
         }
-
+        
         // Получаем данные о отмеченных чекбоксах AT
         $atData = [];
         $atDataJson = $request->input('at_data');
@@ -422,7 +422,7 @@ class TdrProcessController extends Controller
                 \Log::error('Error parsing at_data: ' . $e->getMessage());
             }
         }
-
+        
         // Получаем имя вендора если передан ID (для обратной совместимости)
         $vendorName = null;
         if ($vendorId) {
@@ -975,6 +975,140 @@ class TdrProcessController extends Controller
         $tdrProcess->update($data);
 
         return back()->with('success', 'Process dates updated');
+    }
+
+    /**
+     * Генерирует многостраничную страницу из выбранных форм процессов
+     *
+     * @param  \Illuminate\Http\Request  $request
+     * @param  int  $tdrId
+     * @return Application|Factory|View
+     */
+    public function packageForms(Request $request, $tdrId)
+    {
+        // Находим запись Tdr по ID
+        $current_tdr = Tdr::with('component')->findOrFail($tdrId);
+        $current_wo = $current_tdr->workorder;
+
+        // Получаем выбранные процессы из запроса
+        $processesJson = $request->input('processes');
+        $selectedProcesses = json_decode($processesJson, true);
+
+        if (empty($selectedProcesses) || !is_array($selectedProcesses)) {
+            abort(400, 'No processes selected');
+        }
+
+        $manual_id = $this->getManualIdForTdr($tdrId);
+        if (!$manual_id) {
+            abort(404, 'Manual not found for component or workorder');
+        }
+
+        $components = Component::where('manual_id', $manual_id)->get();
+        $manualProcesses = ManualProcess::where('manual_id', $manual_id)->pluck('processes_id');
+
+        // Массив для хранения данных всех форм
+        $formsData = [];
+
+        foreach ($selectedProcesses as $selectedProcess) {
+            $tdrProcessId = $selectedProcess['tdr_process_id'] ?? null;
+            $processId = $selectedProcess['process_id'] ?? null;
+            $vendorId = $selectedProcess['vendor_id'] ?? null;
+
+            if (!$tdrProcessId || !$processId) {
+                continue;
+            }
+
+            // Загружаем TdrProcess
+            $tdrProcess = TdrProcess::with([
+                'processName',
+                'tdr.workorder.unit.manuals',
+                'tdr.workorder'
+            ])->find($tdrProcessId);
+
+            if (!$tdrProcess || $tdrProcess->tdrs_id != $tdrId) {
+                continue;
+            }
+
+            $process_name = $tdrProcess->processName;
+            $selectedVendor = $vendorId ? Vendor::find($vendorId) : null;
+
+            // Базовые данные для формы
+            $formData = [
+                'current_wo' => $current_wo,
+                'components' => $components,
+                'tdrs' => [$current_tdr->id],
+                'manuals' => Manual::where('id', $manual_id)->get(),
+                'process_name' => $process_name,
+                'manual_id' => $manual_id,
+                'selectedVendor' => $selectedVendor,
+                'current_tdr' => $current_tdr
+            ];
+
+            // Обработка NDT форм
+            if ($process_name && $process_name->process_sheet_name == 'NDT') {
+                $ndt_ids = [
+                    'ndt1_name_id' => ProcessName::where('name', 'NDT-1')->value('id'),
+                    'ndt4_name_id' => ProcessName::where('name', 'NDT-4')->value('id'),
+                    'ndt6_name_id' => ProcessName::where('name', 'Eddy Current Test')->value('id'),
+                    'ndt5_name_id' => ProcessName::where('name', 'BNI')->value('id')
+                ];
+
+                $ndt_processes = Process::whereIn('id', $manualProcesses)
+                    ->where(function ($query) use ($ndt_ids) {
+                        $query->whereIn('process_names_id', $ndt_ids)
+                            ->orWhere('process_names_id', $ndt_ids['ndt1_name_id'])
+                            ->orWhere('process_names_id', $ndt_ids['ndt4_name_id']);
+                    })
+                    ->get();
+
+                // Фильтруем processes по конкретному process_id
+                $currentProcesses = json_decode($tdrProcess->processes, true) ?: [];
+                $currentProcesses = array_values(array_filter($currentProcesses, function($pid) use ($processId) {
+                    return (int)$pid === (int)$processId;
+                }));
+                $tdrProcess->processes = json_encode($currentProcesses);
+
+                $formData += [
+                    'ndt_processes' => $ndt_processes,
+                    'ndt_components' => collect([$tdrProcess->load(['tdr', 'processName'])]),
+                    'current_ndt_id' => $process_name->id,
+                    'ndt1_name_id' => $ndt_ids['ndt1_name_id'],
+                    'ndt4_name_id' => $ndt_ids['ndt4_name_id'],
+                    'ndt6_name_id' => $ndt_ids['ndt6_name_id'],
+                    'ndt5_name_id' => $ndt_ids['ndt5_name_id']
+                ];
+            } else {
+                // Обработка обычных процессов
+                $processComponents = Process::whereIn('id', $manualProcesses)
+                    ->where('process_names_id', $process_name->id)
+                    ->get();
+
+                // Фильтруем processes по конкретному process_id
+                $currentProcesses = json_decode($tdrProcess->processes, true) ?: [];
+                $currentProcesses = array_values(array_filter($currentProcesses, function($pid) use ($processId) {
+                    return (int)$pid === (int)$processId;
+                }));
+                $tdrProcess->processes = json_encode($currentProcesses);
+
+            $formData += [
+                'process_components' => $processComponents,
+                'process_tdr_components' => collect([$tdrProcess->load(['tdr', 'processName'])])
+            ];
+        }
+
+        // Добавляем current_tdr для использования в view
+        $formData['current_tdr'] = $current_tdr;
+        $formsData[] = $formData;
+    }
+
+        if (empty($formsData)) {
+            abort(400, 'No valid processes found');
+        }
+
+        return view('admin.tdr-processes.packageForms', [
+            'formsData' => $formsData,
+            'current_tdr' => $current_tdr
+        ]);
     }
 
 }
