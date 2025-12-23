@@ -121,7 +121,12 @@ class MainController extends Controller
 
         $users          = User::all();
         $general_tasks = GeneralTask::orderBy('sort_order')->orderBy('id')->get();
-        $tasks       = Task::whereIn('general_task_id', $general_tasks->pluck('id'))->get();
+        $tasks = Task::whereIn('general_task_id', $general_tasks->pluck('id'))
+            ->orderBy('general_task_id')
+            ->orderBy('id')
+            ->get();
+
+
         $tasksByGeneral = $tasks->groupBy('general_task_id');
 
         $showAll = request()->has('show_all')
