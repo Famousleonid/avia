@@ -20,6 +20,21 @@
             font-size: 0.75rem;
         }
 
+        /* Фиксация шапки таблицы Inspection Unit */
+        #tdr_inspect_Table thead {
+            position: sticky;
+            top: 0;
+            z-index: 10;
+        }
+
+        #tdr_inspect_Table thead th {
+            background-color: #030334 !important;
+            box-shadow: 0 2px 2px -1px rgba(0, 0, 0, 0.1);
+        }
+        #tdr__Table thead th {
+            background-color: #030334 !important;
+            box-shadow: 0 2px 2px -1px rgba(0, 0, 0, 0.1);
+        }
 
     </style>
 
@@ -574,7 +589,7 @@
             <! --- Body --- ->
 
 
-            <div class="mb-1 mt-2 d-flex " style="margin-left: 60px">
+            <div class="mb-1 mt-2 d-flex " style="margin-left: 60px;">
 
 
                         <div class=" d-flex " style=" ; width: 380px">
@@ -709,104 +724,92 @@
                 </div>
 
 
-                </div>
+            </div>
 
+                <div class="d-flex justify-content-center" style="height: 700px">
 
+                    <!- Inspection Unit ->
 
-                <div class="d-flex justify-content-center">
-
-                    <div class="me-3" style="width: 450px"> <!- Inspection Unit ->
+                    <div class="me-3" style="width: 450px; max-height: 650px; overflow-y: auto;">
                         <div class="table-wrapper me3 p-2">
                             <table id="tdr_inspect_Table" class="display table table-sm
                                         table-hover table-striped align-middle table-bordered bg-gradient">
                                 <thead>
                                 <tr>
-                                    <th class=" text-primary text-center  " style="width: 300px;">{{__('Teardown
-                                    Inspection')
-                                    }}</th>
+                                    <th class=" text-primary text-center  " style="width: 300px;">
+                                        {{__('Teardown Inspection')}}
+                                    </th>
                                     <th class=" text-primary text-center " style="width: 150px;">
                                         <a href="{{ route('tdrs.inspection.unit', ['workorder_id' => $current_wo->id]) }}"
                                            class="btn btn-outline-info btn-sm" style="height: 32px">
                                             {{ __('Add') }}
                                         </a>
-
                                     </th>
-
                                 </tr>
                                 </thead>
                                 <tbody>
-
-
-                                @foreach($tdrs as $tdr)
-                                    @if($tdr->use_tdr == true and $tdr->use_process_forms != true)
-                                        <tr>
-                                            <td
-                                                class="text-center fs-8">
-
-
-                                                @foreach($conditions as $condition)
-                                                    @if($condition->id == $tdr->conditions_id  )
-                                                        {{$condition ->name}}
-
+                                    @foreach($tdrs as $tdr)
+                                            @if($tdr->use_tdr == true and $tdr->use_process_forms != true)
+                                            <tr>
+                                                <td
+                                                    class="text-center fs-8">
+                                                    @foreach($conditions as $condition)
+                                                        @if($condition->id == $tdr->conditions_id  )
+                                                            {{$condition ->name}}
+                                                        @endif
+                                                    @endforeach
+                                                    @if($tdr->component_id)
+                                                        <fs-8 class="" style="color: #5897fb">(scrap)</fs-8>
+                                                        {{ $tdr->component->name }}
+                                                        @if ($tdr->qty == 1)
+                                                            ({{ $tdr->component->ipl_num }})
+                                                        @else
+                                                             ({{ $tdr->component->ipl_num }}, {{$tdr->qty}} pcs)
+                                                        @endif
                                                     @endif
-
-                                                @endforeach
-
-                                                @if($tdr->component_id)
-                                                    <fs-8 class="" style="color: #5897fb">(scrap)</fs-8>
-                                                    {{ $tdr->component->name }}
-                                                    @if ($tdr->qty == 1)
-                                                        ({{ $tdr->component->ipl_num }})
-                                                    @else
-                                                         ({{ $tdr->component->ipl_num }}, {{$tdr->qty}} pcs)
-                                                    @endif
-                                                @endif
-                                                    @if($tdr->description)
-                                                        ({{$tdr->description}})
-                                                    @endif
-                                            </td>
-                                            <td class="p-2 text-center">
-
-                                                @foreach($inspectsUnit as $unit)<!-- inspection unit delete -->
-
-                                                @if($unit->id == $tdr->id)
-                                                    <form action="{{ route('tdrs.destroy', $unit->id) }}" method="POST"
-                                                          onsubmit="return confirm('Are you sure you want to delete this item?');">
-                                                        @csrf
-                                                        @method('DELETE')
-                                                        <button type="submit" class="btn btn-outline-danger btn-sm ">
-                                                            {{--                                                            {__('Delete')}}--}}
-                                                            <i class="bi bi-trash"></i>
-                                                        </button>
-                                                    </form>
-
-                                                @endif
-                                                @endforeach
-
-                                                @if($tdr->conditions && $tdr->conditions->name == 'PARTS MISSING UPON ARRIVAL AS INDICATED ON PARTS LIST')
-                                                    <button class="btn btn-outline-info btn-sm" style="height: 32px"
-                                                            data-bs-toggle="modal"
-                                                            data-bs-target="#missingModal{{$current_wo->number}}">
-                                                        {{ __('Missing Part') }}</button>
-                                                @else
-                                                    @if($tdr->necessaries_id == $necessary->id)
-                                                        <button class="btn btn-outline-info btn-sm" style="min-height: 32px"
-                                                                href="#"
-                                                                data-bs-toggle="modal" data-bs-target="#orderModal{{$current_wo->number}}">
-                                                            {{ __('Ordered Parts') }}</button>
-                                                    @endif
-                                                @endif
-
-                                            </td>
-                                        </tr>
-                                    @endif
-                                @endforeach
+                                                        @if($tdr->description)
+                                                            ({{$tdr->description}})
+                                                        @endif
+                                                </td>
+                                                <td class="p-2 text-center">
+                                                    @foreach($inspectsUnit as $unit)<!-- inspection unit delete -->
+                                                        @if($unit->id == $tdr->id)
+                                                            <form action="{{ route('tdrs.destroy', $unit->id) }}" method="POST"
+                                                              onsubmit="return confirm('Are you sure you want to delete this item?');">
+                                                                @csrf
+                                                                @method('DELETE')
+                                                                <button type="submit" class="btn btn-outline-danger btn-sm ">
+                                                                    {{--                                                            {__('Delete')}}--}}
+                                                                    <i class="bi bi-trash"></i>
+                                                                </button>
+                                                            </form>
+                                                       @endif
+                                                    @endforeach
+                                                        @if($tdr->conditions && $tdr->conditions->name == 'PARTS MISSING UPON ARRIVAL AS INDICATED ON PARTS LIST')
+                                                            <button class="btn btn-outline-info btn-sm" style="height: 32px"
+                                                                    data-bs-toggle="modal"
+                                                                    data-bs-target="#missingModal{{$current_wo->number}}">
+                                                                {{ __('Missing Part') }}</button>
+                                                        @else
+                                                            @if($tdr->necessaries_id == $necessary->id)
+                                                                <button class="btn btn-outline-info btn-sm" style="min-height: 32px"
+                                                                        href="#"
+                                                                        data-bs-toggle="modal" data-bs-target="#orderModal{{$current_wo->number}}">
+                                                                    {{ __('Ordered Parts') }}</button>
+                                                            @endif
+                                                       @endif
+                                                </td>
+                                            </tr>
+                                        @endif
+                                    @endforeach
                                 </tbody>
                             </table>
                         </div>
                     </div>
 
-                    <div>
+                    <!- Inspection Component ->
+
+                    <div class="me-3" style=" max-height: 650px; overflow-y: auto;">
                         <div class="table-wrapper me-3 p-2">
                             <table id="tdr_process_Table" class="display table table-sm table-hover table-striped align-middle table-bordered">
                                 <thead class="bg-gradient">

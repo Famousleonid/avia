@@ -99,6 +99,7 @@ class LogCardController extends Controller
      */
     public function create($id)
     {
+//        dd($id);
         $current_wo = Workorder::findOrFail($id);
         $manual_id = $current_wo->unit->manual_id;
 
@@ -113,6 +114,7 @@ class LogCardController extends Controller
             ->where('log_card', 1)  // Возвращаем условие
             ->orderBy('ipl_num', 'asc')
             ->get();
+//        dd($manual_id, $current_wo,$components);
 
         // Отладочная информация
         \Log::info('Total components found: ' . $components->count());
@@ -122,6 +124,7 @@ class LogCardController extends Controller
 
         // Получаем TDR записи для данного workorder с загруженными отношениями
         $tdrs = Tdr::where('workorder_id', $id)->with(['codes', 'necessaries'])->get();
+//        dd($components,$tdrs);
 
         // Группируем компоненты по базовому номеру из ipl_num (без буквенных суффиксов)
         $groupedComponents = $components->groupBy(function ($component) {
@@ -135,6 +138,8 @@ class LogCardController extends Controller
             $filteredGroup = $group->filter(function ($component) {
                 return ($component->units_assy ?? 1) == 1;
             });
+
+//            dd($filteredGroup);
 
             return [
                 'ipl_group' => $group->keys()->first(), // Используем ключ группы (базовый номер)
@@ -188,9 +193,12 @@ class LogCardController extends Controller
             }
             return $key;
         });
+//        dd($components,$groupedComponents);
 
         // Обрабатываем компоненты с units_assy > 1 - создаем отдельные строки
         $separateComponents = collect();
+
+//        dd($components,$separateComponents);
 
         // Сначала проверим все компоненты, включая те, что были исключены из группировки
         foreach ($components as $component) {
@@ -226,11 +234,43 @@ class LogCardController extends Controller
                     ]);
                 }
             }
+
         }
+
 
         \Log::info('Separate components count: ' . $separateComponents->count());
 
         return view('admin.log_card.create', compact('current_wo', 'groupedComponents', 'separateComponents', 'components', 'tdrs', 'code', 'necessary','codes'));
+    }
+
+    /**
+     * Определяет причину удаления компонента на основе TDR данных
+     *
+     * @param Tdr|null $tdr
+     * @param Code|null $code
+     * @param Necessary|null $necessary
+     * @return string
+     */
+    private function getReasonForRemove($tdr, $code, $necessary)
+    {
+        if (!$tdr) {
+            return '';
+        }
+
+        // Проверяем codes (Missing)
+        if ($tdr->codes && $code && $tdr->codes->id === $code->id) {
+            return 'Missing';
+        }
+
+        // Проверяем necessary (Order New)
+        if ($tdr->necessaries && $necessary && $tdr->necessaries->id === $necessary->id) {
+            // Если necessary = "Order New", то берем значение из codes
+            if ($tdr->codes) {
+                return $tdr->codes->name;
+            }
+        }
+
+        return '';
     }
 
     /**

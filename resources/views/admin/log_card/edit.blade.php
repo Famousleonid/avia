@@ -8,23 +8,46 @@
         .component-radio { margin: 0; }
         .align-middle { vertical-align: middle !important; }
         .reason-select { min-width: 150px; }
+        .table-scroll-container {
+            max-height: 750px;
+            overflow-y: auto;
+            overflow-x: auto;
+            position: relative;
+        }
+        .table-scroll-container thead th {
+            position: sticky;
+            top: 0;
+            background-color: #031e3a;
+            z-index: 10;
+            box-shadow: 0 2px 2px -1px rgba(0, 0, 0, 0.4);
+        }
+        .table-scroll-container table {
+            margin-bottom: 0;
+        }
     </style>
 
     <div class="container mt-3">
         <div class="card bg-gradient">
-            <div class="card-header">
-                <h4 class="text-primary">{{__('WO')}} {{$current_wo->number}} {{__('Edit Log Card')}}</h4>
-            </div>
-        </div>
-
-        <div class="card-body">
             <form id="editForm" method="POST" action="{{ route('log_card.update', $log_card->id) }}">
                 @csrf
                 @method('PUT')
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h4 class="text-primary mb-0">{{__('WO')}} {{$current_wo->number}} {{__('Edit Log Card')}}</h4>
+                <div>
+                    <button type="submit" class="btn btn-success">
+                        <i class="fas fa-save"></i> Update Log Card
+                    </button>
+                    <a href="{{ route('log_card.show', $current_wo->id) }}" class="btn btn-secondary">
+                        <i class="fas fa-arrow-left"></i> Back
+                    </a>
+                </div>
+            </div>
+
+            <div class="card-body">
                 <input type="hidden" name="workorder_id" value="{{ $current_wo->id }}">
                 <input type="hidden" name="component_data" id="component_data_input">
 
-                <div class="table-responsive">
+                <div class="table-responsive table-scroll-container">
                     <table class="table table-bordered table-hover">
                         <thead>
                         <tr>
@@ -183,15 +206,7 @@
                         </tbody>
                     </table>
                 </div>
-
-                <div class="mt-4">
-                    <button type="submit" class="btn btn-success">
-                        <i class="fas fa-save"></i> Update Log Card
-                    </button>
-                    <a href="{{ route('log_card.show', $current_wo->id) }}" class="btn btn-secondary">
-                        <i class="fas fa-arrow-left"></i> Back
-                    </a>
-                </div>
+            </div>
             </form>
         </div>
     </div>

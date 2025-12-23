@@ -42,19 +42,42 @@
         .reason-select {
             min-width: 150px;
         }
+        .table-scroll-container {
+            max-height: 750px;
+            overflow-y: auto;
+            overflow-x: auto;
+            position: relative;
+        }
+        .table-scroll-container thead th {
+            position: sticky;
+            top: 0;
+            background-color: #031e3a;
+            z-index: 10;
+            box-shadow: 0 2px 2px -1px rgba(0, 0, 0, 0.4);
+        }
+        .table-scroll-container table {
+            margin-bottom: 0;
+        }
     </style>
 
     <div class="container mt-3">
         <div class="card bg-gradient">
-            <div class="card-header">
-                <h4 class="text-primary">{{__('WO')}} {{$current_wo->number}} {{__('Create Log Card')}}</h4>
-            </div>
-        </div>
-
-        <div class="card-body">
             <form id="createForm" class="createForm" role="form" method="POST" action="{{route('log_card.store')}}"
                   enctype="multipart/form-data">
                 @csrf
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h4 class="text-primary mb-0">{{__('WO')}} {{$current_wo->number}} {{__('Create Log Card')}}</h4>
+                <div>
+                    <button type="submit" class="btn btn-success">
+                        <i class="fas fa-save"></i> Create Log Card
+                    </button>
+                    <a href="{{ route('log_card.show', $current_wo->id) }}" class="btn btn-secondary">
+                        <i class="fas fa-arrow-left"></i> Back
+                    </a>
+                </div>
+            </div>
+
+            <div class="card-body">
                 <input type="hidden" name="workorder_id" value="{{ $current_wo->id }}">
                 <input type="hidden" name="component_data" id="component_data_input">
 
@@ -69,7 +92,7 @@
                 {{--                    @endforeach--}}
                 {{--                </div>--}}
 
-                <div class="table-responsive">
+                <div class="table-responsive table-scroll-container">
                     <table class="table table-bordered table-hover">
                         <thead>
                         <tr>
@@ -135,7 +158,7 @@
                                 </tr>
                             @endforeach
                         @endforeach
-                        
+
                         {{-- Отдельные компоненты с units_assy > 1 --}}
                         {{-- DEBUG: Separate components count: {{ $separateComponents->count() }} --}}
                         @foreach($separateComponents as $index => $componentData)
@@ -189,15 +212,7 @@
                         </tbody>
                     </table>
                 </div>
-
-                <div class="mt-4">
-                    <button type="submit" class="btn btn-success">
-                        <i class="fas fa-save"></i> Create Log Card
-                    </button>
-                    <a href="{{ route('log_card.show', $current_wo->id) }}" class="btn btn-secondary">
-                        <i class="fas fa-arrow-left"></i> Back
-                    </a>
-                </div>
+            </div>
             </form>
         </div>
     </div>
@@ -213,7 +228,7 @@
                          document.getElementById('createForm').addEventListener('submit', function(e) {
                  let data = [];
                  let allGroups = new Set();
-                 
+
                  // Собираем все группы (кроме separate)
                  document.querySelectorAll('input[type=radio][name^="selected_component["]').forEach(function(radio) {
                      let index = radio.name.match(/selected_component\[(.*)\]/)[1];
