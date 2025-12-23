@@ -123,7 +123,7 @@ class MainController extends Controller
         $general_tasks = GeneralTask::orderBy('sort_order')->orderBy('id')->get();
         $tasks = Task::whereIn('general_task_id', $general_tasks->pluck('id'))
             ->orderBy('general_task_id')
-            ->orderBy('id')
+            ->orderBy('name')
             ->get();
 
 
