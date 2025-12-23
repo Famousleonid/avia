@@ -112,7 +112,7 @@ class MobileController extends Controller
     }
 
 
-        public function componentStore(Request $request)
+    public function componentStore(Request $request)
     {
         $validated = $request->validate([
             'workorder_id' => 'required|exists:workorders,id',
@@ -165,25 +165,54 @@ class MobileController extends Controller
        return redirect()->back()->with('success', 'New password saved');
    }
 
-    public function tasks(Workorder $workorder)
+    public function tasks($workorder_id, Request $request)
     {
-        $workorder->load(['unit', 'media']);
+        // ВАЖНО: в blade используется $workorder, значит передаём именно $workorder
+        $workorder = Workorder::findOrFail($workorder_id);
 
-        $users = User::orderBy('name')->get(['id', 'name']);
+        $general_tasks = GeneralTask::orderBy('sort_order')->orderBy('id')->get();
 
-        $generalTasks = GeneralTask::with(['tasks:id,general_task_id,name'])
+        $tasks = Task::whereIn('general_task_id', $general_tasks->pluck('id'))
+            ->orderBy('general_task_id')
             ->orderBy('name')
-            ->get(['id', 'name']);
+            ->get();
 
-        $currentUserId = auth()->id();
+        $tasksByGeneral = $tasks->groupBy('general_task_id');
+
+        $mains = Main::with(['user', 'task'])
+            ->where('workorder_id', $workorder_id)
+            ->get();
+
+        $mainsByTask = $mains->keyBy('task_id');
+
+        // зелёные/красные кнопки general_task
+        $gtAllFinished = [];
+
+        foreach ($general_tasks as $gt) {
+            $taskIds = ($tasksByGeneral[$gt->id] ?? collect())->pluck('id');
+
+            if ($taskIds->isEmpty()) {
+                $gtAllFinished[$gt->id] = false;
+                continue;
+            }
+
+            $gtAllFinished[$gt->id] = $taskIds->every(function ($taskId) use ($mainsByTask) {
+                $main = $mainsByTask->get($taskId);
+                if (!$main) return false;
+                if ($main->ignore_row) return true;
+                return !empty($main->date_finish);
+            });
+        }
 
         return view('mobile.pages.tasks', compact(
             'workorder',
-            'users',
-            'generalTasks',
-            'currentUserId'
+            'general_tasks',
+            'tasksByGeneral',
+            'mainsByTask',
+            'gtAllFinished'
         ));
     }
+
 
     public function getTasksByWorkorder(Request $request)
     {

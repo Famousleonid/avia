@@ -28,8 +28,9 @@
                 document.documentElement.setAttribute('data-bs-theme', 'dark');
                 localStorage.setItem('theme', 'dark');
             } else {
-                const savedTheme = localStorage.getItem('theme') || 'light';
+                const savedTheme = localStorage.getItem('theme') || 'dark';
                 document.documentElement.setAttribute('data-bs-theme', savedTheme);
+                if (!localStorage.getItem('theme')) localStorage.setItem('theme', 'dark');
             }
         })();
 
@@ -210,7 +211,8 @@
             }
 
             // Инициализируем тему из localStorage
-            let storedTheme = localStorage.getItem('theme') || 'light';
+            let storedTheme = localStorage.getItem('theme') || 'dark';
+            if (!localStorage.getItem('theme')) localStorage.setItem('theme', 'dark');
             document.documentElement.setAttribute('data-bs-theme', storedTheme);
             updateThemeIcon(storedTheme);
         }
