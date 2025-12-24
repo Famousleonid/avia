@@ -726,11 +726,11 @@
 
             </div>
 
-                <div class="d-flex justify-content-center" style="height: 700px">
+                <div class="d-flex justify-content-center" style="height: 75vh">
 
                     <!- Inspection Unit ->
 
-                    <div class="me-3" style="width: 450px; max-height: 650px; overflow-y: auto;">
+                    <div class="me-3" style="width: 450px; max-height: 70vh; overflow-y: auto;">
                         <div class="table-wrapper me3 p-2">
                             <table id="tdr_inspect_Table" class="display table table-sm
                                         table-hover table-striped align-middle table-bordered bg-gradient">
@@ -809,7 +809,7 @@
 
                     <!- Inspection Component ->
 
-                    <div class="me-3" style=" max-height: 650px; overflow-y: auto;">
+                    <div class="me-3" style=" max-height: 70vh; overflow-y: auto;">
                         <div class="table-wrapper me-3 p-2">
                             <table id="tdr_process_Table" class="display table table-sm table-hover table-striped align-middle table-bordered">
                                 <thead class="bg-gradient">

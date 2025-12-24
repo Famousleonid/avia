@@ -8,14 +8,14 @@
 
         /* Стили для таблиц с скроллингом */
         .table-scroll-rm-records {
-            max-height: 400px;
+            max-height: 40vh;
             overflow-y: auto;
             overflow-x: auto;
             position: relative;
         }
 
         .table-scroll-technical-notes {
-            max-height: 200px;
+            max-height: 18vh;
             overflow-y: auto;
             overflow-x: auto;
             position: relative;
@@ -28,6 +28,8 @@
             background-color: #031e3a !important;
             z-index: 10;
             box-shadow: 0 2px 2px -1px rgba(0, 0, 0, 0.4);
+            align-content: center;
+            font-size: small;
         }
 
         .table-scroll-rm-records table,
@@ -44,10 +46,10 @@
     </style>
     <div class="container mt-3">
         <div class="card bg-gradient">
-            <div class="card-header justify-content-between d-flex align-items-center">
+            <div class="card-header justify-content-between d-flex ">
                 <div>
-                    <h4 class="text-primary mb-0">{{__('WO')}} {{$current_wo->number}} </h4>
-                   <h4 class="mb-0"> {{__('Edit WorkOrder R&M Record')}}</h4>
+                    <h5 class="text-primary mb-0">{{__('WO')}} {{$current_wo->number}} </h5>
+                   <h5 class="mb-0"> {{__('Edit WorkOrder R&M Record')}}</h5>
                 </div>
                 <div class="d-flex gap-2 align-items-center">
                     <button type="button" class="btn btn-outline-success btn-lg" style="width: 400px"
@@ -108,8 +110,8 @@
                             </div>
                         </div>
 
-                        <div class="table-responsive table-scroll-rm-records mt-3">
-                            <table class="table table-striped">
+                        <div class="table-responsive table-scroll-rm-records mt-1">
+                            <table class="table table-striped text-center align-items-center">
                                 <thead>
                                 <tr>
                                     <th>{{ __('Part Description') }}</th>

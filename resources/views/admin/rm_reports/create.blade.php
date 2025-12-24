@@ -8,14 +8,14 @@
 
         /* Стили для таблиц с скроллингом */
         .table-scroll-rm-records {
-            max-height: 400px;
+            max-height: 40vh;
             overflow-y: auto;
             overflow-x: auto;
             position: relative;
         }
 
         .table-scroll-technical-notes {
-            max-height: 180px;
+            max-height: 18vh;
             overflow-y: auto;
             overflow-x: auto;
             position: relative;
@@ -28,6 +28,8 @@
             background-color: #031e3a !important;
             z-index: 10;
             box-shadow: 0 2px 2px -1px rgba(0, 0, 0, 0.4);
+            align-content: center;
+            font-size: small;
         }
 
         .table-scroll-rm-records table,

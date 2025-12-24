@@ -43,7 +43,7 @@
             min-width: 150px;
         }
         .table-scroll-container {
-            max-height: 750px;
+            max-height: 75vh;
             overflow-y: auto;
             overflow-x: auto;
             position: relative;

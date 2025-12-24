@@ -184,14 +184,14 @@
 
         /* Стили для таблиц с скроллингом */
         .table-scroll-rm-records {
-            max-height: 350px;
+            max-height: 40vh;
             overflow-y: auto;
             overflow-x: auto;
             position: relative;
         }
 
         .table-scroll-technical-notes {
-            max-height: 200px;
+            max-height: 18vh;
             overflow-y: auto;
             overflow-x: auto;
             position: relative;
@@ -204,6 +204,8 @@
             background-color: #031e3a !important;
             z-index: 10;
             box-shadow: 0 2px 2px -1px rgba(0, 0, 0, 0.4);
+            align-content: center;
+            font-size: small;
         }
 
         .table-scroll-rm-records thead.table-dark th {
@@ -226,9 +228,9 @@
         <div class="card-header m-1 shadow">
             <div class="d-flex justify-content-between">
                 <div style="width: 450px">
-                    <h4 class="text-primary me-5">{{__('Work Order: ')}} {{$current_wo->number}}</h4>
+                    <h5 class="text-primary me-5">{{__('Work Order: ')}} {{$current_wo->number}}</h5>
                     <div>
-                        <h4 class="text-center ps-1" >{{__(' REPAIR and MODIFICATION RECORD')}}</h4>
+                        <h5 class="text-center " >{{__(' REPAIR and MODIFICATION RECORD')}}</h5>
                     </div>
 
                 </div>
@@ -330,7 +332,7 @@
                             <div class="card-body">
                                 <div class="table-responsive table-scroll-rm-records">
                                     <table class="table table-bordered table-striped">
-                                        <thead class="table-dark">
+                                        <thead class="table-dark fs-75">
                                             <tr>
                                                 <th>{{ __('Part Description') }}</th>
                                                 <th>{{ __('Modification or Repair #') }}</th>
@@ -339,7 +341,7 @@
                                                 <th>{{ __('Created At') }}</th>
                                             </tr>
                                         </thead>
-                                        <tbody>
+                                        <tbody class="fs-75">
                                             @foreach($savedData['rm_records'] as $record)
                                                 @php
                                                     $rmRecord = \App\Models\RmReport::find($record['id']);

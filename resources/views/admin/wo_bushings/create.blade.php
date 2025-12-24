@@ -3,7 +3,7 @@
 @section('content')
     <style>
         .table-wrapper {
-            height: calc(100vh - 180px);
+            max-height: 70vh;
             overflow-y: auto;
             overflow-x: auto;
             width: 100%;
