@@ -2,19 +2,25 @@
 
 @section('content')
     <style>
+        .card-body {
+            height: 75vh;
+        }
+        
         .table-wrapper {
-            height: calc(100vh - 180px);
-            overflow-y: auto;
-            overflow-x: auto;
             width: 100%;
             max-width: 1080px;
+            height: 70vh;
+            overflow-y: auto;
+            overflow-x: auto;
         }
 
         .table th, .table td {
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
             padding-left: 10px;
+        }
+
+        .table td {
+            word-wrap: break-word;
+            word-break: break-word;
         }
 
         /* Стили для длинного текста процесса */
@@ -27,10 +33,10 @@
             margin-top: 5px;
         }
 
-        .table th:nth-child(1), .table td:nth-child(1) { width: 80px; }
-        .table th:nth-child(2), .table td:nth-child(2) { width: 260px; }
-        .table th:nth-child(3), .table td:nth-child(3) { width: 500px; }
-        .table th:nth-child(4), .table td:nth-child(4) { width: 140px; }
+        /*.table th:nth-child(1), .table td:nth-child(1) { width: 80px; }*/
+        /*.table th:nth-child(2), .table td:nth-child(2) { width: 260px; }*/
+        /*.table th:nth-child(3), .table td:nth-child(3) { width: 500px; }*/
+        /*.table th:nth-child(4), .table td:nth-child(4) { width: 140px; }*/
 
         .table thead th {
             position: sticky;
@@ -182,28 +188,30 @@
             <div class="card-body">
             <div class="d-flex justify-content-center">
                 <div class="table-wrapper mt-3">
-                    <table class="display table table-hover table-bordered bg-gradient shadow">
+                    <table class="display table table-hover table-bordered bg-gradient shadow" style="width: 100%">
                         <thead>
                         <tr>
-                            <th class="text-primary text-center" style="width: 7%">IPL</th>
-                            <th class="text-primary text-center"  style="width:10%">Name</th>
-                            <th class="text-primary text-center"  style="width:7%">QTY</th>
-                            <th class="text-primary text-center" style="width: 45%">Processes</th>
-                            <th class="text-primary text-center" style="width: 35%">Action</th>
+                            <th class="text-primary text-center" style="width: 8%">IPL</th>
+                            <th class="text-primary text-center" style="width: 15%">Name</th>
+                            <th class="text-primary text-center" style="width: 5%">QTY</th>
+                            <th class="text-primary text-center" style="width: 50%">Processes</th>
+                            <th class="text-primary text-center" style="width: 18%">Action</th>
                         </tr>
                         </thead>
                         <tbody>
                             @foreach($extra_components as $extra_component)
 
                                 <tr>
-                                    <td class="text-center">{{ $extra_component->component ? $extra_component->component->ipl_num : 'N/A' }}</td>
-                                    <td class="text-center">{{ $extra_component->component ? $extra_component->component->name : 'N/A' }}</td>
-                                    <td class="text-center" >{{ $extra_component->component ?
+                                    <td class="text-center align-content-center">{{ $extra_component->component ?
+                                    $extra_component->component->ipl_num : 'N/A' }}</td>
+                                    <td class="text-center align-content-center">{{ $extra_component->component ? $extra_component->component->name
+                                     : 'N/A' }}</td>
+                                    <td class="text-center align-content-center" >{{ $extra_component->component ?
                                     $extra_component->qty :
                                     'N/A'
                                     }}</td>
 
-                                    <td class="ps-2 ">
+                                    <td class="ps-2">
                                         @if($extra_component->processes)
                                             @if(is_array($extra_component->processes) && array_keys($extra_component->processes) !== range(0, count($extra_component->processes) - 1))
                                                 {{-- Старая структура: ассоциативный массив --}}
@@ -213,9 +221,11 @@
                                                         $process = \App\Models\Process::find($processId);
                                                     @endphp
                                                     @if($processName && $process)
-                                                        <div class="mb-2  d-flex">
-                                                            <strong>{{ $processName->name }}:</strong><br>
-                                                            <span class=" me-1 @if(strlen($process->process) > 50) process-text-long @endif">{{ $process->process }}</span>
+                                                        <div class="mb-1 ">
+                                                            <strong>{{ $processName->name }}:</strong>
+                                                            <br>
+                                                            <span class=" me-1 @if(strlen($process->process) > 40)
+                                                            process-text-long @endif">{{ $process->process }}</span>
                                                         </div>
                                                     @endif
                                                 @endforeach
@@ -227,9 +237,9 @@
                                                         $process = \App\Models\Process::find($processItem['process_id']);
                                                     @endphp
                                                     @if($processName && $process)
-                                                        <div class="mb-2  d-flex">
+                                                        <div class="mb-2 ">
                                                             <strong>{{ $processName->name }}:</strong><br>
-                                                            <span class="  ms-2 @if(strlen($process->process) > 80)
+                                                            <span class="  ms-2 @if(strlen($process->process) > 40)
                                                             process-text-long @endif">{{ $process->process
                                                             }}</span>
                                                         </div>
@@ -240,8 +250,8 @@
                                             <span class="text-muted">No processes defined</span>
                                         @endif
                                     </td>
-                                    <td class="text-center">
-                                        <div style="width: 100px">
+                                    <td class="text-center align-content-center">
+                                        <div>
                                             @if($extra_component->component)
                                                 <a href="{{ route('extra_processes.edit_component', ['id' => $extra_component->id]) }}"
                                                    class="btn btn-outline-warning btn-sm " title="Edit Component">
