@@ -7,6 +7,14 @@
             overflow-y: auto;
             overflow-x: hidden;
             width: 1050px;
+            position: relative;
+        }
+        
+        .table-scroll-container {
+            max-height: 750px;
+            overflow-y: auto;
+            overflow-x: auto;
+            position: relative;
         }
 
         .table th, .table td {
@@ -46,6 +54,22 @@
             vertical-align: middle;
             border-top: 1px;
             z-index: 1020;
+            background-color: #031e3a;
+            box-shadow: 0 2px 2px -1px rgba(0, 0, 0, 0.4);
+        }
+        
+        .table-scroll-container thead th {
+            position: sticky;
+            top: 0;
+            background-color: #031e3a;
+            z-index: 1020;
+            box-shadow: 0 2px 2px -1px rgba(0, 0, 0, 0.4);
+            height: 50px;
+            vertical-align: middle;
+        }
+        
+        .table-scroll-container table {
+            margin-bottom: 0;
         }
 
         @media (max-width: 1200px) {
@@ -140,7 +164,7 @@
         @if($log_card)
 
     <div class="d-flex justify-content-center mt-3">
-        <div class="table-wrapper me-3">
+        <div class="table-wrapper table-scroll-container me-3">
             <table class="display table shadow table-hover align-middle table-bordered bg-gradient">
                 <thead>
                 <tr>

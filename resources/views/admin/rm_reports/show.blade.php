@@ -182,8 +182,44 @@
             grid-column-start: 7;
         }
 
+        /* Стили для таблиц с скроллингом */
+        .table-scroll-rm-records {
+            max-height: 350px;
+            overflow-y: auto;
+            overflow-x: auto;
+            position: relative;
+        }
 
+        .table-scroll-technical-notes {
+            max-height: 200px;
+            overflow-y: auto;
+            overflow-x: auto;
+            position: relative;
+        }
 
+        .table-scroll-rm-records thead th,
+        .table-scroll-technical-notes thead th {
+            position: sticky;
+            top: 0;
+            background-color: #031e3a !important;
+            z-index: 10;
+            box-shadow: 0 2px 2px -1px rgba(0, 0, 0, 0.4);
+        }
+
+        .table-scroll-rm-records thead.table-dark th {
+            background-color: #031e3a !important;
+        }
+
+        .table-scroll-rm-records table,
+        .table-scroll-technical-notes table {
+            margin-bottom: 0;
+        }
+
+        /* Для таблицы Technical Notes без thead */
+        .table-scroll-technical-notes table {
+            border-collapse: separate;
+            border-spacing: 0;
+        }
 
     </style>
     <div class="card-shadow ">
@@ -267,7 +303,7 @@
                                     <h5 class="text-primary">{{ __('Technical Notes') }}</h5>
                                 </div>
                                 <div class="card-body">
-                                    <div class="table-responsive">
+                                    <div class="table-responsive table-scroll-technical-notes">
                                         <table class="table table-bordered">
                                             <tbody>
                                                 @foreach($technicalNotes as $noteValue)
@@ -292,7 +328,7 @@
                                 <h5 class="text-primary">{{ __('R&M Records') }}</h5>
                             </div>
                             <div class="card-body">
-                                <div class="table-responsive">
+                                <div class="table-responsive table-scroll-rm-records">
                                     <table class="table table-bordered table-striped">
                                         <thead class="table-dark">
                                             <tr>

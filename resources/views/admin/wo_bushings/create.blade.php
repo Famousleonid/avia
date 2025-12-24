@@ -238,12 +238,17 @@
     </style>
 
     <div class="card-shadow">
+        @if($bushings->flatten()->count() > 0)
+            <form id="bushings-form" method="POST" action="{{ route('wo_bushings.store') }}">
+                @csrf
+                <input type="hidden" name="workorder_id" value="{{ $current_wo->id }}">
+        @endif
         <div class="card-header m-1 shadow ">
             <div class="d-flex justify-content-between align-items-center">
                 <div>
-                    <h4 class="text-primary ms-2">{{__('Work Order: ')}} {{$current_wo->number}}</h4>
+                    <h4 class="text-primary ms-2 mb-0">{{__('Work Order: ')}} {{$current_wo->number}}</h4>
                     <div>
-                        <h4 class="ps-xl-5">{{__('CREATE BUSHINGS')}}</h4>
+                        <h4 class="ps-xl-5 mb-0">{{__('CREATE BUSHINGS')}}</h4>
                     </div>
                 </div>
                 <div>
@@ -259,9 +264,15 @@
                         <i class="fas fa-plus"></i> {{ __('Add Component') }}
                     </a>
                 </div>
-                <div class="">
-
-
+                <div class="d-flex align-items-center">
+                    @if($bushings->flatten()->count() > 0)
+                        <button type="submit" class="btn btn-success btn-lg me-2">
+                            <i class="fas fa-plus"></i> Create Bushings Data
+                        </button>
+                        <button type="button" class="btn btn-secondary btn-lg me-2" onclick="clearForm()">
+                            <i class="fas fa-eraser"></i> Clear All
+                        </button>
+                    @endif
                     <a href="{{ route('wo_bushings.show', $current_wo->id) }}"
                        class="btn btn-outline-secondary me-2" style="height: 60px;width: 110px">
                         {{ __('Back to Bushings') }}
@@ -275,10 +286,6 @@
         @if($bushings->flatten()->count() > 0)
             <div class="d-flex justify-content-center mt-3">
                 <div class="table-wrapper me-3">
-                    <form id="bushings-form" method="POST" action="{{ route('wo_bushings.store') }}">
-                        @csrf
-                        <input type="hidden" name="workorder_id" value="{{ $current_wo->id }}">
-
                         <table class="display table shadow table-hover align-middle table-bordered ">
                             <thead class="">
                                 <tr class="header-row bg-gradient">
@@ -405,21 +412,9 @@
                                 @endforeach
                             </tbody>
                         </table>
-
-                        <div class="d-flex justify-content-center mt-3 mb-3">
-                            <button type="submit" class="btn btn-success btn-lg me-2">
-                                <i class="fas fa-plus"></i> Create Bushings Data
-                            </button>
-                            <button type="button" class="btn btn-secondary btn-lg me-2" onclick="clearForm()">
-                                <i class="fas fa-eraser"></i> Clear All
-                            </button>
-                            <a href="{{ route('wo_bushings.show', $current_wo->id) }}" class="btn btn-outline-secondary btn-lg">
-                                <i class="fas fa-times"></i> Cancel
-                            </a>
-                        </div>
-                    </form>
                 </div>
             </div>
+            </form>
         @else
             <div class="text-center mt-5">
                 <h3 class="text-muted">{{__('No Bushings available for this Work Order')}}</h3>

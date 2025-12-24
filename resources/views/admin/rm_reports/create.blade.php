@@ -6,15 +6,54 @@
             max-width: 1200px;
         }
 
+        /* Стили для таблиц с скроллингом */
+        .table-scroll-rm-records {
+            max-height: 400px;
+            overflow-y: auto;
+            overflow-x: auto;
+            position: relative;
+        }
+
+        .table-scroll-technical-notes {
+            max-height: 180px;
+            overflow-y: auto;
+            overflow-x: auto;
+            position: relative;
+        }
+
+        .table-scroll-rm-records thead th,
+        .table-scroll-technical-notes thead th {
+            position: sticky;
+            top: 0;
+            background-color: #031e3a !important;
+            z-index: 10;
+            box-shadow: 0 2px 2px -1px rgba(0, 0, 0, 0.4);
+        }
+
+        .table-scroll-rm-records table,
+        .table-scroll-technical-notes table {
+            margin-bottom: 0;
+        }
+
+        /* Для таблицы Technical Notes без thead */
+        .table-scroll-technical-notes table {
+            border-collapse: separate;
+            border-spacing: 0;
+        }
+
     </style>
     <div class="container mt-3">
         <div class="card bg-gradient">
-            <div class="card-header justify-content-between d-flex">
+            <div class="card-header justify-content-between d-flex align-items-center">
                 <div>
-                    <h4 class="text-primary">{{__('WO')}} {{$current_wo->number}} </h4>
-                   <h4> {{__('Create WorkOrder R&M Record')}}</h4>
+                    <h4 class="text-primary mb-0">{{__('WO')}} {{$current_wo->number}} </h4>
+                   <h4 class="mb-0"> {{__('Create WorkOrder R&M Record')}}</h4>
                 </div>
-                <div class="d-flex gap-2">
+                <div class="d-flex gap-2 align-items-center">
+                    <button type="button" class="btn btn-outline-success btn-lg" style="width: 400px"
+                            onclick="saveSelectedRecords()">
+                        <i class="fas fa-save"></i> <h5 class="mb-0">{{ __('Save Technical Notes and Selected R&M Records to Work Order') }}</h5>
+                    </button>
                     @if($current_wo->rm_report)
                         <a href="{{ route('rm_reports.edit', $current_wo->id) }}" class="btn btn-outline-warning btn-sm" style="height: 60px; width: 150px">
                             <i class="fas fa-edit"></i> {{ __('Edit Existing') }}
@@ -27,8 +66,6 @@
                             <i class="fas fa-eye"></i> {{ __('Back to R&M Record') }}
                         </a>
                 </div>
-
-
             </div>
         </div>
         <div class="card-body">
@@ -51,16 +88,6 @@
                 @csrf
                 <input type="hidden" name="workorder_id" value="{{ $current_wo->id }}">
             </form>
-
-            <!-- Save Button -->
-            <div class="row mt-3 mb-3">
-                <div class="col-12 text-center">
-                    <button type="button" class="btn btn-outline-success btn-lg" style="width: 400px"
-                            onclick="saveSelectedRecords()">
-                        <i class="fas fa-save"></i> <h5>{{ __('Save Technical Notes and Selected R&M Records to Work Order') }}</h5>
-                    </button>
-                </div>
-            </div>
 
                 <!-- Здесь будет отображаться список созданных записей -->
                 <div id="rmRecordsList">
@@ -121,7 +148,7 @@
                             </div>
                         </div>
 
-                        <div class="table-responsive mt-3">
+                        <div class="table-responsive table-scroll-rm-records mt-3">
                             <table class="table table-striped">
                                 <thead>
                                 <tr>
@@ -184,7 +211,7 @@
                     </button>
                 </div>
                 <div class="card-body">
-                    <div class="table-responsive">
+                    <div class="table-responsive table-scroll-technical-notes">
                         <table class="table table-bordered">
                             <tbody id="technicalNotesTableBody">
                                 <!-- Строки заметок будут добавляться через JS -->
