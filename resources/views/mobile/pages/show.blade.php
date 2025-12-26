@@ -65,6 +65,7 @@
 
         .col-media {
             width: 35%;
+
         }
 
         .col-camera {
@@ -94,6 +95,13 @@
             background: dodgerblue;
             color: black;
         }
+        .media-cell {
+            min-height: 48px;              /* одинаковая высота */
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
     </style>
 @endsection
 
@@ -209,6 +217,7 @@
                             'logs'    => 'Log card',
                             'damages' => 'Damage',
                             'final'   => 'Final assy',
+
                         ];
                     @endphp
 
@@ -224,32 +233,34 @@
                             <td class="text-center col-media"
                                 data-workorder-id="{{ $workorder->id }}"
                                 data-category="{{ $type }}">
-                                @php
-                                    $mediaForType = $workorder->getMedia($type);
-                                    $count = $mediaForType->count();
-                                @endphp
+                                <div class="media-cell">
+                                    @php
+                                        $mediaForType = $workorder->getMedia($type);
+                                        $count = $mediaForType->count();
+                                    @endphp
 
-                                @if ($count > 0)
-                                    <div style="position: relative; display: inline-block; margin: 5px;">
-                                        @foreach($mediaForType as $index => $media)
-                                            <a href="{{ $workorder->generateMediaUrl($media, '', $type) }}"
-                                               data-fancybox="gallery-{{ $workorder->id }}-{{ $type }}"
-                                               data-media-id="{{ $media->id }}"
-                                               data-workorder-number="{{ $workorder->number }}"
-                                               data-caption="Workorder: {{ $workorder->number }} - {{ ucfirst($type) }}"
-                                               style="{{ $index === 0 ? '' : 'display: none;' }}">
-                                                @if ($index === 0)
-                                                    <img class="rounded-circle"
-                                                         src="{{ $workorder->generateMediaUrl($media, 'thumb', $type) }}"
-                                                         width="40" height="40" alt="Photo">
-                                                @endif
-                                            </a>
-                                        @endforeach
-                                        <span class="little-info">{{ $count > 99 ? '99+' : $count }}</span>
-                                    </div>
-                                @else
-                                    <span class="text-white-50" style="font-size: 0.70rem;">No Photos</span>
-                                @endif
+                                    @if ($count > 0)
+                                        <div style="position: relative; display: inline-block; margin: 5px;">
+                                            @foreach($mediaForType as $index => $media)
+                                                <a href="{{ $workorder->generateMediaUrl($media, '', $type) }}"
+                                                   data-fancybox="gallery-{{ $workorder->id }}-{{ $type }}"
+                                                   data-media-id="{{ $media->id }}"
+                                                   data-workorder-number="{{ $workorder->number }}"
+                                                   data-caption="Workorder: {{ $workorder->number }} - {{ ucfirst($type) }}"
+                                                   style="{{ $index === 0 ? '' : 'display: none;' }}">
+                                                    @if ($index === 0)
+                                                        <img class="rounded-circle"
+                                                             src="{{ $workorder->generateMediaUrl($media, 'thumb', $type) }}"
+                                                             width="40" height="40" alt="Photo">
+                                                    @endif
+                                                </a>
+                                            @endforeach
+                                            <span class="little-info">{{ $count > 99 ? '99+' : $count }}</span>
+                                        </div>
+                                    @else
+                                        <span class="text-white-50" style="font-size: 0.70rem;">No Photos</span>
+                                    @endif
+                                </div>
                             </td>
 
                             {{-- Правая колонка: одна камера на все 4 строки --}}

@@ -82,28 +82,13 @@ class MainController extends Controller
 
         $main->save();
 
-        $main->loadMissing(['task.generalTask']);
+        $wo = $main->workorder ?: Workorder::find($main->workorder_id);
 
-        activity('mains')
-            ->performedOn($main)
-            ->causedBy(auth()->user())
-            ->event('created')
-            ->withProperties([
-                'task' => [
-                    'general' => $main->task?->generalTask?->name,
-                    'name'    => $main->task?->name,
-                ],
-                'before' => [
-                    'date_start'  => null,
-                    'date_finish' => null,
-                ],
-                'after' => [
-                    'date_start'  => $main->date_start?->format('Y-m-d'),
-                    'date_finish' => $main->date_finish?->format('Y-m-d'),
-                ],
-                'main_id' => $main->id,
-            ])
-            ->log('created');
+        if ($wo) {
+            $wo->recalcGeneralTaskStatuses($main->general_task_id);
+            $wo->syncDoneByCompletedTask();
+        }
+
 
         return back()->with('success', 'Record created.');
     }
@@ -444,65 +429,12 @@ class MainController extends Controller
         $main->ignore_row = $ignoreRow;
         $main->save();
 
-        // ==== ЛОГИ ====
-
-        $afterStart  = $main->date_start
-            ? Carbon::parse($main->date_start)->format('Y-m-d')
-            : null;
-
-        $afterFinish = $main->date_finish
-            ? Carbon::parse($main->date_finish)->format('Y-m-d')
-            : null;
-
-        // лог по ignore_row — только если флаг реально поменялся
-        if ($oldIgnore !== (int) $main->ignore_row) {
-            activity('ignore')
-                ->performedOn($main)
-                ->causedBy(auth()->user())
-                ->withProperties([
-                    'attribute'    => 'ignore_row',
-                    'from'         => $oldIgnore,
-                    'to'           => (int) $main->ignore_row,
-                    'workorder_id' => $main->workorder_id,
-                    'task_id'      => $main->task_id,
-                ])
-                ->event('ignore_row_toggled')
-                ->log('Toggle ignore_row on Main row');
+        $wo = $main->workorder ?: Workorder::find($main->workorder_id);
+        if ($wo) {
+            $wo->recalcGeneralTaskStatuses($main->general_task_id); // пересчёт только одного этапа
+            $wo->syncDoneByCompletedTask();                         // DONE строго по Completed
         }
 
-        // лог по датам — только если даты изменились
-        if ($beforeStart !== $afterStart || $beforeFinish !== $afterFinish) {
-
-            $clearedStart  = !empty($beforeStart)  && empty($afterStart);
-            $clearedFinish = !empty($beforeFinish) && empty($afterFinish);
-
-            $action = ($clearedStart || $clearedFinish) ? 'cleared' : 'updated';
-
-            activity('mains')
-                ->performedOn($main)
-                ->causedBy(auth()->user())
-                ->event($action)
-                ->withProperties([
-                    'action'  => $action,
-                    'cleared' => [
-                        'start'  => $clearedStart,
-                        'finish' => $clearedFinish,
-                    ],
-                    'task' => [
-                        'general' => $main->task?->generalTask?->name,
-                        'name'    => $main->task?->name,
-                    ],
-                    'before' => [
-                        'date_start'  => $beforeStart,
-                        'date_finish' => $beforeFinish,
-                    ],
-                    'after' => [
-                        'date_start'  => $afterStart,
-                        'date_finish' => $afterFinish,
-                    ],
-                ])
-                ->log($action);
-        }
 
         return back()->with('success', 'Record updated.');
     }
@@ -533,22 +465,6 @@ class MainController extends Controller
         if ($i === false || $i === 0) return null;
 
         return GeneralTask::where('name', $order[$i - 1])->first();
-    }
-
-    public function activity(Main $main)
-    {
-        $logs = Activity::query()
-            ->where('subject_type', Main::class)
-            ->where('subject_id', $main->id)
-            ->latest()
-            ->take(200)
-            ->get();
-
-        $html = view('admin.mains.partials.activity_list', compact('main', 'logs'))->render();
-
-        return response()->json([
-            'html' => $html,
-        ]);
     }
 
     public function updateGeneralTaskDates(Request $request, Workorder $workorder, GeneralTask $generalTask)
@@ -606,35 +522,20 @@ class MainController extends Controller
 
         $main->save();
 
-        //  ЛОГИРОВАНИЕ УДАЛЕНИЯ ДАТ
-
-        $afterStart  = $main->date_start?->format('Y-m-d');
-        $afterFinish = $main->date_finish?->format('Y-m-d');
-
-        $deletedStart  = $request->has('date_start')  && !empty($beforeStart)  && empty($afterStart);
-        $deletedFinish = $request->has('date_finish') && !empty($beforeFinish) && empty($afterFinish);
-
-        if ($deletedStart || $deletedFinish) {
-            $what = [];
-            if ($deletedStart)  $what[] = "date_start {$beforeStart} → NULL";
-            if ($deletedFinish) $what[] = "date_finish {$beforeFinish} → NULL";
-
-            activity('mains')
-                ->performedOn($main)
-                ->causedBy(auth()->user())
-                ->withProperties([
-                    'workorder_id'     => $workorder->id,
-                    'general_task_id'  => $generalTask->id,
-                    'general_task'     => $generalTask->name,
-                    'changes'          => $what,
-                    'user_id_before'   => $beforeUserId,
-                    'user_id_after'    => $main->user_id,
-                ])
-                ->log('Deleted date(s) in general task row');
-        }
-
         return back()->with('success', 'Saved');
     }
 
+    public function activity(Main $main)
+    {
+        $logs = Activity::query()
+            ->where('subject_type', Main::class)
+            ->where('subject_id', $main->id)
+            ->latest()
+            ->take(200)
+            ->get();
 
+        $html = view('admin.mains.partials.activity_list', compact('main', 'logs'))->render();
+
+        return response()->json(['html' => $html]);
+    }
 }

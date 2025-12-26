@@ -76,7 +76,7 @@
             <a href="{{ route('mobile.show', $currentWorkorderId) }}"
                class="flex-fill text-center d-flex flex-column align-items-center justify-content-center text-white">
                 <div class="menu-icon-wrapper {{ $isActive('mobile.show') ? 'active' : '' }}">
-                    <i class="bi bi-list-ol"></i>
+                    <span class="">W</span>
                     <svg viewBox="0 0 36 36">
                         <circle cx="18" cy="18" r="18"/>
                     </svg>
@@ -88,7 +88,7 @@
         <a href="{{ route('mobile.tasks', $currentWorkorderId) }}"
            class="flex-fill text-center d-flex flex-column align-items-center justify-content-center text-white">
             <div class="menu-icon-wrapper {{ $isActive('mobile.tasks') ? 'active' : '' }}">
-                <i class="bi bi-list-task"></i>
+                <i class="bi bi-alarm"></i>
                 <svg viewBox="0 0 36 36">
                     <circle cx="18" cy="18" r="18"/>
                 </svg>

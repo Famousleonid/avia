@@ -20,9 +20,7 @@
 
     <script>
         window.forceDarkTheme = {{ auth()->check() && auth()->user()->roleIs('Technician') ? 'true' : 'false' }};
-    </script>
 
-    <script>
         (function () {
             if (window.forceDarkTheme) {
                 document.documentElement.setAttribute('data-bs-theme', 'dark');

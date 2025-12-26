@@ -167,8 +167,8 @@ class MobileController extends Controller
 
     public function tasks($workorder_id, Request $request)
     {
-        // ВАЖНО: в blade используется $workorder, значит передаём именно $workorder
-        $workorder = Workorder::findOrFail($workorder_id);
+
+        $workorder = Workorder::with('generalTaskStatuses')->findOrFail($workorder_id);
 
         $general_tasks = GeneralTask::orderBy('sort_order')->orderBy('id')->get();
 
@@ -185,31 +185,17 @@ class MobileController extends Controller
 
         $mainsByTask = $mains->keyBy('task_id');
 
-        // зелёные/красные кнопки general_task
-        $gtAllFinished = [];
-
-        foreach ($general_tasks as $gt) {
-            $taskIds = ($tasksByGeneral[$gt->id] ?? collect())->pluck('id');
-
-            if ($taskIds->isEmpty()) {
-                $gtAllFinished[$gt->id] = false;
-                continue;
-            }
-
-            $gtAllFinished[$gt->id] = $taskIds->every(function ($taskId) use ($mainsByTask) {
-                $main = $mainsByTask->get($taskId);
-                if (!$main) return false;
-                if ($main->ignore_row) return true;
-                return !empty($main->date_finish);
-            });
-        }
+        $gtDoneMap = $workorder->generalTaskStatuses
+            ->keyBy('general_task_id')
+            ->map(fn($s) => (bool)$s->is_done)
+            ->toArray();
 
         return view('mobile.pages.tasks', compact(
             'workorder',
             'general_tasks',
             'tasksByGeneral',
             'mainsByTask',
-            'gtAllFinished'
+            'gtDoneMap'
         ));
     }
 
@@ -338,20 +324,6 @@ class MobileController extends Controller
         return response()->json(['success' => true]);
     }
 
-    public function updateMainDates(Request $request)
-    {
-        $validated = $request->validate([
-            'main_id' => ['required', 'exists:mains,id'],
-            'field'   => ['required', 'in:date_start,date_finish'],
-            'value'   => ['nullable', 'date'],
-        ]);
 
-        $main = Main::findOrFail($validated['main_id']);
-
-        $main->{$validated['field']} = $validated['value'] ?: null;
-        $main->save();
-
-        return response()->json(['success' => true]);
-    }
 
 }

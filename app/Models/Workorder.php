@@ -115,5 +115,96 @@ class Workorder extends Model implements HasMedia
         return $done ? $done->date_finish : null;
     }
 
+    public function generalTaskStatuses()
+    {
+        return $this->hasMany(\App\Models\WorkorderGeneralTaskStatus::class);
+    }
+
+    public function syncDoneByCompletedTask(): void
+    {
+        // 1) находим id задачи Completed (один раз на вызов; при 20 tasks это ок)
+        $completedTaskId = \App\Models\Task::where('name', 'Completed')->value('id');
+
+        if (!$completedTaskId) {
+            // если нет задачи — считаем не done
+            $this->done_at = null;
+            $this->done_user_id = null;
+            $this->saveQuietly();
+            return;
+        }
+
+        // 2) берем main запись по этой задаче
+        $main = \App\Models\Main::where('workorder_id', $this->id)
+            ->where('task_id', $completedTaskId)
+            ->first();
+
+        // DONE только если date_finish есть и строка не игнорируется
+        if ($main && !$main->ignore_row && !empty($main->date_finish)) {
+            $this->done_at = $main->date_finish;
+            $this->done_user_id = $main->user_id;
+        } else {
+            $this->done_at = null;
+            $this->done_user_id = null;
+        }
+
+        $this->saveQuietly();
+    }
+
+    public function recalcGeneralTaskStatuses(?int $onlyGeneralTaskId = null): void
+    {
+        // Берём задачи (нужно имя, чтобы найти "Completed")
+        $tasksQuery = \App\Models\Task::query()->select('id', 'name', 'general_task_id');
+
+        if ($onlyGeneralTaskId) {
+            $tasksQuery->where('general_task_id', $onlyGeneralTaskId);
+        }
+
+        $tasksByGeneral = $tasksQuery->get()->groupBy('general_task_id');
+
+        // Берём mains по workorder для task-строк
+        $mainsByTask = \App\Models\Main::where('workorder_id', $this->id)
+            ->whereNotNull('task_id')
+            ->get()
+            ->keyBy('task_id');
+
+        $now    = now();
+        $userId = auth()->id();
+
+        foreach ($tasksByGeneral as $gtId => $gtTasks) {
+
+            // если в этапе нет задач — не done
+            if ($gtTasks->isEmpty()) {
+                $isDone = false;
+            } else {
+
+                // ✅ Если в этом general_task есть задача "Completed" — этап done = isDone()
+                $hasCompletedTask = $gtTasks->contains(fn($t) => $t->name === 'Completed');
+
+                if ($hasCompletedTask) {
+                    $isDone = $this->isDone(); // твоя существующая логика (Completed.date_finish)
+                } else {
+                    // Обычное правило: все задачи этапа закрыты (или ignore_row)
+                    $isDone = $gtTasks->pluck('id')->every(function ($taskId) use ($mainsByTask) {
+                        $m = $mainsByTask->get($taskId);
+
+                        if (!$m) return false;           // нет строки main -> не done
+                        if ($m->ignore_row) return true; // игнор -> считается done
+
+                        return !empty($m->date_finish);  // иначе нужен finish
+                    });
+                }
+            }
+
+            \App\Models\WorkorderGeneralTaskStatus::updateOrCreate(
+                ['workorder_id' => $this->id, 'general_task_id' => $gtId],
+                [
+                    'is_done'      => $isDone,
+                    'done_at'      => $isDone ? $now : null,
+                    'done_user_id' => $isDone ? $userId : null,
+                ]
+            );
+        }
+    }
+
 
 }

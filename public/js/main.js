@@ -1,3 +1,6 @@
+// main.js
+
+
 function showLoadingSpinner() {
     document.querySelector('#spinner-load').classList.remove('d-none');
 }
@@ -5,6 +8,7 @@ function showLoadingSpinner() {
 function hideLoadingSpinner() {
     document.querySelector('#spinner-load').classList.add('d-none');
 }
+
 
 // Глобальная загрузка table-height-adjuster.js
 (function() {

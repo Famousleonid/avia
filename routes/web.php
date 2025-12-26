@@ -112,6 +112,7 @@ Route::group(['middleware' => ['auth']], function () {
         Route::get('/workorders/{id}/photos', [WorkorderController::class, 'photos'])->name('workorders.photos');
         Route::get('/workorders/download/{id}/all', [WorkorderController::class, 'downloadAllGrouped'])->name('workorders.downloadAllGrouped');
         Route::delete('/workorders/photo/delete/{id}', [MediaController::class, 'delete_photo'])->name('workorders.photo.delete');
+        Route::post('/admin/workorders/recalc-stages', [\App\Http\Controllers\Admin\WorkorderController::class, 'recalcStages'])->name('workorders.recalcStages');
 
         // PDF Library routes
         Route::get('/workorders/{id}/pdfs', [WorkorderController::class, 'pdfs'])->name('workorders.pdfs');

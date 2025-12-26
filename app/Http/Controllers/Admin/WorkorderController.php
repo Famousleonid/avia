@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\Customer;
+use App\Models\GeneralTask;
 use App\Models\Instruction;
 use App\Models\Main;
 use App\Models\Manual;
@@ -206,17 +207,23 @@ class WorkorderController extends Controller
 
     public function index()
     {
-        $workorders = Workorder::with(['main.task', 'unit.manuals', 'customer', 'instruction', 'user'])
+        $workorders = Workorder::with(['main.task', 'unit.manuals', 'customer', 'instruction', 'user', 'generalTaskStatuses'])
             ->orderByDesc('number')
             ->get();
 
+        $generalTasks = GeneralTask::orderBy('sort_order')->orderBy('id')->get();
+        $tasksByGeneral = \App\Models\Task::select('id','name','general_task_id')
+            ->orderBy('general_task_id')
+            ->orderBy('name')
+            ->get()
+            ->groupBy('general_task_id');
 
         $manuals = Manual::all();
         $units = Unit::with('manuals')->get();
         $customers = Customer::orderBy('name')->get();
         $users     = User::orderBy('name')->get();
 
-        return view('admin.workorders.index', compact('workorders', 'units', 'manuals','customers','users'));
+        return view('admin.workorders.index', compact('workorders', 'units', 'manuals','customers','users','generalTasks','tasksByGeneral'));
     }
 
     public function create()
@@ -274,7 +281,7 @@ class WorkorderController extends Controller
 
     public function destroy(Workorder $workorder)
     {
-
+        abort_unless(auth()->user()->hasAnyRole('Admin|Manager'), 403);
         $workorder->delete();
 
         return redirect()->route('workorders.index')->with('success', 'Workorder deleted');
@@ -332,6 +339,8 @@ class WorkorderController extends Controller
     public function approve($id)
     {
 
+        abort_unless(auth()->user()->hasAnyRole('Admin|Manager'), 403);
+
         $current = Workorder::findOrFail($id);
         $user    = Auth::user();
 
@@ -377,6 +386,9 @@ class WorkorderController extends Controller
                 $main->save();
             }
         }
+
+        $current->recalcGeneralTaskStatuses($generalTaskId);
+        $current->syncDoneByCompletedTask();
 
         return redirect()->back();
 
@@ -518,5 +530,21 @@ class WorkorderController extends Controller
             Log::error("PDF list failed for workorder $id: {$e->getMessage()}");
             return response()->json(['error' => 'Server error'], 500);
         }
+    }
+
+    public function recalcStages()
+    {
+
+        abort_unless(auth()->user()->hasAnyRole('Admin|Manager'), 403);
+
+        $generalTasks = GeneralTask::orderBy('sort_order')->orderBy('id')->get();
+        $workorders = Workorder::select('id')->get();
+
+        foreach ($workorders as $wo) {
+            $wo->recalcGeneralTaskStatuses();
+            $wo->syncDoneByCompletedTask();
+        }
+
+        return back()->with('success', 'Stages recalculated for all workorders.');
     }
 }

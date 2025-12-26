@@ -119,12 +119,14 @@
                             <td class="text-center">
                                 <button class="btn btn-outline-primary btn-sm me-2" data-bs-toggle="modal"
                                         data-bs-target="#editModal" onclick="populateEditModal({{ $material->id }}, '{{ $material->code }}', '{{ $material->material }}', '{{ $material->specification }}', '{{ $material->description }}')">
-                                    <i class="bi bi-pencil-square"></i>
+                                    <i class="bi bi-pencil-square" title="Edit"></i>
                                 </button>
-                                <button class="btn btn-outline-danger btn-sm" data-bs-toggle="modal" data-bs-target="#deleteModal"
-                                        onclick="populateDeleteModal({{ $material->id }}, '{{ $material->code }}')">
-                                    <i class="bi bi-trash"></i>
-                                </button>
+                                @roles('Admin|Manager')
+                                    <button class="btn btn-outline-danger btn-sm" data-bs-toggle="modal" data-bs-target="#deleteModal"
+                                            onclick="populateDeleteModal({{ $material->id }}, '{{ $material->code }}')">
+                                        <i class="bi bi-trash"></i>
+                                    </button>
+                                @endroles
                             </td>
                         </tr>
                     @endforeach

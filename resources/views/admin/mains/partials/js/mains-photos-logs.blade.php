@@ -246,8 +246,14 @@ document.addEventListener('DOMContentLoaded', () => {
 
             const data = await resp.json();
 
+            if (data && typeof data.html === 'string') {
+                container.innerHTML = data.html.trim()
+                    ? data.html
+                    : '<div class="text-muted small">No activity yet.</div>';
+                return;
+            }
             if (!data || !data.length) {
-                container.innerHTML = '<div class="text-muted small">No log entries for this workorder.</div>';
+                container.innerHTML = '<div class="text-muted small">No activity yet.</div>';
                 return;
             }
 

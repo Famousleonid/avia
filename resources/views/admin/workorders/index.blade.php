@@ -69,6 +69,34 @@
             font-weight: normal;
         }
 
+        .col-stages {
+            width: 90px;
+            font-size: 0.8rem;
+            font-weight: normal;
+        }
+
+        .stage-dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 999px;
+            display: inline-block;
+            border: 1px solid rgba(255,255,255,.35);
+            opacity: .95;
+            cursor: help;
+        }
+
+        .stage-dot.done {
+            background: #198754; /* green */
+        }
+
+        .stage-dot.todo {
+            background: #dc3545; /* red */
+        }
+
+        .stage-dot.empty {
+            background: #6c757d; /* gray */
+        }
+
         .table thead th {
             position: sticky;
             height: 50px;
@@ -215,6 +243,17 @@
                     <img src="{{ asset('img/plus.png') }}" width="30" alt="Add" data-bs-toggle="tooltip"
                          title="Add new workorder">
                 </a>
+                @role('Admin')
+                <form method="POST" action="{{ route('workorders.recalcStages') }}" class="ms-2"
+                      onsubmit="return confirm('Recalculate stages for ALL workorders?');">
+                    @csrf
+                    <button type="submit" class="btn btn-outline-warning btn-sm"
+                            onclick="if (typeof showLoadingSpinner === 'function') showLoadingSpinner();">
+                        <i class="bi bi-arrow-repeat me-1"></i> Recalc stages
+                    </button>
+                </form>
+                @endrole
+
             </div>
 
             {{-- Search --}}
@@ -294,36 +333,32 @@
                             Number <i class="bi bi-chevron-expand ms-1"></i>
                         </th>
                         <th class="text-center text-primary col-approve">Approve</th>
+                        @hasanyrole('Admin|Manager')
+                            <th class="text-center text-primary col-stages">Stages</th>
+                        @endhasanyrole
                         <th class="text-center text-primary">Unit</th>
                         <th class="text-center text-primary">Description</th>
                         <th class="text-center text-primary">Serial number</th>
                         <th class="text-center text-primary">Manual</th>
-                        <th class="text-center text-primary sortable">
-                            Customer <i class="bi bi-chevron-expand ms-1"></i>
-                        </th>
-                        <th class="text-center text-primary sortable">
-                            Instruction <i class="bi bi-chevron-expand ms-1"></i>
-                        </th>
-                        <th class="text-center text-primary sortable">
-                            Technik <i class="bi bi-chevron-expand ms-1"></i>
-                        </th>
+                        <th class="text-center text-primary sortable">Customer <i class="bi bi-chevron-expand ms-1"></i></th>
+                        <th class="text-center text-primary sortable">Instruction <i class="bi bi-chevron-expand ms-1"></i></th>
+                        <th class="text-center text-primary sortable">Technik <i class="bi bi-chevron-expand ms-1"></i></th>
                         <th class="text-center text-primary col-edit">Edit</th>
                         <th class="text-center text-primary col-date">Open Date</th>
                         @role('Admin')
-                        <th class="text-center text-primary col-delete">Delete</th>
+                            <th class="text-center text-primary col-delete">Delete</th>
                         @endrole
                     </tr>
                     </thead>
                     <tbody>
                     @foreach ($workorders as $workorder)
-                        <tr
-                            data-tech-id="{{ $workorder->user_id }}"
-                            data-customer-id="{{ $workorder->customer_id }}"
-                            data-status="{{ $workorder->main->whereIn('task.name', ['Completed'])->isNotEmpty() ? 'Completed' : 'active' }}"
-                            data-approved="{{ $workorder->approve_at ? '1' : '0' }}"
-                        >
-                            <td class="text-center">
 
+                        <tr data-tech-id="{{ $workorder->user_id }}"
+                            data-customer-id="{{ $workorder->customer_id }}"
+                            data-status="{{ $workorder->isDone() ? 'Completed' : 'active' }}"
+                            data-approved="{{ $workorder->approve_at ? '1' : '0' }}">
+
+                            <td class="text-center">
                                 @if($workorder->isDone())
                                     <a href="{{ route('mains.show', $workorder->id) }}" class="text-decoration-none">
                                         <span class="text-muted">{{ $workorder->number }}</span>
@@ -338,24 +373,69 @@
                             </td>
 
                             <td class="text-center">
+                                @hasanyrole('Admin|Manager')
                                 <a href="{{ route('workorders.approve', $workorder->id) }}"
                                    class="change_approve"
                                    onclick="showLoadingSpinner()">
                                     @if($workorder->approve_at)
-                                        <img src="{{ asset('img/ok.png') }}" width="20" alt=""
+                                        <img src="{{ asset('img/ok.png') }}" width="20"
                                              title="{{ $workorder->approve_at->format('d.m.Y') }} {{ $workorder->approve_name }}">
                                     @else
-                                        <img src="{{ asset('img/icon_no.png') }}" width="12" alt="">
+                                        <img src="{{ asset('img/icon_no.png') }}" width="12">
                                     @endif
                                 </a>
+                                @else
+                                    @if($workorder->approve_at)
+                                        <img src="{{ asset('img/ok.png') }}" width="20"
+                                             title="{{ $workorder->approve_at->format('d.m.Y') }} {{ $workorder->approve_name }}">
+                                    @else
+                                        <img src="{{ asset('img/icon_no.png') }}" width="12">
+                                    @endif
+                                    @endhasanyrole
                             </td>
+
+                            @hasanyrole('Admin|Manager')
+                                <td class="text-center">
+                                    @php
+                                        $byGt = $workorder->generalTaskStatuses->keyBy('general_task_id');
+                                        $mainsByTask = $workorder->main
+                                            ? $workorder->main->whereNotNull('task_id')->keyBy('task_id')
+                                            : collect();
+                                    @endphp
+
+                                    <div class="d-inline-flex gap-1 align-items-center">
+                                        @foreach($generalTasks as $gt)
+                                            @php
+                                                $st = $byGt->get($gt->id);
+
+                                                // ✅ started = есть хотя бы один main по задачам этого general_task
+                                                $gtTasks = $tasksByGeneral->get($gt->id, collect());
+                                                $started = $gtTasks->pluck('id')->contains(fn($tid) => $mainsByTask->has($tid));
+
+                                                if (!$started) {
+                                                    $class = 'empty'; // серый
+                                                    $title = $gt->name . ' (not started)';
+                                                } elseif ($st && $st->is_done) {
+                                                    $class = 'done'; // зелёный
+                                                    $title = $gt->name . ' (done)';
+                                                } else {
+                                                    $class = 'todo'; // красный
+                                                    $title = $gt->name . ' (in progress)';
+                                                }
+                                            @endphp
+
+                                            <span class="stage-dot {{ $class }}"
+                                                  title="{{ $title }}"></span>
+                                        @endforeach
+                                    </div>
+                                </td>
+                            @endhasanyrole
 
                             <td class="text-center">{{ $workorder->unit->part_number }}</td>
 
                             <td class="text-center"
                                 data-bs-toggle="tooltip"
-                                title="{{ $workorder->description }}">
-                                {{ $workorder->description }}
+                                title="{{ $workorder->description }}">{{ $workorder->description }}
                             </td>
 
                             <td class="text-center">
@@ -366,17 +446,13 @@
                             </td>
 
                             <td class="text-center">
-                                {{ $workorder->unit->manuals->number }}
-                                &nbsp;
-                                <span class="text-white-50">
-                                    ({{ $workorder->unit->manuals->lib }})
-                                </span>
+                                {{ $workorder->unit->manuals->number }}&nbsp
+                                <span class="text-white-50">({{ $workorder->unit->manuals->lib }})</span>
                             </td>
 
                             <td class="text-center"
                                 data-bs-toggle="tooltip"
-                                title="{{ $workorder->customer->name }}">
-                                {{ $workorder->customer->name }}
+                                title="{{ $workorder->customer->name }}">{{ $workorder->customer->name }}
                             </td>
 
                             <td class="text-center">

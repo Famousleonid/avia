@@ -307,4 +307,28 @@ function applyIgnoreState(cb) {
     }
 }
 
+document.addEventListener('input', function (e) {
+    const input = e.target.closest('input[name="repair_order"]');
+    if (!input) return;
+
+    const form = input.closest('form');
+    const indicator = form.querySelector('.save-indicator');
+
+    const original = input.dataset.original ?? '';
+    const current  = input.value;
+
+    if (current !== original) {
+        indicator.classList.remove('d-none'); // показать 💾
+    } else {
+        indicator.classList.add('d-none');    // скрыть
+    }
+});
+document.addEventListener('submit', function (e) {
+    const form = e.target.closest('.auto-submit-form');
+    if (!form) return;
+
+    const indicator = form.querySelector('.save-indicator');
+    if (indicator) indicator.classList.add('d-none');
+});
+
 </script>

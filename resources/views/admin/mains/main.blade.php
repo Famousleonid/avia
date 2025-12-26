@@ -132,19 +132,15 @@
                                                                         </div>
                                                                     @else
                                                                         <div style="color: red;">
-                                                                            Last training {{ $monthsDiff }} months ago
-                                                                            ({{ $trainingDate->format('M d, Y') }}).
-                                                                            Need Update
+                                                                            Last training {{ $monthsDiff }} months ago ({{ $trainingDate->format('M d, Y') }}). Need Update
                                                                             @if($user->id == $user_wo)
                                                                                 <div class="ms-2">
                                                                                     <button
                                                                                         class="btn mt-1 btn-outline-warning btn-sm"
                                                                                         style="height:32px;width: 32px"
-                                                                                        title="{{
-                                                                                    __('Update to Today') }}"
+                                                                                        title="{{__('Update to Today') }}"
                                                                                         onclick="updateTrainingToToday({{ $manual_id }}, '{{ $trainings->date_training }}')">
-                                                                                        <i class="bi bi-calendar-check"
-                                                                                           style="font-size: 14px;"></i>
+                                                                                        <i class="bi bi-calendar-check" style="font-size: 14px;"></i>
                                                                                     </button>
                                                                                 </div>
                                                                             @endif
@@ -153,16 +149,14 @@
                                                                 @else
                                                                     @if($user->id == $user_wo)
                                                                         <div class="d-flex">
-                                                                            <div style="color: red;">
-                                                                                There are no trainings
+                                                                            <div style="color: red;"> There are no trainings
                                                                                 <p>for this unit.</p>
                                                                             </div>
                                                                             <div class="ms-2">
                                                                                 <button
                                                                                     class=" mt-1 btn btn-outline-primary btn-sm"
                                                                                     style="height: 32px;width: 32px"
-                                                                                    title="{{ __
-                                                                                ('Create Trainings') }}"
+                                                                                    title="{{__('Create Trainings') }}"
                                                                                     onclick="createTrainings({{ $manual_id }})">
                                                                                     <i class="bi bi-plus-circle" style="font-size: 14px;
                                                                             "></i>
@@ -177,13 +171,13 @@
                                                 </div>
                                             @endif
 
-                                            @admin
+                                            @role('Admin')
                                             <a class="btn btn-outline-warning btn-sm open-log-modal"
                                                data-tippy-content="{{ __('Logs') }}"
                                                data-url="{{ route('workorders.logs-json', $current_workorder->id) }}">
                                                 <i class="bi bi-clock-history" style="font-size: 18px"></i>
                                             </a>
-                                            @endadmin
+                                            @endrole
                                         </div>
 
                                     </div>
@@ -269,6 +263,7 @@
 
                                             </div>
                                         </div>
+
                                     </div>
                                 </div>
                             </div>
@@ -320,7 +315,6 @@
 
                                                 <tbody>
                                                 @forelse(($tasksByGeneral[$gt->id] ?? collect()) as $task)
-
                                                     @php
                                                         $main   = $mainsByTask[$task->id] ?? null;
                                                         $action = $main ? route('mains.update', $main->id) : route('mains.store');
@@ -329,12 +323,12 @@
                                                         $isRestrictedFinish = $isWaitingApprove || $isCompleteTask;
                                                         $isIgnored = (bool) ($main?->ignore_row ?? false);
                                                         $canEditFinish = !$isRestrictedFinish  || (auth()->check() && auth()->user()->hasAnyRole('Admin|Manager'));
-
                                                     @endphp
 
                                                     <tr class="align-middle">
                                                         {{-- чекбокс ignore --}}
                                                         <td class="text-center align-middle">
+
                                                             <form method="POST"
                                                                   action="{{ $action }}"
                                                                   class="js-auto-submit js-row-form"
@@ -354,14 +348,16 @@
                                                                        name="ignore_row"
                                                                        value="0"
                                                                        class="js-ignore-hidden">
-
-                                                                <input class="form-check-input m-0 js-ignore-row {{ $isIgnored ? 'is-ignored' : '' }}"
-                                                                       type="checkbox"
-                                                                       name="ignore_row"
-                                                                       value="1"
-                                                                       {{ $isIgnored ? 'checked' : '' }}
-                                                                       title="Ignore this row">
+                                                                @if($canEditFinish)
+                                                                    <input class="form-check-input m-0 js-ignore-row {{ $isIgnored ? 'is-ignored' : '' }}"
+                                                                           type="checkbox"
+                                                                           name="ignore_row"
+                                                                           value="1"
+                                                                           {{ $isIgnored ? 'checked' : '' }}
+                                                                           title="Ignore this row">
+                                                                @endif
                                                             </form>
+
                                                         </td>
 
                                                         {{-- user --}}
@@ -552,29 +548,39 @@
                                                         @foreach($prs as $pr)
                                                             <tr>
                                                                 <td>{{ $pr->processName->name ?? '—' }}</td>
+
                                                                 <td>
-                                                                    <form method="POST"
-                                                                          action="{{ route('tdrprocesses.updateRepairOrder', $pr) }}"
-                                                                          class="auto-submit-form auto-submit-order position-relative">
-                                                                        @csrf
-                                                                        @method('PATCH')
+                                                                    @hasanyrole('Admin|Manager')
+                                                                        <form method="POST"
+                                                                              action="{{ route('tdrprocesses.updateRepairOrder', $pr) }}"
+                                                                              class="auto-submit-form js-auto-submit auto-submit-order position-relative">
+                                                                            @csrf
+                                                                            @method('PATCH')
 
-                                                                        <input type="text"
-                                                                               name="repair_order"
-                                                                               class="form-control form-control-sm pe-4"
-                                                                               value="{{ $pr->repair_order ?? '' }}"
-                                                                               placeholder="..."
-                                                                               autocomplete="off"
-                                                                               data-original="{{ $pr->repair_order ?? '' }}">
+                                                                            <input type="text"
+                                                                                   name="repair_order"
+                                                                                   class="form-control form-control-sm pe-4"
+                                                                                   value="{{ $pr->repair_order ?? '' }}"
+                                                                                   placeholder="..."
+                                                                                   autocomplete="off"
+                                                                                   data-original="{{ $pr->repair_order ?? '' }}">
 
-                                                                        {{-- 💾 индикатор несохранённого --}}
-                                                                        <i class="bi bi-save save-indicator d-none"></i>
-                                                                    </form>
+                                                                            {{-- 💾 индикатор несохранённого --}}
+                                                                            <i class="bi bi-save save-indicator d-none"></i>
+                                                                        </form>
+                                                                    @else
+                                                                            {{-- только просмотр --}}
+                                                                            <input type="text"
+                                                                                   class="form-control form-control-sm pe-4 bg-dark"
+                                                                                   value="{{ $pr->repair_order ?? '' }}"
+                                                                                   readonly>
+                                                                    @endhasanyrole
                                                                 </td>
+
                                                                 <td>
                                                                     <form method="POST"
                                                                           action="{{ route('tdrprocesses.updateDate', $pr) }}"
-                                                                          class="auto-submit-form">
+                                                                          class="auto-submit-form ">
                                                                         @csrf
                                                                         @method('PATCH')
                                                                         <input type="text" data-fp name="date_start"

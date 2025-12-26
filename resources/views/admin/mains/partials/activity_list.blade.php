@@ -27,10 +27,10 @@
                 $taskGeneral = data_get($p, 'task.general');
                 $taskName    = data_get($p, 'task.name');
 
-                $bStart  = data_get($p, 'before.date_start');
-                $bFinish = data_get($p, 'before.date_finish');
-                $aStart  = data_get($p, 'after.date_start');
-                $aFinish = data_get($p, 'after.date_finish');
+               $bStart  = $bStart  ?? data_get($p, 'old.date_start');
+               $bFinish = $bFinish ?? data_get($p, 'old.date_finish');
+               $aStart  = $aStart  ?? data_get($p, 'attributes.date_start');
+               $aFinish = $aFinish ?? data_get($p, 'attributes.date_finish');
 
                 $mainId = data_get($p, 'main_id', $a->subject_id);
 
@@ -53,31 +53,32 @@
 
                 <ul class="mb-0 ps-3 small">
                     <li>
-                        <strong>Task:</strong>{!! $taskLine ? '<span class="text-success">'.$taskLine.'</span>' : $dash !!}
+                        <strong>Task: </strong>
+                        {!! $taskLine ? '<span class="text-success">'.$taskLine.'</span>' : $dash !!}
                     </li>
 
                     @if($a->event === 'updated')
                         <li>
-                            <strong>Start:</strong>
+                            <strong>Start: </strong>
                             {!! ($bStart || $aStart)
-                                ? '<span class="text-muted">'.($bStart ?? '—').'</span> → <span class="text-success fw-semibold">'.($aStart ?? '—').'</span>'
+                                ? '<span class="text-muted">'.($bStart ?? ' —').'</span> → <span class="text-success fw-semibold">'.($aStart ?? '—').'</span>'
                                 : $dash
                             !!}
                         </li>
                         <li>
-                            <strong>Finish:</strong>
+                            <strong>Finish: </strong>
                             {!! ($bFinish || $aFinish)
-                                ? '<span class="text-muted">'.($bFinish ?? '—').'</span> → <span class="text-success fw-semibold">'.($aFinish ?? '—').'</span>'
+                                ? '<span class="text-muted">'.($bFinish ?? ' —').'</span> → <span class="text-success fw-semibold">'.($aFinish ?? '—').'</span>'
                                 : $dash
                             !!}
                         </li>
                     @else
                         <li>
-                            <strong>Start:</strong>
+                            <strong>Start: </strong>
                             {!! ($aStart ?? $bStart) ? '<span class="text-success">'.(($aStart ?? $bStart)).'</span>' : $dash !!}
                         </li>
                         <li>
-                            <strong>Finish:</strong>
+                            <strong>Finish: </strong>
                             {!! ($aFinish ?? $bFinish) ? '<span class="text-success">'.(($aFinish ?? $bFinish)).'</span>' : $dash !!}
                         </li>
                     @endif
