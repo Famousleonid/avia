@@ -3,7 +3,7 @@
 @section('content')
     <style>
         .container {
-            max-width: 850px;
+            max-width: 900px;
         }
 
         /* Стили для длинного текста процесса */
@@ -66,6 +66,10 @@
             transform: translateY(-50%) !important;
             z-index: 1;
         }
+        .card-body {
+            max-height: 75vh;
+            overflow-y: auto;
+        }
     </style>
 
     <div class="container mt-3">
@@ -75,16 +79,21 @@
                     <h4 class="text-primary">{{__('Add Extra Processes to Component')}}</h4>
                     <h4 class="text-primary"> {{__('Work Order')}} {{$current_wo->number}}</h4>
                 </div>
-                <div class="d-flex justify-content-between">
+                <div class="d-flex justify-content-between align-items-center position-relative">
                     <div>
                         <strong>Component:</strong> {{ $component->name }}<br>
                         <strong>IPL:</strong> {{ $component->ipl_num }}<br>
                         <strong>Part Number:</strong> {{ $component->part_number }}
                     </div>
-                    <div>
+                    <div class="position-absolute start-50 translate-middle-x">
                         <button class="btn btn-outline-primary" type="button" style="width: 120px" id="add-process">
                             Add Process
                         </button>
+                    </div>
+                    <div class="d-flex gap-2">
+                        <button type="submit" form="createProcessesForm" class="btn btn-outline-primary" disabled>{{ __('Save') }}</button>
+                        <a href="{{ route('extra_processes.show_all', ['id' => $current_wo->id]) }}"
+                           class="btn btn-outline-secondary">{{ __('Cancel') }}</a>
                     </div>
                 </div>
             </div>
@@ -195,12 +204,6 @@
                                 </div>
                             </div>
                         </div>
-                    </div>
-
-                    <div class="text-end">
-                        <button type="submit" class="btn btn-outline-primary mt-3" disabled>{{ __('Save') }}</button>
-                        <a href="{{ route('extra_processes.show_all', ['id' => $current_wo->id]) }}"
-                           class="btn btn-outline-secondary mt-3">{{ __('Cancel') }}</a>
                     </div>
                 </form>
             </div>

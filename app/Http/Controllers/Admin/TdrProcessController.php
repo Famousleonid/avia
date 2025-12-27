@@ -840,8 +840,8 @@ class TdrProcessController extends Controller
         $current_tdr_processes->update($dataToUpdate);
         \Log::info('After update:', $current_tdr_processes->fresh()->toArray());
 
-        // Редирект назад с сообщением об успехе
-        return redirect()->back()
+        // Редирект на страницу процессов для конкретного TDR с сообщением об успехе
+        return redirect()->route('tdr-processes.processes', ['tdrId' => $validated['tdrs_id']])
             ->with('success', 'TDR for Component updated successfully');
     }
 

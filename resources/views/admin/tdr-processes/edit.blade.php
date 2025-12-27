@@ -5,7 +5,7 @@
         /* Ваши стили */
     </style>
 
-    <div class="container mt-3" style="width: 850px">
+    <div class="container mt-3 bg-gradient" style="width: 850px">
         <div class="card bg-gradient">
             <div class="card-header">
                 <div class="d-flex justify-content-between">
@@ -76,7 +76,7 @@
 
                     <div class="text-end mb-3 me-4">
                         <button type="submit" class="btn btn-outline-primary mt-3">{{ __('Update') }}</button>
-                        <a href="{{ route('tdrs.processes', ['workorder_id' => $current_tdr->workorder->id]) }}" class="btn btn-outline-secondary mt-3">{{ __('Cancel') }}</a>
+                        <a href="{{ route('tdr-processes.processes', ['tdrId' => $current_tdr->id]) }}" class="btn btn-outline-secondary mt-3">{{ __('Cancel') }}</a>
                     </div>
                 </form>
             </div>

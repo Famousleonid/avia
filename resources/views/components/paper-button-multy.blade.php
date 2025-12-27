@@ -9,6 +9,7 @@
     'customColors' => null, // ['fold' => '#198754', 'stroke' => '#198754', 'text' => '#0f5132', 'paper' => '#f5f5f5']
     'viewBox' => '200 270', // для portrait: '200 270', для landscape: '270 200'
     'width' => null,
+    'fontSize' => null, // размер шрифта (если null, то автоматически: portrait - 34px, landscape - 28px)
 ])
 
 @php
@@ -73,6 +74,11 @@
         ['dx' => 10, 'dy' => 10],
     ];
 
+    // Определяем размер шрифта (адаптивный по умолчанию)
+    if ($fontSize === null) {
+        $fontSize = $size === 'portrait' ? '34px' : '28px';
+    }
+    
     // Определяем aria-label
     $ariaLabelValue = $ariaLabel ?? $text;
 
@@ -127,14 +133,18 @@
         <foreignObject x="{{ $foreignObjectX }}" y="{{ $foreignObjectY }}"
                       width="{{ $foreignObjectWidth }}" height="{{ $foreignObjectHeight }}">
             <div xmlns="http://www.w3.org/1999/xhtml"
-                 style="font: 32px Arial, sans-serif;
+                 style="font: {{ $fontSize }} Arial, sans-serif;
                         text-align: center;
                         display: flex;
                         align-items: center;
                         justify-content: center;
                         height: 100%;
+                        width: 100%;
                         word-wrap: break-word;
-                        overflow-wrap: break-word;">
+                        overflow-wrap: break-word;
+                        word-break: break-word;
+                        white-space: normal;
+                        hyphens: auto;">
                 {{ $text }}
             </div>
         </foreignObject>

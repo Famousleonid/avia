@@ -6,6 +6,30 @@
             /*max-width: 1200px;*/
         }
 
+        /* Ограничение высоты card-body */
+        .card-body {
+            height: 75vh;
+            overflow-y: auto;
+        }
+
+        /* Ограничение высоты таблицы и фиксация шапки */
+        .table-wrapper {
+            max-height: 60vh;
+            overflow-y: auto;
+            overflow-x: auto;
+        }
+
+        .table-wrapper table thead th {
+            position: sticky;
+            top: 0;
+            z-index: 1020;
+            background-color: var(--bs-body-bg, #fff);
+        }
+
+        html[data-bs-theme="dark"] .table-wrapper table thead th {
+            background-color: var(--bs-body-bg, #212529);
+        }
+
         /* Стили для Select2 (темная и светлая темы) */
         html[data-bs-theme="dark"] .select2-selection--single {
             background-color: #121212 !important;
@@ -551,6 +575,7 @@
                                                     width="120px"
                                                     href="{{ route('tdrs.show_group_forms', ['id' => $current_tdr->workorder->id, 'processNameId' => $actualProcessNameId, 'tdrId' => $current_tdr->id]) }}"
                                                     target="_blank"
+                                                    fontSize="30px"
                                                     class="group-form-button"
                                                     data-process-name-id="{{ $actualProcessNameId }}"
                                                 > </x-paper-button>
@@ -630,12 +655,14 @@
     <div class="modal fade" id="packageModal" tabindex="-1" aria-labelledby="packageModalLabel" aria-hidden="true">
         <div class="modal-dialog modal-xl">
             <div class="modal-content">
-                <div class="modal-header">
-                    <h5 class="modal-title" id="packageModalLabel">
-                        <i class="fas fa-box"></i> Package processes forms for {{ $current_tdr->component->name ?? 'Component' }}
-
+                <div class="modal-header" style="display: grid; grid-template-columns: 1fr auto 1fr; align-items: center;">
+                    <h5 class="modal-title mb-0" id="packageModalLabel">
+                        <i class="fas fa-box"></i> Package processes forms for  {{ $current_tdr->component->name ?? 'Component' }}
                     </h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                    <button type="button" class="btn btn-primary" id="packageButton" style="justify-self: center;">
+                        <i class="fas fa-box"></i> Create Package
+                    </button>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close" style="justify-self: end;"></button>
                 </div>
                 <div class="modal-body">
                     <div class=" mb-3">
@@ -663,10 +690,7 @@
                     </div>
                 </div>
                 <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                    <button type="button" class="btn btn-primary" id="packageButton">
-                        <i class="fas fa-box"></i> Package
-                    </button>
+{{--                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>--}}
                 </div>
             </div>
         </div>

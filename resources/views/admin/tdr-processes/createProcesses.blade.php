@@ -57,27 +57,72 @@
             transform: translateY(-50%) !important;
             z-index: 1;
         }
+
+        .card-body {
+            max-height: 80vh;
+            overflow-y: auto;
+            overflow-x: hidden;
+        }
+
+        /* Стили для скроллбара в card-body */
+        .card-body::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        .card-body::-webkit-scrollbar-track {
+            background: #f1f1f1;
+            border-radius: 4px;
+        }
+
+        .card-body::-webkit-scrollbar-thumb {
+            background: #888;
+            border-radius: 4px;
+        }
+
+        .card-body::-webkit-scrollbar-thumb:hover {
+            background: #555;
+        }
+
+        /* Стили для скроллбара в темной теме */
+        html[data-bs-theme="dark"] .card-body::-webkit-scrollbar-track {
+            background: #2d2d2d;
+        }
+
+        html[data-bs-theme="dark"] .card-body::-webkit-scrollbar-thumb {
+            background: #555;
+        }
+
+        html[data-bs-theme="dark"] .card-body::-webkit-scrollbar-thumb:hover {
+            background: #777;
+        }
     </style>
 
     <div class="container mt-3">
         <div class="card bg-gradient">
             <div class="card-header">
-                <div class="d-flex justify-content-between">
-                    <h4 class="text-primary">{{ __('Add Component Processes') }}</h4>
-                    <h4 class="pe-3">{{ __('W') }}{{ $current_tdr->workorder->number }}</h4>
-                </div>
-                <div class="d-flex justify-content-between">
+                <div class="d-flex justify-content-between align-items-center position-relative">
                     <div>
-                        {{ $current_tdr->component->name }}
-                        <div>
-                            PN: {{ $current_tdr->component->part_number }}
-                            SN: {{ $current_tdr->serial_number }}
+                        <h4 class="text-primary mb-0">{{ __('Add Component Processes') }}</h4>
+                        <div class="mt-2">
+                            {{ $current_tdr->component->name }}
+                            <div>
+                                PN: {{ $current_tdr->component->part_number }}
+                                SN: {{ $current_tdr->serial_number }}
+                            </div>
                         </div>
-
                     </div>
-                    <button class="btn btn-outline-primary" type="button" style="width: 120px" id="add-process">
-                        Add Process
-                    </button>
+                    <div class="position-absolute start-50 translate-middle-x">
+                        <button class="btn btn-outline-success" type="button" style="width: 120px" id="add-process">
+                            Add Process
+                        </button>
+                    </div>
+                    <div class="align-items-center">
+                        <h4 class="pe-3 mb-3">{{ __('W') }}{{ $current_tdr->workorder->number }}</h4>
+                        <div>
+                            <button type="submit" form="createCPForm" class="btn btn-outline-primary">{{ __('Save') }}</button>
+                            <a href="{{ route('tdr-processes.processes', ['tdrId' => $current_tdr->id]) }}" class="btn btn-outline-secondary">{{ __('Cancel') }}</a>
+                        </div>
+                        </div>
                 </div>
             </div>
             <div class="card-body">
@@ -149,11 +194,6 @@
                                 </div>
                             </div>
                         </div>
-                    </div>
-
-                    <div class="text-end">
-                        <button type="submit" class="btn btn-outline-primary mt-3">{{ __('Save') }}</button>
-                        <a href="{{ route('tdrs.processes', ['workorder_id' => $current_tdr->workorder->id]) }}" class="btn btn-outline-secondary mt-3">{{ __('Cancel') }}</a>
                     </div>
                 </form>
 
@@ -252,7 +292,7 @@
             newRow.classList.add('process-row', 'mb-3');
             newRow.innerHTML = `
                 <div class="row ">
-                    <div class="col-md-5">
+                    <div class="col-md-3">
                         <label for="process_names">Process Name:</label>
                         <select name="processes[${index}][process_names_id]"
                                 class="form-control select2-process"

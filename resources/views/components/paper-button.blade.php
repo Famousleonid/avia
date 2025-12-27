@@ -9,6 +9,7 @@
     'customColors' => null, // ['fold' => '#198754', 'stroke' => '#198754', 'text' => '#0f5132', 'paper' => '#f5f5f5']
     'viewBox' => '200 270', // для portrait: '200 270', для landscape: '270 200'
     'width' => null,
+    'fontSize' => null, // размер шрифта (если null, то автоматически: portrait - 34px, landscape - 28px)
 ])
 
 @php
@@ -64,6 +65,11 @@
         $foreignObjectHeight = 90;
     }
 
+    // Определяем размер шрифта (адаптивный по умолчанию)
+    if ($fontSize === null) {
+        $fontSize = $size === 'portrait' ? '34px' : '28px';
+    }
+
     // Определяем aria-label
     $ariaLabelValue = $ariaLabel ?? $text;
 
@@ -72,7 +78,7 @@
 
     // Определяем атрибуты для кнопки/ссылки
     $tag = $href || $route ? 'a' : 'button';
-    
+
     // Получаем существующий класс из атрибутов (если передан)
     $existingClass = '';
     if (is_object($attributes) && method_exists($attributes, 'get')) {
@@ -80,15 +86,15 @@
     } elseif (is_array($attributes) && isset($attributes['class'])) {
         $existingClass = $attributes['class'];
     }
-    
+
     // Объединяем классы
     $mergedClass = trim($buttonClass . ' ' . $existingClass);
-    
+
     // Убеждаемся, что $attributes является объектом Attributes
     if (!is_object($attributes) || !method_exists($attributes, 'merge')) {
         $attributes = \Illuminate\View\ComponentAttributeBag::make($attributes ?? []);
     }
-    
+
     $attributes = $attributes->merge([
         'class' => $mergedClass,
         'aria-label' => $ariaLabelValue,
@@ -119,29 +125,33 @@
 @endphp
 
 <{{ $tag }} {{ $attributes }}>
-    <svg viewBox="{{ $viewBoxCoords }}" width="{{ $width }}" height="{{ $height }}"
-         preserveAspectRatio="xMidYMid meet" xmlns="http://www.w3.org/2000/svg"{!! $customStyle !!}>
-        <!-- лист -->
-        <path class="paper" d="{{ $paperPath }}"/>
-        <!-- уголок -->
-        <polygon class="fold" points="{{ $foldPoints }}"/>
-        <!-- линия сгиба -->
-        <path class="line" d="{{ $linePath }}"/>
-        <!-- текст с переносом -->
-        <foreignObject x="{{ $foreignObjectX }}" y="{{ $foreignObjectY }}"
-                      width="{{ $foreignObjectWidth }}" height="{{ $foreignObjectHeight }}">
-            <div xmlns="http://www.w3.org/1999/xhtml"
-                 style="font: 34px Arial, sans-serif;
+<svg viewBox="{{ $viewBoxCoords }}" width="{{ $width }}" height="{{ $height }}"
+     preserveAspectRatio="xMidYMid meet" xmlns="http://www.w3.org/2000/svg"{!! $customStyle !!}>
+    <!-- лист -->
+    <path class="paper" d="{{ $paperPath }}"/>
+    <!-- уголок -->
+    <polygon class="fold" points="{{ $foldPoints }}"/>
+    <!-- линия сгиба -->
+    <path class="line" d="{{ $linePath }}"/>
+    <!-- текст с переносом -->
+    <foreignObject x="{{ $foreignObjectX }}" y="{{ $foreignObjectY }}"
+                   width="{{ $foreignObjectWidth }}" height="{{ $foreignObjectHeight }}">
+        <div xmlns="http://www.w3.org/1999/xhtml"
+             style="font: {{ $fontSize }} Arial, sans-serif;
                         text-align: center;
                         display: flex;
                         align-items: center;
                         justify-content: center;
                         height: 100%;
+                        width: 100%;
                         word-wrap: break-word;
-                        overflow-wrap: break-word;">
-                {{ $text }}
-            </div>
-        </foreignObject>
-    </svg>
+                        overflow-wrap: break-word;
+                        word-break: break-word;
+                        white-space: normal;
+                        hyphens: auto;">
+            {{ $text }}
+        </div>
+    </foreignObject>
+</svg>
 </{{ $tag }}>
 
