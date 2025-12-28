@@ -511,12 +511,13 @@
                              role="dialog" aria-labelledby="orderModalLabel{{$current_wo->number}}" aria-hidden="true">
                             <div class="modal-dialog modal-dialog-centered" role="document">
                                 <div class="modal-content bg-gradient" style="width: 700px">
-                                    <div class="modal-header" style="width: 700px">
-                                        <div>
-                                            <h4 class="modal-title">{{__('Work order ')}}{{$current_wo->number}}</h4>
-                                            <h4 class="modal-title">{{__('Ordered Parts  ')}}</h4>
-                                        </div>
-                                        <button type="button" class="btn-close pb-2" data-bs-dismiss="modal" aria-label="Close"></button>
+                                    <div class="modal-header " style="width: 700px">
+
+                                            <h4 class="modal-title me-4">{{__('Work order W')}}{{$current_wo->number}}</h4>
+                                            <h4 class="modal-title ms-5 ">{{__('Ordered Parts  ')}}</h4>
+                                            <button type="button" class="btn-close pb-2 text-end" data-bs-dismiss="modal" aria-label="Close"></button>
+
+
                                     </div>
                                     @if(count($ordersPartsNew))
                                         <div class="table-wrapper">
@@ -739,7 +740,7 @@
                                     <th class=" text-primary text-center  " style="width: 300px;">
                                         {{__('Teardown Inspection')}}
                                     </th>
-                                    <th class=" text-primary text-center " style="width: 150px;">
+                                    <th class=" text-primary text-center " style="width: 50px;">
                                         <a href="{{ route('tdrs.inspection.unit', ['workorder_id' => $current_wo->id]) }}"
                                            class="btn btn-outline-info btn-sm" style="height: 32px">
                                             {{ __('Add') }}
@@ -786,16 +787,25 @@
                                                        @endif
                                                     @endforeach
                                                         @if($tdr->conditions && $tdr->conditions->name == 'PARTS MISSING UPON ARRIVAL AS INDICATED ON PARTS LIST')
-                                                            <button class="btn btn-outline-info btn-sm" style="height: 32px"
-                                                                    data-bs-toggle="modal"
-                                                                    data-bs-target="#missingModal{{$current_wo->number}}">
-                                                                {{ __('Missing Part') }}</button>
+{{--                                                            <button class="btn btn-outline-info btn-sm" style="height: 32px"--}}
+{{--                                                                    data-bs-toggle="modal"--}}
+{{--                                                                    data-bs-target="#missingModal{{$current_wo->number}}">--}}
+{{--                                                                {{ __('Missing Part') }}</button>--}}
+                                                            <img src="{{ asset('img/missing2.png')}}" alt="missing"
+                                                                 style="width: 40px;" class=""  data-bs-toggle="modal"
+                                                                 data-bs-target="#missingModal{{$current_wo->number}}"
+                                                            >
                                                         @else
                                                             @if($tdr->necessaries_id == $necessary->id)
-                                                                <button class="btn btn-outline-info btn-sm" style="min-height: 32px"
-                                                                        href="#"
-                                                                        data-bs-toggle="modal" data-bs-target="#orderModal{{$current_wo->number}}">
-                                                                    {{ __('Ordered Parts') }}</button>
+{{--                                                                <button class="btn btn-outline-info btn-sm" style="min-height: 32px"--}}
+{{--                                                                        href="#"--}}
+{{--                                                                        data-bs-toggle="modal" data-bs-target="#orderModal{{$current_wo->number}}">--}}
+{{--                                                                    {{ __('Ordered Parts') }}</button>--}}
+                                                                <img src="{{ asset('img/order.png')}}" alt="order"
+                                                                     style="width: 40px;" class=""
+                                                                     data-bs-toggle="modal"
+                                                                     data-bs-target="#orderModal{{$current_wo->number}}">
+
                                                             @endif
                                                        @endif
                                                 </td>
