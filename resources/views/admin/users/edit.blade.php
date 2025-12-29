@@ -47,7 +47,7 @@
                             <label for="stamp" class="form-label small">stamp</label>
                             <input type="text" name="stamp" id="stamp" class="form-control" value="{{ $user->stamp }}">
                         </div>
-
+                        @admin
                         <div class="col-md-6 mb-3">
                             <label for="role_id" class="form-label small">role</label>
                             <select name="role_id" id="role_id" class="form-select">
@@ -58,6 +58,7 @@
                                 @endforeach
                             </select>
                         </div>
+                        @endadmin
 
                         <div class="col-md-6 mb-3">
                             <label for="team_id" class="form-label small" id="team_label">team</label>

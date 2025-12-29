@@ -222,7 +222,10 @@
             opacity: 0.45;
         }
 
-
+        .table-panel td {
+            background: linear-gradient(135deg, #212529 0%, #2c3035 100%);
+            color: #f8f9fa;
+        }
     </style>
 
 @endsection
@@ -326,7 +329,7 @@
         @if(count($workorders))
 
             <div class="table-wrapper p-2 pt-0">
-                <table id="show-workorder" class="table table-sm table-bordered table-striped table-hover w-100">
+                <table id="show-workorder" class="table table-sm table-bordered  table-hover w-100 table-panel">
                     <thead class="bg-gradient">
                     <tr>
                         <th class="text-center text-primary sortable col-number">
@@ -353,7 +356,8 @@
                     <tbody>
                     @foreach ($workorders as $workorder)
 
-                        <tr data-tech-id="{{ $workorder->user_id }}"
+                        <tr class=""
+                            data-tech-id="{{ $workorder->user_id }}"
                             data-customer-id="{{ $workorder->customer_id }}"
                             data-status="{{ $workorder->isDone() ? 'Completed' : 'active' }}"
                             data-approved="{{ $workorder->approve_at ? '1' : '0' }}">
