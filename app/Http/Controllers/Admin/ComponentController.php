@@ -65,7 +65,7 @@ class ComponentController extends Controller
             'bush_ipl_num' => 'nullable|string|max:10|regex:/^\d+-\d+[A-Za-z]?$/',
             'eff_code' => 'nullable|string|max:100',
             'units_assy' => 'nullable|string|max:100',
-//
+
         ]);
 
         $validated['assy_part_number'] = $request->assy_part_number;
@@ -76,19 +76,15 @@ class ComponentController extends Controller
         $validated['repair'] = $request->has('repair') ? 1 : 0;
         $validated['is_bush'] = $request->has('is_bush') ? 1 : 0;
         $validated['bush_ipl_num'] = $request->bush_ipl_num;
-//dd($validated);
-
-
-//        $request->merge(['log_card' => $request->has('log_card') ? 1 : 0]);
 
         $component = Component::create($validated);
 
         if ($request->hasFile('img')) {
-            $component->addMedia($request->file('img'))->toMediaCollection('component');
+            $component->addMedia($request->file('img'))->toMediaCollection('components');
         }
         if ($request->hasFile('assy_img')) {
 
-            $component->addMedia($request->file('assy_img'))->toMediaCollection('assy_component');
+            $component->addMedia($request->file('assy_img'))->toMediaCollection('assy_components');
         }
 
         return redirect($request->input('redirect', route('components.index')))
@@ -255,11 +251,7 @@ class ComponentController extends Controller
     public function update(Request $request, $id)
     {
 
-
         $component = Component::findOrFail($id);
-
-
-//        dd( $request->all());
 
         $validated = $request->validate([
 
@@ -286,19 +278,18 @@ class ComponentController extends Controller
 //        dd($validated);
 
         if ($request->hasFile('img')) {
-            if ($component->getMedia('component')->isNotEmpty()) {
-                $component->getMedia('component')->first()->delete();
+            if ($component->getMedia('components')->isNotEmpty()) {
+                $component->getMedia('components')->first()->delete();
             }
 
-            $component->addMedia($request->file('img'))->toMediaCollection('component');
+            $component->addMedia($request->file('img'))->toMediaCollection('components');
         }
         if ($request->hasFile('assy_img')) {
-            if ($component->getMedia('assy_component')->isNotEmpty()) {
-                $component->getMedia('assy_component')->first()->delete();
+            if ($component->getMedia('assy_components')->isNotEmpty()) {
+                $component->getMedia('assy_components')->first()->delete();
             }
 
-            $component->addMedia($request->file('assy_img'))->toMediaCollection
-            ('assy_component');
+            $component->addMedia($request->file('assy_img'))->toMediaCollection('assy_components');
         }
         $component->update($validated);
 
@@ -406,12 +397,12 @@ class ComponentController extends Controller
 
     /**
      * Upload components from CSV file
-     * 
+     *
      * This method handles CSV uploads for components. If a CSV file already exists
      * for the given manual, it will be replaced with the new one. Existing components
      * with the same part_number and ipl_num will be updated, while new components
      * will be created.
-     * 
+     *
      * Features:
      * - Replaces existing CSV files instead of duplicating them
      * - Updates existing components with new data from CSV
@@ -431,10 +422,10 @@ class ComponentController extends Controller
 
             $file = $request->file('csv_file');
             $manualId = $request->manual_id;
-            
+
             \Log::info("Received manual_id: " . $manualId);
             \Log::info("Received file: " . ($file ? $file->getClientOriginalName() : 'null'));
-            
+
             if (!$file) {
                 \Log::error("No CSV file received in request");
                 return response()->json([
@@ -442,7 +433,7 @@ class ComponentController extends Controller
                     'message' => 'No CSV file received'
                 ], 400);
             }
-            
+
             if (!$file->isValid()) {
                 \Log::error("Invalid CSV file: " . $file->getError());
                 return response()->json([
@@ -450,10 +441,10 @@ class ComponentController extends Controller
                     'message' => 'Invalid CSV file: ' . $file->getErrorMessage()
                 ], 400);
             }
-            
+
             // Find the manual
             $manual = Manual::findOrFail($manualId);
-            
+
             // Check if manual has media collections
             if (!method_exists($manual, 'addMedia')) {
                 \Log::error("Manual model does not have addMedia method - Spatie Media Library not properly configured");
@@ -462,19 +453,19 @@ class ComponentController extends Controller
                     'message' => 'Media library not properly configured for Manual model'
                 ], 500);
             }
-            
+
             // Log existing components count for this manual
             $existingComponentsCount = Component::where('manual_id', $manualId)->count();
             \Log::info("Manual {$manualId} ({$manual->number}) currently has {$existingComponentsCount} components");
-            
+
             // Log existing CSV files count for this manual
             $existingCsvFilesCount = $manual->getMedia('component_csv_files')->count();
             \Log::info("Manual {$manualId} ({$manual->number}) currently has {$existingCsvFilesCount} CSV files in media collection");
-            
+
             if ($existingCsvFilesCount > 0) {
                 \Log::info("This is a replacement upload - existing CSV files will be removed");
             }
-            
+
             // Read CSV file first
             $filePath = $file->getPathname();
             if (!file_exists($filePath)) {
@@ -483,7 +474,7 @@ class ComponentController extends Controller
                     'message' => 'CSV file not found on server'
                 ], 400);
             }
-            
+
             $csvContent = file_get_contents($filePath);
             if ($csvContent === false) {
                 return response()->json([
@@ -491,33 +482,33 @@ class ComponentController extends Controller
                     'message' => 'Unable to read CSV file content'
                 ], 400);
             }
-            
+
             if (empty($csvContent)) {
                 return response()->json([
                     'success' => false,
                     'message' => 'CSV file is empty'
                 ], 400);
             }
-            
+
             // Log original content for debugging
             \Log::info("Original CSV content length: " . strlen($csvContent));
             \Log::info("First 500 characters: " . substr($csvContent, 0, 500));
-            
+
             // Check file encoding and try to convert if needed
             $encoding = mb_detect_encoding($csvContent, ['UTF-8', 'ISO-8859-1', 'Windows-1251', 'CP1251'], true);
             \Log::info("Detected file encoding: " . ($encoding ?: 'unknown'));
-            
+
             if ($encoding && $encoding !== 'UTF-8') {
                 $csvContent = mb_convert_encoding($csvContent, 'UTF-8', $encoding);
                 \Log::info("Converted file from {$encoding} to UTF-8");
             }
-            
+
             // Try to fix BOM if present
             if (substr($csvContent, 0, 3) === "\xEF\xBB\xBF") {
                 $csvContent = substr($csvContent, 3);
                 \Log::info("Removed UTF-8 BOM");
             }
-            
+
             // Additional encoding fixes for problematic files
             // Try to fix common encoding issues that might cause the \u043f\u00bb\u0457 problem
             if (preg_match('/\\\u[0-9a-fA-F]{4}/', $csvContent)) {
@@ -527,20 +518,20 @@ class ComponentController extends Controller
                     return json_decode('"\u' . $matches[1] . '"');
                 }, $csvContent);
             }
-            
+
             // Try to fix any remaining encoding issues
             if (!mb_check_encoding($csvContent, 'UTF-8')) {
                 \Log::info("Content still has encoding issues, attempting additional fixes...");
                 $csvContent = mb_convert_encoding($csvContent, 'UTF-8', 'UTF-8');
             }
-            
+
             // Parse CSV content
             $csvData = array_map('str_getcsv', explode("\n", $csvContent));
-            
+
             // Log raw CSV data
             \Log::info("Raw CSV data count: " . count($csvData));
             \Log::info("First few rows: " . json_encode(array_slice($csvData, 0, 3)));
-            
+
             // Alternative parsing method if str_getcsv fails
             if (empty($csvData) || count($csvData) < 2) {
                 \Log::warning("str_getcsv parsing failed, trying alternative method");
@@ -553,81 +544,81 @@ class ComponentController extends Controller
                 }
                 \Log::info("Alternative parsing result: " . count($csvData) . " rows");
             }
-            
+
             // Remove empty rows and clean data
             $csvData = array_filter($csvData, function($row) {
                 return !empty(array_filter($row, 'strlen'));
             });
-            
+
             \Log::info("After filtering empty rows: " . count($csvData));
-            
+
             if (empty($csvData)) {
                 return response()->json([
                     'success' => false,
                     'message' => 'No valid data rows found in CSV file'
                 ], 400);
             }
-            
+
             $headers = array_shift($csvData); // Remove header row
-            
+
             // Clean headers - remove empty columns, trim whitespace, and fix encoding issues
             $headers = array_map(function($header) {
                 $header = trim($header);
-                
+
                 // Try to fix common encoding issues
                 if (preg_match('/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/', $header)) {
                     $header = preg_replace('/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/', '', $header);
                 }
-                
+
                 // Try to fix UTF-8 encoding issues
                 if (!mb_check_encoding($header, 'UTF-8')) {
                     $header = mb_convert_encoding($header, 'UTF-8', 'UTF-8');
                 }
-                
+
                 // Additional cleaning for problematic characters
                 $header = preg_replace('/[^\x20-\x7E\xA0-\xFF]/u', '', $header);
-                
+
                 // Try to fix specific encoding issues that might cause the \u043f\u00bb\u0457 problem
                 if (preg_match('/\\\u[0-9a-fA-F]{4}/', $header)) {
                     $header = json_decode('"' . $header . '"', true) ?: $header;
                 }
-                
+
                 return $header;
             }, array_filter($headers, 'strlen'));
-            
+
             \Log::info("Headers: " . json_encode($headers));
-            
+
             // Additional header validation and cleaning
             $cleanedHeaders = [];
             foreach ($headers as $header) {
                 $cleanHeader = $header;
-                
+
                 // Remove any remaining problematic characters
                 $cleanHeader = preg_replace('/[^\x20-\x7E\xA0-\xFF]/u', '', $cleanHeader);
-                
+
                 // Ensure header is not empty after cleaning
                 if (!empty(trim($cleanHeader))) {
                     $cleanedHeaders[] = trim($cleanHeader);
                 }
             }
-            
+
             if (empty($cleanedHeaders)) {
                 return response()->json([
                     'success' => false,
                     'message' => 'No valid headers found after cleaning'
                 ], 400);
             }
-            
+
             $headers = $cleanedHeaders;
             \Log::info("Cleaned headers: " . json_encode($headers));
-            
+
             // Final validation that headers don't contain problematic characters
             foreach ($headers as $index => $header) {
                 if (preg_match('/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/', $header)) {
                     \Log::warning("Header at index {$index} still contains problematic characters: " . json_encode($header));
                     $headers[$index] = preg_replace('/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/', '', $header);
                 }
-                
+
                 // Additional check for Unicode escape sequences
                 if (preg_match('/\\\u[0-9a-fA-F]{4}/', $header)) {
                     \Log::warning("Header at index {$index} contains Unicode escape sequences: " . json_encode($header));
@@ -638,26 +629,26 @@ class ComponentController extends Controller
                     }
                 }
             }
-            
+
             \Log::info("Final cleaned headers: " . json_encode($headers));
-            
+
             // Validate headers
             $requiredHeaders = ['part_number', 'name', 'ipl_num'];
             $missingHeaders = array_diff($requiredHeaders, $headers);
-            
+
             if (!empty($missingHeaders)) {
                 \Log::error("Missing required headers: " . implode(', ', $missingHeaders));
                 \Log::error("Found headers: " . implode(', ', $headers));
                 \Log::error("Headers count: " . count($headers));
-                
+
                 return response()->json([
                     'success' => false,
                     'message' => 'Missing required headers: ' . implode(', ', $missingHeaders) . '. Found headers: ' . implode(', ', $headers)
                 ], 400);
             }
-            
+
             \Log::info("Headers validation passed. All required headers found.");
-            
+
             // Check if there's an existing CSV file for this manual and remove it
             $existingCsvFiles = $manual->getMedia('component_csv_files');
             if ($existingCsvFiles->count() > 0) {
@@ -674,7 +665,7 @@ class ComponentController extends Controller
             try {
                 $uploadedCsvFile = $manual->addMedia($file)
                     ->toMediaCollection('component_csv_files');
-                
+
                 if ($existingCsvFilesCount > 0) {
                     \Log::info("CSV file replaced successfully in media collection. New file ID: " . ($uploadedCsvFile ? $uploadedCsvFile->id : 'null'));
                 } else {
@@ -699,20 +690,20 @@ class ComponentController extends Controller
                     // Clean row data - trim whitespace and fix encoding issues
                     $cleanRow = array_map(function($cell) {
                         $cell = trim($cell);
-                        
+
                         // Try to fix common encoding issues
                         if (preg_match('/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/', $cell)) {
                             $cell = preg_replace('/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/', '', $cell);
                         }
-                        
+
                         // Try to fix UTF-8 encoding issues
                         if (!mb_check_encoding($cell, 'UTF-8')) {
                             $cell = mb_convert_encoding($cell, 'UTF-8', 'UTF-8');
                         }
-                        
+
                         // Additional cleaning for problematic characters
                         $cell = preg_replace('/[^\x20-\x7E\xA0-\xFF]/u', '', $cell);
-                        
+
                                             // Try to fix specific encoding issues that might cause the \u043f\u00bb\u0457 problem
                     if (preg_match('/\\\u[0-9a-fA-F]{4}/', $cell)) {
                         $decoded = json_decode('"' . $cell . '"', true);
@@ -725,23 +716,23 @@ class ComponentController extends Controller
                             }, $cell);
                         }
                     }
-                        
+
                         return $cell;
                     }, $row);
-                    
+
                     // Ensure we have exactly the right number of columns
                     while (count($cleanRow) < count($headers)) {
                         $cleanRow[] = '';
                     }
-                    
+
                     // If we have more columns than headers, truncate
                     if (count($cleanRow) > count($headers)) {
                         $cleanRow = array_slice($cleanRow, 0, count($headers));
                     }
-                    
+
                     // Create associative array from headers and row data
                     $rowData = array_combine($headers, $cleanRow);
-                    
+
                     // Log the mapping for debugging (only first few rows)
                     if ($rowIndex < 5) {
                         \Log::info("Row " . ($rowIndex + 2) . " mapping:");
@@ -750,7 +741,7 @@ class ComponentController extends Controller
                         \Log::info("  Headers: " . json_encode($headers));
                         \Log::info("  Mapped data: " . json_encode($rowData));
                     }
-                    
+
                     // Validate required fields
                     if (empty($rowData['part_number']) || empty($rowData['name']) || empty($rowData['ipl_num'])) {
                         $errorCount++;
@@ -758,17 +749,17 @@ class ComponentController extends Controller
                         \Log::warning("Row " . ($rowIndex + 2) . " missing required fields");
                         continue;
                     }
-                    
+
                     // Additional validation for problematic characters
-                    if (preg_match('/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/', $rowData['part_number']) || 
-                        preg_match('/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/', $rowData['name']) || 
+                    if (preg_match('/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/', $rowData['part_number']) ||
+                        preg_match('/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/', $rowData['name']) ||
                         preg_match('/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/', $rowData['ipl_num'])) {
                         \Log::warning("Row " . ($rowIndex + 2) . " contains problematic characters, attempting to clean...");
                         $rowData['part_number'] = preg_replace('/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/', '', $rowData['part_number']);
                         $rowData['name'] = preg_replace('/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/', '', $rowData['name']);
                         $rowData['ipl_num'] = preg_replace('/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/', '', $rowData['ipl_num']);
                     }
-                    
+
                     // Final check that required fields are not empty after cleaning
                     if (empty(trim($rowData['part_number'])) || empty(trim($rowData['name'])) || empty(trim($rowData['ipl_num']))) {
                         $errorCount++;
@@ -776,7 +767,7 @@ class ComponentController extends Controller
                         \Log::warning("Row " . ($rowIndex + 2) . " required fields became empty after cleaning");
                         continue;
                     }
-                    
+
                     // Дополнительная валидация для специальных полей
                     if (isset($rowData['units_assy']) && !empty(trim($rowData['units_assy']))) {
                         $unitsAssy = trim($rowData['units_assy']);
@@ -803,12 +794,12 @@ class ComponentController extends Controller
                         'is_bush' => isset($rowData['is_bush']) ? (int)($rowData['is_bush'] == '1' || $rowData['is_bush'] == 'true') : 0,
                         'bush_ipl_num' => isset($rowData['bush_ipl_num']) ? trim($rowData['bush_ipl_num']) : null,
                     ];
-                    
+
                     // Дополнительная проверка на минимальную полноту данных
-                    $hasMinimalData = !empty($componentData['part_number']) && 
-                                     !empty($componentData['name']) && 
+                    $hasMinimalData = !empty($componentData['part_number']) &&
+                                     !empty($componentData['name']) &&
                                      !empty($componentData['ipl_num']);
-                    
+
                     if (!$hasMinimalData) {
                         $errorCount++;
                         $errors[] = "Row " . ($rowIndex + 2) . ": Insufficient data for component creation";
@@ -822,7 +813,7 @@ class ComponentController extends Controller
                         ->where('manual_id', $manualId)
                         ->where('ipl_num', $componentData['ipl_num'])
                         ->first();
-                    
+
                     // Дополнительная проверка на дублирование по содержимому (для случаев, когда CSV содержит дублирующиеся строки)
                     if (!$existingComponent) {
                         $similarComponent = Component::where('manual_id', $manualId)
@@ -832,10 +823,10 @@ class ComponentController extends Controller
                             ->where('eff_code', $componentData['eff_code'])
                             ->where('units_assy', $componentData['units_assy'])
                             ->first();
-                        
+
                         if ($similarComponent && $similarComponent->ipl_num !== $componentData['ipl_num']) {
                             \Log::info("Found similar component with different IPL: existing IPL '{$similarComponent->ipl_num}' vs CSV IPL '{$componentData['ipl_num']}' for component '{$componentData['part_number']}'");
-                            
+
                             // Если найден похожий компонент, предлагаем обновить IPL вместо создания нового
                             if ($similarComponent->ipl_num !== $componentData['ipl_num']) {
                                 \Log::info("Suggesting to update IPL from '{$similarComponent->ipl_num}' to '{$componentData['ipl_num']}' for component '{$componentData['part_number']}'");
@@ -843,17 +834,17 @@ class ComponentController extends Controller
                             }
                         }
                     }
-                    
+
                     // Если не найден, проверяем на дублирование по part_number в том же мануале
                     if (!$existingComponent) {
                         $duplicateComponents = Component::where('part_number', $componentData['part_number'])
                             ->where('manual_id', $manualId)
                             ->get();
-                        
+
                         if ($duplicateComponents->count() > 0) {
                             $iplNumbers = $duplicateComponents->pluck('ipl_num')->implode(', ');
                             \Log::warning("Potential duplicates found: part_number '{$componentData['part_number']}' already exists in manual {$manualId} with IPL numbers: [{$iplNumbers}], but CSV has IPL '{$componentData['ipl_num']}'");
-                            
+
                             // Если есть только один дубликат и он имеет другой IPL, предлагаем обновить IPL
                             if ($duplicateComponents->count() === 1) {
                                 $duplicateComponent = $duplicateComponents->first();
@@ -870,10 +861,10 @@ class ComponentController extends Controller
                             // Обновляем все поля из CSV файла, избегая дублирования
                             // Фильтруем пустые значения, чтобы не перезаписывать существующие данные
                             $updateData = array_intersect_key($componentData, array_flip([
-                                'name', 'assy_part_number', 'assy_ipl_num', 'eff_code', 
+                                'name', 'assy_part_number', 'assy_ipl_num', 'eff_code',
                                 'units_assy', 'log_card', 'repair', 'is_bush', 'bush_ipl_num'
                             ]));
-                            
+
                             // Убираем пустые строки и null значения, но оставляем 0 для boolean полей
                             $updateData = array_filter($updateData, function($value, $key) {
                                 if (in_array($key, ['log_card', 'repair', 'is_bush'])) {
@@ -881,7 +872,7 @@ class ComponentController extends Controller
                                 }
                                 return $value !== null && $value !== ''; // Убираем пустые строки для текстовых полей
                             }, ARRAY_FILTER_USE_BOTH);
-                            
+
                             // Проверяем, есть ли реальные изменения в данных
                             $hasChanges = false;
                             foreach ($updateData as $field => $value) {
@@ -890,7 +881,7 @@ class ComponentController extends Controller
                                     break;
                                 }
                             }
-                            
+
                             if (!empty($updateData) && $hasChanges) {
                                 $existingComponent->update($updateData);
                                 $successCount++;
@@ -912,14 +903,14 @@ class ComponentController extends Controller
                                 ->where('manual_id', $manualId)
                                 ->where('ipl_num', $componentData['ipl_num'])
                                 ->exists();
-                            
+
                             if ($finalCheck) {
                                 \Log::warning("Component already exists after final check, skipping creation: " . $componentData['part_number'] . " (IPL: " . $componentData['ipl_num'] . ")");
                                 $errorCount++;
                                 $errors[] = "Row " . ($rowIndex + 2) . ": Component already exists, skipping creation";
                                 continue;
                             }
-                            
+
                             $newComponent = Component::create($componentData);
                             $successCount++;
                             $createCount++;
@@ -939,7 +930,7 @@ class ComponentController extends Controller
 
             // CSV file uploaded successfully
             // Note: Custom properties are not set due to Spatie Media Library version compatibility
-            
+
             $message = "Successfully processed {$successCount} components: {$createCount} created, {$updateCount} updated.";
             if ($errorCount > 0) {
                 $message .= " {$errorCount} rows had errors.";
@@ -963,7 +954,7 @@ class ComponentController extends Controller
             \Log::error('CSV upload error: ' . $e->getMessage());
             \Log::error('CSV upload error trace: ' . $e->getTraceAsString());
             \Log::error('CSV upload error file: ' . $e->getFile() . ':' . $e->getLine());
-            
+
             return response()->json([
                 'success' => false,
                 'message' => 'Error processing CSV file: ' . $e->getMessage(),
@@ -984,7 +975,7 @@ class ComponentController extends Controller
     public function downloadCsvTemplate()
     {
         $filename = 'components_template.csv';
-        
+
         $headers = [
             'Content-Type' => 'text/csv',
             'Content-Disposition' => 'attachment; filename="' . $filename . '"',
@@ -992,14 +983,14 @@ class ComponentController extends Controller
 
         $callback = function() {
             $file = fopen('php://output', 'w');
-            
+
             // Add BOM for UTF-8
             fprintf($file, chr(0xEF).chr(0xBB).chr(0xBF));
-            
+
             // Headers
             fputcsv($file, [
                 'part_number',
-                'assy_part_number', 
+                'assy_part_number',
                 'name',
                 'ipl_num',
                 'assy_ipl_num',
@@ -1010,7 +1001,7 @@ class ComponentController extends Controller
                 'is_bush',
                 'bush_ipl_num'
             ]);
-            
+
             // Example rows
             fputcsv($file, [
                 'ABC123',
@@ -1025,7 +1016,7 @@ class ComponentController extends Controller
                 '0',
                 ''
             ]);
-            
+
             fputcsv($file, [
                 'XYZ789',
                 '',
@@ -1039,7 +1030,7 @@ class ComponentController extends Controller
                 '1',
                 '789-012B'
             ]);
-            
+
             fclose($file);
         };
 
@@ -1058,7 +1049,7 @@ class ComponentController extends Controller
         try {
             $manual = Manual::findOrFail($manual_id);
             $csvFile = $manual->getMedia('component_csv_files')->find($file_id);
-            
+
             if (!$csvFile) {
                 abort(404, 'CSV file not found');
             }
@@ -1066,11 +1057,11 @@ class ComponentController extends Controller
             // Read CSV file content
             $filePath = $csvFile->getPath();
             $csvContent = file_get_contents($filePath);
-            
+
             // Parse CSV content for display
             $csvData = array_map('str_getcsv', explode("\n", $csvContent));
             $headers = array_shift($csvData); // Remove header row
-            
+
             // Filter out empty rows
             $csvData = array_filter($csvData, function($row) {
                 return !empty(array_filter($row, 'strlen'));
@@ -1111,7 +1102,7 @@ class ComponentController extends Controller
         try {
             $manual = Manual::findOrFail($manual_id);
             $csvFile = $manual->getMedia('component_csv_files')->find($file_id);
-            
+
             if (!$csvFile) {
                 abort(404, 'CSV file not found');
             }
@@ -1119,21 +1110,21 @@ class ComponentController extends Controller
             // Read CSV file content
             $filePath = $csvFile->getPath();
             $csvContent = file_get_contents($filePath);
-            
+
             // Parse CSV content for editing
             $csvData = array_map('str_getcsv', explode("\n", $csvContent));
             $headers = array_shift($csvData); // Remove header row
-            
+
             // Ensure headers is an array
             if (!is_array($headers)) {
                 $headers = [];
             }
-            
+
             // Filter out empty rows
             $csvData = array_filter($csvData, function($row) {
                 return !empty(array_filter($row, 'strlen'));
             });
-            
+
             // Ensure csvData is an array
             if (!is_array($csvData)) {
                 $csvData = [];
@@ -1160,7 +1151,7 @@ class ComponentController extends Controller
         try {
             $manual = Manual::findOrFail($manual_id);
             $csvFile = $manual->getMedia('component_csv_files')->find($file_id);
-            
+
             if (!$csvFile) {
                 abort(404, 'CSV file not found');
             }
@@ -1184,7 +1175,7 @@ class ComponentController extends Controller
 
             $requiredHeaders = ['part_number', 'name', 'ipl_num'];
             $missingHeaders = array_diff($requiredHeaders, $headers);
-            
+
             if (!empty($missingHeaders)) {
                 return redirect()->back()
                     ->with('error', 'Missing required headers: ' . implode(', ', $missingHeaders));
@@ -1192,13 +1183,13 @@ class ComponentController extends Controller
 
             // Build CSV content
             $file = fopen('php://temp', 'r+');
-            
+
             // Add BOM for UTF-8
             fprintf($file, chr(0xEF).chr(0xBB).chr(0xBF));
-            
+
             // Add headers
             fputcsv($file, $headers);
-            
+
             // Add rows
             foreach ($rows as $row) {
                 // Ensure row has same number of columns as headers
@@ -1208,7 +1199,7 @@ class ComponentController extends Controller
                 }
                 fputcsv($file, $rowData);
             }
-            
+
             rewind($file);
             $csvContent = stream_get_contents($file);
             fclose($file);
@@ -1232,17 +1223,17 @@ class ComponentController extends Controller
                         $errors[] = "Row " . ($rowIndex + 1) . ": Invalid row format";
                         continue;
                     }
-                    
+
                     // Ensure row has same number of columns as headers
                     $cleanRow = [];
                     foreach ($headers as $index => $header) {
                         $cellValue = isset($row[$index]) ? trim($row[$index]) : '';
                         $cleanRow[] = $cellValue;
                     }
-                    
+
                     // Create associative array from headers and row data
                     $rowData = array_combine($headers, $cleanRow);
-                    
+
                     // Validate required fields
                     if (empty($rowData['part_number']) || empty($rowData['name']) || empty($rowData['ipl_num'])) {
                         $errorCount++;
@@ -1254,7 +1245,7 @@ class ComponentController extends Controller
                     $partNumber = trim($rowData['part_number']);
                     $iplNum = trim($rowData['ipl_num']);
                     $name = trim($rowData['name']);
-                    
+
                     $componentData = [
                         'manual_id' => $manual_id,
                         'part_number' => $partNumber,
@@ -1275,7 +1266,7 @@ class ComponentController extends Controller
                     $existingComponent = Component::where('manual_id', $manual_id)
                         ->whereRaw('TRIM(ipl_num) = ?', [$iplNum])
                         ->first();
-                    
+
                     // Если не найден по ipl_num, пробуем найти по part_number + ipl_num (для обратной совместимости)
                     if (!$existingComponent) {
                         $existingComponent = Component::where('manual_id', $manual_id)
@@ -1283,7 +1274,7 @@ class ComponentController extends Controller
                             ->whereRaw('TRIM(ipl_num) = ?', [$iplNum])
                             ->first();
                     }
-                    
+
                     // Логируем для отладки
                     \Log::info("Update CSV - Row " . ($rowIndex + 1) . ": part_number='{$partNumber}', ipl_num='{$iplNum}', manual_id={$manual_id}");
                     if ($existingComponent) {
@@ -1296,10 +1287,10 @@ class ComponentController extends Controller
                         // Update existing component - включая part_number, если он изменился
                         try {
                             $updateData = array_intersect_key($componentData, array_flip([
-                                'part_number', 'name', 'assy_part_number', 'assy_ipl_num', 'eff_code', 
+                                'part_number', 'name', 'assy_part_number', 'assy_ipl_num', 'eff_code',
                                 'units_assy', 'log_card', 'repair', 'is_bush', 'bush_ipl_num'
                             ]));
-                            
+
                             // Убираем пустые строки и null значения, но оставляем 0 для boolean полей
                             // НО оставляем part_number всегда, даже если он пустой (для исправления ошибок)
                             $updateData = array_filter($updateData, function($value, $key) {
@@ -1311,14 +1302,14 @@ class ComponentController extends Controller
                                 }
                                 return $value !== null && $value !== '';
                             }, ARRAY_FILTER_USE_BOTH);
-                            
+
                             // Проверяем, изменился ли part_number
                             $partNumberChanged = false;
                             if (isset($updateData['part_number']) && $existingComponent->part_number !== $updateData['part_number']) {
                                 $partNumberChanged = true;
                                 \Log::info("Part number changed from '{$existingComponent->part_number}' to '{$updateData['part_number']}' for component ID: " . $existingComponent->id);
                             }
-                            
+
                             // Всегда обновляем, даже если данные не изменились (для синхронизации)
                             $existingComponent->update($updateData);
                             $successCount++;
@@ -1379,7 +1370,7 @@ class ComponentController extends Controller
         try {
             $manual = Manual::findOrFail($manual_id);
             $csvFile = $manual->getMedia('component_csv_files')->find($file_id);
-            
+
             if (!$csvFile) {
                 abort(404, 'CSV file not found');
             }
@@ -1408,13 +1399,13 @@ class ComponentController extends Controller
         try {
             $manual = Manual::findOrFail($manual_id);
             $csvFile = $manual->getMedia('component_csv_files')->find($file_id);
-            
+
             if (!$csvFile) {
                 abort(404, 'CSV file not found');
             }
 
             $filePath = $csvFile->getPath();
-            
+
             return response()->download($filePath, $csvFile->file_name, [
                 'Content-Type' => 'text/csv',
             ]);

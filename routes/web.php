@@ -32,7 +32,10 @@ use App\Http\Controllers\Admin\WoBushingController;
 use App\Http\Controllers\Admin\NdtCadCsvController;
 use App\Http\Controllers\Front\FrontController;
 use App\Http\Controllers\General\MediaController;
+use App\Http\Controllers\Mobile\MobileComponentController;
 use App\Http\Controllers\Mobile\MobileController;
+use App\Http\Controllers\Mobile\MobileProcessController;
+use App\Http\Controllers\Mobile\MobileTaskController;
 use App\Support\Device;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Auth;
@@ -61,29 +64,41 @@ Route::get('/', function (\Illuminate\Http\Request $request) {
 // ----------------------- Mobile route -----------------------------------------------------------------
 Route::prefix('mobile')->name('mobile.')->middleware(['auth','verified'])->group(function () {
 
+    // --- general pages остаются в MobileController ---
     Route::get('/', [MobileController::class, 'index'])->name('index');
     Route::get('/show/{workorder}', [MobileController::class, 'show'])->name('show');
 
-    Route::get('/tasks/{workorder}', [MobileController::class, 'tasks'])->name('tasks');
-    Route::post('/tasks/by-workorder', [MobileController::class, 'getTasksByWorkorder'])->name('tasks.byWorkorder');
-    Route::post('/tasks/store', [MobileController::class, 'storeMain'])->name('tasks.store');
-    Route::post('/tasks/update-dates', [MobileController::class, 'updateMainDates'])->name('tasks.updateDates');
+    // --- tasks ---
+    Route::get('/tasks/{workorder}', [MobileTaskController::class, 'tasks'])->name('tasks');
+    Route::post('/tasks/by-workorder', [MobileTaskController::class, 'getTasksByWorkorder'])->name('tasks.byWorkorder');
+    Route::post('/tasks/store', [MobileTaskController::class, 'storeMain'])->name('tasks.store');
+    Route::post('/tasks/update-dates', [MobileTaskController::class, 'updateMainDates'])->name('tasks.updateDates');
 
-    Route::get('/components/{workorder}', [MobileController::class, 'components'])->name('components');
-    Route::post('/component/store', [MobileController::class, 'componentStore'])->name('component.store');
+    // --- components ---
+    Route::get('/components/{workorder}', [MobileComponentController::class, 'components'])->name('components');
+    Route::post('/component/store', [MobileComponentController::class, 'componentStore'])->name('component.store');
 
+    // ВАЖНО: убрал /mobile/... внутри группы (иначе будет /mobile/mobile/...)
+    Route::post('/components/quick-store', [MobileComponentController::class, 'quickStore'])->name('components.quickStore');
+    Route::post('/workorders/components/attach', [MobileComponentController::class, 'attachToWorkorder'])->name('workorders.components.attach');
+
+    // --- process ---
+    Route::get('/process/{workorder}', [MobileProcessController::class, 'process'])->name('process');
+
+    // --- materials (оставляем в MobileController, либо позже вынесем в MobileMaterialController) ---
     Route::get('/materials', [MobileController::class, 'materials'])->name('materials');
-    Route::post('/materials/{id}/update-description', [MobileController::class, 'updateMaterialDescription'])->name('mobile.materials.updateDescription');
+    Route::post('/materials/{id}/update-description', [MobileController::class, 'updateMaterialDescription'])
+        ->name('materials.updateDescription'); // фикс имени (без mobile.mobile...)
 
+    // --- media ---
     Route::post('/workorders/photo/{id}', [MediaController::class, 'store_photo_workorders'])->name('workorders.media.store');
-    Route::delete('/workorders/photo/delete/{id}', [MediaController::class, 'delete_photo'])->name('mobile.workorders.photo.delete');
-    Route::get('/workorders/photos/{id}', [MediaController::class, 'get_photos'])->name('mobile.workorders.photos');
+    Route::delete('/workorders/photo/delete/{id}', [MediaController::class, 'delete_photo'])->name('workorders.photo.delete');
+    Route::get('/workorders/photos/{id}', [MediaController::class, 'get_photos'])->name('workorders.photos');
 
-
+    // --- profile (оставляем в MobileController) ---
     Route::get('/profile', [MobileController::class, 'profile'])->name('profile');
-    Route::put('/profile/{id}',[MobileController::class, 'update_profile'])->name('update.profile');
-    Route::post('/change_password/user/{id}/', [MobileController::class, 'changePassword'])->name('profile.changePassword');
-
+    Route::put('/profile/{id}', [MobileController::class, 'update_profile'])->name('update.profile');
+    Route::post('/change_password/user/{id}', [MobileController::class, 'changePassword'])->name('profile.changePassword');
 });
 
 // ----------------------Auth route ------------------------------------------------------------------------
@@ -99,7 +114,7 @@ Route::group(['middleware' => ['auth']], function () {
 
     Route::resource('/users', UserController::class);
     Route::resource('/mains',  MainController::class);
-    Route::patch('/mains/general-task/{workorder}/{generalTask}', [MainController::class, 'updateGeneralTaskDates'])->name('mains.updateGeneralTaskDates');
+  //  Route::patch('/mains/general-task/{workorder}/{generalTask}', [MainController::class, 'updateGeneralTaskDates'])->name('mains.updateGeneralTaskDates');
     Route::get('/main-rows/{main}/activity', [MainController::class, 'activity'])->name('mains.activity');
 
 

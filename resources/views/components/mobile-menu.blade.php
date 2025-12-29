@@ -4,7 +4,7 @@
     $isActive = fn($route) => request()->routeIs($route);
      $currentWorkorderId = $workorder->id ?? null;
 
-    $onShowPage = request()->routeIs('mobile.show','mobile.tasks', 'mobile.components'); // страница одного воркордера
+    $onShowPage = request()->routeIs('mobile.show','mobile.tasks', 'mobile.components','mobile.process'); // страница одного воркордера
 @endphp
 
 <style>
@@ -40,8 +40,12 @@
     }
 
     @keyframes drawCircle {
-        from { stroke-dashoffset: 113; }
-        to   { stroke-dashoffset: 0; }
+        from {
+            stroke-dashoffset: 113;
+        }
+        to {
+            stroke-dashoffset: 0;
+        }
     }
 
     .menu-icon-wrapper i {
@@ -67,7 +71,7 @@
                 <circle cx="18" cy="18" r="18"/>
             </svg>
         </div>
-        <span class="menu-label">Workorder List</span>
+        <span class="menu-label">WO List</span>
     </a>
 
     @if($onShowPage)
@@ -97,15 +101,28 @@
         </a>
 
         <a href="{{ route('mobile.components', $currentWorkorderId) }}"
-                class="flex-fill text-center d-flex flex-column align-items-center justify-content-center text-white border-0 bg-transparent js-menu-photo">
+           class="flex-fill text-center d-flex flex-column align-items-center justify-content-center text-white border-0 bg-transparent js-menu-photo">
             <div class="menu-icon-wrapper {{ $isActive('mobile.components') ? 'active' : '' }}">
-                <i class="bi bi-gear me-2"></i>
+                <i class="bi bi-gear"></i>
                 <svg viewBox="0 0 36 36">
                     <circle cx="18" cy="18" r="18"/>
                 </svg>
             </div>
             <span class="menu-label">Components</span>
         </a>
+
+        <a href="{{ route('mobile.process', $currentWorkorderId) }}"
+           class="flex-fill text-center d-flex flex-column align-items-center justify-content-center text-white">
+            <div class="menu-icon-wrapper {{ $isActive('mobile.process') ? 'active' : '' }}">
+                <i class="bi bi-activity"></i>
+                <svg viewBox="0 0 36 36">
+                    <circle cx="18" cy="18" r="18"/>
+                </svg>
+            </div>
+            <span class="menu-label">Process</span>
+        </a>
+
+
 
     @else
 
@@ -130,18 +147,19 @@
             </div>
             <span class="menu-label">Profile</span>
         </a>
-    @endif
 
-    <form id="{{ $menuId }}" action="{{ route('logout') }}" method="POST" style="display: none;">@csrf</form>
-    <a href="#"
-       class="flex-fill text-center d-flex flex-column align-items-center justify-content-center text-white"
-       onclick="event.preventDefault(); document.getElementById('{{ $menuId }}').submit();">
-        <div class="menu-icon-wrapper">
-            <i class="bi bi-box-arrow-right"></i>
-            <svg viewBox="0 0 36 36">
-                <circle cx="18" cy="18" r="18"/>
-            </svg>
-        </div>
-        <span class="menu-label">Logout</span>
-    </a>
+
+        <form id="{{ $menuId }}" action="{{ route('logout') }}" method="POST" style="display: none;">@csrf</form>
+        <a href="#"
+           class="flex-fill text-center d-flex flex-column align-items-center justify-content-center text-white"
+           onclick="event.preventDefault(); document.getElementById('{{ $menuId }}').submit();">
+            <div class="menu-icon-wrapper">
+                <i class="bi bi-box-arrow-right"></i>
+                <svg viewBox="0 0 36 36">
+                    <circle cx="18" cy="18" r="18"/>
+                </svg>
+            </div>
+            <span class="menu-label">Logout</span>
+        </a>
 </div>
+@endif

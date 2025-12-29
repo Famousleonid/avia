@@ -210,8 +210,6 @@ class TdrController extends Controller
      *
      * @return Application|Factory|View
      */
-
-
     public function inspectionUnit($workorder_id)
     {
         $current_wo = Workorder::findOrFail($workorder_id);
@@ -281,8 +279,6 @@ class TdrController extends Controller
      */
     public function store(Request $request)
     {
-
-        // Валидация данных
         $validated = $request->validate([
             'component_id' => 'nullable|exists:components,id',
             'serial_number' => 'nullable|string',
@@ -294,20 +290,13 @@ class TdrController extends Controller
             'description' => 'nullable|string',
             'order_component_id' => 'nullable|exists:components,id', // Добавляем валидацию для order_component_id
         ]);
-//dd($validated);
+
         // Установка значений по умолчанию для флагов
-//        $use_tdr = $request->has('use_tdr');
-//        $use_process_forms = $request->has('use_process_forms');
         $use_tdr = $request->boolean('use_tdr');
         $use_process_forms = $request->boolean('use_process_forms');
-
         $use_log_card = $request->has('use_log_card');
         $use_extra_forms = $request->has('use_extra_forms');
-
         $qty = (int)$validated['qty'] ?? 1; // Приведение к целому числу
-
-//dd($request->all());
-
 
         // Сохранение в таблице tdrs
         Tdr::create([
@@ -444,7 +433,7 @@ class TdrController extends Controller
 
                 // Добавляем/обновляем количество по компоненту (для TDR обычно qty = 1, но можно использовать serial_number)
                 $qty = 1; // По умолчанию 1, можно изменить если есть поле qty в TDR
-                
+
                 // Создаем составной ключ для группировки: ipl_num + part_number + serial_number
                 // Это позволяет различать компоненты с одинаковыми ipl_num и part_number, но разными serial_number
                 $componentKey = sprintf(
@@ -453,7 +442,7 @@ class TdrController extends Controller
                     $tdr->component->part_number ?? '',
                     $tdr->serial_number ?? ''
                 );
-                
+
                 $processGroups[$groupKey]['components_qty'][$componentKey] =
                     ($processGroups[$groupKey]['components_qty'][$componentKey] ?? 0) + $qty;
 
@@ -516,7 +505,7 @@ class TdrController extends Controller
 
         // Проверяем, передан ли tdrId для фильтрации по конкретному компоненту
         $tdrId = $request->input('tdrId');
-        
+
         if ($tdrId) {
             // Если передан tdrId, фильтруем только процессы для этого компонента
             $tdr = Tdr::findOrFail($tdrId);
@@ -579,28 +568,28 @@ class TdrController extends Controller
         $serialNumbers = $request->input('serial_numbers');
         $iplNums = $request->input('ipl_nums');
         $partNumbers = $request->input('part_numbers');
-        
+
         // Если передан tdrId, пропускаем фильтрацию по component_ids, так как уже фильтруем по одному компоненту
         if ($componentIds && !$tdrId) {
             // Разбиваем строки на массивы
             $filteredComponentIds = is_array($componentIds)
                 ? array_map('intval', $componentIds)
                 : array_map('intval', explode(',', $componentIds));
-            
+
             $filteredSerialNumbers = [];
             if ($serialNumbers) {
                 $filteredSerialNumbers = is_array($serialNumbers)
                     ? $serialNumbers
                     : explode(',', $serialNumbers);
             }
-            
+
             $filteredIplNums = [];
             if ($iplNums) {
                 $filteredIplNums = is_array($iplNums)
                     ? $iplNums
                     : explode(',', $iplNums);
             }
-            
+
             $filteredPartNumbers = [];
             if ($partNumbers) {
                 $filteredPartNumbers = is_array($partNumbers)
@@ -610,20 +599,20 @@ class TdrController extends Controller
 
             // Фильтруем TdrProcess по выбранным component_id, ipl_num, part_number и serial_number
             $filteredTdrProcesses = $filteredTdrProcesses->filter(function($tdrProcess) use (
-                $filteredComponentIds, 
-                $filteredSerialNumbers, 
-                $filteredIplNums, 
+                $filteredComponentIds,
+                $filteredSerialNumbers,
+                $filteredIplNums,
                 $filteredPartNumbers
             ) {
                 if (!$tdrProcess->tdr || !$tdrProcess->tdr->component) {
                     return false;
                 }
-                
+
                 // Проверяем, соответствует ли component_id
                 if (!in_array($tdrProcess->tdr->component->id, $filteredComponentIds)) {
                     return false;
                 }
-                
+
                 // Если переданы serial_numbers, проверяем их
                 if (!empty($filteredSerialNumbers)) {
                     $tdrSerialNumber = $tdrProcess->tdr->serial_number ?? '';
@@ -631,7 +620,7 @@ class TdrController extends Controller
                         return false;
                     }
                 }
-                
+
                 // Если переданы ipl_nums, проверяем их
                 if (!empty($filteredIplNums)) {
                     $tdrIplNum = $tdrProcess->tdr->component->ipl_num ?? '';
@@ -639,7 +628,7 @@ class TdrController extends Controller
                         return false;
                     }
                 }
-                
+
                 // Если переданы part_numbers, проверяем их
                 if (!empty($filteredPartNumbers)) {
                     $tdrPartNumber = $tdrProcess->tdr->component->part_number ?? '';
@@ -647,7 +636,7 @@ class TdrController extends Controller
                         return false;
                     }
                 }
-                
+
                 return true;
             });
         }
@@ -925,6 +914,7 @@ class TdrController extends Controller
             ->route('tdrs.show', ['id' => $request->workorder_id])
             ->with('success', 'TDR for Component updated successfully');
     }
+
     public function prlForm(Request $request, $id){
         // Загрузка Workorder по ID
         $current_wo = Workorder::findOrFail($id);
@@ -1349,6 +1339,7 @@ class TdrController extends Controller
                 'componentChunks' => $componentChunks,
             ] + $ndt_ids); // Добавляем ID процессов NDT
     }
+
     public function cadStd($workorder_id)
     {
         try {
@@ -2438,6 +2429,7 @@ class TdrController extends Controller
             'cadSum' => $cadSum,
         ], compact('tdrs', 'tdr_ws','processNames','cadSum_ex'));
     }
+
     public function specProcessFormEmp(Request $request, $id)
     {
         // Загрузка Workorder по ID
@@ -2544,6 +2536,7 @@ class TdrController extends Controller
         return view('admin.tdrs.logCardForm', compact('current_wo','manuals', 'builders'));
 
     }
+
     public function tdrForm(Request $request, $id)
     {
         // Загрузка Workorder по ID
@@ -3138,6 +3131,7 @@ class TdrController extends Controller
             return ['total' => 0, 'mpi' => 0, 'fpi' => 0];
         }
     }
+
     private function calcCadSumsFromComponents($cad_components)
     {
         try {
@@ -3740,7 +3734,6 @@ class TdrController extends Controller
             ];
         }
     }
-
 
     private function shouldSkipItem(string $itemNo, array $existingIplNums): bool
     {

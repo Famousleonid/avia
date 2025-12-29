@@ -167,7 +167,7 @@
                                             <div class="d-flex mt-2">
                                                 <a href="{{ $current_component->getFirstMediaBigUrl('assy_component') }}" data-fancybox="gallery">
                                                     <img class="me-1" src="{{
-                                            $current_component->getFirstMediaThumbnailUrl('assy_component') }}" width="40"
+                                                      $current_component->getFirstMediaThumbnailUrl('assy_component') }}" width="40"
                                                          height="40" alt="IMG"/>
                                                 </a>
                                             <input type="file"

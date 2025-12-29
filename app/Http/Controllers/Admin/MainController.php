@@ -39,35 +39,17 @@ class MainController extends Controller
             'ignore_row'   => ['nullable', 'boolean'],
         ]);
 
-        // один запрос вместо двух
         $task = Task::with('generalTask')->findOrFail($data['task_id']);
         $hasStart = (bool) $task->task_has_start_date;
+        $ignoreRow = $request->boolean('ignore_row');
+        $hasStart  = $request->has('date_start');
+        $hasFinish = $request->has('date_finish');
 
-        // ✅ проверки только если у general_task есть start
-        if ($hasStart) {
+        [$dateStart, $dateFinish] = (function () use ($data, $task, $ignoreRow, $hasStart, $hasFinish) {
+            $resolved = Main::validateAndResolveDates($data, $task, null, $ignoreRow, $hasStart, $hasFinish);
+            return [$resolved['date_start'], $resolved['date_finish']];
+        })();
 
-            // finish нельзя без start
-            if (!empty($data['date_finish']) && empty($data['date_start'])) {
-                return back()
-                    ->withErrors(['date_finish' => 'Set start date first'])
-                    ->withInput();
-            }
-
-            // finish не раньше start
-            if (!empty($data['date_start']) && !empty($data['date_finish'])) {
-                if (\Carbon\Carbon::parse($data['date_finish'])
-                    ->lt(\Carbon\Carbon::parse($data['date_start']))) {
-
-                    return back()
-                        ->withErrors(['date_finish' => 'Finish date cannot be earlier than start date'])
-                        ->withInput();
-                }
-            }
-
-        } else {
-            // ✅ если start не нужен — не сохраняем его вообще
-            $data['date_start'] = null;
-        }
 
         $main = new Main();
         $main->workorder_id    = $data['workorder_id'];
@@ -75,12 +57,12 @@ class MainController extends Controller
         $main->general_task_id = $task->general_task_id;
         $main->user_id         = auth()->id();
 
-        $main->date_start  = $data['date_start'] ?? null;
-        $main->date_finish = $data['date_finish'] ?? null;
-
-        $main->ignore_row  = $request->boolean('ignore_row');
+        $main->date_start  = $dateStart;
+        $main->date_finish = $dateFinish;
+        $main->ignore_row  = $ignoreRow;
 
         $main->save();
+
 
         $wo = $main->workorder ?: Workorder::find($main->workorder_id);
 
@@ -328,22 +310,8 @@ class MainController extends Controller
 
         $oldIgnore = (int) $main->ignore_row;
 
-        $beforeStart  = $main->date_start
-            ? Carbon::parse($main->date_start)->format('Y-m-d')
-            : null;
-
-        $beforeFinish = $main->date_finish
-            ? Carbon::parse($main->date_finish)->format('Y-m-d')
-            : null;
-
-        // сразу подгрузим связи, чтобы был доступ к task/generalTask
         $main->loadMissing(['task.generalTask']);
-
         $task = $main->task;
-
-        // флаг: нужен ли вообще старт для этого таска
-        $requiresStart = (bool) ($task?->has_start_date ?? false);
-
 
         $data = $request->validate([
             'date_start'  => ['nullable','date'],
@@ -352,6 +320,13 @@ class MainController extends Controller
         ]);
 
         $taskName = $main->task?->name;
+
+        if ($taskName === 'Waiting approve') {
+            return back()->withErrors([
+                'date_finish' => 'This task is locked and cannot be edited.',
+            ]);
+        }
+
         $isRestrictedFinish = in_array($taskName, ['Waiting approve', 'Completed'], true);
 
         $ignoreRow = $request->boolean('ignore_row');
@@ -360,76 +335,30 @@ class MainController extends Controller
 
         if ($isRestrictedFinish && !auth()->user()->hasAnyRole('Admin|Manager')) {
             unset($data['date_finish']);
+            $hasFinish = false; // важно: поле "как будто не приходило"
         }
 
-        // если не менялись ни даты, ни ignore_row – выходим
+
         if (!$hasStart && !$hasFinish && $oldIgnore === (int) $ignoreRow) {
             return back();
         }
 
-        // считаем новые значения (учитываем, что поле могло не прийти)
-        $newStart = $hasStart
-            ? (!empty($data['date_start'])
-                ? Carbon::parse($data['date_start'])
-                : null)
-            : ($main->date_start
-                ? Carbon::parse($main->date_start)
-                : null);
+        $resolved = Main::validateAndResolveDates($data, $task, $main, $ignoreRow, $hasStart, $hasFinish);
 
-        $newFinish = $hasFinish
-            ? (!empty($data['date_finish'])
-                ? Carbon::parse($data['date_finish'])
-                : null)
-            : ($main->date_finish
-                ? Carbon::parse($main->date_finish)
-                : null);
+        if ($hasStart)  $main->date_start  = $resolved['date_start'];
+        if ($hasFinish) $main->date_finish = $resolved['date_finish'];
 
-               /*
-         * Валидацию дат делаем ТОЛЬКО если:
-         *  - строка не игнорируется
-         *  - для этого таска вообще нужен start (has_start_date = 1)
-         */
-        if (!$ignoreRow && $requiresStart) {
-
-            // finish нельзя без start
-            if ($hasFinish && $newFinish && !$newStart) {
-                return back()
-                    ->withErrors(['date_finish' => 'Set the start date before the finish date.'])
-                    ->withInput();
-            }
-
-            // finish не раньше start
-            if ($newStart && $newFinish && $newFinish->lt($newStart)) {
-                return back()
-                    ->withErrors(['date_finish' => 'Finish cannot be before Start'])
-                    ->withInput();
-            }
-        }
-
-        // применяем изменения только если поле реально приходило
-        if ($hasStart) {
-            $main->date_start = $newStart;
-        }
-
-        if ($hasFinish) {
-            $main->date_finish = $newFinish;
-        }
-
-
-        // логика user_id после применения дат
+        // user_id логика — как у тебя
         $afterStart  = $main->date_start;
         $afterFinish = $main->date_finish;
 
-        if (empty($afterStart) && empty($afterFinish)) {
-            $main->user_id = null;
-        } else {
-            $main->user_id = auth()->id();
-        }
-
+        $main->user_id = (empty($afterStart) && empty($afterFinish)) ? null : auth()->id();
         $main->ignore_row = $ignoreRow;
+
         $main->save();
 
         $wo = $main->workorder ?: Workorder::find($main->workorder_id);
+
         if ($wo) {
             $wo->recalcGeneralTaskStatuses($main->general_task_id); // пересчёт только одного этапа
             $wo->syncDoneByCompletedTask();                         // DONE строго по Completed
@@ -458,72 +387,72 @@ class MainController extends Controller
         return back();
     }
 
-    private function prevGeneralTask(GeneralTask $gt): ?GeneralTask
-    {
-        $order = $this->generalTaskOrder();
-        $i = array_search($gt->name, $order, true);
-        if ($i === false || $i === 0) return null;
+//    private function prevGeneralTask(GeneralTask $gt): ?GeneralTask
+//    {
+//        $order = $this->generalTaskOrder();
+//        $i = array_search($gt->name, $order, true);
+//        if ($i === false || $i === 0) return null;
+//
+//        return GeneralTask::where('name', $order[$i - 1])->first();
+//    }
 
-        return GeneralTask::where('name', $order[$i - 1])->first();
-    }
-
-    public function updateGeneralTaskDates(Request $request, Workorder $workorder, GeneralTask $generalTask)
-    {
-
-        $prev = GeneralTask::where('sort_order', '<', $generalTask->sort_order)
-            ->orderByDesc('sort_order')
-            ->first();
-
-        if ($prev) {
-            $prevMain = Main::where('workorder_id', $workorder->id)
-                ->where('general_task_id', $prev->id)
-                ->whereNull('task_id')
-                ->first();
-
-            if (empty($prevMain?->date_finish)) {
-                return back()->with('error', "First complete the previous step:  {$prev->name}");
-            }
-        }
-
-        $data = $request->validate([
-            'date_start'  => ['nullable', 'date_format:Y-m-d'],
-            'date_finish' => ['nullable', 'date_format:Y-m-d', 'after_or_equal:date_start'],
-        ]);
-
-        if (!$generalTask->has_start_date) {
-            unset($data['date_start']);
-        }
-
-        $main = Main::firstOrNew([
-            'workorder_id'    => $workorder->id,
-            'general_task_id' => $generalTask->id,
-            'task_id'         => null,
-        ]);
-
-        $beforeStart  = $main->date_start?->format('Y-m-d');
-        $beforeFinish = $main->date_finish?->format('Y-m-d');
-        $beforeUserId = $main->user_id;
-
-        if ($request->has('date_start')) {
-            $main->date_start = $data['date_start'] ?? null;   // clear -> null
-        }
-
-        if ($request->has('date_finish')) {
-            $main->date_finish = $data['date_finish'] ?? null; // clear -> null
-        }
-
-        $anchorDate = $generalTask->has_start_date ? $main->date_start : $main->date_finish;
-
-        if (empty($anchorDate)) {
-            $main->user_id = null;
-        } elseif (empty($main->user_id)) {
-            $main->user_id = auth()->id();
-        }
-
-        $main->save();
-
-        return back()->with('success', 'Saved');
-    }
+//   public function updateGeneralTaskDates(Request $request, Workorder $workorder, GeneralTask $generalTask)
+//    {
+//
+//        $prev = GeneralTask::where('sort_order', '<', $generalTask->sort_order)
+//            ->orderByDesc('sort_order')
+//            ->first();
+//
+//        if ($prev) {
+//            $prevMain = Main::where('workorder_id', $workorder->id)
+//                ->where('general_task_id', $prev->id)
+//                ->whereNull('task_id')
+//                ->first();
+//
+//            if (empty($prevMain?->date_finish)) {
+//                return back()->with('error', "First complete the previous step:  {$prev->name}");
+//            }
+//        }
+//
+//        $data = $request->validate([
+//            'date_start'  => ['nullable', 'date_format:Y-m-d'],
+//            'date_finish' => ['nullable', 'date_format:Y-m-d', 'after_or_equal:date_start'],
+//        ]);
+//
+//        if (!$generalTask->has_start_date) {
+//            unset($data['date_start']);
+//        }
+//
+//        $main = Main::firstOrNew([
+//            'workorder_id'    => $workorder->id,
+//            'general_task_id' => $generalTask->id,
+//            'task_id'         => null,
+//        ]);
+//
+//        $beforeStart  = $main->date_start?->format('Y-m-d');
+//        $beforeFinish = $main->date_finish?->format('Y-m-d');
+//        $beforeUserId = $main->user_id;
+//
+//        if ($request->has('date_start')) {
+//            $main->date_start = $data['date_start'] ?? null;   // clear -> null
+//        }
+//
+//        if ($request->has('date_finish')) {
+//            $main->date_finish = $data['date_finish'] ?? null; // clear -> null
+//        }
+//
+//        $anchorDate = $generalTask->has_start_date ? $main->date_start : $main->date_finish;
+//
+//        if (empty($anchorDate)) {
+//            $main->user_id = null;
+//        } elseif (empty($main->user_id)) {
+//            $main->user_id = auth()->id();
+//        }
+//
+//        $main->save();
+//
+//        return back()->with('success', 'Saved');
+//    }
 
     public function activity(Main $main)
     {

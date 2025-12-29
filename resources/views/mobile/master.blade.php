@@ -190,8 +190,9 @@
                 altInput: true,
                 altFormat: "d.m.Y",
                 dateFormat: "Y-m-d",
-                allowInput: true,
+                allowInput: false,
                 disableMobile: true,
+
 
                 onChange(selectedDates, dateStr, instance) {
                     const alt  = instance.altInput;
@@ -225,6 +226,9 @@
 
                     const wrap = instance.altInput.closest('.date-field');
                     if (wrap) wrap.classList.toggle('has-finish', !!src.value);
+                },
+                onOpen: (_, __, fp) => {
+                    fp._input.blur(); // 💥 убирает клавиатуру iOS
                 },
 
             });

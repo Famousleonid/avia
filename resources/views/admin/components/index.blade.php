@@ -163,9 +163,9 @@
                                 <td class="text-center">{{$component->part_number}}</td>
                                 <td class="text-center">{{$component->name}}</td>
                                 <td class="text-center" style="width: 120px;">
-                                    @if($component->getMedia('component')->isNotEmpty())
-                                        <a href="{{ $component->getFirstMediaBigUrl('component') }}" data-fancybox="gallery">
-                                            <img class="rounded-circle" src="{{ $component->getFirstMediaThumbnailUrl('component') }}" width="40" height="40" alt="IMG"/>
+                                    @if($component->getMedia('components')->isNotEmpty())
+                                        <a href="{{ $component->getFirstMediaBigUrl('components') }}" data-fancybox="gallery">
+                                            <img class="rounded-circle" src="{{ $component->getFirstMediaThumbnailUrl('components') }}" width="40" height="40" alt="IMG"/>
                                         </a>
                                     @else
                                         <span class="text-muted small">—</span>

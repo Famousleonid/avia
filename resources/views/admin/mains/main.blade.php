@@ -348,13 +348,15 @@
                                                                        name="ignore_row"
                                                                        value="0"
                                                                        class="js-ignore-hidden">
-                                                                @if($canEditFinish)
-                                                                    <input class="form-check-input m-0 js-ignore-row {{ $isIgnored ? 'is-ignored' : '' }}"
-                                                                           type="checkbox"
-                                                                           name="ignore_row"
-                                                                           value="1"
-                                                                           {{ $isIgnored ? 'checked' : '' }}
-                                                                           title="Ignore this row">
+                                                                @if(!$isWaitingApprove )
+                                                                    @if($canEditFinish)
+                                                                        <input class="form-check-input m-0 js-ignore-row {{ $isIgnored ? 'is-ignored' : '' }}"
+                                                                               type="checkbox"
+                                                                               name="ignore_row"
+                                                                               value="1"
+                                                                               {{ $isIgnored ? 'checked' : '' }}
+                                                                               title="Ignore this row">
+                                                                    @endif
                                                                 @endif
                                                             </form>
 
@@ -425,6 +427,7 @@
                                                                            value="{{ optional($main?->date_finish)->format('Y-m-d') }}"
                                                                            placeholder="..."
                                                                            data-fp
+                                                                           @if($isWaitingApprove ) disabled @endif
                                                                            @if($isIgnored || !$canEditFinish) disabled @endif>
 
                                                                     @if($isIgnored || !$canEditFinish)
@@ -551,30 +554,30 @@
 
                                                                 <td>
                                                                     @hasanyrole('Admin|Manager')
-                                                                        <form method="POST"
-                                                                              action="{{ route('tdrprocesses.updateRepairOrder', $pr) }}"
-                                                                              class="auto-submit-form js-auto-submit auto-submit-order position-relative">
-                                                                            @csrf
-                                                                            @method('PATCH')
+                                                                    <form method="POST"
+                                                                          action="{{ route('tdrprocesses.updateRepairOrder', $pr) }}"
+                                                                          class="auto-submit-form js-auto-submit auto-submit-order position-relative">
+                                                                        @csrf
+                                                                        @method('PATCH')
 
-                                                                            <input type="text"
-                                                                                   name="repair_order"
-                                                                                   class="form-control form-control-sm pe-4"
-                                                                                   value="{{ $pr->repair_order ?? '' }}"
-                                                                                   placeholder="..."
-                                                                                   autocomplete="off"
-                                                                                   data-original="{{ $pr->repair_order ?? '' }}">
+                                                                        <input type="text"
+                                                                               name="repair_order"
+                                                                               class="form-control form-control-sm pe-4"
+                                                                               value="{{ $pr->repair_order ?? '' }}"
+                                                                               placeholder="..."
+                                                                               autocomplete="off"
+                                                                               data-original="{{ $pr->repair_order ?? '' }}">
 
-                                                                            {{-- 💾 индикатор несохранённого --}}
-                                                                            <i class="bi bi-save save-indicator d-none"></i>
-                                                                        </form>
+                                                                        {{-- 💾 индикатор несохранённого --}}
+                                                                        <i class="bi bi-save save-indicator d-none"></i>
+                                                                    </form>
                                                                     @else
-                                                                            {{-- только просмотр --}}
-                                                                            <input type="text"
-                                                                                   class="form-control form-control-sm pe-4 bg-dark"
-                                                                                   value="{{ $pr->repair_order ?? '' }}"
-                                                                                   readonly>
-                                                                    @endhasanyrole
+                                                                        {{-- только просмотр --}}
+                                                                        <input type="text"
+                                                                               class="form-control form-control-sm pe-4 bg-dark"
+                                                                               value="{{ $pr->repair_order ?? '' }}"
+                                                                               readonly>
+                                                                        @endhasanyrole
                                                                 </td>
 
                                                                 <td>
