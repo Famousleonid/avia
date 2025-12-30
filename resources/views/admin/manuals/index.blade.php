@@ -76,6 +76,10 @@
             border: none;
             cursor: pointer;
         }
+
+        .js-table-hidden {
+            visibility: hidden;
+        }
     </style>
 
     <div class="card shadow">
@@ -87,8 +91,7 @@
                 <div class="d-flex my-2">
                     <div class="clearable-input ps-2">
                         <input id="searchInput" type="text" class="form-control w-100" placeholder="Search...">
-                        <button class="btn-clear text-secondary" onclick="document.getElementById('searchInput').value = '';
-                    document.getElementById('searchInput').dispatchEvent(new Event('input'))">
+                        <button class="btn-clear text-secondary" id="clearSearchBtn" type="button">
                             <i class="bi bi-x-circle"></i>
                         </button>
                     </div>
@@ -105,7 +108,7 @@
 
             <div class="table-wrapper me-3 p-2 pt-0">
 
-                <table id="cmmTable" class="table table-sm table-hover table-striped align-middle table-bordered">
+                <table id="cmmTable" class="table table-sm table-hover table-striped align-middle table-bordered js-table-hidden">
                     <thead class="bg-gradient">
                     <tr>
                         <th class="text-primary sortable bg-gradient " data-direction="asc">{{__('Number')}}<i class="bi bi-chevron-expand ms-1"></i></th>
@@ -133,18 +136,6 @@
                             <td class="text-center">{{$cmm->lib}}</td>
                             <td class="text-center">
                                 <div class="d-flex justify-content-center gap-1">
-{{--                                    @foreach($cmm->getMedia('csv_files') as $file)--}}
-{{--                                        <a href="/admin/manuals/{{ $cmm->id }}/csv/{{ $file->id }}"--}}
-{{--                                           class="btn btn-sm btn-outline-info">--}}
-{{--                                            <i class="fas fa-file-csv"></i>--}}
-{{--                                            @if($file->getCustomProperty('process_type'))--}}
-{{--                                                {{ $file->getCustomProperty('process_type') }}--}}
-{{--                                            @else--}}
-{{--                                                {{__('No Type')}}--}}
-{{--                                            @endif--}}
-{{--                                        </a>--}}
-{{--                                    @endforeach--}}
-
                                     @foreach($cmm->getMedia('csv_files') as $file)
                                         <a href="{{ route('manuals.csv.view', ['manual' => $cmm->id, 'file' => $file->id]) }}"
                                            class="btn btn-sm btn-outline-info">
@@ -188,12 +179,27 @@
 @endsection
 
 @section('scripts')
-
     <script>
         document.addEventListener('DOMContentLoaded', function () {
 
-            // Sorting
+            // =========================
+            // GLOBAL SAFE SPINNER
+            // =========================
+            function spinnerOn()  { if (typeof showLoadingSpinner === 'function') showLoadingSpinner(); }
+            function spinnerOff() { if (typeof hideLoadingSpinner === 'function') hideLoadingSpinner(); }
+
+            // =========================
+            // TABLE
+            // =========================
             const table = document.getElementById('cmmTable');
+            if (!table) return;
+
+            // прячем до применения фильтра, чтобы не было "дергания"
+            table.style.visibility = 'hidden';
+
+            // =========================
+            // 1) SORTING (как у тебя)
+            // =========================
             const headers = document.querySelectorAll('.sortable');
             headers.forEach(header => {
                 header.addEventListener('click', () => {
@@ -201,46 +207,138 @@
                     const rows = Array.from(table.querySelectorAll('tbody tr'));
                     const direction = header.dataset.direction === 'asc' ? 'desc' : 'asc';
                     header.dataset.direction = direction;
+
                     rows.sort((a, b) => {
-                        const aText = a.cells[columnIndex].innerText.trim();
-                        const bText = b.cells[columnIndex].innerText.trim();
-                        return direction === 'asc' ? aText.localeCompare(bText) : bText.localeCompare(aText);
+                        const aText = (a.cells[columnIndex]?.innerText || '').trim();
+                        const bText = (b.cells[columnIndex]?.innerText || '').trim();
+                        return direction === 'asc'
+                            ? aText.localeCompare(bText)
+                            : bText.localeCompare(aText);
                     });
-                    rows.forEach(row => table.querySelector('tbody').appendChild(row));
+
+                    const tbody = table.querySelector('tbody');
+                    rows.forEach(row => tbody.appendChild(row));
                 });
             });
 
-            // Search
+            // =========================
+            // 2) SEARCH (persist + back/forward fix)
+            // =========================
             const searchInput = document.getElementById('searchInput');
-            searchInput.addEventListener('input', () => {
-                const filter = searchInput.value.toLowerCase();
+
+            // кнопка крестика: либо дай ей id="clearSearchBtn", либо мы возьмём по классу
+            const clearBtn =
+                document.getElementById('clearSearchBtn') ||
+                document.querySelector('.clearable-input .btn-clear');
+
+            const STORAGE_KEY = 'cmm_search';
+
+            function applySearch(raw) {
+                const filter = (raw || '').toLowerCase();
                 const rows = table.querySelectorAll('tbody tr');
+
                 rows.forEach(row => {
                     const text = row.innerText.toLowerCase();
                     row.style.display = text.includes(filter) ? '' : 'none';
                 });
+            }
+
+            // ВАЖНО: берём значение и из localStorage, и из текущего input (на случай bfcache)
+            function getActualSearchValue() {
+                const fromStorage = (localStorage.getItem(STORAGE_KEY) || '').trim();
+                const fromInput   = (searchInput?.value || '').trim();
+                // если storage пуст, но input не пуст (браузер восстановил), используем input
+                return fromStorage || fromInput;
+            }
+
+            function restoreAndApply() {
+                spinnerOn();
+
+                const value = getActualSearchValue();
+
+                if (searchInput) searchInput.value = value;
+
+                // синхронизируем storage (чтобы дальше всегда было одинаково)
+                if (value) localStorage.setItem(STORAGE_KEY, value);
+                else localStorage.removeItem(STORAGE_KEY);
+
+                applySearch(value);
+
+                // показываем таблицу только после применения фильтра
+                table.style.visibility = 'visible';
+
+                spinnerOff();
+            }
+
+            // обычная загрузка
+            restoreAndApply();
+
+            // возврат назад/вперёд (bfcache)
+            window.addEventListener('pageshow', () => {
+                // иногда нужно после восстановления DOM дать 1-2 кадра
+                requestAnimationFrame(() => {
+                    requestAnimationFrame(() => restoreAndApply());
+                });
             });
 
-// --------------- Delete modal -----------------------------------------------------------------------------------
+            // дополнительная страховка: если вкладка/страница стала видимой
+            document.addEventListener('visibilitychange', () => {
+                if (document.visibilityState === 'visible') {
+                    restoreAndApply();
+                }
+            });
 
+            // ввод
+            if (searchInput) {
+                searchInput.addEventListener('input', () => {
+                    const value = searchInput.value.trim();
+
+                    if (value) localStorage.setItem(STORAGE_KEY, value);
+                    else localStorage.removeItem(STORAGE_KEY);
+
+                    applySearch(value);
+                });
+            }
+
+            // крестик — сброс (и storage тоже)
+            if (clearBtn) {
+                clearBtn.addEventListener('click', (e) => {
+                    e.preventDefault();
+
+                    spinnerOn();
+
+                    if (searchInput) searchInput.value = '';
+                    localStorage.removeItem(STORAGE_KEY);
+                    applySearch('');
+
+                    spinnerOff();
+                });
+            }
+
+            // =========================
+            // 3) DELETE MODAL (как у тебя)
+            // =========================
             const modal = document.getElementById('useConfirmDelete');
             const confirmDeleteBtn = document.getElementById('confirmDeleteBtn');
             let deleteForm = null;
-            modal.addEventListener('show.bs.modal', function (event) {
-                const button = event.relatedTarget;
-                deleteForm = button.closest('form');
-                const title = button.getAttribute('data-title');
-                const modalTitle = modal.querySelector('#confirmDeleteLabel');
-                modalTitle.textContent = title || 'Delete Confirmation';
-            });
-            confirmDeleteBtn.addEventListener('click', function () {
-                if (deleteForm) {
-                    deleteForm.submit();
-                }
-            });
-// --------------- Delete modal -----------------------------------------------------------------------------------
+
+            if (modal && confirmDeleteBtn) {
+                modal.addEventListener('show.bs.modal', function (event) {
+                    const button = event.relatedTarget;
+                    deleteForm = button ? button.closest('form') : null;
+
+                    const title = button ? button.getAttribute('data-title') : null;
+                    const modalTitle = modal.querySelector('#confirmDeleteLabel');
+                    if (modalTitle) modalTitle.textContent = title || 'Delete Confirmation';
+                });
+
+                confirmDeleteBtn.addEventListener('click', function () {
+                    if (deleteForm) deleteForm.submit();
+                });
+            }
 
         });
     </script>
-
 @endsection
+
+
