@@ -23,7 +23,7 @@ class ComponentController extends Controller
     public function index()
     {
         $components = Component::with('manuals')->orderBy('ipl_num')->get();
-        $manuals = Manual::all();
+        $manuals = Manual::query()->orderBy('number', 'asc')->get();
         $planes = Plane::pluck('type', 'id');
         $builders = Builder::pluck('name', 'id');
         $scopes = Scope::pluck('scope', 'id');
@@ -91,7 +91,6 @@ class ComponentController extends Controller
             ->with('success', 'Component created successfully.');
 
     }
-
 
     public function storeFromInspection(Request $request)
     {
@@ -204,7 +203,6 @@ class ComponentController extends Controller
             ], 500);
         }
     }
-
 
     /**
      * Display the specified resource.
