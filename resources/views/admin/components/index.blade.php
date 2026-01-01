@@ -222,7 +222,9 @@
         .select2-container--open .select2-dropdown{
             margin-bottom: 8px;
         }
-
+        .fs-8 {
+            font-size: 0.8rem;
+        }
     </style>
 @endsection
 
@@ -241,7 +243,9 @@
                         <select id="manualFilter" class="form-select" style="height: 40px; width: 300px;">
                             <option value="">{{__('All Manuals')}}</option>
                             @foreach($manuals as $manual)
-                                <option value="{{$manual->id}}">{{$manual->number}} - {{$manual->title}}
+                                <option value="{{$manual->id}}">
+                                    <span class="" style="color: #0a53be">({{ $manual->lib ?? '—' }})</span>
+                                    {{$manual->number}} - {{$manual->title}}
                                     @if($manual->unit_name_training)
                                         ({{ Str::limit($manual->unit_name_training, 10) }})
                                     @endif
@@ -263,12 +267,12 @@
                         <i class="bi bi-file-earmark-spreadsheet"></i> {{__('CSV Components')}}
                     </a>
 
-                {{--                    <!-- Upload CSV -->--}}
-                {{--                    <button type="button" class="btn btn-outline-success" style="height: 40px" data-bs-toggle="modal" data-bs-target="#uploadCsvModal">--}}
-                {{--                        <i class="bi bi-upload"></i> {{__('Upload CSV')}}--}}
-                {{--                    </button>--}}
+                    {{--                    <!-- Upload CSV -->--}}
+                    {{--                    <button type="button" class="btn btn-outline-success" style="height: 40px" data-bs-toggle="modal" data-bs-target="#uploadCsvModal">--}}
+                    {{--                        <i class="bi bi-upload"></i> {{__('Upload CSV')}}--}}
+                    {{--                    </button>--}}
 
-                <!-- Add Component -->
+                    <!-- Add Component -->
                     <a href="{{ route('components.create') }}" class="btn btn-outline-primary" style="height: 40px">
                         {{__('Add Component')}}
                     </a>
