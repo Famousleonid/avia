@@ -300,15 +300,15 @@
     <!-- Данные (отображаются на каждой странице под верхней частью) -->
     @php
         $ordersParts = $ordersParts ?? [];
-        $partsPerPage = 20; // Количество строк на странице (уменьшено для увеличенной высоты строк)
-        $totalParts = count($ordersParts); // Общее количество строк данных
-        $totalPages = ceil($totalParts / $partsPerPage); // Общее количество страниц
+        $componentChunks = $componentChunks ?? [];
+        $uniqueManuals = $uniqueManuals ?? [];
+        $hasMultipleManuals = $hasMultipleManuals ?? false;
+        // Инициализируем переменную для передачи manual между страницами
+        $previousChunkLastManual = null;
     @endphp
 
-{{--{{$totalParts}} {{$totalPages}}--}}
-
-    @if($totalParts > 0) <!-- Проверка, есть ли данные -->
-    @for($page = 0; $page < $totalPages; $page++)
+    @if(count($componentChunks) > 0) <!-- Проверка, есть ли данные -->
+    @foreach($componentChunks as $chunkInfo)
         <!-- Верхняя часть формы (дублируется на каждой странице) -->
         <div class="header-page">
             <div class="row">
@@ -365,11 +365,21 @@
                             <h6 class="" ><strong>CMM: </strong></h6>
                         </div>
                         <div class="col-5 border-b">
-                            @foreach($manuals as $manual)
-                                @if($manual->id == $current_wo->unit->manual_id)
-                                    <h6 class=""><strong> {{substr($manual->number, 0, 8)}}</strong></h6>
-                                @endif
-                            @endforeach
+                            @php
+                                $uniqueManuals = $uniqueManuals ?? [];
+                                $hasMultipleManuals = $hasMultipleManuals ?? false;
+                            @endphp
+                            @if($hasMultipleManuals && count($uniqueManuals) > 0)
+                                {{-- Показываем все номера manual через ';' --}}
+                                <h6 class=""><strong>{{ implode('; ', array_map(function($num) { return substr($num, 0, 8); }, $uniqueManuals)) }}</strong></h6>
+                            @else
+                                {{-- Показываем основной manual --}}
+                                @foreach($manuals as $manual)
+                                    @if($manual->id == $current_wo->unit->manual_id)
+                                        <h6 class=""><strong> {{substr($manual->number, 0, 8)}}</strong></h6>
+                                    @endif
+                                @endforeach
+                            @endif
                         </div>
                         <div class="col-3"></div>
                     </div>
@@ -412,35 +422,96 @@
             </div>
         </div>
 
-
         <!-- Данные для текущей страницы -->
-        <div class="page data-page" data-page-index="{{ $page }}">
+        <div class="page data-page" data-page-index="{{ $loop->iteration }}">
             @php
+                // Используем данные из chunkInfo, рассчитанные на бэкенде
+                $chunk = isset($chunkInfo['components']) ? $chunkInfo['components'] : [];
+                $previousManual = $previousChunkLastManual;
+                $chunkLastManual = null;
                 $rowIndex = 1;
+                $isLastPage = $loop->last;
             @endphp
-            @for($i = $page * $partsPerPage; $i < ($page + 1) * $partsPerPage; $i++)
-                @php
-                    // Если данные существуют, выбираем ipl_num или assy_ipl_num
-                    if ($i < $totalParts) {
-                        $component = $ordersParts[$i]->orderComponent ?? $ordersParts[$i]->component;
-                        if ($component) {
-                            // Используем assy_ipl_num если он есть и не пустой, иначе ipl_num
-                            $ipl_num = (isset($component->assy_ipl_num) && $component->assy_ipl_num !== null && $component->assy_ipl_num !== '') ? $component->assy_ipl_num : ($component->ipl_num ?? '');
-                            $ipl_parts = explode('-', $ipl_num);
-                            $first_part = $ipl_parts[0] ?? '';
-                            $second_part = $ipl_parts[1] ?? '';
 
-                            // Логика выбора IPL номера: используем assy_ipl_num если он есть, иначе ipl_num
-                        } else {
-                            $first_part = '';
-                            $second_part = '';
-                        }
-                    } else {
-                        // Если данных нет, заполняем пустыми значениями
-                        $first_part = '';
-                        $second_part = '';
+            @foreach($chunk as $tdr)
+                @php
+                    // Проверяем, является ли $tdr массивом или объектом
+                    $isArray = is_array($tdr);
+                    
+                    // Получаем manual (работает и для массива, и для объекта)
+                    $currentManual = $isArray ? ($tdr['manual'] ?? null) : ($tdr->manual ?? null);
+                    
+                    // Если manual изменился и не пустой, и есть несколько manual, вставляем строку с manual
+                    $hasMultipleManuals = $hasMultipleManuals ?? false;
+                    $shouldInsertManualRow = $hasMultipleManuals && ($currentManual !== null && $currentManual !== '' && $currentManual !== $previousManual);
+                    // Сохраняем последний manual в chunk
+                    if ($currentManual !== null && $currentManual !== '') {
+                        $chunkLastManual = $currentManual;
                     }
+                    
+                    // Получаем компонент (orderComponent или component)
+                    if ($isArray) {
+                        $component = $tdr['orderComponent'] ?? $tdr['component'] ?? null;
+                    } else {
+                        $component = $tdr->orderComponent ?? $tdr->component;
+                    }
+                    
+                    // Используем assy_ipl_num если он есть и не пустой, иначе ipl_num
+                    $ipl_num = '';
+                    if ($component) {
+                        if (is_object($component)) {
+                            $ipl_num = (isset($component->assy_ipl_num) && $component->assy_ipl_num !== null && $component->assy_ipl_num !== '') 
+                                ? $component->assy_ipl_num 
+                                : ($component->ipl_num ?? '');
+                        } else {
+                            $ipl_num = (isset($component['assy_ipl_num']) && $component['assy_ipl_num'] !== null && $component['assy_ipl_num'] !== '') 
+                                ? $component['assy_ipl_num'] 
+                                : ($component['ipl_num'] ?? '');
+                        }
+                    }
+                    $ipl_parts = explode('-', $ipl_num);
+                    $first_part = $ipl_parts[0] ?? '';
+                    $second_part = $ipl_parts[1] ?? '';
                 @endphp
+
+                @if($shouldInsertManualRow)
+                    {{-- Строка с Manual --}}
+                    <div class="row data-row-prl ms-3 manual-row" style="width: 100%" data-row-index="{{ $rowIndex }}">
+                        <div class="col-5">
+                            <div class="row" style="height: 40px">
+                                <div class="col-1 border-l-b text-center align-content-center">
+                                    <!-- Пустая ячейка -->
+                                </div>
+                                <div class="col-2 border-l-b text-center align-content-center">
+                                    <!-- Пустая ячейка -->
+                                </div>
+                                <div class="col-9 border-l-b text-center align-content-center" style="font-weight: bold;">
+                                    <strong>{{ $currentManual }}</strong>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-7">
+                            <div class="row" style="height: 40px">
+                                <div class="col-4 border-l-b text-center align-content-center">
+                                    <!-- Пустая ячейка -->
+                                </div>
+                                <div class="col-1 border-l-b text-center align-content-center">
+                                    <!-- Пустая ячейка -->
+                                </div>
+                                <div class="col-1 border-l-b text-center align-content-center">
+                                    <!-- Пустая ячейка -->
+                                </div>
+                                <div class="col-2 border-l-b text-center align-content-center">
+                                    <!-- Пустая ячейка -->
+                                </div>
+                                <div class="col-2 border-l-b-r text-center align-content-center">
+                                    <!-- Пустая ячейка -->
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    @php $rowIndex++; @endphp
+                @endif
 
                 <div class="row data-row-prl ms-3" style="width: 100%" data-row-index="{{ $rowIndex }}">
                     <div class="col-5">
@@ -451,36 +522,49 @@
                             <div class="col-2 border-l-b text-center pt-2 align-content-center">
                                 <h6>{{ $second_part }}</h6>
                             </div>
-{{--                            <div class="col-9 border-l-b text-center pt-1 align-content-center">--}}
-{{--                                {{ $i < $totalParts ? ($component->name ?? '') : '' }}--}}
-{{--                            </div>--}}
                             <div class="col-9 border-l-b text-center pt-1 align-content-center">
-                                {{ $i < $totalParts ? ($component->assy_part_number ? $component->name . ' ASSY' : $component->name ?? '') : '' }}
+                                @php
+                                    if ($component) {
+                                        $componentName = is_object($component) ? ($component->name ?? '') : ($component['name'] ?? '');
+                                        $assyPartNumber = is_object($component) ? ($component->assy_part_number ?? '') : ($component['assy_part_number'] ?? '');
+                                        echo $assyPartNumber ? $componentName . ' ASSY' : $componentName;
+                                    }
+                                @endphp
                             </div>
                         </div>
                     </div>
 
-
                     <div class="col-7">
                         <div class="row" style="height: 40px">
                             <div class="col-4 border-l-b text-center pt-2 align-content-center">
-                                @if($i < $totalParts && isset($component) && $component)
+                                @if($component)
                                     <h6>
-                                        {{ (!empty($component->assy_part_number)) ? $component->assy_part_number : $component->part_number }}
+                                        @php
+                                            $assyPartNumber = is_object($component) ? ($component->assy_part_number ?? '') : ($component['assy_part_number'] ?? '');
+                                            $partNumber = is_object($component) ? ($component->part_number ?? '') : ($component['part_number'] ?? '');
+                                        @endphp
+                                        {{ (!empty($assyPartNumber)) ? $assyPartNumber : $partNumber }}
                                     </h6>
                                 @else
                                     <h6> </h6>
                                 @endif
                             </div>
                             <div class="col-1 border-l-b text-center pt-2 align-content-center">
-                                <h6>{{ $i < $totalParts ? $ordersParts[$i]->qty : '' }}</h6>
+                                <h6>{{ $isArray ? ($tdr['qty'] ?? '') : ($tdr->qty ?? '') }}</h6>
                             </div>
                             <div class="col-1 border-l-b text-center pt-2 align-content-center">
-                                <h6>{{ $i < $totalParts ? ($ordersParts[$i]->codes->code ?? '') : '' }}</h6>
+                                @php
+                                    if ($isArray) {
+                                        $code = isset($tdr['codes']) && is_array($tdr['codes']) ? ($tdr['codes']['code'] ?? '') : '';
+                                    } else {
+                                        $code = $tdr->codes->code ?? '';
+                                    }
+                                @endphp
+                                <h6>{{ $code }}</h6>
                             </div>
                             <div class="col-2 border-l-b text-center pt-1 align-content-center">
                                 @php
-                                    $poRaw = $i < $totalParts ? ($ordersParts[$i]->po_num ?? '') : '';
+                                    $poRaw = $isArray ? ($tdr['po_num'] ?? '') : ($tdr->po_num ?? '');
                                     if (\Illuminate\Support\Str::startsWith($poRaw, 'Transfer from WO')) {
                                         // Оставляем только номер WO после "Transfer from WO"
                                         $poDisplay = trim(\Illuminate\Support\Str::after($poRaw, 'Transfer from WO'));
@@ -491,16 +575,68 @@
                                 <h6>{{ $poDisplay }}</h6>
                             </div>
                             <div class="col-2 border-l-b-r text-center pt-1 align-content-center">
-                                <h6>{{ $i < $totalParts ? $ordersParts[$i]->notes : '' }}</h6>
+                                <h6>{{ $isArray ? ($tdr['notes'] ?? '') : ($tdr->notes ?? '') }}</h6>
                             </div>
                         </div>
                     </div>
                 </div>
-                @php $rowIndex++; @endphp
-            @endfor
+                @php
+                    $rowIndex++;
+                    $previousManual = $currentManual;
+                    if ($currentManual !== null && $currentManual !== '') {
+                        $chunkLastManual = $currentManual;
+                    }
+                @endphp
+            @endforeach
+
+            {{-- Генерируем пустые строки на бэкенде --}}
+            @if(isset($chunkInfo['empty_rows']) && $chunkInfo['empty_rows'] > 0)
+                @for($i = 0; $i < $chunkInfo['empty_rows']; $i++)
+                    <div class="row data-row-prl ms-3 empty-row" style="width: 100%" data-row-index="{{ $rowIndex }}">
+                        <div class="col-5">
+                            <div class="row" style="height: 40px">
+                                <div class="col-1 border-l-b text-center align-content-center">
+                                    <h6></h6>
+                                </div>
+                                <div class="col-2 border-l-b text-center align-content-center">
+                                    <h6></h6>
+                                </div>
+                                <div class="col-9 border-l-b text-center align-content-center">
+                                    <h6></h6>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-7">
+                            <div class="row" style="height: 40px">
+                                <div class="col-4 border-l-b text-center align-content-center">
+                                    <h6></h6>
+                                </div>
+                                <div class="col-1 border-l-b text-center align-content-center">
+                                    <h6></h6>
+                                </div>
+                                <div class="col-1 border-l-b text-center align-content-center">
+                                    <h6></h6>
+                                </div>
+                                <div class="col-2 border-l-b text-center align-content-center">
+                                    <h6></h6>
+                                </div>
+                                <div class="col-2 border-l-b-r text-center align-content-center">
+                                    <h6></h6>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    @php $rowIndex++; @endphp
+                @endfor
+            @endif
+
+            @php
+                // Сохраняем последний manual для следующего chunk
+                $previousChunkLastManual = $chunkLastManual ?? $previousManual;
+            @endphp
 
                 <!-- Проверка на последнюю страницу и добавление специального блока -->
-                @if ($page == $totalPages - 1)
+                @if ($loop->last)
                     <div class="row mt-2" style="width: 100%">
                         <div class="col-8"></div>
                         <div class="col-1 border-l-t-b text-center align-content-center d-flex justify-content-center align-items-center" style="width: 48px; height: 46px">
@@ -515,7 +651,7 @@
                     </div>
                 @endif
         </div>
-    @endfor
+    @endforeach
     @else
         <!-- Если данных нет, выводим одну страницу с пустыми строками -->
         <div class="header-page">
@@ -575,11 +711,17 @@
                             <h6 class="" ><strong>CMM: </strong></h6>
                         </div>
                         <div class="col-3 border-b">
-                            @foreach($manuals as $manual)
-                                @if($manual->id == $current_wo->unit->manual_id)
-                                    <h6 class=""><strong> {{substr($manual->number, 0, 8)}}</strong></h6>
-                                @endif
-                            @endforeach
+                            @if($hasMultipleManuals && count($uniqueManuals) > 0)
+                                {{-- Показываем все номера manual через ';' --}}
+                                <h6 class=""><strong>{{ implode('; ', array_map(function($num) { return substr($num, 0, 8); }, $uniqueManuals)) }}</strong></h6>
+                            @else
+                                {{-- Показываем основной manual --}}
+                                @foreach($manuals as $manual)
+                                    @if($manual->id == $current_wo->unit->manual_id)
+                                        <h6 class=""><strong> {{substr($manual->number, 0, 8)}}</strong></h6>
+                                    @endif
+                                @endforeach
+                            @endif
                         </div>
                         <div class="col-6"></div>
                     </div>

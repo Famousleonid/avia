@@ -941,7 +941,9 @@ class TdrController extends Controller
             ->where('necessaries_id', $necessary->id)
             ->whereNotNull('order_component_id')
             ->with(['codes', 'orderComponent' => function($query) {
-                $query->select('id', 'name', 'part_number', 'ipl_num', 'assy_part_number', 'assy_ipl_num');
+                // Добавляем manual_id в select и загружаем связь manual
+                $query->select('id', 'name', 'part_number', 'ipl_num', 'assy_part_number', 'assy_ipl_num', 'manual_id')
+                      ->with('manual:id,number'); // Загружаем только id и number из Manual
             }])
             ->get();
 
@@ -950,14 +952,90 @@ class TdrController extends Controller
             ->where('necessaries_id', $necessary->id)
             ->whereNull('order_component_id')
             ->with(['codes', 'component' => function($query) {
-                $query->select('id', 'name', 'part_number', 'ipl_num', 'assy_part_number', 'assy_ipl_num');
+                // Добавляем manual_id в select и загружаем связь manual
+                $query->select('id', 'name', 'part_number', 'ipl_num', 'assy_part_number', 'assy_ipl_num', 'manual_id')
+                      ->with('manual:id,number'); // Загружаем только id и number из Manual
             }])
             ->get();
 
         // Объединяем коллекции
         $ordersParts = $ordersPartsNew->concat($ordersParts);
 
-        return view('admin.tdrs.prlForm', compact('current_wo', 'components','manuals', 'builders', 'codes','necessaries', 'ordersParts'));
+        // Добавляем поле manual (номер manual) к каждой TDR записи
+        $ordersParts = $ordersParts->map(function($tdr) {
+            // Определяем, какой компонент использовать: orderComponent или component
+            $component = $tdr->orderComponent ?? $tdr->component;
+            
+            // Получаем номер manual из связанного компонента
+            if ($component && $component->manual) {
+                $tdr->manual = $component->manual->number; // Номер manual (например, "32-11-12")
+            } else {
+                $tdr->manual = null; // Если manual нет, устанавливаем null
+            }
+            
+            return $tdr;
+        });
+
+        // Сортируем TDR записи: сначала по manual (если есть), потом по IPL номерам компонентов
+        $ordersParts = $ordersParts->sort(function($a, $b) {
+            // Сначала сравниваем по manual
+            $manualA = $a->manual ?? '';
+            $manualB = $b->manual ?? '';
+            $manualCompare = strnatcasecmp($manualA, $manualB);
+            if ($manualCompare !== 0) {
+                return $manualCompare;
+            }
+
+            // Если manual одинаковые или оба null, сравниваем по IPL номерам
+            $componentA = $a->orderComponent ?? $a->component;
+            $componentB = $b->orderComponent ?? $b->component;
+            
+            // Используем assy_ipl_num если есть, иначе ipl_num
+            $iplA = ($componentA && isset($componentA->assy_ipl_num) && $componentA->assy_ipl_num !== null && $componentA->assy_ipl_num !== '') 
+                ? $componentA->assy_ipl_num 
+                : ($componentA->ipl_num ?? '');
+            $iplB = ($componentB && isset($componentB->assy_ipl_num) && $componentB->assy_ipl_num !== null && $componentB->assy_ipl_num !== '') 
+                ? $componentB->assy_ipl_num 
+                : ($componentB->ipl_num ?? '');
+
+            // Разбиваем IPL номер на части (например, "1-65" -> ["1", "65"])
+            $aParts = explode('-', $iplA);
+            $bParts = explode('-', $iplB);
+
+            // Сравниваем первую часть (до -)
+            $aFirst = (int)($aParts[0] ?? 0);
+            $bFirst = (int)($bParts[0] ?? 0);
+
+            if ($aFirst !== $bFirst) {
+                return $aFirst - $bFirst;
+            }
+
+            // Если первая часть одинаковая, сравниваем вторую часть (после -)
+            $aSecond = (int)($aParts[1] ?? 0);
+            $bSecond = (int)($bParts[1] ?? 0);
+
+            return $aSecond - $bSecond;
+        })->values(); // values() переиндексирует коллекцию после сортировки
+
+        // Собираем все уникальные номера manual из компонентов
+        $uniqueManuals = $ordersParts->map(function($tdr) {
+            return $tdr->manual ?? null;
+        })->filter(function($manual) {
+            return $manual !== null && $manual !== '';
+        })->unique()->values()->toArray();
+
+        // Определяем, есть ли несколько manual
+        $hasMultipleManuals = count($uniqueManuals) > 1;
+
+        // Преобразуем коллекцию в массив для совместимости с paginateComponentsWithEmptyRows
+        // НЕ используем toArray(), так как он преобразует Eloquent модели в массивы
+        // Используем all(), который возвращает массив объектов
+        $ordersPartsArray = $ordersParts->all();
+
+        // Рассчитываем пагинацию с пустыми строками на бэкенде (20 строк на страницу для PRL)
+        $componentChunks = $this->paginateComponentsWithEmptyRows($ordersPartsArray, 20);
+
+        return view('admin.tdrs.prlForm', compact('current_wo', 'components','manuals', 'builders', 'codes','necessaries', 'ordersParts', 'componentChunks', 'uniqueManuals', 'hasMultipleManuals'));
     }
 
     public function ndtForm(Request $request, $id)
