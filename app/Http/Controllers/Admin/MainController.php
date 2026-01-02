@@ -135,17 +135,34 @@ class MainController extends Controller
         }
 
         // Manual images (thumb/big)
+
         $manual = optional($current_workorder->unit)->manual;
+        $imgThumb = asset('img/noimage.png');
+        $imgFull  = null;
+
         if ($manual) {
-            if (method_exists($manual, 'getFirstMediaThumbnailUrl')) {
-                $imgThumb = $manual->getFirstMediaThumbnailUrl('manuals'); // из HasMediaHelpers
-                $imgFull  = $manual->getFirstMediaBigUrl('manuals');
-            } else {
-                $imgThumb = $manual->getFirstMediaUrl('manuals', 'thumb');
-                $imgFull  = $manual->getFirstMediaUrl('manuals', 'big');
+            $m = $manual->getFirstMedia('manuals');
+
+            if ($m) {
+                // ✅ открытие (big) — всегда через контроллер (и он проверит файл)
+                $imgFull = route('image.show.big', [
+                    'mediaId'   => $m->id,
+                    'modelId'   => $manual->id,
+                    'mediaName' => 'manuals',
+                ]);
+
+                // ✅ превью (thumb) — тоже через контроллер (там есть fallback на оригинал)
+                $imgThumb = route('image.show.thumb', [
+                    'mediaId'   => $m->id,
+                    'modelId'   => $manual->id,
+                    'mediaName' => 'manuals',
+                ]);
             }
         }
-        $imgThumb = $imgThumb ?? asset('img/placeholder-160x160.png');
+
+        $imgThumb = $imgThumb ?? asset('img/noimage.png');
+
+
 
         $tdrIds = Tdr::where('workorder_id', $workorder_id)->pluck('id');
 

@@ -83,72 +83,72 @@ document.addEventListener('DOMContentLoaded', () => {
 
         safeShowSpinner();
 
+        let data = null; // ✅ объявляем ДО try
+
         try {
             const response = await fetch(`/workorders/${workorderId}/photos`);
+            if (!response.ok) throw new Error('Response not ok');
 
-            if (!response.ok) {
-                throw new Error('Response not ok');
+            data = await response.json(); // ✅ присваиваем сюда, НЕ const
+
+            // ✅ проверка ПОСЛЕ получения data
+            if (!data || !data.groups || !data.media) {
+                throw new Error('Invalid response format');
             }
 
-            const data = await response.json();
+            const groupsConfig = data.groups;
+            const mediaData    = data.media;
 
             let html = '';
 
-            const groupsConfig = {
-                photos:  'Photos',
-                damages: 'Damage',
-                logs:    'Log card',
-                final:   'Final assy'
-            };
-
             Object.entries(groupsConfig).forEach(([group, label]) => {
-                const items = data[group] || [];
+                const items = mediaData[group] || [];
 
                 html += `
-                    <div class="col-12">
-                        <h6 class="text-primary text-uppercase mt-2">${label}</h6>
-                        <div class="row g-2">
-                `;
+                <div class="col-12">
+                    <h6 class="text-primary text-uppercase mt-2">${label}</h6>
+                    <div class="row g-2">
+            `;
 
                 if (!items.length) {
-                    html += `
-                        <div class="col-12 text-muted small">No photos</div>
-                    `;
+                    html += `<div class="col-12 text-muted small">No photos</div>`;
                 } else {
                     items.forEach(media => {
                         html += `
-                            <div class="col-4 col-md-2 col-lg-1 photo-item">
-                                <div class="position-relative d-inline-block w-100">
-                                    <a data-fancybox="${group}" href="${media.big}" data-caption="${label}">
-                                        <img src="${media.thumb}" class="photo-thumbnail border border-primary rounded" />
-                                    </a>
-                                    <button class="btn btn-danger btn-sm rounded-circle p-0 d-flex align-items-center justify-content-center position-absolute delete-photo-btn"
-                                            style="top: -6px; right: -6px; width: 20px; height: 20px; z-index: 10;"
-                                            data-id="${media.id}" title="Delete">
-                                        <i class="bi bi-x" style="font-size: 12px;"></i>
-                                    </button>
-                                </div>
+                        <div class="col-4 col-md-2 col-lg-1 photo-item">
+                            <div class="position-relative d-inline-block w-100">
+                                <a data-fancybox="${group}" href="${media.big}" data-caption="${label}">
+                                    <img src="${media.thumb}" class="photo-thumbnail border border-primary rounded" />
+                                </a>
+
+                                <button class="btn btn-danger btn-sm rounded-circle p-0 d-flex align-items-center justify-content-center position-absolute delete-photo-btn"
+                                        style="top: -6px; right: -6px; width: 20px; height: 20px; z-index: 10;"
+                                        data-id="${media.id}" title="Delete">
+                                    <i class="bi bi-x" style="font-size: 12px;"></i>
+                                </button>
                             </div>
-                        `;
+                        </div>
+                    `;
                     });
                 }
 
                 html += `
-                        </div>
                     </div>
-                `;
+                </div>
+            `;
             });
 
             modalContent.innerHTML = html;
             bindDeleteButtons();
 
         } catch (e) {
-            console.error('Load photo error', e);
+            console.error('Load photo error', e, data); // ✅ data теперь безопасно
             modalContent.innerHTML = '<div class="text-danger">Failed to load photos</div>';
         } finally {
             safeHideSpinner();
         }
     }
+
 
     function bindDeleteButtons() {
         document.querySelectorAll('.delete-photo-btn').forEach(btn => {

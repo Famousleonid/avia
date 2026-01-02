@@ -22,6 +22,7 @@ use Symfony\Component\HttpFoundation\StreamedResponse;
 use ZipStream\Option\Archive as ArchiveOptions;
 use Spatie\Activitylog\Models\Activity;
 
+
 class WorkorderController extends Controller
 {
     public function logs()
@@ -417,46 +418,71 @@ class WorkorderController extends Controller
         }
     }
 
+
+// use Spatie\MediaLibrary\MediaCollections\Models\Media; // не нужно тут
+
     public function photos($id)
     {
         try {
             $workorder = Workorder::findOrFail($id);
-            $collections = ['photos', 'damages', 'logs', 'final'];
-            $result = [];
+            $groups = config('workorder_media.groups');
 
-            foreach ($collections as $col) {
-                $result[$col] = $workorder->getMedia($col)->map(function ($media) use ($workorder, $col) {
-                    return [
-                        'id'    => $media->id,
-                        'thumb' => route('image.show.thumb', [
-                            'mediaId'   => $media->id,
-                            'modelId'   => $workorder->id,
-                            'mediaName' => $col,
-                        ]),
-                        'big'   => route('image.show.big', [
-                            'mediaId'   => $media->id,
-                            'modelId'   => $workorder->id,
-                            'mediaName' => $col,
-                        ]),
-                    ];
-                })->values()->toArray();
+            if (!is_array($groups) || empty($groups)) {
+                // fallback на дефолт (чтобы не было 500 на проде)
+                $groups = [
+                    'photos'  => 'Photos',
+                ];
             }
 
-            return response()->json($result);
+            $collections = array_keys($groups);
+            $media = [];
+
+            foreach ($collections as $col) {
+
+                $media[$col] = $workorder
+                    ->getMedia($col)
+                    ->filter(fn($m) => $m->mime_type && Str::startsWith($m->mime_type, 'image/'))
+                    ->map(function ($m) use ($workorder, $col) {
+                        return [
+                            'id'    => $m->id,
+                            'thumb' => route('image.show.thumb', [
+                                'mediaId'   => $m->id,
+                                'modelId'   => $workorder->id,
+                                'mediaName' => $col,
+                            ]),
+                            'big'   => route('image.show.big', [
+                                'mediaId'   => $m->id,
+                                'modelId'   => $workorder->id,
+                                'mediaName' => $col,
+                            ]),
+                        ];
+                    })
+                    ->values()
+                    ->toArray();
+            }
+
+            return response()->json([
+                'groups' => $groups, // labels
+                'media'  => $media,  // данные по коллекциям
+            ]);
 
         } catch (\Throwable $e) {
-//            Log::channel('avia')->error("Photo load failed [workorder $id]: {$e->getMessage()}");
+
+//            Log::channel('avia')->error('Workorder photos API failed', [
+//                'workorder_id' => $id,
+//                'error' => $e->getMessage(),
+//            ]);
+
             return response()->json(['error' => 'Server error'], 500);
         }
     }
+
 
     public function downloadAllGrouped($id)
     {
         try {
             $workorder = Workorder::findOrFail($id);
-            $groups = ['photos', 'damages', 'logs','final'];
-
-          //  Log::channel('avia')->info("ZIP download started for workorder ID: $id");
+            $groups = array_keys(config('workorder_media.groups'));
 
             return new StreamedResponse(function () use ($workorder, $groups, $id) {
                 $options = new ArchiveOptions();

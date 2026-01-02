@@ -20,15 +20,13 @@
                         <div class="col-12 col-md-2 col-lg-1 d-flex">
                             <div
                                 class="card h-100 w-100 bg-dark text-light border-secondary d-flex align-items-center justify-content-center p-2">
-                                @if($imgFull)
-                                    <a href="{{ $imgFull }}" data-fancybox="wo-manual" title="Manual">
-                                        <img class="rounded-circle" src="{{ $imgThumb }}" width="70" height="70"
-                                             alt="Manual preview">
-                                    </a>
-                                @else
-                                    <img class="rounded-circle" src="{{ $imgThumb }}" width="70" height="70"
-                                         alt="No image">
-                                @endif
+                                @php
+                                    $previewHref = $imgFull ?: $imgThumb; // если нет full — открываем то, что показано
+                                @endphp
+
+                                <a href="{{ $previewHref }}" data-fancybox="wo-manual" title="Manual">
+                                    <img class="rounded-circle" src="{{ $imgThumb }}" width="70" height="70" alt="Manual preview">
+                                </a>
                             </div>
                         </div>
 

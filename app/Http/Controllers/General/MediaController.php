@@ -95,20 +95,38 @@ class MediaController extends Controller
 
     public function showThumb($mediaId, $modelId, $mediaName)
     {
-
-        $media = Media::find($mediaId);
+        $media = Media::findOrFail($mediaId);
+        if (!$media->mime_type || !str_starts_with($media->mime_type, 'image/')) {
+            abort(404);
+        }
+        // путь к thumb
         $thumbPath = $media->getPath('thumb');
 
+        // ✅ fallback: если thumb не существует — отдаём оригинал
+        if (!$thumbPath || !file_exists($thumbPath)) {
+            $originalPath = $media->getPath();
+
+            if (!$originalPath || !file_exists($originalPath)) {
+                abort(404, 'Media file not found');
+            }
+
+            return response()->file($originalPath);
+        }
 
         return response()->file($thumbPath);
     }
 
     public function showBig($mediaId, $modelId, $mediaName)
     {
+        $media = Media::findOrFail($mediaId);
 
-        $mediaItem = Media::findOrFail($mediaId);
+        $path = $media->getPath();
 
-        return response()->file($mediaItem->getPath());
+        if (!$path || !file_exists($path)) {
+            abort(404, 'Media file not found');
+        }
+
+        return response()->file($path);
     }
 
     public function get_photos($id, Request $request)
@@ -157,7 +175,7 @@ class MediaController extends Controller
         if ($request->hasFile('pdf')) {
             $pdf = $request->file('pdf');
             $documentName = $request->input('document_name');
-            
+
             // Формируем уникальное читаемое имя файла
             $filename = 'wo_' . $workorder->number . '_' . now()->format('Ymd_Hi') . '_' . Str::random(3) . '.pdf';
 
@@ -256,7 +274,7 @@ class MediaController extends Controller
     public function delete_pdf($id)
     {
         $media = Media::findOrFail($id);
-        
+
         // Проверяем, что это PDF из коллекции pdfs
         if ($media->collection_name !== 'pdfs') {
             return response()->json(['error' => 'Invalid file type'], 400);
