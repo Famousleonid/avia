@@ -212,15 +212,14 @@
                 <table class="table-sm table-dark table-striped m-0 w-100 table-bordered align-middle">
                     <tbody>
                     @php
-                        $categories = [
-                            'photos'  => 'Photo',
-                            'logs'    => 'Log card',
-                            'damages' => 'Damage',
-                            'final'   => 'Final assy',
 
-                        ];
+                        $categories = config('workorder_media.groups', []);
+                        if (!is_array($categories) || empty($categories)) {
+                            $categories = [
+                                'photos'  => 'Photo',
+                            ];
+                        }
                     @endphp
-
                     @foreach($categories as $type => $label)
                         <tr>
                             {{-- Левая колонка: название группы --}}
