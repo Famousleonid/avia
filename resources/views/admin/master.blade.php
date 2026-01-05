@@ -123,7 +123,8 @@
 <script src="{{ asset('js/main.js') }}"></script>
 <script>
     window.addEventListener('load', function () {
-        hideLoadingSpinner();
+
+        safeHideSpinner();
 
         const themeToggle = document.getElementById('themeToggle');
         const themeToggleMobile = document.getElementById('themeToggleMobile');
@@ -283,12 +284,6 @@
         });
     }
 
-    document.addEventListener('submit', function (e) {
-        if (!e.target.matches('form.js-auto-submit')) return;
-        if (typeof showLoadingSpinner === 'function') {
-            showLoadingSpinner();
-        }
-    });
 
 
 </script>

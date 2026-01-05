@@ -364,11 +364,11 @@
 
                             <td class="text-center">
                                 @if($workorder->isDone())
-                                    <a href="{{ route('mains.show', $workorder->id) }}" class="text-decoration-none">
+                                    <a href="{{ route('mains.show', $workorder->id) }}" class="text-decoration-none" data-spinner>
                                         <span class="text-muted">{{ $workorder->number }}</span>
                                     </a>
                                 @else
-                                    <a href="{{ route('mains.show', $workorder->id) }}" class="text-decoration-none">
+                                    <a href="{{ route('mains.show', $workorder->id) }}" class="text-decoration-none" data-spinner>
                                         <span style="font-size: 16px; color: #0DDDFD;">
                                             w&nbsp;{{ $workorder->number }}
                                         </span>

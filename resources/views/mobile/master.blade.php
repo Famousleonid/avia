@@ -88,8 +88,12 @@
 <script src="{{asset('assets/select2/js/select2.min.js')}}"></script>
 <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
 <script src="{{ asset('js/main.js') }}"></script>
+
 <script>
     document.addEventListener('DOMContentLoaded', () => {
+
+        safeHideSpinner();
+
         const gtId = document.documentElement.dataset.restoreGt;
         const taskId = sessionStorage.getItem('restore_task');
         if (!gtId) return;
@@ -164,21 +168,6 @@
         // сюда добавить общий код для всех моб.страниц общие слушатели и т.д
 
     }
-    window.safeShowSpinner = function () {
-        if (typeof showLoadingSpinner === 'function') showLoadingSpinner();
-        else {
-            const el = document.querySelector('#spinner-load');
-            if (el) el.classList.remove('d-none');
-        }
-    };
-
-    window.safeHideSpinner = function () {
-        if (typeof hideLoadingSpinner === 'function') hideLoadingSpinner();
-        else {
-            const el = document.querySelector('#spinner-load');
-            if (el) el.classList.add('d-none');
-        }
-    };
 
     function initDatePickers() {
         if (typeof flatpickr === 'undefined') return;

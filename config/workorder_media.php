@@ -11,15 +11,15 @@ return [
     */
 
     'groups' => [
-        'as received'     => 'Photos',
-        'photos'     => 'Photos',
-        'extra'     => 'extra',
-        'EC'     => 'EC',
-        'damages'    => 'Damage',
-        'repair' => 'repair',
+        'received'     => 'As received',
+        'photos'     => 'Photos of the unit',
+        'extra'     => 'Extra parts',
+        'ec'     => 'EC',
+        'damages'    => 'Damage & Corroded',
+        'repair' => 'Repair parts',
         'logs'       => 'Log card',
         'final'      => 'Final assy',
-        'shipping' => 'shipping',
+        'shipping' => 'Shipping',
     ],
 
 ];

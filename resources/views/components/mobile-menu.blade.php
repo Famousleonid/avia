@@ -63,7 +63,7 @@
 
 <div class="{{ $borderClass }} bg-primary d-flex justify-content-between align-items-center" style="height: 60px;">
 
-    <a href="{{ route('mobile.index') }}"
+    <a href="{{ route('mobile.index') }}" data-spinner
        class="flex-fill text-center d-flex flex-column align-items-center justify-content-center text-white">
         <div class="menu-icon-wrapper {{ $isActive('mobile.index') ? 'active' : '' }}">
             <i class="bi bi-list-ol"></i>
@@ -77,7 +77,7 @@
     @if($onShowPage)
 
         @if($onShowPage && isset($workorder))
-            <a href="{{ route('mobile.show', $currentWorkorderId) }}"
+            <a href="{{ route('mobile.show', $currentWorkorderId) }}" data-spinner
                class="flex-fill text-center d-flex flex-column align-items-center justify-content-center text-white">
                 <div class="menu-icon-wrapper {{ $isActive('mobile.show') ? 'active' : '' }}">
                     <span class="">W</span>
@@ -89,7 +89,7 @@
             </a>
         @endif
 
-        <a href="{{ route('mobile.tasks', $currentWorkorderId) }}"
+        <a href="{{ route('mobile.tasks', $currentWorkorderId) }}" data-spinner
            class="flex-fill text-center d-flex flex-column align-items-center justify-content-center text-white">
             <div class="menu-icon-wrapper {{ $isActive('mobile.tasks') ? 'active' : '' }}">
                 <i class="bi bi-alarm"></i>
@@ -100,7 +100,7 @@
             <span class="menu-label">Tasks</span>
         </a>
 
-        <a href="{{ route('mobile.components', $currentWorkorderId) }}"
+        <a href="{{ route('mobile.components', $currentWorkorderId) }}" data-spinner
            class="flex-fill text-center d-flex flex-column align-items-center justify-content-center text-white border-0 bg-transparent js-menu-photo">
             <div class="menu-icon-wrapper {{ $isActive('mobile.components') ? 'active' : '' }}">
                 <i class="bi bi-gear"></i>
@@ -111,7 +111,7 @@
             <span class="menu-label">Components</span>
         </a>
 
-        <a href="{{ route('mobile.process', $currentWorkorderId) }}"
+        <a href="{{ route('mobile.process', $currentWorkorderId) }}" data-spinner
            class="flex-fill text-center d-flex flex-column align-items-center justify-content-center text-white">
             <div class="menu-icon-wrapper {{ $isActive('mobile.process') ? 'active' : '' }}">
                 <i class="bi bi-activity"></i>
@@ -126,7 +126,7 @@
 
     @else
 
-        <a href="{{ route('mobile.materials') }}"
+        <a href="{{ route('mobile.materials') }}" data-spinner
            class="flex-fill text-center d-flex flex-column align-items-center justify-content-center text-white">
             <div class="menu-icon-wrapper {{ $isActive('mobile.materials') ? 'active' : '' }}">
                 <i class="bi bi-diagram-3"></i>
@@ -137,7 +137,7 @@
             <span class="menu-label">Material</span>
         </a>
 
-        <a href="{{ route('mobile.profile') }}"
+        <a href="{{ route('mobile.profile') }}" data-spinner
            class="flex-fill text-center d-flex flex-column align-items-center justify-content-center text-white">
             <div class="menu-icon-wrapper {{ $isActive('mobile.profile') ? 'active' : '' }}">
                 <i class="bi bi-person-bounding-box"></i>

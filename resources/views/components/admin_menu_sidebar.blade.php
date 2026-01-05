@@ -1,7 +1,7 @@
 
 <ul class="nav flex-column" data-accordion="false">
     <li class="nav-item">
-        <a class="nav-link" href="{{route('workorders.index')}}">
+        <a class="nav-link press-spinner" href="{{route('workorders.index')}}">
             <i class="bi bi-file-earmark-word fs-6 me-2 "></i> <span>Workorder</span>
         </a>
     </li>
@@ -94,7 +94,7 @@
             </a>
         </li>
         <li class="nav-item border-top">
-            <a class="nav-link" href="#" id="{{ $themeToggleId }}">
+            <a class="nav-link " href="#" id="{{ $themeToggleId }}">
                 <i class="bi bi-moon me-2"></i>&nbsp; <span>Thema</span>
             </a>
         </li>
@@ -103,14 +103,3 @@
 
 </ul>
 
-<script>
-    document.addEventListener('DOMContentLoaded', function () {
-        const spinnerLinks = document.querySelectorAll('a.press-spinner');
-        spinnerLinks.forEach(link => {
-            link.addEventListener('click', function () {
-                showLoadingSpinner();
-            });
-        });
-    });
-
-</script>

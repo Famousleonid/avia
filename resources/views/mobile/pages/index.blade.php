@@ -267,6 +267,14 @@
                     const id = item.dataset.id;
                     if (!id) return;
 
+                    if (typeof hapticTap === 'function') {
+                        hapticTap(10);
+                    }
+
+                    if (typeof safeShowSpinner === 'function') {
+                        safeShowSpinner();
+                    }
+
                     const url = showUrlTemplate.replace('__ID__', id);
                     window.location.href = url;
                 });

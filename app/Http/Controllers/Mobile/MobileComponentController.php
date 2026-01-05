@@ -23,7 +23,8 @@ class MobileComponentController extends Controller
         $necessaries = Necessary::all();
         $manuals=Manual::all();
 
-        // Собираем компоненты для этого воркордера
+        // Собираем компоненты для этого воркордера с группировкой по component_id
+        // Один компонент может иметь несколько TDR с разными кодами
         $components = $workorder->tdrs
             ->filter(fn($tdr) => $tdr->component)       // только Tdr с компонентом
             ->groupBy('component_id')
@@ -34,12 +35,30 @@ class MobileComponentController extends Controller
             })
             ->values();
 
-        // code name по component_id (если вдруг несколько tdr -> покажем уникальные через запятую)
-        $codeNamesByComponent = $workorder->tdrs->filter(fn($tdr) => (bool)$tdr->component)
-            ->groupBy('component_id')
-            ->map(function ($group) {
-                return $group->pluck('codes.name')->filter()->unique()->implode(', ');
-            });
+        // Группируем TDR по component_id для отображения всех кодов
+        $tdrsByComponent = $workorder->tdrs
+            ->filter(fn($tdr) => (bool)$tdr->component)
+            ->groupBy('component_id');
+
+        // code name по component_id (показываем все коды через запятую)
+        $codeNamesByComponent = $tdrsByComponent->map(function ($group) {
+            return $group->pluck('codes.name')->filter()->unique()->implode(', ');
+        });
+
+        // Детальная информация по TDR для каждого компонента
+        $tdrsDetailsByComponent = $tdrsByComponent->map(function ($group) {
+            return $group->map(function ($tdr) {
+                return [
+                    'id' => $tdr->id,
+                    'code_id' => $tdr->codes_id,
+                    'code_name' => $tdr->codes?->name,
+                    'necessaries_id' => $tdr->necessaries_id,
+                    'necessaries_name' => $tdr->necessaries?->name,
+                    'qty' => $tdr->qty,
+                    'serial_number' => $tdr->serial_number,
+                ];
+            })->values();
+        });
 
         $manualComponents = $manualId
             ? Component::query()
@@ -52,7 +71,7 @@ class MobileComponentController extends Controller
 
         return view('mobile.pages.components', compact(
             'workorder', 'components', 'manualComponents',
-        'manualId','component_conditions','codes','necessaries','manuals','codeNamesByComponent' ));
+        'manualId','component_conditions','codes','necessaries','manuals','codeNamesByComponent', 'tdrsDetailsByComponent' ));
     }
 
     public function componentStore(Request $request)
@@ -149,6 +168,11 @@ class MobileComponentController extends Controller
         $validated = $request->validate([
             'workorder_id' => ['required', 'exists:workorders,id'],
             'component_id' => ['required', 'exists:components,id'],
+            'code_id' => ['required', 'exists:codes,id'],
+            
+            'necessaries_id' => ['nullable', 'exists:necessaries,id'],
+            'qty' => ['nullable', 'integer', 'min:1'],
+            'serial_number' => ['nullable', 'string', 'max:255'],
 
             'use_log_card' => ['nullable'],
             'use_tdr' => ['nullable'],
@@ -156,20 +180,73 @@ class MobileComponentController extends Controller
 
         $workorderId = (int)$validated['workorder_id'];
         $componentId = (int)$validated['component_id'];
+        $codeId = (int)$validated['code_id'];
 
-        $exists = Tdr::where('workorder_id', $workorderId)
-            ->where('component_id', $componentId)
-            ->exists();
+        // Get code to check if it's Missing
+        $code = Code::find($codeId);
+        $isMissing = $code && stripos($code->name, 'missing') !== false;
 
-        if (!$exists) {
-            Tdr::create([
-                'workorder_id' => $workorderId,
-                'component_id' => $componentId,
-                'use_log_card' => $request->boolean('use_log_card'),
-                'use_tdr' => $request->boolean('use_tdr'),
-            ]);
+        // Prepare data
+        $tdrData = [
+            'workorder_id' => $workorderId,
+            'component_id' => $componentId,
+            'codes_id' => $codeId,
+            'use_log_card' => $request->boolean('use_log_card'),
+            'use_tdr' => $request->boolean('use_tdr'),
+        ];
+
+        // If Missing - add qty
+        if ($isMissing && isset($validated['qty'])) {
+            $tdrData['qty'] = (int)$validated['qty'];
+        }
+        // For other codes - check necessaries
+        else if (isset($validated['necessaries_id'])) {
+            $tdrData['necessaries_id'] = (int)$validated['necessaries_id'];
+            
+            // Get necessary to check type
+            $necessary = Necessary::find($tdrData['necessaries_id']);
+            if ($necessary) {
+                $necessaryName = strtolower($necessary->name);
+                
+                // If Order New - add qty
+                if (stripos($necessaryName, 'order') !== false && stripos($necessaryName, 'new') !== false) {
+                    if (isset($validated['qty'])) {
+                        $tdrData['qty'] = (int)$validated['qty'];
+                    }
+                }
+                // If Repair - add serial number
+                else if (stripos($necessaryName, 'repair') !== false) {
+                    if (isset($validated['serial_number'])) {
+                        $tdrData['serial_number'] = $validated['serial_number'];
+                    }
+                }
+            }
         }
 
+        // Allow multiple TDRs for same component with different codes
+        Tdr::create($tdrData);
+
         return redirect()->back()->with('success', 'Component attached.');
+    }
+
+    public function updatePhoto(Request $request, Component $component)
+    {
+        $validated = $request->validate([
+            'photo' => ['required', 'image', 'max:5120'],
+        ]);
+
+        if ($request->hasFile('photo')) {
+            // Удаляем старое фото (как аватар - одно фото)
+            $component->clearMediaCollection('components');
+            // Добавляем новое
+            $component->addMediaFromRequest('photo')->toMediaCollection('components');
+        }
+
+        return response()->json([
+            'ok' => true,
+            'message' => 'Photo updated successfully',
+            'thumb_url' => $component->getFirstMediaThumbnailUrl('components'),
+            'big_url' => $component->getFirstMediaBigUrl('components'),
+        ]);
     }
 }

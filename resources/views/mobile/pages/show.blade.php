@@ -2,6 +2,27 @@
 
 @section('style')
     <style>
+        html, body {
+            height: 100%;
+            margin: 0;
+            overflow: hidden;
+        }
+
+        .page-root {
+            height: calc(var(--vh, 1vh) * 100);
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+
+        @supports (height: 100dvh) {
+            .page-root { height: 100dvh; }
+        }
+
+        @supports (height: 100svh) {
+            .page-root { height: 100svh; }
+        }
+
         .little-info {
             position: absolute;
             bottom: -5px;
@@ -53,14 +74,19 @@
             display: flex;
             flex-direction: column;
             overflow: hidden;
+            flex: 1 1 auto;
+            min-height: 0;
+
         }
 
         /* Блок, содержащий прокручиваемое тело таблицы */
         .table-body-scrollable {
+            flex: 1 1 auto;
+            min-height: 0;
             overflow-y: auto;
-            flex-grow: 1; /* Занимает все доступное место по высоте */
-            padding-bottom: 230px;
-            box-sizing: border-box;
+            -webkit-overflow-scrolling: touch; /* iOS */
+            padding-bottom: calc(90px + env(safe-area-inset-bottom)); /* 90px = высота твоего bottom bar */
+            overscroll-behavior-y: contain;
         }
 
         .col-media {
@@ -107,10 +133,10 @@
 
 @section('content')
 
-    <div class="container-fluid d-flex flex-column bg-dark p-0" style="height: 100%;">
+    <div class="container-fluid d-flex flex-column bg-dark p-0 page-root">
 
         {{-- Блок с информацией по воркордеру --}}
-        <div id="block-info" class="rounded-3 border border-info gradient-pane shadow-sm" style="margin: 5px; padding: 3px;">
+        <div id="block-info" class="rounded-3 border border-info gradient-pane shadow-sm" style="margin: 3px; padding: 2px;">
 
             <div class="d-flex justify-content-between align-items-center w-100 fw-bold fs-2 ms-3">
                 @if(!$workorder->isDone())
@@ -203,7 +229,7 @@
 
         </div>
 
-        <hr class="border-secondary opacity-50 my-2">
+        <hr class="border-secondary opacity-50 my-1">
 
         {{-- Таблица с 4 группами фото + общая камера --}}
         <div class="table-wrapper" style="flex-grow: 1; min-height: 0;">
@@ -250,7 +276,7 @@
                                                     @if ($index === 0)
                                                         <img class="rounded-circle"
                                                              src="{{ $workorder->generateMediaUrl($media, 'thumb', $type) }}"
-                                                             width="40" height="40" alt="Photo">
+                                                             width="37" height="37" alt="Photo">
                                                     @endif
                                                 </a>
                                             @endforeach
@@ -262,7 +288,7 @@
                                 </div>
                             </td>
 
-                            {{-- Правая колонка: одна камера на все 4 строки --}}
+                            {{-- Правая колонка: одна камера на все строки --}}
                             @if($loop->first)
                                 <td class="text-center col-camera" rowspan="{{ count($categories) }}">
                                     <a href="#"
@@ -294,7 +320,39 @@
 
 @section('scripts')
     <script>
+
         document.addEventListener('DOMContentLoaded', () => {
+            const el = document.querySelector('.table-body-scrollable');
+            if (!el) return;
+
+            el.addEventListener('touchstart', () => {
+                // "разбудить" iOS: не даём быть строго 0 или строго max
+                if (el.scrollTop === 0) el.scrollTop = 1;
+                const max = el.scrollHeight - el.clientHeight;
+                if (el.scrollTop >= max) el.scrollTop = max - 1;
+            }, { passive: true });
+
+            el.addEventListener('touchmove', (e) => {
+                const max = el.scrollHeight - el.clientHeight;
+                if (max <= 0) return;
+
+                // если тянут вниз вверху или вверх внизу — гасим резинку
+                if ((el.scrollTop <= 0) || (el.scrollTop >= max)) {
+                    e.preventDefault();
+                }
+            }, { passive: false });
+        });
+
+        document.addEventListener('DOMContentLoaded', () => {
+
+            (function () {
+                function setVh() {
+                    document.documentElement.style.setProperty('--vh', (window.innerHeight * 0.01) + 'px');
+                }
+                setVh();
+                window.addEventListener('resize', setVh);
+            })();
+
 
             let currentPhotoCategory = 'photos';
             let currentWorkorderId = null;

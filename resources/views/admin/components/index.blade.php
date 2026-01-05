@@ -513,14 +513,6 @@
                             return;
                         }
 
-                        // ====== SAFE SPINNER (глобальный) ======
-                        const safeShowSpinner = () => {
-                            if (typeof showLoadingSpinner === 'function') showLoadingSpinner();
-                        };
-                        const safeHideSpinner = () => {
-                            if (typeof hideLoadingSpinner === 'function') hideLoadingSpinner();
-                        };
-
                         // ====== localStorage keys ======
                         const LS_SEARCH = 'components_search';
                         const LS_MANUAL = 'components_manual_id';

@@ -295,8 +295,6 @@
             function forEachNode(list, cb) {
                 Array.prototype.forEach.call(list, cb);
             }
-            function safeShowSpinner(){ if (typeof showLoadingSpinner === 'function') showLoadingSpinner(); }
-            function safeHideSpinner(){ if (typeof hideLoadingSpinner === 'function') hideLoadingSpinner(); }
 
             // Обновление текста кнопки
             function updateToggleAllText() {

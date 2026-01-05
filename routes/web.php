@@ -81,6 +81,7 @@ Route::prefix('mobile')->name('mobile.')->middleware(['auth','verified'])->group
     // ВАЖНО: убрал /mobile/... внутри группы (иначе будет /mobile/mobile/...)
     Route::post('/components/quick-store', [MobileComponentController::class, 'quickStore'])->name('components.quickStore');
     Route::post('/workorders/components/attach', [MobileComponentController::class, 'attachToWorkorder'])->name('workorders.components.attach');
+    Route::post('/components/{component}/photo', [MobileComponentController::class, 'updatePhoto'])->name('components.updatePhoto');
 
     // --- process ---
     Route::get('/process/{workorder}', [MobileProcessController::class, 'process'])->name('process');

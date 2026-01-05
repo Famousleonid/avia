@@ -4,20 +4,6 @@
 // Общее между всеми: безопасный спиннер, debounce, delete-модал, showAll
 
 document.addEventListener('DOMContentLoaded', () => {
-    // =========================
-    // 1. Безопасный спиннер + debounce
-    // =========================
-    window.safeShowSpinner = () => {
-        try {
-            if (typeof showLoadingSpinner === 'function') showLoadingSpinner();
-        } catch (_) {}
-    };
-
-    window.safeHideSpinner = () => {
-        try {
-            if (typeof hideLoadingSpinner === 'function') hideLoadingSpinner();
-        } catch (_) {}
-    };
 
     // Скрываем спиннер, если страница вернулась из bfcache
     safeHideSpinner();
