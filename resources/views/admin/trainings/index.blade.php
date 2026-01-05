@@ -87,9 +87,9 @@
                        data-page-size="5" class="table table-bordered">
                     <thead>
                     <tr>
-                        <th data-priority="1" data-visible="true" class="text-center align-middle">{{ __('Unit Description')
+                        <th data-priority="1" data-visible="true" class="text-center align-middle">{{ __('Component Description')
                         }}</th>
-                        <th data-priority="2" data-visible="true" class="text-center align-middle">{{ __('Unit PN') }}</th>
+                        <th data-priority="2" data-visible="true" class="text-center align-middle">{{ __('Component PN') }}</th>
                         <th data-priority="3" data-visible="true"
                             class="text-center align-middle">{{ __('First Training Date')}}</th>
                         <th data-priority="4" data-visible="true"

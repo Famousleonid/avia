@@ -52,7 +52,7 @@
                                 <thead>
                                 <tr>
                                     <th class="text-center text-primary">{{ __('From WO') }}</th>
-                                    <th class="text-center text-primary">{{ __('Component') }}</th>
+                                    <th class="text-center text-primary">{{ __('Part') }}</th>
                                     <th class="text-center text-primary">{{ __('Part Number') }}</th>
                                     <th class="text-center text-primary">{{ __('SN') }}</th>
                                     <th class="text-center text-primary">{{ __('Reason') }}</th>
@@ -118,7 +118,7 @@
                                 <thead>
                                 <tr>
                                     <th class="text-center text-primary">{{ __('To WO') }}</th>
-                                    <th class="text-center text-primary">{{ __('Component') }}</th>
+                                    <th class="text-center text-primary">{{ __('Part') }}</th>
                                     <th class="text-center text-primary">{{ __('Part Number') }}</th>
                                     <th class="text-center text-primary">{{ __('SN') }}</th>
                                     <th class="text-center text-primary">{{ __('Reason') }}</th>

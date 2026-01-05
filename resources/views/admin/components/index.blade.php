@@ -235,7 +235,8 @@
         <div class="card-header my-1 shadow">
             <div class="d-flex justify-content-between align-items-center flex-wrap">
 
-                <h5 class="text-primary manage-header">{{__('Components')}}( <span class="text-success" id="componentsCount">{{$components->count()}}</span>)</h5>
+                <h5 class="text-primary manage-header">{{__('Replaceable Parts')}}( <span class="text-success"
+                                                                          id="componentsCount">{{$components->count()}}</span>)</h5>
                 <span id="manualIndicator" class="text-muted"></span>
                 <div class="d-flex my-2 gap-2 flex-wrap">
                     <!-- Filter by Manual -->
@@ -264,7 +265,7 @@
 
                     <!-- CSV Components -->
                     <a href="{{ route('components.csv-components') }}" class="btn btn-outline-info" style="height: 40px">
-                        <i class="bi bi-file-earmark-spreadsheet"></i> {{__('CSV Components')}}
+                        <i class="bi bi-file-earmark-spreadsheet"></i> {{__('CSV Parts')}}
                     </a>
 
                     {{--                    <!-- Upload CSV -->--}}
@@ -274,7 +275,7 @@
 
                     <!-- Add Component -->
                     <a href="{{ route('components.create') }}" class="btn btn-outline-primary" style="height: 40px">
-                        {{__('Add Component')}}
+                        {{__('Add Part')}}
                     </a>
                 </div>
             </div>
@@ -338,7 +339,7 @@
                 </div>
 
             @else
-                <H5 CLASS="text-center">{{__('COMPONENTS NOT FOUND')}}</H5>
+                <H5 CLASS="text-center">{{__('PARTS NOT FOUND')}}</H5>
             @endif
 
         </div>
@@ -349,7 +350,7 @@
                 <div class="modal-content">
                     <div class="modal-header">
                         <h5 class="modal-title" id="uploadCsvModalLabel">
-                            {{__('Upload Components CSV')}}
+                            {{__('Upload Parts CSV')}}
                         </h5>
                         <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                     </div>
@@ -378,7 +379,7 @@
 
                                     <div class="mb-3">
                                         <button type="submit" class="btn btn-primary">
-                                            <i class="bi bi-upload"></i> {{__('Upload Components')}}
+                                            <i class="bi bi-upload"></i> {{__('Upload Parts')}}
                                         </button>
                                     </div>
                                 </form>
@@ -393,7 +394,7 @@
                                         <ul class="small text-muted">
                                             <li><strong>part_number</strong> - {{__('Part number (required)')}}</li>
                                             <li><strong>assy_part_number</strong> - {{__('Assembly part number (optional)')}}</li>
-                                            <li><strong>name</strong> - {{__('Component name (required)')}}</li>
+                                            <li><strong>name</strong> - {{__('Part name (required)')}}</li>
                                             <li><strong>ipl_num</strong> - {{__('IPL number (required)')}}</li>
                                             <li><strong>assy_ipl_num</strong> - {{__('Assembly IPL number (optional)')}}</li>
                                             <li><strong>log_card</strong> - {{__('Log card (0 or 1, optional)')}}</li>
@@ -402,7 +403,9 @@
                                             <li><strong>bush_ipl_num</strong> - {{__('Bushing IPL number (optional)')}}</li>
                                         </ul>
                                         <div class="alert alert-info mt-3 mb-0">
-                                            <small><i class="bi bi-info-circle"></i> <strong>{{__('Note:')}}</strong> {{__('Exact duplicate components will be automatically skipped. Multiple components with the same part_number but different IPL numbers are allowed in the same manual. Uploaded CSV files will be saved and can be viewed later.')}}</small>
+                                            <small><i class="bi bi-info-circle"></i> <strong>{{__('Note:')}}</strong> {{__
+                                            ('Exact duplicate parts will be automatically skipped. Multiple components with the
+                                            same part_number but different IPL numbers are allowed in the same manual. Uploaded CSV files will be saved and can be viewed later.')}}</small>
                                         </div>
                                         <div class="mt-2">
                                             <a href="{{ route('components.download-csv-template') }}" class="btn btn-outline-secondary btn-sm">
@@ -830,7 +833,7 @@
                         restoreStateAndApplyOnce();
 
                     } catch (error) {
-                        console.error('Error in components index script:', error);
+                        console.error('Error in parts index script:', error);
                         if (typeof hideLoadingSpinner === 'function') hideLoadingSpinner();
                     }
                 });

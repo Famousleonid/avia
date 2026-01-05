@@ -67,7 +67,7 @@
     <div class="container mt-3">
         <div class="card bg-gradient">
             <div class="card-header">
-                <h4 class="text-primary">{{__('Add Component Inspection')}}</h4>
+                <h4 class="text-primary">{{__('Add Part Inspection')}}</h4>
                 <h4 class="text-primary"> {{__('Work Order')}} {{$current_wo->number}}</h4>
             </div>
             <div class="card-body">
@@ -80,7 +80,7 @@
 
                     <div class="row">
                         <div class="col">
-                            <label for="i_component_id" class="form-label pe-2">Component</label>
+                            <label for="i_component_id" class="form-label pe-2">Part</label>
                             <div class="form-group ">
                                 <select name="component_id" id="i_component_id" class="form-control" style="width: 400px">
                                     <option selected value="">---</option>
@@ -95,10 +95,10 @@
                             </div>
                             <div class="mt-1 d-flex">
                                 <button type="button" class="btn btn-link p-0 me-3" data-bs-toggle="modal"
-                                        data-bs-target="#addComponentModal">{{ __('Add Component') }}
+                                        data-bs-target="#addComponentModal">{{ __('Add Part') }}
                                 </button>
                                 <button type="button" class="btn btn-link p-0" id="editComponentBtn">
-                                    {{ __('Edit Component') }}
+                                    {{ __('Edit Part') }}
                                 </button>
                             </div>
                         </div>
@@ -227,7 +227,7 @@
         <div class="modal-dialog modal-l" >
             <div class="modal-content bg-gradient">
                 <div class="modal-header">
-                    <h5 class="modal-title" id="addComponentModalLabel">{{ __('Add Component') }}</h5>
+                    <h5 class="modal-title" id="addComponentModalLabel">{{ __('Add Part') }}</h5>
                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Закрыть"></button>
                 </div>
                 <form action="{{ route('components.storeFromInspection') }}" method="POST" id="addComponentForm">
@@ -339,7 +339,7 @@
         <div class="modal-dialog modal-l">
             <div class="modal-content bg-gradient">
                 <div class="modal-header">
-                    <h5 class="modal-title" id="editComponentModalLabel">{{ __('Edit Component') }}</h5>
+                    <h5 class="modal-title" id="editComponentModalLabel">{{ __('Edit Part') }}</h5>
                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
                 <form action="" method="POST" id="editComponentForm" enctype="multipart/form-data">
@@ -604,7 +604,7 @@
                 var componentId = $('#i_component_id').val();
 
                 if (!componentId) {
-                    alert('Select component first.');
+                    alert('Select part first.');
                     return;
                 }
 
@@ -612,7 +612,7 @@
 
                 $.get(url, function (response) {
                     if (!response.success) {
-                        alert('Failed to load component data.');
+                        alert('Failed to load part data.');
                         return;
                     }
 
@@ -645,7 +645,7 @@
                     // Открываем модалку только после успешной загрузки данных
                     $('#editComponentModal').modal('show');
                 }).fail(function () {
-                    alert('Error loading component.');
+                    alert('Error loading part.');
                 });
             });
 
@@ -773,7 +773,7 @@
                     $('#order_component_id').trigger('change');
                 },
                 error: function(xhr, status, error) {
-                    console.error('Ошибка загрузки компонентов:', error);
+                    console.error('Error loading parts:', error);
                 }
             });
         }

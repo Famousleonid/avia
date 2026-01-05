@@ -67,7 +67,7 @@
         <div class="card bg-gradient">
             <div class="card-header">
                 <div class="d-flex justify-content-between">
-                    <h4 class="text-primary">{{__('Add Extra Component Processes')}}</h4>
+                    <h4 class="text-primary">{{__('Add Extra Part Processes')}}</h4>
                 </div>
                 <div class="d-flex justify-content-between align-items-center position-relative">
                     <h4 class="text-primary"> {{__('Work Order')}} {{$current_wo->number}}</h4>
@@ -90,7 +90,7 @@
 
                     <div class="row mb-3">
                         <div class="col">
-                            <label for="i_component_id" class="form-label pe-2">Component</label>
+                            <label for="i_component_id" class="form-label pe-2">Part</label>
                             <div class="form-group ">
                                 <select name="component_id" id="i_component_id" class="form-control" style="width: 300px" required>
                                     <option selected value="">---</option>
@@ -104,7 +104,7 @@
                                 </select>
 
                                 <button type="button" class="btn btn-link" data-bs-toggle="modal"
-                                        data-bs-target="#addComponentModal">{{ __('Add Component') }}
+                                        data-bs-target="#addComponentModal">{{ __('Add Part') }}
                                 </button>
                             </div>
                         </div>
@@ -193,7 +193,7 @@
         <div class="modal-dialog modal-lg">
             <div class="modal-content bg-gradient">
                 <div class="modal-header">
-                    <h5 class="modal-title" id="addComponentModalLabel">{{ __('Add Component') }}</h5>
+                    <h5 class="modal-title" id="addComponentModalLabel">{{ __('Add Part') }}</h5>
                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Закрыть"></button>
                 </div>
                 <form action="{{ route('components.storeFromExtra') }}" method="POST" id="addComponentForm" enctype="multipart/form-data">

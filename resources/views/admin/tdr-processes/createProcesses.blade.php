@@ -102,7 +102,7 @@
             <div class="card-header">
                 <div class="d-flex justify-content-between align-items-center position-relative">
                     <div>
-                        <h4 class="text-primary mb-0">{{ __('Add Component Processes') }}</h4>
+                        <h4 class="text-primary mb-0">{{ __('Add Part Processes') }}</h4>
                         <div class="mt-2">
                             {{ $current_tdr->component->name }}
                             <div>

@@ -5,7 +5,7 @@
         .card-body {
             height: 75vh;
         }
-        
+
         .table-wrapper {
             width: 100%;
             max-width: 1080px;
@@ -155,7 +155,7 @@
                     <div style="width: 450px">
                         <h4 class="text-primary  ms-2">{{__('Work Order: ')}} {{$current_wo->number}}</h4>
                         <div>
-                            <h4 class="ps-2">{{__('Component Extra Processes')}}</h4>
+                            <h4 class="ps-2">{{__('Part Extra Processes')}}</h4>
                         </div>
                     </div>
                     <div class=" d-flex " >
@@ -175,7 +175,7 @@
 
                         <a href="{{ route('extra_process.create', $current_wo->id) }}" class="btn btn-outline-success me-3"
                            style="height:60px; width: 150px">
-                            <i class="fas fa-plus"></i> New Component Processes
+                            <i class="fas fa-plus"></i> New Part Processes
                         </a>
 
                         <a href="{{ route('tdrs.show', ['id'=>$current_wo->id]) }}"

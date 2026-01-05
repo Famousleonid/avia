@@ -66,7 +66,7 @@
     <div class="container mt-3">
         <div class="card bg-gradient">
             <div class="card-header">
-                <h4 class="text-primary">{{__('Add Component')}}</h4>
+                <h4 class="text-primary">{{__('Add Replaseable Part')}}</h4>
             </div>
             <div class="card-body" id="create_div_inputs">
                 <form id="createForm" class="createForm" role="form" method="POST" action="{{route('components.store')

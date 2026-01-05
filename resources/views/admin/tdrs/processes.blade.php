@@ -155,7 +155,7 @@
                 <div class="d-flex">
                     <div style="width: 260px">
                         <h5 class="text-primary me-5">{{__('Work Order: ')}} {{$current_wo->number}}</h5>
-                        <h5>{{__('All Components Processes')}}</h5>
+                        <h5>{{__('All Part Processes')}}</h5>
                     </div>
 
 
@@ -268,16 +268,16 @@
                                                                 width="200"  alt="Image"/>
                                                        </div>
                                                        <div>
-                                                           <p><strong>{{ __('Component PN: ') }}</strong>{{
+                                                           <p><strong>{{ __('Part PN: ') }}</strong>{{
                                                            $tdr->component->part_number }}</p>
-                                                           <p><strong>{{ __('Component Name: ') }}</strong>{{
+                                                           <p><strong>{{ __('Part Name: ') }}</strong>{{
                                                            $tdr->component->name }}</p>
-                                                           <p><strong>{{ __('Component IPL: ') }}</strong>{{
+                                                           <p><strong>{{ __('Part IPL: ') }}</strong>{{
                                                            $tdr->component->ipl_num }}</p>
-                                                           <p><strong>{{ __('Component SN: ') }}</strong>{{
+                                                           <p><strong>{{ __('Part SN: ') }}</strong>{{
                                                            $tdr->serial_number }}</p>
                                                            @if($tdr->assy_serial_number)
-                                                               <p><strong>{{ __('Component Assy SN: ') }}</strong>{{
+                                                               <p><strong>{{ __('Part Assy SN: ') }}</strong>{{
                                                            $tdr->assy_serial_number }}</p>
                                                            @endif
                                                        </div>
@@ -327,7 +327,7 @@
                                 <thead>
                                     <tr>
                                         <th class="text-primary text-center" style="width: 25%;">Process</th>
-                                        <th class="text-primary text-center" style="width: 25%;">Components</th>
+                                        <th class="text-primary text-center" style="width: 25%;">Parts</th>
                                         <th class="text-primary text-center" style="width: 25%;">Vendor</th>
                                     </tr>
                                 </thead>
@@ -492,7 +492,7 @@
                     const selectedSerialNumbers = Array.from(checkedBoxes).map(checkbox => checkbox.getAttribute('data-serial-number') || '');
                     const selectedIplNums = Array.from(checkedBoxes).map(checkbox => checkbox.getAttribute('data-ipl-num') || '');
                     const selectedPartNumbers = Array.from(checkedBoxes).map(checkbox => checkbox.getAttribute('data-part-number') || '');
-                    
+
                     url.searchParams.set('component_ids', selectedComponentIds.join(','));
                     url.searchParams.set('serial_numbers', selectedSerialNumbers.join(','));
                     url.searchParams.set('ipl_nums', selectedIplNums.join(','));

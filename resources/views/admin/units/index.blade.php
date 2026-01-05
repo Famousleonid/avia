@@ -74,7 +74,7 @@
 
         <div class="card-header my-1 shadow">
             <div class="d-flex justify-content-between">
-                <h5 class="text-primary">{{ __('Manage Units') }}</h5>
+                <h5 class="text-primary">{{ __('Manage Components') }}</h5>
 
                 <div class="d-flex my-2">
                     <div class="clearable-input ps-2">
@@ -88,7 +88,7 @@
 
                 <button class="btn btn-outline-primary mb-1"
                         data-bs-toggle="modal"
-                        data-bs-target="#addUnitModal">{{ __('Add Unit') }}
+                        data-bs-target="#addUnitModal">{{ __('Add Component') }}
                 </button>
             </div>
         </div>
@@ -104,12 +104,12 @@
                     <tr>
                         </th>
                         <th class="text-primary sortable bg-gradient text-center">
-                            {{ __('Units Description') }} <i class="bi bi-chevron-expand ms-1"></i>
+                            {{ __('Components Description') }} <i class="bi bi-chevron-expand ms-1"></i>
                         </th>
                         <th class="text-primary sortable bg-gradient text-center">
-                            {{ __('Units PN') }} <i class="bi bi-chevron-expand ms-1"></i>
+                            {{ __('Components PN') }} <i class="bi bi-chevron-expand ms-1"></i>
                         </th>
-                        <th class="text-primary text-center bg-gradient text-center">{{ __('CMM Unit ') }}</th>
+                        <th class="text-primary text-center bg-gradient text-center">{{ __('Component CMM ') }}</th>
                         <th class="text-primary text-center bg-gradient text-center">{{ __('Image') }}</th>
                         <th class="text-primary text-center bg-gradient text-center">{{ __('Edit') }}</th>
                     </tr>

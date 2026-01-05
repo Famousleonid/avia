@@ -73,12 +73,12 @@
                     @csrf
                     <input type="hidden" name="return_url" value="{{ request()->get('return_url', url()->previous()) }}">
                     <div class="form-group mt-2">
-                        <label for="manuals_id">{{ __('Unit PN') }}</label>
+                        <label for="manuals_id">{{ __('Componenr PN') }}</label>
                         <select id="manuals_id" name="manuals_id" class="form-control" required>
-                            <option value="">{{ __('Select Unit PN') }}</option>
+                            <option value="">{{ __('Select Component PN') }}</option>
                             @foreach ($manuals as $manual)
                                 @if(!empty($manual->unit_name_training))
-                                    <option value="{{ $manual->id }}" 
+                                    <option value="{{ $manual->id }}"
                                             @if(request('manual_id') == $manual->id) selected @endif>
                                         {{ $manual->unit_name_training }}
                                         ({{ $manual->title }})
@@ -92,7 +92,7 @@
                         <label for="date_training">{{ __('First Training Date') }}</label>
                         <input type="date" id="date_training" name="date_training" class="form-control" required>
                         <small class="form-text text-muted">
-                            <i class="bi bi-info-circle"></i> 
+                            <i class="bi bi-info-circle"></i>
                             If the date is more than 2 years ago, you will need to provide the last training date.
                         </small>
                     </div>
@@ -101,13 +101,13 @@
                         <label for="last_training_date">{{ __('Last Existing Training Date') }} <span class="text-danger">*</span></label>
                         <input type="date" id="last_training_date" name="last_training_date" class="form-control">
                         <small class="form-text text-muted">
-                            <i class="bi bi-info-circle"></i> 
+                            <i class="bi bi-info-circle"></i>
                             Please enter the date of the last existing training. Missing yearly trainings between First Training Date and this date will be created, and a new training will be created with today's date.
                         </small>
                         <div id="last_training_date_error" class="text-danger mt-1" style="display: none;"></div>
                     </div>
                     <div class="text-end">
-                        <button type="submit" class="btn btn-primary mt-3">{{ __('Add Unit') }}</button>
+                        <button type="submit" class="btn btn-primary mt-3">{{ __('Add Component') }}</button>
                         @if(request('manual_id'))
                             <a href="{{ request()->get('return_url', url()->previous()) }}" class="btn btn-outline-info mt-3">
                                 <i class="bi bi-arrow-left"></i> Back to TDR
@@ -159,7 +159,7 @@
                 const firstTrainingDate = new Date($(this).val());
                 const today = new Date();
                 const twoYearsAgo = new Date(today.getFullYear() - 2, today.getMonth(), today.getDate());
-                
+
                 // Если дата больше чем 2 года назад, показываем поле для последнего тренинга
                 if (firstTrainingDate < twoYearsAgo) {
                     $('#last_training_date_group').show();
@@ -170,7 +170,7 @@
                     $('#last_training_date').val('');
                     $('#last_training_date_error').hide();
                 }
-                
+
                 // Проверяем валидность даты последнего тренинга если она уже введена
                 if ($('#last_training_date').val()) {
                     validateLastTrainingDate();

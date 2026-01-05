@@ -9,7 +9,7 @@
         <div class="card bg-gradient">
             <div class="card-header">
                 <div class="d-flex justify-content-between">
-                    <h4 class="text-primary">{{ __('Edit Component Processes') }}</h4>
+                    <h4 class="text-primary">{{ __('Edit Part Processes') }}</h4>
                     <h4 class="pe-3">{{ __('W') }}{{ $current_tdr->workorder->number }}</h4>
                 </div>
                 <div class="d-flex justify-content-between">

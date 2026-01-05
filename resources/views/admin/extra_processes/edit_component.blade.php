@@ -74,7 +74,7 @@
                     <input type="hidden" name="workorder_id" value="{{$current_wo->id }}">
 
                     <div class="form-group d-flex mb-3">
-                        <label for="i_component_id" class="form-label pe-2">Component</label>
+                        <label for="i_component_id" class="form-label pe-2">Part</label>
 
                         <select name="component_id" id="i_component_id" class="form-control" style="width: 300px" required>
                             <option value="">---</option>
@@ -88,7 +88,7 @@
                             @endforeach
                         </select>
                         <button type="button" class="btn btn-link" data-bs-toggle="modal"
-                                data-bs-target="#addComponentModal">{{ __('Add Component') }}
+                                data-bs-target="#addComponentModal">{{ __('Add Part') }}
                         </button>
                     </div>
 
@@ -122,7 +122,7 @@
         <div class="modal-dialog">
             <div class="modal-content bg-gradient">
                 <div class="modal-header">
-                    <h5 class="modal-title" id="addComponentModalLabel">{{ __('Add Component') }}</h5>
+                    <h5 class="modal-title" id="addComponentModalLabel">{{ __('Add Part') }}</h5>
                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Закрыть"></button>
                 </div>
                 <form action="{{ route('components.storeFromExtra') }}" method="POST" id="addComponentForm">
@@ -191,7 +191,7 @@
                                 </label>
                             </div>
                             <div class="text-end">
-                                <button type="submit" class="btn btn-primary">Save Component</button>
+                                <button type="submit" class="btn btn-primary">Save Part</button>
                             </div>
                         </div>
                     </div>

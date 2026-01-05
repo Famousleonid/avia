@@ -77,7 +77,7 @@
                 </div>
                 <div class="d-flex justify-content-between">
                     <div>
-                        <strong>Component:</strong> {{ $component->name }}<br>
+                        <strong>Part:</strong> {{ $component->name }}<br>
                         <strong>IPL:</strong> {{ $component->ipl_num }}<br>
                         <strong>Part Number:</strong> {{ $component->part_number }}
                     </div>
@@ -207,7 +207,7 @@
 
         function addProcessRow(index, selectedProcessNameId = '', selectedProcessId = '', selectedDescription = '', selectedNotes = '') {
             const container = document.getElementById('processes-container');
-            
+
             const newRow = document.createElement('div');
             newRow.classList.add('process-row', 'mb-3');
             newRow.innerHTML = `

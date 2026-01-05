@@ -73,7 +73,8 @@
     <div class="card shadow">
         <div class="card-header my-1 shadow">
             <div class="d-flex justify-content-between align-items-center flex-wrap">
-                <h5 class="text-primary manage-header">{{__('Manuals CSV Components')}} ( <span class="text-success" id="manualsCount">{{$manuals->count()}}</span>)</h5>
+                <h5 class="text-primary manage-header">{{__('Manuals CSV Parts')}} ( <span class="text-success"
+                                                                                       id="manualsCount">{{$manuals->count()}}</span>)</h5>
 
                 <div class="d-flex my-2 gap-2 flex-wrap">
                     <!-- Upload CSV -->
@@ -106,7 +107,7 @@
                     <tr>
                         <th class="text-center sortable">{{__('Manual')}} <i class="bi bi-chevron-expand ms-1"></i></th>
                         <th class="text-center sortable">{{__('Title')}} <i class="bi bi-chevron-expand ms-1"></i></th>
-                        <th class="text-center">{{__('Component CSV Files')}}</th>
+                        <th class="text-center">{{__('Part CSV Files')}}</th>
                         <th class="text-center">{{__('Action')}}</th>
                     </tr>
                     </thead>
@@ -154,7 +155,7 @@
                                                 <form action="{{ route('components.delete-csv', ['manual_id' => $manual->id, 'file_id' => $csvFile->id]) }}"
                                                       method="POST"
                                                       style="display:inline-block;"
-                                                      onsubmit="return confirm('Вы уверены, что хотите удалить этот CSV файл?');">
+                                                      onsubmit="return confirm('Are you sure you want to delete this CSV file?');">
                                                     @csrf
                                                     @method('DELETE')
                                                     <button type="submit" class="btn btn-outline-danger" title="Delete {{ $csvFile->file_name }}">
@@ -183,7 +184,7 @@
             <div class="modal-content">
                 <div class="modal-header">
                     <h5 class="modal-title" id="uploadCsvModalLabel">
-                        {{__('Upload Components CSV')}}
+                        {{__('Upload Parts CSV')}}
                     </h5>
                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
@@ -214,7 +215,7 @@
 
                                 <div class="mb-3">
                                     <button type="submit" class="btn btn-primary">
-                                        <i class="bi bi-upload"></i> {{__('Upload Components')}}
+                                        <i class="bi bi-upload"></i> {{__('Upload Parts')}}
                                     </button>
                                 </div>
                             </form>
@@ -229,7 +230,7 @@
                                     <ul class="small text-muted">
                                         <li><strong>part_number</strong> - {{__('Part number (required)')}}</li>
                                         <li><strong>assy_part_number</strong> - {{__('Assembly part number (optional)')}}</li>
-                                        <li><strong>name</strong> - {{__('Component name (required)')}}</li>
+                                        <li><strong>name</strong> - {{__('Parts name (required)')}}</li>
                                         <li><strong>ipl_num</strong> - {{__('IPL number (required)')}}</li>
                                         <li><strong>assy_ipl_num</strong> - {{__('Assembly IPL number (optional)')}}</li>
                                         <li><strong>log_card</strong> - {{__('Log card (0 or 1, optional)')}}</li>

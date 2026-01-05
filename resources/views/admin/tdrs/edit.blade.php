@@ -22,7 +22,7 @@
                </div>
                 <div class="d-flex justify-content-between">
                     <div class="ms-2">
-                        <h6 style="margin-left: 64px">{{ __('Component:') }} {{ $current_tdr->component->name }}</h6>
+                        <h6 style="margin-left: 64px">{{ __('Part:') }} {{ $current_tdr->component->name }}</h6>
                         <h6 style="margin-left: 64px">{{ __('PN:') }} {{ $current_tdr->component->part_number }}</h6>
                         <h6 style="margin-left: 64px">{{ __('IPL:') }} {{ $current_tdr->component->ipl_num }}</h6>
                     </div>

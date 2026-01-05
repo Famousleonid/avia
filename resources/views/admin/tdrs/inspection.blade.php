@@ -78,20 +78,20 @@
                         <div class="form-check">
                             <input class="form-check-input" type="radio" name="RadioInspection" id="Component">
                             <label class="form-check-label" for="Component">
-                                Add Component Inspection
+                                Add Part Inspection
                             </label>
                         </div>
                         <div class="form-check">
                             <input class="form-check-input" type="radio" name="RadioInspection" id="Unit">
                             <label class="form-check-label" for="Unit">
-                                Add Unit Inspection
+                                Add Component Inspection
                             </label>
                         </div>
             <!-- Группа элементов для Component Inspection -->
                         <div id="componentGroup" style="display:none;">
                             <div class="">
                                 <div class=" form-group  d-flex">
-                                    <label for="component_id" class="form-label me-2">Component</label>
+                                    <label for="component_id" class="form-label me-2">Part</label>
                                     <select name="component_id" id="component_id" class="form-control" style="width: 300px">
                                         @if (isset($selectedComponent))
                                             <option value="{{ $selectedComponent->id }}" selected>
@@ -111,7 +111,7 @@
                                         @endforeach
                                     </select>
                                     <button type="button" class="btn btn-link" data-bs-toggle="modal"
-                                            data-bs-target="#addComponentModal">{{ __('Add Component') }}
+                                            data-bs-target="#addComponentModal">{{ __('Add Part') }}
                                     </button>
                                 </div>
                                 <div class="  ms-2 me-2"  >
@@ -337,7 +337,7 @@
                                 <button type="submit" class="btn btn-primary">Save Component</button>
                             </div>
                         </div>
-                        
+
                         <!-- Bush IPL Number field - показывается только когда Is Bush отмечен -->
                         <div class="form-group mt-3" id="bush_ipl_container" style="display: none;">
                             <div class="d-flex">

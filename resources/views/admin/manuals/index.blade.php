@@ -113,7 +113,8 @@
                     <tr>
                         <th class="text-primary sortable bg-gradient " data-direction="asc">{{__('Number')}}<i class="bi bi-chevron-expand ms-1"></i></th>
                         <th class="text-primary  sortable bg-gradient">{{__('Title')}}<i class="bi bi-chevron-expand ms-1"></i></th>
-                        <th class="text-primary  sortable bg-gradient">{{__('Units PN')}}<i class="bi bi-chevron-expand ms-1"></i></th>
+                        <th class="text-primary  sortable bg-gradient">{{__('Components PN')}}<i class="bi bi-chevron-expand
+                        ms-1"></i></th>
                         <th class="text-primary text-center bg-gradient">{{__('Image')}}</th>
                         <th class="text-primary text-center bg-gradient">{{__('Rev.Date')}}</th>
                         <th class="text-primary text-center  sortable bg-gradient" data-direction="asc">{{__('Lib')}} <i class="bi bi-chevron-expand ms-1"></i></th>

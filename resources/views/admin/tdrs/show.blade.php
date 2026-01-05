@@ -87,7 +87,7 @@
                                 <a href="{{route('tdrs.processes',['workorder_id' => $current_wo->id])}}"
                                    class="btn fs-8 btn-outline-primary " style="height: 55px;width: 100px"
                                    onclick="showLoadingSpinner()">
-                                    {{__('Component Processes')}}
+                                    {{__('All Parts Processes')}}
                                 </a>
                             </div>
                         @endif
@@ -100,7 +100,7 @@
                             <a href="{{route('extra_processes.show_all',['id'=>$current_wo->id])}}"
                                class="btn fs-8 btn-outline-primary " style="height: 55px;width: 140px" onclick="showLoadingSpinner
                                        ()">
-                                {{__('Extra Component Processes')}}
+                                {{__('Extra Parts Processes')}}
                             </a>
                             @if($extraProcessesCount > 0)
                                 <span class="badge bg-success rounded-pill" style="position: absolute; top: -5px; right: -5px;

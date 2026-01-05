@@ -119,7 +119,7 @@
             <div class="card-header">
                 <div class="d-flex justify-content-between">
                     <div class="d-flex align-items-center gap-3">
-                        <h4 class="text-primary mb-0">{{ __('Component Traveler') }}</h4>
+                        <h4 class="text-primary mb-0">{{ __('Part Traveler') }}</h4>
                     </div>
                     <h4 class="pe-3 mb-0">{{ __('W') }}{{ $current_tdr->workorder->number }}</h4>
                 </div>
