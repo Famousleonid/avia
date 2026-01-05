@@ -339,15 +339,17 @@
                         @hasanyrole('Admin|Manager')
                             <th class="text-center text-primary col-stages">Stages</th>
                         @endhasanyrole
-                        <th class="text-center text-primary">Unit</th>
+                        <th class="text-center text-primary">Component</th>
                         <th class="text-center text-primary">Description</th>
                         <th class="text-center text-primary">Serial number</th>
                         <th class="text-center text-primary">Manual</th>
                         <th class="text-center text-primary sortable">Customer <i class="bi bi-chevron-expand ms-1"></i></th>
                         <th class="text-center text-primary sortable">Instruction <i class="bi bi-chevron-expand ms-1"></i></th>
-                        <th class="text-center text-primary sortable">Technik <i class="bi bi-chevron-expand ms-1"></i></th>
-                        <th class="text-center text-primary col-edit">Edit</th>
                         <th class="text-center text-primary col-date">Open Date</th>
+                        <th class="text-center text-primary col-date">Customer PO</th>
+                        <th class="text-center text-primary col-edit">Edit</th>
+                        <th class="text-center text-primary sortable">Technik <i class="bi bi-chevron-expand ms-1"></i></th>
+
                         @role('Admin')
                             <th class="text-center text-primary col-delete">Delete</th>
                         @endrole
@@ -463,16 +465,6 @@
                                 {{ $workorder->instruction->name }}
                             </td>
 
-                            <td class="text-center td-technik">
-                                {{ $workorder->user->name }}
-                            </td>
-
-                            <td class="text-center">
-                                <a href="{{ route('workorders.edit', $workorder->id) }}">
-                                    <img src="{{ asset('img/set.png') }}" width="30" alt="Edit">
-                                </a>
-                            </td>
-
                             <td class="text-center">
                                 @if($workorder->open_at)
                                     <span style="display: none">
@@ -483,6 +475,20 @@
                                     <span style="display: none">{{ $workorder->open_at }}</span>
                                     {{ $workorder->open_at }}
                                 @endif
+                            </td>
+
+                            <td class="text-center td-customer_po">
+                                {{ $workorder->customer_po }}
+                            </td>
+
+                            <td class="text-center">
+                                <a href="{{ route('workorders.edit', $workorder->id) }}">
+                                    <img src="{{ asset('img/set.png') }}" width="30" alt="Edit">
+                                </a>
+                            </td>
+
+                            <td class="text-center td-technik">
+                                {{ $workorder->user->name }}
                             </td>
 
                             @role('Admin')

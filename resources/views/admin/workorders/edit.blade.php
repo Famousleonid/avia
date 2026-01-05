@@ -170,7 +170,12 @@
 
                                     <div class="row ">
 
-                                        <div class="form-group col-lg-4 offset-4 mt-2">
+                                        <div class="form-group col-lg-4 mt-2">
+                                            <label for="customer_po">Customer PO</label>
+                                            <input type="text" name="customer_po" id="customer_po" maxlength="30" value="{{ old('customer_po', $current_wo->customer_po) }}" class="form-control @error ('place') is-invalid @enderror" placeholder="">
+                                        </div>
+
+                                        <div class="form-group col-lg-4  mt-2">
                                             <label for="instruction_id">Technik</label>
                                             <select name="user_id" id="user_id" class="form-select">
                                                 <option selected value="{{ old('user_id', $current_wo->user_id) }}">{{ old('user_id', $current_wo->user->name) }}</option>

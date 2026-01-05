@@ -108,7 +108,7 @@
                     <circle cx="18" cy="18" r="18"/>
                 </svg>
             </div>
-            <span class="menu-label">Components</span>
+            <span class="menu-label">Parts</span>
         </a>
 
         <a href="{{ route('mobile.process', $currentWorkorderId) }}" data-spinner

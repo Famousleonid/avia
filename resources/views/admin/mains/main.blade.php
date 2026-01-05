@@ -482,9 +482,9 @@
 
                         <div class="d-flex align-items-center justify-content-between mb-2">
                             <div class="d-flex align-items-center gap-2">
-                                <h6 class="mb-0 text-primary">Components</h6>
+                                <h6 class="mb-0 text-primary">Parts</h6>
                                 <span class="text-info">({{ $components->count() }})</span>
-                                <h6 class="mb-0 text-primary">&nbsp;& Processes</h6>
+                                <h6 class="mb-0 text-primary">&nbsp;& Repair Processes</h6>
                             </div>
 
                             <form method="get"

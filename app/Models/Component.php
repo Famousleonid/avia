@@ -29,11 +29,6 @@ class Component extends Model implements  hasMedia
     ];
 
 
-    public function manuals()
-    {
-        return $this->belongsTo(Manual::class,'manual_id');
-    }
-
     public function manual()
     {
         return $this->belongsTo(Manual::class,'manual_id');

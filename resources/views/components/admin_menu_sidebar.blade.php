@@ -43,12 +43,12 @@
         </li>
         <li class="nav-item">
             <a class="nav-link press-spinner" href="{{route('units.index')}}">
-                <i class="bi bi-unity me-2"></i> <span>Units</span>
+                <i class="bi bi-unity me-2"></i> <span>Component CMM</span>
             </a>
         </li>
         <li class="nav-item">
             <a class="nav-link press-spinner" href="{{route('components.index')}}">
-                <i class="bi bi-gear me-2"></i> <span>Components</span>
+                <i class="bi bi-gear me-2"></i> <span>Replaceable Parts</span>
             </a>
         </li>
         <li class="nav-item">
