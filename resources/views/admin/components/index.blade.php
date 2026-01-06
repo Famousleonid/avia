@@ -1,6 +1,7 @@
 @extends('admin.master')
 
 @section('style')
+
     <style>
 
         .table-wrapper.is-preloading{
@@ -225,7 +226,14 @@
         .fs-8 {
             font-size: 0.8rem;
         }
+
+        th.sortable.sorted-asc  i { transform: rotate(180deg); opacity: 1; }
+        th.sortable.sorted-desc i { transform: rotate(0deg);   opacity: 1; }
+        th.sortable i { transition: transform .15s ease, opacity .15s ease; opacity: .6; }
+        #manualFilter + .select2 { width: 460px !important; }
+
     </style>
+
 @endsection
 
 @section('content')
@@ -241,15 +249,17 @@
                 <div class="d-flex my-2 gap-2 flex-wrap">
                     <!-- Filter by Manual -->
                     <div>
-                        <select id="manualFilter" class="form-select" style="height: 40px; width: 300px;">
-                            <option value="">{{__('All Manuals')}}</option>
+                        <select id="manualFilter" class="form-select" style="height:40px;width:460px;">
+                            <option value="">{{ __('All Manuals') }}</option>
+
                             @foreach($manuals as $manual)
-                                <option value="{{$manual->id}}">
-                                    <span class="" style="color: #0a53be">({{ $manual->lib ?? '—' }})</span>
-                                    {{$manual->number}} - {{$manual->title}}
-                                    @if($manual->unit_name_training)
-                                        ({{ Str::limit($manual->unit_name_training, 10) }})
-                                    @endif
+                                <option
+                                    value="{{ $manual->id }}"
+                                    data-number="{{ $manual->number }}"
+                                    data-lib="{{ $manual->lib }}"
+                                    data-title="{{ $manual->title }}"
+                                >
+                                    {{ $manual->number }} ({{ $manual->lib ?? '—' }}) - {{ $manual->title }}
                                 </option>
                             @endforeach
                         </select>
@@ -258,7 +268,7 @@
                     <!-- Search -->
                     <div class="clearable-input">
                         <input id="searchInput" type="text" class="form-control w-100" placeholder="Search...">
-                        <button class="btn-clear text-secondary" onclick="document.getElementById('searchInput').value = ''; document.getElementById('searchInput').dispatchEvent(new Event('input'))">
+                        <button type="button" class="btn-clear text-secondary" id="searchClearBtn" aria-label="Clear search">
                             <i class="bi bi-x-circle"></i>
                         </button>
                     </div>
@@ -267,11 +277,6 @@
                     <a href="{{ route('components.csv-components') }}" class="btn btn-outline-info" style="height: 40px">
                         <i class="bi bi-file-earmark-spreadsheet"></i> {{__('CSV Parts')}}
                     </a>
-
-                    {{--                    <!-- Upload CSV -->--}}
-                    {{--                    <button type="button" class="btn btn-outline-success" style="height: 40px" data-bs-toggle="modal" data-bs-target="#uploadCsvModal">--}}
-                    {{--                        <i class="bi bi-upload"></i> {{__('Upload CSV')}}--}}
-                    {{--                    </button>--}}
 
                     <!-- Add Component -->
                     <a href="{{ route('components.create') }}" class="btn btn-outline-primary" style="height: 40px">
@@ -282,7 +287,7 @@
 
             @if(count($components))
 
-                <div class="table-wrapper me-3 p-2 pt-0 is-preloading" id="componentsTableWrapper">
+                <div class="table-wrapper me-3 p-2 pt-0 " id="componentsTableWrapper" style="visibility:hidden">
                     <table id="componentsTable" class="table table-sm table-hover bg-gradient align-middle table-bordered">
                         <thead class="bg-gradient">
                         <tr>
@@ -296,7 +301,7 @@
                         </thead>
                         <tbody>
                         @foreach($components as $component)
-                            <tr data-manual-id="{{ $component->manual_id }}">
+                            <tr data-manual-id="{{ $component->manual_id ?? '' }}">
                                 <td class="text-center">{{$component->ipl_num}}</td>
                                 <td class="text-center">{{$component->part_number}}</td>
                                 <td class="text-center">{{$component->name}}</td>
@@ -310,11 +315,11 @@
                                     @endif
                                 </td>
                                 <td class="text-center">
-                                    @if($component->manuals)
+                                    @if($component->manual)
                                         <a href="#"
                                            data-bs-toggle="modal"
-                                           data-bs-target="#manualModal{{ $component->manuals->id }}">
-                                            {{$component->manuals->number}}
+                                           data-bs-target="#manualModal{{ $component->manual->id }}">
+                                            {{$component->manual->number}}
                                         </a>
                                     @else
                                         <span class="text-muted">—</span>
@@ -462,384 +467,330 @@
             </div>
         @endforeach
 
+        <noscript>
+            <style>#componentsTableWrapper {visibility: visible !important;}</style>
+        </noscript>
+
         @endsection
 
-        @section('scripts')
+@section('scripts')
 
             <script>
-                document.addEventListener('DOMContentLoaded', function () {
-                    try {
+                (() => {
+
+                    const LS = {
+                        search: 'components_search',
+                        manual: 'components_manual_id',
+                        sortCol: 'components_sort_col',
+                        sortDir: 'components_sort_dir',
+                        scrollY: 'components_scroll_y',
+                        scrollRestore: 'components_scroll_restore',
+                    };
+
+                    const debounce = (fn, wait = 250) => {
+                        let t;
+                        return (...args) => { clearTimeout(t); t = setTimeout(() => fn(...args), wait); };
+                    };
+
+                    function initComponentsIndex() {
+                        const LS = {
+                            search: 'components_search',
+                            manual: 'components_manual_id',
+                            sortCol: 'components_sort_col',
+                            sortDir: 'components_sort_dir',
+                            scrollY: 'components_scroll_y',
+                            scrollRestore: 'components_scroll_restore',
+                        };
+
+                        const debounce = (fn, wait = 250) => {
+                            let t;
+                            return (...args) => { clearTimeout(t); t = setTimeout(() => fn(...args), wait); };
+                        };
+
                         const table = document.getElementById('componentsTable');
+                        const tbody = table?.querySelector('tbody');
+                        const wrapper = document.getElementById('componentsTableWrapper');
+
                         const searchInput = document.getElementById('searchInput');
+                        const searchClearBtn = document.getElementById('searchClearBtn');
                         const manualFilter = document.getElementById('manualFilter');
-                        const manualClearBtn = document.getElementById('manualClearBtn'); // опционально
+
                         const componentsCount = document.getElementById('componentsCount');
                         const manualIndicator = document.getElementById('manualIndicator');
-                        const tableWrapper = document.getElementById('componentsTableWrapper');
 
-                        // ====== manual select search (Select2) ======
-                        if (window.jQuery && manualFilter) {
-                            $(manualFilter).select2({
-                                width: '350px',
-                                placeholder: 'All Manuals',
-                                allowClear: true,
-                                dropdownAutoWidth: true
-                            });
-
-                            $(manualFilter).on('change', function () {
-                                manualFilter.dispatchEvent(new Event('change', { bubbles: true }));
-                            });
-                        }
-
-
-                        function updateManualIndicator() {
-                            if (!manualIndicator || !manualFilter) return;
-
-                            const selectedOption = manualFilter.options[manualFilter.selectedIndex];
-
-                            if (!manualFilter.value) {
-                                manualIndicator.textContent = ''; // All Manuals
-                                return;
-                            }
-
-                            const optText = manualFilter.options[manualFilter.selectedIndex]?.text || '';
-                            const manualNumber = optText.split(' - ')[0].trim();
-
-                            manualIndicator.textContent = ` · Manual: ${manualNumber}`;
-
-                        }
-
-                        // tbody
-                        const tbody = table.querySelector('tbody');
-                        if (!tbody) {
-                            console.warn('Table tbody not found');
-                            return;
-                        }
-
-                        // ====== localStorage keys ======
-                        const LS_SEARCH = 'components_search';
-                        const LS_MANUAL = 'components_manual_id';
-
-                        // ====== ВАЖНО: чтобы не было "дерганий" ======
-                        // Скрываем tbody ДО применения сохраненных фильтров
-                        if (tableWrapper) tableWrapper.classList.add('is-preloading');
+                        wrapper && (wrapper.style.visibility = 'hidden');
                         safeShowSpinner();
 
-                        // Кэшируем данные строк для быстрого поиска
-                        const rows = Array.from(tbody.querySelectorAll('tr'));
-                        const rowDataCache = rows.map(row => ({
-                            element: row,
-                            searchText: row.innerText ? row.innerText.toLowerCase() : '',
-                            manualId: row.getAttribute('data-manual-id') || ''
-                        }));
+                        if (!table || !tbody || !searchInput || !manualFilter) return;
 
-                        // Debounce функция для оптимизации поиска
-                        let searchTimeout;
+                        // --- helper to show/hide table even when coming from bfcache
+                        const showUI = () => {
+                            wrapper?.classList.remove('is-preloading');
+                            if (typeof safeHideSpinner === 'function') safeHideSpinner();
+                        };
 
-                        function debounce(func, wait) {
-                            return function (...args) {
-                                clearTimeout(searchTimeout);
-                                searchTimeout = setTimeout(() => func.apply(this, args), wait);
-                            };
-                        }
+                        try {
+                            // Always start from "preloading" state, then always remove it in finally
+                            wrapper?.classList.add('is-preloading');
+                            if (typeof safeShowSpinner === 'function') safeShowSpinner();
 
-                        // ====== Sorting ======
-                        const headers = table ? table.querySelectorAll('.sortable') : [];
-                        if (headers.length === 0) {
-                            console.warn('No sortable headers found');
-                        }
+                            // Cache rows (rebuild each init for Back/Forward safety)
+                            const rows = Array.from(tbody.querySelectorAll('tr'));
+                            const cache = rows.map((row, idx) => ({
+                                el: row,
+                                idx,
+                                manualId: row.getAttribute('data-manual-id') || '',
+                                searchText: (row.textContent || '').toLowerCase(),
+                                cells: Array.from(row.querySelectorAll('td')).map(td => (td.textContent || '').trim()),
+                            }));
 
-                        headers.forEach(header => {
-                            header.addEventListener('click', () => {
-                                safeShowSpinner();
+                            // Select2 init once
 
-                                const columnIndex = Array.from(header.parentNode.children).indexOf(header);
-                                const visibleRows = rowDataCache.filter(data => data.element.style.display !== 'none');
-                                const direction = header.dataset.direction === 'asc' ? 'desc' : 'asc';
-                                header.dataset.direction = direction;
+                            const hasSelect2 = !!(window.jQuery && typeof window.jQuery.fn?.select2 === 'function');
+                            if (hasSelect2) {
+                                const $mf = window.jQuery(manualFilter);
 
-                                // Update icon
-                                const icon = header.querySelector('i');
-                                if (icon) {
-                                    icon.className = direction === 'asc' ? 'bi bi-chevron-up ms-1' : 'bi bi-chevron-down ms-1';
-                                }
+                                if (!$mf.data('select2')) {
+                                    $mf.select2({
+                                        width: '520px',
+                                        placeholder: 'All Manuals',
+                                        allowClear: true,
+                                        dropdownAutoWidth: true,
 
-                                // Определяем, является ли это столбцом IPL Number
-                                const headerText = header.textContent.trim().toLowerCase();
-                                const isIplNumberColumn = headerText.includes('ipl') && headerText.includes('number');
-
-                                visibleRows.sort((a, b) => {
-                                    const aText = a.element.cells[columnIndex].innerText.trim();
-                                    const bText = b.element.cells[columnIndex].innerText.trim();
-
-                                    // Special sorting for IPL numbers
-                                    if (isIplNumberColumn) {
-                                        return sortIplNumbers(aText, bText, direction);
-                                    }
-
-                                    return direction === 'asc' ? aText.localeCompare(bText) : bText.localeCompare(aText);
-                                });
-
-                                // Переупорядочиваем только видимые строки
-                                visibleRows.forEach(data => tbody.appendChild(data.element));
-
-                                requestAnimationFrame(() => safeHideSpinner());
-                            });
-                        });
-
-                        // Начальная сортировка по IPL Number при загрузке
-                        function applyInitialSort() {
-                            const iplHeader = Array.from(headers).find(h => {
-                                const text = h.textContent.trim().toLowerCase();
-                                return text.includes('ipl') && text.includes('number');
-                            });
-
-                            if (iplHeader) {
-                                const columnIndex = Array.from(iplHeader.parentNode.children).indexOf(iplHeader);
-                                const direction = 'asc';
-                                iplHeader.dataset.direction = direction;
-
-                                // Обновляем иконку
-                                const icon = iplHeader.querySelector('i');
-                                if (icon) {
-                                    icon.className = 'bi bi-chevron-up ms-1';
-                                }
-
-                                // Сортируем ВСЕ строки, а не только видимые
-                                rowDataCache.sort((a, b) => {
-                                    const aText = a.element.cells[columnIndex].innerText.trim();
-                                    const bText = b.element.cells[columnIndex].innerText.trim();
-                                    return sortIplNumbers(aText, bText, direction);
-                                });
-
-                                // Переупорядочиваем все строки в таблице
-                                rowDataCache.forEach(data => tbody.appendChild(data.element));
-                            }
-                        }
-
-                        // Custom sorting function for IPL numbers
-                        // Правильная сортировка: 1-10, 1-20, 1-20A, 1-20B, 1-100, 1-1000
-                        function sortIplNumbers(a, b, direction) {
-                            if (!a && !b) return 0;
-                            if (!a || a.trim() === '') return direction === 'asc' ? 1 : -1;
-                            if (!b || b.trim() === '') return direction === 'asc' ? -1 : 1;
-
-                            a = a.trim();
-                            b = b.trim();
-
-                            const aMatch = a.match(/^(\d+)-(\d+)([A-Za-z]*)$/);
-                            const bMatch = b.match(/^(\d+)-(\d+)([A-Za-z]*)$/);
-
-                            if (!aMatch || !bMatch) {
-                                return direction === 'asc' ? a.localeCompare(b) : b.localeCompare(a);
-                            }
-
-                            const aMajor = parseInt(aMatch[1], 10);
-                            const bMajor = parseInt(bMatch[1], 10);
-                            const aMinorNum = parseInt(aMatch[2], 10);
-                            const bMinorNum = parseInt(bMatch[2], 10);
-                            const aMinorLetter = aMatch[3] || '';
-                            const bMinorLetter = bMatch[3] || '';
-
-                            if (aMajor !== bMajor) {
-                                const result = aMajor - bMajor;
-                                return direction === 'asc' ? result : -result;
-                            }
-
-                            if (aMinorNum !== bMinorNum) {
-                                const result = aMinorNum - bMinorNum;
-                                return direction === 'asc' ? result : -result;
-                            }
-
-                            if (aMinorLetter === '' && bMinorLetter !== '') {
-                                return direction === 'asc' ? -1 : 1;
-                            }
-                            if (aMinorLetter !== '' && bMinorLetter === '') {
-                                return direction === 'asc' ? 1 : -1;
-                            }
-
-                            if (aMinorLetter && bMinorLetter) {
-                                const letterCompare = aMinorLetter.localeCompare(bMinorLetter);
-                                return direction === 'asc' ? letterCompare : -letterCompare;
-                            }
-
-                            return 0;
-                        }
-
-                        // ====== ФИЛЬТРАЦИЯ (manual + search) + localStorage ======
-                        function filterTable({persist = true} = {}) {
-                            const searchFilter = (searchInput?.value || '').toLowerCase();
-                            const manualFilterValue = (manualFilter?.value || '');
-
-                            if (persist) {
-                                localStorage.setItem(LS_SEARCH, searchFilter);
-                                localStorage.setItem(LS_MANUAL, manualFilterValue);
-                            }
-
-                            let visibleCount = 0;
-
-                            rowDataCache.forEach(data => {
-                                const matchesSearch = !searchFilter || data.searchText.includes(searchFilter);
-                                const matchesManual = !manualFilterValue || data.manualId === manualFilterValue;
-
-                                if (matchesSearch && matchesManual) {
-                                    data.element.style.display = '';
-                                    visibleCount++;
-                                } else {
-                                    data.element.style.display = 'none';
-                                }
-                            });
-
-                            if (componentsCount) {
-                                componentsCount.textContent = visibleCount;
-                            }
-
-                            updateManualIndicator();
-                        }
-
-                        // ====== Восстановление состояния ДО первого показа таблицы ======
-                        function restoreStateAndApplyOnce() {
-                            // restore search
-                            if (searchInput) {
-                                const savedSearch = localStorage.getItem(LS_SEARCH) || '';
-                                searchInput.value = savedSearch;
-                            }
-
-                            // restore manual
-                            if (manualFilter) {
-                                const savedManual = localStorage.getItem(LS_MANUAL) || '';
-                                const exists = Array.from(manualFilter.options).some(o => o.value === savedManual);
-                                manualFilter.value = exists ? savedManual : '';
-                                if (window.jQuery) $(manualFilter).trigger('change.select2');
-                            }
-
-                            // Сортировка 1 раз
-                            applyInitialSort();
-
-                            // Фильтр 1 раз без лишних дерганий
-                            filterTable({persist: false});
-
-                            // Показываем tbody только после применения фильтра
-                            requestAnimationFrame(() => {
-                                if (tableWrapper) tableWrapper.classList.remove('is-preloading');
-                                safeHideSpinner();
-                            });
-
-
-                            updateManualIndicator();
-
-                        }
-
-                        // Search с debounce (250ms)
-                        if (searchInput) {
-                            searchInput.addEventListener('input', debounce(() => {
-                                safeShowSpinner();
-                                filterTable({persist: true});
-                                requestAnimationFrame(() => safeHideSpinner());
-                            }, 250));
-                        }
-
-                        // Manual filter
-                        if (manualFilter) {
-                            manualFilter.addEventListener('change', () => {
-                                safeShowSpinner();
-                                filterTable({persist: true});
-                                updateManualIndicator();
-                                requestAnimationFrame(() => safeHideSpinner());
-                            });
-                        }
-
-                        // Крестик “сброс manual” (если кнопка есть)
-                        if (manualClearBtn && manualFilter) {
-                            manualClearBtn.addEventListener('click', () => {
-                                safeShowSpinner();
-                                manualFilter.value = '';
-                                localStorage.setItem(LS_MANUAL, '');
-                                filterTable({persist: true});
-                                updateManualIndicator();
-                                requestAnimationFrame(() => safeHideSpinner());
-                            });
-                        }
-
-                        // ====== CSV Upload handling (как у тебя) ======
-                        const csvUploadForm = document.getElementById('csvUploadForm');
-                        if (csvUploadForm) {
-                            csvUploadForm.addEventListener('submit', function (e) {
-                                e.preventDefault();
-
-                                safeShowSpinner();
-
-                                const formData = new FormData(this);
-                                const submitBtn = this.querySelector('button[type="submit"]');
-                                const originalText = submitBtn.innerHTML;
-
-                                // Show loading state
-                                submitBtn.disabled = true;
-                                submitBtn.innerHTML = '<i class="bi bi-hourglass-split"></i> Uploading.';
-
-                                fetch(this.action, {
-                                    method: 'POST',
-                                    body: formData,
-                                    headers: {
-                                        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
-                                    }
-                                })
-                                    .then(response => response.json())
-                                    .then(data => {
-                                        if (data.success) {
-                                            showAlert('success', data.message);
-
-                                            const modal = bootstrap.Modal.getInstance(document.getElementById('uploadCsvModal'));
-                                            if (modal) modal.hide();
-
-                                            setTimeout(() => {
-                                                window.location.reload();
-                                            }, 1200);
-                                        } else {
-                                            showAlert('danger', data.message || 'Upload failed');
-                                        }
-                                    })
-                                    .catch(error => {
-                                        console.error('Error:', error);
-                                        showAlert('danger', 'An error occurred during upload');
-                                    })
-                                    .finally(() => {
-                                        submitBtn.disabled = false;
-                                        submitBtn.innerHTML = originalText;
-                                        safeHideSpinner();
+                                        templateResult: formatManual,
+                                        templateSelection: formatManualSelected,
+                                        escapeMarkup: m => m
                                     });
-                            });
-                        }
-
-                        // Alert function (как у тебя)
-                        function showAlert(type, message) {
-                            const alertDiv = document.createElement('div');
-                            alertDiv.className = `alert alert-${type} alert-dismissible fade show position-fixed`;
-                            alertDiv.style.cssText = 'top: 20px; right: 20px; z-index: 9999; min-width: 300px;';
-                            alertDiv.innerHTML = `
-                ${message}
-                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-            `;
-                            document.body.appendChild(alertDiv);
-
-                            setTimeout(() => {
-                                if (alertDiv.parentNode) {
-                                    alertDiv.remove();
                                 }
-                            }, 5000);
+                            }
+
+                            function formatManual(state) {
+                                if (!state.id) return state.text;
+
+                                const el = state.element;
+                                const number = el.dataset.number;
+                                const lib    = el.dataset.lib;
+                                const title  = el.dataset.title;
+
+                                return `
+                                            <div>
+                                                <strong>${number}</strong>
+                                                ${lib ? ` <span style="color: #4c8bf5 ">&nbsp;&nbsp; (${lib}) </span>` : ''}
+                                                <span style="color:#adb5bd"> — ${title}</span>
+                                            </div>
+                                        `;
+                            }
+
+                            function formatManualSelected(state) {
+                                if (!state.id) return state.text;
+
+                                const el = state.element;
+                                return el.dataset.number;
+                            }
+                            function updateManualIndicator() {
+                                if (!manualIndicator) return;
+
+                                if (!manualFilter.value) {
+                                    manualIndicator.textContent = '';
+                                    return;
+                                }
+
+                                const optText = manualFilter.options[manualFilter.selectedIndex]?.text || '';
+                                const manualNumber = optText.split(' - ')[0].replace(/\(.+?\)/g, '').trim();
+                                manualIndicator.textContent = `Manual: ${manualNumber}`;
+                            }
+
+                            function applyFilter(persist = true) {
+                                const s = (searchInput.value || '').toLowerCase().trim();
+                                const m = (manualFilter.value || '').trim();
+
+                                if (persist) {
+                                    localStorage.setItem(LS.search, s);
+                                    localStorage.setItem(LS.manual, m);
+                                }
+
+                                let visible = 0;
+                                for (const r of cache) {
+                                    const okSearch = !s || r.searchText.includes(s);
+                                    const okManual = !m || r.manualId === m;
+                                    const ok = okSearch && okManual;
+
+                                    r.el.style.display = ok ? '' : 'none';
+                                    if (ok) visible++;
+                                }
+
+                                if (componentsCount) componentsCount.textContent = visible;
+                                updateManualIndicator();
+                            }
+
+                            const sortableHeaders = Array.from(table.querySelectorAll('th.sortable'));
+
+                            function smartCompare(a, b, dir, colIndex) {
+                                const A = (a.cells[colIndex] || '').trim();
+                                const B = (b.cells[colIndex] || '').trim();
+
+                                const nA = Number(A), nB = Number(B);
+                                const aNum = A !== '' && !Number.isNaN(nA);
+                                const bNum = B !== '' && !Number.isNaN(nB);
+
+                                if (aNum && bNum) return dir === 'asc' ? (nA - nB) : (nB - nA);
+
+                                const c = A.localeCompare(B, undefined, { numeric: true, sensitivity: 'base' });
+                                return dir === 'asc' ? c : -c;
+                            }
+
+                            function applySort(colIndex, dir, persist = true) {
+                                if (persist) {
+                                    localStorage.setItem(LS.sortCol, String(colIndex));
+                                    localStorage.setItem(LS.sortDir, dir);
+                                }
+
+                                const ordered = [...cache].sort((a, b) => {
+                                    const c = smartCompare(a, b, dir, colIndex);
+                                    return c !== 0 ? c : (a.idx - b.idx);
+                                });
+
+                                const frag = document.createDocumentFragment();
+                                ordered.forEach(r => frag.appendChild(r.el));
+                                tbody.appendChild(frag);
+
+                                sortableHeaders.forEach(th => {
+                                    th.classList.remove('sorted-asc', 'sorted-desc');
+                                    th.dataset.direction = '';
+                                });
+
+                                const active = sortableHeaders.find(th => th.cellIndex === colIndex);
+                                if (active) {
+                                    active.dataset.direction = dir;
+                                    active.classList.add(dir === 'asc' ? 'sorted-asc' : 'sorted-desc');
+                                }
+                            }
+
+                            // Bind events only once per page lifetime
+                            if (!table.dataset.bound) {
+                                table.dataset.bound = '1';
+
+                                // Search typing
+                                searchInput.addEventListener('input', debounce(() => {
+                                    safeShowSpinner();
+                                    applyFilter(true);
+                                    requestAnimationFrame(safeHideSpinner);
+                                }, 250));
+
+                                // Clear search
+                                if (searchClearBtn) {
+                                    searchClearBtn.addEventListener('click', () => {
+                                        searchInput.value = '';
+                                        localStorage.removeItem(LS.search);
+
+                                        safeShowSpinner();
+                                        applyFilter(true);
+                                        requestAnimationFrame(safeHideSpinner);
+                                    });
+                                }
+
+                                // Manual change
+                                manualFilter.addEventListener('change', () => {
+                                    safeShowSpinner();
+                                    applyFilter(true);
+                                    requestAnimationFrame(safeHideSpinner);
+                                });
+
+                                // Select2 events (fixes "manual works only after click X")
+                                if (hasSelect2) {
+                                    window.jQuery(manualFilter).on('select2:select select2:clear', () => {
+                                        safeShowSpinner();
+                                        applyFilter(true);
+                                        requestAnimationFrame(safeHideSpinner);
+                                    });
+                                }
+
+                                // Sorting
+                                sortableHeaders.forEach(th => {
+                                    th.style.cursor = 'pointer';
+                                    th.addEventListener('click', () => {
+                                        const colIndex = th.cellIndex;
+                                        const cur = th.dataset.direction === 'asc'
+                                            ? 'asc'
+                                            : (th.dataset.direction === 'desc' ? 'desc' : '');
+                                        const next = cur === 'asc' ? 'desc' : 'asc';
+
+                                        safeShowSpinner();
+                                        applySort(colIndex, next, true);
+                                        requestAnimationFrame(safeHideSpinner);
+                                    });
+                                });
+
+                                // Scroll save + restore flag on Edit click
+                                const saveScroll = debounce(() => {
+                                    localStorage.setItem(LS.scrollY, String(window.scrollY || 0));
+                                }, 150);
+
+                                window.addEventListener('scroll', saveScroll, { passive: true });
+
+                                tbody.addEventListener('click', (e) => {
+                                    const a = e.target.closest('a');
+                                    if (!a) return;
+                                    if (!a.querySelector('.bi-pencil-square')) return;
+
+                                    localStorage.setItem(LS.scrollRestore, '1');
+                                    localStorage.setItem(LS.scrollY, String(window.scrollY || 0));
+                                });
+                            }
+
+                            // Restore UI state (search/manual/sort)
+                            searchInput.value = localStorage.getItem(LS.search) || '';
+
+                            const savedManual = localStorage.getItem(LS.manual) || '';
+                            manualFilter.value = Array.from(manualFilter.options).some(o => o.value === savedManual)
+                                ? savedManual
+                                : '';
+
+                            if (hasSelect2) {
+                                window.jQuery(manualFilter).val(manualFilter.value).trigger('change.select2');
+                            }
+
+                            const sortCol = parseInt(localStorage.getItem(LS.sortCol) || '0', 10);
+                            const sortDir = (localStorage.getItem(LS.sortDir) === 'desc') ? 'desc' : 'asc';
+                            applySort(sortCol, sortDir, false);
+
+                            applyFilter(false);
+
+                            // Restore scroll if needed (Edit -> Back)
+                            if (localStorage.getItem(LS.scrollRestore) === '1') {
+                                localStorage.removeItem(LS.scrollRestore);
+                                const y = parseInt(localStorage.getItem(LS.scrollY) || '0', 10);
+                                requestAnimationFrame(() => {
+                                    window.scrollTo({ top: Number.isFinite(y) ? y : 0, left: 0, behavior: 'instant' });
+                                });
+                            }
+
+                        } catch (err) {
+                            console.error(err);
+                            if (typeof showErrorMessage === 'function') {
+                                showErrorMessage('JS error on Components page');
+                            } else if (typeof showNotification === 'function') {
+                                showNotification('JS error on Components page', 'error');
+                            }
+                        } finally {
+                            // ALWAYS show UI again (critical for bfcache back)
+                            if (wrapper) wrapper.style.visibility = 'visible';
+                            safeHideSpinner();
                         }
-
-                        // ====== старт ======
-                        restoreStateAndApplyOnce();
-
-                    } catch (error) {
-                        console.error('Error in parts index script:', error);
-                        if (typeof hideLoadingSpinner === 'function') hideLoadingSpinner();
                     }
-                });
+
+
+                    // обычная загрузка
+                    document.addEventListener('DOMContentLoaded', initComponentsIndex);
+
+                    // Back/Forward cache: DOMContentLoaded не гарантирован — поэтому pageshow
+                    window.addEventListener('pageshow', initComponentsIndex);
 
 
 
+
+                })();
             </script>
+
 
 @endsection

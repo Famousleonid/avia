@@ -24,6 +24,7 @@ class ComponentController extends Controller
 
         return view('admin.components.index', compact('components', 'manuals', 'planes', 'builders', 'scopes'));
     }
+
     public function create()
     {
         $components = Component::all();
@@ -32,9 +33,9 @@ class ComponentController extends Controller
         return view('admin.components.create', compact('components','manuals'));
 
     }
+
     public function store(Request $request)
     {
-//dd($request);
 
         $validated = $request->validate([
 
@@ -72,13 +73,13 @@ class ComponentController extends Controller
             ->with('success', 'Component created successfully.');
 
     }
+
     public function storeFromInspection(Request $request)
     {
-//            dd($request);
             $current_wo = $request->current_wo;
-//                dd($current_wo);
+
         try {
-            // Валидация данных
+
             $validated = $request->validate([
                 'name' => 'required|string|max:250',
                 'manual_id' => 'required|exists:manuals,id',
@@ -111,16 +112,10 @@ class ComponentController extends Controller
                 $component->addMedia($request->file('assy_img'))->toMediaCollection('assy_component');
             }
 
-            // Возвращаем успешный ответ с данными компонента
-//            return response()->json([
-//                'success' => true,
-//                'component' => $component
-//            ]);
+
             return redirect()->route('tdrs.inspection.component',['workorder_id' => $current_wo])->with('success', 'Component created successfully.');
 
         } catch (\Exception $e) {
-            // Логирование ошибки
-            \Log::error('Error creating component: ' . $e->getMessage());
 
             // Возвращаем ошибку на фронт
             return response()->json([
@@ -129,6 +124,7 @@ class ComponentController extends Controller
             ], 500);
         }
     }
+
     public function storeFromExtra(Request $request)
     {
         $current_wo = $request->current_wo;
@@ -182,6 +178,7 @@ class ComponentController extends Controller
             ], 500);
         }
     }
+
     public function show($id)
     {
         $manual = Manual::findOrFail($id);
@@ -195,6 +192,7 @@ class ComponentController extends Controller
 
         return view('admin.components.show', compact('manual', 'components'));
     }
+
     public function edit($id)
     {
         $current_component = Component::find($id);
@@ -203,13 +201,12 @@ class ComponentController extends Controller
         return view('admin.components.edit', compact('current_component','manuals'));
 
     }
+
     public function update(Request $request, $id)
     {
-
         $component = Component::findOrFail($id);
 
         $validated = $request->validate([
-
             'name' => 'required',
             'manual_id' => 'required|exists:manuals,id',
             'part_number' =>'required',
@@ -218,9 +215,7 @@ class ComponentController extends Controller
             'bush_ipl_num' => 'nullable|string|max:10|regex:/^\d+-\d+[A-Za-z]?$/',
             'eff_code' => 'nullable|string|max:100',
             'units_assy' => 'nullable|string|max:100',
-
         ]);
-
 
         $validated['assy_part_number'] = $request->assy_part_number;
         $validated['eff_code'] = $request->eff_code;
@@ -230,13 +225,11 @@ class ComponentController extends Controller
         $validated['repair'] = $request->has('repair') ? 1 : 0;
         $validated['is_bush'] = $request->has('is_bush') ? 1 : 0;
         $validated['bush_ipl_num'] = $request->bush_ipl_num;
-//        dd($validated);
 
         if ($request->hasFile('img')) {
             if ($component->getMedia('components')->isNotEmpty()) {
                 $component->getMedia('components')->first()->delete();
             }
-
             $component->addMedia($request->file('img'))->toMediaCollection('components');
         }
         if ($request->hasFile('assy_img')) {
@@ -248,7 +241,7 @@ class ComponentController extends Controller
         }
         $component->update($validated);
 
-        return redirect()->route('components.show', $component->manual_id)->with('success', 'Component updated successfully');
+        return redirect()->route('components.index')->with('success', 'Component updated successfully');
 
     }
     public function showJson($id)

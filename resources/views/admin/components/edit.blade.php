@@ -1,6 +1,7 @@
 @extends('admin.master')
 
 @section('content')
+
     <style>
         .container {
             max-width: 700px;
@@ -80,9 +81,9 @@
                                     class="form-control mt-2">
                                 <option  selected
                                         value="{{$current_component->manual_id}}">
-                                    {{$current_component->manuals->number}}
-                                    ( {{ $current_component->manuals->title }} -
-                                    {{$current_component->manuals->unit_name_training}} )</option>
+                                    {{$current_component->manual->number}}
+                                    ( {{ $current_component->manual->title }} -
+                                    {{$current_component->manual->unit_name_training}} )</option>
                                 @foreach($manuals as $manual)
                                     <option
                                         value="{{ $manual->id }}"
@@ -231,7 +232,7 @@
                     <div class="text-end">
                         <button type="submit" class="btn btn-outline-primary
                         mt-3 ">{{ __('Update') }}</button>
-                        <a href="{{ route('components.show', $current_component->manual_id) }}"
+                        <a href="{{ route('components.index') }}"
                            class="btn btn-outline-secondary mt-3">{{ __('Cancel') }} </a>
                     </div>
                     </div>
