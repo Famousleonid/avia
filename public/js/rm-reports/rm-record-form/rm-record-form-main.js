@@ -29,3 +29,4 @@ window.addEventListener('load', function() {
 
 // Также можно вызвать функцию вручную через консоль: getTablesHeight() или adjustTableHeight()
 
+

@@ -46,3 +46,4 @@ const PdfBadgeHandler = {
     }
 };
 
+

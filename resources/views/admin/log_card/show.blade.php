@@ -9,7 +9,7 @@
             width: 1050px;
             position: relative;
         }
-        
+
         .table-scroll-container {
             max-height: 70vh;
             overflow-y: auto;
@@ -57,7 +57,7 @@
             background-color: #031e3a;
             box-shadow: 0 2px 2px -1px rgba(0, 0, 0, 0.4);
         }
-        
+
         .table-scroll-container thead th {
             position: sticky;
             top: 0;
@@ -67,7 +67,7 @@
             height: 50px;
             vertical-align: middle;
         }
-        
+
         .table-scroll-container table {
             margin-bottom: 0;
         }
@@ -108,28 +108,34 @@
         <div class="card-header m-1 shadow">
             <div class="d-flex justify-content-between">
                 <div>
-                    <h4 class="text-primary  ms-2">{{__('Work Order: ')}} {{$current_wo->number}}</h4>
-                    <div>
-                                            <h4 class="ps-xl-5">{{__('LOG CARD')}}</h4>
+                    <div class="text-center" style="width: 100px;">
+                        <h5 class="text-success-emphasis  ps-1">{{__('WO')}}
+                            <a class="text-success-emphasis " href="{{ route('mains.show', $current_wo->id) }}"
+                                {{$current_wo->number}}>{{$current_wo->number}}
+                            </a>
+                        </h5>
                     </div>
 
                 </div>
-                <div class="ps-2 d-flex" style="width: 300px;">
+                <div>
+                    <h4 class="ps-xl-5 ">{{__('LOG CARD')}}</h4>
+                </div>
+                <div class="ms-4 d-flex" style="width: 300px;">
                         @if($log_card)
                             <a href="{{ route('log_card.edit', $log_card->id) }}" class="btn btn-outline-primary"
-                               style="height: 60px;width: 100px">
+                               style="height: 55px;width: 100px; line-height: 1.2rem">
                                 <i class="fas fa-edit"></i> Edit Log Card
                             </a>
                         @else
                             <a href="{{ route('log_card.create', $current_wo->id) }}" class="btn btn-success" style="height:
-                            60px; width: 100px">
+                            55px; width: 100px;line-height: 1.2rem">
                                 <i class="fas fa-plus"></i> Create Log Card
                             </a>
                         @endif
                 </div>
 
 
-                <div class="ps-2 d-flex" style="width: 600px; margin-top: -5px">
+                <div class="ps-2 d-flex pt-1" style="width: 600px; margin-top: -5px">
                     @if($log_card)
 {{--                    <a href="{{ route('log_card.logCardForm', ['id'=> $current_wo->id]) }}"--}}
 {{--                       class="btn btn-outline-warning mb-3 formLink "--}}
@@ -142,6 +148,7 @@
                             href="{{ route('log_card.logCardForm', ['id'=> $current_wo->id]) }}"
                             target="_blank"
                             color="outline-primary"
+                            size="80px"
                         />
 
                     @endif
@@ -149,7 +156,8 @@
 
                     <div class="">
                         <a href="{{ route('tdrs.show', ['id'=>$current_wo->id]) }}"
-                           class="btn btn-outline-secondary me-2" style="height: 60px;width: 110px">{{ __('Back to Work Order')
+                           class="btn btn-outline-secondary me-2" style="height: 55px;width: 90px;line-height: 1.2rem">{{ __('Back
+                           to TDR')
                             }} </a>
                     </div>
 

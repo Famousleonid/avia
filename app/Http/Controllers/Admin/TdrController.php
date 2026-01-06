@@ -361,6 +361,103 @@ class TdrController extends Controller
     }
 
     /**
+     * Store multiple unit inspections
+     *
+     * @param Request $request
+     * @return \Illuminate\Http\JsonResponse
+     */
+    public function storeUnitInspections(Request $request)
+    {
+        $request->validate([
+            'workorder_id' => 'required|exists:workorders,id',
+            'conditions' => 'required|array',
+        ]);
+
+        $workorderId = $request->workorder_id;
+        $conditions = $request->conditions;
+
+        try {
+            // Получаем все существующие unit inspections для данного workorder
+            $existingTdrs = Tdr::where('workorder_id', $workorderId)
+                ->where('use_tdr', true)
+                ->where('use_process_forms', false)
+                ->whereNull('component_id')
+                ->get()
+                ->keyBy('conditions_id');
+
+            $processedConditionIds = [];
+
+            // Обрабатываем каждое выбранное condition
+            foreach ($conditions as $conditionId => $conditionData) {
+                if (isset($conditionData['selected']) && $conditionData['selected']) {
+                    $processedConditionIds[] = $conditionId;
+                    
+                    $notes = $conditionData['notes'] ?? '';
+                    $tdrId = $conditionData['tdr_id'] ?? null;
+
+                    // Если есть существующая запись - обновляем
+                    if ($tdrId && $existingTdrs->has($conditionId)) {
+                        $tdr = $existingTdrs->get($conditionId);
+                        if ($tdr->id == $tdrId) {
+                            $tdr->description = $notes;
+                            $tdr->save();
+                            continue;
+                        }
+                    }
+
+                    // Если есть существующая запись с таким condition_id, но другим id - обновляем её
+                    if ($existingTdrs->has($conditionId)) {
+                        $tdr = $existingTdrs->get($conditionId);
+                        $tdr->description = $notes;
+                        $tdr->save();
+                        continue;
+                    }
+
+                    // Создаём новую запись
+                    Tdr::create([
+                        'workorder_id' => $workorderId,
+                        'component_id' => null,
+                        'conditions_id' => $conditionId,
+                        'description' => $notes,
+                        'qty' => 1,
+                        'serial_number' => 'NSN',
+                        'assy_serial_number' => ' ',
+                        'codes_id' => null,
+                        'necessaries_id' => null,
+                        'use_tdr' => true,
+                        'use_process_forms' => false,
+                    ]);
+                }
+            }
+
+            // Удаляем записи для conditions, которые не были выбраны
+            foreach ($existingTdrs as $conditionId => $tdr) {
+                if (!in_array($conditionId, $processedConditionIds)) {
+                    // Проверяем, что это не "PARTS MISSING UPON ARRIVAL" condition
+                    $missingCondition = Condition::where('name', 'PARTS MISSING UPON ARRIVAL AS INDICATED ON PARTS LIST')
+                        ->where('id', $conditionId)
+                        ->first();
+                    
+                    if (!$missingCondition) {
+                        $tdr->delete();
+                    }
+                }
+            }
+
+            return response()->json([
+                'success' => true,
+                'message' => __('Unit inspections saved successfully.')
+            ]);
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => __('An error occurred while saving unit inspections.') . ' ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
      * Display the specified resource.
      *
      * @param int $id

@@ -44,33 +44,33 @@
             <div class="card-header  m-1 shadow">
 
                 <div class="d-flex  text-center">
-                    <div style="width: 150px;">
-                        <h5 class="text-primary  ps-1">{{__('Work Order')}}
-                            <a class="text-success-emphasis " href="#" data-bs-toggle="modal"
-                               data-bs-target=#infoModal{{$current_wo->number}}>{{$current_wo->number}}
+                    <div class="" style="width: 100px;">
+                        <h5 class="text-success-emphasis  ps-1">{{__('WO')}}
+                            <a class="text-success-emphasis " href="{{ route('mains.show', $current_wo->id) }}"
+                                {{$current_wo->number}}>{{$current_wo->number}}
+{{--                               data-bs-toggle="modal"--}}
+{{--                               data-bs-target=#infoModal--}}
                             </a>
                         </h5>
                     </div>
 
 
                     <div class="ps-2 d-flex" >
-
-                        <div class=" ms-4">
-                            <a href="{{ route('mains.show', $current_wo->id) }}" class="btn
-                                            btn-outline-success " title="{{ __('WO Tasks') }}"
-                               onclick="showLoadingSpinner()">
-                                <i class="bi bi-list-task " style="font-size: 28px;"></i>
-
-                            </a>
-                        </div>
+{{--                        <div class=" ms-4">--}}
+{{--                            <a href="{{ route('mains.show', $current_wo->id) }}" class="btn--}}
+{{--                                            btn-outline-success " title="{{ __('WO Tasks') }}"--}}
+{{--                               onclick="showLoadingSpinner()"--}}
+{{--                            >--}}
+{{--                                <i class="bi bi-list-task " style="font-size: 28px;"></i>--}}
+{{--                            </a>--}}
+{{--                        </div>--}}
                         <div class="me-2 position-relative">
                             <button class="btn  btn-outline-warning ms-2 open-pdf-modal text-center"
                                     title="{{ __('PDF Library') }}"
                                     style="height: 55px;width: 55px"
                                     data-id="{{ $current_wo->id }}"
                                     data-number="{{ $current_wo->number }}" >
-                                <i class="bi bi-file-earmark-pdf" style="font-size: 28px; "></i>
-                                {{--                                {{__('PDF Library')}}--}}
+                                <i class="bi bi-file-earmark-pdf" style="font-size: 26px; "></i>
                             </button>
                             {{-- Badge with count of uploaded PDF files --}}
                             <span id="pdfCountBadge"
@@ -98,15 +98,12 @@
                                     ->count('component_id');
                             @endphp
                             <a href="{{route('extra_processes.show_all',['id'=>$current_wo->id])}}"
-                               class="btn fs-8 btn-outline-primary " style="height: 55px;width: 140px" onclick="showLoadingSpinner
-                                       ()">
+                               class="btn fs-8 btn-outline-primary " style="height: 55px;width: 100px">
                                 {{__('Extra Parts Processes')}}
                             </a>
                             @if($extraProcessesCount > 0)
                                 <span class="badge bg-success rounded-pill" style="position: absolute; top: -5px; right: -5px;
                                 min-width: 20px; height: 20px; display: flex; align-items: center; justify-content: center; font-size: 0.7rem; padding: 0 5px;">
-{{--                                    {{ $extraProcessesCount }}--}}
-{{--                                    {{__(' * ')}}--}}
                                     <i class="bi bi-brightness-high-fill"></i>
                                 </span>
                             @endif
@@ -737,13 +734,17 @@
                                 <thead>
                                 <tr>
                                     <th class=" text-primary text-center  " style="width: 300px;">
-                                        {{__('Teardown Inspection')}}
+                                        <a href="#" data-bs-toggle="modal" data-bs-target="#unitInspectionModal"
+{{--                                           style="text-decoration: none; color: inherit;"--}}
+                                        >
+                                            {{__('Teardown Inspection')}}
+                                        </a>
                                     </th>
                                     <th class=" text-primary text-center " style="width: 50px;">
-                                        <a href="{{ route('tdrs.inspection.unit', ['workorder_id' => $current_wo->id]) }}"
-                                           class="btn btn-outline-info btn-sm" style="height: 32px">
-                                            {{ __('Add') }}
-                                        </a>
+{{--                                        <a href="#" data-bs-toggle="modal" data-bs-target="#unitInspectionModal"--}}
+{{--                                           class="btn btn-outline-info btn-sm" style="height: 32px">--}}
+{{--                                            {{ __('Add') }}--}}
+{{--                                        </a>--}}
                                     </th>
                                 </tr>
                                 </thead>
@@ -1037,6 +1038,337 @@
     <script src="{{ asset('js/tdrs/show/pdf-delete-handler.js') }}"></script>
     <script src="{{ asset('js/tdrs/show/show-main.js') }}"></script>
 
+    <!-- Unit Inspection Modal Script -->
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const selectAllCheckbox = document.getElementById('selectAllConditions');
+            const conditionCheckboxes = document.querySelectorAll('.condition-checkbox');
+            const saveBtn = document.getElementById('saveUnitInspectionsBtn');
+            const form = document.getElementById('unitInspectionForm');
+
+            // Handle modal chain: Unit Inspection -> Manage Condition
+            const manageConditionBtn = document.querySelector('[data-bs-target="#manageConditionModal"]');
+            const unitInspectionModal = document.getElementById('unitInspectionModal');
+            const manageConditionModal = document.getElementById('manageConditionModal');
+
+            if (manageConditionBtn && unitInspectionModal && manageConditionModal) {
+                manageConditionBtn.addEventListener('click', function() {
+                    // Store reference to unit inspection modal
+                    manageConditionModal.dataset.returnToModal = 'unitInspectionModal';
+                });
+
+                // When manage condition modal closes, reopen unit inspection modal if needed
+                manageConditionModal.addEventListener('hidden.bs.modal', function() {
+                    if (manageConditionModal.dataset.returnToModal === 'unitInspectionModal') {
+                        const unitModal = new bootstrap.Modal(unitInspectionModal);
+                        unitModal.show();
+                        delete manageConditionModal.dataset.returnToModal;
+                    }
+                });
+            }
+
+            // Select All functionality
+            if (selectAllCheckbox) {
+                selectAllCheckbox.addEventListener('change', function() {
+                    conditionCheckboxes.forEach(checkbox => {
+                        checkbox.checked = this.checked;
+                    });
+                });
+            }
+
+            // Update Select All checkbox state
+            conditionCheckboxes.forEach(checkbox => {
+                checkbox.addEventListener('change', function() {
+                    const allChecked = Array.from(conditionCheckboxes).every(cb => cb.checked);
+                    const someChecked = Array.from(conditionCheckboxes).some(cb => cb.checked);
+                    if (selectAllCheckbox) {
+                        selectAllCheckbox.checked = allChecked;
+                        selectAllCheckbox.indeterminate = someChecked && !allChecked;
+                    }
+                });
+            });
+
+            // Save button handler
+            if (saveBtn) {
+                saveBtn.addEventListener('click', function() {
+                    const formData = new FormData(form);
+                    const workorderId = formData.get('workorder_id');
+
+                    // Prepare data for AJAX request
+                    const conditionsData = {};
+                    conditionCheckboxes.forEach(checkbox => {
+                        if (checkbox.checked) {
+                            const conditionId = checkbox.getAttribute('data-condition-id');
+                            const notesInput = document.querySelector(`input[name="conditions[${conditionId}][notes]"]`);
+                            const tdrIdInput = document.querySelector(`input[name="conditions[${conditionId}][tdr_id]"]`);
+
+                            conditionsData[conditionId] = {
+                                selected: true,
+                                notes: notesInput ? notesInput.value : '',
+                                tdr_id: tdrIdInput ? tdrIdInput.value : null
+                            };
+                        }
+                    });
+
+                    // Show loading state
+                    saveBtn.disabled = true;
+                    saveBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> {{ __('Saving...') }}';
+
+                    // Get CSRF token
+                    const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') ||
+                                     formData.get('_token') ||
+                                     '{{ csrf_token() }}';
+
+                    // Send AJAX request
+                    fetch('{{ route("tdrs.store.unit-inspections") }}', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-CSRF-TOKEN': csrfToken,
+                            'Accept': 'application/json'
+                        },
+                        body: JSON.stringify({
+                            workorder_id: workorderId,
+                            conditions: conditionsData
+                        })
+                    })
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.success) {
+                            // Close modal
+                            const modal = bootstrap.Modal.getInstance(document.getElementById('unitInspectionModal'));
+                            if (modal) {
+                                modal.hide();
+                            }
+
+                            // Reload page to show updated data
+                            window.location.reload();
+                        } else {
+                            alert(data.message || '{{ __("An error occurred while saving.") }}');
+                            saveBtn.disabled = false;
+                            saveBtn.innerHTML = '<i class="fas fa-save"></i> {{ __('Save') }}';
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Error:', error);
+                        alert('{{ __("An error occurred while saving.") }}');
+                        saveBtn.disabled = false;
+                        saveBtn.innerHTML = '<i class="fas fa-save"></i> {{ __('Save') }}';
+                    });
+                });
+            }
+        });
+    </script>
+
+    <!-- Manage Condition Modal Script -->
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '{{ csrf_token() }}';
+
+            // Edit Condition
+            document.querySelectorAll('.edit-condition-btn').forEach(btn => {
+                btn.addEventListener('click', function() {
+                    const conditionId = this.getAttribute('data-condition-id');
+                    const row = document.querySelector(`tr[data-condition-id="${conditionId}"]`);
+
+                    // Hide edit button, show save/cancel
+                    this.closest('.btn-group').classList.add('d-none');
+                    row.querySelector('.save-cancel-group').classList.remove('d-none');
+
+                    // Show input, hide display
+                    row.querySelector('.condition-name-display').classList.add('d-none');
+                    row.querySelector('.condition-name-edit').classList.remove('d-none');
+                    row.querySelector('.condition-name-edit').focus();
+                });
+            });
+
+            // Cancel Edit
+            document.querySelectorAll('.cancel-edit-btn').forEach(btn => {
+                btn.addEventListener('click', function() {
+                    const conditionId = this.getAttribute('data-condition-id');
+                    const row = document.querySelector(`tr[data-condition-id="${conditionId}"]`);
+
+                    // Restore original value
+                    const input = row.querySelector('.condition-name-edit');
+                    input.value = input.getAttribute('data-original-name');
+
+                    // Hide input, show display
+                    input.classList.add('d-none');
+                    row.querySelector('.condition-name-display').classList.remove('d-none');
+
+                    // Show edit button, hide save/cancel
+                    row.querySelector('.save-cancel-group').classList.add('d-none');
+                    row.querySelector('.btn-group').classList.remove('d-none');
+                });
+            });
+
+            // Save Condition
+            document.querySelectorAll('.save-condition-btn').forEach(btn => {
+                btn.addEventListener('click', function() {
+                    const conditionId = this.getAttribute('data-condition-id');
+                    const row = document.querySelector(`tr[data-condition-id="${conditionId}"]`);
+                    const input = row.querySelector('.condition-name-edit');
+                    const newName = input.value.trim();
+
+                    if (!newName) {
+                        alert('{{ __("Condition name cannot be empty.") }}');
+                        return;
+                    }
+
+                    // Disable button during save
+                    this.disabled = true;
+                    this.innerHTML = '<i class="fas fa-spinner fa-spin"></i> {{ __("Saving...") }}';
+
+                    fetch(`/admin/conditions/${conditionId}`, {
+                        method: 'PUT',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-CSRF-TOKEN': csrfToken,
+                            'Accept': 'application/json'
+                        },
+                        body: JSON.stringify({
+                            name: newName,
+                            unit: 1
+                        })
+                    })
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.success) {
+                            // Update display
+                            row.querySelector('.condition-name-display').textContent = newName;
+                            input.setAttribute('data-original-name', newName);
+
+                            // Hide input, show display
+                            input.classList.add('d-none');
+                            row.querySelector('.condition-name-display').classList.remove('d-none');
+
+                            // Show edit button, hide save/cancel
+                            row.querySelector('.save-cancel-group').classList.add('d-none');
+                            row.querySelector('.btn-group').classList.remove('d-none');
+
+                            // Update button data attribute
+                            const editBtn = row.querySelector('.edit-condition-btn');
+                            editBtn.setAttribute('data-condition-name', newName);
+
+                            // Reload page to update unit inspection modal
+                            window.location.reload();
+                        } else {
+                            alert(data.message || '{{ __("An error occurred while saving.") }}');
+                            this.disabled = false;
+                            this.innerHTML = '<i class="fas fa-check"></i> {{ __("Save") }}';
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Error:', error);
+                        alert('{{ __("An error occurred while saving.") }}');
+                        this.disabled = false;
+                        this.innerHTML = '<i class="fas fa-check"></i> {{ __("Save") }}';
+                    });
+                });
+            });
+
+            // Delete Condition
+            document.querySelectorAll('.delete-condition-btn').forEach(btn => {
+                btn.addEventListener('click', function() {
+                    const conditionId = this.getAttribute('data-condition-id');
+                    const conditionName = this.getAttribute('data-condition-name');
+
+                    if (!confirm(`{{ __("Are you sure you want to delete condition") }} "${conditionName}"?`)) {
+                        return;
+                    }
+
+                    // Disable button during delete
+                    this.disabled = true;
+                    this.innerHTML = '<i class="fas fa-spinner fa-spin"></i> {{ __("Deleting...") }}';
+
+                    fetch(`/admin/conditions/${conditionId}`, {
+                        method: 'DELETE',
+                        headers: {
+                            'X-CSRF-TOKEN': csrfToken,
+                            'Accept': 'application/json'
+                        }
+                    })
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.success) {
+                            // Remove row
+                            const row = document.querySelector(`tr[data-condition-id="${conditionId}"]`);
+                            if (row) {
+                                row.remove();
+                            }
+
+                            // Reload page to update unit inspection modal
+                            window.location.reload();
+                        } else {
+                            alert(data.message || '{{ __("An error occurred while deleting.") }}');
+                            this.disabled = false;
+                            this.innerHTML = '<i class="fas fa-trash"></i> {{ __("Delete") }}';
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Error:', error);
+                        alert('{{ __("An error occurred while deleting.") }}');
+                        this.disabled = false;
+                        this.innerHTML = '<i class="fas fa-trash"></i> {{ __("Delete") }}';
+                    });
+                });
+            });
+
+            // Add Condition from Manage Modal
+            const addConditionFormFromManage = document.getElementById('addConditionFormFromManage');
+            if (addConditionFormFromManage) {
+                addConditionFormFromManage.addEventListener('submit', function(e) {
+                    e.preventDefault();
+
+                    const formData = new FormData(this);
+                    const submitBtn = this.querySelector('button[type="submit"]');
+                    submitBtn.disabled = true;
+                    submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> {{ __("Saving...") }}';
+
+                    fetch('{{ route("conditions.store") }}', {
+                        method: 'POST',
+                        headers: {
+                            'X-CSRF-TOKEN': csrfToken,
+                            'Accept': 'application/json'
+                        },
+                        body: formData
+                    })
+                    .then(response => {
+                        // Check if response is JSON
+                        const contentType = response.headers.get('content-type');
+                        if (contentType && contentType.includes('application/json')) {
+                            return response.json();
+                        } else {
+                            // If redirect, treat as success
+                            return { success: true };
+                        }
+                    })
+                    .then(data => {
+                        if (data.success || data === undefined) {
+                            // Close add modal
+                            const addModal = bootstrap.Modal.getInstance(document.getElementById('addConditionModalFromManage'));
+                            if (addModal) {
+                                addModal.hide();
+                            }
+
+                            // Reload page to update both modals
+                            window.location.reload();
+                        } else {
+                            alert(data.message || '{{ __("An error occurred while saving.") }}');
+                            submitBtn.disabled = false;
+                            submitBtn.innerHTML = '{{ __("Save Condition") }}';
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Error:', error);
+                        // Even if error, reload to show updated list
+                        window.location.reload();
+                    });
+                });
+            }
+        });
+    </script>
+
     <!-- PDF Library Modal -->
     <div class="modal fade" id="pdfModal" tabindex="-1" aria-labelledby="pdfModalLabel" aria-hidden="true">
         <div class="modal-dialog modal-xl modal-dialog-scrollable">
@@ -1140,6 +1472,209 @@
         </div>
     </div>
 
+    <!-- Modal - Unit Inspection -->
+    <div class="modal fade" id="unitInspectionModal" tabindex="-1" aria-labelledby="unitInspectionModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-lg modal-dialog-scrollable">
+            <div class="modal-content bg-gradient">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="unitInspectionModalLabel">
+                        <i class="fas fa-clipboard-check"></i> {{ __('Teardown Inspection') }} - {{ __('Work Order') }} {{ $current_wo->number }}
+                    </h5>
+                    <div class="ms-auto me-2">
+                        @admin
+                        <button type="button" class="btn btn-outline-warning btn-sm" data-bs-toggle="modal" data-bs-target="#manageConditionModal" data-bs-dismiss="modal">
+                            <i class="fas fa-cog"></i> {{ __('Manage Condition') }}
+                        </button>
+                        @endadmin
+                    </div>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="unitInspectionForm">
+                        @csrf
+                        <input type="hidden" name="workorder_id" value="{{ $current_wo->id }}">
 
+                        <div class="table-responsive" style="max-height: 60vh; overflow-y: auto;">
+                            <table class="table table-hover table-bordered">
+                                <thead class="table-primary" style="position: sticky; top: 0; z-index: 10;">
+                                    <tr>
+                                        <th class="text-center" style="width: 50px;">
+                                            <input type="checkbox" id="selectAllConditions" title="{{ __('Select All') }}">
+                                        </th>
+                                        <th class="text-center">{{ __('Condition') }}</th>
+                                        <th class="text-center" style="width: 300px;">{{ __('Notes') }}</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @php
+                                        // Получаем существующие unit inspections для данного workorder
+                                        $existingInspections = [];
+                                        foreach($tdrs as $tdr) {
+                                            if($tdr->use_tdr == true && $tdr->use_process_forms != true && $tdr->conditions_id) {
+                                                $existingInspections[$tdr->conditions_id] = [
+                                                    'id' => $tdr->id,
+                                                    'description' => $tdr->description ?? ''
+                                                ];
+                                            }
+                                        }
+                                    @endphp
+                                    @foreach($unit_conditions as $unit_condition)
+                                        @if($unit_condition->name != 'PARTS MISSING UPON ARRIVAL AS INDICATED ON PARTS LIST')
+                                            @php
+                                                $isChecked = isset($existingInspections[$unit_condition->id]);
+                                                $existingDescription = $isChecked ? $existingInspections[$unit_condition->id]['description'] : '';
+                                                $existingTdrId = $isChecked ? $existingInspections[$unit_condition->id]['id'] : null;
+                                            @endphp
+                                            <tr>
+                                                <td class="text-center align-middle">
+                                                    <input type="checkbox"
+                                                           class="form-check-input condition-checkbox"
+                                                           name="conditions[{{ $unit_condition->id }}][selected]"
+                                                           value="1"
+                                                           data-condition-id="{{ $unit_condition->id }}"
+                                                           {{ $isChecked ? 'checked' : '' }}>
+                                                    @if($existingTdrId)
+                                                        <input type="hidden"
+                                                               name="conditions[{{ $unit_condition->id }}][tdr_id]"
+                                                               value="{{ $existingTdrId }}">
+                                                    @endif
+                                                </td>
+                                                <td class="align-middle">
+                                                    <label for="condition_{{ $unit_condition->id }}" style="cursor: pointer; margin: 0;">
+                                                        {{ $unit_condition->name }}
+                                                    </label>
+                                                </td>
+                                                <td class="align-middle">
+                                                    <input type="text"
+                                                           class="form-control form-control-sm condition-notes"
+                                                           name="conditions[{{ $unit_condition->id }}][notes]"
+                                                           id="condition_{{ $unit_condition->id }}"
+                                                           value="{{ $existingDescription }}"
+                                                           placeholder="{{ __('Enter notes...') }}">
+                                                </td>
+                                            </tr>
+                                        @endif
+                                    @endforeach
+                                </tbody>
+                            </table>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">{{ __('Cancel') }}</button>
+                    <button type="button" class="btn btn-outline-primary" id="saveUnitInspectionsBtn">
+                        <i class="fas fa-save"></i> {{ __('Save') }}
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal - Manage Condition -->
+    <div class="modal fade" id="manageConditionModal" tabindex="-1" aria-labelledby="manageConditionModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-lg modal-dialog-scrollable">
+            <div class="modal-content bg-gradient">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="manageConditionModalLabel">
+                        <i class="fas fa-cog"></i> {{ __('Manage Condition') }} - {{ __('Unit Conditions') }}
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        @admin
+                        <button type="button" class="btn btn-outline-success btn-sm" data-bs-toggle="modal" data-bs-target="#addConditionModalFromManage">
+                            <i class="fas fa-plus"></i> {{ __('Add Condition') }}
+                        </button>
+                        @endadmin
+                    </div>
+
+                    <div class="table-responsive" style="max-height: 60vh; overflow-y: auto;">
+                        <table class="table table-hover table-bordered">
+                            <thead class="table-primary" style="position: sticky; top: 0; z-index: 10;">
+                                <tr>
+                                    <th class="text-center">{{ __('Condition Name') }}</th>
+                                    <th class="text-center" style="width: 150px;">{{ __('Actions') }}</th>
+                                </tr>
+                            </thead>
+                            <tbody id="manageConditionsTableBody">
+                                @foreach($unit_conditions as $unit_condition)
+                                    <tr data-condition-id="{{ $unit_condition->id }}">
+                                        <td class="align-middle">
+                                            <span class="condition-name-display">{{ $unit_condition->name }}</span>
+                                            <input type="text"
+                                                   class="form-control form-control-sm condition-name-edit d-none"
+                                                   value="{{ $unit_condition->name }}"
+                                                   data-original-name="{{ $unit_condition->name }}">
+                                        </td>
+                                        <td class="text-center align-middle">
+                                            <div class="btn-group" role="group">
+                                                <button type="button"
+                                                        class="btn btn-outline-warning btn-sm edit-condition-btn"
+                                                        data-condition-id="{{ $unit_condition->id }}"
+                                                        data-condition-name="{{ $unit_condition->name }}">
+                                                    <i class="fas fa-edit"></i> {{ __('Edit') }}
+                                                </button>
+                                                @if($unit_condition->name != 'PARTS MISSING UPON ARRIVAL AS INDICATED ON PARTS LIST')
+                                                    <button type="button"
+                                                            class="btn btn-outline-danger btn-sm delete-condition-btn"
+                                                            data-condition-id="{{ $unit_condition->id }}"
+                                                            data-condition-name="{{ $unit_condition->name }}">
+                                                        <i class="fas fa-trash"></i> {{ __('Delete') }}
+                                                    </button>
+                                                @endif
+                                            </div>
+                                            <div class="btn-group d-none save-cancel-group" role="group">
+                                                <button type="button"
+                                                        class="btn btn-outline-success btn-sm save-condition-btn"
+                                                        data-condition-id="{{ $unit_condition->id }}">
+                                                    <i class="fas fa-check"></i> {{ __('Save') }}
+                                                </button>
+                                                <button type="button"
+                                                        class="btn btn-outline-secondary btn-sm cancel-edit-btn"
+                                                        data-condition-id="{{ $unit_condition->id }}">
+                                                    <i class="fas fa-times"></i> {{ __('Cancel') }}
+                                                </button>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                @endforeach
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">{{ __('Close') }}</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal - Add Condition (from Manage) -->
+    <div class="modal fade" id="addConditionModalFromManage" tabindex="-1" aria-labelledby="addConditionModalFromManageLabel" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content bg-gradient">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="addConditionModalFromManageLabel">{{ __('Add Condition') }}</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <form id="addConditionFormFromManage">
+                    @csrf
+                    <div class="modal-body">
+                        <input type="hidden" name="unit" value="1">
+                        <input type="hidden" name="workorder_id" value="{{ $current_wo->id }}">
+                        <div class="form-group">
+                            <label for="conditionName">{{ __('Name') }}</label>
+                            <input id="conditionName" type="text" class="form-control" name="name" required>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">{{ __('Cancel') }}</button>
+                        <button type="submit" class="btn btn-outline-primary">{{ __('Save Condition') }}</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
 
 @endsection

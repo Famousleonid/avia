@@ -152,13 +152,23 @@
         <div class="card-header m-1 shadow">
 
                 <div class="d-flex justify-content-between"  >
-                    <div style="width: 450px">
-                        <h4 class="text-primary  ms-2">{{__('Work Order: ')}} {{$current_wo->number}}</h4>
-                        <div>
-                            <h4 class="ps-2">{{__('Part Extra Processes')}}</h4>
+                    <div style="">
+{{--                        <h4 class="text-primary  ms-2">{{__('Work Order: ')}} {{$current_wo->number}}</h4>--}}
+                        <div class="text-center" style="width: 100px;">
+                            <h5 class="text-success-emphasis  ps-1">{{__('WO')}}
+                                <a class="text-success-emphasis " href="{{ route('mains.show', $current_wo->id) }}"
+                                    {{$current_wo->number}}>{{$current_wo->number}}
+                                </a>
+                            </h5>
                         </div>
                     </div>
-                    <div class=" d-flex " >
+
+                        <div>
+                            <h4 class="ps-2 ">{{__('Part Extra Processes')}}</h4>
+                        </div>
+
+
+                    <div class=" d-flex  >
                         @if(isset($processGroups) && count($processGroups) > 0)
                             <div style="width: 250px">
                                 <x-paper-button-multy
@@ -180,7 +190,7 @@
 
                         <a href="{{ route('tdrs.show', ['id'=>$current_wo->id]) }}"
                            class="btn btn-outline-secondary 2" style="height: 60px;width: 110px">
-                            {{ __('Back to Work Order') }} </a>
+                            {{ __('Back to TDR') }} </a>
                     </div>
                 </div>
 

@@ -396,3 +396,4 @@ function example8_DebugOutput() {
     console.log('Расчет количества строк (при высоте строки ' + avgRowHeight + 'px):', rows);
 }
 
+

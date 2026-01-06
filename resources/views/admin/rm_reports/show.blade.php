@@ -227,22 +227,29 @@
     <div class="card-shadow ">
         <div class="card-header m-1 shadow">
             <div class="d-flex justify-content-between">
-                <div style="width: 450px">
-                    <h5 class="text-primary me-5">{{__('Work Order: ')}} {{$current_wo->number}}</h5>
+                <div style="width: 150px">
+                    <div class="text-center" style="width: 100px;">
+                        <h5 class="text-success-emphasis  ps-1">{{__('WO')}}
+                            <a class="text-success-emphasis " href="{{ route('mains.show', $current_wo->id) }}"
+                                {{$current_wo->number}}>{{$current_wo->number}}
+                            </a>
+                        </h5>
+                    </div>
+                </div>
                     <div>
                         <h5 class="text-center " >{{__(' REPAIR and MODIFICATION RECORD')}}</h5>
                     </div>
 
-                </div>
+
                 <div class="ps-2 d-flex" style="width: 400px;">
                     @if($current_wo->rm_report)
                         <a href="{{ route('rm_reports.edit', $current_wo->id) }}" class="btn btn-outline-primary"
-                           style="height: 60px; width: 180px">
+                           style="height: 60px; width: 180px;align-content: center;line-height: 1.2rem">
                             <i class="fas fa-edit"></i> Edit WorkOrder R&M Record
                         </a>
                     @else
                         <a href="{{ route('rm_reports.create', $current_wo->id) }}" class="btn btn-success"
-                           style="height:60px; width: 180px">
+                           style="height:60px; width: 180px;line-height: 1.2rem;align-content: center">
                             <i class="fas fa-plus"></i> Create WorkOrder R&M Record
                         </a>
                     @endif
@@ -267,8 +274,9 @@
 
                 <div class="">
                     <a href="{{ route('tdrs.show', ['id'=>$current_wo->id]) }}"
-                       class="btn btn-outline-secondary " style="min-height: 60px; width: 110px">{{ __('Back to Work
-                       Order') }} </a>
+                       class="btn btn-outline-secondary " style="min-height: 60px; width: 110px;line-height: 1.2rem;align-content: center">
+                        {{ __('Back to TDR') }}
+                    </a>
                 </div>
 
 

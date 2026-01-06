@@ -351,19 +351,20 @@
         <div class="card bg-gradient">
             <div class="card-header">
                 <div class="d-flex justify-content-between">
-                    <h5>{{ __('Component Processes') }}</h5>
+                    <h5>{{ __('Part Processes') }}</h5>
                     <h5 class="text-primary me-5">{{__('Work Order: ')}} {{$current_tdr->workorder->number}}</h5>
                 </div>
                 <div class="d-flex justify-content-between ">
                     <div>
-                        {{ $current_tdr->component->name }}
+                         ITEM: {{ $current_tdr->component->name }}
                         <p>
                         PN: {{ $current_tdr->component->part_number }}
                         SN: {{ $current_tdr->serial_number }}</p>
                     </div>
                     <a href="{{ route('tdrs.processes', ['workorder_id'=>$current_tdr->workorder->id]) }}"
-                       class="btn btn-outline-secondary" style="width: 140px;height: 40px; line-height: .8rem">{{ __('All
-                               Components Processes')}} </a>
+                       class="btn btn-outline-secondary" style="width: 120px;height: 50px; line-height: 1.2rem;align-content:
+                       center">{{ __('All
+                               Parts Processes')}} </a>
 
                     <div class="d-flex " style="width: 250px">
                         @if(isset($processGroups) && count($processGroups) > 0)
@@ -398,10 +399,17 @@
                             </div>
                         @endif
 
-                            <a href="{{ route('tdr-processes.traveler', ['tdrId' => $current_tdr->id]) }}"
-                               class="btn btn-outline-info  ms-2" style="height: 40px">
-                                <i class="fas fa-file-alt"></i> Traveler
-                            </a>
+{{--                            <a href="{{ route('tdr-processes.traveler', ['tdrId' => $current_tdr->id]) }}"--}}
+{{--                               class="btn btn-outline-info  ms-2" style="height: 50px">--}}
+{{--                                <i class="fas fa-file-alt"></i> Traveler--}}
+{{--                            </a>--}}
+                            <x-paper-button
+                                text="Traveler"
+                                color="outline-primary"
+                                size="landscape"
+                                width="80"
+                                href="{{ route('tdr-processes.traveler', ['tdrId' => $current_tdr->id]) }}"
+                            />
                     </div>
 
 
@@ -425,13 +433,15 @@
 
 
                     <div class="me-4">
-
-
-                        <button type="button"
-                                class="btn btn-outline-secondary btn-sm"
-                                onclick="window.history.back();">
-                            <i class="bi bi-arrow-left"></i> {{ __('Back') }}
-                        </button>
+{{--                        <button type="button"--}}
+{{--                                class="btn btn-outline-secondary btn-sm"--}}
+{{--                                onclick="window.history.back();">--}}
+{{--                            <i class="bi bi-arrow-left"></i> {{ __('Back o tdr') }}--}}
+{{--                        </button>--}}
+                        <a href="{{ route('tdrs.show', ['id'=>$current_wo->id]) }}"
+                           class="btn btn-outline-secondary " style="height:50px; width: 110px;line-height: 1.2rem;
+                           align-content: center">
+                            {{ __('Back to TDR') }} </a>
                     </div>
 
                 </div>

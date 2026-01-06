@@ -105,7 +105,7 @@
                         </h3>
                         <div class="card-tools">
                             <a href="{{ route('tdrs.show', ['id'=>$workorder->id]) }}" class="btn btn-secondary">
-                                <i class="fas fa-arrow-left"></i> Back to Workorder
+                                <i class="fas fa-arrow-left"></i> Back to TDR
                             </a>
                         </div>
                     </div>

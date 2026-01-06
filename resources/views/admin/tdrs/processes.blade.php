@@ -179,10 +179,13 @@
                         text="SP Form"
                         href="{{ route('tdrs.specProcessForm', ['id'=> $current_wo->id]) }}"
                         target="_blank"
+                        size="landscape"
+                        width="100"
                     />
                 </div>
                 <a href="{{ route('tdrs.show', ['id'=>$current_wo->id]) }}"
-                   class="btn btn-outline-secondary " style="height: 60px; width: 110px">{{ __('Back to Work Order') }} </a>
+                   class="btn btn-outline-secondary " style="height: 60px; width: 90px;line-height: 1.2rem;align-content: center">
+                    {{ __('Back to TDR') }} </a>
             </div>
         </div>
         <div>

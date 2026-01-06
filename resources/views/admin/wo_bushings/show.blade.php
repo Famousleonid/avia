@@ -9,7 +9,7 @@
             width: 100%;
             position: relative;
         }
-        
+
         .table-scroll-container {
             max-height: 70vh;
             overflow-y: auto;
@@ -59,7 +59,7 @@
             background-color: #031e3a;
             box-shadow: 0 2px 2px -1px rgba(0, 0, 0, 0.4);
         }
-        
+
         .table-scroll-container thead th {
             position: sticky;
             top: 0;
@@ -69,7 +69,7 @@
             height: 60px;
             vertical-align: middle;
         }
-        
+
         .table-scroll-container table {
             margin-bottom: 0;
         }
@@ -131,18 +131,26 @@
         <div class="card-header m-1 shadow">
             <div class="d-flex justify-content-between align-items-center">
                 <div>
-                    <h4 class="text-primary ms-2">{{__('Work Order: ')}} {{$current_wo->number}}</h4>
+                    <div class="text-center" style="width: 100px;">
+                        <h5 class="text-success-emphasis  ps-1">{{__('WO')}}
+                            <a class="text-success-emphasis " href="{{ route('mains.show', $current_wo->id) }}"
+                                {{$current_wo->number}}>{{$current_wo->number}}
+                            </a>
+                        </h5>
+                    </div>
+
+                </div>
                     <div>
                         <h4 class="ps-xl-2">{{__('BUSHINGS PROCESSES')}}</h4>
                     </div>
-                </div>
+
                 <div class="ps-2 d-flex" style="width: 400px;margin-top: -5px">
                     @if($woBushing)
                         <a href="{{ route('wo_bushings.edit', $woBushing->id) }}" class="btn btn-outline-primary mt-2 me-2"
-                           style="height: 60px;width: 120px">
+                           style="height: 60px;width: 120px;line-height: 1.2rem;align-content: center">
                             <i class="fas fa-edit"></i> Update Bushings List
                         </a>
-                        <div style="width: 100px; margin-top: 10px"></div>
+                        <div class="ms-4" style="width: 100px; margin-top: 6px">
 {{--                        <a href="{{ route('wo_bushings.specProcessForm', $woBushing->id) }}" class="btn btn-outline-warning"--}}
 {{--                               style="height: 60px;width: 120px" target="_blank">--}}
 {{--                            <i class="fas fa-list"></i> Spec Process Form--}}
@@ -151,10 +159,11 @@
                             text="Bushing SP Form"
                             href="{{ route('wo_bushings.specProcessForm', $woBushing->id) }}}"
                             size="landscape"
-                            width="100px"
+                            width="90px"
                             target="_blank"
                             color="outline-primary"
                         />
+                        </div>
                     @else
                         @if($bushings->flatten()->count() > 0)
                             <a href="{{ route('wo_bushings.create', $current_wo->id) }}" class="btn btn-success"
@@ -166,8 +175,9 @@
                 </div>
                 <div class="">
                     <a href="{{ route('tdrs.show', ['id'=>$current_wo->id]) }}"
-                       class="btn btn-outline-secondary me-2" style="height: 60px;width: 110px">
-                        {{ __('Back to Work Order') }}
+                       class="btn btn-outline-secondary me-2" style="height: 60px;width: 90px;align-content: center;
+                       line-height: 1.2rem">
+                        {{ __('Back to TDR') }}
                     </a>
                 </div>
             </div>

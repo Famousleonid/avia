@@ -122,20 +122,28 @@
         <div class="card-header m-1 shadow">
             <div class="d-flex justify-content-between align-items-center">
                 <div>
-                    <h4 class="text-primary ms-2 mb-0">{{__('Work Order: ')}} {{$current_wo->number}}</h4>
+                    <div class="text-center" style="width: 100px;">
+                        <h5 class="text-success-emphasis  ps-1">{{__('WO')}}
+                            <a class="text-success-emphasis " href="{{ route('mains.show', $current_wo->id) }}"
+                                {{$current_wo->number}}>{{$current_wo->number}}
+                            </a>
+                        </h5>
+                    </div>
+                </div>
                     <div>
                         <h4 class="ps-xl-5 mb-0">{{__('EDIT BUSHINGS')}}</h4>
                     </div>
-                </div>
+
                 <div>
                     <a href="{{ route('processes.create', ['manual_id' => $current_wo->unit->manual_id, 'return_to' => route
                     ('wo_bushings.edit', $woBushing->id)]) }}"
-                       class="btn btn-outline-primary me-2" style="height: 60px;width: 100px">
+                       class="btn btn-outline-primary me-2" style="height: 60px;width: 100px;line-height: 1.2rem;align-content: center">
                         <i class="fas fa-cogs"></i> {{ __('Add Processes') }}
                     </a>
                     <a href="{{ route('components.create', ['manual_id' => $current_wo->unit->manual_id ?? null, 'redirect' => request()->fullUrl()]) }}"
-                       class="btn btn-outline-primary me-2" style="height: 60px;width: 110px">
-                        <i class="fas fa-plus"></i> {{ __('Add Component') }}
+                       class="btn btn-outline-primary me-2" style="height: 60px;width: 90px;line-height: 1.2rem;align-content:
+                       center">
+                        <i class="fas fa-plus"></i> {{ __('Add Part') }}
                     </a>
                 </div>
                 <div class="d-flex align-items-center">
@@ -148,7 +156,7 @@
                         </button>
                     @endif
                     <a href="{{ route('wo_bushings.show', $current_wo->id) }}"
-                       class="btn btn-outline-secondary me-2" style="height: 60px;width: 110px">
+                       class="btn btn-outline-secondary me-2" style="height: 55px;width: 80px;align-content: center">
                         {{ __('Back') }}
                     </a>
                 </div>
