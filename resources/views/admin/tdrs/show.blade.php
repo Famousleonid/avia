@@ -48,26 +48,26 @@
                         <h5 class="text-success-emphasis  ps-1">{{__('WO')}}
                             <a class="text-success-emphasis " href="{{ route('mains.show', $current_wo->id) }}"
                                 {{$current_wo->number}}>{{$current_wo->number}}
-{{--                               data-bs-toggle="modal"--}}
-{{--                               data-bs-target=#infoModal--}}
+                                {{--                               data-bs-toggle="modal"--}}
+                                {{--                               data-bs-target=#infoModal--}}
                             </a>
                         </h5>
                     </div>
 
 
                     <div class="ps-2 d-flex" >
-{{--                        <div class=" ms-4">--}}
-{{--                            <a href="{{ route('mains.show', $current_wo->id) }}" class="btn--}}
-{{--                                            btn-outline-success " title="{{ __('WO Tasks') }}"--}}
-{{--                               onclick="showLoadingSpinner()"--}}
-{{--                            >--}}
-{{--                                <i class="bi bi-list-task " style="font-size: 28px;"></i>--}}
-{{--                            </a>--}}
-{{--                        </div>--}}
+                        {{--                        <div class=" ms-4">--}}
+                        {{--                            <a href="{{ route('mains.show', $current_wo->id) }}" class="btn--}}
+                        {{--                                            btn-outline-success " title="{{ __('WO Tasks') }}"--}}
+                        {{--                               onclick="showLoadingSpinner()"--}}
+                        {{--                            >--}}
+                        {{--                                <i class="bi bi-list-task " style="font-size: 28px;"></i>--}}
+                        {{--                            </a>--}}
+                        {{--                        </div>--}}
                         <div class="me-2 position-relative">
                             <button class="btn  btn-outline-warning ms-2 open-pdf-modal text-center"
                                     title="{{ __('PDF Library') }}"
-                                    style="height: 55px;width: 55px"
+                                    style="height: 55px;width: 55px ;align-content: center"
                                     data-id="{{ $current_wo->id }}"
                                     data-number="{{ $current_wo->number }}" >
                                 <i class="bi bi-file-earmark-pdf" style="font-size: 26px; "></i>
@@ -85,7 +85,7 @@
                         @if(count($processParts))
                             <div class="me-2">
                                 <a href="{{route('tdrs.processes',['workorder_id' => $current_wo->id])}}"
-                                   class="btn fs-8 btn-outline-primary " style="height: 55px;width: 100px"
+                                   class="btn fs-8 btn-outline-primary " style="height: 55px;width: 100px; align-content: center;line-height: 1rem"
                                    onclick="showLoadingSpinner()">
                                     {{__('All Parts Processes')}}
                                 </a>
@@ -98,7 +98,8 @@
                                     ->count('component_id');
                             @endphp
                             <a href="{{route('extra_processes.show_all',['id'=>$current_wo->id])}}"
-                               class="btn fs-8 btn-outline-primary " style="height: 55px;width: 100px">
+                               class="btn fs-8 btn-outline-primary " style="height: 55px;width: 100px;align-content: center;
+                               line-height: 1rem">
                                 {{__('Extra Parts Processes')}}
                             </a>
                             @if($extraProcessesCount > 0)
@@ -115,8 +116,9 @@
                                         @if($plane->id == $manual->planes_id)
                                             @if(!str_contains($plane->type, 'ATR'))
                                                 <a href="{{route('log_card.show',['id' => $current_wo->id])}}"
-                                                      class="btn  fs-8 btn-outline-primary " style="min-height: 55px;width: 55px"
-                                                      onclick="showLoadingSpinner ()">
+                                                   class="btn  fs-8 btn-outline-primary " style="min-height: 55px;width:
+                                                      55px ; align-content: center;line-height: 1rem"
+                                                   onclick="showLoadingSpinner ()">
                                                     {{__('Log Card')}}
                                                 </a>
                                             @endif
@@ -128,7 +130,7 @@
                         </div>
                         <div>
                             <a href="{{route('wo_bushings.show',['wo_bushing' => $current_wo->id])}}"
-                               class="btn  fs-8 btn-outline-primary ms-2" style="min-height: 55px;width: 85px"
+                               class="btn  fs-8 btn-outline-primary ms-2" style="min-height: 55px;width: 85px ; align-content: center;line-height: 1rem"
                                onclick="showLoadingSpinner
                                    ()">
                                 {{__('Bushing Processes')}}
@@ -136,10 +138,10 @@
                         </div>
                         <div>
                             <a href="{{route('rm_reports.show',['rm_report' => $current_wo->id])}}"
-                               class="btn  fs-8 btn-outline-primary ms-2 " style="height: 55px;width: 150px"
+                               class="btn  fs-8 btn-outline-primary ms-2 " style="height: 55px;width: 150px; align-content: center;line-height: 1rem"
                                onclick="showLoadingSpinner
                                    ()">
-                                 {{__('Repair & Modification Record')}}
+                                {{__('Repair & Modification Record')}}
                             </a>
                         </div>
 
@@ -147,7 +149,8 @@
                             @if($current_wo->instruction_id == 1 )
                                 <div class="me-1 ">
                                     <a href="{{ route('ndt-cad-csv.index', $current_wo->id) }}"
-                                       class="btn fs-8 btn-outline-success" style="min-height: 55px; width: 110px">
+                                       class="btn fs-8 btn-outline-success" style="min-height: 55px; width: 90px;
+                                       align-content: center;line-height: 1rem">
                                         STD Processes
                                     </a>
                                 </div>
@@ -414,12 +417,12 @@
                                             <div class="d-flex justify-content-between">
                                                 <h4 class="modal-title">{{__('Parts Missing ')}}</h4>
 
-{{--                                                <div>--}}
-{{--                                                    <a href="{{route('tdrs.inspection',['workorder_id' => $current_wo->id])}}"--}}
-{{--                                                       class="btn btn-outline-primary " style="height: 40px" onclick="showLoadingSpinner()">--}}
-{{--                                                        {{__('Add Unit Inspection')}}--}}
-{{--                                                    </a>--}}
-{{--                                                </div>--}}
+                                                {{--                                                <div>--}}
+                                                {{--                                                    <a href="{{route('tdrs.inspection',['workorder_id' => $current_wo->id])}}"--}}
+                                                {{--                                                       class="btn btn-outline-primary " style="height: 40px" onclick="showLoadingSpinner()">--}}
+                                                {{--                                                        {{__('Add Unit Inspection')}}--}}
+                                                {{--                                                    </a>--}}
+                                                {{--                                                </div>--}}
                                             </div>
                                         </div>
                                     </div>
@@ -484,8 +487,21 @@
                                             </thead>
                                             <tbody>
                                             @foreach($inspectsUnit as $unit)
+                                                @php
+                                                    // Отладочная информация
+                                                    $hasConditions = $unit->conditions !== null;
+                                                    $conditionName = $hasConditions ? $unit->conditions->name : 'N/A';
+                                                    $unitComponentId = $unit->component_id;
+                                                    $unitCodesId = $unit->codes_id;
+                                                    $unitConditionsId = $unit->conditions_id;
+                                                @endphp
                                                 <tr>
-                                                    <td class="p-3"> {{$unit->conditions->name}} </td>
+                                                    <td class="p-3"> 
+                                                        {{ $conditionName }}
+                                                        @if($unitComponentId)
+                                                            <small class="text-muted">(Component ID: {{ $unitComponentId }}, Codes: {{ $unitCodesId }}, Conditions: {{ $unitConditionsId }})</small>
+                                                        @endif
+                                                    </td>
                                                     <td class="p-3">
                                                         <!-- Кнопка удаления -->
                                                         <form action="{{ route('tdrs.destroy', $unit->id) }}" method="POST"
@@ -510,9 +526,9 @@
                                 <div class="modal-content bg-gradient" style="width: 700px">
                                     <div class="modal-header " style="width: 700px">
 
-                                            <h4 class="modal-title me-4">{{__('Work order W')}}{{$current_wo->number}}</h4>
-                                            <h4 class="modal-title ms-5 ">{{__('Ordered Parts  ')}}</h4>
-                                            <button type="button" class="btn-close pb-2 text-end" data-bs-dismiss="modal" aria-label="Close"></button>
+                                        <h4 class="modal-title me-4">{{__('Work order W')}}{{$current_wo->number}}</h4>
+                                        <h4 class="modal-title ms-5 ">{{__('Ordered Parts  ')}}</h4>
+                                        <button type="button" class="btn-close pb-2 text-end" data-bs-dismiss="modal" aria-label="Close"></button>
 
 
                                     </div>
@@ -589,113 +605,113 @@
             <div class="mb-1 mt-2 d-flex " style="margin-left: 60px;">
 
 
-                        <div class=" d-flex " style=" ; width: 380px">
+                <div class=" d-flex " style=" ; width: 380px">
 
-                            @if(count($tdrs))
-                                <div class="d-flex" style="width: 200px">
-                                    <x-paper-button
-                                        text="WO Process Sheet"
-                                        href="{{ route('tdrs.woProcessForm', ['id'=> $current_wo->id]) }}"
-                                        target="_blank"
-                                        color="outline-info"
-                                    />
-                                </div>
+                    @if(count($tdrs))
+                        <div class="d-flex" style="width: 200px">
+                            <x-paper-button
+                                text="WO Process Sheet"
+                                href="{{ route('tdrs.woProcessForm', ['id'=> $current_wo->id]) }}"
+                                target="_blank"
+                                color="outline-info"
+                            />
+                        </div>
 
 
+                        <x-paper-button
+                            text="TDR Form"
+                            href="{{ route('tdrs.tdrForm', ['id'=> $current_wo->id]) }}"
+                            target="_blank"
+                        />
+                        @if(count($processParts)==0)
+                            <x-paper-button
+                                text="SP Form"
+                                href="{{ route('tdrs.specProcessFormEmp', ['id'=> $current_wo->id]) }}"
+                                target="_blank"
+                            />
+
+                        @else
+                            <x-paper-button
+                                text="SP Form"
+                                href="{{ route('tdrs.specProcessForm', ['id'=> $current_wo->id]) }}"
+                                target="_blank"
+                            />
+
+                        @endif
+                        <x-paper-button
+                            text="R&M Form"
+                            href="{{ route('rm_reports.rmRecordForm', ['id'=> $current_wo->id]) }}"
+                            target="_blank"
+                        />
+
+                        @if (count($prl_parts) > 0)
+                            <div class="position-relative d-inline-block">
                                 <x-paper-button
-                                    text="TDR Form"
-                                    href="{{ route('tdrs.tdrForm', ['id'=> $current_wo->id]) }}"
+                                    text="PRL"
+                                    href="{{ route('tdrs.prlForm', ['id' => $current_wo->id]) }}"
                                     target="_blank"
                                 />
-                                @if(count($processParts)==0)
-                                    <x-paper-button
-                                        text="SP Form"
-                                        href="{{ route('tdrs.specProcessFormEmp', ['id'=> $current_wo->id]) }}"
-                                        target="_blank"
-                                    />
 
-                                @else
-                                    <x-paper-button
-                                        text="SP Form"
-                                        href="{{ route('tdrs.specProcessForm', ['id'=> $current_wo->id]) }}"
-                                        target="_blank"
-                                    />
-
-                                @endif
-                                <x-paper-button
-                                    text="R&M Form"
-                                    href="{{ route('rm_reports.rmRecordForm', ['id'=> $current_wo->id]) }}"
-                                    target="_blank"
-                                />
-
-                                @if (count($prl_parts) > 0)
-                                    <div class="position-relative d-inline-block">
-                                        <x-paper-button
-                                            text="PRL"
-                                            href="{{ route('tdrs.prlForm', ['id' => $current_wo->id]) }}"
-                                            target="_blank"
-                                        />
-
-                                        <span class="badge bg-success rounded-pill"
-                                              style="position: absolute; top: -5px; left: 2px; min-width: 20px; height: 20px;
+                                <span class="badge bg-success rounded-pill"
+                                      style="position: absolute; top: -5px; left: 2px; min-width: 20px; height: 20px;
                                               display: flex; align-items: center; justify-content: center; font-size: 0.7rem; padding: 0 5px;">
                                          {{ count($prl_parts) }}
                                         </span>
-                                    </div>
-                                @endif
+                            </div>
+                        @endif
 
-                            @endif
+                    @endif
+
+                </div>
+
+                <! --- STD Processes --- ->
+                <div class="d-flex ms-5">
+                    @if($current_wo->instruction_id == 1 && $hasNdtComponents)
+                        <div class="me-1">
+                            <x-paper-button
+                                text="NDT STD"
+                                href="{{ route('tdrs.ndtStd', ['workorder_id' => $current_wo->id]) }}"
+                                target="_blank"
+                                color="outline-primary"
+                            />
+                        </div>
+                    @endif
+
+                    @if($current_wo->instruction_id == 1 && $hasCadComponents)
+                        <div class="me-1 ">
+                            <x-paper-button
+                                text="CAD STD"
+                                href="{{ route('tdrs.cadStd', ['workorder_id' => $current_wo->id]) }}"
+                                target="_blank"
+                                color="outline-primary"
+                            />
 
                         </div>
+                    @endif
 
-                        <! --- STD Processes --- ->
-                        <div class="d-flex ms-5">
-                            @if($current_wo->instruction_id == 1 && $hasNdtComponents)
-                                <div class="me-1">
-                                    <x-paper-button
-                                        text="NDT STD"
-                                        href="{{ route('tdrs.ndtStd', ['workorder_id' => $current_wo->id]) }}"
-                                        target="_blank"
-                                        color="outline-primary"
-                                    />
-                                </div>
-                            @endif
-
-                            @if($current_wo->instruction_id == 1 && $hasCadComponents)
-                                <div class="me-1 ">
-                                    <x-paper-button
-                                        text="CAD STD"
-                                        href="{{ route('tdrs.cadStd', ['workorder_id' => $current_wo->id]) }}"
-                                        target="_blank"
-                                        color="outline-primary"
-                                    />
-
-                                </div>
-                            @endif
-
-                            @if($current_wo->instruction_id == 1 && $hasStressComponents)
-                                <div class="me-1 ">
-                                    <x-paper-button
-                                        text="Stress STD"
-                                        href="{{ route('tdrs.stressStd', ['workorder_id' => $current_wo->id]) }}"
-                                        target="_blank"
-                                        color="outline-primary"
-                                    />
-                                </div>
-                            @endif
-
-                            @if($hasPaintComponents)
-                                <div class="me-1 ">
-                                    <x-paper-button
-                                        text="Paint STD"
-                                        href="{{ route('tdrs.paintStd', ['workorder_id' => $current_wo->id]) }}"
-                                        target="_blank"
-                                        color="outline-primary"
-                                    />
-
-                                </div>
-                            @endif
+                    @if($current_wo->instruction_id == 1 && $hasStressComponents)
+                        <div class="me-1 ">
+                            <x-paper-button
+                                text="Stress STD"
+                                href="{{ route('tdrs.stressStd', ['workorder_id' => $current_wo->id]) }}"
+                                target="_blank"
+                                color="outline-primary"
+                            />
                         </div>
+                    @endif
+
+                    @if($hasPaintComponents)
+                        <div class="me-1 ">
+                            <x-paper-button
+                                text="Paint STD"
+                                href="{{ route('tdrs.paintStd', ['workorder_id' => $current_wo->id]) }}"
+                                target="_blank"
+                                color="outline-primary"
+                            />
+
+                        </div>
+                    @endif
+                </div>
 
                 <div class="d-flex ms-5">
                     @if($log_card)
@@ -707,226 +723,226 @@
                             color="outline-primary"
                         />
                     @endif
-                     @if($woBushing)
+                    @if($woBushing)
 
-                            <x-paper-button
-                                text="Bushing SP Form"
+                        <x-paper-button
+                            text="Bushing SP Form"
 
-                                href="{{ route('wo_bushings.specProcessForm', $woBushing->id) }}}"
-                                target="_blank"
-                                color="outline-primary"
-                            />
-                     @endif
+                            href="{{ route('wo_bushings.specProcessForm', $woBushing->id) }}}"
+                            target="_blank"
+                            color="outline-primary"
+                        />
+                    @endif
 
                 </div>
 
 
             </div>
 
-                <div class="d-flex justify-content-center" style="height: 75vh">
+            <div class="d-flex justify-content-center" style="height: 75vh">
 
-                    <!- Inspection Unit ->
+                <!- Inspection Unit ->
 
-                    <div class="me-3" style="width: 450px; max-height: 70vh; overflow-y: auto;">
-                        <div class="table-wrapper me3 p-2">
-                            <table id="tdr_inspect_Table" class="display table table-sm
+                <div class="me-3" style="width: 450px; max-height: 70vh; overflow-y: auto;">
+                    <div class="table-wrapper me3 p-2">
+                        <table id="tdr_inspect_Table" class="display table table-sm
                                         table-hover table-striped align-middle table-bordered bg-gradient">
-                                <thead>
+                            <thead>
+                            <tr>
+                                <th class=" text-primary text-center  " style="width: 300px;">
+                                    <a href="#" data-bs-toggle="modal" data-bs-target="#unitInspectionModal"
+                                        {{--                                           style="text-decoration: none; color: inherit;"--}}
+                                    >
+                                        {{__('Teardown Inspection')}}
+                                    </a>
+                                </th>
+                                <th class=" text-primary text-center " style="width: 50px;">
+                                    {{--                                        <a href="#" data-bs-toggle="modal" data-bs-target="#unitInspectionModal"--}}
+                                    {{--                                           class="btn btn-outline-info btn-sm" style="height: 32px">--}}
+                                    {{--                                            {{ __('Add') }}--}}
+                                    {{--                                        </a>--}}
+                                </th>
+                            </tr>
+                            </thead>
+                            <tbody>
+                            {{-- Специальная строка для "PARTS MISSING UPON ARRIVAL" - показывается один раз, если есть записи с missing --}}
+                            @if($hasMissingParts && $missingCondition)
                                 <tr>
-                                    <th class=" text-primary text-center  " style="width: 300px;">
-                                        <a href="#" data-bs-toggle="modal" data-bs-target="#unitInspectionModal"
-{{--                                           style="text-decoration: none; color: inherit;"--}}
+                                    <td class="text-center fs-8">
+                                        {{ $missingCondition->name }}
+                                    </td>
+                                    <td class="p-2 text-center">
+                                        {{-- Нет кнопки удаления для этой строки --}}
+                                        <img src="{{ asset('img/missing2.png')}}" alt="missing"
+                                             style="width: 40px;" class=""  data-bs-toggle="modal"
+                                             data-bs-target="#missingModal{{$current_wo->number}}"
                                         >
-                                            {{__('Teardown Inspection')}}
-                                        </a>
-                                    </th>
-                                    <th class=" text-primary text-center " style="width: 50px;">
-{{--                                        <a href="#" data-bs-toggle="modal" data-bs-target="#unitInspectionModal"--}}
-{{--                                           class="btn btn-outline-info btn-sm" style="height: 32px">--}}
-{{--                                            {{ __('Add') }}--}}
-{{--                                        </a>--}}
-                                    </th>
+                                    </td>
                                 </tr>
-                                </thead>
-                                <tbody>
-                                    @foreach($tdrs as $tdr)
-                                            @if($tdr->use_tdr == true and $tdr->use_process_forms != true)
-                                            <tr>
-                                                <td
-                                                    class="text-center fs-8">
-                                                    @foreach($conditions as $condition)
-                                                        @if($condition->id == $tdr->conditions_id  )
-                                                            {{$condition ->name}}
-                                                        @endif
-                                                    @endforeach
-                                                    @if($tdr->component_id)
-                                                        <fs-8 class="" style="color: #5897fb">(scrap)</fs-8>
-                                                        {{ $tdr->component->name }}
-                                                        @if ($tdr->qty == 1)
-                                                            ({{ $tdr->component->ipl_num }})
-                                                        @else
-                                                             ({{ $tdr->component->ipl_num }}, {{$tdr->qty}} pcs)
-                                                        @endif
-                                                    @endif
-                                                        @if($tdr->description)
-                                                            ({{$tdr->description}})
-                                                        @endif
-                                                </td>
-                                                <td class="p-2 text-center">
-                                                    @foreach($inspectsUnit as $unit)<!-- inspection unit delete -->
-                                                        @if($unit->id == $tdr->id)
-                                                            <form action="{{ route('tdrs.destroy', $unit->id) }}" method="POST"
-                                                              onsubmit="return confirm('Are you sure you want to delete this item?');">
-                                                                @csrf
-                                                                @method('DELETE')
-                                                                <button type="submit" class="btn btn-outline-danger btn-sm ">
-                                                                    {{--                                                            {__('Delete')}}--}}
-                                                                    <i class="bi bi-trash"></i>
-                                                                </button>
-                                                            </form>
-                                                       @endif
-                                                    @endforeach
-                                                        @if($tdr->conditions && $tdr->conditions->name == 'PARTS MISSING UPON ARRIVAL AS INDICATED ON PARTS LIST')
-{{--                                                            <button class="btn btn-outline-info btn-sm" style="height: 32px"--}}
-{{--                                                                    data-bs-toggle="modal"--}}
-{{--                                                                    data-bs-target="#missingModal{{$current_wo->number}}">--}}
-{{--                                                                {{ __('Missing Part') }}</button>--}}
-                                                            <img src="{{ asset('img/missing2.png')}}" alt="missing"
-                                                                 style="width: 40px;" class=""  data-bs-toggle="modal"
-                                                                 data-bs-target="#missingModal{{$current_wo->number}}"
-                                                            >
-                                                        @else
-                                                            @if($tdr->necessaries_id == $necessary->id)
-{{--                                                                <button class="btn btn-outline-info btn-sm" style="min-height: 32px"--}}
-{{--                                                                        href="#"--}}
-{{--                                                                        data-bs-toggle="modal" data-bs-target="#orderModal{{$current_wo->number}}">--}}
-{{--                                                                    {{ __('Ordered Parts') }}</button>--}}
-                                                                <img src="{{ asset('img/order.png')}}" alt="order"
-                                                                     style="width: 40px;" class=""
-                                                                     data-bs-toggle="modal"
-                                                                     data-bs-target="#orderModal{{$current_wo->number}}">
-
-                                                            @endif
-                                                       @endif
-                                                </td>
-                                            </tr>
-                                        @endif
-                                    @endforeach
-                                </tbody>
-                            </table>
-                        </div>
-                    </div>
-
-                    <!- Inspection Component ->
-
-                    <div class="me-3" style=" max-height: 70vh; overflow-y: auto;">
-                        <div class="table-wrapper me-3 p-2">
-                            <table id="tdr_process_Table" class="display table table-sm table-hover table-striped align-middle table-bordered">
-                                <thead class="bg-gradient">
+                            @endif
+                            {{-- Обычные Unit Inspections (без записей компонентов с missing) --}}
+                            @foreach($inspectsUnit as $tdr)
                                 <tr>
-                                    <th class="text-center text-primary sortable">{{__('IPL Number')}} </th>
-                                    <th class=" text-center  text-primary sortable">{{__('Part Description')}} </th>
-                                    <th class=" text-center text-primary sortable ">{{__('Part number')}} </th>
-                                    <th class=" text-center   text-primary sortable">{{__('Serial number')}}</th>
-                                    <th class=" text-center  text-primary " style="width: 200px">{{__('Necessary')}}</th>
-                                    <th class=" text-center  text-primary " style="width: 120px">{{__('Code')}}</th>
-                                    <th class=" text-center  text-primary " style="width: 60px">{{__('EC')}}</th>
-                                    <th class=" text-primary text-center" style="width: 150px"> {{__('Action')}}
-                                        <a href="{{ route('tdrs.inspection.component', ['workorder_id' => $current_wo->id])}}"
-                                           class="btn btn-outline-info btn-sm ms-3" style="height: 32px">
-                                            {{ __('Add') }}
-                                        </a>
-                                    </th>
-                                </tr>
-                                </thead>
-                                <tbody>
-                                @foreach($tdrs as $tdr)
-                                    @if($tdr->use_tdr == true and $tdr->use_process_forms == true)
-                                        <tr>
-                                            <td class="text-center"> <!-- IPL Number -->
-                                                {{ $tdr->component->ipl_num ?? '' }}
-                                            </td>
-                                            <td class="text-center"><!--  Part Description -->
-                                                {{ $tdr->component->name ?? '' }}
-                                            </td>
-                                            <td class="text-center"><!--  Part Number -->
-                                                {{ $tdr->component->part_number ?? '' }}
-                                            </td>
-                                            <td class="text-center"> <!--  Serial Number -->
-                                                {{$tdr->serial_number}}
-                                            </td>
-
-                                            <td class="text-center"><!--  Necessary -->
-                                                @foreach($necessaries as $necessary)
-                                                    @if($necessary->id == $tdr->necessaries_id)
-                                                        {{$necessary ->name}}
-                                                    @endif
-                                                @endforeach
-                                            </td>
-
-                                            <td class="text-center"><!--  Code -->
-                                                @foreach($codes as $code)
-                                                    @if($code->id == $tdr->codes_id)
-                                                        {{$code ->name}}
-                                                    @endif
-                                                @endforeach
-                                            </td>
-                                            <td class="text-center" style="width: 60px"> <!--  EC -->
-                                                @if(empty($tdr_proc))
-                                                    No
-                                                @else
-                                                    @php
-                                                        $found = false;
-                                                    @endphp
-                                                    @foreach($tdr_proc as $tdr_ec)
-                                                        @if($tdr_ec->tdrs_id == $tdr->id)
-                                                            @php
-                                                                $found = true;
-                                                            @endphp
-                                                            Yes
-                                                            @break
-                                                        @endif
-                                                    @endforeach
-                                                    @if(!$found)
-                                                        No
-                                                    @endif
+                                    <td
+                                        class="text-center fs-8">
+                                        @if($tdr->conditions)
+                                            {{ $tdr->conditions->name }}
+                                        @else
+                                            @foreach($conditions as $condition)
+                                                @if($condition->id == $tdr->conditions_id)
+                                                    {{$condition->name}}
                                                 @endif
-                                            </td>
+                                            @endforeach
+                                        @endif
+                                        @if($tdr->component_id)
+                                            <fs-8 class="" style="color: #5897fb">(scrap)</fs-8>
+                                            {{ $tdr->component->name ?? '' }}
+                                            @if ($tdr->qty == 1)
+                                                ({{ $tdr->component->ipl_num ?? '' }})
+                                            @else
+                                                 ({{ $tdr->component->ipl_num ?? '' }}, {{$tdr->qty}} pcs)
+                                            @endif
+                                        @endif
+                                        @if($tdr->description)
+                                            ({{$tdr->description}})
+                                        @endif
+                                    </td>
+                                    <td class="p-2 text-center">
+                                        {{-- Кнопка удаления только для обычных unit inspections (без компонентов) --}}
+                                        @if(!$tdr->component_id)
+                                            <form action="{{ route('tdrs.destroy', $tdr->id) }}" method="POST"
+                                                  onsubmit="return confirm('Are you sure you want to delete this item?');">
+                                                @csrf
+                                                @method('DELETE')
+                                                <button type="submit" class="btn btn-outline-danger btn-sm ">
+                                                    <i class="bi bi-trash"></i>
+                                                </button>
+                                            </form>
+                                        @endif
+                                        @if($tdr->necessaries_id == $necessary->id)
+                                            <img src="{{ asset('img/order.png')}}" alt="order"
+                                                 style="width: 40px;" class=""
+                                                 data-bs-toggle="modal"
+                                                 data-bs-target="#orderModal{{$current_wo->number}}">
+                                        @endif
+                                    </td>
+                                </tr>
+                            @endforeach
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
 
-                                            <td class="d-flex justify-content-center " style="width: 150px; align-content: center">
+                <!- Inspection Component ->
+
+                <div class="me-3" style=" max-height: 70vh; overflow-y: auto;">
+                    <div class="table-wrapper me-3 p-2">
+                        <table id="tdr_process_Table" class="display table table-sm table-hover table-striped align-middle table-bordered">
+                            <thead class="bg-gradient">
+                            <tr>
+                                <th class="text-center text-primary sortable">{{__('IPL Number')}} </th>
+                                <th class=" text-center  text-primary sortable">{{__('Part Description')}} </th>
+                                <th class=" text-center text-primary sortable ">{{__('Part number')}} </th>
+                                <th class=" text-center   text-primary sortable">{{__('Serial number')}}</th>
+                                <th class=" text-center  text-primary " style="width: 200px">{{__('Necessary')}}</th>
+                                <th class=" text-center  text-primary " style="width: 120px">{{__('Code')}}</th>
+                                <th class=" text-center  text-primary " style="width: 60px">{{__('EC')}}</th>
+                                <th class=" text-primary text-center" style="width: 150px"> {{__('Action')}}
+                                    <a href="{{ route('tdrs.inspection.component', ['workorder_id' => $current_wo->id])}}"
+                                       class="btn btn-outline-info btn-sm ms-3" style="height: 32px">
+                                        {{ __('Add') }}
+                                    </a>
+                                </th>
+                            </tr>
+                            </thead>
+                            <tbody>
+                            @foreach($tdrs as $tdr)
+                                @if($tdr->use_tdr == true and $tdr->use_process_forms == true)
+                                    <tr>
+                                        <td class="text-center"> <!-- IPL Number -->
+                                            {{ $tdr->component->ipl_num ?? '' }}
+                                        </td>
+                                        <td class="text-center"><!--  Part Description -->
+                                            {{ $tdr->component->name ?? '' }}
+                                        </td>
+                                        <td class="text-center"><!--  Part Number -->
+                                            {{ $tdr->component->part_number ?? '' }}
+                                        </td>
+                                        <td class="text-center"> <!--  Serial Number -->
+                                            {{$tdr->serial_number}}
+                                        </td>
+
+                                        <td class="text-center"><!--  Necessary -->
+                                            @foreach($necessaries as $necessary)
+                                                @if($necessary->id == $tdr->necessaries_id)
+                                                    {{$necessary ->name}}
+                                                @endif
+                                            @endforeach
+                                        </td>
+
+                                        <td class="text-center"><!--  Code -->
+                                            @foreach($codes as $code)
+                                                @if($code->id == $tdr->codes_id)
+                                                    {{$code ->name}}
+                                                @endif
+                                            @endforeach
+                                        </td>
+                                        <td class="text-center" style="width: 60px"> <!--  EC -->
+                                            @if(empty($tdr_proc))
+                                                No
+                                            @else
+                                                @php
+                                                    $found = false;
+                                                @endphp
+                                                @foreach($tdr_proc as $tdr_ec)
+                                                    @if($tdr_ec->tdrs_id == $tdr->id)
+                                                        @php
+                                                            $found = true;
+                                                        @endphp
+                                                        Yes
+                                                        @break
+                                                    @endif
+                                                @endforeach
+                                                @if(!$found)
+                                                    No
+                                                @endif
+                                            @endif
+                                        </td>
+
+                                        <td class="d-flex justify-content-center " style="width: 150px; align-content: center">
 
 
-                                                <a href="{{ route('tdr-processes.processes',['tdrId'=>$tdr->id])}}"
-                                                   class="btn btn-outline-primary btn-sm me-2">
-                                                    <i class="bi bi-bar-chart-steps" title="Component Processes"></i>
-                                                </a>
-                                                <a href="{{ route('tdrs.edit',['id' => $tdr->id]) }}"
-                                                   class="btn btn-outline-primary btn-sm me-2">
-                                                    <i class="bi bi-pencil-square" title="Component Inspection Edit"></i>
-                                                </a>
-                                                <form action="{{ route('tdrs.destroy', ['tdr' => $tdr->id]) }}" method="POST"
-                                                      onsubmit="return confirm('Are you sure you want to delete this item?');">
-                                                    @csrf
-                                                    @method('DELETE')
-                                                    <button type="submit" class="btn btn-outline-danger btn-sm">
-                                                        <i class="bi bi-trash"></i>
-                                                        {{--                                                            {{__('Delete')}}--}}
-                                                    </button>
-                                                </form>
+                                            <a href="{{ route('tdr-processes.processes',['tdrId'=>$tdr->id])}}"
+                                               class="btn btn-outline-primary btn-sm me-2">
+                                                <i class="bi bi-bar-chart-steps" title="Component Processes"></i>
+                                            </a>
+                                            <a href="{{ route('tdrs.edit',['id' => $tdr->id]) }}"
+                                               class="btn btn-outline-primary btn-sm me-2">
+                                                <i class="bi bi-pencil-square" title="Component Inspection Edit"></i>
+                                            </a>
+                                            <form action="{{ route('tdrs.destroy', ['tdr' => $tdr->id]) }}" method="POST"
+                                                  onsubmit="return confirm('Are you sure you want to delete this item?');">
+                                                @csrf
+                                                @method('DELETE')
+                                                <button type="submit" class="btn btn-outline-danger btn-sm">
+                                                    <i class="bi bi-trash"></i>
+                                                    {{--                                                            {{__('Delete')}}--}}
+                                                </button>
+                                            </form>
 
-                                            </td>
+                                        </td>
 
-                                        </tr>
+                                    </tr>
 
-                                    @endif
+                                @endif
 
-                                @endforeach
-                                </tbody>
-                            </table>
-                        </div>
+                            @endforeach
+                            </tbody>
+                        </table>
                     </div>
                 </div>
             </div>
+        </div>
         </div>
 
 
@@ -1020,11 +1036,6 @@
     </div>
 
 
-
-
-
-
-
     <!-- JavaScript модули для tdrs.show -->
     <script>
         // Устанавливаем workorder ID для использования в модулях
@@ -1116,8 +1127,8 @@
 
                     // Get CSRF token
                     const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') ||
-                                     formData.get('_token') ||
-                                     '{{ csrf_token() }}';
+                        formData.get('_token') ||
+                        '{{ csrf_token() }}';
 
                     // Send AJAX request
                     fetch('{{ route("tdrs.store.unit-inspections") }}', {
@@ -1132,29 +1143,29 @@
                             conditions: conditionsData
                         })
                     })
-                    .then(response => response.json())
-                    .then(data => {
-                        if (data.success) {
-                            // Close modal
-                            const modal = bootstrap.Modal.getInstance(document.getElementById('unitInspectionModal'));
-                            if (modal) {
-                                modal.hide();
-                            }
+                        .then(response => response.json())
+                        .then(data => {
+                            if (data.success) {
+                                // Close modal
+                                const modal = bootstrap.Modal.getInstance(document.getElementById('unitInspectionModal'));
+                                if (modal) {
+                                    modal.hide();
+                                }
 
-                            // Reload page to show updated data
-                            window.location.reload();
-                        } else {
-                            alert(data.message || '{{ __("An error occurred while saving.") }}');
+                                // Reload page to show updated data
+                                window.location.reload();
+                            } else {
+                                alert(data.message || '{{ __("An error occurred while saving.") }}');
+                                saveBtn.disabled = false;
+                                saveBtn.innerHTML = '<i class="fas fa-save"></i> {{ __('Save') }}';
+                            }
+                        })
+                        .catch(error => {
+                            console.error('Error:', error);
+                            alert('{{ __("An error occurred while saving.") }}');
                             saveBtn.disabled = false;
                             saveBtn.innerHTML = '<i class="fas fa-save"></i> {{ __('Save') }}';
-                        }
-                    })
-                    .catch(error => {
-                        console.error('Error:', error);
-                        alert('{{ __("An error occurred while saving.") }}');
-                        saveBtn.disabled = false;
-                        saveBtn.innerHTML = '<i class="fas fa-save"></i> {{ __('Save') }}';
-                    });
+                        });
                 });
             }
         });
@@ -1231,39 +1242,39 @@
                             unit: 1
                         })
                     })
-                    .then(response => response.json())
-                    .then(data => {
-                        if (data.success) {
-                            // Update display
-                            row.querySelector('.condition-name-display').textContent = newName;
-                            input.setAttribute('data-original-name', newName);
+                        .then(response => response.json())
+                        .then(data => {
+                            if (data.success) {
+                                // Update display
+                                row.querySelector('.condition-name-display').textContent = newName;
+                                input.setAttribute('data-original-name', newName);
 
-                            // Hide input, show display
-                            input.classList.add('d-none');
-                            row.querySelector('.condition-name-display').classList.remove('d-none');
+                                // Hide input, show display
+                                input.classList.add('d-none');
+                                row.querySelector('.condition-name-display').classList.remove('d-none');
 
-                            // Show edit button, hide save/cancel
-                            row.querySelector('.save-cancel-group').classList.add('d-none');
-                            row.querySelector('.btn-group').classList.remove('d-none');
+                                // Show edit button, hide save/cancel
+                                row.querySelector('.save-cancel-group').classList.add('d-none');
+                                row.querySelector('.btn-group').classList.remove('d-none');
 
-                            // Update button data attribute
-                            const editBtn = row.querySelector('.edit-condition-btn');
-                            editBtn.setAttribute('data-condition-name', newName);
+                                // Update button data attribute
+                                const editBtn = row.querySelector('.edit-condition-btn');
+                                editBtn.setAttribute('data-condition-name', newName);
 
-                            // Reload page to update unit inspection modal
-                            window.location.reload();
-                        } else {
-                            alert(data.message || '{{ __("An error occurred while saving.") }}');
+                                // Reload page to update unit inspection modal
+                                window.location.reload();
+                            } else {
+                                alert(data.message || '{{ __("An error occurred while saving.") }}');
+                                this.disabled = false;
+                                this.innerHTML = '<i class="fas fa-check"></i> {{ __("Save") }}';
+                            }
+                        })
+                        .catch(error => {
+                            console.error('Error:', error);
+                            alert('{{ __("An error occurred while saving.") }}');
                             this.disabled = false;
                             this.innerHTML = '<i class="fas fa-check"></i> {{ __("Save") }}';
-                        }
-                    })
-                    .catch(error => {
-                        console.error('Error:', error);
-                        alert('{{ __("An error occurred while saving.") }}');
-                        this.disabled = false;
-                        this.innerHTML = '<i class="fas fa-check"></i> {{ __("Save") }}';
-                    });
+                        });
                 });
             });
 
@@ -1288,29 +1299,29 @@
                             'Accept': 'application/json'
                         }
                     })
-                    .then(response => response.json())
-                    .then(data => {
-                        if (data.success) {
-                            // Remove row
-                            const row = document.querySelector(`tr[data-condition-id="${conditionId}"]`);
-                            if (row) {
-                                row.remove();
-                            }
+                        .then(response => response.json())
+                        .then(data => {
+                            if (data.success) {
+                                // Remove row
+                                const row = document.querySelector(`tr[data-condition-id="${conditionId}"]`);
+                                if (row) {
+                                    row.remove();
+                                }
 
-                            // Reload page to update unit inspection modal
-                            window.location.reload();
-                        } else {
-                            alert(data.message || '{{ __("An error occurred while deleting.") }}');
+                                // Reload page to update unit inspection modal
+                                window.location.reload();
+                            } else {
+                                alert(data.message || '{{ __("An error occurred while deleting.") }}');
+                                this.disabled = false;
+                                this.innerHTML = '<i class="fas fa-trash"></i> {{ __("Delete") }}';
+                            }
+                        })
+                        .catch(error => {
+                            console.error('Error:', error);
+                            alert('{{ __("An error occurred while deleting.") }}');
                             this.disabled = false;
                             this.innerHTML = '<i class="fas fa-trash"></i> {{ __("Delete") }}';
-                        }
-                    })
-                    .catch(error => {
-                        console.error('Error:', error);
-                        alert('{{ __("An error occurred while deleting.") }}');
-                        this.disabled = false;
-                        this.innerHTML = '<i class="fas fa-trash"></i> {{ __("Delete") }}';
-                    });
+                        });
                 });
             });
 
@@ -1333,37 +1344,37 @@
                         },
                         body: formData
                     })
-                    .then(response => {
-                        // Check if response is JSON
-                        const contentType = response.headers.get('content-type');
-                        if (contentType && contentType.includes('application/json')) {
-                            return response.json();
-                        } else {
-                            // If redirect, treat as success
-                            return { success: true };
-                        }
-                    })
-                    .then(data => {
-                        if (data.success || data === undefined) {
-                            // Close add modal
-                            const addModal = bootstrap.Modal.getInstance(document.getElementById('addConditionModalFromManage'));
-                            if (addModal) {
-                                addModal.hide();
+                        .then(response => {
+                            // Check if response is JSON
+                            const contentType = response.headers.get('content-type');
+                            if (contentType && contentType.includes('application/json')) {
+                                return response.json();
+                            } else {
+                                // If redirect, treat as success
+                                return { success: true };
                             }
+                        })
+                        .then(data => {
+                            if (data.success || data === undefined) {
+                                // Close add modal
+                                const addModal = bootstrap.Modal.getInstance(document.getElementById('addConditionModalFromManage'));
+                                if (addModal) {
+                                    addModal.hide();
+                                }
 
-                            // Reload page to update both modals
+                                // Reload page to update both modals
+                                window.location.reload();
+                            } else {
+                                alert(data.message || '{{ __("An error occurred while saving.") }}');
+                                submitBtn.disabled = false;
+                                submitBtn.innerHTML = '{{ __("Save Condition") }}';
+                            }
+                        })
+                        .catch(error => {
+                            console.error('Error:', error);
+                            // Even if error, reload to show updated list
                             window.location.reload();
-                        } else {
-                            alert(data.message || '{{ __("An error occurred while saving.") }}');
-                            submitBtn.disabled = false;
-                            submitBtn.innerHTML = '{{ __("Save Condition") }}';
-                        }
-                    })
-                    .catch(error => {
-                        console.error('Error:', error);
-                        // Even if error, reload to show updated list
-                        window.location.reload();
-                    });
+                        });
                 });
             }
         });
@@ -1392,12 +1403,12 @@
                                             <input type="text" class="form-control" id="pdfDocumentName" name="document_name"
                                                    placeholder="Enter document name (optional)" style="width: 400px"
                                                    maxlength="255">
-{{--                                            <small class="text-muted ms-2">Optional: Enter a name for the document</small>--}}
+                                            {{--                                            <small class="text-muted ms-2">Optional: Enter a name for the document</small>--}}
                                         </div>
                                         <div class="input-group mt-2 ms-4 d-flex " style="height: 40px">
                                             <input type="file" class="form-control" id="pdfFileInput" name="pdf" accept=".pdf"
                                                    style="width: 385px"
-                                                      required>
+                                                   required>
                                             <button class="btn btn-primary" type="submit" id="uploadPdfBtn">
                                                 <i class="bi bi-upload"></i> Upload
                                             </button>
@@ -1497,64 +1508,64 @@
                         <div class="table-responsive" style="max-height: 60vh; overflow-y: auto;">
                             <table class="table table-hover table-bordered">
                                 <thead class="table-primary" style="position: sticky; top: 0; z-index: 10;">
-                                    <tr>
-                                        <th class="text-center" style="width: 50px;">
-                                            <input type="checkbox" id="selectAllConditions" title="{{ __('Select All') }}">
-                                        </th>
-                                        <th class="text-center">{{ __('Condition') }}</th>
-                                        <th class="text-center" style="width: 300px;">{{ __('Notes') }}</th>
-                                    </tr>
+                                <tr>
+                                    <th class="text-center" style="width: 50px;">
+                                        <input type="checkbox" id="selectAllConditions" title="{{ __('Select All') }}">
+                                    </th>
+                                    <th class="text-center">{{ __('Condition') }}</th>
+                                    <th class="text-center" style="width: 300px;">{{ __('Notes') }}</th>
+                                </tr>
                                 </thead>
                                 <tbody>
-                                    @php
-                                        // Получаем существующие unit inspections для данного workorder
-                                        $existingInspections = [];
-                                        foreach($tdrs as $tdr) {
-                                            if($tdr->use_tdr == true && $tdr->use_process_forms != true && $tdr->conditions_id) {
-                                                $existingInspections[$tdr->conditions_id] = [
-                                                    'id' => $tdr->id,
-                                                    'description' => $tdr->description ?? ''
-                                                ];
-                                            }
+                                @php
+                                    // Получаем существующие unit inspections для данного workorder
+                                    $existingInspections = [];
+                                    foreach($tdrs as $tdr) {
+                                        if($tdr->use_tdr == true && $tdr->use_process_forms != true && $tdr->conditions_id) {
+                                            $existingInspections[$tdr->conditions_id] = [
+                                                'id' => $tdr->id,
+                                                'description' => $tdr->description ?? ''
+                                            ];
                                         }
-                                    @endphp
-                                    @foreach($unit_conditions as $unit_condition)
-                                        @if($unit_condition->name != 'PARTS MISSING UPON ARRIVAL AS INDICATED ON PARTS LIST')
-                                            @php
-                                                $isChecked = isset($existingInspections[$unit_condition->id]);
-                                                $existingDescription = $isChecked ? $existingInspections[$unit_condition->id]['description'] : '';
-                                                $existingTdrId = $isChecked ? $existingInspections[$unit_condition->id]['id'] : null;
-                                            @endphp
-                                            <tr>
-                                                <td class="text-center align-middle">
-                                                    <input type="checkbox"
-                                                           class="form-check-input condition-checkbox"
-                                                           name="conditions[{{ $unit_condition->id }}][selected]"
-                                                           value="1"
-                                                           data-condition-id="{{ $unit_condition->id }}"
-                                                           {{ $isChecked ? 'checked' : '' }}>
-                                                    @if($existingTdrId)
-                                                        <input type="hidden"
-                                                               name="conditions[{{ $unit_condition->id }}][tdr_id]"
-                                                               value="{{ $existingTdrId }}">
-                                                    @endif
-                                                </td>
-                                                <td class="align-middle">
-                                                    <label for="condition_{{ $unit_condition->id }}" style="cursor: pointer; margin: 0;">
-                                                        {{ $unit_condition->name }}
-                                                    </label>
-                                                </td>
-                                                <td class="align-middle">
-                                                    <input type="text"
-                                                           class="form-control form-control-sm condition-notes"
-                                                           name="conditions[{{ $unit_condition->id }}][notes]"
-                                                           id="condition_{{ $unit_condition->id }}"
-                                                           value="{{ $existingDescription }}"
-                                                           placeholder="{{ __('Enter notes...') }}">
-                                                </td>
-                                            </tr>
-                                        @endif
-                                    @endforeach
+                                    }
+                                @endphp
+                                @foreach($unit_conditions as $unit_condition)
+                                    @if($unit_condition->name != 'PARTS MISSING UPON ARRIVAL AS INDICATED ON PARTS LIST')
+                                        @php
+                                            $isChecked = isset($existingInspections[$unit_condition->id]);
+                                            $existingDescription = $isChecked ? $existingInspections[$unit_condition->id]['description'] : '';
+                                            $existingTdrId = $isChecked ? $existingInspections[$unit_condition->id]['id'] : null;
+                                        @endphp
+                                        <tr>
+                                            <td class="text-center align-middle">
+                                                <input type="checkbox"
+                                                       class="form-check-input condition-checkbox"
+                                                       name="conditions[{{ $unit_condition->id }}][selected]"
+                                                       value="1"
+                                                       data-condition-id="{{ $unit_condition->id }}"
+                                                    {{ $isChecked ? 'checked' : '' }}>
+                                                @if($existingTdrId)
+                                                    <input type="hidden"
+                                                           name="conditions[{{ $unit_condition->id }}][tdr_id]"
+                                                           value="{{ $existingTdrId }}">
+                                                @endif
+                                            </td>
+                                            <td class="align-middle">
+                                                <label for="condition_{{ $unit_condition->id }}" style="cursor: pointer; margin: 0;">
+                                                    {{ $unit_condition->name }}
+                                                </label>
+                                            </td>
+                                            <td class="align-middle">
+                                                <input type="text"
+                                                       class="form-control form-control-sm condition-notes"
+                                                       name="conditions[{{ $unit_condition->id }}][notes]"
+                                                       id="condition_{{ $unit_condition->id }}"
+                                                       value="{{ $existingDescription }}"
+                                                       placeholder="{{ __('Enter notes...') }}">
+                                            </td>
+                                        </tr>
+                                    @endif
+                                @endforeach
                                 </tbody>
                             </table>
                         </div>
@@ -1592,53 +1603,53 @@
                     <div class="table-responsive" style="max-height: 60vh; overflow-y: auto;">
                         <table class="table table-hover table-bordered">
                             <thead class="table-primary" style="position: sticky; top: 0; z-index: 10;">
-                                <tr>
-                                    <th class="text-center">{{ __('Condition Name') }}</th>
-                                    <th class="text-center" style="width: 150px;">{{ __('Actions') }}</th>
-                                </tr>
+                            <tr>
+                                <th class="text-center">{{ __('Condition Name') }}</th>
+                                <th class="text-center" style="width: 150px;">{{ __('Actions') }}</th>
+                            </tr>
                             </thead>
                             <tbody id="manageConditionsTableBody">
-                                @foreach($unit_conditions as $unit_condition)
-                                    <tr data-condition-id="{{ $unit_condition->id }}">
-                                        <td class="align-middle">
-                                            <span class="condition-name-display">{{ $unit_condition->name }}</span>
-                                            <input type="text"
-                                                   class="form-control form-control-sm condition-name-edit d-none"
-                                                   value="{{ $unit_condition->name }}"
-                                                   data-original-name="{{ $unit_condition->name }}">
-                                        </td>
-                                        <td class="text-center align-middle">
-                                            <div class="btn-group" role="group">
+                            @foreach($unit_conditions as $unit_condition)
+                                <tr data-condition-id="{{ $unit_condition->id }}">
+                                    <td class="align-middle">
+                                        <span class="condition-name-display">{{ $unit_condition->name }}</span>
+                                        <input type="text"
+                                               class="form-control form-control-sm condition-name-edit d-none"
+                                               value="{{ $unit_condition->name }}"
+                                               data-original-name="{{ $unit_condition->name }}">
+                                    </td>
+                                    <td class="text-center align-middle">
+                                        <div class="btn-group" role="group">
+                                            <button type="button"
+                                                    class="btn btn-outline-warning btn-sm edit-condition-btn"
+                                                    data-condition-id="{{ $unit_condition->id }}"
+                                                    data-condition-name="{{ $unit_condition->name }}">
+                                                <i class="fas fa-edit"></i> {{ __('Edit') }}
+                                            </button>
+                                            @if($unit_condition->name != 'PARTS MISSING UPON ARRIVAL AS INDICATED ON PARTS LIST')
                                                 <button type="button"
-                                                        class="btn btn-outline-warning btn-sm edit-condition-btn"
+                                                        class="btn btn-outline-danger btn-sm delete-condition-btn"
                                                         data-condition-id="{{ $unit_condition->id }}"
                                                         data-condition-name="{{ $unit_condition->name }}">
-                                                    <i class="fas fa-edit"></i> {{ __('Edit') }}
+                                                    <i class="fas fa-trash"></i> {{ __('Delete') }}
                                                 </button>
-                                                @if($unit_condition->name != 'PARTS MISSING UPON ARRIVAL AS INDICATED ON PARTS LIST')
-                                                    <button type="button"
-                                                            class="btn btn-outline-danger btn-sm delete-condition-btn"
-                                                            data-condition-id="{{ $unit_condition->id }}"
-                                                            data-condition-name="{{ $unit_condition->name }}">
-                                                        <i class="fas fa-trash"></i> {{ __('Delete') }}
-                                                    </button>
-                                                @endif
-                                            </div>
-                                            <div class="btn-group d-none save-cancel-group" role="group">
-                                                <button type="button"
-                                                        class="btn btn-outline-success btn-sm save-condition-btn"
-                                                        data-condition-id="{{ $unit_condition->id }}">
-                                                    <i class="fas fa-check"></i> {{ __('Save') }}
-                                                </button>
-                                                <button type="button"
-                                                        class="btn btn-outline-secondary btn-sm cancel-edit-btn"
-                                                        data-condition-id="{{ $unit_condition->id }}">
-                                                    <i class="fas fa-times"></i> {{ __('Cancel') }}
-                                                </button>
-                                            </div>
-                                        </td>
-                                    </tr>
-                                @endforeach
+                                            @endif
+                                        </div>
+                                        <div class="btn-group d-none save-cancel-group" role="group">
+                                            <button type="button"
+                                                    class="btn btn-outline-success btn-sm save-condition-btn"
+                                                    data-condition-id="{{ $unit_condition->id }}">
+                                                <i class="fas fa-check"></i> {{ __('Save') }}
+                                            </button>
+                                            <button type="button"
+                                                    class="btn btn-outline-secondary btn-sm cancel-edit-btn"
+                                                    data-condition-id="{{ $unit_condition->id }}">
+                                                <i class="fas fa-times"></i> {{ __('Cancel') }}
+                                            </button>
+                                        </div>
+                                    </td>
+                                </tr>
+                            @endforeach
                             </tbody>
                         </table>
                     </div>

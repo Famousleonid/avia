@@ -280,84 +280,297 @@ class TdrController extends Controller
     public function store(Request $request)
     {
         $validated = $request->validate([
+            'workorder_id' => 'required|exists:workorders,id',
             'component_id' => 'nullable|exists:components,id',
-            'serial_number' => 'nullable|string',
-            'assy_serial_number' => 'nullable|string',
+            'serial_number' => 'nullable|string|max:255',
+            'assy_serial_number' => 'nullable|string|max:255',
             'conditions_id' => 'nullable|exists:conditions,id',
             'necessaries_id' => 'nullable|exists:necessaries,id',
-            'codes_id' => 'nullable|exists:codes,id', // Валидация для  codes_id
-            'qty' => 'nullable|integer',
-            'description' => 'nullable|string',
-            'order_component_id' => 'nullable|exists:components,id', // Добавляем валидацию для order_component_id
+            'codes_id' => 'nullable|exists:codes,id',
+            'qty' => 'nullable|integer|min:1',
+            'description' => 'nullable|string|max:1000',
+            'order_component_id' => 'nullable|exists:components,id',
         ]);
 
         // Установка значений по умолчанию для флагов
-        $use_tdr = $request->boolean('use_tdr');
-        $use_process_forms = $request->boolean('use_process_forms');
-        $use_log_card = $request->has('use_log_card');
-        $use_extra_forms = $request->has('use_extra_forms');
-        $qty = (int)$validated['qty'] ?? 1; // Приведение к целому числу
+        $use_tdr = $request->boolean('use_tdr', false);
+        $use_process_forms = $request->boolean('use_process_forms', false);
+        $qty = (int)($validated['qty'] ?? 1);
 
-        // Сохранение в таблице tdrs
-        Tdr::create([
-            'workorder_id' => $request->workorder_id, // Получаем workorder_id из формы
-            'component_id' => $validated['component_id'],
-            'serial_number' => $validated['serial_number'] ?? 'NSN',
-            'assy_serial_number' => $validated['assy_serial_number'],
-            'codes_id' => $validated['codes_id'],  // Обработка передачи
-//             codes_id
-            'conditions_id' => $validated['conditions_id'],
-            'necessaries_id' => $validated['necessaries_id'],
-            'description' =>$validated['description'],
-            'qty' => $qty,
-            'use_tdr' => $use_tdr,
-            'use_process_forms' => $use_process_forms,
-            'use_log_card' => $use_log_card,
-            'use_extra_forms' => $use_extra_forms,
-            'order_component_id' => $validated['order_component_id'], // Добавляем сохранение order_component_id
-        ]);
-
-        $missingCondition = Condition::where('name', 'PARTS MISSING UPON ARRIVAL AS INDICATED ON PARTS LIST')->first();
+        // Загружаем необходимые сущности один раз
+        $workorder = Workorder::findOrFail($validated['workorder_id']);
         $code = Code::where('name', 'Missing')->first();
         $necessary = Necessary::where('name', 'Order New')->first();
+        $repairNecessary = Necessary::where('name', 'Repair')->first();
 
-//dd($code->id, $validated['codes_id']);
+        // Валидация: Missing требует обязательный component_id
+        if ($code && $validated['codes_id'] == $code->id) {
+            if (empty($validated['component_id'])) {
+                return redirect()->back()
+                    ->withInput()
+                    ->withErrors(['component_id' => 'Component ID is required when code is Missing']);
+            }
 
-        // Если codes_id равно $code->id, обновляем поле part_missing в workorders
-        if ($validated['codes_id'] == $code->id) {
-//dd('true');
-            $workorder = Workorder::find($request->workorder_id);
+            // Валидация: Missing требует обязательный necessaries_id = Order New (ID = 2)
+            if (empty($validated['necessaries_id'])) {
+                return redirect()->back()
+                    ->withInput()
+                    ->withErrors(['necessaries_id' => 'Necessary is required for Missing code']);
+            }
+            
+            if (!$necessary || $validated['necessaries_id'] != $necessary->id) {
+                return redirect()->back()
+                    ->withInput()
+                    ->withErrors(['necessaries_id' => 'Missing code can only have Order New necessary']);
+            }
+        }
 
-//            dd($workorder->part_missing);
+        // Валидация: для других codes (не Missing) necessaries_id обязателен и должен быть Repair или Order New
+        if ($code && $validated['codes_id'] && $validated['codes_id'] != $code->id) {
+            if (empty($validated['necessaries_id'])) {
+                return redirect()->back()
+                    ->withInput()
+                    ->withErrors(['necessaries_id' => 'Necessary is required for non-Missing codes']);
+            }
+            
+            $isValidNecessary = false;
+            if ($necessary && $validated['necessaries_id'] == $necessary->id) {
+                $isValidNecessary = true;
+            }
+            if ($repairNecessary && $validated['necessaries_id'] == $repairNecessary->id) {
+                $isValidNecessary = true;
+            }
+            if (!$isValidNecessary) {
+                return redirect()->back()
+                    ->withInput()
+                    ->withErrors(['necessaries_id' => 'For non-Missing codes, necessary must be Repair or Order New']);
+            }
+        }
 
-            // Проверяем, если part_missing равно false, то меняем на true
-            if ($workorder->part_missing == false) {  // Используем строгое сравнение с false
-                $workorder->part_missing = true;
-                $workorder->save();
+        // Проверяем наличие записей с Missing до создания (для оптимизации)
+        $hasExistingMissing = false;
+        if ($code && $validated['codes_id'] === $code->id) {
+            $hasExistingMissing = Tdr::where('workorder_id', $workorder->id)
+                ->where('codes_id', $code->id)
+                ->exists();
+        }
 
-                // Создаем запись в таблице tdrs, если part_missing обновлен на true
-                Tdr::create([
-                    'workorder_id' => $request->workorder_id,
-                    'conditions_id' => $missingCondition->id, // Используем ID из найденного condition
-                    'use_tdr' => true,
+        // Если codes_id равно Missing, автоматически устанавливаем conditions_id=1 (PARTS MISSING UPON ARRIVAL)
+        $missingCondition = Condition::where('name', 'PARTS MISSING UPON ARRIVAL AS INDICATED ON PARTS LIST')->first();
+        if ($code && $validated['codes_id'] === $code->id && $missingCondition) {
+            // Если conditions_id не установлен или равен null, устанавливаем его в missingCondition->id
+            if (empty($validated['conditions_id']) || $validated['conditions_id'] === null) {
+                $validated['conditions_id'] = $missingCondition->id;
+                \Log::info('Auto-set conditions_id to missingCondition', [
+                    'workorder_id' => $workorder->id,
+                    'codes_id' => $validated['codes_id'],
+                    'conditions_id' => $missingCondition->id
                 ]);
             }
         }
-        // Второе условие: если codes_id не равно $code->id и necessaries_id равно $necessary->id
-        if ($validated['codes_id'] != $code->id && $validated['necessaries_id'] == $necessary->id) {
-            $workorder = Workorder::find($request->workorder_id);
 
-            if ($workorder->new_parts == false) {
+        try {
+            // Сохранение в таблице tdrs
+            $tdr = Tdr::create([
+                'workorder_id' => $validated['workorder_id'],
+                'component_id' => $validated['component_id'],
+                'serial_number' => $validated['serial_number'] ?? 'NSN',
+                'assy_serial_number' => $validated['assy_serial_number'],
+                'codes_id' => $validated['codes_id'],
+                'conditions_id' => $validated['conditions_id'],
+                'necessaries_id' => $validated['necessaries_id'],
+                'description' => $validated['description'],
+                'qty' => $qty,
+                'use_tdr' => $use_tdr,
+                'use_process_forms' => $use_process_forms,
+                'order_component_id' => $validated['order_component_id'],
+            ]);
+            
+            \Log::info('TDR created', [
+                'tdr_id' => $tdr->id,
+                'workorder_id' => $tdr->workorder_id,
+                'codes_id' => $tdr->codes_id,
+                'conditions_id' => $tdr->conditions_id,
+                'component_id' => $tdr->component_id
+            ]);
+        } catch (\Exception $e) {
+            \Log::error('Error creating TDR', [
+                'error' => $e->getMessage(),
+                'request_data' => $request->all()
+            ]);
+            return redirect()->back()
+                ->withInput()
+                ->withErrors(['error' => 'Failed to create TDR record']);
+        }
+
+        // Если codes_id равно Missing, обновляем поле part_missing в workorders
+        // Используем приведение типов для сравнения, т.к. codes_id может быть строкой из формы
+        $codesIdInt = $validated['codes_id'] ? (int)$validated['codes_id'] : null;
+        $codeIdInt = $code ? (int)$code->id : null;
+        
+        \Log::info('Checking if codes_id is Missing', [
+            'workorder_id' => $workorder->id,
+            'codes_id' => $validated['codes_id'],
+            'codes_id_int' => $codesIdInt,
+            'code_id' => $code ? $code->id : null,
+            'code_id_int' => $codeIdInt,
+            'code_found' => $code ? true : false,
+            'match' => ($code && $codesIdInt === $codeIdInt)
+        ]);
+        
+        if ($code && $codesIdInt === $codeIdInt) {
+            // Проверяем количество записей с Missing после создания (включая только что созданную)
+            $missingCount = Tdr::where('workorder_id', $workorder->id)
+                ->where('codes_id', $code->id)
+                ->count();
+
+            \Log::info('Checking part_missing flag', [
+                'workorder_id' => $workorder->id,
+                'missing_count' => $missingCount,
+                'current_part_missing' => $workorder->part_missing,
+                'codes_id' => $validated['codes_id'],
+                'part_missing_type' => gettype($workorder->part_missing)
+            ]);
+
+            // Если это первая запись с Missing (count == 1) или флаг еще не установлен (0 или false)
+            if ($missingCount == 1 || $workorder->part_missing == 0 || $workorder->part_missing === false || !$workorder->part_missing) {
+                $workorder->part_missing = true;
+                $workorder->save();
+                \Log::info('Set part_missing to true', [
+                    'workorder_id' => $workorder->id,
+                    'missing_count' => $missingCount
+                ]);
+            } else {
+                \Log::info('part_missing not changed', [
+                    'workorder_id' => $workorder->id,
+                    'missing_count' => $missingCount,
+                    'part_missing' => $workorder->part_missing
+                ]);
+            }
+        }
+
+        // Второе условие: если codes_id не равно Missing и necessaries_id равно Order New
+        // new_parts=true устанавливается только когда у workorder есть компоненты (tdr записи) с necessary = Order New
+        if ($code && $necessary &&
+            $codesIdInt !== $codeIdInt &&
+            $validated['necessaries_id'] === $necessary->id) {
+
+            // Проверяем количество записей с Order New после создания (включая только что созданную)
+            $orderNewCount = Tdr::where('workorder_id', $workorder->id)
+                ->where('necessaries_id', $necessary->id)
+                ->count();
+
+            // Если это первая запись с Order New (count == 1) или флаг еще не установлен
+            if ($orderNewCount == 1 || $workorder->new_parts === false || $workorder->new_parts == 0) {
+                $workorder->new_parts = true;
+                $workorder->save();
+                \Log::info('Set new_parts to true', [
+                    'workorder_id' => $workorder->id,
+                    'order_new_count' => $orderNewCount
+                ]);
+            }
+        }
+
+        return redirect()
+            ->route('tdrs.show', ['id' => $workorder->id])
+            ->with('success', 'TDR record created successfully');
+    }
+    public function store_old(Request $request)
+    {
+        $validated = $request->validate([
+            'workorder_id' => 'required|exists:workorders,id',
+            'component_id' => 'nullable|exists:components,id',
+            'serial_number' => 'nullable|string|max:255',
+            'assy_serial_number' => 'nullable|string|max:255',
+            'conditions_id' => 'nullable|exists:conditions,id',
+            'necessaries_id' => 'nullable|exists:necessaries,id',
+            'codes_id' => 'nullable|exists:codes,id',
+            'qty' => 'nullable|integer|min:1',
+            'description' => 'nullable|string|max:1000',
+            'order_component_id' => 'nullable|exists:components,id',
+        ]);
+
+        // Установка значений по умолчанию для флагов
+        $use_tdr = $request->boolean('use_tdr', false);
+        $use_process_forms = $request->boolean('use_process_forms', false);
+        $qty = (int)($validated['qty'] ?? 1);
+
+        // Загружаем необходимые сущности один раз
+        $workorder = Workorder::findOrFail($validated['workorder_id']);
+        $code = Code::where('name', 'Missing')->first();
+        $necessary = Necessary::where('name', 'Order New')->first();
+
+        // Проверяем наличие записей с Missing до создания (для оптимизации)
+        $hasExistingMissing = false;
+        if ($code && $validated['codes_id'] === $code->id) {
+            $hasExistingMissing = Tdr::where('workorder_id', $workorder->id)
+                ->where('codes_id', $code->id)
+                ->exists();
+        }
+
+        // Если codes_id равно Missing, автоматически устанавливаем conditions_id=1 (PARTS MISSING UPON ARRIVAL)
+        $missingCondition = Condition::where('name', 'PARTS MISSING UPON ARRIVAL AS INDICATED ON PARTS LIST')->first();
+        if ($code && $validated['codes_id'] === $code->id && $missingCondition) {
+            // Если conditions_id не установлен, устанавливаем его в missingCondition->id
+            if (empty($validated['conditions_id'])) {
+                $validated['conditions_id'] = $missingCondition->id;
+            }
+        }
+
+        try {
+            // Сохранение в таблице tdrs
+            $tdr = Tdr::create([
+                'workorder_id' => $validated['workorder_id'],
+                'component_id' => $validated['component_id'],
+                'serial_number' => $validated['serial_number'] ?? 'NSN',
+                'assy_serial_number' => $validated['assy_serial_number'],
+                'codes_id' => $validated['codes_id'],
+                'conditions_id' => $validated['conditions_id'],
+                'necessaries_id' => $validated['necessaries_id'],
+                'description' => $validated['description'],
+                'qty' => $qty,
+                'use_tdr' => $use_tdr,
+                'use_process_forms' => $use_process_forms,
+                'order_component_id' => $validated['order_component_id'],
+            ]);
+        } catch (\Exception $e) {
+            \Log::error('Error creating TDR', [
+                'error' => $e->getMessage(),
+                'request_data' => $request->all()
+            ]);
+            return redirect()->back()
+                ->withInput()
+                ->withErrors(['error' => 'Failed to create TDR record']);
+        }
+
+        // Если codes_id равно Missing, обновляем поле part_missing в workorders
+        if ($code && $validated['codes_id'] === $code->id) {
+            // Проверяем количество записей с Missing после создания (включая только что созданную)
+            $missingCount = Tdr::where('workorder_id', $workorder->id)
+                ->where('codes_id', $code->id)
+                ->count();
+
+            // Если это первая запись с Missing (count == 1) или флаг еще не установлен
+            if ($missingCount == 1 || $workorder->part_missing === false) {
+                $workorder->part_missing = true;
+                $workorder->save();
+            }
+        }
+
+        // Второе условие: если codes_id не равно Missing и necessaries_id равно Order New
+        if ($code && $necessary &&
+            $validated['codes_id'] !== $code->id &&
+            $validated['necessaries_id'] === $necessary->id) {
+
+            if ($workorder->new_parts === false) {
                 $workorder->new_parts = true;
                 $workorder->save();
             }
         }
 
-        $current_wo = $request->workorder_id;
-
-
-        return redirect()->route('tdrs.show', ['id' => $current_wo]);
-
+        return redirect()
+            ->route('tdrs.show', ['id' => $workorder->id])
+            ->with('success', 'TDR record created successfully');
     }
 
     /**
@@ -391,7 +604,7 @@ class TdrController extends Controller
             foreach ($conditions as $conditionId => $conditionData) {
                 if (isset($conditionData['selected']) && $conditionData['selected']) {
                     $processedConditionIds[] = $conditionId;
-                    
+
                     $notes = $conditionData['notes'] ?? '';
                     $tdrId = $conditionData['tdr_id'] ?? null;
 
@@ -437,7 +650,7 @@ class TdrController extends Controller
                     $missingCondition = Condition::where('name', 'PARTS MISSING UPON ARRIVAL AS INDICATED ON PARTS LIST')
                         ->where('id', $conditionId)
                         ->first();
-                    
+
                     if (!$missingCondition) {
                         $tdr->delete();
                     }
@@ -850,13 +1063,63 @@ class TdrController extends Controller
             }])
             ->get();
 
+        // Проверка наличия записей с codes_id=Missing для данного workorder
+        $hasMissingParts = false;
+        if ($code) {
+            $hasMissingParts = Tdr::where('workorder_id', $current_wo->id)
+                ->where('codes_id', $code->id)
+                ->exists();
+        }
+
+        // Unit Inspections: 
+        // 1. Записи с component_id=null (обычные unit inspections)
+        // 2. Записи компонентов с codes_id != Missing и necessaries_id = Order New
+        // Записи компонентов с missing НЕ включаются в $inspectsUnit - они отображаются отдельной строкой
         $inspectsUnit = Tdr::where('workorder_id', $current_wo->id)
-            ->where('component_id', null)
-            ->when($missingCondition, function ($query) use ($missingCondition) {
-                return $query->where('conditions_id', '!=', $missingCondition->id);
+            ->where(function($query) use ($code, $necessary) {
+                // Обычные unit inspections (component_id = null)
+                $query->whereNull('component_id');
+                
+                // ИЛИ записи компонентов с codes_id != Missing и necessaries_id = Order New
+                if ($code && $necessary) {
+                    $query->orWhere(function($q) use ($code, $necessary) {
+                        $q->whereNotNull('component_id')
+                          ->where('codes_id', '!=', $code->id)
+                          ->where('necessaries_id', $necessary->id);
+                    });
+                }
             })
-            ->with(['conditions', 'necessaries'])
+            ->with([
+                'conditions' => function($query) {
+                    $query->select('id', 'name');
+                },
+                'necessaries' => function($query) {
+                    $query->select('id', 'name');
+                },
+                'component' => function($query) {
+                    $query->select('id', 'name', 'ipl_num');
+                }
+            ])
             ->get();
+
+        // Логирование для отладки
+        \Log::info('Unit Inspections query', [
+            'workorder_id' => $current_wo->id,
+            'code_id' => $code ? $code->id : null,
+            'missing_condition_id' => $missingCondition ? $missingCondition->id : null,
+            'inspects_unit_count' => $inspectsUnit->count(),
+            'inspects_unit_ids' => $inspectsUnit->pluck('id')->toArray(),
+            'inspects_unit_details' => $inspectsUnit->map(function($unit) {
+                return [
+                    'id' => $unit->id,
+                    'component_id' => $unit->component_id,
+                    'codes_id' => $unit->codes_id,
+                    'conditions_id' => $unit->conditions_id,
+                    'conditions_loaded' => $unit->relationLoaded('conditions'),
+                    'conditions_name' => $unit->conditions ? $unit->conditions->name : 'NULL'
+                ];
+            })->toArray()
+        ]);
 
         // Получаем Missing компоненты (codes_id = 7 или код "Missing")
         $missingParts = Tdr::where('workorder_id', $current_wo->id)
@@ -936,7 +1199,8 @@ class TdrController extends Controller
             'manuals', 'builders', 'planes', 'instruction', 'necessary',
             'necessaries', 'unit_conditions', 'component_conditions',
             'codes', 'conditions', 'missingParts', 'ordersParts', 'inspectsUnit',
-            'processParts', 'ordersPartsNew','trainings','user_wo', 'manual_id','log_card','woBushing','prl_parts','tdr_proc','hasTransfers'
+            'processParts', 'ordersPartsNew','trainings','user_wo', 'manual_id','log_card','woBushing','prl_parts','tdr_proc','hasTransfers',
+            'hasMissingParts', 'missingCondition'
         ));
     }
 
@@ -1062,14 +1326,14 @@ class TdrController extends Controller
         $ordersParts = $ordersParts->map(function($tdr) {
             // Определяем, какой компонент использовать: orderComponent или component
             $component = $tdr->orderComponent ?? $tdr->component;
-            
+
             // Получаем номер manual из связанного компонента
             if ($component && $component->manual) {
                 $tdr->manual = $component->manual->number; // Номер manual (например, "32-11-12")
             } else {
                 $tdr->manual = null; // Если manual нет, устанавливаем null
             }
-            
+
             return $tdr;
         });
 
@@ -1086,13 +1350,13 @@ class TdrController extends Controller
             // Если manual одинаковые или оба null, сравниваем по IPL номерам
             $componentA = $a->orderComponent ?? $a->component;
             $componentB = $b->orderComponent ?? $b->component;
-            
+
             // Используем assy_ipl_num если есть, иначе ipl_num
-            $iplA = ($componentA && isset($componentA->assy_ipl_num) && $componentA->assy_ipl_num !== null && $componentA->assy_ipl_num !== '') 
-                ? $componentA->assy_ipl_num 
+            $iplA = ($componentA && isset($componentA->assy_ipl_num) && $componentA->assy_ipl_num !== null && $componentA->assy_ipl_num !== '')
+                ? $componentA->assy_ipl_num
                 : ($componentA->ipl_num ?? '');
-            $iplB = ($componentB && isset($componentB->assy_ipl_num) && $componentB->assy_ipl_num !== null && $componentB->assy_ipl_num !== '') 
-                ? $componentB->assy_ipl_num 
+            $iplB = ($componentB && isset($componentB->assy_ipl_num) && $componentB->assy_ipl_num !== null && $componentB->assy_ipl_num !== '')
+                ? $componentB->assy_ipl_num
                 : ($componentB->ipl_num ?? '');
 
             // Разбиваем IPL номер на части (например, "1-65" -> ["1", "65"])
@@ -2887,8 +3151,9 @@ class TdrController extends Controller
         // Найти запись Tdr по ID
         $tdr = Tdr::findOrFail($id);
 
-        // Запомнить workorder_id для дальнейшего использования
+        // Запомнить workorder_id и codes_id для дальнейшего использования
         $workorderId = $tdr->workorder_id;
+        $tdrCodesId = $tdr->codes_id;
 
         // Логируем workorder_id
         Log::info('Workorder ID: ' . $workorderId);
@@ -2950,20 +3215,6 @@ class TdrController extends Controller
                                     Log::info('Флаг part_missing для WO-источника ' . $transfer->workorder_source . ' обновлён на false (после удаления клонированного Missing TDR).');
                                 }
 
-                                // Если не осталось записей с codes_id = 7, удаляем запись с condition_id = 1, component_id = null, codes_id = null
-                                $missingCondition = Condition::where('name', 'PARTS MISSING UPON ARRIVAL AS INDICATED ON PARTS LIST')->first();
-                                if ($missingCondition) {
-                                    $unitInspectionRecord = Tdr::where('workorder_id', $transfer->workorder_source)
-                                        ->where('conditions_id', $missingCondition->id)
-                                        ->whereNull('component_id')
-                                        ->whereNull('codes_id')
-                                        ->first();
-
-                                    if ($unitInspectionRecord) {
-                                        $unitInspectionRecord->delete();
-                                        Log::info('Удалена запись Unit Inspection (condition_id = 1, component_id = null, codes_id = null) для WO-источника ' . $transfer->workorder_source . ' (после удаления всех Missing записей).');
-                                    }
-                                }
                             }
                         }
                     }
@@ -3014,8 +3265,13 @@ class TdrController extends Controller
         $code = Code::where('name', 'Missing')->first();
         Log::info('Найден код с именем "Missing": ' . ($code ? 'Да' : 'Нет'));
 
+        // Проверяем, была ли удаляемая запись с кодом Missing
+        $wasMissingRecord = $code && $tdrCodesId === $code->id;
+        Log::info('Удаляемая запись была с кодом Missing: ' . ($wasMissingRecord ? 'Да' : 'Нет') . ' (codes_id: ' . $tdrCodesId . ')');
+
         if ($code) {
             // Проверить, если это последняя запись с codes_id = $code->id
+            // Запись уже удалена выше, поэтому проверяем оставшиеся
             $remainingPartsWithCodes7 = Tdr::where('workorder_id', $workorderId)
                 ->where('codes_id', $code->id)
                 ->count();
@@ -3027,7 +3283,7 @@ class TdrController extends Controller
                 // Обновляем поле part_missing в workorder
                 $workorder = Workorder::find($workorderId);
 
-                if ($workorder && $workorder->part_missing == true) {
+                if ($workorder && $workorder->part_missing === true) {
                     // Меняем на false, если part_missing равно true
                     $workorder->part_missing = false;
                     $workorder->save();
@@ -3036,24 +3292,18 @@ class TdrController extends Controller
                     Log::info('Поле part_missing для workorder_id ' . $workorderId . ' уже false или workorder не найден.');
                 }
 
-                // Найти условие с именем 'PARTS MISSING UPON ARRIVAL AS INDICATED ON PARTS LIST'
+                // Удаляем старые пустые записи с missingCondition (созданные до изменений)
                 $missingCondition = Condition::where('name', 'PARTS MISSING UPON ARRIVAL AS INDICATED ON PARTS LIST')->first();
-                Log::info('Найдено условие с именем "PARTS MISSING UPON ARRIVAL AS INDICATED ON PARTS LIST": ' . ($missingCondition ? 'Да' : 'Нет'));
-
                 if ($missingCondition) {
-                    // Проверка на наличие записи с этим conditions_id в таблице tdrs для данного workorder_id
-                    $conditionRecord = Tdr::where('workorder_id', $workorderId)
+                    $emptyMissingRecords = Tdr::where('workorder_id', $workorderId)
                         ->where('conditions_id', $missingCondition->id)
-                        ->first();
+                        ->whereNull('component_id')
+                        ->whereNull('codes_id')
+                        ->get();
 
-                    Log::info('Найдено ли условие в tdrs с conditions_id ' . $missingCondition->id . ' для workorder_id ' . $workorderId . ': ' . ($conditionRecord ? 'Да' : 'Нет'));
-
-                    if ($conditionRecord) {
-                        // Удалить найденную запись
-                        $conditionRecord->delete();
-                        Log::info('Запись с conditions_id ' . $missingCondition->id . ' для workorder_id ' . $workorderId . ' была удалена.');
-                    } else {
-                        Log::warning('Запись с conditions_id ' . $missingCondition->id . ' для workorder_id ' . $workorderId . ' не найдена.');
+                    foreach ($emptyMissingRecords as $emptyRecord) {
+                        $emptyRecord->delete();
+                        Log::info('Удалена старая пустая запись с condition_id ' . $missingCondition->id . ' для workorder_id ' . $workorderId);
                     }
                 }
             }

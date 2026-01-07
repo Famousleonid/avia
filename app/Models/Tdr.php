@@ -23,8 +23,6 @@ class Tdr extends Model
         'received',
         'use_tdr',
         'use_process_forms',
-        'use_log_card',
-        'use_extra_forms',
     ];
     public function workorder()
     {

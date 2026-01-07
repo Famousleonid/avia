@@ -14,7 +14,7 @@
         }
 
         .container-fluid {
-            max-width: 980px;
+            max-width: 1080px;
             height: auto;
             transform: scale(0.94);
             transform-origin: top ;
@@ -53,12 +53,12 @@
             /* Колонтитул внизу страницы */
             footer {
                 position: fixed;
-                bottom: 0;
+                bottom: 10px;
                 width: 1060px;
                 text-align: center;
                 font-size: 10px;
                 background-color: #fff;
-                padding: 1px 1px;
+                padding: 5px 5px;
             }
 
             /* Обрезка контента и размещение на одной странице */
@@ -269,7 +269,7 @@
 @endphp
 
 @foreach($componentChunks as $chunk)
-    <div class="container-fluid">
+    <div class="container-fluid ">
         <div class="row">
             <div class="col-1">
                 <img src="{{ asset('img/icons/AT_logo-rb.svg') }}" alt="Logo"
@@ -383,7 +383,7 @@
                                 $nameLength = mb_strlen($component->component->name);
                                 $fontSize = $nameLength > 20 ? round(20 / $nameLength, 2) . 'em' : '1em';
                             @endphp
-                            <span style="font-size: {{ $fontSize }};">
+                            <span style="font-size: {{ $fontSize }};font-weight: bold">
                                 {{ $component->component->name }}
                             </span>
                         </div>
@@ -411,7 +411,7 @@
                         @php
                             $localIndex = $index % 6;
                         @endphp
-                        <div class="col {{ $localIndex < 5 ? 'border-l-b' : 'border-l-b-r'}} text-center" style="height: 22px">
+                        <div class="col {{ $localIndex < 5 ? 'border-l-b' : 'border-l-b-r'}} text-center" style="height: 22px;font-weight: bold">
                             {{ $component->component->part_number }}
                         </div>
                     @endforeach
@@ -434,7 +434,7 @@
                 <div class="row g-0 ">
                     @foreach($chunk as $index => $component)
                         @php $localIndex = $index % 6; @endphp
-                        <div class="col {{ $localIndex < 5 ? 'border-l-b' : 'border-l-b-r'}} text-center" style="height: 22px">
+                        <div class="col {{ $localIndex < 5 ? 'border-l-b' : 'border-l-b-r'}} text-center" style="height: 22px;font-weight: bold">
                             {{ $component->serial_number }}
                         </div>
                     @endforeach
@@ -702,7 +702,7 @@
 
 
     <footer >
-        <div class="row" style="width: 100%; padding: 5px 5px;">
+        <div class="row" style="width: 100%; padding: 10px 10px;">
             <div class="col-6 text-start">
                 {{__("Form #012")}}
             </div>
