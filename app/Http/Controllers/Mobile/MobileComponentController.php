@@ -169,7 +169,7 @@ class MobileComponentController extends Controller
             'workorder_id' => ['required', 'exists:workorders,id'],
             'component_id' => ['required', 'exists:components,id'],
             'code_id' => ['required', 'exists:codes,id'],
-            
+
             'necessaries_id' => ['nullable', 'exists:necessaries,id'],
             'qty' => ['nullable', 'integer', 'min:1'],
             'serial_number' => ['nullable', 'string', 'max:255'],
@@ -202,12 +202,12 @@ class MobileComponentController extends Controller
         // For other codes - check necessaries
         else if (isset($validated['necessaries_id'])) {
             $tdrData['necessaries_id'] = (int)$validated['necessaries_id'];
-            
+
             // Get necessary to check type
             $necessary = Necessary::find($tdrData['necessaries_id']);
             if ($necessary) {
                 $necessaryName = strtolower($necessary->name);
-                
+
                 // If Order New - add qty
                 if (stripos($necessaryName, 'order') !== false && stripos($necessaryName, 'new') !== false) {
                     if (isset($validated['qty'])) {
@@ -249,4 +249,43 @@ class MobileComponentController extends Controller
             'big_url' => $component->getFirstMediaBigUrl('components'),
         ]);
     }
+
+    public function update(Request $request, Component $component)
+    {
+        $data = $request->validate([
+            'name'         => ['nullable', 'string', 'max:255'],
+            'ipl_num'      => ['nullable', 'string', 'max:255'],
+            'part_number'  => ['nullable', 'string', 'max:255'],
+            'eff_code'     => ['nullable', 'string', 'max:255'],
+            'is_bush'      => ['nullable', 'boolean'],
+            'bush_ipl_num' => ['nullable', 'string', 'max:255'],
+        ]);
+
+        $data['is_bush'] = $request->boolean('is_bush');
+
+        if (!$data['is_bush']) {
+            $data['bush_ipl_num'] = null;
+        }
+
+        $component->update($data);
+
+        if ($request->expectsJson() || $request->header('X-Requested-With') === 'XMLHttpRequest') {
+            return response()->json([
+                'ok' => true,
+                'item' => [
+                    'id'          => $component->id,
+                    'name'        => $component->name,
+                    'ipl_num'     => $component->ipl_num,
+                    'part_number' => $component->part_number,
+                    'eff_code'    => $component->eff_code,
+                    'is_bush'     => (bool)$component->is_bush,
+                    'bush_ipl_num'=> $component->bush_ipl_num,
+                ]
+            ]);
+        }
+
+        return back()->with('success', 'Component updated');
+    }
+
+
 }

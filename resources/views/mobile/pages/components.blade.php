@@ -1,3 +1,5 @@
+{{--component.blade --}}
+
 @extends('mobile.master')
 
 @section('style')
@@ -31,44 +33,19 @@
         }
 
         /* Smooth scrollbar for components list */
-        .components-list-container::-webkit-scrollbar {
-            width: 6px;
-        }
+        .components-list-container::-webkit-scrollbar { width: 6px; }
+        .components-list-container::-webkit-scrollbar-track { background: rgba(255, 255, 255, 0.1); }
+        .components-list-container::-webkit-scrollbar-thumb { background: rgba(13, 202, 240, 0.5); border-radius: 3px; }
+        .components-list-container::-webkit-scrollbar-thumb:hover { background: rgba(13, 202, 240, 0.7); }
 
-        .components-list-container::-webkit-scrollbar-track {
-            background: rgba(255, 255, 255, 0.1);
-        }
+        .picker-item { border-bottom: 1px solid rgba(255, 255, 255, .15); }
+        .picker-item:hover { background: rgba(13, 202, 240, .08); }
 
-        .components-list-container::-webkit-scrollbar-thumb {
-            background: rgba(13, 202, 240, 0.5);
-            border-radius: 3px;
-        }
-
-        .components-list-container::-webkit-scrollbar-thumb:hover {
-            background: rgba(13, 202, 240, 0.7);
-        }
-
-        .picker-item {
-            border-bottom: 1px solid rgba(255, 255, 255, .15);
-        }
-
-        .picker-item:hover {
-            background: rgba(13, 202, 240, .08);
-        }
-
-        .mini-muted {
-            font-size: .8rem;
-            color: rgba(255, 255, 255, .6);
-        }
+        .mini-muted { font-size: .8rem; color: rgba(255, 255, 255, .6); }
 
         /* Offcanvas above modal */
-        .offcanvas {
-            z-index: 2000 !important;
-        }
-
-        .offcanvas-backdrop {
-            z-index: 1990 !important;
-        }
+        .offcanvas { z-index: 2000 !important; }
+        .offcanvas-backdrop { z-index: 1990 !important; }
 
         .component-row {
             display: grid;
@@ -94,20 +71,11 @@
             transform: scale(1.05);
         }
 
-        .component-title {
-            line-height: 1.1;
-            margin-bottom: 2px;
-        }
-
-        .component-meta {
-            line-height: 1.1;
-        }
+        .component-title { line-height: 1.1; margin-bottom: 2px; }
+        .component-meta { line-height: 1.1; }
 
         /* Чтобы длинные штуки не ломали сетку */
-        .break-anywhere {
-            overflow-wrap: anywhere;
-            word-break: break-word;
-        }
+        .break-anywhere { overflow-wrap: anywhere; word-break: break-word; }
 
         /* Кнопка камеры одинаковая высота/ширина */
         .btn-camera {
@@ -119,6 +87,73 @@
             justify-content: center;
             border-width: 1px;
         }
+
+        /* ============================================================
+           CAMERA OVERLAY (100% camera-only)
+        ============================================================ */
+        #cameraOverlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(0,0,0,.92);
+            z-index: 9999;
+            display: none;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            padding: 14px;
+        }
+
+        #cameraOverlay.is-open { display: flex; }
+
+        #cameraVideo {
+            width: 100%;
+            max-width: 520px;
+            border-radius: 18px;
+            border: 1px solid rgba(13,202,240,.35);
+            background: #000;
+        }
+
+        #cameraCanvas { display:none; }
+
+        #cameraTopBar, #cameraBottomBar {
+            width: 100%;
+            max-width: 520px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 10px;
+        }
+
+        #cameraTopBar { margin-bottom: 10px; }
+        #cameraBottomBar { margin-top: 12px; }
+
+        #cameraHint {
+            color: rgba(255,255,255,.65);
+            font-size: .85rem;
+            line-height: 1.2;
+        }
+
+        .camera-round {
+            width: 62px;
+            height: 62px;
+            border-radius: 999px;
+            border: 2px solid rgba(255,255,255,.85);
+            background: rgba(255,255,255,.12);
+            display:flex;
+            align-items:center;
+            justify-content:center;
+        }
+        .camera-round:active { transform: scale(.98); }
+
+        .camera-dot {
+            width: 44px;
+            height: 44px;
+            border-radius: 999px;
+            background: rgba(13,202,240,.9);
+        }
+
+        .js-component-edit-link:hover { text-decoration: underline !important; }
+        .js-component-edit-link:active { opacity: .8; }
 
     </style>
 @endsection
@@ -211,11 +246,21 @@
 
                                     {{-- CENTER: info --}}
                                     <div class="break-anywhere">
-                                        <div class="fw-semibold text-info">
-                                            {{ $component->name ?? ('#'.$component->id) }}
-                                        </div>
 
-                                        <div class="small text-secondary">
+                                        <a href="#"
+                                           class="fw-semibold text-info text-decoration-none js-component-edit-link break-anywhere"
+                                           data-component-id="{{ $component->id }}"
+                                           data-name="{{ e($component->name) }}"
+                                           data-ipl="{{ e($component->ipl_num) }}"
+                                           data-part="{{ e($component->part_number) }}"
+                                           data-eff="{{ e($component->eff_code) }}"
+                                           data-is-bush="{{ $component->is_bush ? 1 : 0 }}"
+                                           data-bush-ipl="{{ e($component->bush_ipl_num) }}"
+                                           title="Edit component">
+                                            {{ $component->name ?? ('#'.$component->id) }}
+                                        </a>
+
+                                        <div class="small text-secondary component-meta">
                                             <span class="me-2"><span class="text-muted">IPL:</span> {{ $component->ipl_num ?? '—' }}</span>
                                             <span class="me-2"><span class="text-muted">P/N:</span> {{ $component->part_number ?? '—' }}</span>
 
@@ -250,13 +295,10 @@
                                     {{-- RIGHT: camera only --}}
                                     <div class="text-end">
                                         <button type="button"
-                                                class="btn btn-outline-info btn-sm btn-camera"
+                                                class="btn btn-outline-info btn-sm btn-camera js-component-camera"
                                                 data-component-id="{{ $component->id }}"
                                                 data-component-name="{{ $component->name ?? ('#'.$component->id) }}"
-                                                data-bs-toggle="modal"
-                                                data-bs-target="#componentPhotoModal"
                                                 title="Update photo">
-                                            {{-- SVG camera --}}
                                             <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" fill="currentColor" viewBox="0 0 16 16">
                                                 <path d="M10.5 8.5a2.5 2.5 0 1 1-5 0 2.5 2.5 0 0 1 5 0z"/>
                                                 <path d="M2 4a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2h-1.172a2 2 0 0 1-1.414-.586l-.828-.828A2 2 0 0 0 9.172 2H6.828a2 2 0 0 0-1.414.586l-.828.828A2 2 0 0 1 3.172 4H2zm12 1a1 1 0 0 1 1 1v6a1 1 0 0 1-1 1H2a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1h1.172a3 3 0 0 0 2.121-.879l.828-.828A1 1 0 0 1 6.828 3h2.344a1 1 0 0 1 .707.293l.828.828A3 3 0 0 0 12.828 5H14z"/>
@@ -276,7 +318,7 @@
     </div>
     </div>
 
-    {{-- MODAL --}}
+    {{-- MODAL add component --}}
     <div class="modal fade" id="addComponentModal" tabindex="-1" aria-hidden="true">
         <div class="modal-dialog modal-fullscreen-sm-down">
             <div class="modal-content bg-dark text-light">
@@ -300,7 +342,6 @@
                         <div class="mb-2">
                             <label class="form-label mb-2">Choose component</label>
 
-                            {{-- кнопка выбора --}}
                             <button type="button"
                                     class="btn btn-outline-light w-100 text-start"
                                     data-open-picker>
@@ -323,13 +364,13 @@
                             </select>
                         </div>
 
-                        {{-- Qty field (for Missing or Order New) --}}
+                        {{-- Qty field --}}
                         <div class="mb-3 d-none" id="qty_container">
                             <label class="form-label mb-2">Quantity <span class="text-danger">*</span></label>
                             <input type="number" class="form-control" id="qty" name="qty" min="1" value="1">
                         </div>
 
-                        {{-- Necessaries select (for other codes) --}}
+                        {{-- Necessaries --}}
                         <div class="mb-3 d-none" id="necessaries_container">
                             <label class="form-label mb-2">Necessary Action</label>
                             <select class="form-select" id="necessaries_id" name="necessaries_id">
@@ -342,7 +383,7 @@
                             </select>
                         </div>
 
-                        {{-- Serial Number (for Repair) --}}
+                        {{-- Serial Number --}}
                         <div class="mb-3 d-none" id="serial_container">
                             <label class="form-label mb-2">Serial Number <span class="text-danger">*</span></label>
                             <input type="text" class="form-control" id="serial_number" name="serial_number" placeholder="Enter serial number">
@@ -369,48 +410,6 @@
                     </div>
 
                 </form>
-            </div>
-        </div>
-    </div>
-
-    {{-- MODAL FOR COMPONENT PHOTO --}}
-    <div class="modal fade" id="componentPhotoModal" tabindex="-1" aria-hidden="true">
-        <div class="modal-dialog modal-dialog-centered">
-            <div class="modal-content bg-dark text-light">
-                <div class="modal-header">
-                    <h5 class="modal-title" id="componentPhotoModalTitle">Update Component Photo</h5>
-                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
-                </div>
-                <div class="modal-body">
-                    <div class="text-center mb-3">
-                        <div id="componentPhotoPreview" class="mb-3">
-                            <img id="componentPhotoPreviewImg"
-                                 src="{{ asset('img/noimage.png') }}"
-                                 alt="Preview"
-                                 class="rounded-circle"
-                                 style="width: 120px; height: 120px; object-fit: cover; border: 2px solid #0dcaf0;">
-                        </div>
-                        <div class="small text-muted mb-3" id="componentPhotoName"></div>
-                    </div>
-
-                    <form id="componentPhotoForm">
-                        <input type="hidden" id="componentPhotoId" name="component_id" value="">
-                        <div class="mb-3">
-                            <label for="componentPhotoInput" class="form-label">Select Photo</label>
-                            <input type="file"
-                                   class="form-control"
-                                   id="componentPhotoInput"
-                                   name="photo"
-                                   accept="image/*"
-                                   required>
-                            <div class="form-text text-muted">Photo will replace existing one (max 5MB)</div>
-                        </div>
-                    </form>
-                </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                    <button type="button" class="btn btn-success" id="btnSaveComponentPhoto">Save Photo</button>
-                </div>
             </div>
         </div>
     </div>
@@ -521,12 +520,104 @@
         </div>
     </div>
 
+    {{-- hidden upload form (kept) --}}
+    <form id="component-photo-upload-form"
+          data-url-template="{{ route('mobile.components.updatePhoto', ['component' => ':id']) }}"
+          method="POST"
+          enctype="multipart/form-data"
+          style="display:none;"></form>
+
+    {{-- CAMERA OVERLAY (camera-only, no gallery) --}}
+    <div id="cameraOverlay" aria-hidden="true">
+        <div id="cameraTopBar">
+            <div id="cameraHint">Camera only • back camera</div>
+            <button type="button" class="btn btn-outline-light btn-sm" id="cameraCloseBtn">Close</button>
+        </div>
+
+        <video id="cameraVideo" autoplay muted playsinline></video>
+        <canvas id="cameraCanvas"></canvas>
+
+        <div id="cameraBottomBar">
+            <div class="mini-muted" id="cameraMeta">—</div>
+
+            <button type="button" class="camera-round" id="cameraShutterBtn" title="Take photo">
+                <div class="camera-dot"></div>
+            </button>
+
+            <div class="mini-muted" style="text-align:right;" id="cameraStatus"></div>
+        </div>
+    </div>
+
+
+    {{-- Modal EDIT --}}
+    <div class="modal fade" id="componentEditModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-fullscreen-sm-down">
+            <div class="modal-content bg-dark text-light border border-info">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="componentEditModalTitle">Edit component</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                </div>
+
+                <form id="componentEditForm" method="POST" action="#">
+                    @csrf
+                    <input type="hidden" name="_method" value="PATCH">
+                    <input type="hidden" id="edit_component_id" value="">
+
+                    <div class="modal-body">
+                        <div class="mb-2">
+                            <label class="form-label small mb-1">Name</label>
+                            <input type="text" class="form-control form-control-sm" name="name" id="edit_name">
+                        </div>
+
+                        <div class="row g-2">
+                            <div class="col-6">
+                                <label class="form-label small mb-1">IPL</label>
+                                <input type="text" class="form-control form-control-sm" name="ipl_num" id="edit_ipl">
+                            </div>
+                            <div class="col-6">
+                                <label class="form-label small mb-1">P/N</label>
+                                <input type="text" class="form-control form-control-sm" name="part_number" id="edit_part">
+                            </div>
+                        </div>
+
+                        <div class="mt-2">
+                            <label class="form-label small mb-1">EFF</label>
+                            <input type="text" class="form-control form-control-sm" name="eff_code" id="edit_eff">
+                        </div>
+
+                        <hr class="border-secondary opacity-50 my-2">
+
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" id="edit_is_bush" name="is_bush" value="1">
+                            <label class="form-check-label small" for="edit_is_bush">Is Bush Component</label>
+                        </div>
+
+                        <div class="mt-2" id="edit_bush_wrap" style="display:none;">
+                            <label class="form-label small mb-1">Bush IPL</label>
+                            <input type="text" class="form-control form-control-sm" name="bush_ipl_num" id="edit_bush_ipl">
+                        </div>
+
+                        <div class="small text-danger mt-2 d-none" id="edit_error_box"></div>
+                    </div>
+
+                    <div class="modal-footer">
+                        <button type="submit" class="btn btn-info btn-sm w-100" id="btnComponentEditSave">Save</button>
+                        <button type="button" class="btn btn-outline-secondary btn-sm w-100" data-bs-dismiss="modal">Cancel</button>
+                    </div>
+                </form>
+
+            </div>
+        </div>
+    </div>
+
+
 @endsection
 
 @section('scripts')
     <script>
         document.addEventListener('DOMContentLoaded', () => {
 
+            // ================= Fancybox =================
             Fancybox.bind('[data-fancybox^="component-"]', {
                 Toolbar: ["zoom", "fullscreen", "close"],
                 dragToClose: true,
@@ -534,29 +625,11 @@
                 trapFocus: false,
             });
 
-            // open modal
+            // ================= Add Component Modal =================
             const addComponentModal = document.getElementById('addComponentModal');
             document.getElementById('openAddComponentBtn')?.addEventListener('click', () => {
                 if (!addComponentModal) return;
-                new bootstrap.Modal(addComponentModal).show();
-            });
-
-            // Reset form when modal closes
-            addComponentModal?.addEventListener('hidden.bs.modal', () => {
-                const form = document.getElementById('componentAttachForm');
-                if (form) {
-                    form.reset();
-                    // Reset all dynamic fields
-                    qtyContainer?.classList.add('d-none');
-                    necessariesContainer?.classList.add('d-none');
-                    serialContainer?.classList.add('d-none');
-                    qtyInput.required = false;
-                    serialInput.required = false;
-                    necessariesSelect.required = false;
-                    document.getElementById('component_id').value = '';
-                    document.getElementById('pickedComponentText').textContent = 'Tap to choose…';
-                    document.getElementById('pickedComponentText').classList.add('text-muted');
-                }
+                bootstrap.Modal.getOrCreateInstance(addComponentModal).show();
             });
 
             // Code selection logic
@@ -568,81 +641,91 @@
             const necessariesSelect = document.getElementById('necessaries_id');
             const serialInput = document.getElementById('serial_number');
 
+            addComponentModal?.addEventListener('hidden.bs.modal', () => {
+                const form = document.getElementById('componentAttachForm');
+                if (!form) return;
+
+                form.reset();
+                qtyContainer?.classList.add('d-none');
+                necessariesContainer?.classList.add('d-none');
+                serialContainer?.classList.add('d-none');
+                if (qtyInput) qtyInput.required = false;
+                if (serialInput) serialInput.required = false;
+                if (necessariesSelect) necessariesSelect.required = false;
+
+                document.getElementById('component_id').value = '';
+                const picked = document.getElementById('pickedComponentText');
+                if (picked) {
+                    picked.textContent = 'Tap to choose…';
+                    picked.classList.add('text-muted');
+                }
+            });
+
             function handleCodeChange() {
                 const selectedOption = codeSelect?.options[codeSelect.selectedIndex];
                 if (!selectedOption || !selectedOption.value) {
-                    // Reset all
                     qtyContainer?.classList.add('d-none');
                     necessariesContainer?.classList.add('d-none');
                     serialContainer?.classList.add('d-none');
-                    qtyInput.required = false;
-                    serialInput.required = false;
-                    necessariesSelect.required = false;
+                    if (qtyInput) qtyInput.required = false;
+                    if (serialInput) serialInput.required = false;
+                    if (necessariesSelect) necessariesSelect.required = false;
                     return;
                 }
 
                 const codeName = selectedOption.dataset.codeName?.toLowerCase() || '';
 
-                // Hide all first
                 qtyContainer?.classList.add('d-none');
                 necessariesContainer?.classList.add('d-none');
                 serialContainer?.classList.add('d-none');
-                qtyInput.required = false;
-                serialInput.required = false;
-                necessariesSelect.required = false;
-                necessariesSelect.value = '';
-                serialInput.value = '';
 
-                // If Missing - show qty
+                if (qtyInput) qtyInput.required = false;
+                if (serialInput) serialInput.required = false;
+                if (necessariesSelect) {
+                    necessariesSelect.required = false;
+                    necessariesSelect.value = '';
+                }
+                if (serialInput) serialInput.value = '';
+
                 if (codeName.includes('missing')) {
                     qtyContainer?.classList.remove('d-none');
-                    qtyInput.required = true;
+                    if (qtyInput) qtyInput.required = true;
                 } else {
-                    // For other codes - show necessaries select
                     necessariesContainer?.classList.remove('d-none');
-                    necessariesSelect.required = true;
+                    if (necessariesSelect) necessariesSelect.required = true;
                 }
             }
-
             codeSelect?.addEventListener('change', handleCodeChange);
 
-            // Handle necessaries change
             necessariesSelect?.addEventListener('change', () => {
                 const selectedOption = necessariesSelect?.options[necessariesSelect.selectedIndex];
                 if (!selectedOption || !selectedOption.value) {
                     serialContainer?.classList.add('d-none');
                     qtyContainer?.classList.add('d-none');
-                    serialInput.required = false;
-                    qtyInput.required = false;
+                    if (serialInput) serialInput.required = false;
+                    if (qtyInput) qtyInput.required = false;
                     return;
                 }
 
                 const necessaryName = selectedOption.dataset.necessaryName?.toLowerCase() || '';
 
-                // Hide both first
                 serialContainer?.classList.add('d-none');
                 qtyContainer?.classList.add('d-none');
-                serialInput.required = false;
-                qtyInput.required = false;
-                serialInput.value = '';
+                if (serialInput) { serialInput.required = false; serialInput.value = ''; }
+                if (qtyInput) qtyInput.required = false;
 
-                // If Order New - show qty
                 if (necessaryName.includes('order') && necessaryName.includes('new')) {
                     qtyContainer?.classList.remove('d-none');
-                    qtyInput.required = true;
-                }
-                // If Repair - show serial number
-                else if (necessaryName.includes('repair')) {
+                    if (qtyInput) qtyInput.required = true;
+                } else if (necessaryName.includes('repair')) {
                     serialContainer?.classList.remove('d-none');
-                    serialInput.required = true;
+                    if (serialInput) serialInput.required = true;
                 }
             });
-
 
             // pick component from list
             const hiddenId = document.getElementById('component_id');
             const pickedText = document.getElementById('pickedComponentText');
-
             document.addEventListener('click', (e) => {
                 const btn = e.target.closest('.component-pick');
                 if (!btn) return;
@@ -654,10 +737,7 @@
                 }
 
                 const offEl = document.getElementById('componentsPicker');
-                if (offEl) {
-                    const off = bootstrap.Offcanvas.getInstance(offEl) || new bootstrap.Offcanvas(offEl);
-                    off.hide();
-                }
+                if (offEl) bootstrap.Offcanvas.getOrCreateInstance(offEl).hide();
             });
 
             // filter
@@ -684,7 +764,6 @@
 
             btnHideCreateInPicker?.addEventListener('click', () => {
                 createInPicker?.classList.add('d-none');
-                // Reset form
                 document.getElementById('picker_ipl_num').value = '';
                 document.getElementById('picker_part_number').value = '';
                 document.getElementById('picker_name').value = '';
@@ -710,6 +789,15 @@
                 }
             });
 
+            function escapeHtml(str) {
+                return String(str ?? '')
+                    .replaceAll('&', '&amp;')
+                    .replaceAll('<', '&lt;')
+                    .replaceAll('>', '&gt;')
+                    .replaceAll('"', '&quot;')
+                    .replaceAll("'", '&#039;');
+            }
+
             // Create component in picker
             document.getElementById('btnCreateInPicker')?.addEventListener('click', async () => {
                 const iplNum = document.getElementById('picker_ipl_num')?.value?.trim();
@@ -720,12 +808,14 @@
                 const photo = document.getElementById('picker_photo')?.files?.[0];
 
                 if (!iplNum || !partNumber || !name) {
-                    showErrorMessage('Please fill in all required fields (IPL Number, Part Number, Component Name)');
+                    if (typeof showErrorMessage === 'function') showErrorMessage('Please fill in all required fields (IPL Number, Part Number, Component Name)');
+                    else alert('Please fill in all required fields');
                     return;
                 }
 
                 if (isBush && !bushIpl) {
-                    showErrorMessage('Please enter Bush IPL Number');
+                    if (typeof showErrorMessage === 'function') showErrorMessage('Please enter Bush IPL Number');
+                    else alert('Please enter Bush IPL Number');
                     return;
                 }
 
@@ -736,12 +826,8 @@
                 fd.append('part_number', partNumber);
                 fd.append('name', name);
                 fd.append('is_bush', isBush ? '1' : '0');
-                if (isBush) {
-                    fd.append('bush_ipl_num', bushIpl);
-                }
-                if (photo) {
-                    fd.append('photo', photo);
-                }
+                if (isBush) fd.append('bush_ipl_num', bushIpl);
+                if (photo) fd.append('photo', photo);
 
                 try {
                     if (typeof showLoadingSpinner === 'function') showLoadingSpinner();
@@ -757,13 +843,10 @@
 
                     const json = await res.json();
                     if (!res.ok || !json?.ok) {
-                        showErrorMessage(json?.message || 'Create failed');
+                        if (typeof showErrorMessage === 'function') showErrorMessage(json?.message || 'Create failed');
+                        else alert(json?.message || 'Create failed');
                         return;
                     }
-
-                    // Select the new component
-                    const hiddenId = document.getElementById('component_id');
-                    const pickedText = document.getElementById('pickedComponentText');
 
                     if (hiddenId) hiddenId.value = json.item.id;
                     if (pickedText) {
@@ -771,7 +854,6 @@
                         pickedText.textContent = json.item.text;
                     }
 
-                    // Add to picker list (at the top)
                     const list = document.getElementById('componentsList');
                     if (list) {
                         const b = document.createElement('button');
@@ -786,20 +868,17 @@
                             : '';
 
                         b.innerHTML = `
-                            <div class="fw-semibold text-info">${escapeHtml(json.item.name)} ${bushBadge}</div>
-                            <div class="small text-secondary">
-                                <span class="me-2"><span class="text-muted">IPL:</span> ${escapeHtml(json.item.ipl_num || '—')}</span>
-                                <span class="me-2"><span class="text-muted">P/N:</span> ${escapeHtml(json.item.part_number || '—')}</span>
-                                ${bushLine}
-                            </div>
-                        `;
+                    <div class="fw-semibold text-info">${escapeHtml(json.item.name)} ${bushBadge}</div>
+                    <div class="small text-secondary">
+                        <span class="me-2"><span class="text-muted">IPL:</span> ${escapeHtml(json.item.ipl_num || '—')}</span>
+                        <span class="me-2"><span class="text-muted">P/N:</span> ${escapeHtml(json.item.part_number || '—')}</span>
+                        ${bushLine}
+                    </div>
+                `;
                         list.prepend(b);
                     }
 
-                    // Close create form
                     createInPicker?.classList.add('d-none');
-
-                    // Reset form
                     document.getElementById('picker_ipl_num').value = '';
                     document.getElementById('picker_part_number').value = '';
                     document.getElementById('picker_name').value = '';
@@ -808,45 +887,36 @@
                     document.getElementById('picker_photo').value = '';
                     pickerBushContainer?.classList.add('d-none');
 
-                    // Close picker
                     const offEl = document.getElementById('componentsPicker');
-                    if (offEl) {
-                        const off = bootstrap.Offcanvas.getInstance(offEl);
-                        off?.hide();
-                    }
+                    if (offEl) bootstrap.Offcanvas.getOrCreateInstance(offEl).hide();
 
-                    // Show success message
-                    showSuccessMessage('Component created and selected successfully');
+                    if (typeof showSuccessMessage === 'function') showSuccessMessage('Component created and selected successfully');
 
                 } catch (e) {
                     console.error(e);
-                    showErrorMessage('Create failed');
+                    if (typeof showErrorMessage === 'function') showErrorMessage('Create failed');
+                    else alert('Create failed');
                 } finally {
                     if (typeof hideLoadingSpinner === 'function') hideLoadingSpinner();
                 }
             });
 
+            // open picker
+            document.addEventListener('click', (e) => {
+                const btn = e.target.closest('[data-open-picker]');
+                if (!btn) return;
 
-        });
+                const el = document.getElementById('componentsPicker');
+                if (!el) return;
+                bootstrap.Offcanvas.getOrCreateInstance(el).show();
+            });
 
-        document.addEventListener('click', (e) => {
-            const btn = e.target.closest('[data-open-picker]');
-            if (!btn) return;
-
-            const el = document.getElementById('componentsPicker');
-            if (!el) return;
-
-            const off = bootstrap.Offcanvas.getOrCreateInstance(el);
-            off.show();
-        });
-
-        // Reset create form when picker closes
-        const componentsPicker = document.getElementById('componentsPicker');
-        componentsPicker?.addEventListener('hidden.bs.offcanvas', () => {
-            const createInPicker = document.getElementById('createComponentInPicker');
-            if (createInPicker) {
+            // Reset create form when picker closes
+            const componentsPicker = document.getElementById('componentsPicker');
+            componentsPicker?.addEventListener('hidden.bs.offcanvas', () => {
+                if (!createInPicker) return;
                 createInPicker.classList.add('d-none');
-                // Reset form
+
                 document.getElementById('picker_ipl_num').value = '';
                 document.getElementById('picker_part_number').value = '';
                 document.getElementById('picker_name').value = '';
@@ -856,168 +926,427 @@
                 document.getElementById('picker_photo').value = '';
                 const pickerBushContainer = document.getElementById('picker_bush_container');
                 if (pickerBushContainer) pickerBushContainer.classList.add('d-none');
-            }
-        });
+            });
 
-        function escapeHtml(str) {
-            return String(str ?? '')
-                .replaceAll('&', '&amp;')
-                .replaceAll('<', '&lt;')
-                .replaceAll('>', '&gt;')
-                .replaceAll('"', '&quot;')
-                .replaceAll("'", '&#039;');
-        }
+            // ============================================================
+            // CAMERA ONLY (NO GALLERY) + NO DELAY + HAPTIC
+            // ============================================================
+            const overlay = document.getElementById('cameraOverlay');
+            const video = document.getElementById('cameraVideo');
+            const canvas = document.getElementById('cameraCanvas');
+            const btnClose = document.getElementById('cameraCloseBtn');
+            const btnShutter = document.getElementById('cameraShutterBtn');
+            const metaEl = document.getElementById('cameraMeta');
+            const statusEl = document.getElementById('cameraStatus');
 
-        // Component Photo Modal
-        const componentPhotoModal = document.getElementById('componentPhotoModal');
-        const componentPhotoInput = document.getElementById('componentPhotoInput');
-        const componentPhotoPreviewImg = document.getElementById('componentPhotoPreviewImg');
-        const componentPhotoId = document.getElementById('componentPhotoId');
-        const componentPhotoName = document.getElementById('componentPhotoName');
-        const componentPhotoModalTitle = document.getElementById('componentPhotoModalTitle');
-        let currentComponentData = null;
+            const uploadForm = document.getElementById('component-photo-upload-form');
 
-        // Open modal with component data
-        componentPhotoModal?.addEventListener('show.bs.modal', (e) => {
-            const button = e.relatedTarget;
-            if (!button) return;
+            let camStream = null;
+            let activeComponentId = null;
+            let activeComponentName = null;
+            let activeBtn = null;
+            let isBusy = false;
 
-            const componentId = button.dataset.componentId;
-            const componentName = button.dataset.componentName;
-
-            currentComponentData = {
-                id: componentId,
-                name: componentName,
-                currentPhoto: button.closest('.component-row')?.querySelector('img')?.src
-            };
-
-            componentPhotoId.value = componentId;
-            componentPhotoName.textContent = componentName;
-            componentPhotoModalTitle.textContent = `Update Photo: ${componentName}`;
-
-            // Show current photo if exists
-            if (currentComponentData.currentPhoto && !currentComponentData.currentPhoto.includes('noimage.png') && !currentComponentData.currentPhoto.includes('no-image.png')) {
-                componentPhotoPreviewImg.src = currentComponentData.currentPhoto;
-            } else {
-                componentPhotoPreviewImg.src = "{{ asset('img/noimage.png') }}";
+            function haptic(type = 'light') {
+                // Android/Chrome: работает. iOS Safari: чаще всего нет — будет no-op.
+                if (!navigator.vibrate) return;
+                const map = { light: 10, medium: 20, heavy: 30 };
+                navigator.vibrate(map[type] || 10);
             }
 
-            // Reset form
-            componentPhotoInput.value = '';
-        });
-
-        // Preview photo before upload
-        componentPhotoInput?.addEventListener('change', (e) => {
-            const file = e.target.files?.[0];
-            if (!file) return;
-
-            if (!file.type.startsWith('image/')) {
-                showErrorMessage('Please select an image file');
-                e.target.value = '';
-                return;
+            function setOverlay(open) {
+                if (!overlay) return;
+                overlay.classList.toggle('is-open', !!open);
+                overlay.setAttribute('aria-hidden', open ? 'false' : 'true');
+                document.body.style.overflow = open ? 'hidden' : '';
             }
 
-            const reader = new FileReader();
-            reader.onload = (event) => {
-                componentPhotoPreviewImg.src = event.target.result;
-            };
-            reader.readAsDataURL(file);
-        });
+            async function startCamera() {
+                if (camStream) stopCamera();
 
-        // Save photo
-        document.getElementById('btnSaveComponentPhoto')?.addEventListener('click', async () => {
-            const file = componentPhotoInput?.files?.[0];
-            if (!file) {
-                showErrorMessage('Please select a photo');
-                return;
-            }
-
-            const formData = new FormData();
-            formData.append('photo', file);
-            formData.append('_token', document.querySelector('meta[name="csrf-token"]')?.content || '');
-
-            const componentId = componentPhotoId.value;
-            if (!componentId) {
-                showErrorMessage('Component ID is missing');
-                return;
-            }
-
-            const url = `{{ route('mobile.components.updatePhoto', ['component' => ':id']) }}`.replace(':id', componentId);
-
-            try {
-                if (typeof showLoadingSpinner === 'function') showLoadingSpinner();
-
-                const response = await fetch(url, {
-                    method: 'POST',
-                    headers: {
-                        'X-Requested-With': 'XMLHttpRequest',
-                    },
-                    body: formData,
-                });
-
-                const data = await response.json();
-
-                if (!response.ok || !data?.ok) {
-                    showErrorMessage(data?.message || 'Failed to update photo');
+                if (!navigator.mediaDevices?.getUserMedia) {
+                    statusEl.textContent = 'Camera API not supported';
                     return;
                 }
 
-                // Update photo in the list
-                const cameraBtn = document.querySelector(`[data-component-id="${componentId}"]`);
-                const componentRow = cameraBtn?.closest('.component-row');
-                if (componentRow && data.thumb_url && data.big_url) {
-                    const avatarContainer = componentRow.querySelector('div:first-child');
+                statusEl.textContent = 'Opening camera…';
+                metaEl.textContent = activeComponentName ? `Component: ${activeComponentName}` : '—';
 
-                    if (avatarContainer) {
-                        // Create new link with image
-                        const link = document.createElement('a');
-                        link.href = data.big_url;
-                        link.setAttribute('data-fancybox', `component-${componentId}`);
-                        link.className = 'd-inline-block';
+                try {
+                    // 100% camera-only: только getUserMedia, без input type=file
+                    camStream = await navigator.mediaDevices.getUserMedia({
+                        video: { facingMode: { ideal: 'environment' } },
+                        audio: false
+                    });
 
-                        const newImg = document.createElement('img');
-                        newImg.className = 'component-avatar';
-                        newImg.src = data.thumb_url;
-                        newImg.alt = currentComponentData?.name || 'Component';
-                        newImg.width = 40;
-                        newImg.height = 40;
+                    video.srcObject = camStream;
 
-                        link.appendChild(newImg);
-                        avatarContainer.innerHTML = '';
-                        avatarContainer.appendChild(link);
+                    // без setTimeout: ждём готовности метаданных
+                    await new Promise((resolve) => {
+                        const onReady = () => {
+                            video.removeEventListener('loadedmetadata', onReady);
+                            resolve();
+                        };
+                        video.addEventListener('loadedmetadata', onReady, { once: true });
+                    });
 
-                        // Rebind Fancybox for new image
-                        if (typeof Fancybox !== 'undefined') {
-                            Fancybox.bind(link, {
-                                Toolbar: ["zoom", "fullscreen", "close"],
-                                dragToClose: true,
-                                placeFocusBack: false,
-                                trapFocus: false,
-                            });
-                        }
-                    }
+                    await video.play();
+                    statusEl.textContent = 'Ready';
+
+                } catch (e) {
+                    console.error(e);
+                    statusEl.textContent = 'Camera blocked / no permission';
+                    stopCamera();
                 }
-
-                // Close modal
-                const modal = bootstrap.Modal.getInstance(componentPhotoModal);
-                modal?.hide();
-
-                // Show success message
-                showSuccessMessage('Photo updated successfully');
-
-            } catch (error) {
-                console.error('Error updating photo:', error);
-                showErrorMessage('Failed to update photo');
-            } finally {
-                if (typeof hideLoadingSpinner === 'function') hideLoadingSpinner();
             }
-        });
 
-        // Reset modal on close
-        componentPhotoModal?.addEventListener('hidden.bs.modal', () => {
-            componentPhotoInput.value = '';
-            componentPhotoId.value = '';
-            currentComponentData = null;
+            function stopCamera() {
+                try { video.pause(); } catch (e) {}
+                if (video) video.srcObject = null;
+                if (camStream) {
+                    camStream.getTracks()?.forEach(t => t.stop());
+                    camStream = null;
+                }
+                statusEl.textContent = '';
+            }
+
+            async function captureBlob() {
+                if (!video?.videoWidth || !video?.videoHeight) throw new Error('Camera not ready');
+
+                const w = video.videoWidth;
+                const h = video.videoHeight;
+
+                canvas.width = w;
+                canvas.height = h;
+
+                const ctx = canvas.getContext('2d');
+                ctx.drawImage(video, 0, 0, w, h);
+
+                const blob = await new Promise((resolve) => canvas.toBlob(resolve, 'image/jpeg', 0.92));
+                if (!blob) throw new Error('Capture failed');
+                return blob;
+            }
+
+            async function uploadCaptured(blob) {
+                if (!uploadForm) throw new Error('Upload form not found');
+                const template = uploadForm.dataset.urlTemplate;
+                if (!template) throw new Error('Upload URL template missing');
+
+                const url = template.replace(':id', activeComponentId);
+
+                const fd = new FormData();
+                fd.append('photo', blob, `component_${activeComponentId}_${Date.now()}.jpg`);
+                fd.append('_token', document.querySelector('meta[name="csrf-token"]')?.content || '');
+
+                const res = await fetch(url, {
+                    method: 'POST',
+                    headers: { 'X-Requested-With': 'XMLHttpRequest' },
+                    body: fd
+                });
+
+                const json = await res.json().catch(() => ({}));
+                if (!res.ok || !json?.ok) throw new Error(json?.message || 'Upload failed');
+                return json;
+            }
+
+            function updateAvatar(componentId, componentName, data) {
+                if (!activeBtn) return;
+                const row = activeBtn.closest('.component-row');
+                const left = row?.querySelector('div:first-child');
+                if (!left) return;
+
+                if (!data?.thumb_url || !data?.big_url) return;
+
+                left.innerHTML = `
+            <a href="${data.big_url}" data-fancybox="component-${componentId}" class="d-inline-block">
+                <img class="component-avatar"
+                     src="${data.thumb_url}"
+                     alt="${escapeHtml(componentName || 'Component')}"
+                     width="40" height="40">
+            </a>
+        `;
+
+                // rebinding Fancybox
+                if (window.Fancybox) {
+                    Fancybox.bind(`[data-fancybox="component-${componentId}"]`, {
+                        Toolbar: ["zoom", "fullscreen", "close"],
+                        dragToClose: true,
+                        placeFocusBack: false,
+                        trapFocus: false,
+                    });
+                }
+            }
+
+            async function openCameraFor(btn) {
+                if (isBusy) return;
+
+                activeBtn = btn;
+                activeComponentId = btn.dataset.componentId;
+                activeComponentName = btn.dataset.componentName || '';
+
+                if (!activeComponentId) return;
+
+                haptic('light');
+                setOverlay(true);
+                await startCamera();
+            }
+
+            async function takeAndUpload() {
+                if (isBusy) return;
+                if (!activeComponentId) return;
+
+                isBusy = true;
+                haptic('medium');
+
+                try {
+                    statusEl.textContent = 'Capturing…';
+                    const blob = await captureBlob();
+
+                    statusEl.textContent = 'Uploading…';
+                    if (typeof showLoadingSpinner === 'function') showLoadingSpinner();
+
+                    const data = await uploadCaptured(blob);
+
+                    updateAvatar(activeComponentId, activeComponentName, data);
+
+                    if (typeof showSuccessMessage === 'function') showSuccessMessage('Photo updated');
+                    statusEl.textContent = 'Done';
+                    haptic('heavy');
+
+                    // закрываем сразу, без лишних окон
+                    stopCamera();
+                    setOverlay(false);
+
+                } catch (e) {
+                    console.error(e);
+                    if (typeof showErrorMessage === 'function') showErrorMessage(e.message || 'Camera/Upload error');
+                    else alert(e.message || 'Camera/Upload error');
+                    statusEl.textContent = 'Error';
+                } finally {
+                    if (typeof hideLoadingSpinner === 'function') hideLoadingSpinner();
+                    isBusy = false;
+                }
+            }
+
+            // click on camera icon => open overlay camera
+            document.addEventListener('click', (e) => {
+                const btn = e.target.closest('.js-component-camera');
+                if (!btn) return;
+                e.preventDefault();
+                openCameraFor(btn);
+            });
+
+            // close
+            btnClose?.addEventListener('click', () => {
+                haptic('light');
+                stopCamera();
+                setOverlay(false);
+            });
+
+            // shutter
+            btnShutter?.addEventListener('click', (e) => {
+                e.preventDefault();
+                takeAndUpload();
+            });
+
+            // tap outside video to close (optional, safe)
+            overlay?.addEventListener('click', (e) => {
+                if (e.target === overlay) {
+                    stopCamera();
+                    setOverlay(false);
+                }
+            });
+
+            // safety: stop camera if page hidden
+            document.addEventListener('visibilitychange', () => {
+                if (document.hidden) {
+                    stopCamera();
+                    setOverlay(false);
+                }
+            });
+
+            document.addEventListener('click', (e) => {
+                const link = e.target.closest('.js-component-edit-link');
+                if (!link) return;
+                if (navigator.vibrate) navigator.vibrate(20);
+            });
+
+
+            // =================== EDIT MODAL (load + save via AJAX) ===================
+            // =================== EDIT MODAL (all in blade) ===================
+            const editModalEl = document.getElementById('componentEditModal');
+            const editForm = document.getElementById('componentEditForm');
+            const editTitle = document.getElementById('componentEditModalTitle');
+            const editErr = document.getElementById('edit_error_box');
+
+            const editId = document.getElementById('edit_component_id');
+            const editName = document.getElementById('edit_name');
+            const editIpl = document.getElementById('edit_ipl');
+            const editPart = document.getElementById('edit_part');
+            const editEff = document.getElementById('edit_eff');
+            const editIsBush = document.getElementById('edit_is_bush');
+            const editBushWrap = document.getElementById('edit_bush_wrap');
+            const editBushIpl = document.getElementById('edit_bush_ipl');
+
+            function haptic(type='light'){
+                if (!navigator.vibrate) return;
+                const map = { light: 10, medium: 20, heavy: 30 };
+                navigator.vibrate(map[type] || 10);
+            }
+
+            function showEditError(msg){
+                if (!editErr) return;
+                editErr.textContent = msg || 'Error';
+                editErr.classList.remove('d-none');
+            }
+
+            function clearEditError(){
+                if (!editErr) return;
+                editErr.textContent = '';
+                editErr.classList.add('d-none');
+            }
+
+            function toggleBushUi(){
+                if (!editBushWrap) return;
+                editBushWrap.style.display = editIsBush?.checked ? '' : 'none';
+                if (!editIsBush?.checked && editBushIpl) editBushIpl.value = '';
+            }
+
+            editIsBush?.addEventListener('change', toggleBushUi);
+
+            function setEditAction(componentId){
+                editForm.action = `{{ route('mobile.components.update', ['component' => ':id']) }}`.replace(':id', componentId);
+            }
+
+            function updateRowFromJson(componentId, item){
+                const link = document.querySelector(`.js-component-edit-link[data-component-id="${componentId}"]`);
+                const row = link?.closest('.component-row');
+                if (!row) return;
+
+                // имя
+                link.textContent = item.name || ('#' + componentId);
+
+                // обновим data-атрибуты, чтобы следующий edit открывался с актуальными данными
+                link.dataset.name = item.name || '';
+                link.dataset.ipl = item.ipl_num || '';
+                link.dataset.part = item.part_number || '';
+                link.dataset.eff = item.eff_code || '';
+                link.dataset.isBush = item.is_bush ? '1' : '0';
+                link.dataset.bushIpl = item.bush_ipl_num || '';
+
+                // meta
+                const meta = row.querySelector('.component-meta');
+                if (meta) {
+                    const bushBadge = item.is_bush ? ' <span class="badge bg-info text-dark ms-1">BUSH</span>' : '';
+                    meta.innerHTML = `
+            <span class="me-2"><span class="text-muted">IPL:</span> ${item.ipl_num || '—'}</span>
+            <span class="me-2"><span class="text-muted">P/N:</span> ${item.part_number || '—'}</span>
+            ${bushBadge}
+        `;
+                }
+            }
+
+// open edit on click name
+            document.addEventListener('click', (e) => {
+                const link = e.target.closest('.js-component-edit-link');
+                if (!link) return;
+
+                e.preventDefault();
+                clearEditError();
+                haptic('light');
+
+                const id = link.dataset.componentId;
+                if (!id) return;
+
+                if (editTitle) editTitle.textContent = `Edit: ${link.dataset.name || ('#'+id)}`;
+
+                if (editId) editId.value = id;
+                if (editName) editName.value = link.dataset.name || '';
+                if (editIpl) editIpl.value = link.dataset.ipl || '';
+                if (editPart) editPart.value = link.dataset.part || '';
+                if (editEff) editEff.value = link.dataset.eff || '';
+
+                const isBush = (link.dataset.isBush === '1');
+                if (editIsBush) editIsBush.checked = isBush;
+                if (editBushIpl) editBushIpl.value = link.dataset.bushIpl || '';
+                toggleBushUi();
+
+                setEditAction(id);
+
+                bootstrap.Modal.getOrCreateInstance(editModalEl).show();
+            });
+
+            // submit edit form ajax
+            editForm?.addEventListener('submit', async (e) => {
+                e.preventDefault();
+
+                const id = editId?.value;
+                if (!id) return;
+
+                clearEditError();
+
+                // показываем спиннер
+                if (typeof showLoadingSpinner === 'function') showLoadingSpinner();
+
+                try {
+                    haptic('medium');
+
+                    const fd = new FormData(editForm);
+
+                    // PATCH через _method (на всякий)
+                    if (!fd.get('_method')) fd.set('_method', 'PATCH');
+
+                    // checkbox: если не отмечен — Laravel не получит поле → ставим 0
+                    if (!editIsBush?.checked) fd.set('is_bush', '0');
+
+                    // если вдруг где-то прилетает manual_id — вычищаем, чтобы не триггерить чужую валидацию
+                    fd.delete('manual_id');
+
+                    const res = await fetch(editForm.action, {
+                        method: 'POST',
+                        headers: {
+                            'X-Requested-With': 'XMLHttpRequest',
+                            'Accept': 'application/json',
+                        },
+                        body: fd
+                    });
+
+                    // важное: ответ может быть НЕ JSON (например редирект/HTML)
+                    const contentType = res.headers.get('content-type') || '';
+                    let payload = null;
+
+                    if (contentType.includes('application/json')) {
+                        payload = await res.json();
+                    } else {
+                        const text = await res.text(); // чтобы не зависнуть
+                        throw new Error('Server returned non-JSON response');
+                    }
+
+                    if (!res.ok || !payload?.ok) {
+                        const msg =
+                            payload?.message ||
+                            (payload?.errors ? Object.values(payload.errors).flat().join(' ') : 'Save failed');
+                        throw new Error(msg);
+                    }
+
+                    updateRowFromJson(id, payload.item);
+
+                    if (typeof showSuccessMessage === 'function') showSuccessMessage('Component updated');
+                    haptic('heavy');
+
+                    bootstrap.Modal.getOrCreateInstance(editModalEl).hide();
+
+                } catch (err) {
+                    console.error(err);
+                    showEditError(err?.message || 'Save error');
+                    if (typeof showErrorMessage === 'function') showErrorMessage(err?.message || 'Save error');
+                } finally {
+                    safeHideSpinner();
+                }
+            });
+
+
+
         });
     </script>
 @endsection

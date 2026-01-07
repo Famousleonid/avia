@@ -1,3 +1,5 @@
+{{--show.blade--}}
+
 @extends('mobile.master')
 
 @section('style')

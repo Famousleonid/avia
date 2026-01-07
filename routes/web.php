@@ -77,6 +77,8 @@ Route::prefix('mobile')->name('mobile.')->middleware(['auth','verified'])->group
     // --- components ---
     Route::get('/components/{workorder}', [MobileComponentController::class, 'components'])->name('components');
     Route::post('/component/store', [MobileComponentController::class, 'componentStore'])->name('component.store');
+    Route::patch('/components/{component}', [MobileComponentController::class, 'update'])->name('components.update');
+
 
     // ВАЖНО: убрал /mobile/... внутри группы (иначе будет /mobile/mobile/...)
     Route::post('/components/quick-store', [MobileComponentController::class, 'quickStore'])->name('components.quickStore');
@@ -119,7 +121,7 @@ Route::group(['middleware' => ['auth']], function () {
     Route::get('/main-rows/{main}/activity', [MainController::class, 'activity'])->name('mains.activity');
 
 
-    Route::get('/progress', [MainController::class, 'progress'])->name('progress.index');
+   // Route::get('/progress', [MainController::class, 'progress'])->name('progress.index');
 
     Route::resource('/workorders', WorkorderController::class);
 
