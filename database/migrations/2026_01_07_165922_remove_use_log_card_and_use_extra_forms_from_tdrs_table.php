@@ -14,7 +14,9 @@ return new class extends Migration
     public function up()
     {
         Schema::table('tdrs', function (Blueprint $table) {
+
             $table->dropColumn(['use_log_card', 'use_extra_forms']);
+
         });
     }
 
