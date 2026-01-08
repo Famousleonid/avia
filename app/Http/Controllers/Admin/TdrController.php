@@ -361,11 +361,11 @@ class TdrController extends Controller
             // Если conditions_id не установлен или равен null, устанавливаем его в missingCondition->id
             if (empty($validated['conditions_id']) || $validated['conditions_id'] === null) {
                 $validated['conditions_id'] = $missingCondition->id;
-                \Log::info('Auto-set conditions_id to missingCondition', [
-                    'workorder_id' => $workorder->id,
-                    'codes_id' => $validated['codes_id'],
-                    'conditions_id' => $missingCondition->id
-                ]);
+                // \Log::info('Auto-set conditions_id to missingCondition', [
+                //     'workorder_id' => $workorder->id,
+                //     'codes_id' => $validated['codes_id'],
+                //     'conditions_id' => $missingCondition->id
+                // ]);
             }
         }
 
@@ -386,18 +386,18 @@ class TdrController extends Controller
                 'order_component_id' => $validated['order_component_id'],
             ]);
             
-            \Log::info('TDR created', [
-                'tdr_id' => $tdr->id,
-                'workorder_id' => $tdr->workorder_id,
-                'codes_id' => $tdr->codes_id,
-                'conditions_id' => $tdr->conditions_id,
-                'component_id' => $tdr->component_id
-            ]);
+            // \Log::info('TDR created', [
+            //     'tdr_id' => $tdr->id,
+            //     'workorder_id' => $tdr->workorder_id,
+            //     'codes_id' => $tdr->codes_id,
+            //     'conditions_id' => $tdr->conditions_id,
+            //     'component_id' => $tdr->component_id
+            // ]);
         } catch (\Exception $e) {
-            \Log::error('Error creating TDR', [
-                'error' => $e->getMessage(),
-                'request_data' => $request->all()
-            ]);
+            // \Log::error('Error creating TDR', [
+            //     'error' => $e->getMessage(),
+            //     'request_data' => $request->all()
+            // ]);
             return redirect()->back()
                 ->withInput()
                 ->withErrors(['error' => 'Failed to create TDR record']);
@@ -408,15 +408,15 @@ class TdrController extends Controller
         $codesIdInt = $validated['codes_id'] ? (int)$validated['codes_id'] : null;
         $codeIdInt = $code ? (int)$code->id : null;
         
-        \Log::info('Checking if codes_id is Missing', [
-            'workorder_id' => $workorder->id,
-            'codes_id' => $validated['codes_id'],
-            'codes_id_int' => $codesIdInt,
-            'code_id' => $code ? $code->id : null,
-            'code_id_int' => $codeIdInt,
-            'code_found' => $code ? true : false,
-            'match' => ($code && $codesIdInt === $codeIdInt)
-        ]);
+        // \Log::info('Checking if codes_id is Missing', [
+        //     'workorder_id' => $workorder->id,
+        //     'codes_id' => $validated['codes_id'],
+        //     'codes_id_int' => $codesIdInt,
+        //     'code_id' => $code ? $code->id : null,
+        //     'code_id_int' => $codeIdInt,
+        //     'code_found' => $code ? true : false,
+        //     'match' => ($code && $codesIdInt === $codeIdInt)
+        // ]);
         
         if ($code && $codesIdInt === $codeIdInt) {
             // Проверяем количество записей с Missing после создания (включая только что созданную)
@@ -424,28 +424,28 @@ class TdrController extends Controller
                 ->where('codes_id', $code->id)
                 ->count();
 
-            \Log::info('Checking part_missing flag', [
-                'workorder_id' => $workorder->id,
-                'missing_count' => $missingCount,
-                'current_part_missing' => $workorder->part_missing,
-                'codes_id' => $validated['codes_id'],
-                'part_missing_type' => gettype($workorder->part_missing)
-            ]);
+            // \Log::info('Checking part_missing flag', [
+            //     'workorder_id' => $workorder->id,
+            //     'missing_count' => $missingCount,
+            //     'current_part_missing' => $workorder->part_missing,
+            //     'codes_id' => $validated['codes_id'],
+            //     'part_missing_type' => gettype($workorder->part_missing)
+            // ]);
 
             // Если это первая запись с Missing (count == 1) или флаг еще не установлен (0 или false)
             if ($missingCount == 1 || $workorder->part_missing == 0 || $workorder->part_missing === false || !$workorder->part_missing) {
                 $workorder->part_missing = true;
                 $workorder->save();
-                \Log::info('Set part_missing to true', [
-                    'workorder_id' => $workorder->id,
-                    'missing_count' => $missingCount
-                ]);
+                // \Log::info('Set part_missing to true', [
+                //     'workorder_id' => $workorder->id,
+                //     'missing_count' => $missingCount
+                // ]);
             } else {
-                \Log::info('part_missing not changed', [
-                    'workorder_id' => $workorder->id,
-                    'missing_count' => $missingCount,
-                    'part_missing' => $workorder->part_missing
-                ]);
+                // \Log::info('part_missing not changed', [
+                //     'workorder_id' => $workorder->id,
+                //     'missing_count' => $missingCount,
+                //     'part_missing' => $workorder->part_missing
+                // ]);
             }
         }
 
@@ -464,10 +464,10 @@ class TdrController extends Controller
             if ($orderNewCount == 1 || $workorder->new_parts === false || $workorder->new_parts == 0) {
                 $workorder->new_parts = true;
                 $workorder->save();
-                \Log::info('Set new_parts to true', [
-                    'workorder_id' => $workorder->id,
-                    'order_new_count' => $orderNewCount
-                ]);
+                // \Log::info('Set new_parts to true', [
+                //     'workorder_id' => $workorder->id,
+                //     'order_new_count' => $orderNewCount
+                // ]);
             }
         }
 
@@ -534,10 +534,10 @@ class TdrController extends Controller
                 'order_component_id' => $validated['order_component_id'],
             ]);
         } catch (\Exception $e) {
-            \Log::error('Error creating TDR', [
-                'error' => $e->getMessage(),
-                'request_data' => $request->all()
-            ]);
+            // \Log::error('Error creating TDR', [
+            //     'error' => $e->getMessage(),
+            //     'request_data' => $request->all()
+            // ]);
             return redirect()->back()
                 ->withInput()
                 ->withErrors(['error' => 'Failed to create TDR record']);
@@ -1103,23 +1103,23 @@ class TdrController extends Controller
             ->get();
 
         // Логирование для отладки
-        \Log::info('Unit Inspections query', [
-            'workorder_id' => $current_wo->id,
-            'code_id' => $code ? $code->id : null,
-            'missing_condition_id' => $missingCondition ? $missingCondition->id : null,
-            'inspects_unit_count' => $inspectsUnit->count(),
-            'inspects_unit_ids' => $inspectsUnit->pluck('id')->toArray(),
-            'inspects_unit_details' => $inspectsUnit->map(function($unit) {
-                return [
-                    'id' => $unit->id,
-                    'component_id' => $unit->component_id,
-                    'codes_id' => $unit->codes_id,
-                    'conditions_id' => $unit->conditions_id,
-                    'conditions_loaded' => $unit->relationLoaded('conditions'),
-                    'conditions_name' => $unit->conditions ? $unit->conditions->name : 'NULL'
-                ];
-            })->toArray()
-        ]);
+        // \Log::info('Unit Inspections query', [
+        //     'workorder_id' => $current_wo->id,
+        //     'code_id' => $code ? $code->id : null,
+        //     'missing_condition_id' => $missingCondition ? $missingCondition->id : null,
+        //     'inspects_unit_count' => $inspectsUnit->count(),
+        //     'inspects_unit_ids' => $inspectsUnit->pluck('id')->toArray(),
+        //     'inspects_unit_details' => $inspectsUnit->map(function($unit) {
+        //         return [
+        //             'id' => $unit->id,
+        //             'component_id' => $unit->component_id,
+        //             'codes_id' => $unit->codes_id,
+        //             'conditions_id' => $unit->conditions_id,
+        //             'conditions_loaded' => $unit->relationLoaded('conditions'),
+        //             'conditions_name' => $unit->conditions ? $unit->conditions->name : 'NULL'
+        //         ];
+        //     })->toArray()
+        // ]);
 
         // Получаем Missing компоненты (codes_id = 7 или код "Missing")
         $missingParts = Tdr::where('workorder_id', $current_wo->id)
@@ -1671,19 +1671,19 @@ class TdrController extends Controller
             }
 
             // Логирование для отладки компонента 1-65
-            if (stripos($iplNum, '1-65') !== false) {
-                \Log::info('NDT Component 1-65 debug', [
-                    'ipl_num' => $iplNum,
-                    'normalized_ipl' => $normalizedIpl,
-                    'csvQty' => $csvQty,
-                    'tdrQty' => $tdrQty,
-                    'excludedQty' => $excludedQty,
-                    'unitsAssy' => $unitsAssy,
-                    'remaining' => $unitsAssy - $excludedQty - $tdrQty,
-                    'in_tdr_map' => isset($tdrItemsMap[$normalizedIpl]),
-                    'in_excluded_map' => isset($excludedQtyByIpl[$normalizedIpl])
-                ]);
-            }
+            // if (stripos($iplNum, '1-65') !== false) {
+            //     // \Log::info('NDT Component 1-65 debug', [
+            //         'ipl_num' => $iplNum,
+            //         'normalized_ipl' => $normalizedIpl,
+            //         'csvQty' => $csvQty,
+            //         'tdrQty' => $tdrQty,
+            //         'excludedQty' => $excludedQty,
+            //         'unitsAssy' => $unitsAssy,
+            //         'remaining' => $unitsAssy - $excludedQty - $tdrQty,
+            //         'in_tdr_map' => isset($tdrItemsMap[$normalizedIpl]),
+            //         'in_excluded_map' => isset($excludedQtyByIpl[$normalizedIpl])
+            //     ]);
+            // }
 
             // Логика для NDT (после фильтрации по Missing, Repair, Order New):
             // 1. Вычитаем из unitsAssy количество исключенных компонентов (Missing, Repair, Order New)
@@ -1801,12 +1801,12 @@ class TdrController extends Controller
 //                || (is_array($ndtCadCsv->stress_components) && count($ndtCadCsv->stress_components) === 0);
 
 //            if ($stressEmpty) {
-//                \Log::info('Stress components are empty. Attempting auto-load from Manual CSV', [
+//                // \Log::info('Stress components are empty. Attempting auto-load from Manual CSV', [
 //                    'workorder_id' => $workorder_id,
 //                    'before_count' => is_array($ndtCadCsv->stress_components) ? count($ndtCadCsv->stress_components) : 0,
 //                ]);
 //                $ndtCadCsv = NdtCadCsv::loadComponentsFromManual($workorder_id, $ndtCadCsv);
-//                \Log::info('Auto-load completed', [
+//                // \Log::info('Auto-load completed', [
 //                    'after_count' => is_array($ndtCadCsv->stress_components) ? count($ndtCadCsv->stress_components) : 0,
 //                ]);
 //            }
@@ -1918,14 +1918,14 @@ class TdrController extends Controller
                 $orderNewNecessary = Necessary::where('name', 'Order New')->first();
             }
 
-            \Log::info('CAD Filtering - Codes and Necessaries', [
-                'missing_code_id' => $missingCode ? $missingCode->id : null,
-                'missing_code_name' => $missingCode ? $missingCode->name : null,
-                'repair_necessary_id' => $repairNecessary ? $repairNecessary->id : null,
-                'repair_necessary_name' => $repairNecessary ? $repairNecessary->name : null,
-                'order_new_necessary_id' => $orderNewNecessary ? $orderNewNecessary->id : null,
-                'order_new_necessary_name' => $orderNewNecessary ? $orderNewNecessary->name : null,
-            ]);
+            // \Log::info('CAD Filtering - Codes and Necessaries', [
+            //     'missing_code_id' => $missingCode ? $missingCode->id : null,
+            //     'missing_code_name' => $missingCode ? $missingCode->name : null,
+            //     'repair_necessary_id' => $repairNecessary ? $repairNecessary->id : null,
+            //     'repair_necessary_name' => $repairNecessary ? $repairNecessary->name : null,
+            //     'order_new_necessary_id' => $orderNewNecessary ? $orderNewNecessary->id : null,
+            //     'order_new_necessary_name' => $orderNewNecessary ? $orderNewNecessary->name : null,
+            // ]);
 
             // Получаем TDR записи с этими статусами
             $excludedTdrQuery = Tdr::where('workorder_id', $workorder_id)
@@ -1943,10 +1943,10 @@ class TdrController extends Controller
                 $excludedConditions[] = ['necessaries_id', $orderNewNecessary->id];
             }
 
-            \Log::info('CAD Filtering - Excluded conditions', [
-                'conditions_count' => count($excludedConditions),
-                'conditions' => $excludedConditions
-            ]);
+            // \Log::info('CAD Filtering - Excluded conditions', [
+            //     'conditions_count' => count($excludedConditions),
+            //     'conditions' => $excludedConditions
+            // ]);
 
             if (!empty($excludedConditions)) {
                 $excludedTdrQuery->where(function($query) use ($excludedConditions) {
@@ -1956,22 +1956,22 @@ class TdrController extends Controller
                 });
 
                 $excludedTdrs = $excludedTdrQuery->get();
-                \Log::info('CAD Filtering - Excluded TDRs found', [
-                    'count' => $excludedTdrs->count(),
-                    'tdrs' => $excludedTdrs->map(function($tdr) {
-                        $code = $tdr->codes_id ? Code::find($tdr->codes_id) : null;
-                        $necessary = $tdr->necessaries_id ? Necessary::find($tdr->necessaries_id) : null;
-                        return [
-                            'id' => $tdr->id,
-                            'ipl_num' => $tdr->component->ipl_num ?? null,
-                            'codes_id' => $tdr->codes_id,
-                            'code_name' => $code ? $code->name : null,
-                            'necessaries_id' => $tdr->necessaries_id,
-                            'necessary_name' => $necessary ? $necessary->name : null,
-                            'qty' => $tdr->qty ?? 0,
-                        ];
-                    })->toArray()
-                ]);
+                // \Log::info('CAD Filtering - Excluded TDRs found', [
+                //     'count' => $excludedTdrs->count(),
+                //     'tdrs' => $excludedTdrs->map(function($tdr) {
+                //         $code = $tdr->codes_id ? Code::find($tdr->codes_id) : null;
+                //         $necessary = $tdr->necessaries_id ? Necessary::find($tdr->necessaries_id) : null;
+                //         return [
+                //             'id' => $tdr->id,
+                //             'ipl_num' => $tdr->component->ipl_num ?? null,
+                //             'codes_id' => $tdr->codes_id,
+                //             'code_name' => $code ? $code->name : null,
+                //             'necessaries_id' => $tdr->necessaries_id,
+                //             'necessary_name' => $necessary ? $necessary->name : null,
+                //             'qty' => $tdr->qty ?? 0,
+                //         ];
+                //     })->toArray()
+                // ]);
 
                 foreach ($excludedTdrs as $tdr) {
                     if ($tdr->component && $tdr->component->ipl_num) {
@@ -1987,16 +1987,16 @@ class TdrController extends Controller
                     }
                 }
 
-                \Log::info('CAD Filtering - Excluded QTY by IPL', [
-                    'excluded_qty_count' => count($excludedQtyByIplCad),
-                    'excluded_qty_by_ipl' => $excludedQtyByIplCad
-                ]);
+                // \Log::info('CAD Filtering - Excluded QTY by IPL', [
+                //     'excluded_qty_count' => count($excludedQtyByIplCad),
+                //     'excluded_qty_by_ipl' => $excludedQtyByIplCad
+                // ]);
             } else {
-                \Log::warning('CAD Filtering - No excluded conditions found!', [
-                    'missing_code' => $missingCode ? $missingCode->id : null,
-                    'repair_necessary' => $repairNecessary ? $repairNecessary->id : null,
-                    'order_new' => $orderNewNecessary ? $orderNewNecessary->id : null,
-                ]);
+                // \Log::warning('CAD Filtering - No excluded conditions found!', [
+                //     'missing_code' => $missingCode ? $missingCode->id : null,
+                //     'repair_necessary' => $repairNecessary ? $repairNecessary->id : null,
+                //     'order_new' => $orderNewNecessary ? $orderNewNecessary->id : null,
+                // ]);
             }
 
             // Создаем мапу TDR items по IPL для быстрого поиска (с нормализацией)
@@ -2031,13 +2031,13 @@ class TdrController extends Controller
 
                 // Логируем компоненты, которые проходят фильтрацию (для отладки)
                 if (stripos($itemNo, '5-90') !== false) {
-                    \Log::info('CAD Filtering - Component NOT excluded (5-90 variant)', [
-                        'ipl_num' => $itemNo,
-                        'normalized_ipl' => $normalizedIpl,
-                        'in_excluded_list' => isset($excludedQtyByIplCad[$normalizedIpl]),
-                        'excluded_qty' => $excludedQtyByIplCad[$normalizedIpl] ?? 0,
-                        'excluded_ipls' => array_keys($excludedQtyByIplCad)
-                    ]);
+                    // \Log::info('CAD Filtering - Component NOT excluded (5-90 variant)', [
+                    //     'ipl_num' => $itemNo,
+                    //     'normalized_ipl' => $normalizedIpl,
+                    //     'in_excluded_list' => isset($excludedQtyByIplCad[$normalizedIpl]),
+                    //     'excluded_qty' => $excludedQtyByIplCad[$normalizedIpl] ?? 0,
+                    //     'excluded_ipls' => array_keys($excludedQtyByIplCad)
+                    // ]);
                 }
 
                 // Проверяем и создаем процесс, если его нет
@@ -2053,7 +2053,7 @@ class TdrController extends Controller
                             'process' => $processName,
                             'process_names_id' => $cad_ids['cad_name_id']
                         ]);
-                        \Log::info('Created new process:', ['process' => $processName]);
+                        // \Log::info('Created new process:', ['process' => $processName]);
                     }
 
                     // Проверяем привязку к manual
@@ -2067,10 +2067,10 @@ class TdrController extends Controller
                             'manual_id' => $manual->id,
                             'processes_id' => $process->id
                         ]);
-                        \Log::info('Created manual-process binding:', [
-                            'manual_id' => $manual->id,
-                            'process_id' => $process->id
-                        ]);
+                        // \Log::info('Created manual-process binding:', [
+                        //     'manual_id' => $manual->id,
+                        //     'process_id' => $process->id
+                        // ]);
                     }
 
                     // Обновляем список валидных процессов
@@ -2078,11 +2078,11 @@ class TdrController extends Controller
                 }
 
                 if (!in_array($processName, $validProcesses)) {
-                    \Log::warning('Invalid process found in ModCsv:', [
-                        'process' => $processName,
-                        'item_no' => $itemNo,
-                        'valid_processes' => $validProcesses
-                    ]);
+                    // \Log::warning('Invalid process found in ModCsv:', [
+                    //     'process' => $processName,
+                    //     'item_no' => $itemNo,
+                    //     'valid_processes' => $validProcesses
+                    // ]);
                     continue;
                 }
 
@@ -2216,10 +2216,10 @@ class TdrController extends Controller
                 ] + $cad_ids);
 
         } catch (\Exception $e) {
-            \Log::error('Error in CAD processing:', [
-                'error' => $e->getMessage(),
-                'trace' => $e->getTraceAsString()
-            ]);
+            // \Log::error('Error in CAD processing:', [
+            //     'error' => $e->getMessage(),
+            //     'trace' => $e->getTraceAsString()
+            // ]);
             throw $e;
         }
     }
@@ -2384,10 +2384,10 @@ class TdrController extends Controller
                 ] + $paint_ids);
 
         } catch (\Exception $e) {
-            \Log::error('Error in Paint processing:', [
-                'error' => $e->getMessage(),
-                'trace' => $e->getTraceAsString()
-            ]);
+            // \Log::error('Error in Paint processing:', [
+            //     'error' => $e->getMessage(),
+            //     'trace' => $e->getTraceAsString()
+            // ]);
             throw $e;
         }
     }
@@ -2519,22 +2519,22 @@ class TdrController extends Controller
                 });
 
                 $excludedTdrs = $excludedTdrQuery->get();
-                \Log::info('Stress Filtering - Excluded TDRs found', [
-                    'count' => $excludedTdrs->count(),
-                    'tdrs' => $excludedTdrs->map(function($tdr) {
-                        $code = $tdr->codes_id ? Code::find($tdr->codes_id) : null;
-                        $necessary = $tdr->necessaries_id ? Necessary::find($tdr->necessaries_id) : null;
-                        return [
-                            'id' => $tdr->id,
-                            'ipl_num' => $tdr->component->ipl_num ?? null,
-                            'codes_id' => $tdr->codes_id,
-                            'code_name' => $code ? $code->name : null,
-                            'necessaries_id' => $tdr->necessaries_id,
-                            'necessary_name' => $necessary ? $necessary->name : null,
-                            'qty' => $tdr->qty ?? 0,
-                        ];
-                    })->toArray()
-                ]);
+                // \Log::info('Stress Filtering - Excluded TDRs found', [
+                //     'count' => $excludedTdrs->count(),
+                //     'tdrs' => $excludedTdrs->map(function($tdr) {
+                //         $code = $tdr->codes_id ? Code::find($tdr->codes_id) : null;
+                //         $necessary = $tdr->necessaries_id ? Necessary::find($tdr->necessaries_id) : null;
+                //         return [
+                //             'id' => $tdr->id,
+                //             'ipl_num' => $tdr->component->ipl_num ?? null,
+                //             'codes_id' => $tdr->codes_id,
+                //             'code_name' => $code ? $code->name : null,
+                //             'necessaries_id' => $tdr->necessaries_id,
+                //             'necessary_name' => $necessary ? $necessary->name : null,
+                //             'qty' => $tdr->qty ?? 0,
+                //         ];
+                //     })->toArray()
+                // ]);
 
                 foreach ($excludedTdrs as $tdr) {
                     if ($tdr->component && $tdr->component->ipl_num) {
@@ -2550,10 +2550,10 @@ class TdrController extends Controller
                     }
                 }
 
-                \Log::info('Stress Filtering - Excluded QTY by IPL', [
-                    'excluded_qty_count' => count($excludedQtyByIplStress),
-                    'excluded_qty_by_ipl' => $excludedQtyByIplStress
-                ]);
+                // \Log::info('Stress Filtering - Excluded QTY by IPL', [
+                //     'excluded_qty_count' => count($excludedQtyByIplStress),
+                //     'excluded_qty_by_ipl' => $excludedQtyByIplStress
+                // ]);
             }
 
             // Создаем мапу TDR items по IPL для быстрого поиска (с нормализацией)
@@ -2599,7 +2599,7 @@ class TdrController extends Controller
                             'process' => $processName,
                             'process_names_id' => $stress_ids['stress_name_id']
                         ]);
-                        \Log::info('Created new stress process:', ['process' => $processName]);
+                        // \Log::info('Created new stress process:', ['process' => $processName]);
                     }
 
                     // Проверяем привязку к manual
@@ -2613,10 +2613,10 @@ class TdrController extends Controller
                             'manual_id' => $manual->id,
                             'processes_id' => $process->id
                         ]);
-                        \Log::info('Created manual-stress process binding:', [
-                            'manual_id' => $manual->id,
-                            'process_id' => $process->id
-                        ]);
+                        // \Log::info('Created manual-stress process binding:', [
+                        //     'manual_id' => $manual->id,
+                        //     'process_id' => $process->id
+                        // ]);
                     }
 
                     // Обновляем список валидных процессов
@@ -2624,11 +2624,11 @@ class TdrController extends Controller
                 }
 
                 if (!in_array($processName, $validProcesses)) {
-                    \Log::warning('Invalid stress process found in ModCsv:', [
-                        'process' => $processName,
-                        'item_no' => $itemNo,
-                        'valid_processes' => $validProcesses
-                    ]);
+                    // \Log::warning('Invalid stress process found in ModCsv:', [
+                    //     'process' => $processName,
+                    //     'item_no' => $itemNo,
+                    //     'valid_processes' => $validProcesses
+                    // ]);
                     continue;
                 }
 
@@ -2762,10 +2762,10 @@ class TdrController extends Controller
                 ] + $stress_ids);
 
         } catch (\Exception $e) {
-            \Log::error('Error in Stress processing:', [
-                'error' => $e->getMessage(),
-                'trace' => $e->getTraceAsString()
-            ]);
+            // \Log::error('Error in Stress processing:', [
+            //     'error' => $e->getMessage(),
+            //     'trace' => $e->getTraceAsString()
+            // ]);
             throw $e;
         }
     }
@@ -2799,11 +2799,32 @@ class TdrController extends Controller
         // Извлекаем компоненты, связанные с manual_id
         $components = Component::where('manual_id', $manual_id)->get();
 
-        $processNames = ProcessName::where(function ($query) {
-            $query->where('name', 'NOT LIKE', '%NDT%')
+        // Получаем все уникальные process_names_id из TdrProcess для данного workorder
+        $processNameIds = TdrProcess::whereHas('tdr', function ($query) use ($current_wo) {
+            $query->where('workorder_id', $current_wo->id)
+                  ->where('use_process_forms', true);
+        })->distinct()->pluck('process_names_id');
+
+        // Получаем ProcessName по этим ID с фильтрами, ограничиваем до 20 элементов
+        $processNames = ProcessName::whereIn('id', $processNameIds)
+            ->where(function ($query) {
+                $query->where('name', 'NOT LIKE', '%NDT%')
 //                ->where('name', 'NOT LIKE', '%Paint%');
-                ->where('name', 'NOT LIKE', 'EC');
-        })->get();
+                ->where('name', '!=', 'EC');
+            })
+            ->limit(20)
+            ->get();
+
+        // Дополняем коллекцию до 20 элементов пустыми объектами, если элементов меньше
+        $emptyProcess = new \stdClass();
+        $emptyProcess->id = null;
+        $emptyProcess->name = '';
+        $emptyProcess->process_sheet_name = null;
+        $emptyProcess->form_number = null;
+        
+        while ($processNames->count() < 20) {
+            $processNames->push(clone $emptyProcess);
+        }
 
         // Получаем Tdr, где use_process_form = true, с предварительной загрузкой TdrProcess
         $tdrs = Tdr::where('workorder_id', $current_wo->id)
@@ -2894,11 +2915,32 @@ class TdrController extends Controller
         // Извлекаем компоненты, связанные с manual_id
         $components = Component::where('manual_id', $manual_id)->get();
 
-        $processNames = ProcessName::where(function ($query) {
-            $query->where('name', 'NOT LIKE', '%NDT%')
+        // Получаем все уникальные process_names_id из TdrProcess для данного workorder
+        $processNameIds = TdrProcess::whereHas('tdr', function ($query) use ($current_wo) {
+            $query->where('workorder_id', $current_wo->id)
+                  ->where('use_process_forms', true);
+        })->distinct()->pluck('process_names_id');
+
+        // Получаем ProcessName по этим ID с фильтрами, ограничиваем до 20 элементов
+        $processNames = ProcessName::whereIn('id', $processNameIds)
+            ->where(function ($query) {
+                $query->where('name', 'NOT LIKE', '%NDT%')
 //                ->where('name', 'NOT LIKE', '%Paint%');
-                ->where('name', 'NOT LIKE', 'EC');
-        })->get();
+                ->where('name', '!=', 'EC');
+            })
+            ->limit(20)
+            ->get();
+
+        // Дополняем коллекцию до 20 элементов пустыми объектами, если элементов меньше
+        $emptyProcess = new \stdClass();
+        $emptyProcess->id = null;
+        $emptyProcess->name = '';
+        $emptyProcess->process_sheet_name = null;
+        $emptyProcess->form_number = null;
+        
+        while ($processNames->count() < 20) {
+            $processNames->push(clone $emptyProcess);
+        }
 
         // Получаем Tdr, где use_process_form = true, с предварительной загрузкой TdrProcess
         $tdrs = Tdr::where('workorder_id', $current_wo->id)
@@ -3146,7 +3188,7 @@ class TdrController extends Controller
     public function destroy($id)
     {
         // Логируем начало метода
-        Log::info('Начало удаления записи TDR с ID: ' . $id);
+        // Log::info('Начало удаления записи TDR с ID: ' . $id);
 
         // Найти запись Tdr по ID
         $tdr = Tdr::findOrFail($id);
@@ -3156,11 +3198,11 @@ class TdrController extends Controller
         $tdrCodesId = $tdr->codes_id;
 
         // Логируем workorder_id
-        Log::info('Workorder ID: ' . $workorderId);
+        // Log::info('Workorder ID: ' . $workorderId);
 
         // Удалить связанные записи из tdr_processes
         TdrProcess::where('tdrs_id', $id)->delete();
-        Log::info('Удалены связанные процессы для TDR с ID: ' . $id);
+        // Log::info('Удалены связанные процессы для TDR с ID: ' . $id);
 
         // Определяем component_id для поиска transfers
         $componentId = $tdr->order_component_id ?? $tdr->component_id;
@@ -3199,7 +3241,7 @@ class TdrController extends Controller
                     if ($cloned) {
                         $cloned->delete();
                         $deletedClonedTdrs++;
-                        Log::info('Удалён клонированный TDR с ID: ' . $cloned->id . ' в WO-источнике: ' . $transfer->workorder_source);
+                        // Log::info('Удалён клонированный TDR с ID: ' . $cloned->id . ' в WO-источнике: ' . $transfer->workorder_source);
 
                         // Если это была запись с кодом Missing, возможно нужно обновить part_missing для WO-источника
                         if ($missingCode && $tdr->codes_id === $missingCode->id) {
@@ -3212,7 +3254,7 @@ class TdrController extends Controller
                                 if ($sourceWo && $sourceWo->part_missing) {
                                     $sourceWo->part_missing = false;
                                     $sourceWo->save();
-                                    Log::info('Флаг part_missing для WO-источника ' . $transfer->workorder_source . ' обновлён на false (после удаления клонированного Missing TDR).');
+                                    // Log::info('Флаг part_missing для WO-источника ' . $transfer->workorder_source . ' обновлён на false (после удаления клонированного Missing TDR).');
                                 }
 
                             }
@@ -3225,27 +3267,27 @@ class TdrController extends Controller
             }
 
             if ($deletedTransfers > 0) {
-                Log::info('Удалены связанные transfers для TDR с ID: ' . $id . ' (удалено transfers: ' . $deletedTransfers . ', удалено клонированных TDR: ' . $deletedClonedTdrs . ')');
+                // Log::info('Удалены связанные transfers для TDR с ID: ' . $id . ' (удалено transfers: ' . $deletedTransfers . ', удалено клонированных TDR: ' . $deletedClonedTdrs . ')');
             }
         }
 
         // Удалить запись Tdr
         $tdr->delete();
-        Log::info('Запись Tdr с ID: ' . $id . ' была удалена.');
+        // Log::info('Запись Tdr с ID: ' . $id . ' была удалена.');
 
 
 
         // Найти necessary с именем 'Missing'
         $necessary = Necessary::where('name', 'Order New')->first();
-        Log::info('Найден necessary с именем "Order New": ' . ($necessary ? 'Да' : 'Нет'));
+        // Log::info('Найден necessary с именем "Order New": ' . ($necessary ? 'Да' : 'Нет'));
 
         if ($necessary) {
             // Проверить, если это последняя запись с necessaries_id = $necessary->id
             $remainingPartsWithNecessary = Tdr::where('workorder_id', $workorderId)
                 ->where('necessaries_id', $necessary->id)
                 ->count();
-            Log::info('Оставшиеся записи с кодом Order New для workorder_id ' . $workorderId . ': ' .
-                $remainingPartsWithNecessary);
+            // Log::info('Оставшиеся записи с кодом Order New для workorder_id ' . $workorderId . ': ' .
+            //     $remainingPartsWithNecessary);
             if ($remainingPartsWithNecessary == 0) {
                 // Обновляем поле part_missing в workorder
                 $workorder = Workorder::find($workorderId);
@@ -3253,9 +3295,9 @@ class TdrController extends Controller
                     // Меняем на false, если part_missing равно true
                     $workorder->new_parts = false;
                     $workorder->save();
-                    Log::info('Поле new_parts для workorder_id ' . $workorderId . ' обновлено на false');
+                    // Log::info('Поле new_parts для workorder_id ' . $workorderId . ' обновлено на false');
                 } else {
-                    Log::info('Поле new_parts для workorder_id ' . $workorderId . ' уже false или workorder не найден.');
+                    // Log::info('Поле new_parts для workorder_id ' . $workorderId . ' уже false или workorder не найден.');
                 }
 
             }
@@ -3263,11 +3305,11 @@ class TdrController extends Controller
 
         // Найти код с именем 'Missing'
         $code = Code::where('name', 'Missing')->first();
-        Log::info('Найден код с именем "Missing": ' . ($code ? 'Да' : 'Нет'));
+        // Log::info('Найден код с именем "Missing": ' . ($code ? 'Да' : 'Нет'));
 
         // Проверяем, была ли удаляемая запись с кодом Missing
         $wasMissingRecord = $code && $tdrCodesId === $code->id;
-        Log::info('Удаляемая запись была с кодом Missing: ' . ($wasMissingRecord ? 'Да' : 'Нет') . ' (codes_id: ' . $tdrCodesId . ')');
+        // Log::info('Удаляемая запись была с кодом Missing: ' . ($wasMissingRecord ? 'Да' : 'Нет') . ' (codes_id: ' . $tdrCodesId . ')');
 
         if ($code) {
             // Проверить, если это последняя запись с codes_id = $code->id
@@ -3276,7 +3318,7 @@ class TdrController extends Controller
                 ->where('codes_id', $code->id)
                 ->count();
 
-            Log::info('Оставшиеся записи с кодом Missing для workorder_id ' . $workorderId . ': ' . $remainingPartsWithCodes7);
+            // Log::info('Оставшиеся записи с кодом Missing для workorder_id ' . $workorderId . ': ' . $remainingPartsWithCodes7);
 
             // Если это была последняя запись с таким кодом, обновляем поле part_missing в workorder
             if ($remainingPartsWithCodes7 == 0) {
@@ -3287,9 +3329,9 @@ class TdrController extends Controller
                     // Меняем на false, если part_missing равно true
                     $workorder->part_missing = false;
                     $workorder->save();
-                    Log::info('Поле part_missing для workorder_id ' . $workorderId . ' обновлено на false');
+                    // Log::info('Поле part_missing для workorder_id ' . $workorderId . ' обновлено на false');
                 } else {
-                    Log::info('Поле part_missing для workorder_id ' . $workorderId . ' уже false или workorder не найден.');
+                    // Log::info('Поле part_missing для workorder_id ' . $workorderId . ' уже false или workorder не найден.');
                 }
 
                 // Удаляем старые пустые записи с missingCondition (созданные до изменений)
@@ -3303,7 +3345,7 @@ class TdrController extends Controller
 
                     foreach ($emptyMissingRecords as $emptyRecord) {
                         $emptyRecord->delete();
-                        Log::info('Удалена старая пустая запись с condition_id ' . $missingCondition->id . ' для workorder_id ' . $workorderId);
+                        // Log::info('Удалена старая пустая запись с condition_id ' . $missingCondition->id . ' для workorder_id ' . $workorderId);
                     }
                 }
             }
@@ -3336,37 +3378,37 @@ class TdrController extends Controller
             $manual = $current_wo->unit->manuals;
 
             if (!$manual) {
-                \Log::error('Manual not found for workorder', ['workorder_id' => $workorder_id]);
+                // \Log::error('Manual not found for workorder', ['workorder_id' => $workorder_id]);
                 return ['total' => 0, 'mpi' => 0, 'fpi' => 0];
             }
 
             // Получение данных из таблицы ndt_cad_csv
             $ndtCadCsv = $current_wo->ndtCadCsv;
             if (!$ndtCadCsv) {
-                \Log::info('NdtCadCsv not found for workorder, creating new record', [
-                    'workorder_id' => $workorder_id,
-                    'workorder_number' => $current_wo->number ?? 'unknown'
-                ]);
+                // \Log::info('NdtCadCsv not found for workorder, creating new record', [
+                //     'workorder_id' => $workorder_id,
+                //     'workorder_number' => $current_wo->number ?? 'unknown'
+                // ]);
 
                 // Создаем новую запись NdtCadCsv с автоматической загрузкой из Manual
                 $ndtCadCsv = NdtCadCsv::createForWorkorder($workorder_id);
 
                 if (!$ndtCadCsv) {
-                    \Log::warning('Failed to create NdtCadCsv record', ['workorder_id' => $workorder_id]);
+                    // \Log::warning('Failed to create NdtCadCsv record', ['workorder_id' => $workorder_id]);
                     return ['total' => 0, 'mpi' => 0, 'fpi' => 0];
                 }
             }
 
-            \Log::info('Found NdtCadCsv record', [
-                'ndt_cad_csv_id' => $ndtCadCsv->id,
-                'workorder_id' => $workorder_id
-            ]);
+            // \Log::info('Found NdtCadCsv record', [
+            //     'ndt_cad_csv_id' => $ndtCadCsv->id,
+            //     'workorder_id' => $workorder_id
+            // ]);
 
             // Получение NDT компонентов из JSON поля
             $ndtComponents = $ndtCadCsv->ndt_components ?? [];
 
             if (empty($ndtComponents)) {
-                \Log::info('No NDT components found in NdtCadCsv', ['workorder_id' => $workorder_id]);
+                // \Log::info('No NDT components found in NdtCadCsv', ['workorder_id' => $workorder_id]);
                 return ['total' => 0, 'mpi' => 0, 'fpi' => 0];
             }
 
@@ -3468,12 +3510,12 @@ class TdrController extends Controller
                 }
             }
 
-            \Log::info('Processing NDT components from ndt_cad_csv table (with filtering)', [
-                'workorder_id' => $workorder_id,
-                'components_count' => count($ndtComponents),
-                'excluded_qty_count' => count($excludedQtyByIpl),
-                'tdr_items_count' => count($tdrItemsMap)
-            ]);
+            // \Log::info('Processing NDT components from ndt_cad_csv table (with filtering)', [
+            //     'workorder_id' => $workorder_id,
+            //     'components_count' => count($ndtComponents),
+            //     'excluded_qty_count' => count($excludedQtyByIpl),
+            //     'tdr_items_count' => count($tdrItemsMap)
+            // ]);
 
             // Обработка NDT компонентов из JSON поля (та же логика, что в ndtStd)
             foreach ($ndtComponents as $index => $component) {
@@ -3534,12 +3576,12 @@ class TdrController extends Controller
                 }
             }
 
-            \Log::info('NDT sums calculated from ndt_cad_csv table (with filtering)', [
-                'workorder_id' => $workorder_id,
-                'total' => $total,
-                'mpi' => $mpi,
-                'fpi' => $fpi
-            ]);
+            // \Log::info('NDT sums calculated from ndt_cad_csv table (with filtering)', [
+            //     'workorder_id' => $workorder_id,
+            //     'total' => $total,
+            //     'mpi' => $mpi,
+            //     'fpi' => $fpi
+            // ]);
 
             return [
                 'total' => $total,
@@ -3548,11 +3590,11 @@ class TdrController extends Controller
             ];
 
         } catch (\Exception $e) {
-            \Log::error('Ошибка при обработке NDT компонентов из таблицы ndt_cad_csv:', [
-                'workorder_id' => $workorder_id,
-                'error' => $e->getMessage(),
-                'trace' => $e->getTraceAsString()
-            ]);
+            // \Log::error('Ошибка при обработке NDT компонентов из таблицы ndt_cad_csv:', [
+            //     'workorder_id' => $workorder_id,
+            //     'error' => $e->getMessage(),
+            //     'trace' => $e->getTraceAsString()
+            // ]);
             return ['total' => 0, 'mpi' => 0, 'fpi' => 0];
         }
     }
@@ -3574,23 +3616,23 @@ class TdrController extends Controller
                 ];
             }
 
-            \Log::info('CAD calcCadSumsFromComponents - Summary', [
-                'total_components' => $totalComponents,
-                'total_qty' => $totalQty,
-                'components_count' => count($componentList),
-                'components' => $componentList,
-                'ipl_numbers' => array_column($componentList, 'ipl_num')
-            ]);
+            // \Log::info('CAD calcCadSumsFromComponents - Summary', [
+            //     'total_components' => $totalComponents,
+            //     'total_qty' => $totalQty,
+            //     'components_count' => count($componentList),
+            //     'components' => $componentList,
+            //     'ipl_numbers' => array_column($componentList, 'ipl_num')
+            // ]);
 
             return [
                 'total_qty' => $totalQty,
                 'total_components' => $totalComponents
             ];
         } catch (\Exception $e) {
-            \Log::error('Error in CAD sums calculation from components:', [
-                'error' => $e->getMessage(),
-                'trace' => $e->getTraceAsString()
-            ]);
+            // \Log::error('Error in CAD sums calculation from components:', [
+            //     'error' => $e->getMessage(),
+            //     'trace' => $e->getTraceAsString()
+            // ]);
             return [
                 'total_qty' => 0,
                 'total_components' => 0
@@ -3604,30 +3646,30 @@ class TdrController extends Controller
             // Получаем текущий workorder
             $current_wo = Workorder::findOrFail($workorder_id);
 
-            \Log::info('Starting CAD sums calculation', [
-                'workorder_id' => $workorder_id
-            ]);
+            // \Log::info('Starting CAD sums calculation', [
+            //     'workorder_id' => $workorder_id
+            // ]);
 
             // 1. Получаем данные из таблицы ndt_cad_csv
             $ndtCadCsv = $current_wo->ndtCadCsv;
             if (!$ndtCadCsv) {
-                \Log::error('NdtCadCsv not found for workorder', ['workorder_id' => $workorder_id]);
+                // \Log::error('NdtCadCsv not found for workorder', ['workorder_id' => $workorder_id]);
                 return [
                     'total_qty' => 0,
                     'total_components' => 0
                 ];
             }
 
-            \Log::info('Found NdtCadCsv record', [
-                'ndt_cad_csv_id' => $ndtCadCsv->id,
-                'cad_components_count' => count($ndtCadCsv->cad_components ?? [])
-            ]);
+            // \Log::info('Found NdtCadCsv record', [
+            //     'ndt_cad_csv_id' => $ndtCadCsv->id,
+            //     'cad_components_count' => count($ndtCadCsv->cad_components ?? [])
+            // ]);
 
             // Получаем CAD компоненты из JSON поля
             $cadComponents = $ndtCadCsv->cad_components ?? [];
 
             if (empty($cadComponents)) {
-                \Log::warning('No CAD components found in NdtCadCsv');
+                // \Log::warning('No CAD components found in NdtCadCsv');
                 return [
                     'total_qty' => 0,
                     'total_components' => 0
@@ -3644,10 +3686,10 @@ class TdrController extends Controller
                 }
             }
 
-            \Log::info('CAD calcCadSums - Valid processes (from CSV)', [
-                'valid_processes_count' => count($validProcesses),
-                'valid_processes' => $validProcesses
-            ]);
+            // \Log::info('CAD calcCadSums - Valid processes (from CSV)', [
+            //     'valid_processes_count' => count($validProcesses),
+            //     'valid_processes' => $validProcesses
+            // ]);
 
             // 2. Получаем ID для Missing, Repair, Order New (та же логика, что в cadStd)
             $missingCode = Code::where('name', 'Missing')->first();
@@ -3722,12 +3764,12 @@ class TdrController extends Controller
                 }
             }
 
-            \Log::info('TDR Components (normalized):', [
-                'count' => count($tdrIplMap),
-                'ipl_numbers' => array_keys($tdrIplMap),
-                'excluded_ipl_count' => count($excludedIplNums),
-                'excluded_ipls' => array_keys($excludedIplNums)
-            ]);
+            // \Log::info('TDR Components (normalized):', [
+            //     'count' => count($tdrIplMap),
+            //     'ipl_numbers' => array_keys($tdrIplMap),
+            //     'excluded_ipl_count' => count($excludedIplNums),
+            //     'excluded_ipls' => array_keys($excludedIplNums)
+            // ]);
 
             // 3. Сравнение и подсчет
             $totalQty = 0;
@@ -3737,10 +3779,10 @@ class TdrController extends Controller
             $skippedByProcess = 0;
             $combinedSkippedCount = 0;
 
-            \Log::info('Starting CAD calculation loop', [
-                'total_cad_components' => count($cadComponents),
-                'tdr_ipl_count' => count($tdrIplMap)
-            ]);
+            // \Log::info('Starting CAD calculation loop', [
+            //     'total_cad_components' => count($cadComponents),
+            //     'tdr_ipl_count' => count($tdrIplMap)
+            // ]);
 
             foreach ($cadComponents as $index => $component) {
                 $itemNo = trim($component['ipl_num'] ?? '');
@@ -3750,33 +3792,33 @@ class TdrController extends Controller
                 // Нормализуем IPL номер для сравнения (5-90A -> 5-90)
                 $normalizedIpl = $this->normalizeIplNum($itemNo);
 
-                \Log::debug('Processing CAD component', [
-                    'index' => $index,
-                    'item_no' => $itemNo,
-                    'normalized_ipl' => $normalizedIpl,
-                    'qty' => $qty,
-                    'process' => $processName,
-                    'component' => $component
-                ]);
+                // \Log::debug('Processing CAD component', [
+                //     'index' => $index,
+                //     'item_no' => $itemNo,
+                //     'normalized_ipl' => $normalizedIpl,
+                //     'qty' => $qty,
+                //     'process' => $processName,
+                //     'component' => $component
+                // ]);
 
                 // Исключаем компоненты только с статусами Missing, Repair, Order New
                 if (!empty($normalizedIpl) && isset($excludedIplNums[$normalizedIpl])) {
                     $skippedCount++;
-                    \Log::debug('Skipping component as it has excluded status (Missing/Repair/Order New):', [
-                        'ipl_num' => $itemNo,
-                        'normalized_ipl' => $normalizedIpl
-                    ]);
+                    // \Log::debug('Skipping component as it has excluded status (Missing/Repair/Order New):', [
+                    //     'ipl_num' => $itemNo,
+                    //     'normalized_ipl' => $normalizedIpl
+                    // ]);
                     continue;
                 }
 
                 // Исключаем компоненты с невалидными процессами (та же логика, что в cadStd)
                 if (!empty($processName) && !in_array($processName, $validProcesses)) {
                     $skippedByProcess++;
-                    \Log::debug('Skipping component as it has invalid process:', [
-                        'ipl_num' => $itemNo,
-                        'process' => $processName,
-                        'valid_processes' => $validProcesses
-                    ]);
+                    // \Log::debug('Skipping component as it has invalid process:', [
+                    //     'ipl_num' => $itemNo,
+                    //     'process' => $processName,
+                    //     'valid_processes' => $validProcesses
+                    // ]);
                     continue;
                 }
 
@@ -3785,43 +3827,43 @@ class TdrController extends Controller
                     $totalQty += $qty; // Используем qty из JSON
                     $totalComponents++;
                     $processedIpls[] = $normalizedIpl; // Сохраняем нормализованный IPL
-                    \Log::debug('Adding component from NdtCadCsv:', [
-                        'ipl_num' => $itemNo,
-                        'normalized_ipl' => $normalizedIpl,
-                        'qty' => $qty
-                    ]);
+                    // \Log::debug('Adding component from NdtCadCsv:', [
+                    //     'ipl_num' => $itemNo,
+                    //     'normalized_ipl' => $normalizedIpl,
+                    //     'qty' => $qty
+                    // ]);
                 } else if (!empty($normalizedIpl) && in_array($normalizedIpl, $processedIpls)) {
-                    \Log::debug('Skipping duplicate component (normalized):', [
-                        'ipl_num' => $itemNo,
-                        'normalized_ipl' => $normalizedIpl
-                    ]);
+                    // \Log::debug('Skipping duplicate component (normalized):', [
+                    //     'ipl_num' => $itemNo,
+                    //     'normalized_ipl' => $normalizedIpl
+                    // ]);
                 }
             }
 
-            \Log::info('CAD calculation loop completed', [
-                'total_qty' => $totalQty,
-                'total_components' => $totalComponents,
-                'skipped_count' => $skippedCount,
-                'combined_skipped_count' => $combinedSkippedCount,
-                'processed_ipls_count' => count($processedIpls),
-                'processed_ipls' => $processedIpls
-            ]);
+            // \Log::info('CAD calculation loop completed', [
+            //     'total_qty' => $totalQty,
+            //     'total_components' => $totalComponents,
+            //     'skipped_count' => $skippedCount,
+            //     'combined_skipped_count' => $combinedSkippedCount,
+            //     'processed_ipls_count' => count($processedIpls),
+            //     'processed_ipls' => $processedIpls
+            // ]);
 
-            \Log::info('CAD calcCadSums - Summary', [
-                'total_cad_components_in_csv' => count($cadComponents),
-                'excluded_by_status' => $skippedCount,
-                'excluded_by_process' => $skippedByProcess,
-                'total_qty' => $totalQty,
-                'total_components' => $totalComponents,
-                'valid_processes_count' => count($validProcesses),
-                'valid_processes' => $validProcesses
-            ]);
+            // \Log::info('CAD calcCadSums - Summary', [
+            //     'total_cad_components_in_csv' => count($cadComponents),
+            //     'excluded_by_status' => $skippedCount,
+            //     'excluded_by_process' => $skippedByProcess,
+            //     'total_qty' => $totalQty,
+            //     'total_components' => $totalComponents,
+            //     'valid_processes_count' => count($validProcesses),
+            //     'valid_processes' => $validProcesses
+            // ]);
 
-            \Log::info('CAD calculation results:', [
-                'total_qty' => $totalQty,
-                'total_components' => $totalComponents,
-                'processed_ipls' => $processedIpls
-            ]);
+            // \Log::info('CAD calculation results:', [
+            //     'total_qty' => $totalQty,
+            //     'total_components' => $totalComponents,
+            //     'processed_ipls' => $processedIpls
+            // ]);
 
             return [
                 'total_qty' => $totalQty,
@@ -3829,10 +3871,10 @@ class TdrController extends Controller
             ];
 
         } catch (\Exception $e) {
-            \Log::error('Error in CAD sums calculation:', [
-                'error' => $e->getMessage(),
-                'trace' => $e->getTraceAsString()
-            ]);
+            // \Log::error('Error in CAD sums calculation:', [
+            //     'error' => $e->getMessage(),
+            //     'trace' => $e->getTraceAsString()
+            // ]);
             return [
                 'total_qty' => 0,
                 'total_components' => 0
@@ -3846,30 +3888,30 @@ class TdrController extends Controller
             // Получаем текущий workorder
             $current_wo = Workorder::findOrFail($workorder_id);
 
-            \Log::info('Starting Stress sums calculation', [
-                'workorder_id' => $workorder_id
-            ]);
+            // \Log::info('Starting Stress sums calculation', [
+            //     'workorder_id' => $workorder_id
+            // ]);
 
             // 1. Получаем данные из таблицы ndt_cad_csv
             $ndtCadCsv = $current_wo->ndtCadCsv;
             if (!$ndtCadCsv) {
-                \Log::error('NdtCadCsv not found for workorder', ['workorder_id' => $workorder_id]);
+                // \Log::error('NdtCadCsv not found for workorder', ['workorder_id' => $workorder_id]);
                 return [
                     'total_qty' => 0,
                     'total_components' => 0
                 ];
             }
 
-            \Log::info('Found NdtCadCsv record', [
-                'ndt_cad_csv_id' => $ndtCadCsv->id,
-                'stress_components_count' => count($ndtCadCsv->stress_components ?? [])
-            ]);
+            // \Log::info('Found NdtCadCsv record', [
+            //     'ndt_cad_csv_id' => $ndtCadCsv->id,
+            //     'stress_components_count' => count($ndtCadCsv->stress_components ?? [])
+            // ]);
 
             // Получаем Stress компоненты из JSON поля
             $stressComponents = $ndtCadCsv->stress_components ?? [];
 
             if (empty($stressComponents)) {
-                \Log::warning('No Stress components found in NdtCadCsv');
+                // \Log::warning('No Stress components found in NdtCadCsv');
                 return [
                     'total_qty' => 0,
                     'total_components' => 0
@@ -3936,12 +3978,12 @@ class TdrController extends Controller
                 }
             }
 
-            \Log::info('TDR Components (normalized):', [
-                'count' => count($tdrIplMap),
-                'ipl_numbers' => array_keys($tdrIplMap),
-                'excluded_ipl_count' => count($excludedIplNums),
-                'excluded_ipls' => array_keys($excludedIplNums)
-            ]);
+            // \Log::info('TDR Components (normalized):', [
+            //     'count' => count($tdrIplMap),
+            //     'ipl_numbers' => array_keys($tdrIplMap),
+            //     'excluded_ipl_count' => count($excludedIplNums),
+            //     'excluded_ipls' => array_keys($excludedIplNums)
+            // ]);
 
             // 3. Сравнение и подсчет
             $totalQty = 0;
@@ -3950,11 +3992,11 @@ class TdrController extends Controller
             $skippedCount = 0;
             $combinedSkippedCount = 0;
 
-            \Log::info('Starting Stress calculation loop', [
-                'total_stress_components' => count($stressComponents),
-                'tdr_ipl_count' => count($tdrIplMap),
-                'excluded_ipl_count' => count($excludedIplNums)
-            ]);
+            // \Log::info('Starting Stress calculation loop', [
+            //     'total_stress_components' => count($stressComponents),
+            //     'tdr_ipl_count' => count($tdrIplMap),
+            //     'excluded_ipl_count' => count($excludedIplNums)
+            // ]);
 
             foreach ($stressComponents as $index => $component) {
                 $itemNo = trim($component['ipl_num'] ?? '');
@@ -3966,16 +4008,16 @@ class TdrController extends Controller
                 // Исключаем компоненты только с статусами Missing, Order New (Repair НЕ исключаем)
                 if (!empty($normalizedIpl) && isset($excludedIplNums[$normalizedIpl])) {
                     $skippedCount++;
-                    \Log::debug('Skipping Stress component as it has excluded status (Missing/Order New):', [
-                        'ipl_num' => $itemNo,
-                        'normalized_ipl' => $normalizedIpl
-                    ]);
+                    // \Log::debug('Skipping Stress component as it has excluded status (Missing/Order New):', [
+                    //     'ipl_num' => $itemNo,
+                    //     'normalized_ipl' => $normalizedIpl
+                    // ]);
                     continue;
                 }
 
                 // Если IPL номер пустой, пропускаем
                 if (empty($itemNo)) {
-                    \Log::debug('Skipping Stress component with empty IPL:', ['component' => $component]);
+                    // \Log::debug('Skipping Stress component with empty IPL:', ['component' => $component]);
                     continue;
                 }
 
@@ -3986,32 +4028,32 @@ class TdrController extends Controller
                     $totalQty += $qty; // Используем qty из JSON
                     $totalComponents++;
                     $processedIpls[] = $itemNo; // Сохраняем оригинальный IPL
-                    \Log::debug('Adding Stress component from NdtCadCsv:', [
-                        'ipl_num' => $itemNo,
-                        'normalized_ipl' => $normalizedIpl,
-                        'qty' => $qty
-                    ]);
+                    // \Log::debug('Adding Stress component from NdtCadCsv:', [
+                    //     'ipl_num' => $itemNo,
+                    //     'normalized_ipl' => $normalizedIpl,
+                    //     'qty' => $qty
+                    // ]);
                 } else {
-                    \Log::debug('Skipping duplicate Stress component (by original IPL):', [
-                        'ipl_num' => $itemNo,
-                        'normalized_ipl' => $normalizedIpl
-                    ]);
+                    // \Log::debug('Skipping duplicate Stress component (by original IPL):', [
+                    //     'ipl_num' => $itemNo,
+                    //     'normalized_ipl' => $normalizedIpl
+                    // ]);
                 }
             }
 
-            \Log::info('Stress calculation loop completed', [
-                'total_qty' => $totalQty,
-                'total_components' => $totalComponents,
-                'skipped_count' => $skippedCount,
-                'processed_ipls_count' => count($processedIpls),
-                'processed_ipls' => $processedIpls
-            ]);
+            // \Log::info('Stress calculation loop completed', [
+            //     'total_qty' => $totalQty,
+            //     'total_components' => $totalComponents,
+            //     'skipped_count' => $skippedCount,
+            //     'processed_ipls_count' => count($processedIpls),
+            //     'processed_ipls' => $processedIpls
+            // ]);
 
-            \Log::info('Stress calculation results:', [
-                'total_qty' => $totalQty,
-                'total_components' => $totalComponents,
-                'processed_ipls' => $processedIpls
-            ]);
+            // \Log::info('Stress calculation results:', [
+            //     'total_qty' => $totalQty,
+            //     'total_components' => $totalComponents,
+            //     'processed_ipls' => $processedIpls
+            // ]);
 
             return [
                 'total_qty' => $totalQty,
@@ -4019,10 +4061,10 @@ class TdrController extends Controller
             ];
 
         } catch (\Exception $e) {
-            \Log::error('Error in Stress sums calculation:', [
-                'error' => $e->getMessage(),
-                'trace' => $e->getTraceAsString()
-            ]);
+            // \Log::error('Error in Stress sums calculation:', [
+            //     'error' => $e->getMessage(),
+            //     'trace' => $e->getTraceAsString()
+            // ]);
             return [
                 'total_qty' => 0,
                 'total_components' => 0
@@ -4036,30 +4078,30 @@ class TdrController extends Controller
             // Получаем текущий workorder
             $current_wo = Workorder::findOrFail($workorder_id);
 
-            \Log::info('Starting Paint sums calculation', [
-                'workorder_id' => $workorder_id
-            ]);
+            // \Log::info('Starting Paint sums calculation', [
+            //     'workorder_id' => $workorder_id
+            // ]);
 
             // 1. Получаем данные из таблицы ndt_cad_csv
             $ndtCadCsv = $current_wo->ndtCadCsv;
             if (!$ndtCadCsv) {
-                \Log::error('NdtCadCsv not found for workorder', ['workorder_id' => $workorder_id]);
+                // \Log::error('NdtCadCsv not found for workorder', ['workorder_id' => $workorder_id]);
                 return [
                     'total_qty' => 0,
                     'total_components' => 0
                 ];
             }
 
-            \Log::info('Found NdtCadCsv record', [
-                'ndt_cad_csv_id' => $ndtCadCsv->id,
-                'paint_components_count' => count($ndtCadCsv->paint_components ?? [])
-            ]);
+            // \Log::info('Found NdtCadCsv record', [
+            //     'ndt_cad_csv_id' => $ndtCadCsv->id,
+            //     'paint_components_count' => count($ndtCadCsv->paint_components ?? [])
+            // ]);
 
             // Получаем Paint компоненты из JSON поля
             $paintComponents = $ndtCadCsv->paint_components ?? [];
 
             if (empty($paintComponents)) {
-                \Log::warning('No Paint components found in NdtCadCsv');
+                // \Log::warning('No Paint components found in NdtCadCsv');
                 return [
                     'total_qty' => 0,
                     'total_components' => 0
@@ -4075,10 +4117,10 @@ class TdrController extends Controller
             // Создаем мапу IPL номеров из TDR
             $tdrIplMap = $tdrComponents->pluck('qty', 'component.ipl_num')->toArray();
 
-            \Log::info('TDR Components:', [
-                'count' => count($tdrIplMap),
-                'ipl_numbers' => array_keys($tdrIplMap)
-            ]);
+            // \Log::info('TDR Components:', [
+            //     'count' => count($tdrIplMap),
+            //     'ipl_numbers' => array_keys($tdrIplMap)
+            // ]);
 
             // 3. Сравнение и подсчет
             $totalQty = 0;
@@ -4087,36 +4129,36 @@ class TdrController extends Controller
             $skippedCount = 0;
             $combinedSkippedCount = 0;
 
-            \Log::info('Starting Paint calculation loop', [
-                'total_paint_components' => count($paintComponents),
-                'tdr_ipl_count' => count($tdrIplMap)
-            ]);
+            // \Log::info('Starting Paint calculation loop', [
+            //     'total_paint_components' => count($paintComponents),
+            //     'tdr_ipl_count' => count($tdrIplMap)
+            // ]);
 
             foreach ($paintComponents as $index => $component) {
                 $itemNo = trim($component['ipl_num'] ?? '');
                 $qty = (int)($component['qty'] ?? 1); // Получаем qty из JSON
 
-                \Log::debug('Processing Paint component', [
-                    'index' => $index,
-                    'item_no' => $itemNo,
-                    'qty' => $qty,
-                    'component' => $component
-                ]);
+                // \Log::debug('Processing Paint component', [
+                //     'index' => $index,
+                //     'item_no' => $itemNo,
+                //     'qty' => $qty,
+                //     'component' => $component
+                // ]);
 
                 // Если IPL номер есть в TDR - пропускаем
                 if (isset($tdrIplMap[$itemNo])) {
                     $skippedCount++;
-                    \Log::debug('Skipping component as it exists in TDR:', ['ipl_num' => $itemNo]);
+                    // \Log::debug('Skipping component as it exists in TDR:', ['ipl_num' => $itemNo]);
                     continue;
                 }
 
                 // Проверяем совмещенные значения
                 if ($this->shouldSkipItem($itemNo, array_keys($tdrIplMap))) {
                     $combinedSkippedCount++;
-                    \Log::debug('Skipping Paint component due to combined value match:', [
-                        'item_no' => $itemNo,
-                        'existing_ipls' => array_keys($tdrIplMap)
-                    ]);
+                    // \Log::debug('Skipping Paint component due to combined value match:', [
+                    //     'item_no' => $itemNo,
+                    //     'existing_ipls' => array_keys($tdrIplMap)
+                    // ]);
                     continue;
                 }
 
@@ -4125,23 +4167,23 @@ class TdrController extends Controller
                     $totalQty += $qty; // Используем qty из JSON
                     $totalComponents++;
                     $processedIpls[] = $itemNo;
-                    \Log::debug('Adding component from NdtCadCsv:', ['ipl_num' => $itemNo, 'qty' => $qty]);
+                    // \Log::debug('Adding component from NdtCadCsv:', ['ipl_num' => $itemNo, 'qty' => $qty]);
                 }
             }
 
-            \Log::info('Paint calculation loop completed', [
-                'total_qty' => $totalQty,
-                'total_components' => $totalComponents,
-                'skipped_count' => $skippedCount,
-                'combined_skipped_count' => $combinedSkippedCount,
-                'processed_ipls' => $processedIpls
-            ]);
+            // \Log::info('Paint calculation loop completed', [
+            //     'total_qty' => $totalQty,
+            //     'total_components' => $totalComponents,
+            //     'skipped_count' => $skippedCount,
+            //     'combined_skipped_count' => $combinedSkippedCount,
+            //     'processed_ipls' => $processedIpls
+            // ]);
 
-            \Log::info('Paint calculation results:', [
-                'total_qty' => $totalQty,
-                'total_components' => $totalComponents,
-                'processed_ipls' => $processedIpls
-            ]);
+            // \Log::info('Paint calculation results:', [
+            //     'total_qty' => $totalQty,
+            //     'total_components' => $totalComponents,
+            //     'processed_ipls' => $processedIpls
+            // ]);
 
             return [
                 'total_qty' => $totalQty,
@@ -4149,10 +4191,10 @@ class TdrController extends Controller
             ];
 
         } catch (\Exception $e) {
-            \Log::error('Error in Paint sums calculation:', [
-                'error' => $e->getMessage(),
-                'trace' => $e->getTraceAsString()
-            ]);
+            // \Log::error('Error in Paint sums calculation:', [
+            //     'error' => $e->getMessage(),
+            //     'trace' => $e->getTraceAsString()
+            // ]);
             return [
                 'total_qty' => 0,
                 'total_components' => 0

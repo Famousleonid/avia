@@ -168,9 +168,9 @@
                         </div>
 
 
-                    <div class=" d-flex  >
+                    <div class="d-flex " >
                         @if(isset($processGroups) && count($processGroups) > 0)
-                            <div style="width: 250px">
+
                                 <x-paper-button-multy
                                     text="Group Process Forms"
                                     color="outline-primary"
@@ -180,7 +180,7 @@
                                     data-bs-toggle="modal"
                                     data-bs-target="#groupFormsModal"
                                 />
-                            </div>
+
                         @endif
 
                         <a href="{{ route('extra_process.create', $current_wo->id) }}" class="btn btn-outline-success me-3"

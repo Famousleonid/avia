@@ -224,17 +224,23 @@ class TdrProcessController extends Controller
     {
         $request->validate([
             'tdrs_id' => 'required|integer|exists:tdrs,id',
-            'processes' => 'required|json'
+            'processes' => 'required' // Может быть массивом или JSON строкой
         ]);
 
         $tdrId = $request->input('tdrs_id');
-        $processesJson = $request->input('processes');
-        $processesData = json_decode($processesJson, true);
+        $processesInput = $request->input('processes');
+        
+        // Обрабатываем processes: может быть массивом или JSON строкой (для обратной совместимости)
+        if (is_string($processesInput)) {
+            $processesData = json_decode($processesInput, true);
+        } else {
+            $processesData = $processesInput;
+        }
 
         // Логируем входящие данные для отладки
         Log::info('Store method called', [
             'tdrs_id' => $tdrId,
-            'processes_json' => $processesJson,
+            'processes_input' => $processesInput,
             'processes_data' => $processesData
         ]);
 
@@ -256,10 +262,29 @@ class TdrProcessController extends Controller
         // Счетчик для правильного расчета sort_order (учитывает дополнительные записи EC)
         $sortOrderCounter = 0;
 
+        // Динамическое определение ID процесса Machining для EC checkbox
+        // Приоритет: 'Machining (EC)' -> 'Machining' -> 'Machining (Blend)'
+        $machiningProcessNameId = null;
+        $machiningEC = ProcessName::where('name', 'Machining (EC)')->first();
+        $machining = ProcessName::where('name', 'Machining')->first();
+        $machiningBlend = ProcessName::where('name', 'Machining (Blend)')->first();
+        
+        if ($machiningEC) {
+            $machiningProcessNameId = $machiningEC->id;
+            Log::info('Machining process ID determined: Machining (EC)', ['id' => $machiningProcessNameId]);
+        } elseif ($machining) {
+            $machiningProcessNameId = $machining->id;
+            Log::info('Machining process ID determined: Machining', ['id' => $machiningProcessNameId]);
+        } elseif ($machiningBlend) {
+            $machiningProcessNameId = $machiningBlend->id;
+            Log::info('Machining process ID determined: Machining (Blend)', ['id' => $machiningProcessNameId]);
+        } else {
+            Log::warning('Machining process not found in database');
+        }
+
         // Сохраняем каждый процесс
         foreach ($processesData as $index => $data) {
-            $machiningProcessNameId = 10; // ID для процесса 'Machining'
-            $isMachining = (int)$data['process_names_id'] === $machiningProcessNameId;
+            $isMachining = $machiningProcessNameId !== null && (int)$data['process_names_id'] === $machiningProcessNameId;
 
             // Проверяем значение ec (может быть true, 1, "1", или отсутствовать)
             $ecValue = isset($data['ec']) ? (
@@ -400,7 +425,7 @@ class TdrProcessController extends Controller
         // Получаем параметры из запроса
         $repairNum = $request->input('repair_num', 'N/A');
         $vendorId = $request->input('vendor');
-        
+
         // Получаем данные о vendor для каждой строки
         $vendorsData = [];
         $vendorsDataJson = $request->input('vendors_data');
@@ -411,7 +436,7 @@ class TdrProcessController extends Controller
                 \Log::error('Error parsing vendors_data: ' . $e->getMessage());
             }
         }
-        
+
         // Получаем данные о отмеченных чекбоксах AT
         $atData = [];
         $atDataJson = $request->input('at_data');
@@ -422,7 +447,7 @@ class TdrProcessController extends Controller
                 \Log::error('Error parsing at_data: ' . $e->getMessage());
             }
         }
-        
+
         // Получаем имя вендора если передан ID (для обратной совместимости)
         $vendorName = null;
         if ($vendorId) {

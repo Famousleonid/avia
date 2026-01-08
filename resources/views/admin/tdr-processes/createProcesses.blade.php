@@ -217,10 +217,11 @@
                                 <label for="newProcessInput" class="form-label">New Process</label>
                                 <input type="text" class="form-control" id="newProcessInput" placeholder="Enter new process">
                             </div>
-                            <!-- Секция "Existing Processes" – подгружаются availableProcesses -->
+                            <!-- Секция "Available Processes" – доступные для выбора процессы -->
+                            <!-- Existing Processes не отображаются в модальном окне -->
                             <div class="mb-3">
-                                <h6>Existing Processes</h6>
-                                <div id="existingProcessContainer">
+                                <h6>Available Processes</h6>
+                                <div id="availableProcessContainer">
                                     Loading processes...
                                 </div>
                             </div>
@@ -267,6 +268,37 @@
 
         // Данные процессов для использования в динамически создаваемых строках
         const processNamesData = @json($processNames->keyBy('id'));
+        
+        // Динамическое определение ID процесса Machining для EC checkbox
+        // Приоритет: 'Machining (EC)' -> 'Machining' -> 'Machining (Blend)'
+        let machiningProcessNameId = null;
+        @php
+            $machiningEC = $processNames->firstWhere('name', 'Machining (EC)');
+            $machining = $processNames->firstWhere('name', 'Machining');
+            $machiningBlend = $processNames->firstWhere('name', 'Machining (Blend)');
+            
+            if ($machiningEC) {
+                $machiningId = $machiningEC->id;
+            } elseif ($machining) {
+                $machiningId = $machining->id;
+            } elseif ($machiningBlend) {
+                $machiningId = $machiningBlend->id;
+            } else {
+                $machiningId = null;
+            }
+        @endphp
+        @if(isset($machiningId) && $machiningId)
+            machiningProcessNameId = {{ $machiningId }};
+            console.log('Machining process ID determined:', machiningProcessNameId);
+        @else
+            machiningProcessNameId = null; // Процесс Machining не найден
+            console.warn('Machining process not found in processNames');
+        @endif
+        
+        // Функция для проверки, является ли процесс Machining
+        function isMachiningProcess(processNameId) {
+            return machiningProcessNameId !== null && processNameId == machiningProcessNameId.toString();
+        }
 
         // Динамическое добавление новых строк
         document.getElementById('add-process').addEventListener('click', function () {
@@ -335,6 +367,17 @@
 
             container.appendChild(newRow);
 
+            // Инициализируем Select2 для нового select элемента
+            if (typeof $ !== 'undefined' && $.fn.select2) {
+                $(newRow).find('.select2-process').select2({
+                    theme: 'bootstrap-5',
+                    width: '100%'
+                }).on('select2:select', function (e) {
+                    // Обработчик события Select2 для загрузки процессов
+                    const selectElement = e.target;
+                    loadProcessesForRow(selectElement);
+                });
+            }
         });
 
 
@@ -405,19 +448,26 @@
                 },
                 body: JSON.stringify({
                     tdrs_id: tdrId,
-                    processes: JSON.stringify(processesData)
+                    processes: processesData
                 })
             })
                 .then(response => {
                     if (!response.ok) {
-                        throw new Error('Network response was not ok');
+                        return response.json().then(err => {
+                            throw new Error(err.error || err.message || 'Network response was not ok');
+                        });
                     }
                     return response.json();
                 })
                 .then(data => {
                     console.log('Success:', data);
                     if (data.message) {
-                        alert(data.message); // Показываем сообщение об успехе
+                        // Показываем сообщение об успехе
+                        if (window.NotificationHandler) {
+                            window.NotificationHandler.success(data.message);
+                        } else {
+                            alert(data.message);
+                        }
                     }
                     // Если есть URL для перенаправления, выполняем редирект
                     if (data.redirect) {
@@ -426,11 +476,95 @@
                 })
                 .catch(error => {
                     console.error('Error:', error);
-                    alert('Error saving processes.');
+                    const errorMessage = error.message || 'Error saving processes.';
+                    
+                    // Показываем уведомление об ошибке
+                    if (window.NotificationHandler) {
+                        window.NotificationHandler.error('Ошибка при сохранении процессов: ' + errorMessage);
+                    } else {
+                        alert('Ошибка при сохранении процессов: ' + errorMessage);
+                    }
                 });
         });
 
+        // Функция для загрузки и отображения процессов
+        function loadProcessesForRow(selectElement) {
+            const processNameId = selectElement.value;
+            const processRow = selectElement.closest('.process-row');
+            const processOptionsContainer = processRow.querySelector('.process-options');
+            const manualId = document.getElementById('processes-container').dataset.manualId;
+            const saveButton = document.querySelector('button[type="submit"]');
+
+            if (!processNameId || !processOptionsContainer) {
+                return;
+            }
+
+            // Получаем индекс строки для правильного именования чекбоксов
+            const selectName = selectElement.name;
+            const match = selectName.match(/processes\[(\d+)\]/);
+            const rowIndex = match ? match[1] : '0';
+
+            // Показываем индикатор загрузки
+            processOptionsContainer.innerHTML = '<div class="text-muted">Loading processes...</div>';
+
+            // Используем processes.getProcesses для получения existingProcesses и availableProcesses
+            fetch(`{{ route('processes.getProcesses') }}?processNameId=${processNameId}&manualId=${manualId}`)
+                .then(response => {
+                    if (!response.ok) {
+                        return response.json().then(err => {
+                            throw new Error(err.error || err.message || 'Network response was not ok');
+                        });
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    processOptionsContainer.innerHTML = ''; // Очищаем контейнер
+                    
+                    let hasProcesses = false;
+                    
+                    // Отображаем только existingProcesses (уже связанные с manual_id)
+                    // Не отмечены, без пометки "(existing)"
+                    if (data.existingProcesses && data.existingProcesses.length > 0) {
+                        data.existingProcesses.forEach(process => {
+                            const checkbox = document.createElement('div');
+                            checkbox.classList.add('form-check');
+                            checkbox.innerHTML = `
+                                <input type="checkbox" name="processes[${rowIndex}][process][]" value="${process.id}" class="form-check-input">
+                                <label class="form-check-label">${process.process}</label>
+                            `;
+                            processOptionsContainer.appendChild(checkbox);
+                            hasProcesses = true;
+                        });
+                    }
+                    
+                    // availableProcesses не отображаем на странице, только в модальном окне
+                    
+                    if (hasProcesses) {
+                        saveButton.disabled = false;
+                    } else {
+                        const noSpecLabel = document.createElement('div');
+                        noSpecLabel.classList.add('text-muted', 'mt-2');
+                        noSpecLabel.innerHTML = 'No specification. Add specification for this process.';
+                        processOptionsContainer.appendChild(noSpecLabel);
+                        saveButton.disabled = true;
+                    }
+                })
+                .catch(error => {
+                    console.error('Ошибка при получении процессов:', error);
+                    processOptionsContainer.innerHTML = `<div class="text-danger">Error loading processes: ${error.message}</div>`;
+                    saveButton.disabled = true;
+                    
+                    // Показываем уведомление об ошибке
+                    if (window.NotificationHandler) {
+                        window.NotificationHandler.error('Ошибка при загрузке процессов');
+                    } else {
+                        alert('Ошибка при загрузке процессов: ' + error.message);
+                    }
+                });
+        }
+
         // Обновление чекбоксов при изменении выбранного имени процесса
+        // Обработчик для обычного события change
         document.addEventListener('change', function (event) {
             if (event.target.classList.contains('select2-process')) {
                 const processNameId = event.target.value;
@@ -501,55 +635,19 @@
                 // }
 
                 // СПОСОБ 4: Условное отображение элементов на основе id
+
                 const ecCheckbox = processRow.querySelector('input[name*="[ec]"]');
                 if (ecCheckbox) {
-                    // Показываем чекбокс EC только для определенных id
-                    // if (processNameId == '10' || processNameId == '5') {
-                    if (processNameId == '10') {
+                    // Показываем чекбокс EC только для процесса Machining (определяется динамически)
+                    if (isMachiningProcess(processNameId)) {
                         ecCheckbox.closest('.form-check').style.display = 'block';
                     } else {
                         ecCheckbox.closest('.form-check').style.display = 'none';
                     }
                 }
 
-                // Очистка контейнера для чекбоксов
-                processOptionsContainer.innerHTML = '';
-
-                // Если имя процесса выбрано, загружаем связанные процессы
-                if (processNameId) {
-                    console.log(`/get-process/${processNameId}?manual_id=${manualId}`);
-                    fetch(`/get-process/${processNameId}?manual_id=${manualId}`)
-                        .then(response => {
-                            if (!response.ok) {
-                                throw new Error('Network response was not ok');
-                            }
-                            return response.json();
-                        })
-                        .then(data => {
-                            if (data && data.length > 0) {
-                                data.forEach(process => {
-                                    const checkbox = document.createElement('div');
-                                    checkbox.classList.add('form-check');
-                                    checkbox.innerHTML = `
-                                <input type="checkbox" name="processes[${processNameId}][process][]" value="${process.id}" class="form-check-input">
-                                <label class="form-check-label">${process.process}</label>
-                            `;
-                                    processOptionsContainer.appendChild(checkbox);
-                                });
-                                saveButton.disabled = false;
-                            } else {
-                                const noSpecLabel = document.createElement('div');
-                                noSpecLabel.classList.add('text-muted', 'mt-2');
-                                noSpecLabel.innerHTML = 'No specification. Add specification for this process.';
-                                processOptionsContainer.appendChild(noSpecLabel);
-                                saveButton.disabled = true;
-                            }
-                        })
-                        .catch(error => {
-                            console.error('Ошибка при получении процессов:', error);
-                            saveButton.disabled = true;
-                        });
-                }
+                // Используем функцию для загрузки процессов
+                loadProcessesForRow(event.target);
             }
         });
 
@@ -575,35 +673,44 @@
                 // const manualId = document.querySelector('input[name="manual_id"]').value;
                 const manualId = document.getElementById('processes-container').dataset.manualId;
 
-                // Загружаем availableProcesses для выбранного process_name_id и manualId
+                // Загружаем только availableProcesses для выбранного process_name_id и manualId
+                // Existing Processes не отображаются в модальном окне
+                const availableContainer = document.getElementById('availableProcessContainer');
+                availableContainer.innerHTML = '<div class="text-muted">Loading processes...</div>';
+                
                 fetch(`{{ route('processes.getProcesses') }}?processNameId=${processNameId}&manualId=${manualId}`)
                     .then(response => {
                         if (!response.ok) {
-                            throw new Error('Network response was not ok');
+                            return response.json().then(err => {
+                                throw new Error(err.error || err.message || 'Network response was not ok');
+                            });
                         }
                         return response.json();
                     })
                     .then(data => {
-                        const container = document.getElementById('existingProcessContainer');
-                        container.innerHTML = ''; // Очищаем контейнер
+                        // Отображаем только Available Processes
+                        availableContainer.innerHTML = '';
                         if (data.availableProcesses && data.availableProcesses.length > 0) {
                             data.availableProcesses.forEach(process => {
-                                // Создаем элемент чекбокса для каждого процесса
                                 const div = document.createElement('div');
                                 div.className = 'form-check';
                                 div.innerHTML = `
-                            <input type="checkbox" class="form-check-input" name="modal_processes[]" value="${process.id}" id="modal_process_${process.id}">
-                            <label class="form-check-label" for="modal_process_${process.id}">${process.process}</label>
-                        `;
-                                container.appendChild(div);
+                                    <input type="checkbox" class="form-check-input" name="modal_processes[]" value="${process.id}" id="modal_process_${process.id}">
+                                    <label class="form-check-label" for="modal_process_${process.id}">${process.process}</label>
+                                `;
+                                availableContainer.appendChild(div);
                             });
                         } else {
-                            container.innerHTML = '<div>No available processes</div>';
+                            availableContainer.innerHTML = '<div class="text-muted">No available processes</div>';
                         }
                     })
                     .catch(error => {
                         console.error('Error loading processes:', error);
-                        document.getElementById('existingProcessContainer').innerHTML = '<div>Error loading processes</div>';
+                        availableContainer.innerHTML = `<div class="text-danger">Error loading processes: ${error.message}</div>`;
+                        
+                        if (window.NotificationHandler) {
+                            window.NotificationHandler.error('Ошибка при загрузке процессов');
+                        }
                     });
             });
         });
@@ -626,33 +733,44 @@
             // Получаем manual_id через data-атрибут
             const manualId = document.getElementById('processes-container').dataset.manualId;
 
+            // Загружаем только availableProcesses
+            // Existing Processes не отображаются в модальном окне
+            const availableContainer = document.getElementById('availableProcessContainer');
+            availableContainer.innerHTML = '<div class="text-muted">Loading processes...</div>';
+            
             fetch(`{{ route('processes.getProcesses') }}?processNameId=${processNameId}&manualId=${manualId}`)
                 .then(response => {
                     if (!response.ok) {
-                        throw new Error('Network response was not ok');
+                        return response.json().then(err => {
+                            throw new Error(err.error || err.message || 'Network response was not ok');
+                        });
                     }
                     return response.json();
                 })
                 .then(data => {
-                    const container = document.getElementById('existingProcessContainer');
-                    container.innerHTML = '';
+                    // Отображаем только Available Processes
+                    availableContainer.innerHTML = '';
                     if (data.availableProcesses && data.availableProcesses.length > 0) {
                         data.availableProcesses.forEach(process => {
                             const div = document.createElement('div');
                             div.className = 'form-check';
                             div.innerHTML = `
-                        <input type="checkbox" class="form-check-input" name="modal_processes[]" value="${process.id}" id="modal_process_${process.id}">
-                        <label class="form-check-label" for="modal_process_${process.id}">${process.process}</label>
-                    `;
-                            container.appendChild(div);
+                                <input type="checkbox" class="form-check-input" name="modal_processes[]" value="${process.id}" id="modal_process_${process.id}">
+                                <label class="form-check-label" for="modal_process_${process.id}">${process.process}</label>
+                            `;
+                            availableContainer.appendChild(div);
                         });
                     } else {
-                        container.innerHTML = '<div>No available processes</div>';
+                        availableContainer.innerHTML = '<div class="text-muted">No available processes</div>';
                     }
                 })
                 .catch(error => {
                     console.error('Error loading processes:', error);
-                    document.getElementById('existingProcessContainer').innerHTML = '<div>Error loading processes</div>';
+                    availableContainer.innerHTML = `<div class="text-danger">Error loading processes: ${error.message}</div>`;
+                    
+                    if (window.NotificationHandler) {
+                        window.NotificationHandler.error('Ошибка при загрузке процессов');
+                    }
                 });
         });
 
@@ -661,7 +779,7 @@
         document.getElementById('saveProcessModal').addEventListener('click', function() {
             const processNameId = document.getElementById('modalProcessNameId').value;
             const newProcess = document.getElementById('newProcessInput').value.trim();
-            const selectedCheckboxes = document.querySelectorAll('#existingProcessContainer input[type="checkbox"]:checked');
+            const selectedCheckboxes = document.querySelectorAll('#availableProcessContainer input[type="checkbox"]:checked');
 
             // Если ни новое название не введено, ни выбран хотя бы один существующий процесс – предупреждаем пользователя
             if (newProcess === '' && selectedCheckboxes.length === 0) {
@@ -675,9 +793,21 @@
             if (currentRow) {
                 const processOptionsContainer = currentRow.querySelector('.process-options');
                 const saveButton = document.querySelector('button[type="submit"]');
+                
+                // Получаем индекс строки для правильного именования чекбоксов
+                const select = currentRow.querySelector('.select2-process');
+                const selectName = select ? select.name : '';
+                const match = selectName.match(/processes\[(\d+)\]/);
+                const rowIndex = match ? match[1] : '0';
 
                 // Если введён новый процесс – отправляем AJAX-запрос для его создания
                 if (newProcess !== '') {
+                    // Показываем индикатор загрузки
+                    const loadingDiv = document.createElement('div');
+                    loadingDiv.className = 'text-muted';
+                    loadingDiv.textContent = 'Saving process...';
+                    processOptionsContainer.appendChild(loadingDiv);
+                    
                     fetch("{{ route('processes.store') }}", {
                         method: 'POST',
                         headers: {
@@ -694,18 +824,25 @@
                     })
                         .then(response => {
                             if (!response.ok) {
-                                throw new Error('Network response was not ok');
+                                return response.json().then(err => {
+                                    throw new Error(err.error || err.message || 'Network response was not ok');
+                                });
                             }
                             return response.json();
                         })
                         .then(data => {
-                            console.log('Response:', data); // Добавляем для отладки
+                            console.log('Response:', data);
+                            // Удаляем индикатор загрузки
+                            if (loadingDiv.parentNode) {
+                                loadingDiv.remove();
+                            }
+                            
                             if (data.success) {
                                 // Добавляем созданный процесс в виде чекбокса в контейнер текущей строки
                                 const div = document.createElement('div');
                                 div.classList.add('form-check');
                                 div.innerHTML = `
-                            <input type="checkbox" class="form-check-input" name="processes[${processNameId}][process][]" value="${data.process.id}" checked>
+                            <input type="checkbox" class="form-check-input" name="processes[${rowIndex}][process][]" value="${data.process.id}" checked>
                             <label class="form-check-label">${data.process.process}</label>
                         `;
                                 processOptionsContainer.appendChild(div);
@@ -720,21 +857,35 @@
                                                 // Очищаем поле ввода нового процесса
                                 document.getElementById('newProcessInput').value = '';
 
-                                // Очищаем выбранные чекбоксы в модальном окне
-                                document.querySelectorAll('#existingProcessContainer input[type="checkbox"]:checked').forEach(checkbox => {
+                                // Очищаем выбранные чекбоксы в модальном окне (только доступные, не existing)
+                                document.querySelectorAll('#availableProcessContainer input[type="checkbox"]:checked').forEach(checkbox => {
                                     checkbox.checked = false;
                                 });
 
                                 // Показываем сообщение об успехе
-                                alert('Процесс успешно добавлен!');
+                                if (window.NotificationHandler) {
+                                    window.NotificationHandler.success('Процесс успешно добавлен!');
+                                } else {
+                                    alert('Процесс успешно добавлен!');
+                                }
 
-                                // Перезагружаем список существующих процессов в модальном окне
+                                // Перезагружаем список процессов в модальном окне (только availableProcesses)
                                 const manualId = document.getElementById('processes-container').dataset.manualId;
+                                const availableContainer = document.getElementById('availableProcessContainer');
+                                availableContainer.innerHTML = '<div class="text-muted">Reloading processes...</div>';
+                                
                                 fetch(`{{ route('processes.getProcesses') }}?processNameId=${processNameId}&manualId=${manualId}`)
-                                    .then(response => response.json())
+                                    .then(response => {
+                                        if (!response.ok) {
+                                            return response.json().then(err => {
+                                                throw new Error(err.error || err.message || 'Network response was not ok');
+                                            });
+                                        }
+                                        return response.json();
+                                    })
                                     .then(data => {
-                                        const container = document.getElementById('existingProcessContainer');
-                                        container.innerHTML = '';
+                                        // Отображаем только Available Processes
+                                        availableContainer.innerHTML = '';
                                         if (data.availableProcesses && data.availableProcesses.length > 0) {
                                             data.availableProcesses.forEach(process => {
                                                 const div = document.createElement('div');
@@ -743,8 +894,10 @@
                                                     <input type="checkbox" class="form-check-input" name="modal_processes[]" value="${process.id}" id="modal_process_${process.id}">
                                                     <label class="form-check-label" for="modal_process_${process.id}">${process.process}</label>
                                                 `;
-                                                container.appendChild(div);
+                                                availableContainer.appendChild(div);
                                             });
+                                        } else {
+                                            availableContainer.innerHTML = '<div class="text-muted">No available processes</div>';
                                         }
 
                                         // Закрываем модальное окно после успешного сохранения
@@ -756,6 +909,12 @@
                                     })
                                     .catch(error => {
                                         console.error('Error reloading processes:', error);
+                                        container.innerHTML = `<div class="text-danger">Error reloading processes: ${error.message}</div>`;
+                                        
+                                        if (window.NotificationHandler) {
+                                            window.NotificationHandler.error('Ошибка при перезагрузке списка процессов');
+                                        }
+                                        
                                         // Закрываем модальное окно даже при ошибке перезагрузки списка
                                         const modalEl = document.getElementById('addProcessModal');
                                         const modalInstance = bootstrap.Modal.getInstance(modalEl);
@@ -764,12 +923,27 @@
                                         }
                                     });
                             } else {
-                                alert(data.message || "Ошибка при добавлении нового процесса.");
+                                const errorMsg = data.message || "Ошибка при добавлении нового процесса.";
+                                if (window.NotificationHandler) {
+                                    window.NotificationHandler.error(errorMsg);
+                                } else {
+                                    alert(errorMsg);
+                                }
                             }
                         })
                         .catch(error => {
                             console.error('Ошибка:', error);
-                            alert("Ошибка при добавлении нового процесса: " + error.message);
+                            // Удаляем индикатор загрузки при ошибке
+                            if (loadingDiv.parentNode) {
+                                loadingDiv.remove();
+                            }
+                            
+                            const errorMsg = "Ошибка при добавлении нового процесса: " + (error.message || 'Unknown error');
+                            if (window.NotificationHandler) {
+                                window.NotificationHandler.error(errorMsg);
+                            } else {
+                                alert(errorMsg);
+                            }
                         });
                 }
 
@@ -778,6 +952,12 @@
                     // Создаем массив промисов для всех запросов
                     const savePromises = [];
 
+                    // Показываем индикатор загрузки
+                    const loadingDiv = document.createElement('div');
+                    loadingDiv.className = 'text-muted';
+                    loadingDiv.textContent = 'Saving processes...';
+                    processOptionsContainer.appendChild(loadingDiv);
+                    
                     selectedCheckboxes.forEach(checkbox => {
                         const processId = checkbox.value;
                         const processLabel = checkbox.nextElementSibling.innerText;
@@ -799,17 +979,24 @@
                         })
                         .then(response => {
                             if (!response.ok) {
-                                throw new Error('Network response was not ok');
+                                return response.json().then(err => {
+                                    throw new Error(err.error || err.message || 'Network response was not ok');
+                                });
                             }
                             return response.json();
                         })
                         .then(data => {
                             if (data.success) {
+                                // Удаляем индикатор загрузки после первого успешного запроса
+                                if (loadingDiv.parentNode) {
+                                    loadingDiv.remove();
+                                }
+                                
                                 // Добавляем процесс в виде чекбокса в контейнер текущей строки
                                 const div = document.createElement('div');
                                 div.classList.add('form-check');
                                 div.innerHTML = `
-                                    <input type="checkbox" class="form-check-input" name="processes[${processNameId}][process][]" value="${processId}" checked>
+                                    <input type="checkbox" class="form-check-input" name="processes[${rowIndex}][process][]" value="${processId}" checked>
                                     <label class="form-check-label">${processLabel}</label>
                                 `;
                                 processOptionsContainer.appendChild(div);
@@ -820,7 +1007,12 @@
                         })
                         .catch(error => {
                             console.error('Ошибка при сохранении процесса:', error);
-                            alert("Ошибка при сохранении процесса " + processLabel + ": " + error.message);
+                            const errorMsg = "Ошибка при сохранении процесса " + processLabel + ": " + (error.message || 'Unknown error');
+                            if (window.NotificationHandler) {
+                                window.NotificationHandler.error(errorMsg);
+                            } else {
+                                alert(errorMsg);
+                            }
                             return null;
                         });
 
@@ -839,17 +1031,29 @@
                                 noSpecLabel.remove();
                             }
 
-                            // Очищаем выбранные чекбоксы в модальном окне
+                            // Очищаем выбранные чекбоксы в модальном окне (только доступные, не existing)
                             selectedCheckboxes.forEach(checkbox => {
-                                checkbox.checked = false;
+                                if (!checkbox.disabled) {
+                                    checkbox.checked = false;
+                                }
                             });
 
-                            // Перезагружаем список существующих процессов в модальном окне
+                            // Перезагружаем список процессов в модальном окне (только availableProcesses)
+                            const availableContainer = document.getElementById('availableProcessContainer');
+                            availableContainer.innerHTML = '<div class="text-muted">Reloading processes...</div>';
+                            
                             fetch(`{{ route('processes.getProcesses') }}?processNameId=${processNameId}&manualId=${manualId}`)
-                                .then(response => response.json())
+                                .then(response => {
+                                    if (!response.ok) {
+                                        return response.json().then(err => {
+                                            throw new Error(err.error || err.message || 'Network response was not ok');
+                                        });
+                                    }
+                                    return response.json();
+                                })
                                 .then(data => {
-                                    const container = document.getElementById('existingProcessContainer');
-                                    container.innerHTML = '';
+                                    // Отображаем только Available Processes
+                                    availableContainer.innerHTML = '';
                                     if (data.availableProcesses && data.availableProcesses.length > 0) {
                                         data.availableProcesses.forEach(process => {
                                             const div = document.createElement('div');
@@ -858,19 +1062,40 @@
                                                 <input type="checkbox" class="form-check-input" name="modal_processes[]" value="${process.id}" id="modal_process_${process.id}">
                                                 <label class="form-check-label" for="modal_process_${process.id}">${process.process}</label>
                                             `;
-                                            container.appendChild(div);
+                                            availableContainer.appendChild(div);
                                         });
+                                    } else {
+                                        availableContainer.innerHTML = '<div class="text-muted">No available processes</div>';
                                     }
                                 })
                                 .catch(error => {
                                     console.error('Error reloading processes:', error);
+                                    availableContainer.innerHTML = `<div class="text-danger">Error reloading processes: ${error.message}</div>`;
+                                    
+                                    if (window.NotificationHandler) {
+                                        window.NotificationHandler.error('Ошибка при перезагрузке списка процессов');
+                                    }
                                 });
 
+                            // Удаляем индикатор загрузки
+                            if (loadingDiv.parentNode) {
+                                loadingDiv.remove();
+                            }
+                            
                             // Показываем сообщение об успехе
                             if (successCount === selectedCheckboxes.length) {
-                                alert('Все процессы успешно добавлены!');
+                                if (window.NotificationHandler) {
+                                    window.NotificationHandler.success('Все процессы успешно добавлены!');
+                                } else {
+                                    alert('Все процессы успешно добавлены!');
+                                }
                             } else {
-                                alert(`Добавлено ${successCount} из ${selectedCheckboxes.length} процессов.`);
+                                const msg = `Добавлено ${successCount} из ${selectedCheckboxes.length} процессов.`;
+                                if (window.NotificationHandler) {
+                                    window.NotificationHandler.warning(msg);
+                                } else {
+                                    alert(msg);
+                                }
                             }
                         }
 
@@ -882,6 +1107,18 @@
                         }
                     }).catch(error => {
                         console.error('Ошибка при сохранении процессов:', error);
+                        // Удаляем индикатор загрузки при ошибке
+                        if (loadingDiv.parentNode) {
+                            loadingDiv.remove();
+                        }
+                        
+                        const errorMsg = 'Ошибка при сохранении процессов: ' + (error.message || 'Unknown error');
+                        if (window.NotificationHandler) {
+                            window.NotificationHandler.error(errorMsg);
+                        } else {
+                            alert(errorMsg);
+                        }
+                        
                         // Закрываем модальное окно даже при ошибке
                         const modalEl = document.getElementById('addProcessModal');
                         const modalInstance = bootstrap.Modal.getInstance(modalEl);
@@ -910,8 +1147,20 @@
             }
         });
 
-        // Инициализация отображения id и чекбокса EC для всех существующих строк при загрузке страницы
+        // Инициализация Select2 и отображения id и чекбокса EC для всех существующих строк при загрузке страницы
         document.addEventListener('DOMContentLoaded', function() {
+            // Инициализируем Select2 для всех существующих select элементов
+            if (typeof $ !== 'undefined' && $.fn.select2) {
+                $('.select2-process').select2({
+                    theme: 'bootstrap-5',
+                    width: '100%'
+                }).on('select2:select', function (e) {
+                    // Обработчик события Select2 для загрузки процессов
+                    const selectElement = e.target;
+                    loadProcessesForRow(selectElement);
+                });
+            }
+            
             const processRows = document.querySelectorAll('.process-row');
             processRows.forEach(row => {
                 const select = row.querySelector('.select2-process');
@@ -921,8 +1170,8 @@
 
                     // Показываем/скрываем чекбокс EC в зависимости от выбранного id
                     if (ecCheckbox) {
-                        // Показываем чекбокс EC только для определенных id
-                        if (processNameId == '10') {
+                        // Показываем чекбокс EC только для процесса Machining (определяется динамически)
+                        if (isMachiningProcess(processNameId)) {
                             ecCheckbox.closest('.form-check').style.display = 'block';
                         } else {
                             ecCheckbox.closest('.form-check').style.display = 'none';

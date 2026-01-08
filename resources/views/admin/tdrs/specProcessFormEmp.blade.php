@@ -538,7 +538,7 @@
     @foreach($processNames as $name)
         <div class="row g-0 fs-7">
             <div class="col-2 border-l-b ps-1">
-                <div style="height: 17px"><strong>{{ $name->name }}</strong></div>
+                <div style="height: 20px"><strong>{{ $name->name }}</strong></div>
             </div>
             <div class="col-10">
                 <div class="row g-0">
@@ -551,18 +551,18 @@
                                 ->values();
                             $numberLines = $processForCurrentTdr->pluck('number_line')->implode(',');
                         @endphp
-                        <div class="col {{ $index < 5 ? 'border-l-b' : 'border-l-b-r' }} text-center" style="height: 20px">
+                        <div class="col {{ $index < 5 ? 'border-l-b' : 'border-l-b-r' }} text-center" style="height: 22px">
                             @if($numberLines)
-                                <div class="border-r filled-data" style="height: 20px; width: 30px">
+                                <div class="border-r filled-data" style="height: 22px; width: 30px">
                                     {{ $numberLines }}
                                 </div>
                             @else
-                                <div class="border-r" style="height: 20px; width: 30px"></div>
+                                <div class="border-r" style="height: 22px; width: 30px"></div>
                             @endif
                         </div>
                     @endforeach
                     @for($i = count($tdr_ws); $i < 6; $i++)
-                        <div class="col {{ $i < 5 ? 'border-l-b' : 'border-l-b-r' }} text-center" style="height: 20px; position: relative;">
+                        <div class="col {{ $i < 5 ? 'border-l-b' : 'border-l-b-r' }} text-center" style="height: 22px; position: relative;">
                             <div style="position: absolute; left: 29px; top: 0; bottom: 0; width: 1px; border-left: 1px solid black;"></div>
                         </div>
                     @endfor

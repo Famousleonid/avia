@@ -607,7 +607,7 @@
         @foreach($processNames as $name)
             <div class="row g-0 fs-7">
                 <div class="col-2 border-l-b ps-1">
-                    <div style="height: 17px"><strong>{{ $name->name }}</strong></div>
+                    <div style="height: 20px"><strong>{{ $name->name }}</strong></div>
                 </div>
                 <div class="col-10">
                     <div class="row g-0">
@@ -640,14 +640,14 @@
 
                                 }
                             @endphp
-                            <div class="col {{ $localIndex < 5 ? 'border-l-b' : 'border-l-b-r' }} text-center" style="height: 20px; position: relative;">
+                            <div class="col {{ $localIndex < 5 ? 'border-l-b' : 'border-l-b-r' }} text-center" style="height: 22px; position: relative;">
                                 {{--                      Выводим все number_line через запятую --}}
                                 @if($numberLines)
-                                    <div class="border-r" style="height: 20px; width: 30px">
+                                    <div class="border-r" style="height: 22px; width: 30px">
                                         {{ $numberLines }}
                                     </div>
                                 @else
-                                    <div class="border-r" style="height: 20px; width: 30px"></div>
+                                    <div class="border-r" style="height: 22px; width: 30px"></div>
                                 @endif
 {{--                                место для ЕС для компанента--}}
                                 {{-- Проверяем, есть ли процессы с ec = 1 для данного компонента и имени процесса --}}
@@ -659,7 +659,7 @@
                                     }
                                 @endphp
                                 @if($hasEcProcess)
-                                    <div class="" style="height: 20px; width: 30px;
+                                    <div class="" style="height: 22px; width: 30px;
                                     position: absolute; right: 45px; top: 0;"
                                     >
                                         EC
@@ -669,7 +669,7 @@
                             </div>
                         @endforeach
                         @for($i = count($chunk); $i < $componentsPerPage; $i++)
-                            <div class="col {{ $i < 5 ? 'border-l-b' : 'border-l-b-r' }} text-center" style="height: 20px;
+                            <div class="col {{ $i < 5 ? 'border-l-b' : 'border-l-b-r' }} text-center" style="height: 22px;
                     position: relative;"> {{ __(' ') }}
                                 <!-- Граница внутри ячейки, отступ 30px от левого края -->
                                 <div style="position: absolute; left: 29px; top: 0; bottom: 0; width: 1px; border-left: 1px

@@ -167,21 +167,53 @@ class ProcessController extends Controller
         $processNameId = $request->query('processNameId');
         $manualId = $request->query('manualId'); // Добавляем manualId в запрос
 
+        // Определяем, является ли выбранный процесс одним из вариантов Machining
+        // Для всех вариантов Machining ('Machining', 'Machining (EC)', 'Machining (Blend)')
+        // показываем одинаковые existingProcesses
+        $machiningProcessNameIds = [];
+        $machiningEC = ProcessName::where('name', 'Machining (EC)')->first();
+        $machining = ProcessName::where('name', 'Machining')->first();
+        $machiningBlend = ProcessName::where('name', 'Machining (Blend)')->first();
+        
+        if ($machiningEC) {
+            $machiningProcessNameIds[] = $machiningEC->id;
+        }
+        if ($machining) {
+            $machiningProcessNameIds[] = $machining->id;
+        }
+        if ($machiningBlend) {
+            $machiningProcessNameIds[] = $machiningBlend->id;
+        }
+        
+        $isMachiningProcess = in_array((int)$processNameId, $machiningProcessNameIds);
+
         // Получаем ID процессов, которые уже связаны с данным manual_id
         $existingProcessIds = DB::table('manual_processes')
             ->where('manual_id', $manualId)
             ->pluck('processes_id')
             ->toArray();
 
-        // Фильтруем процессы для выбора (исключаем существующие)
-        $availableProcesses = Process::where('process_names_id', $processNameId)
-            ->whereNotIn('id', $existingProcessIds)
-            ->get();
-
-        // Получаем существующие процессы
-        $existingProcesses = Process::whereIn('id', $existingProcessIds)
-            ->where('process_names_id', $processNameId)
-            ->get();
+        // Если это процесс Machining, получаем existingProcesses для всех вариантов Machining
+        if ($isMachiningProcess && !empty($machiningProcessNameIds)) {
+            $existingProcesses = Process::whereIn('id', $existingProcessIds)
+                ->whereIn('process_names_id', $machiningProcessNameIds)
+                ->get();
+            
+            // Фильтруем процессы для выбора (исключаем существующие) для всех вариантов Machining
+            $availableProcesses = Process::whereIn('process_names_id', $machiningProcessNameIds)
+                ->whereNotIn('id', $existingProcessIds)
+                ->get();
+        } else {
+            // Для обычных процессов используем стандартную логику
+            $existingProcesses = Process::whereIn('id', $existingProcessIds)
+                ->where('process_names_id', $processNameId)
+                ->get();
+            
+            // Фильтруем процессы для выбора (исключаем существующие)
+            $availableProcesses = Process::where('process_names_id', $processNameId)
+                ->whereNotIn('id', $existingProcessIds)
+                ->get();
+        }
 
         return response()->json([
             'existingProcesses' => $existingProcesses,
