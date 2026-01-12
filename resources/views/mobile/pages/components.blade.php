@@ -3,6 +3,7 @@
 @extends('mobile.master')
 
 @section('style')
+
     <style>
         .gradient-pane {
             background: #343A40;
@@ -33,19 +34,44 @@
         }
 
         /* Smooth scrollbar for components list */
-        .components-list-container::-webkit-scrollbar { width: 6px; }
-        .components-list-container::-webkit-scrollbar-track { background: rgba(255, 255, 255, 0.1); }
-        .components-list-container::-webkit-scrollbar-thumb { background: rgba(13, 202, 240, 0.5); border-radius: 3px; }
-        .components-list-container::-webkit-scrollbar-thumb:hover { background: rgba(13, 202, 240, 0.7); }
+        .components-list-container::-webkit-scrollbar {
+            width: 6px;
+        }
 
-        .picker-item { border-bottom: 1px solid rgba(255, 255, 255, .15); }
-        .picker-item:hover { background: rgba(13, 202, 240, .08); }
+        .components-list-container::-webkit-scrollbar-track {
+            background: rgba(255, 255, 255, 0.1);
+        }
 
-        .mini-muted { font-size: .8rem; color: rgba(255, 255, 255, .6); }
+        .components-list-container::-webkit-scrollbar-thumb {
+            background: rgba(13, 202, 240, 0.5);
+            border-radius: 3px;
+        }
+
+        .components-list-container::-webkit-scrollbar-thumb:hover {
+            background: rgba(13, 202, 240, 0.7);
+        }
+
+        .picker-item {
+            border-bottom: 1px solid rgba(255, 255, 255, .15);
+        }
+
+        .picker-item:hover {
+            background: rgba(13, 202, 240, .08);
+        }
+
+        .mini-muted {
+            font-size: .8rem;
+            color: rgba(255, 255, 255, .6);
+        }
 
         /* Offcanvas above modal */
-        .offcanvas { z-index: 2000 !important; }
-        .offcanvas-backdrop { z-index: 1990 !important; }
+        .offcanvas {
+            z-index: 2000 !important;
+        }
+
+        .offcanvas-backdrop {
+            z-index: 1990 !important;
+        }
 
         .component-row {
             display: grid;
@@ -71,98 +97,143 @@
             transform: scale(1.05);
         }
 
-        .component-title { line-height: 1.1; margin-bottom: 2px; }
-        .component-meta { line-height: 1.1; }
+        .component-title {
+            line-height: 1.1;
+            margin-bottom: 2px;
+        }
+
+        .component-meta {
+            line-height: 1.1;
+        }
 
         /* Чтобы длинные штуки не ломали сетку */
-        .break-anywhere { overflow-wrap: anywhere; word-break: break-word; }
+        .break-anywhere {
+            overflow-wrap: anywhere;
+            word-break: break-word;
+        }
 
-        /* Кнопка камеры одинаковая высота/ширина */
-        .btn-camera {
+        .btn-camera-edit {
             width: 40px;
-            height: 40px;
+            height: 36px;
             padding: 0;
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            border-width: 1px;
+            border-radius: 8px;
         }
 
-        /* ============================================================
-           CAMERA OVERLAY (100% camera-only)
-        ============================================================ */
-        #cameraOverlay {
-            position: fixed;
-            inset: 0;
-            background: rgba(0,0,0,.92);
-            z-index: 9999;
-            display: none;
-            flex-direction: column;
-            justify-content: center;
-            align-items: center;
-            padding: 14px;
+        .js-component-edit-link:hover {
+            text-decoration: underline !important;
         }
 
-        #cameraOverlay.is-open { display: flex; }
-
-        #cameraVideo {
-            width: 100%;
-            max-width: 520px;
-            border-radius: 18px;
-            border: 1px solid rgba(13,202,240,.35);
-            background: #000;
+        .js-component-edit-link:active {
+            opacity: .8;
         }
 
-        #cameraCanvas { display:none; }
+        #componentsList .component-pick {
+            position: relative;
+        }
 
-        #cameraTopBar, #cameraBottomBar {
-            width: 100%;
-            max-width: 520px;
+        #componentsList .component-pick:not(:last-child)::after {
+            content: '';
+            position: absolute;
+            left: 12px;
+            right: 12px;
+            bottom: 0;
+            height: 1px;
+            background: rgba(255, 255, 255, 0.08);
+        }
+
+        #componentsList .component-pick:active {
+            background: rgba(13, 202, 240, 0.08);
+        }
+
+
+        /* контейнер-обёртка: без бордера/радиусов */
+        .swipe-item {
+            position: relative;
+            overflow: hidden;
+            z-index: 0;
+            --actions-width: 140px;
+            border: 0 !important;
+            background: transparent !important;
+            isolation: isolate;
+            touch-action: pan-y; /* разрешаем вертикальный скролл */
+        }
+
+        /* actions: без радиусов и без границ, просто фон */
+        .swipe-actions {
+            position: absolute;
+            inset: 0 0 0 auto; /* top/right/bottom + auto left */
+            width: var(--actions-width);
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            z-index: 1;
+        }
+
+        /* кнопки действий — без рамок, на всю высоту */
+        .btn-action {
+            border: 0;
+            outline: none;
+            color: #fff;
             display: flex;
             align-items: center;
-            justify-content: space-between;
-            gap: 10px;
+            justify-content: center;
+            user-select: none;
+            font-size: 18px;
         }
 
-        #cameraTopBar { margin-bottom: 10px; }
-        #cameraBottomBar { margin-top: 12px; }
+        /* цвета */
+        .btn-edit {
+            background: rgba(13, 202, 240, 0.28);
 
-        #cameraHint {
-            color: rgba(255,255,255,.65);
-            font-size: .85rem;
-            line-height: 1.2;
         }
 
-        .camera-round {
-            width: 62px;
-            height: 62px;
-            border-radius: 999px;
-            border: 2px solid rgba(255,255,255,.85);
-            background: rgba(255,255,255,.12);
-            display:flex;
-            align-items:center;
-            justify-content:center;
-        }
-        .camera-round:active { transform: scale(.98); }
-
-        .camera-dot {
-            width: 44px;
-            height: 44px;
-            border-radius: 999px;
-            background: rgba(13,202,240,.9);
+        .btn-delete {
+            background: rgba(220, 53, 69, 0.45);
         }
 
-        .js-component-edit-link:hover { text-decoration: underline !important; }
-        .js-component-edit-link:active { opacity: .8; }
+        /* ВОТ ГЛАВНОЕ: “строка” — это swipe-content */
+        .swipe-content {
+            position: relative;
+            z-index: 2;
+            background: #343A40; /* как у твоей строки */
+            border: 1px solid rgba(255, 255, 255, .12); /* как было border-secondary */
+            border-left: 0; /* если надо ровно как list-group */
+            border-right: 0;
+            border-radius: 0; /* если у списка нет скруглений */
+            transform: translateX(0);
+            transition: transform .18s cubic-bezier(.4, 0, .2, 1);
+            will-change: transform;
+            touch-action: pan-y;
+        }
+
+        /* когда открыто — убираем правую рамку, чтобы actions были “продолжением” */
+        .swipe-item.is-open .swipe-content {
+            transform: translateX(calc(-1 * var(--actions-width)));
+            border-right-color: transparent; /* убирает “шов” справа */
+            z-index: 50;
+        }
+
+        /* опционально: разделитель между кнопками (как iOS) */
+        .swipe-actions .btn-action + .btn-action {
+            box-shadow: inset 1px 0 0 rgba(0, 0, 0, .25);
+        }
+
+        .swipe-content * {
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        .components-list-container > .swipe-item {
+            flex-shrink: 0;
+        }
 
     </style>
+
 @endsection
 
 @section('content')
 
-    <div class="container-fluid d-flex flex-column bg-dark p-0" style="height: calc(100vh - 80px); max-height: calc(100vh - 80px); padding-top: 60px; overflow: hidden;">
+    <div class="container-fluid d-flex flex-column bg-dark p-0" style="height: calc(100vh - 80px); max-height: calc(100vh - 80px); padding-top: 60px; ">
 
-        <div id="block-info" class="rounded-3 border border-info gradient-pane shadow-sm flex-shrink-0" style="margin: 5px; padding: 3px;">
+        <div id="block-info" class="rounded-3 border border-info gradient-pane shadow-sm flex-shrink-0" style="margin: 5px; padding: 3px; ">
             <div class="d-flex  align-items-center w-100 fw-bold fs-2 ms-3">
                 <div class="d-flex align-items-center">
                     @if(!$workorder->isDone())
@@ -201,7 +272,7 @@
                     </div>
 
                     <button class="btn btn-success btn-sm text-format" id="openAddComponentBtn">
-                        {{ __('Add Component') }}
+                        {{ __('Add Parts') }}
                     </button>
                 </div>
 
@@ -211,114 +282,132 @@
                     </div>
                 @else
 
-                    <div class="list-group components-list-container d-flex flex-column">
+                    <div class="list-group components-list-container ">
                         @foreach($components as $component)
 
                             @php
                                 $tdrsDetails = $tdrsDetailsByComponent[$component->id] ?? collect();
                             @endphp
-
                             @if(!$component) @continue @endif
 
-                            <div class="list-group-item bg-transparent text-light border-secondary">
-                                <div class="component-row">
+                            <div class="list-group-item bg-transparent text-light border-secondary p-0 swipe-item"
+                                 data-component-id="{{ $component->id }}">
 
-                                    {{-- LEFT --}}
-                                    <div class="">
-                                        @if($component->getFirstMediaBigUrl('components'))
-                                            <a href="{{ $component->getFirstMediaBigUrl('components') }}"
-                                               data-fancybox="component-{{ $component->id }}"
-                                               class="d-inline-block">
-                                                <img class="component-avatar"
-                                                     src="{{ $component->getFirstMediaThumbnailUrl('components') ?: $component->getFirstMediaBigUrl('components') }}"
-                                                     alt="{{ $component->name ?? 'Component' }}"
-                                                     width="40"
-                                                     height="40">
-                                            </a>
-                                        @else
-                                            <img class="component-avatar opacity-50"
-                                                 src="{{ asset('img/noimage.png') }}"
-                                                 alt="No image"
-                                                 width="40"
-                                                 height="40">
-                                        @endif
-                                    </div>
+                                {{-- ACTIONS (справа, под контентом) --}}
+                                <div class="swipe-actions">
+                                    <button type="button"
+                                            class="btn-action btn-edit js-swipe-edit"
+                                            data-detail-id="{{ $tdr['id'] ?? '' }}"                {{-- ID существующей строки --}}
+                                            data-component-id="{{ $component->id }}"
+                                            data-component-text="{{ trim(($component->ipl_num ?? '—').' | '.($component->part_number ?? '—').' | '.($component->name ?? ('#'.$component->id))) }}"
+                                            data-code-id="{{ $tdr['code_id'] ?? '' }}"
+                                            data-necessaries-id="{{ $tdr['necessaries_id'] ?? '' }}"
+                                            data-qty="{{ $tdr['qty'] ?? '' }}"
+                                            data-serial="{{ $tdr['serial_number'] ?? '' }}"
+                                            title="Edit part">
+                                        ✎
+                                    </button>
 
-                                    {{-- CENTER: info --}}
-                                    <div class="break-anywhere">
 
-                                        <a href="#"
-                                           class="fw-semibold text-info text-decoration-none js-component-edit-link break-anywhere"
-                                           data-component-id="{{ $component->id }}"
-                                           data-name="{{ e($component->name) }}"
-                                           data-ipl="{{ e($component->ipl_num) }}"
-                                           data-part="{{ e($component->part_number) }}"
-                                           data-eff="{{ e($component->eff_code) }}"
-                                           data-is-bush="{{ $component->is_bush ? 1 : 0 }}"
-                                           data-bush-ipl="{{ e($component->bush_ipl_num) }}"
-                                           title="Edit component">
-                                            {{ $component->name ?? ('#'.$component->id) }}
-                                        </a>
+                                    <button type="button"
+                                            class="btn-action btn-delete js-swipe-delete"
+                                            data-component-id="{{ $component->id }}"
+                                            title="Delete">
+                                        🗑
+                                    </button>
+                                </div>
 
-                                        <div class="small text-secondary component-meta">
-                                            <span class="me-2"><span class="text-muted">IPL:</span> {{ $component->ipl_num ?? '—' }}</span>
-                                            <span class="me-2"><span class="text-muted">P/N:</span> {{ $component->part_number ?? '—' }}</span>
+                                {{-- CONTENT (двигается свайпом) --}}
+                                <div class="swipe-content">
+                                    <div class="p-2">
 
-                                            @if(!empty($component->is_bush))
-                                                <span class="badge bg-info text-dark ms-1">BUSH</span>
-                                            @endif
+                                        <div class="component-row">
+
+                                            {{-- LEFT: avatar --}}
+                                            <div>
+                                                @if($component->getFirstMediaBigUrl('components'))
+                                                    <a href="{{ $component->getFirstMediaBigUrl('components') }}"
+                                                       data-fancybox="component-{{ $component->id }}">
+                                                        <img class="component-avatar"
+                                                             src="{{ $component->getFirstMediaThumbnailUrl('components')
+                                      ?: $component->getFirstMediaBigUrl('components') }}"
+                                                             alt="{{ $component->name ?? 'Component' }}"
+                                                             width="40" height="40">
+                                                    </a>
+                                                @else
+                                                    <img class="component-avatar opacity-50"
+                                                         src="{{ asset('img/noimage.png') }}"
+                                                         alt="No image"
+                                                         width="40" height="40">
+                                                @endif
+                                            </div>
+
+                                            {{-- CENTER: info --}}
+                                            <div class="break-anywhere">
+
+                                                <a href="#"
+                                                   class="fw-semibold text-info text-decoration-none js-component-edit-link"
+                                                   data-log-card="{{ $component->log_card ? 1 : 0 }}"
+                                                   data-component-id="{{ $component->id }}"
+                                                   data-name="{{ e($component->name) }}"
+                                                   data-ipl="{{ e($component->ipl_num) }}"
+                                                   data-part="{{ e($component->part_number) }}"
+                                                   data-eff="{{ e($component->eff_code) }}"
+                                                   data-is-bush="{{ $component->is_bush ? 1 : 0 }}"
+                                                   data-bush-ipl="{{ e($component->bush_ipl_num) }}">
+                                                    {{ $component->name ?? ('#'.$component->id) }}
+                                                </a>
+
+                                                <div class="small text-secondary component-meta">
+                                                    <span class="me-2">
+                                                        <span class="text-muted">IPL:</span> {{ $component->ipl_num ?? '—' }}
+                                                    </span>
+                                                    <span class="me-2">
+                                                        <span class="text-muted">P/N:</span> {{ $component->part_number ?? '—' }}
+                                                    </span>
+
+                                                    @if($component->is_bush)
+                                                        <span class="badge bg-info text-dark ms-1">BUSH</span>
+                                                    @endif
+                                                </div>
+
+                                                {{-- Codes / TDR --}}
+                                                <div class="small mt-1">
+                                                    @if(($tdrsDetailsByComponent[$component->id] ?? collect())->isNotEmpty())
+                                                        @foreach($tdrsDetailsByComponent[$component->id] as $tdr)
+                                                            <div class="mb-1">
+                                                                <span class="fw-bold text-white">{{ $tdr['code_name'] }}</span>
+                                                                <span class="text-muted">
+                                                                → {{ $tdr['necessaries_name'] }}
+                                                                    @if($tdr['serial_number'])
+                                                                        (SN: {{ $tdr['serial_number'] }})
+                                                                    @endif
+                                                                </span>
+                                                            </div>
+                                                        @endforeach
+                                                    @else
+                                                        <span class="text-muted">Code: —</span>
+                                                    @endif
+                                                </div>
+
+                                            </div>
+
                                         </div>
-
-                                        {{-- Codes with details --}}
-                                        <div class="small mt-1">
-                                            @if($tdrsDetails->isNotEmpty())
-                                                @foreach($tdrsDetails as $tdrDetail)
-                                                    <div class="d-flex align-items-center gap-1 mb-1">
-                                                        <span class="text-white fw-bold">{{ $tdrDetail['code_name'] ?? '—' }}</span>
-                                                        @if($tdrDetail['qty'] && $tdrDetail['qty'] > 1)
-                                                            <span class="text-muted">Qty: {{ $tdrDetail['qty'] }}</span>
-                                                        @endif
-                                                        @if($tdrDetail['necessaries_name'])
-                                                            <span class="text-muted">→ {{ $tdrDetail['necessaries_name'] }}</span>
-                                                            @if($tdrDetail['serial_number'])
-                                                                <span class="text-muted">(SN: {{ $tdrDetail['serial_number'] }})</span>
-                                                            @endif
-                                                        @endif
-                                                    </div>
-                                                @endforeach
-                                            @else
-                                                <span class="text-muted">Code: —</span>
-                                            @endif
-                                        </div>
                                     </div>
-
-                                    {{-- RIGHT: camera only --}}
-                                    <div class="text-end">
-                                        <button type="button"
-                                                class="btn btn-outline-info btn-sm btn-camera js-component-camera"
-                                                data-component-id="{{ $component->id }}"
-                                                data-component-name="{{ $component->name ?? ('#'.$component->id) }}"
-                                                title="Update photo">
-                                            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" fill="currentColor" viewBox="0 0 16 16">
-                                                <path d="M10.5 8.5a2.5 2.5 0 1 1-5 0 2.5 2.5 0 0 1 5 0z"/>
-                                                <path d="M2 4a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2h-1.172a2 2 0 0 1-1.414-.586l-.828-.828A2 2 0 0 0 9.172 2H6.828a2 2 0 0 0-1.414.586l-.828.828A2 2 0 0 1 3.172 4H2zm12 1a1 1 0 0 1 1 1v6a1 1 0 0 1-1 1H2a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1h1.172a3 3 0 0 0 2.121-.879l.828-.828A1 1 0 0 1 6.828 3h2.344a1 1 0 0 1 .707.293l.828.828A3 3 0 0 0 12.828 5H14z"/>
-                                            </svg>
-                                        </button>
-                                    </div>
-
                                 </div>
                             </div>
 
+
                         @endforeach
                     </div>
+
                 @endif
 
             </div>
         </div>
     </div>
-    </div>
 
-    {{-- MODAL add component --}}
+    {{-- MODAL add parts --}}
     <div class="modal fade" id="addComponentModal" tabindex="-1" aria-hidden="true">
         <div class="modal-dialog modal-fullscreen-sm-down">
             <div class="modal-content bg-dark text-light">
@@ -328,8 +417,11 @@
                       action="{{ route('mobile.workorders.components.attach') }}">
                     @csrf
 
+                    <input type="hidden" name="detail_id" id="detail_id" value="">
+
+
                     <div class="modal-header">
-                        <h5 class="modal-title">Add Component</h5>
+                        <h5 class="modal-title">Add Parts</h5>
                         <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
                     </div>
 
@@ -340,7 +432,7 @@
 
                         {{-- picker button --}}
                         <div class="mb-2">
-                            <label class="form-label mb-2">Choose component</label>
+                            <label class="form-label mb-2">Choose parts</label>
 
                             <button type="button"
                                     class="btn btn-outline-light w-100 text-start"
@@ -392,16 +484,13 @@
                         <hr class="border-secondary opacity-50">
 
                         {{-- TDR flags --}}
-                        <div class="d-flex justify-content-between align-items-center mb-2">
-                            <div class="form-check mt-1 ms-2">
-                                <input class="form-check-input" type="checkbox" id="use_tdr" name="use_tdr">
-                                <label class="form-check-label" for="use_tdr">Use TDR</label>
-                            </div>
-                            <div class="form-check me-2">
-                                <input class="form-check-input" type="checkbox" id="use_log_card" name="use_log_card">
-                                <label class="form-check-label" for="use_log_card">Use Log Card</label>
-                            </div>
-                        </div>
+                        {{--                        <div class="d-flex justify-content-between align-items-center mb-2">--}}
+                        {{--                            <div class="form-check mt-1 ms-2">--}}
+                        {{--                                <input class="form-check-input" type="checkbox" id="use_tdr" name="use_tdr">--}}
+                        {{--                                <label class="form-check-label" for="use_tdr">Use TDR</label>--}}
+                        {{--                            </div>--}}
+                        {{--                        </div>--}}
+
                     </div>
 
                     <div class="modal-footer">
@@ -453,25 +542,29 @@
                     <div class="row g-2">
                         <div class="col-12 col-md-6">
                             <label class="form-label small mb-1">IPL Number <span class="text-danger">*</span></label>
-                            <input type="text" id="picker_ipl_num" class="form-control form-control-sm" placeholder="Enter IPL" required>
+                            <input type="text" id="picker_ipl_num" class="form-control form-control-sm" placeholder="..." required>
                         </div>
                         <div class="col-12 col-md-6">
                             <label class="form-label small mb-1">Part Number <span class="text-danger">*</span></label>
-                            <input type="text" id="picker_part_number" class="form-control form-control-sm" placeholder="Enter P/N" required>
+                            <input type="text" id="picker_part_number" class="form-control form-control-sm" placeholder="..." required>
                         </div>
                         <div class="col-12">
                             <label class="form-label small mb-1">Component Name <span class="text-danger">*</span></label>
-                            <input type="text" id="picker_name" class="form-control form-control-sm" placeholder="Enter name" required>
+                            <input type="text" id="picker_name" class="form-control form-control-sm" placeholder="..." required>
                         </div>
-                        <div class="col-12">
-                            <div class="form-check">
-                                <input class="form-check-input" type="checkbox" id="picker_is_bush">
-                                <label class="form-check-label small" for="picker_is_bush">Is Bush Component</label>
+                        <div class="row col-12 pt-2">
+                            <div class="form-check col-6">
+                                <input class="form-check-input" type="checkbox" id="picker_is_bush" name="is_bush" value="1">
+                                <label class="form-check-label small" for="picker_is_bush">Is Bushing </label>
+                            </div>
+                            <div class="form-check col-6 ">
+                                <input class="form-check-input" type="checkbox" id="log_card" name="log_card" value="1">
+                                <label class="form-check-label" for="log_card">Log Card</label>
                             </div>
                         </div>
                         <div class="col-12 d-none" id="picker_bush_container">
                             <label class="form-label small mb-1">Bush IPL Number</label>
-                            <input type="text" id="picker_bush_ipl_num" class="form-control form-control-sm" placeholder="Enter bush IPL">
+                            <input type="text" id="picker_bush_ipl_num" class="form-control form-control-sm" placeholder="...">
                         </div>
                         <div class="col-12">
                             <label class="form-label small mb-1">Photo <span class="text-muted">(optional)</span></label>
@@ -527,28 +620,6 @@
           enctype="multipart/form-data"
           style="display:none;"></form>
 
-    {{-- CAMERA OVERLAY (camera-only, no gallery) --}}
-    <div id="cameraOverlay" aria-hidden="true">
-        <div id="cameraTopBar">
-            <div id="cameraHint">Camera only • back camera</div>
-            <button type="button" class="btn btn-outline-light btn-sm" id="cameraCloseBtn">Close</button>
-        </div>
-
-        <video id="cameraVideo" autoplay muted playsinline></video>
-        <canvas id="cameraCanvas"></canvas>
-
-        <div id="cameraBottomBar">
-            <div class="mini-muted" id="cameraMeta">—</div>
-
-            <button type="button" class="camera-round" id="cameraShutterBtn" title="Take photo">
-                <div class="camera-dot"></div>
-            </button>
-
-            <div class="mini-muted" style="text-align:right;" id="cameraStatus"></div>
-        </div>
-    </div>
-
-
     {{-- Modal EDIT --}}
     <div class="modal fade" id="componentEditModal" tabindex="-1" aria-hidden="true">
         <div class="modal-dialog modal-fullscreen-sm-down">
@@ -558,7 +629,7 @@
                     <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
                 </div>
 
-                <form id="componentEditForm" method="POST" action="#">
+                <form id="componentEditForm" method="POST" action="#" data-no-spinner>
                     @csrf
                     <input type="hidden" name="_method" value="PATCH">
                     <input type="hidden" id="edit_component_id" value="">
@@ -570,27 +641,60 @@
                         </div>
 
                         <div class="row g-2">
-                            <div class="col-6">
+                            <div class="col-12">
                                 <label class="form-label small mb-1">IPL</label>
                                 <input type="text" class="form-control form-control-sm" name="ipl_num" id="edit_ipl">
                             </div>
-                            <div class="col-6">
+                            <div class="col-12">
                                 <label class="form-label small mb-1">P/N</label>
                                 <input type="text" class="form-control form-control-sm" name="part_number" id="edit_part">
                             </div>
                         </div>
-
-                        <div class="mt-2">
-                            <label class="form-label small mb-1">EFF</label>
-                            <input type="text" class="form-control form-control-sm" name="eff_code" id="edit_eff">
-                        </div>
-
                         <hr class="border-secondary opacity-50 my-2">
 
-                        <div class="form-check">
-                            <input class="form-check-input" type="checkbox" id="edit_is_bush" name="is_bush" value="1">
-                            <label class="form-check-label small" for="edit_is_bush">Is Bush Component</label>
+                        <!-- row: is_bush | log_card | camera -->
+                        <div class="d-flex align-items-center px-2 py-1" style="min-height:40px">
+
+                            <!-- Is Bushing -->
+                            <label class="d-flex align-items-center me-3 gap-2 mb-0">
+                                <input type="checkbox"
+                                       id="edit_is_bush"
+                                       name="is_bush"
+                                       value="1"
+                                       class="form-check-input m-0">
+                                <span class="small">Is Bushing</span>
+                            </label>
+
+                            <!-- Log card -->
+                            <label class="d-flex align-items-center gap-2 mb-0">
+                                <input type="checkbox"
+                                       id="edit_log_card"
+                                       name="log_card"
+                                       value="1"
+                                       class="form-check-input m-0">
+                                <span class="small">Log card</span>
+                            </label>
+
+                            <!-- Camera -->
+                            <button type="button"
+                                    id="btnEditCamera"
+                                    class="btn btn-outline-info btn-sm ms-auto d-flex align-items-center justify-content-center btn-camera-edit"
+                                    title="Update photo">
+                                <svg xmlns="http://www.w3.org/2000/svg"
+                                     width="20" height="20"
+                                     viewBox="0 0 24 24"
+                                     fill="none"
+                                     stroke="currentColor"
+                                     stroke-width="1.8"
+                                     stroke-linecap="round"
+                                     stroke-linejoin="round">
+                                    <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/>
+                                    <circle cx="12" cy="13" r="4"/>
+                                </svg>
+                            </button>
+
                         </div>
+
 
                         <div class="mt-2" id="edit_bush_wrap" style="display:none;">
                             <label class="form-label small mb-1">Bush IPL</label>
@@ -598,12 +702,14 @@
                         </div>
 
                         <div class="small text-danger mt-2 d-none" id="edit_error_box"></div>
-                    </div>
 
-                    <div class="modal-footer">
-                        <button type="submit" class="btn btn-info btn-sm w-100" id="btnComponentEditSave">Save</button>
-                        <button type="button" class="btn btn-outline-secondary btn-sm w-100" data-bs-dismiss="modal">Cancel</button>
-                    </div>
+                        <!-- footer: save/cancel -->
+                        <div class="modal-footer">
+                            <button type="submit" class="btn btn-info btn-sm w-100" id="btnComponentEditSave">Save</button>
+                            <button type="button" class="btn btn-outline-secondary btn-sm w-100" data-bs-dismiss="modal">Cancel</button>
+                        </div>
+
+
                 </form>
 
             </div>
@@ -614,6 +720,7 @@
 @endsection
 
 @section('scripts')
+
     <script>
         document.addEventListener('DOMContentLoaded', () => {
 
@@ -640,6 +747,7 @@
             const qtyInput = document.getElementById('qty');
             const necessariesSelect = document.getElementById('necessaries_id');
             const serialInput = document.getElementById('serial_number');
+
 
             addComponentModal?.addEventListener('hidden.bs.modal', () => {
                 const form = document.getElementById('componentAttachForm');
@@ -695,6 +803,7 @@
                     if (necessariesSelect) necessariesSelect.required = true;
                 }
             }
+
             codeSelect?.addEventListener('change', handleCodeChange);
 
             necessariesSelect?.addEventListener('change', () => {
@@ -711,7 +820,10 @@
 
                 serialContainer?.classList.add('d-none');
                 qtyContainer?.classList.add('d-none');
-                if (serialInput) { serialInput.required = false; serialInput.value = ''; }
+                if (serialInput) {
+                    serialInput.required = false;
+                    serialInput.value = '';
+                }
                 if (qtyInput) qtyInput.required = false;
 
                 if (necessaryName.includes('order') && necessaryName.includes('new')) {
@@ -758,7 +870,7 @@
             btnToggleCreateInPicker?.addEventListener('click', () => {
                 createInPicker?.classList.toggle('d-none');
                 if (!createInPicker?.classList.contains('d-none')) {
-                    createInPicker.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+                    createInPicker.scrollIntoView({behavior: 'smooth', block: 'nearest'});
                 }
             });
 
@@ -768,6 +880,7 @@
                 document.getElementById('picker_part_number').value = '';
                 document.getElementById('picker_name').value = '';
                 document.getElementById('picker_is_bush').checked = false;
+                document.getElementById('log_card').checked = false;
                 document.getElementById('picker_bush_ipl_num').value = '';
                 document.getElementById('picker_photo').value = '';
                 document.getElementById('picker_bush_container').classList.add('d-none');
@@ -804,6 +917,7 @@
                 const partNumber = document.getElementById('picker_part_number')?.value?.trim();
                 const name = document.getElementById('picker_name')?.value?.trim();
                 const isBush = document.getElementById('picker_is_bush')?.checked;
+                const logCard = document.getElementById('log_card')?.checked;
                 const bushIpl = isBush ? (document.getElementById('picker_bush_ipl_num')?.value?.trim() || '') : '';
                 const photo = document.getElementById('picker_photo')?.files?.[0];
 
@@ -826,11 +940,12 @@
                 fd.append('part_number', partNumber);
                 fd.append('name', name);
                 fd.append('is_bush', isBush ? '1' : '0');
+                fd.append('log_card', logCard ? '1' : '0');
+
                 if (isBush) fd.append('bush_ipl_num', bushIpl);
                 if (photo) fd.append('photo', photo);
 
                 try {
-                    if (typeof showLoadingSpinner === 'function') showLoadingSpinner();
 
                     const res = await fetch(url, {
                         method: 'POST',
@@ -897,7 +1012,7 @@
                     if (typeof showErrorMessage === 'function') showErrorMessage('Create failed');
                     else alert('Create failed');
                 } finally {
-                    if (typeof hideLoadingSpinner === 'function') hideLoadingSpinner();
+
                 }
             });
 
@@ -920,151 +1035,38 @@
                 document.getElementById('picker_ipl_num').value = '';
                 document.getElementById('picker_part_number').value = '';
                 document.getElementById('picker_name').value = '';
+                document.getElementById('log_card').checked = false;
                 const pickerIsBush = document.getElementById('picker_is_bush');
                 if (pickerIsBush) pickerIsBush.checked = false;
+
                 document.getElementById('picker_bush_ipl_num').value = '';
                 document.getElementById('picker_photo').value = '';
                 const pickerBushContainer = document.getElementById('picker_bush_container');
                 if (pickerBushContainer) pickerBushContainer.classList.add('d-none');
             });
 
-            // ============================================================
-            // CAMERA ONLY (NO GALLERY) + NO DELAY + HAPTIC
-            // ============================================================
-            const overlay = document.getElementById('cameraOverlay');
-            const video = document.getElementById('cameraVideo');
-            const canvas = document.getElementById('cameraCanvas');
-            const btnClose = document.getElementById('cameraCloseBtn');
-            const btnShutter = document.getElementById('cameraShutterBtn');
-            const metaEl = document.getElementById('cameraMeta');
-            const statusEl = document.getElementById('cameraStatus');
+// ============================================================
+// CAMERA (native like show) for components
+// ============================================================
 
             const uploadForm = document.getElementById('component-photo-upload-form');
 
-            let camStream = null;
-            let activeComponentId = null;
-            let activeComponentName = null;
-            let activeBtn = null;
-            let isBusy = false;
-
-            function haptic(type = 'light') {
-                // Android/Chrome: работает. iOS Safari: чаще всего нет — будет no-op.
-                if (!navigator.vibrate) return;
-                const map = { light: 10, medium: 20, heavy: 30 };
-                navigator.vibrate(map[type] || 10);
-            }
-
-            function setOverlay(open) {
-                if (!overlay) return;
-                overlay.classList.toggle('is-open', !!open);
-                overlay.setAttribute('aria-hidden', open ? 'false' : 'true');
-                document.body.style.overflow = open ? 'hidden' : '';
-            }
-
-            async function startCamera() {
-                if (camStream) stopCamera();
-
-                if (!navigator.mediaDevices?.getUserMedia) {
-                    statusEl.textContent = 'Camera API not supported';
-                    return;
-                }
-
-                statusEl.textContent = 'Opening camera…';
-                metaEl.textContent = activeComponentName ? `Component: ${activeComponentName}` : '—';
-
-                try {
-                    // 100% camera-only: только getUserMedia, без input type=file
-                    camStream = await navigator.mediaDevices.getUserMedia({
-                        video: { facingMode: { ideal: 'environment' } },
-                        audio: false
-                    });
-
-                    video.srcObject = camStream;
-
-                    // без setTimeout: ждём готовности метаданных
-                    await new Promise((resolve) => {
-                        const onReady = () => {
-                            video.removeEventListener('loadedmetadata', onReady);
-                            resolve();
-                        };
-                        video.addEventListener('loadedmetadata', onReady, { once: true });
-                    });
-
-                    await video.play();
-                    statusEl.textContent = 'Ready';
-
-                } catch (e) {
-                    console.error(e);
-                    statusEl.textContent = 'Camera blocked / no permission';
-                    stopCamera();
-                }
-            }
-
-            function stopCamera() {
-                try { video.pause(); } catch (e) {}
-                if (video) video.srcObject = null;
-                if (camStream) {
-                    camStream.getTracks()?.forEach(t => t.stop());
-                    camStream = null;
-                }
-                statusEl.textContent = '';
-            }
-
-            async function captureBlob() {
-                if (!video?.videoWidth || !video?.videoHeight) throw new Error('Camera not ready');
-
-                const w = video.videoWidth;
-                const h = video.videoHeight;
-
-                canvas.width = w;
-                canvas.height = h;
-
-                const ctx = canvas.getContext('2d');
-                ctx.drawImage(video, 0, 0, w, h);
-
-                const blob = await new Promise((resolve) => canvas.toBlob(resolve, 'image/jpeg', 0.92));
-                if (!blob) throw new Error('Capture failed');
-                return blob;
-            }
-
-            async function uploadCaptured(blob) {
-                if (!uploadForm) throw new Error('Upload form not found');
-                const template = uploadForm.dataset.urlTemplate;
-                if (!template) throw new Error('Upload URL template missing');
-
-                const url = template.replace(':id', activeComponentId);
-
-                const fd = new FormData();
-                fd.append('photo', blob, `component_${activeComponentId}_${Date.now()}.jpg`);
-                fd.append('_token', document.querySelector('meta[name="csrf-token"]')?.content || '');
-
-                const res = await fetch(url, {
-                    method: 'POST',
-                    headers: { 'X-Requested-With': 'XMLHttpRequest' },
-                    body: fd
-                });
-
-                const json = await res.json().catch(() => ({}));
-                if (!res.ok || !json?.ok) throw new Error(json?.message || 'Upload failed');
-                return json;
-            }
-
-            function updateAvatar(componentId, componentName, data) {
-                if (!activeBtn) return;
-                const row = activeBtn.closest('.component-row');
+            function updateAvatar(componentId, componentName, data, btn) {
+                // btn — это именно та кнопка камеры, по которой нажали
+                const row = btn?.closest('.component-row');
                 const left = row?.querySelector('div:first-child');
                 if (!left) return;
 
                 if (!data?.thumb_url || !data?.big_url) return;
 
                 left.innerHTML = `
-            <a href="${data.big_url}" data-fancybox="component-${componentId}" class="d-inline-block">
-                <img class="component-avatar"
-                     src="${data.thumb_url}"
-                     alt="${escapeHtml(componentName || 'Component')}"
-                     width="40" height="40">
-            </a>
-        `;
+        <a href="${data.big_url}" data-fancybox="component-${componentId}" class="d-inline-block">
+            <img class="component-avatar"
+                 src="${data.thumb_url}"
+                 alt="${escapeHtml(componentName || 'Component')}"
+                 width="40" height="40">
+        </a>
+    `;
 
                 // rebinding Fancybox
                 if (window.Fancybox) {
@@ -1077,108 +1079,167 @@
                 }
             }
 
-            async function openCameraFor(btn) {
-                if (isBusy) return;
+            async function uploadComponentPhotoFile(file, componentId) {
+                const template = uploadForm?.dataset?.urlTemplate;
+                if (!template) throw new Error('Upload URL template missing');
 
-                activeBtn = btn;
-                activeComponentId = btn.dataset.componentId;
-                activeComponentName = btn.dataset.componentName || '';
+                const url = template.replace(':id', componentId);
 
-                if (!activeComponentId) return;
+                const fd = new FormData();
+                fd.append('photo', file);
+                fd.append('_token', document.querySelector('meta[name="csrf-token"]')?.content || '');
 
-                haptic('light');
-                setOverlay(true);
-                await startCamera();
+                const res = await fetch(url, {
+                    method: 'POST',
+                    headers: {
+                        'X-Requested-With': 'XMLHttpRequest',
+                        'Accept': 'application/json',
+                    },
+                    body: fd
+                });
+
+                const json = await res.json().catch(() => ({}));
+                if (!res.ok || !json?.ok) throw new Error(json?.message || 'Upload failed');
+
+                return json;
             }
 
-            async function takeAndUpload() {
-                if (isBusy) return;
-                if (!activeComponentId) return;
+            async function openNativeCameraForEditModal() {
+                const componentId = editId?.value;
+                if (!componentId) return;
 
-                isBusy = true;
-                haptic('medium');
+                document.getElementById('component-camera-input')?.remove();
 
-                try {
-                    statusEl.textContent = 'Capturing…';
-                    const blob = await captureBlob();
+                const input = document.createElement('input');
+                input.type = 'file';
+                input.id = 'component-camera-input';
+                input.accept = 'image/*';
+                input.capture = 'environment';
+                input.style.display = 'none';
 
-                    statusEl.textContent = 'Uploading…';
-                    if (typeof showLoadingSpinner === 'function') showLoadingSpinner();
+                input.onchange = async () => {
+                    const file = input.files?.[0];
+                    if (!file) { input.remove(); return; }
 
-                    const data = await uploadCaptured(blob);
+                    try {
+                        const data = await uploadComponentPhotoFile(file, componentId);
 
-                    updateAvatar(activeComponentId, activeComponentName, data);
+                        // === FIX: обновляем и src, и href для Fancybox ===
+                        const item = document.querySelector(`.swipe-item[data-component-id="${componentId}"]`);
+                        if (!item) throw new Error('Component row not found');
 
-                    if (typeof showSuccessMessage === 'function') showSuccessMessage('Photo updated');
-                    statusEl.textContent = 'Done';
-                    haptic('heavy');
+                        const group = `component-${componentId}`;
 
-                    // закрываем сразу, без лишних окон
-                    stopCamera();
-                    setOverlay(false);
+                        // img (avatar)
+                        const img = item.querySelector('img.component-avatar');
+                        if (!img) throw new Error('Avatar img not found');
 
-                } catch (e) {
-                    console.error(e);
-                    if (typeof showErrorMessage === 'function') showErrorMessage(e.message || 'Camera/Upload error');
-                    else alert(e.message || 'Camera/Upload error');
-                    statusEl.textContent = 'Error';
-                } finally {
-                    if (typeof hideLoadingSpinner === 'function') hideLoadingSpinner();
-                    isBusy = false;
-                }
+                        // a (fancybox link)
+                        let a = item.querySelector(`a[data-fancybox="${group}"]`);
+                        if (!a) {
+                            // если раньше не было ссылки (например noimage), оборачиваем img в <a>
+                            a = document.createElement('a');
+                            a.setAttribute('data-fancybox', group);
+
+                            img.parentNode.insertBefore(a, img);
+                            a.appendChild(img);
+                        }
+
+                        // обновляем URL для открытия и превью
+                        if (data?.big_url) a.href = data.big_url;
+                        if (data?.thumb_url) img.src = data.thumb_url;
+
+                        // перебинд Fancybox на новую ссылку
+                        if (window.Fancybox) {
+                            Fancybox.bind(`[data-fancybox="${group}"]`, {
+                                Toolbar: ["zoom", "fullscreen", "close"],
+                                dragToClose: true,
+                                placeFocusBack: false,
+                                trapFocus: false,
+                            });
+                        }
+
+                        if (typeof showSuccessMessage === 'function') showSuccessMessage('Photo updated');
+
+                    } catch (e) {
+                        console.error(e);
+                        if (typeof showErrorMessage === 'function') showErrorMessage(e.message || 'Upload error');
+                        else alert(e.message || 'Upload error');
+                    } finally {
+                        input.remove();
+                    }
+                };
+
+                document.body.appendChild(input);
+                input.click();
             }
 
-            // click on camera icon => open overlay camera
+            function openNativeCameraForComponent(btn) {
+                const componentId = btn.dataset.componentId;
+                const componentName = btn.dataset.componentName || '';
+                if (!componentId) return;
+
+                // удалить старый input
+                document.getElementById('component-camera-input')?.remove();
+
+                const input = document.createElement('input');
+                input.type = 'file';
+                input.id = 'component-camera-input';
+                input.accept = 'image/*';
+                input.capture = 'environment'; // iOS откроет нативную камеру
+                input.style.display = 'none';
+
+                input.onchange = async () => {
+                    const file = input.files?.[0];
+                    if (!file) {
+                        input.remove();
+                        return;
+                    }
+
+                    try {
+                        if (navigator.vibrate) navigator.vibrate(10);
+
+                        const data = await uploadComponentPhotoFile(file, componentId);
+
+                        // обновим UI
+                        updateAvatar(componentId, componentName, data, btn);
+
+                        if (typeof showSuccessMessage === 'function') showSuccessMessage('Photo updated');
+
+                    } catch (e) {
+                        console.error(e);
+                        if (typeof showErrorMessage === 'function') showErrorMessage(e.message || 'Upload error');
+                        else alert(e.message || 'Upload error');
+
+                    } finally {
+                        input.remove();
+                    }
+                };
+
+                document.body.appendChild(input);
+                input.click();
+            }
+
+            // click on camera icon => open native camera instantly (like show)
             document.addEventListener('click', (e) => {
                 const btn = e.target.closest('.js-component-camera');
                 if (!btn) return;
                 e.preventDefault();
-                openCameraFor(btn);
+                openNativeCameraForComponent(btn);
             });
 
-            // close
-            btnClose?.addEventListener('click', () => {
-                haptic('light');
-                stopCamera();
-                setOverlay(false);
-            });
-
-            // shutter
-            btnShutter?.addEventListener('click', (e) => {
+            document.getElementById('btnEditCamera')?.addEventListener('click', (e) => {
                 e.preventDefault();
-                takeAndUpload();
-            });
-
-            // tap outside video to close (optional, safe)
-            overlay?.addEventListener('click', (e) => {
-                if (e.target === overlay) {
-                    stopCamera();
-                    setOverlay(false);
-                }
-            });
-
-            // safety: stop camera if page hidden
-            document.addEventListener('visibilitychange', () => {
-                if (document.hidden) {
-                    stopCamera();
-                    setOverlay(false);
-                }
-            });
-
-            document.addEventListener('click', (e) => {
-                const link = e.target.closest('.js-component-edit-link');
-                if (!link) return;
-                if (navigator.vibrate) navigator.vibrate(20);
+                openNativeCameraForEditModal();
             });
 
 
-            // =================== EDIT MODAL (load + save via AJAX) ===================
             // =================== EDIT MODAL (all in blade) ===================
             const editModalEl = document.getElementById('componentEditModal');
             const editForm = document.getElementById('componentEditForm');
             const editTitle = document.getElementById('componentEditModalTitle');
             const editErr = document.getElementById('edit_error_box');
-
+            const editLogCard = document.getElementById('edit_log_card');
             const editId = document.getElementById('edit_component_id');
             const editName = document.getElementById('edit_name');
             const editIpl = document.getElementById('edit_ipl');
@@ -1188,25 +1249,26 @@
             const editBushWrap = document.getElementById('edit_bush_wrap');
             const editBushIpl = document.getElementById('edit_bush_ipl');
 
-            function haptic(type='light'){
+
+            function haptic(type = 'light') {
                 if (!navigator.vibrate) return;
-                const map = { light: 10, medium: 20, heavy: 30 };
-                navigator.vibrate(map[type] || 10);
+                const map = {light: 10, medium: 20, heavy: 30};
+                navigator.vibrate(map[type] || 20);
             }
 
-            function showEditError(msg){
+            function showEditError(msg) {
                 if (!editErr) return;
                 editErr.textContent = msg || 'Error';
                 editErr.classList.remove('d-none');
             }
 
-            function clearEditError(){
+            function clearEditError() {
                 if (!editErr) return;
                 editErr.textContent = '';
                 editErr.classList.add('d-none');
             }
 
-            function toggleBushUi(){
+            function toggleBushUi() {
                 if (!editBushWrap) return;
                 editBushWrap.style.display = editIsBush?.checked ? '' : 'none';
                 if (!editIsBush?.checked && editBushIpl) editBushIpl.value = '';
@@ -1214,11 +1276,11 @@
 
             editIsBush?.addEventListener('change', toggleBushUi);
 
-            function setEditAction(componentId){
+            function setEditAction(componentId) {
                 editForm.action = `{{ route('mobile.components.update', ['component' => ':id']) }}`.replace(':id', componentId);
             }
 
-            function updateRowFromJson(componentId, item){
+            function updateRowFromJson(componentId, item) {
                 const link = document.querySelector(`.js-component-edit-link[data-component-id="${componentId}"]`);
                 const row = link?.closest('.component-row');
                 if (!row) return;
@@ -1233,6 +1295,7 @@
                 link.dataset.eff = item.eff_code || '';
                 link.dataset.isBush = item.is_bush ? '1' : '0';
                 link.dataset.bushIpl = item.bush_ipl_num || '';
+                link.dataset.logCard = item.log_card ? '1' : '0';
 
                 // meta
                 const meta = row.querySelector('.component-meta');
@@ -1246,7 +1309,7 @@
                 }
             }
 
-// open edit on click name
+            // open edit on click name
             document.addEventListener('click', (e) => {
                 const link = e.target.closest('.js-component-edit-link');
                 if (!link) return;
@@ -1258,8 +1321,7 @@
                 const id = link.dataset.componentId;
                 if (!id) return;
 
-                if (editTitle) editTitle.textContent = `Edit: ${link.dataset.name || ('#'+id)}`;
-
+                if (editTitle) editTitle.textContent = `Edit: ${link.dataset.name || ('#' + id)}`;
                 if (editId) editId.value = id;
                 if (editName) editName.value = link.dataset.name || '';
                 if (editIpl) editIpl.value = link.dataset.ipl || '';
@@ -1270,6 +1332,10 @@
                 if (editIsBush) editIsBush.checked = isBush;
                 if (editBushIpl) editBushIpl.value = link.dataset.bushIpl || '';
                 toggleBushUi();
+
+                if (editLogCard) {
+                    editLogCard.checked = (link.dataset.logCard === '1');
+                }
 
                 setEditAction(id);
 
@@ -1285,9 +1351,6 @@
 
                 clearEditError();
 
-                // показываем спиннер
-                if (typeof showLoadingSpinner === 'function') showLoadingSpinner();
-
                 try {
                     haptic('medium');
 
@@ -1298,6 +1361,7 @@
 
                     // checkbox: если не отмечен — Laravel не получит поле → ставим 0
                     if (!editIsBush?.checked) fd.set('is_bush', '0');
+                    if (!editLogCard?.checked) fd.set('log_card', '0');
 
                     // если вдруг где-то прилетает manual_id — вычищаем, чтобы не триггерить чужую валидацию
                     fd.delete('manual_id');
@@ -1341,12 +1405,180 @@
                     showEditError(err?.message || 'Save error');
                     if (typeof showErrorMessage === 'function') showErrorMessage(err?.message || 'Save error');
                 } finally {
-                    safeHideSpinner();
+                    window.safeHideSpinner?.();
                 }
             });
 
+// ===== Swipe left to show actions (edit/delete) =====
+            (function initSwipeActions() {
+                const ACTION_W = 120; // 2 buttons * 60
+                const THRESH_OPEN = 35;
+                const THRESH_CLOSE = 20;
+
+                function closeAll(exceptEl = null) {
+                    document.querySelectorAll('.swipe-item.is-open').forEach(el => {
+                        if (exceptEl && el === exceptEl) return;
+                        el.classList.remove('is-open');
+                    });
+                }
+
+                document.querySelectorAll('.swipe-item').forEach(item => {
+                    item.style.setProperty('--actions-width', ACTION_W + 'px');
+
+                    const content = item.querySelector('.swipe-content');
+                    if (!content) return;
+
+                    let startX = 0, startY = 0;
+                    let dx = 0, dy = 0;
+                    let dragging = false;
+
+                    content.addEventListener('pointerdown', (e) => {
+                        // только палец/стилус
+                        startX = e.clientX;
+                        startY = e.clientY;
+                        dx = dy = 0;
+                        dragging = true;
+
+                    });
+
+                    content.addEventListener('pointermove', (e) => {
+                        if (!dragging) return;
+
+                        dx = e.clientX - startX;
+                        dy = e.clientY - startY;
+
+                        // если движение больше вертикальное — даём скроллу работать
+                        if (Math.abs(dy) > Math.abs(dx)) return;
+                        if (Math.abs(dx) < 12) return;
+
+                        // не даём тянуть вправо (позитивный dx)
+                        let x = Math.min(0, dx);
+
+                        // ограничим максимумом ширины действий
+                        x = Math.max(x, -ACTION_W);
+
+                        content.style.transition = 'none';
+                        content.style.transform = `translateX(${x}px)`;
+                    });
+
+                    const finish = () => {
+                        if (!dragging) return;
+                        dragging = false;
+
+                        content.style.transition = '';
+
+                        const isOpen = item.classList.contains('is-open');
+
+                        // dx отрицательный = влево
+                        if (!isOpen && dx < -THRESH_OPEN) {
+                            closeAll(item);
+                            item.classList.add('is-open');
+                        } else if (isOpen && dx > THRESH_CLOSE) {
+                            item.classList.remove('is-open');
+                        }
+
+                        // вернуть transform под класс
+                        content.style.transform = '';
+                    };
+
+                    content.addEventListener('pointerup', finish);
+                    content.addEventListener('pointercancel', finish);
+                });
+
+                // tap outside closes
+                document.addEventListener('click', (e) => {
+                    const inside = e.target.closest('.swipe-item');
+                    if (!inside) closeAll(null);
+                });
+
+                // кнопки действий
+                document.addEventListener('click', (e) => {
+
+                    const editBtn = e.target.closest('.js-swipe-edit');
+                    if (editBtn) {
+                        const detailId = editBtn.dataset.detailId;
+                        const componentId = editBtn.dataset.componentId;
+
+                        // 1) detail id
+                        const detailInput = document.getElementById('detail_id');
+                        if (detailInput) detailInput.value = detailId || '';
+
+                        // 2) component
+                        const hidden = document.getElementById('component_id');
+                        if (hidden) hidden.value = componentId || '';
+
+                        const picked = document.getElementById('pickedComponentText');
+                        if (picked) {
+                            picked.classList.remove('text-muted');
+                            picked.textContent = editBtn.dataset.componentText || `#${componentId}`;
+                        }
+
+                        // 3) заполнить поля
+                        const codeSelect = document.getElementById('code_id');
+                        const necessariesSelect = document.getElementById('necessaries_id');
+                        const qtyInput = document.getElementById('qty');
+                        const serialInput = document.getElementById('serial_number');
+
+                        if (codeSelect) {
+                            codeSelect.value = editBtn.dataset.codeId || '';
+                            codeSelect.dispatchEvent(new Event('change', { bubbles: true }));
+                        }
+
+                        if (necessariesSelect) {
+                            necessariesSelect.value = editBtn.dataset.necessariesId || '';
+                            necessariesSelect.dispatchEvent(new Event('change', { bubbles: true }));
+                        }
+
+                        if (qtyInput) qtyInput.value = editBtn.dataset.qty || '1';
+                        if (serialInput) serialInput.value = editBtn.dataset.serial || '';
+
+                        // 4) переключить форму на UPDATE
+                        const form = document.getElementById('componentAttachForm');
+
+                        // Пример: отдельный update route по detail_id
+                        // form.action = `.../details/${detailId}`
+
+                        // Или если update идёт через тот же endpoint:
+                        // form.action = "{{ route('mobile.workorders.components.attach') }}";
+
+                        // Если нужен PATCH:
+                        let m = form.querySelector('input[name="_method"]');
+                        if (!m) {
+                            m = document.createElement('input');
+                            m.type = 'hidden';
+                            m.name = '_method';
+                            form.appendChild(m);
+                        }
+                        m.value = 'PATCH';
+
+                        // заголовок модалки
+                        if (addComponentModal) {
+                            const titleEl = addComponentModal.querySelector('.modal-title');
+                            if (titleEl) titleEl.textContent = 'Edit Parts';
+                        }
+
+                        bootstrap.Modal.getOrCreateInstance(addComponentModal).show();
+                        closeAll(null);
+                        return;
+                    }
+
+
+
+                    const delBtn = e.target.closest('.js-swipe-delete');
+                    if (delBtn) {
+                        const id = delBtn.dataset.componentId;
+                        closeAll(null);
+                        // тут вызови свой delete handler (если есть)
+                        if (confirm('Delete this component?')) {
+                            console.log('TODO delete component id=', id);
+                            // deleteComponent(id)
+                        }
+                    }
+                });
+            })();
 
 
         });
     </script>
+
 @endsection
