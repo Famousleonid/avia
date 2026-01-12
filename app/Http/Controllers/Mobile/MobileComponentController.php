@@ -11,6 +11,7 @@ use App\Models\Necessary;
 use App\Models\Tdr;
 use App\Models\Workorder;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
 
 class MobileComponentController extends Controller
 {
@@ -83,6 +84,8 @@ class MobileComponentController extends Controller
             'eff_code' => 'nullable|string|max:100',
             'photo' => 'image|max:5120',
             'name' => 'required|string|max:255',
+            'is_bush'      => 'nullable|boolean',
+            'log_card'     => 'nullable|boolean',
         ]);
 
         $workorder = Workorder::with('unit')->findOrFail($validated['workorder_id']);
@@ -92,12 +95,16 @@ class MobileComponentController extends Controller
             return redirect()->back()->withErrors(['manual' => 'Manual not found for selected workorder.']);
         }
 
+
         $component = new Component();
         $component->manual_id = $manualId;
         $component->ipl_num = $validated['ipl_num'];
         $component->part_number = $validated['part_number'];
         $component->eff_code = $validated['eff_code'];
         $component->name = $validated['name'];
+        $component->is_bush  = $request->boolean('is_bush');
+        $component->log_card = $request->boolean('log_card');
+
         $component->save();
 
         if ($request->hasFile('photo')) {
@@ -109,17 +116,18 @@ class MobileComponentController extends Controller
 
     public function quickStore(Request $request)
     {
+
+        Log::info('quickStore request', $request->all());
+
         $validated = $request->validate([
             'workorder_id' => ['required', 'exists:workorders,id'],
-
             'ipl_num' => ['required', 'string', 'max:255'],
             'part_number' => ['required', 'string', 'max:255'],
             'eff_code' => ['nullable', 'string', 'max:100'],
             'name' => ['required', 'string', 'max:255'],
-
             'is_bush' => ['nullable'],
+            'log_card' => ['nullable'],
             'bush_ipl_num' => ['nullable', 'string', 'max:255'],
-
             'photo' => ['nullable', 'image', 'max:5120'],
         ]);
 
@@ -131,6 +139,7 @@ class MobileComponentController extends Controller
         }
 
         $isBush = $request->boolean('is_bush');
+        $logCard = $request->boolean('log_card');
         $bushIpl = $isBush ? ($validated['bush_ipl_num'] ?? null) : null;
 
         $component = Component::create([
@@ -139,7 +148,7 @@ class MobileComponentController extends Controller
             'part_number' => $validated['part_number'],
             'eff_code' => $validated['eff_code'] ?? null,
             'name' => $validated['name'],
-
+            'log_card' => $logCard,
             'is_bush' => $isBush,
             'bush_ipl_num' => $bushIpl,
         ]);
