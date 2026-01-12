@@ -168,7 +168,7 @@
                         </div>
 
 
-                    <div class="d-flex " >
+                    <div class="d-flex justify-content-between" style="width: 500px;" >
                         @if(isset($processGroups) && count($processGroups) > 0)
 
                                 <x-paper-button-multy
@@ -233,7 +233,7 @@
                                                     @if($processName && $process)
                                                         <div class="mb-1 ">
                                                             <strong>{{ $processName->name }}:</strong>
-                                                            <br>
+{{--                                                            <br>--}}
                                                             <span class=" me-1 @if(strlen($process->process) > 40)
                                                             process-text-long @endif">{{ $process->process }}</span>
                                                         </div>
@@ -248,7 +248,8 @@
                                                     @endphp
                                                     @if($processName && $process)
                                                         <div class="mb-2 ">
-                                                            <strong>{{ $processName->name }}:</strong><br>
+                                                            <strong>{{ $processName->name }}:</strong>
+{{--                                                            <br>--}}
                                                             <span class="  ms-2 @if(strlen($process->process) > 40)
                                                             process-text-long @endif">{{ $process->process
                                                             }}</span>

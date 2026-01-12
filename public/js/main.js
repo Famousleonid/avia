@@ -357,9 +357,7 @@ function showWarningMessage(message, duration) { showNotification(message, 'warn
 
 // ====== HAPTIC FEEDBACK (mobile) ======
 window.hapticTap = function (pattern = 10) {
-    if (!('vibrate' in navigator)) return;
-
-    try {
+    if (!('vibrate' in navigator)) return;    try {
         navigator.vibrate(pattern);
     } catch (e) {
         // silently ignore

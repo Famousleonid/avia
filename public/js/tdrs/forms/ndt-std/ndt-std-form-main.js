@@ -1,5 +1,8 @@
 /**
  * NDTStdFormMain - главный файл инициализации для NDT Standard формы
+ * 
+ * Примечание: table-height-adjuster.js отключен для ndtFormStd.
+ * Управление количеством строк осуществляется через Print Settings.
  */
 
 /**
@@ -18,33 +21,11 @@ function initNDTStdForm() {
         return;
     }
 
-    // Настройка высоты таблиц после загрузки
-    setTimeout(function() {
-        if (typeof adjustTableHeightToRange === 'undefined') {
-            console.error('adjustTableHeightToRange не загружена');
-            return;
-        }
+    console.log('Инициализация NDT Standard формы (table-height-adjuster.js отключен)');
+    console.log('Управление количеством строк осуществляется через Print Settings');
 
-        const config = {
-            formName: 'NDT Standard',
-            min_height_tab: 500,
-            max_height_tab: 600,
-            row_height: 32,
-            row_selector: '.data-row-ndt[data-row-index]',
-            addRowCallback: function() {}, // Не добавляем строки - они уже на бэкенде
-            removeRowCallback: function() {}, // Не удаляем строки - только визуальная настройка
-            getRowIndexCallback: NDTStdRowManager.getRowIndex,
-            max_iterations: 50
-        };
-
-        MultiPageHandler.initAllPages(config);
-    }, 200);
-}
-
-// Инициализация при загрузке DOM
-if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', initNDTStdForm);
-} else {
-    initNDTStdForm();
+    // Управление строками теперь осуществляется через Print Settings
+    // Лимиты строк применяются автоматически при загрузке страницы и перед печатью
+    // через функции в основном скрипте ndtFormStd.blade.php
 }
 

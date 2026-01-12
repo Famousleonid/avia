@@ -6,34 +6,21 @@
  * Инициализирует все модули при загрузке страницы
  */
 function initCADForm() {
-    // Проверяем наличие необходимых элементов
-    const dataPages = document.querySelectorAll('.data-page');
-    if (dataPages.length === 0) {
-        console.warn('CAD страницы не найдены');
+    // Проверяем наличие контейнера для строк
+    const allRowsContainer = document.querySelector('.all-rows-container');
+    if (!allRowsContainer) {
+        console.warn('CAD контейнер .all-rows-container не найден');
         return;
     }
 
-    // Настройка высоты таблиц после загрузки (только визуальная настройка)
-    setTimeout(function() {
-        if (typeof adjustTableHeightToRange === 'undefined') {
-            console.error('adjustTableHeightToRange не загружена');
-            return;
-        }
-
-        const config = {
-            formName: 'CAD',
-            min_height_tab: 550,
-            max_height_tab: 620,
-            row_height: 32,
-            row_selector: '.data-row[data-row-index]',
-            addRowCallback: CADRowManager.addEmptyRow, // Не добавляем строки
-            removeRowCallback: CADRowManager.removeRow, // Удаляем только пустые
-            getRowIndexCallback: CADRowManager.getRowIndex,
-            max_iterations: 50
-        };
-
-        MultiPageHandler.initAllPages(config);
-    }, 200);
+    console.log('Инициализация CAD формы (table-height-adjuster.js отключен)');
+    console.log('Управление количеством строк осуществляется через Print Settings');
+    
+    // table-height-adjuster.js отключен
+    // Управление количеством строк осуществляется через Print Settings
+    // Лимиты строк применяются автоматически при загрузке страницы и перед печатью
+    // через функции в основном скрипте cadFormStd.blade.php
+    // Страницы создаются динамически через JavaScript функцию applyTableRowLimits
 }
 
 // Инициализация при загрузке DOM
@@ -42,6 +29,7 @@ if (document.readyState === 'loading') {
 } else {
     initCADForm();
 }
+
 
 
 

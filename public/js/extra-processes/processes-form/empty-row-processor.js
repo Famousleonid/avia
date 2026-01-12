@@ -10,8 +10,12 @@ class EmptyRowProcessor {
     static processEmptyRows() {
         const processCells = document.querySelectorAll('.data-row .process-cell');
         if (processCells.length === 0) {
-            console.log('Ячейки процесса не найдены');
-            return;
+            console.log('Ячейки процесса не найдены (это нормально для NDT таблиц)');
+            return {
+                totalExtraLines: 0,
+                rowsToRemove: 0,
+                removedCount: 0
+            };
         }
 
         let totalExtraLines = 0;
@@ -113,6 +117,7 @@ class EmptyRowProcessor {
 if (typeof module !== 'undefined' && module.exports) {
     module.exports = EmptyRowProcessor;
 }
+
 
 
 

@@ -607,6 +607,13 @@ class TdrController extends Controller
 
                     $notes = $conditionData['notes'] ?? '';
                     $tdrId = $conditionData['tdr_id'] ?? null;
+                    
+                    // Проверяем, существует ли condition
+                    $condition = Condition::find($conditionId);
+                    if (!$condition) {
+                        \Log::warning("Condition with ID {$conditionId} not found");
+                        continue;
+                    }
 
                     // Если есть существующая запись - обновляем
                     if ($tdrId && $existingTdrs->has($conditionId)) {
@@ -627,19 +634,37 @@ class TdrController extends Controller
                     }
 
                     // Создаём новую запись
-                    Tdr::create([
-                        'workorder_id' => $workorderId,
-                        'component_id' => null,
-                        'conditions_id' => $conditionId,
-                        'description' => $notes,
-                        'qty' => 1,
-                        'serial_number' => 'NSN',
-                        'assy_serial_number' => ' ',
-                        'codes_id' => null,
-                        'necessaries_id' => null,
-                        'use_tdr' => true,
-                        'use_process_forms' => false,
-                    ]);
+                    try {
+                        $newTdr = Tdr::create([
+                            'workorder_id' => $workorderId,
+                            'component_id' => null,
+                            'conditions_id' => $conditionId,
+                            'description' => $notes,
+                            'qty' => 1,
+                            'serial_number' => 'NSN',
+                            'assy_serial_number' => ' ',
+                            'codes_id' => null,
+                            'necessaries_id' => null,
+                            'use_tdr' => true,
+                            'use_process_forms' => false,
+                        ]);
+                        
+                        \Log::info("Created TDR for condition", [
+                            'tdr_id' => $newTdr->id,
+                            'condition_id' => $conditionId,
+                            'condition_name' => $condition->name,
+                            'notes' => $notes,
+                            'workorder_id' => $workorderId
+                        ]);
+                    } catch (\Exception $e) {
+                        \Log::error("Failed to create TDR for condition", [
+                            'condition_id' => $conditionId,
+                            'condition_name' => $condition->name,
+                            'error' => $e->getMessage(),
+                            'workorder_id' => $workorderId
+                        ]);
+                        throw $e;
+                    }
                 }
             }
 
@@ -1765,8 +1790,8 @@ class TdrController extends Controller
 
         $form_number = 'NDT-STD';
 
-        // Рассчитываем пагинацию с пустыми строками на бэкенде
-        $componentChunks = $this->paginateComponentsWithEmptyRows($ndt_components, 16);
+        // Разбиение на страницы теперь происходит на фронтенде через JavaScript
+        // Передаём все компоненты без предварительного разбиения
 
         return view('admin.tdrs.ndtFormStd', [
                 'current_wo' => $current_wo,
@@ -1775,7 +1800,6 @@ class TdrController extends Controller
                 'ndt_processes' => $ndt_processes,
                 'form_number' => $form_number,
                 'manuals' => [$manual], // Для совместимости с существующим кодом
-                'componentChunks' => $componentChunks,
             ] + $ndt_ids); // Добавляем ID процессов NDT
     }
 
@@ -2200,17 +2224,17 @@ class TdrController extends Controller
             // Рассчитываем общее количество деталей на основе отфильтрованных компонентов
             $cadSum = $this->calcCadSumsFromComponents($cad_components);
 
-            // Рассчитываем пагинацию с пустыми строками на бэкенде
-            $componentChunks = $this->paginateComponentsWithEmptyRows($cad_components, 18);
+            // Разбиение на страницы теперь происходит на фронтенде через JavaScript
+            // Передаём все компоненты без предварительного разбиения
 
             return view('admin.tdrs.cadFormStd', [
                     'current_wo' => $current_wo,
                     'manual' => $manual,
-                    'cad_components' => $cad_components,
+                    'cad_components' => $cad_components, // Передаём все компоненты напрямую
                     'cad_processes' => $cad_processes,
                     'form_number' => $form_number,
                     'manuals' => [$manual],
-                    'componentChunks' => $componentChunks,
+                    // 'componentChunks' => $componentChunks, // Удалено - разбиение на фронтенде
                     'process_name' => ProcessName::where('name', 'Cad plate')->first(),
                     'cadSum' => $cadSum,
                 ] + $cad_ids);
@@ -2368,19 +2392,19 @@ class TdrController extends Controller
             // Рассчитываем общее количество деталей
             $paintSum = $this->calcPaintSums($workorder_id);
 
-            // Рассчитываем пагинацию с пустыми строками на бэкенде
-            $componentChunks = $this->paginateComponentsWithEmptyRows($paint_components, 19);
+            // Разбиение на страницы теперь происходит на фронтенде через JavaScript
+            // Передаём все компоненты без предварительного разбиения
 
             return view('admin.tdrs.paintFormStd', [
                     'current_wo' => $current_wo,
                     'manual' => $manual,
-                    'paint_components' => $paint_components,
+                    'paint_components' => $paint_components, // Передаём все компоненты напрямую
                     'paint_processes' => $paint_processes,
                     'form_number' => $form_number,
                     'manuals' => [$manual],
                     'process_name' => $paintProcessName,
                     'paintSum' => $paintSum,
-                    'componentChunks' => $componentChunks,
+                    // 'componentChunks' => $componentChunks, // Удалено - разбиение на фронтенде
                 ] + $paint_ids);
 
         } catch (\Exception $e) {
@@ -2746,19 +2770,19 @@ class TdrController extends Controller
             // Рассчитываем общее количество деталей
             $stressSum = $this->calcStressSums($workorder_id);
 
-            // Рассчитываем пагинацию с пустыми строками на бэкенде
-            $componentChunks = $this->paginateComponentsWithEmptyRows($stress_components, 18);
+            // Разбиение на страницы теперь происходит на фронтенде через JavaScript
+            // Передаём все компоненты без предварительного разбиения
 
             return view('admin.tdrs.stressFormStd', [
                     'current_wo' => $current_wo,
                     'manual' => $manual,
-                    'stress_components' => $stress_components,
+                    'stress_components' => $stress_components, // Передаём все компоненты напрямую
                     'stress_processes' => $stress_processes,
                     'form_number' => $form_number,
                     'manuals' => [$manual],
                     'process_name' => ProcessName::where('id', 3)->first(),
                     'stressSum' => $stressSum,
-                    'componentChunks' => $componentChunks,
+                    // 'componentChunks' => $componentChunks, // Удалено - разбиение на фронтенде
                 ] + $stress_ids);
 
         } catch (\Exception $e) {
@@ -3044,11 +3068,28 @@ class TdrController extends Controller
         $nullComponentConditions = []; // Для строк, где component_id == null
         $groupedByConditions = []; // Для строк, где component_id !== null и necessaries_id == Order New
         $necessaryComponents = []; // Для строк, где component_id !== null и necessaries_id !== Order New
+        $hasMissingComponents = false; // Флаг наличия компонентов с кодом Missing
 
+        \Log::info("Starting tdrForm processing", [
+            'workorder_id' => $current_wo->id,
+            'total_tdrs' => $current_wo->tdrs->count()
+        ]);
+        
         foreach ($current_wo->tdrs as $tdr) {
-            // Пропускаем строки с codes_id == Missing
+            \Log::info("Processing TDR", [
+                'tdr_id' => $tdr->id,
+                'component_id' => $tdr->component_id,
+                'conditions_id' => $tdr->conditions_id,
+                'codes_id' => $tdr->codes_id,
+                'use_tdr' => $tdr->use_tdr,
+                'use_process_forms' => $tdr->use_process_forms
+            ]);
+            
+            // Проверяем наличие компонентов с кодом Missing
             if ($tdr->codes_id == $code->id) {
-                continue;
+                $hasMissingComponents = true;
+                \Log::info("Skipping TDR with Missing code");
+                continue; // Пропускаем обработку этих строк, но запоминаем их наличие
             }
 
             // Строки с component_id == null
@@ -3056,13 +3097,46 @@ class TdrController extends Controller
                 $conditions = $tdr->conditions; // Получаем данные о состоянии
                 if ($conditions) {
                     $description = trim((string) $tdr->description);
-                    $conditionString = $conditions->name;
-                    if ($description !== '') {
-                        $conditionString .= ' ' . $description;
+                    
+                    // Проверяем, является ли имя condition одним из "note 1", "note 2" и т.д.
+                    $isNoteCondition = preg_match('/^note\s+\d+$/i', $conditions->name);
+                    
+                    \Log::info("Processing TDR in tdrForm", [
+                        'tdr_id' => $tdr->id,
+                        'condition_id' => $conditions->id,
+                        'condition_name' => $conditions->name,
+                        'is_note_condition' => $isNoteCondition,
+                        'description' => $description,
+                        'description_empty' => ($description === '')
+                    ]);
+                    
+                    if ($isNoteCondition) {
+                        // Для conditions с именами "note 1", "note 2" и т.д. добавляем только description
+                        // Если description пустой, не добавляем ничего (чтобы не показывать пустые строки)
+                        if ($description !== '') {
+                            $nullComponentConditions[] = $description;
+                            \Log::info("Added note condition with description to nullComponentConditions", [
+                                'description' => $description
+                            ]);
+                        } else {
+                            // Не добавляем пустую строку - если нет notes, то и нечего показывать
+                            \Log::info("Skipping note condition with empty description");
+                        }
+                    } else {
+                        // Для обычных conditions добавляем имя и description
+                        $conditionString = $conditions->name;
+                        if ($description !== '') {
+                            $conditionString .= ' ' . $description;
+                        }
+                        $nullComponentConditions[] = $conditionString;
+                        \Log::info("Added regular condition to nullComponentConditions", [
+                            'condition_string' => $conditionString
+                        ]);
                     }
-
-                    // Добавляем состояние в массив
-                    $nullComponentConditions[] = $conditionString;
+                } else {
+                    \Log::warning("TDR has null component_id but no conditions relation", [
+                        'tdr_id' => $tdr->id
+                    ]);
                 }
             } elseif ($tdr->component_id !== null && $tdr->necessaries_id == $necessary->id) {
                 // Группируем компоненты по состояниям, если necessaries_id == 2 ('Order New')
@@ -3142,6 +3216,14 @@ class TdrController extends Controller
                 }
             }
 
+        }
+
+        // Если есть компоненты с кодом Missing, добавляем строку в $nullComponentConditions
+        if ($hasMissingComponents) {
+            $missingCondition = Condition::where('name', 'PARTS MISSING UPON ARRIVAL AS INDICATED ON PARTS LIST')->first();
+            if ($missingCondition) {
+                $nullComponentConditions[] = $missingCondition->name;
+            }
         }
 
 // Объединяем все строки в правильном порядке

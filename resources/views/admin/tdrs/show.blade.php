@@ -496,7 +496,7 @@
                                                     $unitConditionsId = $unit->conditions_id;
                                                 @endphp
                                                 <tr>
-                                                    <td class="p-3"> 
+                                                    <td class="p-3">
                                                         {{ $conditionName }}
                                                         @if($unitComponentId)
                                                             <small class="text-muted">(Component ID: {{ $unitComponentId }}, Codes: {{ $unitCodesId }}, Conditions: {{ $unitConditionsId }})</small>
@@ -785,14 +785,40 @@
                                 <tr>
                                     <td
                                         class="text-center fs-8">
-                                        @if($tdr->conditions)
-                                            {{ $tdr->conditions->name }}
-                                        @else
-                                            @foreach($conditions as $condition)
-                                                @if($condition->id == $tdr->conditions_id)
-                                                    {{$condition->name}}
+                                        @php
+                                            $conditionName = null;
+                                            if ($tdr->conditions) {
+                                                $conditionName = $tdr->conditions->name;
+                                            } else {
+                                                foreach($conditions as $condition) {
+                                                    if ($condition->id == $tdr->conditions_id) {
+                                                        $conditionName = $condition->name;
+                                                        break;
+                                                    }
+                                                }
+                                            }
+                                            // Проверяем, является ли имя condition одним из "note 1", "note 2" и т.д.
+                                            $isNoteCondition = $conditionName && preg_match('/^note\s+\d+$/i', $conditionName);
+                                        @endphp
+                                        @if(!$isNoteCondition)
+                                            {{-- Для обычных conditions показываем имя --}}
+                                            @if($tdr->conditions)
+                                                @if(empty($tdr->conditions->name))
+                                                    {{ __('(No name)') }}
+                                                @else
+                                                    {{ $tdr->conditions->name }}
                                                 @endif
-                                            @endforeach
+                                            @else
+                                                @foreach($conditions as $condition)
+                                                    @if($condition->id == $tdr->conditions_id)
+                                                        @if(empty($condition->name))
+                                                            {{ __('(No name)') }}
+                                                        @else
+                                                            {{ $condition->name }}
+                                                        @endif
+                                                    @endif
+                                                @endforeach
+                                            @endif
                                         @endif
                                         @if($tdr->component_id)
                                             <fs-8 class="" style="color: #5897fb">(scrap)</fs-8>
@@ -804,7 +830,13 @@
                                             @endif
                                         @endif
                                         @if($tdr->description)
-                                            ({{$tdr->description}})
+                                            @if($isNoteCondition)
+                                                {{-- Для note conditions показываем description без скобок --}}
+                                                {{ $tdr->description }}
+                                            @else
+                                                {{-- Для обычных conditions показываем description в скобках --}}
+                                                ({{$tdr->description}})
+                                            @endif
                                         @endif
                                     </td>
                                     <td class="p-2 text-center">
@@ -1221,11 +1253,6 @@
                     const input = row.querySelector('.condition-name-edit');
                     const newName = input.value.trim();
 
-                    if (!newName) {
-                        alert('{{ __("Condition name cannot be empty.") }}');
-                        return;
-                    }
-
                     // Disable button during save
                     this.disabled = true;
                     this.innerHTML = '<i class="fas fa-spinner fa-spin"></i> {{ __("Saving...") }}';
@@ -1246,7 +1273,7 @@
                         .then(data => {
                             if (data.success) {
                                 // Update display
-                                row.querySelector('.condition-name-display').textContent = newName;
+                                row.querySelector('.condition-name-display').textContent = newName || '{{ __("(No name)") }}';
                                 input.setAttribute('data-original-name', newName);
 
                                 // Hide input, show display
@@ -1552,7 +1579,11 @@
                                             </td>
                                             <td class="align-middle">
                                                 <label for="condition_{{ $unit_condition->id }}" style="cursor: pointer; margin: 0;">
-                                                    {{ $unit_condition->name }}
+                                                    @if(empty($unit_condition->name))
+                                                        {{ __('(No name)') }}
+                                                    @else
+                                                        {{ $unit_condition->name }}
+                                                    @endif
                                                 </label>
                                             </td>
                                             <td class="align-middle">
@@ -1612,7 +1643,13 @@
                             @foreach($unit_conditions as $unit_condition)
                                 <tr data-condition-id="{{ $unit_condition->id }}">
                                     <td class="align-middle">
-                                        <span class="condition-name-display">{{ $unit_condition->name }}</span>
+                                        <span class="condition-name-display">
+                                            @if(empty($unit_condition->name))
+                                                {{ __('(No name)') }}
+                                            @else
+                                                {{ $unit_condition->name }}
+                                            @endif
+                                        </span>
                                         <input type="text"
                                                class="form-control form-control-sm condition-name-edit d-none"
                                                value="{{ $unit_condition->name }}"
@@ -1675,8 +1712,8 @@
                         <input type="hidden" name="unit" value="1">
                         <input type="hidden" name="workorder_id" value="{{ $current_wo->id }}">
                         <div class="form-group">
-                            <label for="conditionName">{{ __('Name') }}</label>
-                            <input id="conditionName" type="text" class="form-control" name="name" required>
+                            <label for="conditionName">{{ __('Name') }} <small class="text-muted">({{ __('Optional') }})</small></label>
+                            <input id="conditionName" type="text" class="form-control" name="name" placeholder="{{ __('Leave empty to create condition with notes only') }}">
                         </div>
                     </div>
                     <div class="modal-footer">

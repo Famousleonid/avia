@@ -1,5 +1,8 @@
 /**
  * PRLFormMain - главный файл инициализации для PRL формы
+ * 
+ * Примечание: table-height-adjuster.js отключен для prlForm.
+ * Управление количеством строк осуществляется через Print Settings.
  */
 
 /**
@@ -7,33 +10,18 @@
  */
 function initPRLForm() {
     // Проверяем наличие необходимых элементов
-    const dataPages = document.querySelectorAll('.data-page');
+    const dataPages = document.querySelectorAll('.data-page, .page');
     if (dataPages.length === 0) {
         console.warn('PRL страницы не найдены');
         return;
     }
 
-    // Настройка высоты таблиц после загрузки
-    setTimeout(function() {
-        if (typeof adjustTableHeightToRange === 'undefined') {
-            console.error('adjustTableHeightToRange не загружена');
-            return;
-        }
+    console.log('Инициализация PRL формы (table-height-adjuster.js отключен)');
+    console.log('Управление количеством строк осуществляется через Print Settings');
 
-        const config = {
-            formName: 'PRL',
-            min_height_tab: 800,
-            max_height_tab: 850,
-            row_height: 36,
-            row_selector: '.data-row-prl[data-row-index]',
-            addRowCallback: PRLRowManager.addEmptyRow,
-            removeRowCallback: PRLRowManager.removeRow,
-            getRowIndexCallback: PRLRowManager.getRowIndex,
-            max_iterations: 50
-        };
-
-        MultiPageHandler.initAllPages(config);
-    }, 200);
+    // Управление строками теперь осуществляется через Print Settings
+    // Лимиты строк применяются автоматически при загрузке страницы и перед печатью
+    // через функции в основном скрипте prlForm.blade.php
 }
 
 // Инициализация при загрузке DOM

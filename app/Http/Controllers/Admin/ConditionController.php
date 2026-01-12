@@ -37,12 +37,31 @@ class ConditionController extends Controller
     public function store(Request $request)
     {
         $validated = $request->validate([
-            'name' => 'required|string|max:255',
+            'name' => 'nullable|string|max:255',
             'unit' => 'required|boolean',
         ]);
 
         // Явное преобразование в integer (1 или 0)
         $validated['unit'] = $validated['unit'] ? 1 : 0;
+        
+        // Если name пустое, автоматически создаем имя "note 1", "note 2" и т.д.
+        if (empty($validated['name'])) {
+            // Находим последний номер note для unit conditions
+            $lastNote = Condition::where('unit', 1)
+                ->where('name', 'like', 'note %')
+                ->orderByRaw('CAST(SUBSTRING(name, 6) AS UNSIGNED) DESC')
+                ->first();
+            
+            if ($lastNote) {
+                // Извлекаем номер из последнего note
+                preg_match('/note\s+(\d+)/i', $lastNote->name, $matches);
+                $nextNumber = isset($matches[1]) ? (int)$matches[1] + 1 : 1;
+            } else {
+                $nextNumber = 1;
+            }
+            
+            $validated['name'] = 'note ' . $nextNumber;
+        }
 
         Condition::create($validated);
 
@@ -90,7 +109,7 @@ class ConditionController extends Controller
     public function update(Request $request, $id)
     {
         $validated = $request->validate([
-            'name' => 'required|string|max:255',
+            'name' => 'nullable|string|max:255',
             'unit' => 'nullable|boolean',
         ]);
 
@@ -104,7 +123,37 @@ class ConditionController extends Controller
             ], 403);
         }
 
-        $condition->name = $validated['name'];
+        // Если name пустое, автоматически создаем имя "note 1", "note 2" и т.д.
+        if (empty($validated['name'])) {
+            // Проверяем, было ли у condition имя в формате "note X"
+            $wasNoteCondition = preg_match('/^note\s+\d+$/i', $condition->name);
+            
+            if ($wasNoteCondition) {
+                // Если это был note condition, сохраняем старое имя
+                // (пользователь мог случайно очистить поле)
+                $condition->name = $condition->name;
+            } else {
+                // Если это был обычный condition, создаем новое имя "note X"
+                $lastNote = Condition::where('unit', 1)
+                    ->where('name', 'like', 'note %')
+                    ->where('id', '!=', $id) // Исключаем текущий condition
+                    ->orderByRaw('CAST(SUBSTRING(name, 6) AS UNSIGNED) DESC')
+                    ->first();
+                
+                if ($lastNote) {
+                    // Извлекаем номер из последнего note
+                    preg_match('/note\s+(\d+)/i', $lastNote->name, $matches);
+                    $nextNumber = isset($matches[1]) ? (int)$matches[1] + 1 : 1;
+                } else {
+                    $nextNumber = 1;
+                }
+                
+                $condition->name = 'note ' . $nextNumber;
+            }
+        } else {
+            $condition->name = $validated['name'];
+        }
+        
         if (isset($validated['unit'])) {
             $condition->unit = $validated['unit'] ? 1 : 0;
         }

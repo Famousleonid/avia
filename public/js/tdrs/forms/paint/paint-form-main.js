@@ -6,34 +6,21 @@
  * Инициализирует все модули при загрузке страницы
  */
 function initPaintForm() {
-    // Проверяем наличие необходимых элементов
-    const dataPages = document.querySelectorAll('.data-page');
-    if (dataPages.length === 0) {
-        console.warn('Paint страницы не найдены');
+    // Проверяем наличие контейнера для строк
+    const allRowsContainer = document.querySelector('.all-rows-container');
+    if (!allRowsContainer) {
+        console.warn('Paint контейнер .all-rows-container не найден');
         return;
     }
 
-    // Настройка высоты таблиц после загрузки (только визуальная настройка)
-    setTimeout(function() {
-        if (typeof adjustTableHeightToRange === 'undefined') {
-            console.error('adjustTableHeightToRange не загружена');
-            return;
-        }
-
-        const config = {
-            formName: 'Paint',
-            min_height_tab: 700,
-            max_height_tab: 750,
-            row_height: 34,
-            row_selector: '.data-row[data-row-index]',
-            addRowCallback: PaintRowManager.addEmptyRow, // Не добавляем строки
-            removeRowCallback: PaintRowManager.removeRow, // Не удаляем строки
-            getRowIndexCallback: PaintRowManager.getRowIndex,
-            max_iterations: 50
-        };
-
-        MultiPageHandler.initAllPages(config);
-    }, 200);
+    console.log('Инициализация Paint формы (table-height-adjuster.js отключен)');
+    console.log('Управление количеством строк осуществляется через Print Settings');
+    
+    // table-height-adjuster.js отключен
+    // Управление количеством строк осуществляется через Print Settings
+    // Лимиты строк применяются автоматически при загрузке страницы и перед печатью
+    // через функции в основном скрипте paintFormStd.blade.php
+    // Страницы создаются динамически через JavaScript функцию applyTableRowLimits
 }
 
 // Инициализация при загрузке DOM
@@ -42,6 +29,7 @@ if (document.readyState === 'loading') {
 } else {
     initPaintForm();
 }
+
 
 
 
