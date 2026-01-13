@@ -13,8 +13,18 @@
             font-family: "Times New Roman", serif;
         }
 
+        :root {
+            --print-page-margin: 2mm 2mm 2mm 2mm;
+            --print-body-width: 100%;
+            --print-body-height: 90%;
+            --container-max-width: 820px;
+            --print-footer-width: 100%;
+            --print-footer-font-size: 10px;
+            --print-footer-padding: 1px 1px;
+        }
+
         .container-fluid {
-            max-width: 820px;
+            max-width: var(--container-max-width, 820px);
             height: auto;
             /*transform: scale(0.8);*/
             transform-origin: top left;
@@ -29,7 +39,7 @@
             @page {
                 /*size: letter ;*/
                 size: Letter;
-                margin: 2mm;
+                margin: var(--print-page-margin, 2mm);
             }
 
             /* Убедитесь, что вся страница помещается на один лист */
@@ -62,11 +72,11 @@
                 bottom: 0;
                 left: 0;
                 right: 0;
-                width: 100%;
+                width: var(--print-footer-width, 100%);
                 text-align: center;
-                font-size: 10px;
+                font-size: var(--print-footer-font-size, 10px);
                 background-color: #fff;
-                padding: 2px 0;
+                padding: var(--print-footer-padding, 1px 1px);
                 margin: 0;
             }
 
@@ -308,94 +318,70 @@
     </style>
 </head>
 <body>
-<!-- Кнопка для печати -->
+<!-- Кнопки для печати и настроек -->
 <div class="text-start m-3">
     <button class="btn btn-outline-primary no-print" onclick="window.print()">
         Print Form
     </button>
+    <button class="btn btn-secondary ms-2 no-print" data-bs-toggle="modal" data-bs-target="#printSettingsModal">
+        ⚙️ Print Settings
+    </button>
 </div>
 @php
-    // Базовые параметры для оценки высоты таблицы
-    // Максимальная допустимая "высота" строк данных на странице (в условных пикселях)
-    // Чуть меньше реального диапазона (593–640), т.к. часть съедает заголовок и QC-блок
-    $maxRowsHeightPerPage = 560;
-    // Оценочная высота одной текстовой "линии" в строке (после уменьшения line-height)
-    $rowHeightPerLine = 16;
-    // Сколько символов помещается в одну строку description
-    $charsPerLine = 39;
-
-    // Максимальное количество строк отображения (включая пустые) на странице
-    $rowsPerPage = 18;
-    // Максимальное количество НЕПУСТЫХ записей (с данными) на странице для ровной нумерации
-    $maxDataRowsPerPage = 16;
-
-    $rmRecordsCollection = $rmRecords ?? collect();
-
-    // Разбиваем записи на страницы с учётом как лимита по количеству, так и оценочной высоты по description
-    $pages = [];
-    $currentPage = collect();
-    $currentHeight = 0;
-    $currentDataCount = 0; // количество непустых записей на текущей странице
-
-    foreach ($rmRecordsCollection as $record) {
-        $description = $record->description ?? '';
-
-        // Оцениваем, сколько "текстовых строк" займёт description, исходя из 39 символов на строку
-        $descLength = function_exists('mb_strlen') ? mb_strlen($description) : strlen($description);
-        $descLines = max(1, (int)ceil($descLength / $charsPerLine));
-
-        // Оценочная высота строки данных (только по описанию, остальные поля обычно короче)
-        $estimatedRowHeight = $descLines * $rowHeightPerLine;
-
-        $willExceedHeight = $currentPage->isNotEmpty() && ($currentHeight + $estimatedRowHeight > $maxRowsHeightPerPage);
-        // ограничиваем именно количество реальных записей, а не общее число строк
-        $willExceedCount = $currentDataCount >= $maxDataRowsPerPage;
-
-        // Если добавление этой записи переполнит страницу по высоте или по количеству — начинаем новую страницу
-        if ($willExceedHeight || $willExceedCount) {
-            $pages[] = $currentPage;
-            $currentPage = collect();
-            $currentHeight = 0;
-            $currentDataCount = 0;
-        }
-
-        $currentPage->push($record);
-        $currentHeight += $estimatedRowHeight;
-        $currentDataCount++;
-    }
-
-    if ($currentPage->isNotEmpty()) {
-        $pages[] = $currentPage;
-    }
-
-    $rmRecordPages = collect($pages);
-
-    // Если записей нет, всё равно рисуем одну пустую страницу
-    if ($rmRecordPages->isEmpty()) {
-        $rmRecordPages = collect([collect()]);
-    }
-
-    // Общее количество НЕПУСТЫХ записей (данных) — для начала нумерации пустых строк
-    $totalDataCount = $rmRecordsCollection->count();
-
     // Подготовка технических заметок (новый формат: простой список строк)
     $technicalNotesList = [];
     if (!empty($technicalNotes) && is_array($technicalNotes)) {
         // Если сохранены как ассоциативный массив note1..noteN — берём значения
         $technicalNotesList = array_values($technicalNotes);
     }
+
+    // Пагинация только для Technical Notes: по 7 строк на страницу
+    $notesPerPage = 7;
+    $totalNotes = count($technicalNotesList);
+    $totalNotesPages = max(1, (int)ceil($totalNotes / $notesPerPage));
+
+    // Все записи rmRecords - используем значение по умолчанию из Print Settings (18 строк на страницу)
+    $rmRecordsCollection = $rmRecords ?? collect();
+    $totalDataCount = $rmRecordsCollection->count();
+    $rmTableRowsPerPage = 18; // Значение по умолчанию из Print Settings
+
+    // Распределяем rmRecords по страницам в зависимости от лимита строк
+    // JavaScript потом может перераспределить в зависимости от настроек Print Settings
+    $rmRecordsPages = [];
+    $currentPageRecords = [];
+    $currentPageRowCount = 0;
+
+    foreach ($rmRecordsCollection as $record) {
+        // Если текущая страница заполнена, начинаем новую
+        if ($currentPageRowCount >= $rmTableRowsPerPage) {
+            $rmRecordsPages[] = $currentPageRecords;
+            $currentPageRecords = [];
+            $currentPageRowCount = 0;
+        }
+
+        $currentPageRecords[] = $record;
+        $currentPageRowCount++;
+    }
+
+    // Добавляем последнюю страницу, если есть записи
+    if (!empty($currentPageRecords)) {
+        $rmRecordsPages[] = $currentPageRecords;
+    }
+
+    // Если записей нет, создаем пустую страницу
+    if (empty($rmRecordsPages)) {
+        $rmRecordsPages = [[]];
+    }
+
+    // Общее количество страниц = максимум из страниц Notes и страниц rmRecords
+    $totalPages = max($totalNotesPages, count($rmRecordsPages));
+
+    // Глобальные индексы для нумерации строк
+    $globalRowIndex = 1; // Индекс для строк с данными (1..N)
+    $globalJsIndex = 1;  // JS индекс (data-row-index) для всех строк
 @endphp
 
-@php
-    // Глобальный сквозной индекс только для строк с данными (1..N)
-    $globalRowIndex = 1;
-    // Индекс для пустых строк (начинается с N+1)
-    $blankRowIndex = $totalDataCount + 1;
-    // Отдельный глобальный индекс для JS (data-row-index), чтобы все строки (включая пустые) имели уникальные ID
-    $globalJsIndex = 1;
-@endphp
-
-@foreach($rmRecordPages as $pageIndex => $pageRecords)
+@for($pageIndex = 0; $pageIndex < $totalPages; $pageIndex++)
 <div class="container-fluid {{ $pageIndex > 0 ? 'page-break' : '' }}">
 
 
@@ -416,13 +402,10 @@
         </div>
     </div>
 
-    {{-- Технические заметки: по 7 строк на страницу.
-         Если заметок меньше 7 — оставшиеся строки пустые.
-         Если заметок больше 7 — оставшиеся уходят на следующую страницу и т.д. --}}
+    {{-- Технические заметки: по 7 строк на страницу --}}
     <div class="row border-all-b  m-sm-0">
         <h5 class="ps-1 fs-9">Technical Notes:</h5>
         @php
-            $notesPerPage = 7;
             $notesStartIndex = $pageIndex * $notesPerPage;
         @endphp
         @for($i = 0; $i < $notesPerPage; $i++)
@@ -434,7 +417,13 @@
     </div>
     <p></p>
 
-    <div class="parent mt-3">
+    {{-- Таблица с данными rmRecords: распределяем по страницам в зависимости от лимита строк --}}
+    @php
+        $pageRecords = $rmRecordsPages[$pageIndex] ?? [];
+    @endphp
+
+    @if(!empty($pageRecords) || $pageIndex === 0)
+    <div class="parent mt-3" data-page-index="{{$pageIndex}}" data-rm-records-page="{{$pageIndex}}">
         <div class="div11 border-l-t-b text-center align-content-center fs-75" >Item</div>
         <div class="div12 border-l-t-b text-center align-content-center fs-75">Part Description</div>
         <div class="div13 border-l-t-b text-center align-content-center fs-75">Modification or Repair #</div>
@@ -443,54 +432,41 @@
         <div class="div15 border-l-t-b text-center align-content-center fs-75">Previously Carried out</div>
         <div class="div16 border-l-t-b text-center align-content-center fs-75">Carried out by AT</div>
         <div class="div17 border-all text-center align-content-center fs-75">Identification Method</div>
-        @php
-            // Количество строк на этой странице:
-            // - на всех страницах (включая первую) добиваем до $rowsPerPage (18) пустыми строками, чтобы держать высоту.
-            // Если строки короткие и высота не меняется, будет 18 строк.
-            // Если строки длинные, JavaScript потом скорректирует количество строк для достижения нужной высоты.
-            $max_row = $rowsPerPage;
-        @endphp
-        @for($i = 1; $i <= $max_row; $i++)
+
+        {{-- Отображаем записи rmRecords для текущей страницы --}}
+        {{-- Пустые строки будут добавлены JavaScript в зависимости от Print Settings --}}
+        @foreach($pageRecords as $rmRecord)
             @php
-                $rmRecord = $pageRecords->get($i-1);
-                // Уникальный индекс для JS (для всех строк)
                 $jsIndex = $globalJsIndex++;
-                // Нумерация:
-                // - для строк с данными: 1..N (сквозная по всему документу)
-                // - для пустых строк: N+1, N+2, ... (продолжение после всех данных)
-                if ($rmRecord) {
                     $displayIndex = $globalRowIndex++;
-                } else {
-                    $displayIndex = $blankRowIndex++;
-                }
             @endphp
             <div class="div11 border-l-b text-center align-content-center fs-75 data-row" style="min-height: 37px" data-row-index="{{$jsIndex}}">{{$displayIndex}}</div>
-            <div class="div12 border-l-b text-center align-content-center fs-75 data-row" data-row-index="{{$jsIndex}}">{{ $rmRecord ? $rmRecord->part_description : '' }}</div>
-            <div class="div13 border-l-b text-center align-content-center fs-75 data-row" data-row-index="{{$jsIndex}}">{{ $rmRecord ? $rmRecord->mod_repair : '' }}</div>
-            <div class="div14 border-l-b text-center align-content-center fs-75 data-row" data-row-index="{{$jsIndex}}">{{ $rmRecord ? $rmRecord->description : '' }}</div>
+            <div class="div12 border-l-b text-center align-content-center fs-75 data-row" data-row-index="{{$jsIndex}}">{{ $rmRecord->part_description ?? '' }}</div>
+            <div class="div13 border-l-b text-center align-content-center fs-75 data-row" data-row-index="{{$jsIndex}}">{{ $rmRecord->mod_repair ?? '' }}</div>
+            <div class="div14 border-l-b text-center align-content-center fs-75 data-row" data-row-index="{{$jsIndex}}">{{ $rmRecord->description ?? '' }}</div>
             <div class="div15 border-l-b text-center align-content-center fs-75 data-row" style="color: lightgray" data-row-index="{{$jsIndex}}">tech stamp</div>
             <div class="div16 border-l-b text-center align-content-center fs-75 data-row" style="color: lightgray" data-row-index="{{$jsIndex}}">tech stamp</div>
-            <div class="div17 border-l-b-r text-center align-content-center fs-75 data-row" data-row-index="{{$jsIndex}}">{{ $rmRecord ? $rmRecord->ident_method : '' }}</div>
-        @endfor
-
+            <div class="div17 border-l-b-r text-center align-content-center fs-75 data-row" data-row-index="{{$jsIndex}}">{{ $rmRecord->ident_method ?? '' }}</div>
+        @endforeach
     </div>
+    @endif
 
+    {{-- QC Stamp блок только на последней странице --}}
+    @if($pageIndex === $totalPages - 1)
     <div class="qc_stamp mt-1">
         <div class="div21" style="min-height: 37px"></div>
         <div class="div22 border-all text-end align-content-center pe-1 fs-8" >Quality Assurance Acceptance </div>
         <div class="div23 border-t-r-b text-center align-content-center fs-8" style="color: lightgray">Q.C. stamp</div>
         <div class="div24 border-t-r-b text-center  pt-4  fs-8" style="color: lightgray">Date</div>
     </div>
+    @endif
 
-
-</div>
-@endforeach
-
-</div>
-
-<footer >
+    {{-- Футер на каждой странице --}}
+    <footer>
     <div class="d-flex justify-content-between" style=" padding: 1px 1px;">
-        <div class=" ms-1" style="font-size: 10px">
+        <div class=" ms-1"
+{{--             style="font-size: 10px"--}}
+        >
             {{__("Form #005")}}
         </div>
         <div class=" text-end pe-4 ">
@@ -499,712 +475,728 @@
     </div>
 </footer>
 
-<!-- Подключение библиотеки table-height-adjuster -->
-<script src="{{ asset('js/table-height-adjuster.js') }}"></script>
+</div>
+@endfor
+
+
+<!-- Модальное окно настроек печати -->
+<div class="modal fade print-settings-modal" id="printSettingsModal" tabindex="-1" aria-labelledby="printSettingsModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header justify-content-between">
+                <h5 class="modal-title" id="printSettingsModalLabel">
+                    ⚙️ Print Settings
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <form id="printSettingsForm">
+                    <!-- Table Setting - Основная группа (не collapse) -->
+                    <div class="mb-4">
+                        <h5 class="mb-3" data-bs-toggle="tooltip"
+                            data-bs-placement="top"
+                            title="Настройки количества строк в таблице R&M Record. Строки сверх лимита скрываются при печати. Настройки применяются автоматически при загрузке страницы."
+                            data-tooltip-ru="Настройки количества строк в таблице R&M Record. Строки сверх лимита скрываются при печати. Настройки применяются автоматически при загрузке страницы."
+                            data-tooltip-en="R&M Record table row settings. Rows exceeding the limit are hidden when printing. Settings are applied automatically on page load.">
+                            📊 Tables
+                        </h5>
+
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <label for="rmTableRows" class="form-label" data-bs-toggle="tooltip"
+                                        data-bs-placement="top"
+                                        title="Максимальное количество строк в таблице R&M Record на одной странице. По умолчанию: 18 строк. Используется для всех страниц формы."
+                                        data-tooltip-ru="Максимальное количество строк в таблице R&M Record на одной странице. По умолчанию: 18 строк. Используется для всех страниц формы."
+                                        data-tooltip-en="Maximum number of rows in R&M Record table per page. Default: 18 rows. Used for all pages of the form.">
+                                    RM Table Rows (per page)
+                                </label>
+                                <div class="input-group">
+                                    <input type="number" class="form-control" id="rmTableRows" name="rmTableRows"
+                                           min="1" max="100" step="1" value="18">
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Table Setting (collapse) -->
+                        <div class="accordion mb-3" id="tableSettingsAccordion">
+                            <div class="accordion-item">
+                                <h2 class="accordion-header" id="tableSettingsHeading">
+                                    <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse"
+                                            data-bs-target="#tableSettingsCollapse" aria-expanded="false"
+                                            aria-controls="tableSettingsCollapse">
+                                        <span data-bs-toggle="tooltip" data-bs-placement="right"
+                                              title="Дополнительные настройки таблицы: ширина контейнера."
+                                              data-tooltip-ru="Дополнительные настройки таблицы: ширина контейнера."
+                                              data-tooltip-en="Additional table settings: container width.">
+                                            Table Setting
+                                        </span>
+                                    </button>
+                                </h2>
+                                <div id="tableSettingsCollapse" class="accordion-collapse collapse"
+                                     aria-labelledby="tableSettingsHeading" data-bs-parent="#tableSettingsAccordion">
+                                    <div class="accordion-body">
+                                        <div class="row">
+                                            <div class="col-md-4 mb-3">
+                                                <label for="containerMaxWidth" class="form-label" data-bs-toggle="tooltip"
+                                                        data-bs-placement="top"
+                                                        title="Максимальная ширина контейнера с таблицей в пикселях. Рекомендуемое значение: 820px для R&M Record формы."
+                                                        data-tooltip-ru="Максимальная ширина контейнера с таблицей в пикселях. Рекомендуемое значение: 820px для R&M Record формы."
+                                                        data-tooltip-en="Maximum width of the table container in pixels. Recommended value: 820px for R&M Record form.">
+                                                    Max Width (px)
+                                                </label>
+                                                <div class="input-group">
+                                                    <input type="number" class="form-control" id="containerMaxWidth" name="containerMaxWidth"
+                                                           min="500" max="2000" step="10" value="820">
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Page Setting (collapse) -->
+                    <div class="mb-4">
+                        <div class="accordion" id="pageSettingsAccordion">
+                            <div class="accordion-item">
+                                <h2 class="accordion-header" id="pageSettingsHeading">
+                                    <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse"
+                                            data-bs-target="#pageSettingsCollapse" aria-expanded="false"
+                                            aria-controls="pageSettingsCollapse">
+                                        <span data-bs-toggle="tooltip" data-bs-placement="right"
+                                              title="Настройки страницы: ширина, высота, поля и отступы. Влияют на отступы при печати и позиционирование контента."
+                                              data-tooltip-ru="Настройки страницы: ширина, высота, поля и отступы. Влияют на отступы при печати и позиционирование контента."
+                                              data-tooltip-en="Page settings: width, height, margins and padding. Affect print margins and content positioning.">
+                                            Page Setting
+                                        </span>
+                                    </button>
+                                </h2>
+                                <div id="pageSettingsCollapse" class="accordion-collapse collapse"
+                                     aria-labelledby="pageSettingsHeading" data-bs-parent="#pageSettingsAccordion">
+                                    <div class="accordion-body">
+                                        <div class="row">
+                                            <div class="col-md-4 mb-3">
+                                                <label for="bodyWidth" class="form-label" data-bs-toggle="tooltip"
+                                                        data-bs-placement="top"
+                                                        title="Ширина основного контента в процентах от ширины страницы. 100% - стандартное значение для R&M Record формы."
+                                                        data-tooltip-ru="Ширина основного контента в процентах от ширины страницы. 100% - стандартное значение для R&M Record формы."
+                                                        data-tooltip-en="Main content width as percentage of page width. 100% - standard value for R&M Record form.">
+                                                    Width (%)
+                                                </label>
+                                                <div class="input-group">
+                                                    <input type="number" class="form-control" id="bodyWidth" name="bodyWidth"
+                                                           min="50" max="110" step="1" value="100">
+                                                </div>
+                                            </div>
+
+                                            <div class="col-md-4 mb-3">
+                                                <label for="bodyHeight" class="form-label" data-bs-toggle="tooltip"
+                                                        data-bs-placement="top"
+                                                        title="Высота основного контента в процентах от высоты страницы. 90% - стандартное значение для R&M Record формы."
+                                                        data-tooltip-ru="Высота основного контента в процентах от высоты страницы. 90% - стандартное значение для R&M Record формы."
+                                                        data-tooltip-en="Main content height as percentage of page height. 90% - standard value for R&M Record form.">
+                                                    Height (%)
+                                                </label>
+                                                <div class="input-group">
+                                                    <input type="number" class="form-control" id="bodyHeight" name="bodyHeight"
+                                                           min="50" max="100" step="1" value="90">
+                                                </div>
+                                            </div>
+
+                                            <div class="col-md-4 mb-3">
+                                                <label for="pageMargin" class="form-label" data-bs-toggle="tooltip"
+                                                        data-bs-placement="top"
+                                                        title="Отступ от краев страницы при печати. Рекомендуемое значение: 2mm для R&M Record формы. Увеличьте, если контент обрезается принтером."
+                                                        data-tooltip-ru="Отступ от краев страницы при печати. Рекомендуемое значение: 2mm для R&M Record формы. Увеличьте, если контент обрезается принтером."
+                                                        data-tooltip-en="Margin from page edges when printing. Recommended value: 2mm for R&M Record form. Increase if content is cut off by the printer.">
+                                                    Margin (mm)
+                                                </label>
+                                                <div class="input-group">
+                                                    <input type="text" class="form-control" id="pageMargin" name="pageMargin"
+                                                           placeholder="2mm 2mm 2mm 2mm" value="2mm 2mm 2mm 2mm">
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Footer Setting (collapse) -->
+                    <div class="mb-4">
+                        <div class="accordion" id="footerSettingsAccordion">
+                            <div class="accordion-item">
+                                <h2 class="accordion-header" id="footerSettingsHeading">
+                                    <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse"
+                                            data-bs-target="#footerSettingsCollapse" aria-expanded="false"
+                                            aria-controls="footerSettingsCollapse">
+                                        <span data-bs-toggle="tooltip" data-bs-placement="right"
+                                              title="Настройки нижнего колонтитула формы. Колонтитул содержит номер формы и ревизию."
+                                              data-tooltip-ru="Настройки нижнего колонтитула формы. Колонтитул содержит номер формы и ревизию."
+                                              data-tooltip-en="Form footer settings. Footer contains form number and revision.">
+                                            Footer Setting
+                                        </span>
+                                    </button>
+                                </h2>
+                                <div id="footerSettingsCollapse" class="accordion-collapse collapse"
+                                     aria-labelledby="footerSettingsHeading" data-bs-parent="#footerSettingsAccordion">
+                                    <div class="accordion-body">
+                                        <div class="row">
+                                            <div class="col-md-4 mb-3">
+                                                <label for="footerWidth" class="form-label" data-bs-toggle="tooltip"
+                                                        data-bs-placement="top"
+                                                        title="Ширина колонтитула в процентах. 100% - стандартное значение для R&M Record формы."
+                                                        data-tooltip-ru="Ширина колонтитула в процентах. 100% - стандартное значение для R&M Record формы."
+                                                        data-tooltip-en="Footer width as percentage. 100% - standard value for R&M Record form.">
+                                                    Width (%)
+                                                </label>
+                                                <div class="input-group">
+                                                    <input type="number" class="form-control" id="footerWidth" name="footerWidth"
+                                                           min="50" max="100" step="1" value="100">
+                                                </div>
+                                            </div>
+
+                                            <div class="col-md-4 mb-3">
+                                                <label for="footerFontSize" class="form-label" data-bs-toggle="tooltip"
+                                                        data-bs-placement="top"
+                                                        title="Размер шрифта текста в колонтитуле. 10px - стандартное значение. Увеличьте для лучшей читаемости."
+                                                        data-tooltip-ru="Размер шрифта текста в колонтитуле. 10px - стандартное значение. Увеличьте для лучшей читаемости."
+                                                        data-tooltip-en="Footer text font size. 10px - standard value. Increase for better readability.">
+                                                    Font Size (px)
+                                                </label>
+                                                <div class="input-group">
+                                                    <input type="number" class="form-control" id="footerFontSize" name="footerFontSize"
+                                                           min="6" max="20" step="0.5" value="10">
+                                                </div>
+                                            </div>
+
+                                            <div class="col-md-4 mb-3">
+                                                <label for="footerPadding" class="form-label" data-bs-toggle="tooltip"
+                                                        data-bs-placement="top"
+                                                        title="Внутренние отступы колонтитула в формате CSS (вертикальный горизонтальный). Например: '1px 1px' означает 1px сверху/снизу и 1px слева/справа."
+                                                        data-tooltip-ru="Внутренние отступы колонтитула в формате CSS (вертикальный горизонтальный). Например: '1px 1px' означает 1px сверху/снизу и 1px слева/справа."
+                                                        data-tooltip-en="Footer inner padding in CSS format (vertical horizontal). Example: '1px 1px' means 1px top/bottom and 1px left/right.">
+                                                    Padding
+                                                </label>
+                                                <div class="input-group">
+                                                    <input type="text" class="form-control" id="footerPadding" name="footerPadding"
+                                                           placeholder="1px 1px" value="1px 1px">
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" onclick="resetPrintSettings()">Reset to Default</button>
+                <button type="button" class="btn btn-primary" onclick="savePrintSettings()">Save Settings</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Bootstrap JS для работы модального окна -->
 <script>
-    // Проверяем, что скрипт загрузился сразу после подключения
-    if (typeof adjustTableHeightToRange === 'undefined') {
-        console.error('❌ ВНИМАНИЕ: Функция adjustTableHeightToRange не найдена сразу после подключения скрипта!');
-        console.error('Путь к скрипту:', '{{ asset("js/table-height-adjuster.js") }}');
-        console.error('Проверьте, что файл существует и доступен.');
-    } else {
-        console.log('✅ Функция adjustTableHeightToRange успешно загружена');
+    if (typeof window.bootstrapLoaded === 'undefined') {
+        window.bootstrapLoaded = true;
+        const script = document.createElement('script');
+        script.src = "{{asset('assets/Bootstrap 5/bootstrap.bundle.min.js')}}";
+        script.async = true;
+        document.head.appendChild(script);
     }
 </script>
 
-<!-- Переиспользуемые модули из tdr-processes (опционально, для базовых вычислений) -->
-<script src="{{ asset('js/tdr-processes/processes-form/height-calculator.js') }}"></script>
+<!-- Print Settings: Управление количеством строк осуществляется через Print Settings -->
+<!-- table-height-adjuster.js отключен для rmRecordForm -->
 
-<!-- Модули для R&M Record формы -->
-<script src="{{ asset('js/rm-reports/rm-record-form/row-manager.js') }}"></script>
-<script src="{{ asset('js/rm-reports/rm-record-form/height-analyzer.js') }}"></script>
-<script src="{{ asset('js/rm-reports/rm-record-form/table-integrity-validator.js') }}"></script>
-<script src="{{ asset('js/rm-reports/rm-record-form/table-diagnostics.js') }}"></script>
-<script src="{{ asset('js/rm-reports/rm-record-form/table-height-manager.js') }}"></script>
-<script src="{{ asset('js/rm-reports/rm-record-form/rm-record-form-main.js') }}"></script>
-
-<!-- Старый код для совместимости (можно удалить после тестирования) -->
+<!-- JavaScript для Print Settings -->
 <script>
-    // Функция для определения общей высоты двух основных таблиц
-    function getTablesHeight() {
-        // Находим первую таблицу (блок с классом "parent")
-        const table1 = document.querySelector('.parent');
-        // Находим вторую таблицу (блок с классом "qc_stamp")
-        const table2 = document.querySelector('.qc_stamp');
+    // Ключ для сохранения настроек печати
+    const PRINT_SETTINGS_KEY = 'rmRecordForm_print_settings';
 
-        if (!table1 || !table2) {
-            console.error('Таблицы не найдены');
-            return null;
+    // Настройки по умолчанию
+    const defaultSettings = {
+        pageMargin: '2mm 2mm 2mm 2mm',
+        bodyWidth: '100%',
+        bodyHeight: '90%',
+        containerMaxWidth: '820px',
+        footerWidth: '100%',
+        footerFontSize: '10px',
+        footerPadding: '1px 1px',
+        rmTableRows: '18'
+    };
+
+    // Загрузка настроек из localStorage
+    function loadPrintSettings() {
+        const saved = localStorage.getItem(PRINT_SETTINGS_KEY);
+        if (saved) {
+            try {
+                return JSON.parse(saved);
+            } catch (e) {
+                console.error('Ошибка загрузки настроек:', e);
+                return defaultSettings;
+            }
         }
-
-        // Получаем высоту каждой таблицы в пикселях
-        const height1 = table1.offsetHeight;
-        const height2 = table2.offsetHeight;
-
-        // Вычисляем общую высоту
-        const totalHeight = height1 + height2;
-
-        // Также учитываем отступ между таблицами (mt-1 = margin-top)
-        const marginTop = parseInt(window.getComputedStyle(table2).marginTop) || 0;
-        const totalHeightWithMargin = totalHeight + marginTop;
-
-        // Получаем информацию о высотах строк
-        const rowHeightInfo = getRowHeightStatistics();
-
-        return {
-            table1Height: height1,
-            table2Height: height2,
-            marginBetween: marginTop,
-            totalHeight: totalHeightWithMargin,
-            rowHeightInfo: rowHeightInfo
-        };
+        return defaultSettings;
     }
 
-    // Функция для получения статистики по высотам строк
-    function getRowHeightStatistics() {
-        const rows = document.querySelectorAll('.parent .data-row[data-row-index]');
-        if (rows.length === 0) {
-            return {
-                min: 0,
-                max: 0,
-                avg: 0,
-                count: 0
-            };
-        }
-
-        // Группируем строки по индексу (каждая строка состоит из 7 ячеек)
-        const rowGroups = {};
-        rows.forEach(cell => {
-            const index = parseInt(cell.getAttribute('data-row-index'));
-            if (!isNaN(index) && index > 0) {
-                if (!rowGroups[index]) {
-                    rowGroups[index] = [];
+    // Сохранение настроек в localStorage
+    window.savePrintSettings = function() {
+        try {
+            const getValue = function(id, defaultValue, suffix = '') {
+                const element = document.getElementById(id);
+                if (element) {
+                    return element.value + (suffix ? suffix : '');
                 }
-                rowGroups[index].push(cell);
-            }
-        });
+                return defaultValue;
+            };
 
-        // Измеряем высоту каждой строки (берем максимальную высоту среди ячеек строки)
-        // Это важно, так как ячейки в одной строке могут иметь разную высоту из-за переноса текста
-        const rowHeights = [];
-        Object.keys(rowGroups).sort((a, b) => parseInt(a) - parseInt(b)).forEach(index => {
-            const cells = rowGroups[index];
-            // Проверяем, что строка имеет все 7 ячеек
-            if (cells.length !== 7) {
-                console.warn(`getRowHeightStatistics: Строка ${index} имеет ${cells.length} ячеек вместо 7`);
+            const settings = {
+                pageMargin: getValue('pageMargin', '2mm 2mm 2mm 2mm', ''),
+                bodyWidth: getValue('bodyWidth', '100', '%'),
+                bodyHeight: getValue('bodyHeight', '90', '%'),
+                containerMaxWidth: getValue('containerMaxWidth', '820', 'px'),
+                footerWidth: getValue('footerWidth', '100', '%'),
+                footerFontSize: getValue('footerFontSize', '10', 'px'),
+                footerPadding: getValue('footerPadding', '1px 1px', ''),
+                rmTableRows: getValue('rmTableRows', '18', '')
+            };
+
+            localStorage.setItem(PRINT_SETTINGS_KEY, JSON.stringify(settings));
+            applyPrintSettings(settings);
+
+            // Убираем фокус с активного элемента перед закрытием модального окна
+            if (document.activeElement && document.activeElement.blur) {
+                document.activeElement.blur();
             }
 
-            let maxCellHeight = 0;
-            cells.forEach(cell => {
-                // Используем offsetHeight для получения реальной высоты с учетом содержимого (включая перенос текста)
-                const height = cell.offsetHeight || cell.clientHeight || 0;
-                if (height > maxCellHeight) {
-                    maxCellHeight = height;
+            // Закрываем модальное окно
+            const modal = bootstrap.Modal.getInstance(document.getElementById('printSettingsModal'));
+            if (modal) {
+                modal.hide();
+            }
+
+            alert('Settings saved successfully!');
+        } catch (e) {
+            console.error('Ошибка сохранения настроек:', e);
+            alert('Error saving settings');
+        }
+    };
+
+    // Применение CSS переменных
+    function applyPrintSettings(settings) {
+        const root = document.documentElement;
+        root.style.setProperty('--print-page-margin', settings.pageMargin || defaultSettings.pageMargin);
+        root.style.setProperty('--print-body-width', settings.bodyWidth || defaultSettings.bodyWidth);
+        root.style.setProperty('--print-body-height', settings.bodyHeight || defaultSettings.bodyHeight);
+        root.style.setProperty('--container-max-width', settings.containerMaxWidth || defaultSettings.containerMaxWidth);
+        root.style.setProperty('--print-footer-width', settings.footerWidth || defaultSettings.footerWidth);
+        root.style.setProperty('--print-footer-font-size', settings.footerFontSize || defaultSettings.footerFontSize);
+        root.style.setProperty('--print-footer-padding', settings.footerPadding || defaultSettings.footerPadding);
+
+        const rmMaxRows = parseInt(settings.rmTableRows) || 18;
+
+        // Перераспределяем строки по страницам в зависимости от настроек
+        redistributeRowsToPages(rmMaxRows);
+    }
+
+    // Перераспределение строк по страницам в зависимости от настроек Print Settings
+    function redistributeRowsToPages(rmMaxRows) {
+        // Собираем все строки с данными из всех таблиц
+        const allTables = document.querySelectorAll('.parent[data-rm-records-page]');
+        const allDataRows = [];
+
+        // Сначала собираем все строки с данными (не пустые)
+        allTables.forEach(function(table) {
+            const rows = Array.from(table.querySelectorAll('.data-row[data-row-index]'));
+            const rowGroups = {};
+
+            // Группируем ячейки по индексу строки
+            rows.forEach(cell => {
+                const index = parseInt(cell.getAttribute('data-row-index'));
+                if (!isNaN(index) && index > 0) {
+                    if (!rowGroups[index]) {
+                        rowGroups[index] = [];
+                    }
+                    rowGroups[index].push(cell);
                 }
             });
-            if (maxCellHeight > 0) {
-                rowHeights.push(maxCellHeight);
-            }
+
+            // Проверяем, является ли строка пустой
+            Object.keys(rowGroups).sort((a, b) => parseInt(a) - parseInt(b)).forEach(function(index) {
+                const cells = rowGroups[index];
+                const firstCell = cells[0];
+                const isEmpty = firstCell && firstCell.classList.contains('empty-row');
+
+                if (!isEmpty) {
+                    // Это строка с данными
+                    allDataRows.push({
+                        index: parseInt(index),
+                        cells: cells,
+                        table: table
+                    });
+                }
+            });
         });
 
-        if (rowHeights.length === 0) {
-            return {
-                min: 0,
-                max: 0,
-                avg: 0,
-                count: 0
-            };
+        // Сортируем строки с данными по индексу
+        allDataRows.sort((a, b) => a.index - b.index);
+
+        // Удаляем все строки из всех таблиц (включая пустые)
+        allTables.forEach(function(table) {
+            const allRows = table.querySelectorAll('.data-row[data-row-index]');
+            allRows.forEach(row => row.remove());
+        });
+
+        // Получаем все страницы
+        const allPages = document.querySelectorAll('.container-fluid');
+
+        // Распределяем строки с данными по страницам
+        let currentPageIndex = 0;
+        let currentPageDataRowCount = 0;
+        let currentPageTable = null;
+
+        allDataRows.forEach(function(rowData) {
+            const isLastPage = (currentPageIndex === allPages.length - 1);
+            // На последней странице лимит на 1 меньше (чтобы поместился QC Stamp)
+            const pageMaxRows = isLastPage ? (rmMaxRows - 1) : rmMaxRows;
+
+            // Если текущая страница заполнена (достигнут лимит), переходим на следующую
+            if (currentPageDataRowCount >= pageMaxRows) {
+                // Если есть еще страницы, переходим на следующую
+                if (currentPageIndex < allPages.length - 1) {
+                    currentPageIndex++;
+                    currentPageDataRowCount = 0;
+                    currentPageTable = null;
+                } else {
+                    // Если страниц больше нет, оставляем строки на последней странице
+                    // В forEach нельзя использовать break, поэтому просто прекращаем обработку
+                    return;
+                }
+            }
+
+            // Находим или создаем таблицу на текущей странице
+            if (!currentPageTable || currentPageDataRowCount === 0) {
+                currentPageTable = allPages[currentPageIndex].querySelector('.parent[data-rm-records-page]');
+
+                // Если таблицы нет, создаем её
+                if (!currentPageTable) {
+                    currentPageTable = createTableOnPage(allPages[currentPageIndex], currentPageIndex);
+                }
+            }
+
+            // Перемещаем ячейки строки в целевую таблицу
+            rowData.cells.forEach(function(cell) {
+                currentPageTable.appendChild(cell);
+            });
+
+            currentPageDataRowCount++;
+        });
+
+        // Добавляем пустые строки до лимита ТОЛЬКО на последней странице
+        // На остальных страницах пустые строки НЕ добавляются
+        const lastPageIndex = allPages.length - 1;
+        const lastPage = allPages[lastPageIndex];
+        const lastPageTable = lastPage.querySelector('.parent[data-rm-records-page]');
+
+        console.log('Last page index:', lastPageIndex);
+        console.log('Last page table found:', !!lastPageTable);
+
+        if (lastPageTable) {
+            // Убеждаемся, что таблица видима
+            if (lastPageTable.style.display === 'none') {
+                lastPageTable.style.display = '';
+            }
+
+            const rows = lastPageTable.querySelectorAll('.data-row[data-row-index]');
+            const rowGroups = {};
+
+            // Группируем ячейки по индексу строки
+            rows.forEach(cell => {
+                const index = parseInt(cell.getAttribute('data-row-index'));
+                if (!isNaN(index) && index > 0) {
+                    if (!rowGroups[index]) {
+                        rowGroups[index] = [];
+                    }
+                    rowGroups[index].push(cell);
+                }
+            });
+
+            const currentRowCount = Object.keys(rowGroups).length;
+
+            // На последней странице: rmMaxRows - 1 (чтобы поместился QC Stamp)
+            const targetRowCount = rmMaxRows - 1;
+
+            console.log('=== Last Page: Adding Empty Rows ===');
+            console.log('Current data rows:', currentRowCount);
+            console.log('Target rows (rmMaxRows - 1):', targetRowCount);
+            console.log('Empty rows to add:', targetRowCount - currentRowCount);
+
+            // Если строк меньше целевого количества, добавляем пустые строки
+            if (currentRowCount < targetRowCount) {
+                const maxItemNumber = getMaxItemNumberInTable(lastPageTable);
+                const emptyRowsToAdd = targetRowCount - currentRowCount;
+                console.log('Adding', emptyRowsToAdd, 'empty rows to last page. Max item number:', maxItemNumber);
+                addEmptyRowsToTable(lastPageTable, emptyRowsToAdd, maxItemNumber);
+
+                // Проверяем результат
+                setTimeout(function() {
+                    const finalRows = lastPageTable.querySelectorAll('.data-row[data-row-index]');
+                    const finalRowGroups = {};
+                    finalRows.forEach(cell => {
+                        const index = parseInt(cell.getAttribute('data-row-index'));
+                        if (!isNaN(index) && index > 0) {
+                            if (!finalRowGroups[index]) {
+                                finalRowGroups[index] = [];
+                            }
+                            finalRowGroups[index].push(cell);
+                        }
+                    });
+                    const finalRowCount = Object.keys(finalRowGroups).length;
+                    console.log('✅ Last page - Final rows:', finalRowCount, '(should be', targetRowCount + ')');
+                }, 100);
+            } else {
+                console.log('Last page already has enough rows:', currentRowCount);
+            }
+        } else {
+            console.error('❌ Last page table not found!');
+            console.error('Last page element:', lastPage);
+            console.error('All pages:', allPages.length);
         }
 
-        const min = Math.min(...rowHeights);
-        const max = Math.max(...rowHeights);
-        const avg = Math.round(rowHeights.reduce((sum, h) => sum + h, 0) / rowHeights.length);
-
-        return {
-            min: min,
-            max: max,
-            avg: avg,
-            count: rowHeights.length,
-            heights: rowHeights // Массив всех высот для детального анализа
-        };
-    }
-
-    // Функция для получения текущего количества строк в таблице
-    function getCurrentRowCount() {
-        const rows = document.querySelectorAll('.parent .data-row[data-row-index]');
-        const rowIndices = new Set();
-        rows.forEach(row => {
-            const index = parseInt(row.getAttribute('data-row-index'));
-            if (!isNaN(index) && index > 0) {
-                rowIndices.add(index);
-            }
-        });
-        return rowIndices.size;
-    }
-
-    // Функция для проверки целостности строк (все строки должны иметь 7 ячеек)
-    function validateRowIntegrity() {
-        const rows = document.querySelectorAll('.parent .data-row[data-row-index]');
-        const rowGroups = {};
-
-        // Группируем ячейки по индексу строки
-        rows.forEach(cell => {
-            const index = parseInt(cell.getAttribute('data-row-index'));
-            if (!isNaN(index) && index > 0) {
-                if (!rowGroups[index]) {
-                    rowGroups[index] = [];
+        // Скрываем пустые таблицы на страницах, где нет строк
+        allTables.forEach(function(table) {
+            const rows = table.querySelectorAll('.data-row[data-row-index]');
+            if (rows.length === 0) {
+                const pageIndex = parseInt(table.getAttribute('data-rm-records-page'));
+                if (pageIndex > 0) {
+                    table.style.display = 'none';
                 }
-                rowGroups[index].push(cell);
+            } else {
+                table.style.display = '';
             }
         });
 
-        // Проверяем, что каждая строка имеет 7 ячеек
-        const issues = [];
-        Object.keys(rowGroups).forEach(index => {
-            const cellCount = rowGroups[index].length;
-            if (cellCount !== 7) {
-                issues.push(`Строка ${index} имеет ${cellCount} ячеек вместо 7`);
+        console.log('=== Print Settings: Redistributing rows ===');
+        console.log('RM Table Rows per page:', rmMaxRows);
+        console.log('Total data rows:', allDataRows.length);
+        console.log('Total pages:', allPages.length);
+
+        // Проверяем количество строк на каждой странице ДО добавления пустых
+        allPages.forEach(function(page, idx) {
+            const pageTable = page.querySelector('.parent[data-rm-records-page]');
+            if (pageTable) {
+                const rows = pageTable.querySelectorAll('.data-row[data-row-index]');
+                const rowGroups = {};
+                rows.forEach(cell => {
+                    const index = parseInt(cell.getAttribute('data-row-index'));
+                    if (!isNaN(index) && index > 0) {
+                        if (!rowGroups[index]) {
+                            rowGroups[index] = [];
+                        }
+                        rowGroups[index].push(cell);
+                    }
+                });
+                const rowCount = Object.keys(rowGroups).length;
+                const isLast = (idx === allPages.length - 1);
+                console.log('Page', idx + 1, (isLast ? '(LAST)' : ''), '- Data rows:', rowCount, 'Target:', (isLast ? rmMaxRows - 1 : rmMaxRows));
             }
         });
-
-        return {
-            isValid: issues.length === 0,
-            issues: issues,
-            rowCount: Object.keys(rowGroups).length,
-            totalCells: rows.length
-        };
     }
 
-    // Функция для получения максимального индекса строки
-    function getMaxRowIndex() {
-        const rows = document.querySelectorAll('.parent .data-row[data-row-index]');
+    // Создание таблицы на странице, если её нет
+    function createTableOnPage(pageElement, pageIndex) {
+        // Создаем заголовок таблицы
+        const table = document.createElement('div');
+        table.className = 'parent mt-3';
+        table.setAttribute('data-page-index', pageIndex);
+        table.setAttribute('data-rm-records-page', pageIndex);
+
+        // Создаем заголовки колонок
+        const headers = [
+            { class: 'div11', text: 'Item', borderClass: 'border-l-t-b' },
+            { class: 'div12', text: 'Part Description', borderClass: 'border-l-t-b' },
+            { class: 'div13', text: 'Modification or Repair #', borderClass: 'border-l-t-b' },
+            { class: 'div14', text: 'Description of Modification  or Repair', borderClass: 'border-l-t-b' },
+            { class: 'div15', text: 'Previously Carried out', borderClass: 'border-l-t-b' },
+            { class: 'div16', text: 'Carried out by AT', borderClass: 'border-l-t-b' },
+            { class: 'div17', text: 'Identification Method', borderClass: 'border-all' }
+        ];
+
+        headers.forEach(function(header) {
+            const div = document.createElement('div');
+            div.className = header.class + ' ' + header.borderClass + ' text-center align-content-center fs-75';
+            div.textContent = header.text;
+            table.appendChild(div);
+        });
+
+        // Вставляем таблицу после Technical Notes
+        const notesDiv = pageElement.querySelector('.row.border-all-b');
+        if (notesDiv) {
+            // Вставляем после блока с Technical Notes и <p></p>
+            const pTag = notesDiv.nextElementSibling;
+            if (pTag && pTag.tagName === 'P') {
+                pageElement.insertBefore(table, pTag.nextSibling);
+            } else {
+                pageElement.insertBefore(table, notesDiv.nextSibling);
+            }
+        } else {
+            pageElement.appendChild(table);
+        }
+
+        return table;
+    }
+
+    // Добавление пустых строк в таблицу
+    function addEmptyRowsToTable(table, count, startItemNumber) {
+        for (let i = 0; i < count; i++) {
+            const itemNumber = startItemNumber + i + 1;
+            addEmptyRowToTable(table, itemNumber);
+        }
+    }
+
+    // Функция для получения максимального номера Item в таблице
+    function getMaxItemNumberInTable(table) {
+        const itemCells = table.querySelectorAll('.div11.data-row');
+        let maxItemNumber = 0;
+        itemCells.forEach(cell => {
+            const num = parseInt((cell.textContent || '').trim(), 10);
+            if (!isNaN(num) && num > maxItemNumber) {
+                maxItemNumber = num;
+            }
+        });
+        return maxItemNumber;
+    }
+
+    // Функция для добавления пустой строки в таблицу
+    function addEmptyRowToTable(table, itemNumber) {
+        // Генерируем уникальный индекс для строки
+        const allRows = table.querySelectorAll('.data-row[data-row-index]');
         let maxIndex = 0;
-        rows.forEach(row => {
+        allRows.forEach(row => {
             const index = parseInt(row.getAttribute('data-row-index'));
             if (!isNaN(index) && index > maxIndex) {
                 maxIndex = index;
             }
         });
-        return maxIndex;
-    }
+        const rowIndex = maxIndex + 1;
 
-    // ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ ДЛЯ РАБОТЫ СО СТРОКАМИ
-
-    // Функция для удаления строки по индексу (по data-row-index)
-    function removeRow(rowIndex) {
-        const rows = document.querySelectorAll(`.parent .data-row[data-row-index="${rowIndex}"]`);
-        rows.forEach(row => row.remove());
-    }
-
-    // Получить максимальный номер в колонке "Item"
-    function getMaxItemNumber() {
-        let max = 0;
-        const itemCells = document.querySelectorAll('.parent .div11.data-row');
-        itemCells.forEach(cell => {
-            const num = parseInt((cell.textContent || '').trim(), 10);
-            if (!isNaN(num) && num > max) {
-                max = num;
-            }
-        });
-        return max;
-    }
-
-    // Функция для добавления пустой строки
-    function addEmptyRow(rowIndex) {
-        const parent = document.querySelector('.parent');
-        if (!parent) return;
-
-        // Создаем все 7 ячеек строки
         const div11 = document.createElement('div');
-        div11.className = 'div11 border-l-b text-center align-content-center fs-75 data-row';
+        div11.className = 'div11 border-l-b text-center align-content-center fs-75 data-row empty-row';
         div11.style.minHeight = '37px';
         div11.setAttribute('data-row-index', rowIndex);
-        // Нумерация для пустых строк продолжается от последнего используемого Item
-        const nextItemNumber = getMaxItemNumber() + 1;
-        div11.textContent = nextItemNumber;
+        div11.textContent = itemNumber;
 
         const div12 = document.createElement('div');
-        div12.className = 'div12 border-l-b text-center align-content-center fs-75 data-row';
+        div12.className = 'div12 border-l-b text-center align-content-center fs-75 data-row empty-row';
         div12.setAttribute('data-row-index', rowIndex);
 
         const div13 = document.createElement('div');
-        div13.className = 'div13 border-l-b text-center align-content-center fs-75 data-row';
+        div13.className = 'div13 border-l-b text-center align-content-center fs-75 data-row empty-row';
         div13.setAttribute('data-row-index', rowIndex);
 
         const div14 = document.createElement('div');
-        div14.className = 'div14 border-l-b text-center align-content-center fs-75 data-row';
+        div14.className = 'div14 border-l-b text-center align-content-center fs-75 data-row empty-row';
         div14.setAttribute('data-row-index', rowIndex);
 
         const div15 = document.createElement('div');
-        div15.className = 'div15 border-l-b text-center align-content-center fs-75 data-row';
+        div15.className = 'div15 border-l-b text-center align-content-center fs-75 data-row empty-row';
         div15.style.color = 'lightgray';
         div15.setAttribute('data-row-index', rowIndex);
         div15.textContent = 'tech stamp';
 
         const div16 = document.createElement('div');
-        div16.className = 'div16 border-l-b text-center align-content-center fs-75 data-row';
+        div16.className = 'div16 border-l-b text-center align-content-center fs-75 data-row empty-row';
         div16.style.color = 'lightgray';
         div16.setAttribute('data-row-index', rowIndex);
         div16.textContent = 'tech stamp';
 
         const div17 = document.createElement('div');
-        div17.className = 'div17 border-l-b-r text-center align-content-center fs-75 data-row';
+        div17.className = 'div17 border-l-b-r text-center align-content-center fs-75 data-row empty-row';
         div17.setAttribute('data-row-index', rowIndex);
 
-        // Добавляем все ячейки в контейнер
-        parent.appendChild(div11);
-        parent.appendChild(div12);
-        parent.appendChild(div13);
-        parent.appendChild(div14);
-        parent.appendChild(div15);
-        parent.appendChild(div16);
-        parent.appendChild(div17);
+        // Добавляем все ячейки в таблицу
+        table.appendChild(div11);
+        table.appendChild(div12);
+        table.appendChild(div13);
+        table.appendChild(div14);
+        table.appendChild(div15);
+        table.appendChild(div16);
+        table.appendChild(div17);
     }
 
-    // Функция для измерения реальной высоты строк с учетом разного содержимого
-    function getActualRowHeight() {
-        const rows = document.querySelectorAll('.parent .data-row[data-row-index]');
-        if (rows.length === 0) {
-            return 37; // Возвращаем значение по умолчанию, если строк нет
-        }
 
-        // Группируем строки по индексу (каждая строка состоит из 7 ячеек)
-        const rowGroups = {};
-        rows.forEach(cell => {
-            const index = parseInt(cell.getAttribute('data-row-index'));
-            if (!isNaN(index) && index > 0) {
-                if (!rowGroups[index]) {
-                    rowGroups[index] = [];
-                }
-                rowGroups[index].push(cell);
+    // Сброс настроек к значениям по умолчанию
+    window.resetPrintSettings = function() {
+        if (confirm('Reset all print settings to default values?')) {
+            localStorage.removeItem(PRINT_SETTINGS_KEY);
+            const settings = defaultSettings;
+            applyPrintSettings(settings);
+            loadSettingsToForm(settings);
+
+            const modal = bootstrap.Modal.getInstance(document.getElementById('printSettingsModal'));
+            if (modal) {
+                modal.hide();
             }
-        });
 
-        // Измеряем высоту каждой строки (берем максимальную высоту среди ячеек строки)
-        // Учитываем реальную высоту с данными, включая перенос текста
-        const rowHeights = [];
-        Object.keys(rowGroups).sort((a, b) => parseInt(a) - parseInt(b)).forEach(index => {
-            const cells = rowGroups[index];
-            let maxCellHeight = 0;
-            cells.forEach(cell => {
-                // Используем offsetHeight для получения реальной высоты с учетом содержимого
-                const height = cell.offsetHeight || cell.clientHeight || 0;
-                if (height > maxCellHeight) {
-                    maxCellHeight = height;
-                }
-            });
-            if (maxCellHeight > 0) {
-                rowHeights.push(maxCellHeight);
-            }
-        });
-
-        if (rowHeights.length === 0) {
-            return 37; // Значение по умолчанию
+            alert('Settings reset to default values!');
         }
+    };
 
-        // Возвращаем среднюю высоту строки (можно использовать Math.max для максимальной)
-        const avgHeight = rowHeights.reduce((sum, h) => sum + h, 0) / rowHeights.length;
-        const maxHeight = Math.max(...rowHeights);
-
-        // Используем среднее значение, но не меньше минимальной высоты
-        return Math.max(37, Math.round(avgHeight));
-    }
-
-    // Функция для измерения высоты заголовка таблицы
-    function getHeaderHeight() {
-        const headerCells = document.querySelectorAll('.parent > div:not(.data-row)');
-        if (headerCells.length === 0) {
-            return 0;
-        }
-
-        // Находим максимальную высоту среди ячеек заголовка
-        let maxHeight = 0;
-        headerCells.forEach(cell => {
-            const height = cell.offsetHeight;
-            if (height > maxHeight) {
-                maxHeight = height;
-            }
-        });
-
-        return maxHeight;
-    }
-
-    // Функция для расчета реальной суммы высот всех строк (учитывает разную высоту)
-    function getTotalRowsHeight() {
-        const rowStats = getRowHeightStatistics();
-        if (!rowStats || !rowStats.heights || rowStats.heights.length === 0) {
-            return 0;
-        }
-        // Суммируем реальные высоты всех строк, а не используем среднюю
-        return rowStats.heights.reduce((sum, height) => sum + height, 0);
-    }
-
-    // Функция для детального анализа расчетов высоты таблицы
-    function analyzeTableHeightCalculations() {
-        const table = document.querySelector('.parent');
-        if (!table) {
-            console.error('Таблица .parent не найдена');
-            return null;
-        }
-
-        const headerHeight = getHeaderHeight();
-        const rowStats = getRowHeightStatistics();
-        const actualTableHeight = table.offsetHeight;
-        const rowCount = getCurrentRowCount();
-
-        // Получаем реальную сумму высот всех строк (учитывает разную высоту)
-        const totalRowsHeight = getTotalRowsHeight();
-
-        // Получаем CSS свойства таблицы для учета отступов и границ
-        const computedStyle = window.getComputedStyle(table);
-        const paddingTop = parseFloat(computedStyle.paddingTop) || 0;
-        const paddingBottom = parseFloat(computedStyle.paddingBottom) || 0;
-        const borderTop = parseFloat(computedStyle.borderTopWidth) || 0;
-        const borderBottom = parseFloat(computedStyle.borderBottomWidth) || 0;
-        const marginTop = parseFloat(computedStyle.marginTop) || 0;
-        const marginBottom = parseFloat(computedStyle.marginBottom) || 0;
-
-        const tableExtraHeight = paddingTop + paddingBottom + borderTop + borderBottom;
-
-        // Расчеты на основе текущих данных
-        // Используем РЕАЛЬНУЮ сумму высот всех строк, а не среднюю * количество
-        const calculatedHeight = headerHeight + totalRowsHeight + tableExtraHeight;
-        // Для диапазона используем минимальную и максимальную высоту
-        const calculatedHeightMin = headerHeight + (rowCount * rowStats.min) + tableExtraHeight;
-        const calculatedHeightMax = headerHeight + (rowCount * rowStats.max) + tableExtraHeight;
-
-        // Целевые параметры
-        const targetMinHeight = 583;
-        const targetMaxHeight = 629;
-        const targetRange = targetMaxHeight - targetMinHeight;
-
-        // Расчет целевого количества строк (учитываем отступы и границы таблицы)
-        const availableMinHeight = targetMinHeight - headerHeight - tableExtraHeight;
-        const availableMaxHeight = targetMaxHeight - headerHeight - tableExtraHeight;
-        const targetMinRows = Math.floor(availableMinHeight / rowStats.avg);
-        const targetMaxRows = Math.floor(availableMaxHeight / rowStats.avg);
-
-        // Проверка: если строки разной высоты, показываем разницу
-        const rowsHeightDifference = rowStats.max - rowStats.min;
-        const hasVariableRowHeights = rowsHeightDifference > 2; // Разница более 2px считается значительной
-
-        const analysis = {
-            actualTableHeight: actualTableHeight,
-            headerHeight: headerHeight,
-            rowCount: rowCount,
-            rowStats: rowStats,
-            totalRowsHeight: totalRowsHeight, // Реальная сумма высот всех строк
-            calculatedHeight: calculatedHeight, // Использует реальную сумму высот
-            calculatedHeightMin: calculatedHeightMin,
-            calculatedHeightMax: calculatedHeightMax,
-            targetMinHeight: targetMinHeight,
-            targetMaxHeight: targetMaxHeight,
-            targetRange: targetRange,
-            availableMinHeight: availableMinHeight,
-            availableMaxHeight: availableMaxHeight,
-            targetMinRows: targetMinRows,
-            targetMaxRows: targetMaxRows,
-            isInRange: actualTableHeight >= targetMinHeight && actualTableHeight <= targetMaxHeight,
-            difference: actualTableHeight < targetMinHeight
-                ? targetMinHeight - actualTableHeight
-                : actualTableHeight > targetMaxHeight
-                    ? actualTableHeight - targetMaxHeight
-                    : 0,
-            tableExtraHeight: tableExtraHeight,
-            hasVariableRowHeights: hasVariableRowHeights,
-            rowsHeightDifference: rowsHeightDifference,
-            cssProperties: {
-                paddingTop: paddingTop,
-                paddingBottom: paddingBottom,
-                borderTop: borderTop,
-                borderBottom: borderBottom,
-                marginTop: marginTop,
-                marginBottom: marginBottom
-            }
+    // Загрузка настроек в форму
+    function loadSettingsToForm(settings) {
+        const elements = {
+            'pageMargin': { suffix: '', default: '2mm 2mm 2mm 2mm' },
+            'bodyWidth': { suffix: '', default: '100' },
+            'bodyHeight': { suffix: '', default: '90' },
+            'containerMaxWidth': { suffix: '', default: '820' },
+            'footerWidth': { suffix: '', default: '100' },
+            'footerFontSize': { suffix: '', default: '10' },
+            'footerPadding': { suffix: '', default: '1px 1px' },
+            'rmTableRows': { suffix: '', default: '18' }
         };
 
-        return analysis;
-    }
-
-    // Функция для автоматической настройки высоты таблицы (использует универсальную функцию)
-    function adjustTableHeight() {
-        // Сначала измеряем реальную высоту строк и заголовка
-        let actualRowHeight = getActualRowHeight();
-        const headerHeight = getHeaderHeight();
-
-        console.log('=== Начальные измерения ===');
-        console.log('Измеренная высота строки:', actualRowHeight + 'px');
-        console.log('Высота заголовка таблицы:', headerHeight + 'px');
-
-        // Проверка целостности строк
-        const integrityCheck = validateRowIntegrity();
-        if (!integrityCheck.isValid) {
-            console.warn('⚠️ Обнаружены проблемы с целостностью строк:');
-            integrityCheck.issues.forEach(issue => console.warn('  -', issue));
-        } else {
-            console.log('✅ Целостность строк проверена: все строки имеют по 7 ячеек');
-        }
-
-        // Детальный анализ перед настройкой
-        const initialAnalysis = analyzeTableHeightCalculations();
-        if (initialAnalysis) {
-            console.log('--- Анализ до настройки ---');
-            console.log('Текущая высота таблицы:', initialAnalysis.actualTableHeight + 'px');
-            console.log('Высота заголовка:', initialAnalysis.headerHeight + 'px');
-            console.log('Количество строк:', initialAnalysis.rowCount);
-
-            // Информация о высотах строк
-            if (initialAnalysis.hasVariableRowHeights) {
-                console.warn(`⚠️ Обнаружены строки с РАЗНОЙ высотой!`);
-                console.log('  - Минимальная:', initialAnalysis.rowStats.min + 'px');
-                console.log('  - Максимальная:', initialAnalysis.rowStats.max + 'px');
-                console.log('  - Средняя:', initialAnalysis.rowStats.avg + 'px');
-                console.log('  - Разница:', initialAnalysis.rowsHeightDifference + 'px');
-                console.log('  - Реальная сумма высот всех строк:', initialAnalysis.totalRowsHeight + 'px');
-                console.log('  ✅ Расчеты используют РЕАЛЬНУЮ сумму высот, а не среднюю * количество');
-            } else {
-                console.log('Высота строки (все одинаковые):', initialAnalysis.rowStats.avg + 'px');
-            }
-
-            console.log('Целевой диапазон:', initialAnalysis.targetMinHeight + 'px - ' + initialAnalysis.targetMaxHeight + 'px');
-            console.log('Целевое количество строк:', initialAnalysis.targetMinRows + ' - ' + initialAnalysis.targetMaxRows);
-            console.log('В диапазоне:', initialAnalysis.isInRange ? 'ДА' : 'НЕТ');
-            if (!initialAnalysis.isInRange) {
-                console.log('Отклонение:', initialAnalysis.difference + 'px');
-            }
-            if (initialAnalysis.tableExtraHeight > 0) {
-                console.log('Дополнительная высота (padding + border):', initialAnalysis.tableExtraHeight + 'px');
-            }
-        }
-
-        // Переменная для отслеживания изменений высоты строк
-        let lastRowHeight = actualRowHeight;
-        let iterationCount = 0;
-
-        // Проверяем, загружена ли функция adjustTableHeightToRange
-        if (typeof adjustTableHeightToRange === 'undefined') {
-            console.error('❌ Функция adjustTableHeightToRange не найдена! Убедитесь, что скрипт table-height-adjuster.js загружен.');
-            return {
-                success: false,
-                message: 'Функция adjustTableHeightToRange не загружена'
-            };
-        }
-
-        // Используем универсальную функцию adjustTableHeightToRange
-        const result = adjustTableHeightToRange({
-            min_height_tab: 593,
-            max_height_tab: 640,
-            tab_name: '.parent',
-            row_height: actualRowHeight, // Используем реальную высоту строки
-            header_height: headerHeight, // Учитываем высоту заголовка
-            row_selector: '.data-row[data-row-index]',
-            addRowCallback: function(rowIndex, tableElement) {
-                addEmptyRow(rowIndex);
-                iterationCount++;
-
-                // После добавления строки даем время на отрисовку и пересчитываем высоту
-                // Используем requestAnimationFrame для более точного измерения
-                requestAnimationFrame(() => {
-                    setTimeout(() => {
-                        const newRowHeight = getActualRowHeight();
-                        if (Math.abs(newRowHeight - lastRowHeight) > 3) {
-                            console.log(`[Итерация ${iterationCount}] Высота строки изменилась: ${lastRowHeight}px → ${newRowHeight}px`);
-                            lastRowHeight = newRowHeight;
-                        }
-                    }, 50); // Небольшая задержка для полной отрисовки
-                });
-            },
-            removeRowCallback: function(rowIndex, tableElement) {
-                removeRow(rowIndex);
-                iterationCount++;
-            },
-            getRowIndexCallback: function(rowElement) {
-                return parseInt(rowElement.getAttribute('data-row-index'));
-            },
-            max_iterations: 50,
-            onComplete: function(currentHeight, rowCount) {
-                // Финальный пересчет высоты строки после завершения настройки
-                setTimeout(() => {
-                    const finalRowHeight = getActualRowHeight();
-                    const rowStats = getRowHeightStatistics();
-                    const finalAnalysis = analyzeTableHeightCalculations();
-
-                    console.log(`=== Настройка завершена ===`);
-                    console.log(`Высота таблицы: ${currentHeight}px`);
-                    console.log(`Количество строк: ${rowCount}`);
-                    console.log(`Средняя высота строки: ${finalRowHeight}px`);
-
-                    if (rowStats && rowStats.count > 0) {
-                        console.log(`Диапазон высот строк: ${rowStats.min}px - ${rowStats.max}px`);
-                        if (rowStats.max !== rowStats.min) {
-                            console.warn(`⚠️ Обнаружены строки с разной высотой (разница: ${rowStats.max - rowStats.min}px)`);
-                        }
-                    }
-
-                    // Проверка целостности строк после настройки
-                    const finalIntegrityCheck = validateRowIntegrity();
-                    if (!finalIntegrityCheck.isValid) {
-                        console.warn('⚠️ После настройки обнаружены проблемы с целостностью строк:');
-                        finalIntegrityCheck.issues.forEach(issue => console.warn('  -', issue));
-                    }
-
-                    // Детальный анализ после настройки
-                    if (finalAnalysis) {
-                        console.log('--- Анализ после настройки ---');
-                        console.log('Фактическая высота таблицы:', finalAnalysis.actualTableHeight + 'px');
-                        console.log('Высота заголовка:', finalAnalysis.headerHeight + 'px');
-                        console.log('Количество строк:', finalAnalysis.rowCount);
-
-                        // Информация о высотах строк
-                        if (finalAnalysis.hasVariableRowHeights) {
-                            console.warn(`⚠️ Строки имеют РАЗНУЮ высоту!`);
-                            console.log('  - Минимальная высота строки:', finalAnalysis.rowStats.min + 'px');
-                            console.log('  - Максимальная высота строки:', finalAnalysis.rowStats.max + 'px');
-                            console.log('  - Средняя высота строки:', finalAnalysis.rowStats.avg + 'px');
-                            console.log('  - Разница:', finalAnalysis.rowsHeightDifference + 'px');
-                            console.log('  - Реальная сумма высот всех строк:', finalAnalysis.totalRowsHeight + 'px');
-                            console.log('  - Если бы все строки были средней высоты:', (finalAnalysis.rowCount * finalAnalysis.rowStats.avg) + 'px');
-                            const difference = Math.abs(finalAnalysis.totalRowsHeight - (finalAnalysis.rowCount * finalAnalysis.rowStats.avg));
-                            if (difference > 5) {
-                                console.warn(`  ⚠️ Расхождение: ${difference}px (используется реальная сумма высот)`);
-                            }
-                        } else {
-                            console.log('✅ Все строки имеют одинаковую высоту:', finalAnalysis.rowStats.avg + 'px');
-                        }
-
-                        console.log('Расчетная высота (заголовок + реальная сумма высот строк):', finalAnalysis.calculatedHeight + 'px');
-                        console.log('Расчетный диапазон (мин/макс высоты):', finalAnalysis.calculatedHeightMin + 'px - ' + finalAnalysis.calculatedHeightMax + 'px');
-                        console.log('Целевой диапазон:', finalAnalysis.targetMinHeight + 'px - ' + finalAnalysis.targetMaxHeight + 'px');
-                        console.log('В целевом диапазоне:', finalAnalysis.isInRange ? '✅ ДА' : '❌ НЕТ');
-
-                        if (!finalAnalysis.isInRange) {
-                            console.warn(`⚠️ Высота таблицы вне целевого диапазона! Отклонение: ${finalAnalysis.difference}px`);
-                            if (finalAnalysis.actualTableHeight < finalAnalysis.targetMinHeight) {
-                                // Используем среднюю высоту для оценки, но учитываем, что строки могут быть разной высоты
-                                const avgHeightForEstimation = finalAnalysis.hasVariableRowHeights
-                                    ? finalAnalysis.rowStats.avg
-                                    : finalAnalysis.rowStats.avg;
-                                const rowsToAdd = Math.ceil(finalAnalysis.difference / avgHeightForEstimation);
-                                console.warn(`   Нужно добавить примерно ${rowsToAdd} строк(и)`);
-                                if (finalAnalysis.hasVariableRowHeights) {
-                                    console.log(`   (оценка основана на средней высоте ${avgHeightForEstimation}px, реальные строки могут быть выше/ниже)`);
-                                }
-                            } else {
-                                const avgHeightForEstimation = finalAnalysis.hasVariableRowHeights
-                                    ? finalAnalysis.rowStats.avg
-                                    : finalAnalysis.rowStats.avg;
-                                const rowsToRemove = Math.ceil(finalAnalysis.difference / avgHeightForEstimation);
-                                console.warn(`   Нужно удалить примерно ${rowsToRemove} строк(и)`);
-                                if (finalAnalysis.hasVariableRowHeights) {
-                                    console.log(`   (оценка основана на средней высоте ${avgHeightForEstimation}px, реальные строки могут быть выше/ниже)`);
-                                }
-                            }
-                        } else {
-                            console.log('✅ Высота таблицы соответствует целевому диапазону!');
-                            if (finalAnalysis.hasVariableRowHeights) {
-                                console.log('   ✅ Учтена разная высота строк при расчетах');
-                            }
-                        }
-
-                        // Проверка расчетов
-                        const heightDifference = Math.abs(finalAnalysis.actualTableHeight - finalAnalysis.calculatedHeight);
-                        if (heightDifference > 5) {
-                            console.warn(`⚠️ Расхождение между фактической и расчетной высотой: ${heightDifference}px`);
-                            console.warn(`   Это может быть связано с отступами, границами или другими CSS свойствами`);
-                            console.log('   Проверьте CSS свойства таблицы: padding, margin, border, gap');
-
-                            // Дополнительная диагностика
-                            if (finalAnalysis.hasVariableRowHeights) {
-                                console.log('   Примечание: расчеты учитывают реальную сумму высот всех строк');
-                                console.log('   (не среднюю высоту * количество, так как строки разной высоты)');
-                            }
-                        } else {
-                            console.log(`✅ Расчеты точны (расхождение: ${heightDifference}px)`);
-                            if (finalAnalysis.hasVariableRowHeights) {
-                                console.log('   ✅ Учтена разная высота строк (использована реальная сумма высот)');
-                            }
-                        }
-
-                        // Дополнительная информация
-                        console.log('--- Дополнительная информация ---');
-                        console.log('Доступная высота для строк (мин):', finalAnalysis.availableMinHeight + 'px');
-                        console.log('Доступная высота для строк (макс):', finalAnalysis.availableMaxHeight + 'px');
-                        console.log('Целевое количество строк (мин):', finalAnalysis.targetMinRows);
-                        console.log('Целевое количество строк (макс):', finalAnalysis.targetMaxRows);
-                        console.log('Дополнительная высота таблицы (padding + border):', finalAnalysis.tableExtraHeight + 'px');
-                        if (finalAnalysis.tableExtraHeight > 0) {
-                            console.log('  - Padding top:', finalAnalysis.cssProperties.paddingTop + 'px');
-                            console.log('  - Padding bottom:', finalAnalysis.cssProperties.paddingBottom + 'px');
-                            console.log('  - Border top:', finalAnalysis.cssProperties.borderTop + 'px');
-                            console.log('  - Border bottom:', finalAnalysis.cssProperties.borderBottom + 'px');
-                        }
-                    }
-                }, 100);
+        Object.keys(elements).forEach(function(id) {
+            const element = document.getElementById(id);
+            if (element) {
+                const value = settings[id] || elements[id].default;
+                if (id === 'pageMargin' || id === 'footerPadding') {
+                    element.value = value;
+                } else {
+                    element.value = parseInt(value) || elements[id].default;
+                }
             }
         });
-
-        return result;
     }
 
-    // Вызываем функции после полной загрузки страницы
+    // Инициализация при загрузке страницы
     window.addEventListener('load', function() {
-        // Проверяем, что функция adjustTableHeightToRange загружена
-        if (typeof adjustTableHeightToRange === 'undefined') {
-            console.error('❌ КРИТИЧЕСКАЯ ОШИБКА: Функция adjustTableHeightToRange не загружена!');
-            console.error('Проверьте, что файл js/table-height-adjuster.js существует и доступен.');
-            console.error('Путь к файлу:', '{{ asset("js/table-height-adjuster.js") }}');
-            return;
-        }
-
-        // Сначала настраиваем высоту таблицы
+        // Небольшая задержка, чтобы убедиться, что DOM полностью загружен
         setTimeout(function() {
-            adjustTableHeight();
+            const settings = loadPrintSettings();
+            console.log('Initializing Print Settings:', settings);
+            applyPrintSettings(settings);
+            loadSettingsToForm(settings);
+        }, 100);
 
-            // Затем выводим информацию о высотах
-            const heights = getTablesHeight();
-            if (heights) {
-                console.log('Высота первой таблицы (.parent):', heights.table1Height + 'px');
-                console.log('Высота второй таблицы (.qc_stamp):', heights.table2Height + 'px');
-                console.log('Отступ между таблицами:', heights.marginBetween + 'px');
-                console.log('Общая высота двух таблиц:', heights.totalHeight + 'px');
-
-                // Выводим информацию о высотах строк
-                if (heights.rowHeightInfo && heights.rowHeightInfo.count > 0) {
-                    console.log('--- Статистика по высотам строк ---');
-                    console.log('Количество строк:', heights.rowHeightInfo.count);
-                    console.log('Минимальная высота строки:', heights.rowHeightInfo.min + 'px');
-                    console.log('Максимальная высота строки:', heights.rowHeightInfo.max + 'px');
-                    console.log('Средняя высота строки:', heights.rowHeightInfo.avg + 'px');
-                    if (heights.rowHeightInfo.max !== heights.rowHeightInfo.min) {
-                        console.warn('⚠️ ВНИМАНИЕ: Строки имеют разную высоту! Разница:', (heights.rowHeightInfo.max - heights.rowHeightInfo.min) + 'px');
-                    }
-                }
-
-                // Информационный блок скрыт
-                // Раскомментируйте код ниже, если нужно показать информационный блок на странице
-
-                // const infoDiv = document.createElement('div');
-                // infoDiv.className = 'no-print';
-                // infoDiv.style.cssText = 'position: fixed; top: 10px; right: 10px; background: rgba(0,0,0,0.8); color: white; padding: 15px; border-radius: 5px; z-index: 10000; font-size: 12px;';
-                // const rowInfo = heights.rowHeightInfo ?
-                //     `<br><strong>Высоты строк:</strong><br>
-                //     Мин: ${heights.rowHeightInfo.min}px, Макс: ${heights.rowHeightInfo.max}px, Средняя: ${heights.rowHeightInfo.avg}px` : '';
-                // infoDiv.innerHTML = `
-                //     <strong>Высота таблиц:</strong><br>
-                //     Таблица 1 (.parent): ${heights.table1Height}px<br>
-                //     Таблица 2 (.qc_stamp): ${heights.table2Height}px<br>
-                //     Отступ: ${heights.marginBetween}px<br>
-                //     <strong>Общая высота: ${heights.totalHeight}px</strong><br>
-                //     <strong>Количество строк: ${getCurrentRowCount()}</strong>${rowInfo}
-                // `;
-                // document.body.appendChild(infoDiv);
-
-            }
-        }, 100); // Небольшая задержка для полной отрисовки
+        // Загружаем настройки в форму при открытии модального окна
+        const modal = document.getElementById('printSettingsModal');
+        if (modal) {
+            modal.addEventListener('show.bs.modal', function() {
+                const currentSettings = loadPrintSettings();
+                loadSettingsToForm(currentSettings);
+            });
+        }
     });
-
-    // Также можно вызвать функцию вручную через консоль: getTablesHeight() или adjustTableHeight()
 </script>
+
+
 </body>
 </html>
 

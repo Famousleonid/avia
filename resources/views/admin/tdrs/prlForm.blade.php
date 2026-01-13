@@ -321,19 +321,9 @@
 </div>
 
 <div class="container-fluid">
-    <!-- Данные (отображаются на каждой странице под верхней частью) -->
-    @php
-        $ordersParts = $ordersParts ?? [];
-        $componentChunks = $componentChunks ?? [];
-        $uniqueManuals = $uniqueManuals ?? [];
-        $hasMultipleManuals = $hasMultipleManuals ?? false;
-        // Инициализируем переменную для передачи manual между страницами
-        $previousChunkLastManual = null;
-    @endphp
-
-    @if(count($componentChunks) > 0) <!-- Проверка, есть ли данные -->
-    @foreach($componentChunks as $chunkInfo)
-        <!-- Верхняя часть формы (дублируется на каждой странице) -->
+    <!-- Первая страница с заголовком -->
+    <div class="page data-page" data-page-index="1">
+        <!-- Верхняя часть формы -->
         <div class="header-page">
             <div class="row">
                 <div class="col-4">
@@ -446,18 +436,18 @@
             </div>
         </div>
 
-        <!-- Данные для текущей страницы -->
-        <div class="page data-page" data-page-index="{{ $loop->iteration }}">
+        <!-- Контейнер для всех строк (разбиение на страницы происходит на фронтенде) -->
+        <div class="all-rows-container">
             @php
-                // Используем данные из chunkInfo, рассчитанные на бэкенде
-                $chunk = isset($chunkInfo['components']) ? $chunkInfo['components'] : [];
-                $previousManual = $previousChunkLastManual;
-                $chunkLastManual = null;
+                $ordersParts = $ordersParts ?? [];
+                $uniqueManuals = $uniqueManuals ?? [];
+                $hasMultipleManuals = $hasMultipleManuals ?? false;
+                $previousManual = null;
                 $rowIndex = 1;
-                $isLastPage = $loop->last;
             @endphp
 
-            @foreach($chunk as $tdr)
+            @if(count($ordersParts) > 0)
+            @foreach($ordersParts as $tdr)
                 @php
                     // Проверяем, является ли $tdr массивом или объектом
                     $isArray = is_array($tdr);
@@ -468,10 +458,6 @@
                     // Если manual изменился и не пустой, и есть несколько manual, вставляем строку с manual
                     $hasMultipleManuals = $hasMultipleManuals ?? false;
                     $shouldInsertManualRow = $hasMultipleManuals && ($currentManual !== null && $currentManual !== '' && $currentManual !== $previousManual);
-                    // Сохраняем последний manual в chunk
-                    if ($currentManual !== null && $currentManual !== '') {
-                        $chunkLastManual = $currentManual;
-                    }
                     
                     // Получаем компонент (orderComponent или component)
                     if ($isArray) {
@@ -607,241 +593,27 @@
                 @php
                     $rowIndex++;
                     $previousManual = $currentManual;
-                    if ($currentManual !== null && $currentManual !== '') {
-                        $chunkLastManual = $currentManual;
-                    }
                 @endphp
             @endforeach
-
-            {{-- Генерируем пустые строки на бэкенде --}}
-            @if(isset($chunkInfo['empty_rows']) && $chunkInfo['empty_rows'] > 0)
-                @for($i = 0; $i < $chunkInfo['empty_rows']; $i++)
-                    <div class="row data-row-prl ms-3 empty-row" style="width: 100%" data-row-index="{{ $rowIndex }}">
-                        <div class="col-5">
-                            <div class="row" style="height: 40px">
-                                <div class="col-1 border-l-b text-center align-content-center">
-                                    <h6></h6>
-                                </div>
-                                <div class="col-2 border-l-b text-center align-content-center">
-                                    <h6></h6>
-                                </div>
-                                <div class="col-9 border-l-b text-center align-content-center">
-                                    <h6></h6>
-                                </div>
-                            </div>
-                        </div>
-                        <div class="col-7">
-                            <div class="row" style="height: 40px">
-                                <div class="col-4 border-l-b text-center align-content-center">
-                                    <h6></h6>
-                                </div>
-                                <div class="col-1 border-l-b text-center align-content-center">
-                                    <h6></h6>
-                                </div>
-                                <div class="col-1 border-l-b text-center align-content-center">
-                                    <h6></h6>
-                                </div>
-                                <div class="col-2 border-l-b text-center align-content-center">
-                                    <h6></h6>
-                                </div>
-                                <div class="col-2 border-l-b-r text-center align-content-center">
-                                    <h6></h6>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                    @php $rowIndex++; @endphp
-                @endfor
             @endif
-
-            @php
-                // Сохраняем последний manual для следующего chunk
-                $previousChunkLastManual = $chunkLastManual ?? $previousManual;
-            @endphp
-
-                <!-- Проверка на последнюю страницу и добавление специального блока -->
-                @if ($loop->last)
-                    <div class="row mt-2" style="width: 100%">
-                        <div class="col-8"></div>
-                        <div class="col-1 border-l-t-b text-center align-content-center d-flex justify-content-center align-items-center" style="width: 48px; height: 46px">
-                            <img src="{{ asset('img/icons/prod_st.png') }}" alt="stamp"
-                                 style="width: 40px; max-height: 42px;">
-                        </div>
-                        <div class="col-1 border-all text-center align-content-center d-flex justify-content-center align-items-center" style="width: 48px; height: 46px">
-                            <img src="{{ asset('img/icons/qual_st.png') }}" alt="stamp"
-                                 style="width: 40px; max-height: 42px;">
-                        </div>
-                        <div class="col-2"></div>
-                    </div>
-                @endif
-        </div>
-    @endforeach
-    @else
-        <!-- Если данных нет, выводим одну страницу с пустыми строками -->
-        <div class="header-page">
-            <div class="row">
-                <div class="col-4">
-                    <img src="{{ asset('img/icons/AT_logo-rb.svg') }}" alt="Logo"
-                         style="width: 180px; margin: 6px 10px 0;">
-                </div>
-                <div class="col-8">
-                    <h5 class="p-2 mt-3 text-black text-"><strong>PART REPLACEMENT LIST</strong></h5>
-                </div>
-            </div>
-            <div class="row">
-                <div class="col-1 text-end"><h6><strong>P/N:</strong> </h6></div>
-                <div class="col-5 ">
-                    <div class="border-b">
-                        <h6 class=""><strong> {{$current_wo->unit->part_number}}</strong></h6>
-                    </div>
-                </div>
-                <div class="col-3 ">
-                    <div class="row ">
-                        <div class="col-5 border-b">
-                            <div class="d-flex ">
-                                <h6 class=" "><strong>MFR: </strong></h6>
-                                @foreach($manuals as $manual)
-                                    @if($manual->id == $current_wo->unit->manual_id)
-                                        <h6 class=" ms-2"><strong> {{$manual->builder->name}}</strong></h6>
-                                    @endif
-                                @endforeach
-                            </div>
-                        </div>
-                        <div class="col-5 border-b"> </div>
-                    </div>
-                </div>
-                <div class="col-3">
-                    <h5 class="p-1 border-all text-center">
-                        <strong>{{__('WO No: W')}}{{$current_wo->number}}</strong>
-                    </h5>
-                </div>
-            </div>
-            <div class="row mt-3">
-                <div class="col-6 ">
-                    <div class="d-flex border-b">
-                        <h6 class="ms-3 me-3"><strong>DESC: </strong></h6>
-                        <div class="">
-                            @foreach($manuals as $manual)
-                                @if($manual->id == $current_wo->unit->manual_id)
-                                    <h6 class=""><strong> {{$manual->title}}</strong></h6>
-                                @endif
-                            @endforeach
-                        </div>
-                    </div>
-                </div>
-                <div class="col-6 ">
-                    <div class="row">
-                        <div class="col-2 border-b">
-                            <h6 class="" ><strong>CMM: </strong></h6>
-                        </div>
-                        <div class="col-3 border-b">
-                            @if($hasMultipleManuals && count($uniqueManuals) > 0)
-                                {{-- Показываем все номера manual через ';' --}}
-                                <h6 class=""><strong>{{ implode('; ', array_map(function($num) { return substr($num, 0, 8); }, $uniqueManuals)) }}</strong></h6>
-                            @else
-                                {{-- Показываем основной manual --}}
-                                @foreach($manuals as $manual)
-                                    @if($manual->id == $current_wo->unit->manual_id)
-                                        <h6 class=""><strong> {{substr($manual->number, 0, 8)}}</strong></h6>
-                                    @endif
-                                @endforeach
-                            @endif
-                        </div>
-                        <div class="col-6"></div>
-                    </div>
-                </div>
-            </div>
-
-            <div class="row mt-4" style="width: 100%">
-                <div class="col-5">
-                    <div class="row">
-                        <div class="col-1 border-l-t-b text-center align-content-center">
-                            <h6 style="margin-top: 5px; font-size: 0.75rem;">FIG No.</h6>
-                        </div>
-                        <div class="col-2 border-l-t-b text-center align-content-center" >
-                            <h6 style="margin-top: 5px; font-size: 0.75rem;">ITEM No.</h6></div>
-                        <div class="col-9 border-l-t-b  text-center align-content-center">
-                            <h6 style="font-size: 0.75rem;">DESCRIPTION</h6>
-                        </div>
-                    </div>
-                </div>
-                <div class="col-7" >
-                    <div class="row" style="height: 53px">
-                        <div class="col-4 border-l-t-b text-center align-content-center">
-                            <h6 style="margin-top: 10px; font-size: 0.75rem;">PART NUMBER</h6>
-                        </div>
-                        <div class="col-1 border-l-t-b text-center align-content-center">
-                            <h6 style="margin-top: 10px; font-size: 0.75rem;">QTY</h6>
-                        </div>
-                        <div class="col-1 border-l-t-b text-center align-content-center">
-                            <h6 style="margin-top: 10px; font-size: 0.75rem;">CODE</h6>
-                        </div>
-                        <div class="col-2 border-l-t-b text-center align-content-center">
-                            <h6 style="margin-top: 10px; font-size: 0.75rem;">PO No.</h6>
-                        </div>
-                        <div class="col-2 border-all text-center align-content-center">
-                            <h6 style="margin-top: 10px; font-size: 0.75rem;">Notes</h6>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-        <div class="page data-page">
-            @php
-                $rowIndex = 1;
-            @endphp
-            @for($i = 0; $i < $partsPerPage ; $i++)
-                <div class="row data-row-prl empty-row" style="width: 100%" data-row-index="{{ $rowIndex }}">
-                    <div class="col-5">
-                        <div class="row" style="height: 40px">
-                            <div class="col-1 border-l-b text-center align-content-center">
-                                <h6></h6>
-                            </div>
-                            <div class="col-2 border-l-b text-center align-content-center">
-                                <h6></h6>
-                            </div>
-                            <div class="col-9 border-l-b align-content-center">
-                                <h6></h6>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="col-7">
-                        <div class="row" style="height: 40px">
-                            <div class="col-4 border-l-b text-center align-content-center">
-                                <h6></h6>
-                            </div>
-                            <div class="col-1 border-l-b text-center align-content-center">
-                                <h6></h6>
-                            </div>
-                            <div class="col-1 border-l-b text-center align-content-center">
-                                <h6></h6>
-                            </div>
-                            <div class="col-2 border-l-b text-center align-content-center">
-                                <h6></h6>
-                            </div>
-                            <div class="col-2 border-l-b-r align-content-center">
-                                <h6></h6>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-                @php $rowIndex++; @endphp
-            @endfor
-                <div class="row mt-2" style="width: 100%">
-                    <div class="col-8"></div>
-                    <div class="col-1 border-l-t-b text-center align-content-center d-flex justify-content-center align-items-center" style="width: 48px; height: 46px">
-                        <img src="{{ asset('img/icons/prod_st.png') }}" alt="stamp"
-                             style="width: 40px; max-height: 42px;">
-                    </div>
-                    <div class="col-1 border-all text-center align-content-center d-flex justify-content-center align-items-center" style="width: 48px; height: 46px">
-                        <img src="{{ asset('img/icons/qual_st.png') }}" alt="stamp"
-                             style="width: 40px; max-height: 42px;">
-                    </div>
-                    <div class="col-2"></div>
-                </div>
         </div>
 
-    @endif
+        <!-- Блок с печатями (отображается на последней странице через JavaScript) -->
+        <div class="stamps-block" style="display: none;">
+            <div class="row mt-2" style="width: 100%">
+                <div class="col-8"></div>
+                <div class="col-1 border-l-t-b text-center align-content-center d-flex justify-content-center align-items-center" style="width: 48px; height: 46px">
+                    <img src="{{ asset('img/icons/prod_st.png') }}" alt="stamp"
+                         style="width: 40px; max-height: 42px;">
+                </div>
+                <div class="col-1 border-all text-center align-content-center d-flex justify-content-center align-items-center" style="width: 48px; height: 46px">
+                    <img src="{{ asset('img/icons/qual_st.png') }}" alt="stamp"
+                         style="width: 40px; max-height: 42px;">
+                </div>
+                <div class="col-2"></div>
+            </div>
+        </div>
+    </div>
 
     <footer>
         <div class="row" style="width: 100%; padding: 5px 0;">
@@ -1206,83 +978,215 @@
         });
     }
 
-    // Применение ограничений строк таблицы
+    // Применение ограничений строк таблицы - создание физических страниц
     function applyTableRowLimits(settings) {
         const prlMaxRows = parseInt(settings.prlTableRows) || 19;
         console.log('Применение ограничений строк PRL:', { prlMaxRows, settings });
         
-        // Сначала убираем все классы print-hide-row для сброса состояния
-        document.querySelectorAll('[data-row-index]').forEach(function(row) {
-            row.classList.remove('print-hide-row');
-        });
-        
-        // Собираем все строки со всех страниц (исключая manual-row, но включая пустые строки)
-        const allDataRows = [];
-        document.querySelectorAll('.data-page, .page').forEach(function(page) {
-            // Ищем все строки с data-row-index (включая .data-row-prl и пустые строки)
-            const pageRows = Array.from(page.querySelectorAll('[data-row-index]'));
-            pageRows.forEach(function(row) {
-                // Пропускаем manual-row
-                if (!row.classList.contains('manual-row')) {
-                    const rowIndex = parseInt(row.getAttribute('data-row-index')) || 0;
-                    allDataRows.push({
-                        element: row,
-                        index: rowIndex,
-                        page: page
-                    });
-                }
-            });
-        });
-        
-        console.log('Найдено всех строк (данные + пустые):', allDataRows.length);
-        
-        if (allDataRows.length === 0) {
-            console.warn('Строки не найдены!');
+        const allRowsContainer = document.querySelector('.all-rows-container');
+        if (!allRowsContainer) {
+            console.warn('Контейнер .all-rows-container не найден!');
             return;
         }
         
-        // Сортируем по индексу
-        allDataRows.sort(function(a, b) {
-            return a.index - b.index;
-        });
-        
-        // Получаем все страницы
-        const pages = Array.from(document.querySelectorAll('.data-page, .page'));
-        console.log('Найдено страниц:', pages.length);
-        
-        if (pages.length === 0) {
-            console.warn('Страницы не найдены!');
-            return;
-        }
-        
-        // Распределяем строки по страницам согласно лимиту
-        let visibleCount = 0;
-        allDataRows.forEach(function(rowData, globalIndex) {
-            // Вычисляем, на какой странице должна быть эта строка (начиная с 0)
-            const targetPageIndex = Math.floor(globalIndex / prlMaxRows);
-            
-            const targetPage = pages[targetPageIndex];
-            
-            // Получаем индекс текущей страницы
-            const currentPageIndex = pages.indexOf(rowData.page);
-            
-            // Показываем строку только если она на правильной странице
-            if (targetPage && currentPageIndex === targetPageIndex) {
-                rowData.element.classList.remove('print-hide-row');
-                visibleCount++;
-            } else {
-                rowData.element.classList.add('print-hide-row');
+        // Удаляем все созданные ранее страницы (кроме первой)
+        document.querySelectorAll('.data-page[data-page-index]').forEach(function(page) {
+            const pageIndex = page.getAttribute('data-page-index');
+            if (pageIndex && parseInt(pageIndex) > 1) {
+                page.remove();
             }
         });
         
-        // Обрабатываем manual-row отдельно - показываем их всегда
-        document.querySelectorAll('.data-row-prl.manual-row').forEach(function(row) {
-            row.classList.remove('print-hide-row');
+        // Удаляем все пустые строки, созданные ранее
+        document.querySelectorAll('.all-rows-container .data-row-prl.empty-row').forEach(function(row) {
+            row.remove();
         });
         
-        console.log('Ограничения строк применены. Видимых строк:', visibleCount, 'из', allDataRows.length);
+        // Собираем все строки из контейнера
+        const allRows = Array.from(allRowsContainer.querySelectorAll('.data-row-prl:not(.empty-row)'));
         
-        console.log('Ограничения строк применены');
+        // Разделяем на manual-row и data-rows
+        const manualRows = allRows.filter(function(row) {
+            return row.classList.contains('manual-row');
+        });
+        const dataRows = allRows.filter(function(row) {
+            return !row.classList.contains('manual-row');
+        });
+        
+        const hasManualRows = manualRows.length > 0;
+        console.log('Найдено manual-row:', hasManualRows);
+        console.log('Найдено строк с данными:', dataRows.length);
+        
+        let totalRows;
+        let rowsToProcess;
+        
+        if (hasManualRows) {
+            // Случай с manual-row: считаем все строки (manual + data)
+            totalRows = allRows.length;
+            rowsToProcess = allRows;
+        } else {
+            // Случай без manual-row: считаем только data-rows
+            totalRows = dataRows.length;
+            rowsToProcess = dataRows;
+        }
+        
+        // Вычисляем количество страниц
+        const totalPages = Math.max(1, Math.ceil(totalRows / prlMaxRows));
+        console.log('Всего строк:', totalRows, ', Лимит на странице:', prlMaxRows, ', Создано страниц:', totalPages);
+        
+        // Находим элементы для копирования
+        const originalHeader = document.querySelector('.header-page');
+        const originalFooter = document.querySelector('footer');
+        const containerFluid = document.querySelector('.container-fluid');
+        const stampsBlock = document.querySelector('.stamps-block');
+        
+        // Скрываем строки, которые не на первой странице
+        rowsToProcess.forEach(function(row, index) {
+            if (index < prlMaxRows) {
+                row.style.display = '';
+            } else {
+                row.style.display = 'none';
+            }
+        });
+        
+        // Создаём дополнительные страницы (начиная со второй)
+        for (let pageIndex = 1; pageIndex < totalPages; pageIndex++) {
+            const startIndex = pageIndex * prlMaxRows;
+            const endIndex = Math.min(startIndex + prlMaxRows, rowsToProcess.length);
+            const pageRows = rowsToProcess.slice(startIndex, endIndex);
+            
+            // Создаём контейнер для новой страницы (как container-fluid)
+            const pageContainer = document.createElement('div');
+            pageContainer.className = 'container-fluid';
+            
+            // Создаём новую страницу
+            const pageDiv = document.createElement('div');
+            pageDiv.className = 'page data-page';
+            pageDiv.setAttribute('data-page-index', pageIndex + 1);
+            pageDiv.style.pageBreakBefore = 'always';
+            
+            // Копируем header
+            if (originalHeader) {
+                const headerClone = originalHeader.cloneNode(true);
+                pageDiv.appendChild(headerClone);
+            }
+            
+            // Создаём контейнер для строк этой страницы (как all-rows-container)
+            const rowsContainer = document.createElement('div');
+            rowsContainer.className = 'all-rows-container';
+            
+            // Клонируем строки для этой страницы
+            pageRows.forEach(function(row) {
+                const rowClone = row.cloneNode(true);
+                rowClone.style.display = '';
+                rowsContainer.appendChild(rowClone);
+            });
+            
+            // Добавляем пустые строки на последней странице, если нужно
+            if (pageIndex === totalPages - 1) {
+                const rowsOnLastPage = totalRows % prlMaxRows;
+                const emptyRowsNeeded = rowsOnLastPage === 0 ? 0 : (prlMaxRows - rowsOnLastPage);
+                
+                if (emptyRowsNeeded > 0) {
+                    for (let i = 0; i < emptyRowsNeeded; i++) {
+                        const emptyRow = document.createElement('div');
+                        emptyRow.className = 'row data-row-prl ms-3 empty-row';
+                        emptyRow.style.width = '100%';
+                        emptyRow.innerHTML = `
+                            <div class="col-5">
+                                <div class="row" style="height: 40px">
+                                    <div class="col-1 border-l-b text-center align-content-center"><h6></h6></div>
+                                    <div class="col-2 border-l-b text-center align-content-center"><h6></h6></div>
+                                    <div class="col-9 border-l-b text-center align-content-center"><h6></h6></div>
+                                </div>
+                            </div>
+                            <div class="col-7">
+                                <div class="row" style="height: 40px">
+                                    <div class="col-4 border-l-b text-center align-content-center"><h6></h6></div>
+                                    <div class="col-1 border-l-b text-center align-content-center"><h6></h6></div>
+                                    <div class="col-1 border-l-b text-center align-content-center"><h6></h6></div>
+                                    <div class="col-2 border-l-b text-center align-content-center"><h6></h6></div>
+                                    <div class="col-2 border-l-b-r text-center align-content-center"><h6></h6></div>
+                                </div>
+                            </div>
+                        `;
+                        rowsContainer.appendChild(emptyRow);
+                    }
+                    console.log('Добавлено пустых строк на последнюю страницу:', emptyRowsNeeded);
+                }
+                
+                // Добавляем блок с печатями на последнюю страницу
+                if (stampsBlock) {
+                    const stampsClone = stampsBlock.cloneNode(true);
+                    stampsClone.style.display = '';
+                    rowsContainer.appendChild(stampsClone);
+                }
+            }
+            
+            pageDiv.appendChild(rowsContainer);
+            
+            // Копируем footer
+            if (originalFooter) {
+                const footerClone = originalFooter.cloneNode(true);
+                pageDiv.appendChild(footerClone);
+            }
+            
+            // Добавляем pageDiv в pageContainer
+            pageContainer.appendChild(pageDiv);
+            
+            // Вставляем страницу после container-fluid
+            if (containerFluid && containerFluid.parentNode) {
+                containerFluid.parentNode.insertBefore(pageContainer, containerFluid.nextSibling);
+            } else {
+                document.body.appendChild(pageContainer);
+            }
+        }
+        
+        // Добавляем пустые строки на первую страницу, если это единственная страница и нужно
+        if (totalPages === 1) {
+            const rowsOnLastPage = totalRows % prlMaxRows;
+            const emptyRowsNeeded = rowsOnLastPage === 0 ? 0 : (prlMaxRows - rowsOnLastPage);
+            
+            if (emptyRowsNeeded > 0 && allRowsContainer) {
+                const lastDataRow = allRowsContainer.querySelector('.data-row-prl:not(.empty-row):last-of-type');
+                if (lastDataRow) {
+                    for (let i = 0; i < emptyRowsNeeded; i++) {
+                        const emptyRow = document.createElement('div');
+                        emptyRow.className = 'row data-row-prl ms-3 empty-row';
+                        emptyRow.style.width = '100%';
+                        emptyRow.innerHTML = `
+                            <div class="col-5">
+                                <div class="row" style="height: 40px">
+                                    <div class="col-1 border-l-b text-center align-content-center"><h6></h6></div>
+                                    <div class="col-2 border-l-b text-center align-content-center"><h6></h6></div>
+                                    <div class="col-9 border-l-b text-center align-content-center"><h6></h6></div>
+                                </div>
+                            </div>
+                            <div class="col-7">
+                                <div class="row" style="height: 40px">
+                                    <div class="col-4 border-l-b text-center align-content-center"><h6></h6></div>
+                                    <div class="col-1 border-l-b text-center align-content-center"><h6></h6></div>
+                                    <div class="col-1 border-l-b text-center align-content-center"><h6></h6></div>
+                                    <div class="col-2 border-l-b text-center align-content-center"><h6></h6></div>
+                                    <div class="col-2 border-l-b-r text-center align-content-center"><h6></h6></div>
+                                </div>
+                            </div>
+                        `;
+                        allRowsContainer.appendChild(emptyRow);
+                    }
+                    console.log('Добавлено пустых строк на первую страницу:', emptyRowsNeeded);
+                }
+            }
+            
+            // Добавляем блок с печатями на первую страницу, если это единственная страница
+            if (stampsBlock && allRowsContainer) {
+                const stampsClone = stampsBlock.cloneNode(true);
+                stampsClone.style.display = '';
+                allRowsContainer.appendChild(stampsClone);
+            }
+        }
+        
+        console.log('Ограничения строк применены. Создано страниц:', totalPages);
     }
 
     // Сброс настроек к значениям по умолчанию

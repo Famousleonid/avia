@@ -1413,15 +1413,11 @@ class TdrController extends Controller
         // Определяем, есть ли несколько manual
         $hasMultipleManuals = count($uniqueManuals) > 1;
 
-        // Преобразуем коллекцию в массив для совместимости с paginateComponentsWithEmptyRows
-        // НЕ используем toArray(), так как он преобразует Eloquent модели в массивы
-        // Используем all(), который возвращает массив объектов
-        $ordersPartsArray = $ordersParts->all();
+        // Разбиение на страницы теперь происходит на фронтенде через JavaScript
+        // Передаём все компоненты без предварительного разбиения
+        // Это позволяет управлять количеством строк на странице через Print Settings
 
-        // Рассчитываем пагинацию с пустыми строками на бэкенде (20 строк на страницу для PRL)
-        $componentChunks = $this->paginateComponentsWithEmptyRows($ordersPartsArray, 20);
-
-        return view('admin.tdrs.prlForm', compact('current_wo', 'components','manuals', 'builders', 'codes','necessaries', 'ordersParts', 'componentChunks', 'uniqueManuals', 'hasMultipleManuals'));
+        return view('admin.tdrs.prlForm', compact('current_wo', 'components','manuals', 'builders', 'codes','necessaries', 'ordersParts', 'uniqueManuals', 'hasMultipleManuals'));
     }
 
     public function ndtForm(Request $request, $id)
