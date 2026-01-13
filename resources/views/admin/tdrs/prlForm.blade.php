@@ -513,38 +513,39 @@
                 @if($shouldInsertManualRow)
                     {{-- Строка с Manual --}}
                     <div class="row data-row-prl ms-3 manual-row" style="width: 100%" data-row-index="{{ $rowIndex }}">
-                        <div class="col-5">
-                            <div class="row" style="height: 40px">
-                                <div class="col-1 border-l-b text-center align-content-center">
-                                    <!-- Пустая ячейка -->
-                                </div>
-                                <div class="col-2 border-l-b text-center align-content-center">
-                                    <!-- Пустая ячейка -->
-                                </div>
-                                <div class="col-9 border-l-b text-center align-content-center" style="font-weight: bold;">
-                                    <strong>{{ $currentManual }}</strong>
-                                </div>
-                            </div>
+                        <div class="border-l-b-r text-center align-content-center" style="font-weight: bold;">
+                            <strong>{{ $currentManual }}</strong>
                         </div>
-                        <div class="col-7">
-                            <div class="row" style="height: 40px">
-                                <div class="col-4 border-l-b text-center align-content-center">
-                                    <!-- Пустая ячейка -->
-                                </div>
-                                <div class="col-1 border-l-b text-center align-content-center">
-                                    <!-- Пустая ячейка -->
-                                </div>
-                                <div class="col-1 border-l-b text-center align-content-center">
-                                    <!-- Пустая ячейка -->
-                                </div>
-                                <div class="col-2 border-l-b text-center align-content-center">
-                                    <!-- Пустая ячейка -->
-                                </div>
-                                <div class="col-2 border-l-b-r text-center align-content-center">
-                                    <!-- Пустая ячейка -->
-                                </div>
-                            </div>
-                        </div>
+{{--                        <div class="col-5">--}}
+{{--                            <div class="row" style="height: 40px">--}}
+{{--                                <div class="col-1 border-l-b text-center align-content-center">--}}
+{{--                                    <!-- Пустая ячейка -->--}}
+{{--                                </div>--}}
+{{--                                <div class="col-2 border-l-b text-center align-content-center">--}}
+{{--                                    <!-- Пустая ячейка -->--}}
+{{--                                </div>--}}
+{{--                                --}}
+{{--                            </div>--}}
+{{--                        </div>--}}
+{{--                        <div class="col-7">--}}
+{{--                            <div class="row" style="height: 40px">--}}
+{{--                                <div class="col-4 border-l-b text-center align-content-center">--}}
+{{--                                    <!-- Пустая ячейка -->--}}
+{{--                                </div>--}}
+{{--                                <div class="col-1 border-l-b text-center align-content-center">--}}
+{{--                                    <!-- Пустая ячейка -->--}}
+{{--                                </div>--}}
+{{--                                <div class="col-1 border-l-b text-center align-content-center">--}}
+{{--                                    <!-- Пустая ячейка -->--}}
+{{--                                </div>--}}
+{{--                                <div class="col-2 border-l-b text-center align-content-center">--}}
+{{--                                    <!-- Пустая ячейка -->--}}
+{{--                                </div>--}}
+{{--                                <div class="col-2 border-l-b-r text-center align-content-center">--}}
+{{--                                    <!-- Пустая ячейка -->--}}
+{{--                                </div>--}}
+{{--                            </div>--}}
+{{--                        </div>--}}
                     </div>
                     @php $rowIndex++; @endphp
                 @endif

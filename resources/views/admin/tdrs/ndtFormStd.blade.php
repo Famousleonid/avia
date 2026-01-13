@@ -40,7 +40,7 @@
             page-break-after: always !important;
             break-after: page !important; /* для современных браузеров */
         }
-        
+
         /* Визуальный индикатор разрыва страницы на экране */
         .page-break-after::after {
             content: '';
@@ -50,7 +50,7 @@
             margin: 10px 0;
             width: 100%;
         }
-        
+
         /* Разделитель страниц - работает и на экране, и при печати */
         .page-break-divider {
             page-break-after: always !important;
@@ -62,7 +62,7 @@
             border-top: 2px dashed #ff0000;
             position: relative;
         }
-        
+
         .page-break-divider::before {
             content: '--- PAGE BREAK ---';
             position: absolute;
@@ -75,7 +75,7 @@
             font-size: 12px;
             font-weight: bold;
         }
-        
+
         @media print {
             .page-break-after::after {
                 display: none; /* Скрываем визуальный индикатор при печати */
@@ -499,27 +499,9 @@
 
                 @if($shouldInsertManualRow)
                     {{-- Строка с Manual --}}
-                    <div class="row fs-85 data-row-ndt manual-row" data-row-index="{{ $rowIndex }}">
-                        <div class="col-1 border-l-b fs-75 details-row text-center" style="height: 32px; font-weight: bold;">
-                            <!-- Пустая ячейка -->
-                        </div>
-                        <div class="col-3 border-l-b details-row text-center" style="height: 32px; font-weight: bold;">
-                            <!-- Пустая ячейка -->
-                        </div>
-                        <div class="col-3 border-l-b details-row text-center" style="height: 32px; font-weight: bold;">
+                    <div class="fs-85 data-row-ndt manual-row" data-row-index="{{ $rowIndex }}">
+                        <div class=" border-l-b-r details-row text-center" style="height: 32px; font-weight: bold;">
                             <strong>{{ $currentManual }}</strong>
-                        </div>
-                        <div class="col-2 border-l-b details-row text-center" style="height: 32px; font-weight: bold;">
-                            <!-- Пустая ячейка -->
-                        </div>
-                        <div class="col-1 border-l-b details-row text-center" style="height: 32px; font-weight: bold;">
-                            <!-- Пустая ячейка -->
-                        </div>
-                        <div class="col-1 border-l-b details-row text-center" style="height: 32px; font-weight: bold;">
-                            <!-- Пустая ячейка -->
-                        </div>
-                        <div class="col-1 border-l-b-r details-row text-center" style="height: 32px; font-weight: bold;">
-                            <!-- Пустая ячейка -->
                         </div>
                     </div>
                     @php $rowIndex++; @endphp
@@ -601,18 +583,18 @@
                 <form id="printSettingsForm">
                     <!-- Tables - Основная группа (не collapse) -->
                     <div class="mb-4">
-                        <h5 class="mb-3" data-bs-toggle="tooltip" 
-                            data-bs-placement="top" 
+                        <h5 class="mb-3" data-bs-toggle="tooltip"
+                            data-bs-placement="top"
                             title="Настройки количества строк в таблице NDT. Строки распределяются по страницам через page-break-after. Настройки применяются автоматически при загрузке страницы."
                             data-tooltip-ru="Настройки количества строк в таблице NDT. Строки распределяются по страницам через page-break-after. Настройки применяются автоматически при загрузке страницы."
                             data-tooltip-en="NDT table row settings. Rows are distributed across pages via page-break-after. Settings are applied automatically on page load.">
                             📊 Tables
                         </h5>
-                        
+
                         <div class="row mb-3">
                             <div class="col-md-6">
-                                <label for="ndtTableRows" class="form-label" data-bs-toggle="tooltip" 
-                                        data-bs-placement="top" 
+                                <label for="ndtTableRows" class="form-label" data-bs-toggle="tooltip"
+                                        data-bs-placement="top"
                                         title="Максимальное количество строк в таблице NDT на одной странице. По умолчанию: 16 строк. Используется для всех страниц формы. Если все компоненты из одного manual, manual-row не учитывается. Если компоненты из разных manual, manual-row учитываются в лимите."
                                         data-tooltip-ru="Максимальное количество строк в таблице NDT на одной странице. По умолчанию: 16 строк. Используется для всех страниц формы. Если все компоненты из одного manual, manual-row не учитывается. Если компоненты из разных manual, manual-row учитываются в лимите."
                                         data-tooltip-en="Maximum number of rows in NDT table per page. Default: 16 rows. Used for all pages of the form. If all components are from one manual, manual-row is not counted. If components are from different manuals, manual-row is counted in the limit.">
@@ -629,10 +611,10 @@
                         <div class="accordion mb-3" id="tableSettingsAccordion">
                             <div class="accordion-item">
                                 <h2 class="accordion-header" id="tableSettingsHeading">
-                                    <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" 
-                                            data-bs-target="#tableSettingsCollapse" aria-expanded="false" 
+                                    <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse"
+                                            data-bs-target="#tableSettingsCollapse" aria-expanded="false"
                                             aria-controls="tableSettingsCollapse">
-                                        <span data-bs-toggle="tooltip" data-bs-placement="right" 
+                                        <span data-bs-toggle="tooltip" data-bs-placement="right"
                                               title="Дополнительные настройки таблицы: ширина, отступы контейнера."
                                               data-tooltip-ru="Дополнительные настройки таблицы: ширина, отступы контейнера."
                                               data-tooltip-en="Additional table settings: width, container padding and margins.">
@@ -640,13 +622,13 @@
                                         </span>
                                     </button>
                                 </h2>
-                                <div id="tableSettingsCollapse" class="accordion-collapse collapse" 
+                                <div id="tableSettingsCollapse" class="accordion-collapse collapse"
                                      aria-labelledby="tableSettingsHeading" data-bs-parent="#tableSettingsAccordion">
                                     <div class="accordion-body">
                                         <div class="row">
                                             <div class="col-md-4 mb-3">
-                                                <label for="containerMaxWidth" class="form-label" data-bs-toggle="tooltip" 
-                                                        data-bs-placement="top" 
+                                                <label for="containerMaxWidth" class="form-label" data-bs-toggle="tooltip"
+                                                        data-bs-placement="top"
                                                         title="Максимальная ширина контейнера с таблицей в пикселях. Рекомендуемое значение: 920px для NDT формы. Увеличьте, если таблица слишком узкая."
                                                         data-tooltip-ru="Максимальная ширина контейнера с таблицей в пикселях. Рекомендуемое значение: 920px для NDT формы. Увеличьте, если таблица слишком узкая."
                                                         data-tooltip-en="Maximum width of the table container in pixels. Recommended value: 920px for NDT form. Increase if the table is too narrow.">
@@ -659,8 +641,8 @@
                                             </div>
 
                                             <div class="col-md-4 mb-3">
-                                                <label for="containerPadding" class="form-label" data-bs-toggle="tooltip" 
-                                                        data-bs-placement="top" 
+                                                <label for="containerPadding" class="form-label" data-bs-toggle="tooltip"
+                                                        data-bs-placement="top"
                                                         title="Внутренние отступы контейнера (пространство между границей контейнера и содержимым). По умолчанию: 5px."
                                                         data-tooltip-ru="Внутренние отступы контейнера (пространство между границей контейнера и содержимым). По умолчанию: 5px."
                                                         data-tooltip-en="Container inner padding (space between container border and content). Default: 5px.">
@@ -673,8 +655,8 @@
                                             </div>
 
                                             <div class="col-md-4 mb-3">
-                                                <label for="containerMarginLeft" class="form-label" data-bs-toggle="tooltip" 
-                                                        data-bs-placement="top" 
+                                                <label for="containerMarginLeft" class="form-label" data-bs-toggle="tooltip"
+                                                        data-bs-placement="top"
                                                         title="Отступ контейнера с таблицей от левого края. По умолчанию: 10px."
                                                         data-tooltip-ru="Отступ контейнера с таблицей от левого края. По умолчанию: 10px."
                                                         data-tooltip-en="Table container margin from left edge. Default: 10px.">
@@ -687,8 +669,8 @@
                                             </div>
 
                                             <div class="col-md-4 mb-3">
-                                                <label for="containerMarginRight" class="form-label" data-bs-toggle="tooltip" 
-                                                        data-bs-placement="top" 
+                                                <label for="containerMarginRight" class="form-label" data-bs-toggle="tooltip"
+                                                        data-bs-placement="top"
                                                         title="Отступ контейнера с таблицей от правого края. По умолчанию: 10px."
                                                         data-tooltip-ru="Отступ контейнера с таблицей от правого края. По умолчанию: 10px."
                                                         data-tooltip-en="Table container margin from right edge. Default: 10px.">
@@ -711,10 +693,10 @@
                         <div class="accordion" id="pageSettingsAccordion">
                             <div class="accordion-item">
                                 <h2 class="accordion-header" id="pageSettingsHeading">
-                                    <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" 
-                                            data-bs-target="#pageSettingsCollapse" aria-expanded="false" 
+                                    <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse"
+                                            data-bs-target="#pageSettingsCollapse" aria-expanded="false"
                                             aria-controls="pageSettingsCollapse">
-                                        <span data-bs-toggle="tooltip" data-bs-placement="right" 
+                                        <span data-bs-toggle="tooltip" data-bs-placement="right"
                                               title="Настройки страницы: ширина, высота, поля и отступы. Влияют на отступы при печати и позиционирование контента."
                                               data-tooltip-ru="Настройки страницы: ширина, высота, поля и отступы. Влияют на отступы при печати и позиционирование контента."
                                               data-tooltip-en="Page settings: width, height, margins and padding. Affect print margins and content positioning.">
@@ -722,13 +704,13 @@
                                         </span>
                                     </button>
                                 </h2>
-                                <div id="pageSettingsCollapse" class="accordion-collapse collapse" 
+                                <div id="pageSettingsCollapse" class="accordion-collapse collapse"
                                      aria-labelledby="pageSettingsHeading" data-bs-parent="#pageSettingsAccordion">
                                     <div class="accordion-body">
                                         <div class="row">
                                             <div class="col-md-4 mb-3">
-                                                <label for="bodyWidth" class="form-label" data-bs-toggle="tooltip" 
-                                                        data-bs-placement="top" 
+                                                <label for="bodyWidth" class="form-label" data-bs-toggle="tooltip"
+                                                        data-bs-placement="top"
                                                         title="Ширина основного контента в процентах от ширины страницы. 98% - стандартное значение, оставляет небольшие поля по бокам."
                                                         data-tooltip-ru="Ширина основного контента в процентах от ширины страницы. 98% - стандартное значение, оставляет небольшие поля по бокам."
                                                         data-tooltip-en="Main content width as percentage of page width. 98% - standard value, leaves small margins on the sides.">
@@ -741,8 +723,8 @@
                                             </div>
 
                                             <div class="col-md-4 mb-3">
-                                                <label for="bodyHeight" class="form-label" data-bs-toggle="tooltip" 
-                                                        data-bs-placement="top" 
+                                                <label for="bodyHeight" class="form-label" data-bs-toggle="tooltip"
+                                                        data-bs-placement="top"
                                                         title="Высота основного контента в процентах от высоты страницы. 99% - стандартное значение."
                                                         data-tooltip-ru="Высота основного контента в процентах от высоты страницы. 99% - стандартное значение."
                                                         data-tooltip-en="Main content height as percentage of page height. 99% - standard value.">
@@ -755,8 +737,8 @@
                                             </div>
 
                                             <div class="col-md-4 mb-3">
-                                                <label for="pageMargin" class="form-label" data-bs-toggle="tooltip" 
-                                                        data-bs-placement="top" 
+                                                <label for="pageMargin" class="form-label" data-bs-toggle="tooltip"
+                                                        data-bs-placement="top"
                                                         title="Отступ от краев страницы при печати. Рекомендуемое значение: 1mm. Увеличьте, если контент обрезается принтером."
                                                         data-tooltip-ru="Отступ от краев страницы при печати. Рекомендуемое значение: 1mm. Увеличьте, если контент обрезается принтером."
                                                         data-tooltip-en="Margin from page edges when printing. Recommended value: 1mm. Increase if content is cut off by the printer.">
@@ -769,8 +751,8 @@
                                             </div>
 
                                             <div class="col-md-4 mb-3">
-                                                <label for="bodyMarginLeft" class="form-label" data-bs-toggle="tooltip" 
-                                                        data-bs-placement="top" 
+                                                <label for="bodyMarginLeft" class="form-label" data-bs-toggle="tooltip"
+                                                        data-bs-placement="top"
                                                         title="Горизонтальный отступ основного контента от левого края. Используется для точной настройки позиционирования."
                                                         data-tooltip-ru="Горизонтальный отступ основного контента от левого края. Используется для точной настройки позиционирования."
                                                         data-tooltip-en="Horizontal margin of main content from left edge. Used for precise positioning.">
@@ -793,10 +775,10 @@
                         <div class="accordion" id="footerSettingsAccordion">
                             <div class="accordion-item">
                                 <h2 class="accordion-header" id="footerSettingsHeading">
-                                    <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" 
-                                            data-bs-target="#footerSettingsCollapse" aria-expanded="false" 
+                                    <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse"
+                                            data-bs-target="#footerSettingsCollapse" aria-expanded="false"
                                             aria-controls="footerSettingsCollapse">
-                                        <span data-bs-toggle="tooltip" data-bs-placement="right" 
+                                        <span data-bs-toggle="tooltip" data-bs-placement="right"
                                               title="Настройки нижнего колонтитула формы. Колонтитул содержит номер формы, ревизию и общее количество компонентов."
                                               data-tooltip-ru="Настройки нижнего колонтитула формы. Колонтитул содержит номер формы, ревизию и общее количество компонентов."
                                               data-tooltip-en="Form footer settings. Footer contains form number, revision and total component count.">
@@ -804,13 +786,13 @@
                                         </span>
                                     </button>
                                 </h2>
-                                <div id="footerSettingsCollapse" class="accordion-collapse collapse" 
+                                <div id="footerSettingsCollapse" class="accordion-collapse collapse"
                                      aria-labelledby="footerSettingsHeading" data-bs-parent="#footerSettingsAccordion">
                                     <div class="accordion-body">
                                         <div class="row">
                                             <div class="col-md-4 mb-3">
-                                                <label for="footerWidth" class="form-label" data-bs-toggle="tooltip" 
-                                                        data-bs-placement="top" 
+                                                <label for="footerWidth" class="form-label" data-bs-toggle="tooltip"
+                                                        data-bs-placement="top"
                                                         title="Ширина колонтитула в пикселях. 800px - стандартное значение. Увеличьте, если текст в колонтитуле не помещается."
                                                         data-tooltip-ru="Ширина колонтитула в пикселях. 800px - стандартное значение. Увеличьте, если текст в колонтитуле не помещается."
                                                         data-tooltip-en="Footer width in pixels. 800px - standard value. Increase if footer text doesn't fit.">
@@ -823,8 +805,8 @@
                                             </div>
 
                                             <div class="col-md-4 mb-3">
-                                                <label for="footerFontSize" class="form-label" data-bs-toggle="tooltip" 
-                                                        data-bs-placement="top" 
+                                                <label for="footerFontSize" class="form-label" data-bs-toggle="tooltip"
+                                                        data-bs-placement="top"
                                                         title="Размер шрифта текста в колонтитуле. 10px - стандартное значение. Увеличьте для лучшей читаемости."
                                                         data-tooltip-ru="Размер шрифта текста в колонтитуле. 10px - стандартное значение. Увеличьте для лучшей читаемости."
                                                         data-tooltip-en="Footer text font size. 10px - standard value. Increase for better readability.">
@@ -837,8 +819,8 @@
                                             </div>
 
                                             <div class="col-md-4 mb-3">
-                                                <label for="footerPadding" class="form-label" data-bs-toggle="tooltip" 
-                                                        data-bs-placement="top" 
+                                                <label for="footerPadding" class="form-label" data-bs-toggle="tooltip"
+                                                        data-bs-placement="top"
                                                         title="Внутренние отступы колонтитула в формате CSS (вертикальный горизонтальный). Например: '3px 3px' означает 3px сверху/снизу и 3px слева/справа."
                                                         data-tooltip-ru="Внутренние отступы колонтитула в формате CSS (вертикальный горизонтальный). Например: '3px 3px' означает 3px сверху/снизу и 3px слева/справа."
                                                         data-tooltip-en="Footer inner padding in CSS format (vertical horizontal). Example: '3px 3px' means 3px top/bottom and 3px left/right.">
@@ -880,7 +862,7 @@
     // Ключ для сохранения настроек печати
     const PRINT_SETTINGS_KEY = 'ndtFormStd_print_settings';
     const TOOLTIP_LANG_KEY = 'ndtFormStd_tooltip_lang';
-    
+
     // Настройки по умолчанию
     const defaultSettings = {
         pageMargin: '1mm',
@@ -896,7 +878,7 @@
         footerPadding: '3px 3px',
         ndtTableRows: '16'
     };
-    
+
     // Загрузка настроек из localStorage
     function loadPrintSettings() {
         const saved = localStorage.getItem(PRINT_SETTINGS_KEY);
@@ -910,7 +892,7 @@
         }
         return defaultSettings;
     }
-    
+
     // Сохранение настроек в localStorage
     window.savePrintSettings = function() {
         try {
@@ -940,25 +922,25 @@
             localStorage.setItem(PRINT_SETTINGS_KEY, JSON.stringify(settings));
             applyPrintSettings(settings);
             applyTableRowLimits(settings);
-            
+
             // Убираем фокус с активного элемента перед закрытием модального окна
             if (document.activeElement && document.activeElement.blur) {
                 document.activeElement.blur();
             }
-            
+
             // Закрываем модальное окно
             const modal = bootstrap.Modal.getInstance(document.getElementById('printSettingsModal'));
             if (modal) {
                 modal.hide();
             }
-            
+
             alert('Settings saved successfully!');
         } catch (e) {
             console.error('Ошибка сохранения настроек:', e);
             alert('Error saving settings');
         }
     };
-    
+
     // Применение CSS переменных
     function applyPrintSettings(settings) {
         const root = document.documentElement;
@@ -974,7 +956,7 @@
         root.style.setProperty('--print-footer-font-size', settings.footerFontSize || defaultSettings.footerFontSize);
         root.style.setProperty('--print-footer-padding', settings.footerPadding || defaultSettings.footerPadding);
     }
-    
+
     // Загрузка настроек в форму
     function loadSettingsToForm(settings) {
         const elements = {
@@ -1006,18 +988,18 @@
             }
         });
     }
-    
+
     // Применение ограничений строк таблицы - создание физических страниц
     function applyTableRowLimits(settings) {
         const ndtMaxRows = parseInt(settings.ndtTableRows) || 16;
         console.log('Применение ограничений строк NDT:', { ndtMaxRows, settings });
-        
+
         const allRowsContainer = document.querySelector('.all-rows-container');
         if (!allRowsContainer) {
             console.warn('Контейнер .all-rows-container не найден!');
             return;
         }
-        
+
         // Удаляем все созданные ранее страницы (кроме первой)
         document.querySelectorAll('.data-page[data-page-index]').forEach(function(page) {
             const pageIndex = page.getAttribute('data-page-index');
@@ -1025,7 +1007,7 @@
                 page.remove();
             }
         });
-        
+
         // Удаляем все разделители и пустые строки
         document.querySelectorAll('.page-break-divider').forEach(function(el) {
             el.remove();
@@ -1036,10 +1018,10 @@
         document.querySelectorAll('.all-rows-container .data-row-ndt.empty-row').forEach(function(row) {
             row.remove();
         });
-        
+
         // Собираем все строки из контейнера
         const allRows = Array.from(allRowsContainer.querySelectorAll('.data-row-ndt:not(.empty-row)'));
-        
+
         // Разделяем на manual-row и data-rows
         const manualRows = allRows.filter(function(row) {
             return row.classList.contains('manual-row');
@@ -1047,14 +1029,14 @@
         const dataRows = allRows.filter(function(row) {
             return !row.classList.contains('manual-row');
         });
-        
+
         const hasManualRows = manualRows.length > 0;
         console.log('Найдено manual-row:', hasManualRows);
         console.log('Найдено строк с данными:', dataRows.length);
-        
+
         let totalRows;
         let rowsToProcess;
-        
+
         if (hasManualRows) {
             // Случай с manual-row: считаем все строки (manual + data)
             totalRows = allRows.length;
@@ -1064,17 +1046,17 @@
             totalRows = dataRows.length;
             rowsToProcess = dataRows;
         }
-        
+
         // Вычисляем количество страниц
         const totalPages = Math.max(1, Math.ceil(totalRows / ndtMaxRows));
         console.log('Всего строк:', totalRows, ', Лимит на странице:', ndtMaxRows, ', Создано страниц:', totalPages);
-        
+
         // Находим элементы для копирования
         const originalHeader = document.querySelector('.header-page');
         const originalTableHeader = document.querySelector('.table-header');
         const originalFooter = document.querySelector('footer');
         const containerFluid = document.querySelector('.container-fluid');
-        
+
         // Скрываем строки, которые не на первой странице
         rowsToProcess.forEach(function(row, index) {
             if (index < ndtMaxRows) {
@@ -1083,51 +1065,51 @@
                 row.style.display = 'none';
             }
         });
-        
+
         // Создаём дополнительные страницы (начиная со второй)
         for (let pageIndex = 1; pageIndex < totalPages; pageIndex++) {
             const startIndex = pageIndex * ndtMaxRows;
             const endIndex = Math.min(startIndex + ndtMaxRows, rowsToProcess.length);
             const pageRows = rowsToProcess.slice(startIndex, endIndex);
-            
+
             // Создаём контейнер для новой страницы (как container-fluid)
             const pageContainer = document.createElement('div');
             pageContainer.className = 'container-fluid';
-            
+
             // Создаём новую страницу
             const pageDiv = document.createElement('div');
             pageDiv.className = 'page data-page';
             pageDiv.setAttribute('data-page-index', pageIndex + 1);
             pageDiv.style.pageBreakBefore = 'always';
-            
+
             // Копируем header
             if (originalHeader) {
                 const headerClone = originalHeader.cloneNode(true);
                 pageDiv.appendChild(headerClone);
             }
-            
+
             // Копируем table-header
             if (originalTableHeader) {
                 const tableHeaderClone = originalTableHeader.cloneNode(true);
                 pageDiv.appendChild(tableHeaderClone);
             }
-            
+
             // Создаём контейнер для строк этой страницы (как all-rows-container)
             const rowsContainer = document.createElement('div');
             rowsContainer.className = 'all-rows-container';
-            
+
             // Клонируем строки для этой страницы
             pageRows.forEach(function(row) {
                 const rowClone = row.cloneNode(true);
                 rowClone.style.display = '';
                 rowsContainer.appendChild(rowClone);
             });
-            
+
             // Добавляем пустые строки на последней странице, если нужно
             if (pageIndex === totalPages - 1) {
                 const rowsOnLastPage = totalRows % ndtMaxRows;
                 const emptyRowsNeeded = rowsOnLastPage === 0 ? 0 : (ndtMaxRows - rowsOnLastPage);
-                
+
                 if (emptyRowsNeeded > 0) {
                     for (let i = 0; i < emptyRowsNeeded; i++) {
                         const emptyRow = document.createElement('div');
@@ -1146,9 +1128,9 @@
                     console.log('Добавлено пустых строк на последнюю страницу:', emptyRowsNeeded);
                 }
             }
-            
+
             pageDiv.appendChild(rowsContainer);
-            
+
             // Копируем footer с правильной нумерацией
             if (originalFooter) {
                 const footerClone = originalFooter.cloneNode(true);
@@ -1162,10 +1144,10 @@
                 }
                 pageDiv.appendChild(footerClone);
             }
-            
+
             // Добавляем pageDiv в pageContainer
             pageContainer.appendChild(pageDiv);
-            
+
             // Вставляем страницу после container-fluid
             if (containerFluid && containerFluid.parentNode) {
                 containerFluid.parentNode.insertBefore(pageContainer, containerFluid.nextSibling);
@@ -1173,12 +1155,12 @@
                 document.body.appendChild(pageContainer);
             }
         }
-        
+
         // Добавляем пустые строки на первую страницу, если это единственная страница и нужно
         if (totalPages === 1) {
             const rowsOnLastPage = totalRows % ndtMaxRows;
             const emptyRowsNeeded = rowsOnLastPage === 0 ? 0 : (ndtMaxRows - rowsOnLastPage);
-            
+
             if (emptyRowsNeeded > 0 && allRowsContainer) {
                 const lastDataRow = allRowsContainer.querySelector('.data-row-ndt:not(.empty-row):last-of-type');
                 if (lastDataRow) {
@@ -1200,7 +1182,7 @@
                 }
             }
         }
-        
+
         // Обновляем нумерацию в оригинальном footer
         if (originalFooter) {
             const pageNumberEl = originalFooter.querySelector('.page-number');
@@ -1212,10 +1194,10 @@
                 totalPagesEl.textContent = totalPages;
             }
         }
-        
+
         console.log('Создано страниц:', totalPages);
     }
-    
+
     // Сброс настроек к значениям по умолчанию
     window.resetPrintSettings = function() {
         if (confirm('Reset all print settings to default values?')) {
@@ -1228,47 +1210,47 @@
             alert('Settings reset to default values!');
         }
     };
-    
+
     // Функция переключения языка tooltips
     window.toggleTooltipLanguage = function() {
         const modal = document.getElementById('printSettingsModal');
         if (!modal) return;
-        
+
         let currentLang = localStorage.getItem(TOOLTIP_LANG_KEY) || 'ru';
         currentLang = currentLang === 'ru' ? 'en' : 'ru';
         localStorage.setItem(TOOLTIP_LANG_KEY, currentLang);
-        
+
         updateTooltipsLanguage(modal, currentLang);
-        
+
         const langText = document.getElementById('langToggleText');
         if (langText) {
             langText.textContent = currentLang === 'ru' ? 'RUS' : 'US';
         }
     };
-    
+
     // Функция обновления языка всех tooltips
     function updateTooltipsLanguage(container, lang) {
         const tooltipElements = container.querySelectorAll('[data-bs-toggle="tooltip"]');
-        
+
         tooltipElements.forEach(function(el) {
             const existingTooltip = bootstrap.Tooltip.getInstance(el);
             if (existingTooltip) {
                 existingTooltip.dispose();
             }
-            
+
             const ruText = el.getAttribute('data-tooltip-ru');
             const enText = el.getAttribute('data-tooltip-en');
-            
+
             if (lang === 'ru' && ruText) {
                 el.setAttribute('title', ruText);
             } else if (lang === 'en' && enText) {
                 el.setAttribute('title', enText);
             }
-            
+
             new bootstrap.Tooltip(el);
         });
     }
-    
+
     // Функция инициализации языка tooltips
     function initTooltipLanguage(modal) {
         const currentLang = localStorage.getItem(TOOLTIP_LANG_KEY) || 'ru';
@@ -1276,12 +1258,12 @@
         if (langText) {
             langText.textContent = currentLang === 'ru' ? 'RUS' : 'US';
         }
-        
+
         setTimeout(function() {
             updateTooltipsLanguage(modal, currentLang);
         }, 100);
     }
-    
+
     // Инициализация при загрузке страницы
     document.addEventListener('DOMContentLoaded', function() {
         const settings = loadPrintSettings();
@@ -1303,7 +1285,7 @@
             });
         }
     });
-    
+
     // Применяем ограничения строк перед печатью
     window.addEventListener('beforeprint', function() {
         console.log('Событие beforeprint - применение ограничений строк перед печатью');
