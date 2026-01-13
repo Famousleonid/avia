@@ -21,25 +21,17 @@ class PRLRowManager {
 
         const row = document.createElement('div');
         row.className = 'row data-row-prl empty-row';
-        row.style.width = '1020px';
+        row.style.width = '100%';
         row.setAttribute('data-row-index', rowIndex);
         row.innerHTML = `
-            <div class="col-5">
-                <div class="row" style="height: 36px">
-                    <div class="col-1 border-l-b align-content-center"><h6></h6></div>
-                    <div class="col-2 border-l-b"><h6></h6></div>
-                    <div class="col-9 border-l-b align-content-center"><h6></h6></div>
-                </div>
-            </div>
-            <div class="col-7">
-                <div class="row" style="height: 36px">
-                    <div class="col-4 border-l-b text-center align-content-center"><h6></h6></div>
-                    <div class="col-1 border-l-b align-content-center"><h6 style="margin-left: -7px"></h6></div>
-                    <div class="col-1 border-l-b align-content-center"><h6 style="margin-left: -10px"></h6></div>
-                    <div class="col-2 border-l-b text-center align-content-center"><h6></h6></div>
-                    <div class="col-2 border-l-b-r align-content-center"><h6></h6></div>
-                </div>
-            </div>
+            <div class="prl-col-fig border-l-b align-content-center"><h6></h6></div>
+            <div class="prl-col-item border-l-b align-content-center"><h6></h6></div>
+            <div class="prl-col-desc border-l-b align-content-center"><h6></h6></div>
+            <div class="prl-col-part border-l-b align-content-center"><h6></h6></div>
+            <div class="prl-col-qty border-l-b align-content-center"><h6></h6></div>
+            <div class="prl-col-code border-l-b align-content-center"><h6></h6></div>
+            <div class="prl-col-po border-l-b align-content-center"><h6></h6></div>
+            <div class="prl-col-notes border-l-b-r align-content-center"><h6></h6></div>
         `;
         containerElement.appendChild(row);
         return row;
