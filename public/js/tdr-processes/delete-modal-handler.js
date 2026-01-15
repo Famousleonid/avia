@@ -20,6 +20,13 @@ class DeleteModalHandler {
         // Обработчик открытия модального окна
         deleteModal.addEventListener('show.bs.modal', function (event) {
             const button = event.relatedTarget; // Кнопка, которая вызвала модальное окно
+            
+            // Пропускаем неактивные кнопки
+            if (button && (button.disabled || button.classList.contains('disabled'))) {
+                event.preventDefault();
+                return;
+            }
+            
             const title = button.getAttribute('data-title'); // Заголовок модального окна
             deleteForm = button.closest('form'); // Находим форму удаления
 

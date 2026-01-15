@@ -224,16 +224,26 @@
                                                 @php
                                                     // Декодируем JSON-поле processes
                                                     $processData = json_decode($processes->processes, true);
-                                                    // Получаем имя процесса из связанной модели ProcessName
-                                                    $processName = $processes->processName->name;
+                                                    // Проверяем, что $processData является массивом
+                                                    if (!is_array($processData)) {
+                                                        $processData = [];
+                                                    }
+                                                    // Получаем имя процесса из связанной модели ProcessName (с проверкой на null)
+                                                    $processName = $processes->processName ? $processes->processName->name : 'N/A';
                                                 @endphp
+                                                
+                                                @if(!$processes->processName)
+                                                    @continue
+                                                @endif
 
-                                                @foreach($processData as $processId)
+                                                @if(is_array($processData) && !empty($processData))
+                                                    @foreach($processData as $processId)
                                                     {{ $processName }} :
                                                     @if(isset($proces[$processId]))
                                                         {{ $proces[$processId]->process }}@if($processes->ec) ( EC )@endif<br>
                                                     @endif
-                                                @endforeach
+                                                    @endforeach
+                                                @endif
                                             @endforeach
 
                                         </td>
@@ -340,7 +350,7 @@
                                             // Используем processNameId как ключ для всех процессов
                                             $actualProcessNameId = $groupKey;
                                             // Отображаем название процесса
-                                            $displayName = $group['process_name']->name;
+                                            $displayName = $group['process_name'] ? $group['process_name']->name : 'N/A';
                                         @endphp
                                         <tr>
                                             <td class="align-middle ">

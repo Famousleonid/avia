@@ -21,8 +21,13 @@ class VendorHandler {
      * Инициализирует обработчики для дропдаунов vendors в таблице
      */
     static initVendorSelects() {
-        const vendorSelects = document.querySelectorAll('.vendor-select:not(#groupFormsModal .vendor-select)');
+        const vendorSelects = document.querySelectorAll('.vendor-select:not(#groupFormsModal .vendor-select):not(.disabled)');
         vendorSelects.forEach(select => {
+            // Пропускаем неактивные селекты
+            if (select.disabled || select.classList.contains('disabled')) {
+                return;
+            }
+            
             select.addEventListener('change', function() {
                 const tdrProcessId = this.getAttribute('data-tdr-process-id');
                 const process = this.getAttribute('data-process');

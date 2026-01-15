@@ -19,14 +19,17 @@ class SortableHandler {
             animation: 150,
             ghostClass: 'dragging',
             dragClass: 'dragging',
+            filter: '.disabled', // Исключаем неактивные строки из drag & drop
             onEnd: function(evt) {
-                // Получаем новый порядок элементов
-                const newOrder = Array.from(sortable.el.children).map((row, index) => {
-                    return {
-                        id: row.getAttribute('data-id'),
-                        sort_order: index + 1
-                    };
-                });
+                // Получаем новый порядок элементов (исключаем неактивные строки)
+                const newOrder = Array.from(sortable.el.children)
+                    .filter(row => !row.querySelector('.disabled') || !row.querySelector('[aria-disabled="true"]'))
+                    .map((row, index) => {
+                        return {
+                            id: row.getAttribute('data-id'),
+                            sort_order: index + 1
+                        };
+                    });
 
                 // Отправляем AJAX запрос для обновления порядка
                 SortableHandler.updateProcessOrder(newOrder, updateOrderUrl, onOrderUpdated);

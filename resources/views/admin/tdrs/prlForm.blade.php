@@ -126,6 +126,16 @@
                 font-size: var(--table-font-size);
             }
 
+            /* Применение font-size ко всей таблице PRL при печати (включая заголовки) */
+            .header-page .row.mt-2.ms-3,
+            .header-page .row.mt-2.ms-3 h6,
+            .all-rows-container .data-row-prl,
+            .all-rows-container .data-row-prl h6,
+            .stamps-block .data-row-prl,
+            .stamps-block-clone .data-row-prl {
+                font-size: var(--table-font-size) !important;
+            }
+
             .row {
                 margin-left: 10px !important;
                 margin-right: 0 !important;
@@ -141,12 +151,12 @@
                 padding-left: 0;
                 padding-right: 0;
             }
-
+            
             /* Убираем пробел между col-5 и col-7 */
             .col-5 {
                 padding-right: 0 !important;
             }
-
+            
             .col-7 {
                 padding-left: 0 !important;
             }
@@ -173,6 +183,16 @@
         .data-row-prl {
             font-size: var(--table-font-size);
             min-height: 40px;
+        }
+
+        /* Применение font-size ко всей таблице PRL (включая заголовки) */
+        .header-page .row.mt-2.ms-3,
+        .header-page .row.mt-2.ms-3 h6,
+        .all-rows-container .data-row-prl,
+        .all-rows-container .data-row-prl h6,
+        .stamps-block .data-row-prl,
+        .stamps-block-clone .data-row-prl {
+            font-size: var(--table-font-size) !important;
         }
 
         .border-all {
@@ -374,7 +394,7 @@
                         <h6 class=""><strong> {{$current_wo->unit->part_number}}</strong></h6>
                     </div>
                 </div>
-                <div class="col-3 ">
+                <div class="col-4 ">
                     <div class="row ">
                         <div class="col-10 border-b">
                             <div class="d-flex ">
@@ -411,7 +431,7 @@
                         <div class="col-2 border-b">
                             <h6 class="" ><strong>CMM: </strong></h6>
                         </div>
-                        <div class="col-5 border-b">
+                        <div class="col-8 border-b">
                             @php
                                 $uniqueManuals = $uniqueManuals ?? [];
                                 $hasMultipleManuals = $hasMultipleManuals ?? false;
@@ -477,31 +497,31 @@
                 @php
                     // Проверяем, является ли $tdr массивом или объектом
                     $isArray = is_array($tdr);
-
+                    
                     // Получаем manual (работает и для массива, и для объекта)
                     $currentManual = $isArray ? ($tdr['manual'] ?? null) : ($tdr->manual ?? null);
-
+                    
                     // Если manual изменился и не пустой, и есть несколько manual, вставляем строку с manual
                     $hasMultipleManuals = $hasMultipleManuals ?? false;
                     $shouldInsertManualRow = $hasMultipleManuals && ($currentManual !== null && $currentManual !== '' && $currentManual !== $previousManual);
-
+                    
                     // Получаем компонент (orderComponent или component)
                     if ($isArray) {
                         $component = $tdr['orderComponent'] ?? $tdr['component'] ?? null;
                     } else {
                         $component = $tdr->orderComponent ?? $tdr->component;
                     }
-
+                    
                     // Используем assy_ipl_num если он есть и не пустой, иначе ipl_num
                     $ipl_num = '';
                     if ($component) {
                         if (is_object($component)) {
-                            $ipl_num = (isset($component->assy_ipl_num) && $component->assy_ipl_num !== null && $component->assy_ipl_num !== '')
-                                ? $component->assy_ipl_num
+                            $ipl_num = (isset($component->assy_ipl_num) && $component->assy_ipl_num !== null && $component->assy_ipl_num !== '') 
+                                ? $component->assy_ipl_num 
                                 : ($component->ipl_num ?? '');
                         } else {
-                            $ipl_num = (isset($component['assy_ipl_num']) && $component['assy_ipl_num'] !== null && $component['assy_ipl_num'] !== '')
-                                ? $component['assy_ipl_num']
+                            $ipl_num = (isset($component['assy_ipl_num']) && $component['assy_ipl_num'] !== null && $component['assy_ipl_num'] !== '') 
+                                ? $component['assy_ipl_num'] 
                                 : ($component['ipl_num'] ?? '');
                         }
                     }
@@ -514,8 +534,8 @@
                     {{-- Строка с Manual --}}
                     <div class="row data-row-prl ms-3 manual-row" style="width: 100%" data-row-index="{{ $rowIndex }}">
                         <div class="border-l-b-r text-center align-content-center" style="font-weight: bold;">
-                            <strong>{{ $currentManual }}</strong>
-                        </div>
+                                    <strong>{{ $currentManual }}</strong>
+                                </div>
 {{--                        <div class="col-5">--}}
 {{--                            <div class="row" style="height: 40px">--}}
 {{--                                <div class="col-1 border-l-b text-center align-content-center">--}}
@@ -614,7 +634,7 @@
                 @endphp
             @endforeach
             @endif
-        </div>
+            </div>
 
         <!-- Блок с печатями (отображается на последней странице через JavaScript) -->
         <div class="stamps-block mt-3" style="display: none; ">
@@ -624,16 +644,16 @@
                 <div class="prl-col-desc "></div>
                 <div class="prl-col-part "></div>
                 <div class="prl-col-qty border-l-t-b text-center align-content-center d-flex justify-content-center align-items-center">
-                    <img src="{{ asset('img/icons/prod_st.png') }}" alt="stamp"
+                        <img src="{{ asset('img/icons/prod_st.png') }}" alt="stamp"
                          style="max-height: 40px; width: 34px">
-                </div>
+                    </div>
                 <div class="prl-col-code border-all text-center align-content-center d-flex justify-content-center align-items-center">
-                    <img src="{{ asset('img/icons/qual_st.png') }}" alt="stamp"
+                        <img src="{{ asset('img/icons/qual_st.png') }}" alt="stamp"
                          style="max-height: 40px; width: 34px">
-                </div>
+                    </div>
                 <div class="prl-col-po "></div>
                 <div class="prl-col-notes "></div>
-            </div>
+                </div>
         </div>
 
     <footer>
@@ -667,18 +687,18 @@
                 <form id="printSettingsForm">
                     <!-- Table Setting - Основная группа (не collapse) -->
                     <div class="mb-4">
-                        <h5 class="mb-3" data-bs-toggle="tooltip"
-                            data-bs-placement="top"
+                        <h5 class="mb-3" data-bs-toggle="tooltip" 
+                            data-bs-placement="top" 
                             title="Настройки количества строк в таблице PRL. Строки сверх лимита скрываются при печати. Настройки применяются автоматически при загрузке страницы."
                             data-tooltip-ru="Настройки количества строк в таблице PRL. Строки сверх лимита скрываются при печати. Настройки применяются автоматически при загрузке страницы."
                             data-tooltip-en="PRL table row settings. Rows exceeding the limit are hidden when printing. Settings are applied automatically on page load.">
                             📊 Tables
                         </h5>
-
+                        
                         <div class="row mb-3">
                             <div class="col-md-6">
-                                <label for="prlTableRows" class="form-label" data-bs-toggle="tooltip"
-                                        data-bs-placement="top"
+                                <label for="prlTableRows" class="form-label" data-bs-toggle="tooltip" 
+                                        data-bs-placement="top" 
                                         title="Максимальное количество строк в таблице PRL на одной странице. По умолчанию: 19 строк. Используется для всех страниц формы."
                                         data-tooltip-ru="Максимальное количество строк в таблице PRL на одной странице. По умолчанию: 19 строк. Используется для всех страниц формы."
                                         data-tooltip-en="Maximum number of rows in PRL table per page. Default: 19 rows. Used for all pages of the form.">
@@ -695,10 +715,10 @@
                         <div class="accordion mb-3" id="tableSettingsAccordion">
                             <div class="accordion-item">
                                 <h2 class="accordion-header" id="tableSettingsHeading">
-                                    <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse"
-                                            data-bs-target="#tableSettingsCollapse" aria-expanded="false"
+                                    <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" 
+                                            data-bs-target="#tableSettingsCollapse" aria-expanded="false" 
                                             aria-controls="tableSettingsCollapse">
-                                        <span data-bs-toggle="tooltip" data-bs-placement="right"
+                                        <span data-bs-toggle="tooltip" data-bs-placement="right" 
                                               title="Дополнительные настройки таблицы: ширина контейнера."
                                               data-tooltip-ru="Дополнительные настройки таблицы: ширина контейнера."
                                               data-tooltip-en="Additional table settings: container width.">
@@ -706,13 +726,13 @@
                                         </span>
                                     </button>
                                 </h2>
-                                <div id="tableSettingsCollapse" class="accordion-collapse collapse"
+                                <div id="tableSettingsCollapse" class="accordion-collapse collapse" 
                                      aria-labelledby="tableSettingsHeading" data-bs-parent="#tableSettingsAccordion">
                                     <div class="accordion-body">
                                         <div class="row">
                                             <div class="col-md-4 mb-3">
-                                                <label for="containerMaxWidth" class="form-label" data-bs-toggle="tooltip"
-                                                        data-bs-placement="top"
+                                                <label for="containerMaxWidth" class="form-label" data-bs-toggle="tooltip" 
+                                                        data-bs-placement="top" 
                                                         title="Максимальная ширина контейнера с таблицей в пикселях. Рекомендуемое значение: 1020px для PRL формы."
                                                         data-tooltip-ru="Максимальная ширина контейнера с таблицей в пикселях. Рекомендуемое значение: 1020px для PRL формы."
                                                         data-tooltip-en="Maximum width of the table container in pixels. Recommended value: 1020px for PRL form.">
@@ -748,10 +768,10 @@
                         <div class="accordion" id="pageSettingsAccordion">
                             <div class="accordion-item">
                                 <h2 class="accordion-header" id="pageSettingsHeading">
-                                    <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse"
-                                            data-bs-target="#pageSettingsCollapse" aria-expanded="false"
+                                    <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" 
+                                            data-bs-target="#pageSettingsCollapse" aria-expanded="false" 
                                             aria-controls="pageSettingsCollapse">
-                                        <span data-bs-toggle="tooltip" data-bs-placement="right"
+                                        <span data-bs-toggle="tooltip" data-bs-placement="right" 
                                               title="Настройки страницы: ширина, высота, поля и отступы. Влияют на отступы при печати и позиционирование контента."
                                               data-tooltip-ru="Настройки страницы: ширина, высота, поля и отступы. Влияют на отступы при печати и позиционирование контента."
                                               data-tooltip-en="Page settings: width, height, margins and padding. Affect print margins and content positioning.">
@@ -759,13 +779,13 @@
                                         </span>
                                     </button>
                                 </h2>
-                                <div id="pageSettingsCollapse" class="accordion-collapse collapse"
+                                <div id="pageSettingsCollapse" class="accordion-collapse collapse" 
                                      aria-labelledby="pageSettingsHeading" data-bs-parent="#pageSettingsAccordion">
                                     <div class="accordion-body">
                                         <div class="row">
                                             <div class="col-md-4 mb-3">
-                                                <label for="bodyWidth" class="form-label" data-bs-toggle="tooltip"
-                                                        data-bs-placement="top"
+                                                <label for="bodyWidth" class="form-label" data-bs-toggle="tooltip" 
+                                                        data-bs-placement="top" 
                                                         title="Ширина основного контента в процентах от ширины страницы. 102% - стандартное значение для PRL формы."
                                                         data-tooltip-ru="Ширина основного контента в процентах от ширины страницы. 102% - стандартное значение для PRL формы."
                                                         data-tooltip-en="Main content width as percentage of page width. 102% - standard value for PRL form.">
@@ -778,8 +798,8 @@
                                             </div>
 
                                             <div class="col-md-4 mb-3">
-                                                <label for="bodyHeight" class="form-label" data-bs-toggle="tooltip"
-                                                        data-bs-placement="top"
+                                                <label for="bodyHeight" class="form-label" data-bs-toggle="tooltip" 
+                                                        data-bs-placement="top" 
                                                         title="Высота основного контента в процентах от высоты страницы. 86% - стандартное значение для PRL формы."
                                                         data-tooltip-ru="Высота основного контента в процентах от высоты страницы. 86% - стандартное значение для PRL формы."
                                                         data-tooltip-en="Main content height as percentage of page height. 86% - standard value for PRL form.">
@@ -792,8 +812,8 @@
                                             </div>
 
                                             <div class="col-md-4 mb-3">
-                                                <label for="pageMargin" class="form-label" data-bs-toggle="tooltip"
-                                                        data-bs-placement="top"
+                                                <label for="pageMargin" class="form-label" data-bs-toggle="tooltip" 
+                                                        data-bs-placement="top" 
                                                         title="Отступ от краев страницы при печати. Рекомендуемое значение: 5mm для PRL формы. Увеличьте, если контент обрезается принтером."
                                                         data-tooltip-ru="Отступ от краев страницы при печати. Рекомендуемое значение: 5mm для PRL формы. Увеличьте, если контент обрезается принтером."
                                                         data-tooltip-en="Margin from page edges when printing. Recommended value: 5mm for PRL form. Increase if content is cut off by the printer.">
@@ -816,10 +836,10 @@
                         <div class="accordion" id="footerSettingsAccordion">
                             <div class="accordion-item">
                                 <h2 class="accordion-header" id="footerSettingsHeading">
-                                    <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse"
-                                            data-bs-target="#footerSettingsCollapse" aria-expanded="false"
+                                    <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" 
+                                            data-bs-target="#footerSettingsCollapse" aria-expanded="false" 
                                             aria-controls="footerSettingsCollapse">
-                                        <span data-bs-toggle="tooltip" data-bs-placement="right"
+                                        <span data-bs-toggle="tooltip" data-bs-placement="right" 
                                               title="Настройки нижнего колонтитула формы. Колонтитул содержит номер формы, ревизию и общее количество компонентов."
                                               data-tooltip-ru="Настройки нижнего колонтитула формы. Колонтитул содержит номер формы, ревизию и общее количество компонентов."
                                               data-tooltip-en="Form footer settings. Footer contains form number, revision and total component count.">
@@ -827,13 +847,13 @@
                                         </span>
                                     </button>
                                 </h2>
-                                <div id="footerSettingsCollapse" class="accordion-collapse collapse"
+                                <div id="footerSettingsCollapse" class="accordion-collapse collapse" 
                                      aria-labelledby="footerSettingsHeading" data-bs-parent="#footerSettingsAccordion">
                                     <div class="accordion-body">
                                         <div class="row">
                                             <div class="col-md-4 mb-3">
-                                                <label for="footerWidth" class="form-label" data-bs-toggle="tooltip"
-                                                        data-bs-placement="top"
+                                                <label for="footerWidth" class="form-label" data-bs-toggle="tooltip" 
+                                                        data-bs-placement="top" 
                                                         title="Ширина колонтитула в процентах. 100% - стандартное значение для PRL формы."
                                                         data-tooltip-ru="Ширина колонтитула в процентах. 100% - стандартное значение для PRL формы."
                                                         data-tooltip-en="Footer width as percentage. 100% - standard value for PRL form.">
@@ -846,8 +866,8 @@
                                             </div>
 
                                             <div class="col-md-4 mb-3">
-                                                <label for="footerFontSize" class="form-label" data-bs-toggle="tooltip"
-                                                        data-bs-placement="top"
+                                                <label for="footerFontSize" class="form-label" data-bs-toggle="tooltip" 
+                                                        data-bs-placement="top" 
                                                         title="Размер шрифта текста в колонтитуле. 10px - стандартное значение. Увеличьте для лучшей читаемости."
                                                         data-tooltip-ru="Размер шрифта текста в колонтитуле. 10px - стандартное значение. Увеличьте для лучшей читаемости."
                                                         data-tooltip-en="Footer text font size. 10px - standard value. Increase for better readability.">
@@ -860,8 +880,8 @@
                                             </div>
 
                                             <div class="col-md-4 mb-3">
-                                                <label for="footerPadding" class="form-label" data-bs-toggle="tooltip"
-                                                        data-bs-placement="top"
+                                                <label for="footerPadding" class="form-label" data-bs-toggle="tooltip" 
+                                                        data-bs-placement="top" 
                                                         title="Внутренние отступы колонтитула в формате CSS (вертикальный горизонтальный). Например: '3px 3px' означает 3px сверху/снизу и 3px слева/справа."
                                                         data-tooltip-ru="Внутренние отступы колонтитула в формате CSS (вертикальный горизонтальный). Например: '3px 3px' означает 3px сверху/снизу и 3px слева/справа."
                                                         data-tooltip-en="Footer inner padding in CSS format (vertical horizontal). Example: '3px 3px' means 3px top/bottom and 3px left/right.">
@@ -910,6 +930,7 @@
         bodyWidth: '102%',
         bodyHeight: '86%',
         containerMaxWidth: '1020px',
+        tableFontSize: '0.875rem',
         footerWidth: '100%',
         footerFontSize: '10px',
         footerPadding: '3px 3px',
@@ -956,18 +977,18 @@
             localStorage.setItem(PRINT_SETTINGS_KEY, JSON.stringify(settings));
             applyPrintSettings(settings);
             applyTableRowLimits(settings);
-
+            
             // Убираем фокус с активного элемента перед закрытием модального окна
             if (document.activeElement && document.activeElement.blur) {
                 document.activeElement.blur();
             }
-
+            
             // Закрываем модальное окно
             const modal = bootstrap.Modal.getInstance(document.getElementById('printSettingsModal'));
             if (modal) {
                 modal.hide();
             }
-
+            
             alert('Settings saved successfully!');
         } catch (e) {
             console.error('Ошибка сохранения настроек:', e);
@@ -1022,20 +1043,42 @@
     function applyTableRowLimits(settings) {
         const prlMaxRows = parseInt(settings.prlTableRows) || 19;
         console.log('Применение ограничений строк PRL:', { prlMaxRows, settings });
-
+        
         const allRowsContainer = document.querySelector('.all-rows-container');
         if (!allRowsContainer) {
             console.warn('Контейнер .all-rows-container не найден!');
             return;
         }
 
-        // Удаляем все созданные ранее страницы (кроме первой)
-        document.querySelectorAll('.data-page[data-page-index]').forEach(function(page) {
-            const pageIndex = page.getAttribute('data-page-index');
-            if (pageIndex && parseInt(pageIndex) > 1) {
-                page.remove();
+        // Удаляем все созданные ранее дополнительные страницы и их контейнеры
+        // Находим оригинальный container-fluid (содержит первую страницу с data-page-index="1")
+        let originalContainerFluid = null;
+        document.querySelectorAll('.container-fluid').forEach(function(container) {
+            if (container.querySelector('.data-page[data-page-index="1"]')) {
+                originalContainerFluid = container;
             }
         });
+
+        // Если не нашли, берем первый контейнер без класса dynamic-page-wrapper
+        if (!originalContainerFluid) {
+            originalContainerFluid = document.querySelector('.container-fluid:not(.dynamic-page-wrapper)')
+                || document.querySelector('.container-fluid');
+        }
+
+        // Удаляем все container-fluid, которые были созданы динамически (помечены классом dynamic-page-wrapper)
+        document.querySelectorAll('.container-fluid.dynamic-page-wrapper').forEach(function(container) {
+            container.remove();
+        });
+
+        // Удаляем все созданные ранее страницы внутри оригинального контейнера (на случай, если они там остались)
+        if (originalContainerFluid) {
+            originalContainerFluid.querySelectorAll('.data-page[data-page-index]').forEach(function(page) {
+                const pageIndex = page.getAttribute('data-page-index');
+                if (pageIndex && parseInt(pageIndex) > 1) {
+                    page.remove();
+                }
+            });
+        }
 
         // Удаляем все пустые строки, созданные ранее
         document.querySelectorAll('.all-rows-container .data-row-prl.empty-row').forEach(function(row) {
@@ -1082,7 +1125,7 @@
         // Находим элементы для копирования
         const originalHeader = document.querySelector('.header-page');
         const originalFooter = document.querySelector('footer');
-        const containerFluid = document.querySelector('.container-fluid');
+        const containerFluid = originalContainerFluid || document.querySelector('.container-fluid');
         const stampsBlock = document.querySelector('.stamps-block');
 
         // Скрываем строки, которые не на первой странице
@@ -1100,9 +1143,15 @@
             const endIndex = Math.min(startIndex + prlMaxRows, rowsToProcess.length);
             const pageRows = rowsToProcess.slice(startIndex, endIndex);
 
+            // Пропускаем создание страницы, если нет строк для неё
+            if (pageRows.length === 0) {
+                console.warn('Пропущена пустая страница:', pageIndex + 1);
+                continue;
+            }
+
             // Создаём контейнер для новой страницы (как container-fluid)
             const pageContainer = document.createElement('div');
-            pageContainer.className = 'container-fluid';
+            pageContainer.className = 'container-fluid dynamic-page-wrapper';
 
             // Создаём новую страницу
             const pageDiv = document.createElement('div');
@@ -1266,42 +1315,42 @@
     window.toggleTooltipLanguage = function() {
         const modal = document.getElementById('printSettingsModal');
         if (!modal) return;
-
+        
         let currentLang = localStorage.getItem(TOOLTIP_LANG_KEY) || 'ru';
         currentLang = currentLang === 'ru' ? 'en' : 'ru';
         localStorage.setItem(TOOLTIP_LANG_KEY, currentLang);
-
+        
         updateTooltipsLanguage(modal, currentLang);
-
+        
         const langText = document.getElementById('langToggleText');
         if (langText) {
             langText.textContent = currentLang === 'ru' ? 'RUS' : 'US';
         }
     };
-
+    
     // Функция обновления языка всех tooltips
     function updateTooltipsLanguage(container, lang) {
         const tooltipElements = container.querySelectorAll('[data-bs-toggle="tooltip"]');
-
+        
         tooltipElements.forEach(function(el) {
             const existingTooltip = bootstrap.Tooltip.getInstance(el);
             if (existingTooltip) {
                 existingTooltip.dispose();
             }
-
+            
             const ruText = el.getAttribute('data-tooltip-ru');
             const enText = el.getAttribute('data-tooltip-en');
-
+            
             if (lang === 'ru' && ruText) {
                 el.setAttribute('title', ruText);
             } else if (lang === 'en' && enText) {
                 el.setAttribute('title', enText);
             }
-
+            
             new bootstrap.Tooltip(el);
         });
     }
-
+    
     // Функция инициализации языка tooltips
     function initTooltipLanguage(modal) {
         const currentLang = localStorage.getItem(TOOLTIP_LANG_KEY) || 'ru';
@@ -1309,7 +1358,7 @@
         if (langText) {
             langText.textContent = currentLang === 'ru' ? 'RUS' : 'US';
         }
-
+        
         setTimeout(function() {
             updateTooltipsLanguage(modal, currentLang);
         }, 100);

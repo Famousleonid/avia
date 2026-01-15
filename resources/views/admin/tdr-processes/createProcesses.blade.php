@@ -297,7 +297,16 @@
         
         // Функция для проверки, является ли процесс Machining
         function isMachiningProcess(processNameId) {
-            return machiningProcessNameId !== null && processNameId == machiningProcessNameId.toString();
+            const result = machiningProcessNameId !== null && processNameId == machiningProcessNameId.toString();
+            // Отладочная информация (можно убрать в продакшене)
+            if (processNameId) {
+                console.log('isMachiningProcess check:', {
+                    processNameId: processNameId,
+                    machiningProcessNameId: machiningProcessNameId,
+                    result: result
+                });
+            }
+            return result;
         }
 
         // Динамическое добавление новых строк
@@ -375,6 +384,19 @@
                 }).on('select2:select', function (e) {
                     // Обработчик события Select2 для загрузки процессов
                     const selectElement = e.target;
+                    const processNameId = selectElement.value;
+                    const processRow = selectElement.closest('.process-row');
+                    
+                    // Показываем/скрываем чекбокс EC для Machining
+                    const ecCheckbox = processRow.querySelector('input[name*="[ec]"]');
+                    if (ecCheckbox) {
+                        if (isMachiningProcess(processNameId)) {
+                            ecCheckbox.closest('.form-check').style.display = 'block';
+                        } else {
+                            ecCheckbox.closest('.form-check').style.display = 'none';
+                        }
+                    }
+                    
                     loadProcessesForRow(selectElement);
                 });
             }
@@ -1157,6 +1179,19 @@
                 }).on('select2:select', function (e) {
                     // Обработчик события Select2 для загрузки процессов
                     const selectElement = e.target;
+                    const processNameId = selectElement.value;
+                    const processRow = selectElement.closest('.process-row');
+                    
+                    // Показываем/скрываем чекбокс EC для Machining
+                    const ecCheckbox = processRow.querySelector('input[name*="[ec]"]');
+                    if (ecCheckbox) {
+                        if (isMachiningProcess(processNameId)) {
+                            ecCheckbox.closest('.form-check').style.display = 'block';
+                        } else {
+                            ecCheckbox.closest('.form-check').style.display = 'none';
+                        }
+                    }
+                    
                     loadProcessesForRow(selectElement);
                 });
             }

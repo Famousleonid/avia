@@ -56,7 +56,14 @@
 
 
                     <div class="ps-2 d-flex" >
-
+                        {{--                        <div class=" ms-4">--}}
+                        {{--                            <a href="{{ route('mains.show', $current_wo->id) }}" class="btn--}}
+                        {{--                                            btn-outline-success " title="{{ __('WO Tasks') }}"--}}
+                        {{--                               onclick="showLoadingSpinner()"--}}
+                        {{--                            >--}}
+                        {{--                                <i class="bi bi-list-task " style="font-size: 28px;"></i>--}}
+                        {{--                            </a>--}}
+                        {{--                        </div>--}}
                         <div class="me-2 position-relative">
                             <button class="btn  btn-outline-warning ms-2 open-pdf-modal text-center"
                                     title="{{ __('PDF Library') }}"
@@ -489,7 +496,7 @@
                                                     $unitConditionsId = $unit->conditions_id;
                                                 @endphp
                                                 <tr>
-                                                    <td class="p-3">
+                                                    <td class="p-3"> 
                                                         {{ $conditionName }}
                                                         @if($unitComponentId)
                                                             <small class="text-muted">(Component ID: {{ $unitComponentId }}, Codes: {{ $unitCodesId }}, Conditions: {{ $unitConditionsId }})</small>
@@ -600,26 +607,22 @@
 
                 <div class=" d-flex " style=" ; width: 380px">
 
-                    <div class="d-flex" style="width: 200px">
-                        <x-paper-button
-                            text="WO Process Sheet"
-                            href="{{ route('tdrs.woProcessForm', ['id'=> $current_wo->id]) }}"
-                            target="_blank"
-                            color="outline-info"
-                        />
-                    </div>
-
-
                     @if(count($tdrs))
+                        <div class="d-flex" style="width: 200px">
+                            <x-paper-button
+                                text="WO Process Sheet"
+                                href="{{ route('tdrs.woProcessForm', ['id'=> $current_wo->id]) }}"
+                                target="_blank"
+                                color="outline-info"
+                            />
+                        </div>
+
 
                         <x-paper-button
                             text="TDR Form"
                             href="{{ route('tdrs.tdrForm', ['id'=> $current_wo->id]) }}"
                             target="_blank"
                         />
-
-
-
                         @if(count($processParts)==0)
                             <x-paper-button
                                 text="SP Form"
@@ -635,13 +638,12 @@
                             />
 
                         @endif
-                        @if ($current_wo->rm_report)
                         <x-paper-button
                             text="R&M Form"
                             href="{{ route('rm_reports.rmRecordForm', ['id'=> $current_wo->id]) }}"
                             target="_blank"
                         />
-                        @endif
+
                         @if (count($prl_parts) > 0)
                             <div class="position-relative d-inline-block">
                                 <x-paper-button

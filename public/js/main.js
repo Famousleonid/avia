@@ -322,8 +322,9 @@ function showWarningMessage(message, duration) { showNotification(message, 'warn
 
 
 // =====================================================
-// Глобальная загрузка table-height-adjuster.js (как у тебя)
+// Глобальная загрузка table-height-adjuster.js (ОТКЛЮЧЕНО - файл не существует)
 // =====================================================
+/*
 (function() {
     if (typeof adjustTableHeightToRange === 'undefined' && typeof calculateMaxTableRows === 'undefined') {
         var existingScript = document.querySelector('script[src*="table-height-adjuster.js"]');
@@ -353,6 +354,7 @@ function showWarningMessage(message, duration) { showNotification(message, 'warn
         window.dispatchEvent(new Event('tableHeightAdjusterLoaded'));
     }
 })();
+*/
 
 
 // ====== HAPTIC FEEDBACK (mobile) ======

@@ -7,9 +7,14 @@ class FormLinkHandler {
      * Инициализирует обработчики для ссылок на формы
      */
     static init() {
-        const formLinks = document.querySelectorAll('.form-link');
+        const formLinks = document.querySelectorAll('.form-link:not(.disabled)');
         formLinks.forEach(link => {
             link.addEventListener('click', function(e) {
+                // Пропускаем неактивные ссылки
+                if (this.classList.contains('disabled') || this.hasAttribute('aria-disabled')) {
+                    e.preventDefault();
+                    return;
+                }
                 FormLinkHandler.updateFormLinkUrl(this);
             });
         });

@@ -347,6 +347,11 @@
         }
     </style>
 
+    @php
+        // Определяем ID для EC (один раз в начале файла для оптимизации)
+        $ecProcessNameId = \App\Models\ProcessName::where('name', 'EC')->value('id');
+    @endphp
+
     <div class="container mt-3">
         <div class="card bg-gradient">
             <div class="card-header">
@@ -438,7 +443,7 @@
 {{--                                onclick="window.history.back();">--}}
 {{--                            <i class="bi bi-arrow-left"></i> {{ __('Back o tdr') }}--}}
 {{--                        </button>--}}
-                        <a href="{{ route('tdrs.show', ['id'=>$current_wo->id]) }}"
+                        <a href="{{ route('tdrs.show', ['id'=>$current_wo ? $current_wo->id : '']) }}"
                            class="btn btn-outline-secondary " style="height:50px; width: 110px;line-height: 1.2rem;
                            align-content: center">
                             {{ __('Back to TDR') }} </a>
@@ -463,26 +468,46 @@
                             </tr>
                             </thead>
                             <tbody id="sortable-tbody">
+                            @php
+                                // Определяем ID для EC (один раз в начале)
+                                $ecProcessNameId = \App\Models\ProcessName::where('name', 'EC')->value('id');
+                            @endphp
                             @foreach($tdrProcesses as $processes)
                                 @if($processes->tdrs_id == $current_tdr->id)
                                     @php
                                         // Декодируем JSON-поле processes
                                         $processData = json_decode($processes->processes, true);
-                                        // Получаем имя процесса из связанной модели ProcessName
-                                        $processName = $processes->processName->name;
+                                        // Проверяем, что $processData является массивом
+                                        if (!is_array($processData)) {
+                                            $processData = [];
+                                        }
+                                        // Получаем имя процесса из связанной модели ProcessName (с проверкой на null)
+                                        $processName = $processes->processName ? $processes->processName->name : 'N/A';
+                                        // Проверяем, является ли это EC
+                                        $isEc = ($ecProcessNameId !== null && (int)$processes->process_names_id === (int)$ecProcessNameId);
                                     @endphp
 
-                                    @foreach($processData as $process)
+                                    @if(!$processes->processName)
+                                        @continue
+                                    @endif
+
+                                    @if($isEc)
+                                        {{-- Для EC: одна строка со всеми процессами --}}
                                         <tr data-id="{{ $processes->id }}">
                                             <td class="text-center">{{ $processName }}</td>
                                             <td class="ps-2">
-
-                                                @foreach($proces as $proc)
-                                                    @if($proc->id ==$process  )
-                                                        {{$proc->process}}@if($processes->ec) ( EC ) @endif
-                                                    @endif
-                                                @endforeach
-
+                                                @php
+                                                    $processNames = [];
+                                                    if (is_array($processData) && !empty($processData)) {
+                                                        foreach($processData as $processId) {
+                                                            $proc = $proces->firstWhere('id', $processId);
+                                                            if ($proc) {
+                                                                $processNames[] = $proc->process;
+                                                            }
+                                                        }
+                                                    }
+                                                @endphp
+                                                {{ !empty($processNames) ? implode(', ', $processNames) : 'No processes' }}
                                             </td>
                                             <td class="text-center">
                                                 {{$processes->description ?? ''}}
@@ -491,42 +516,120 @@
                                                 {{$processes->notes ?? ''}}
                                             </td>
                                             <td class="text-center">
-                                                <a href="{{ route('tdr-processes.edit', ['tdr_process' =>
-                                                $processes->id]) }}" class="btn btn-sm btn-outline-primary">{{__('Edit')}}</a>
-                                                <form id="deleteForm_{{ $processes->id }}" action="{{ route('tdr-processes.destroy', ['tdr_process' => $processes->id]) }}" method="POST" style="display:inline;">
-                                                    @csrf
-                                                    <input type="hidden" name="tdrId" value="{{ $current_tdr->id }}">
-                                                    <input type="hidden" name="process" value="{{ $process }}">
-                                                    @method('DELETE')
-                                                    <button class="btn btn-sm btn-outline-danger" type="button"
-                                                            name="btn_delete" data-bs-toggle="modal"
-                                                            data-bs-target="#useConfirmDelete" data-title="Delete
-                                                            Confirmation:  {{ $processes->processName->name }}">
-                                                        {{__('Delete')}}
-                                                    </button>
-                                                </form>
+                                                {{-- НЕАКТИВНЫЕ кнопки --}}
+{{--                                                <a href="#" --}}
+{{--                                                   class="btn btn-sm btn-outline-primary disabled" --}}
+{{--                                                   style="pointer-events: none; opacity: 0.5; cursor: not-allowed;"--}}
+{{--                                                   tabindex="-1"--}}
+{{--                                                   aria-disabled="true">--}}
+{{--                                                    {{__('Edit')}}--}}
+{{--                                                </a>--}}
+                                                <a href="#"
+                                                   class="btn btn-outline-primary btn-sm me-2 disabled">
+                                                    <i class="bi bi-pencil-square" title=" Process Edit"></i>
+                                                </a>
+                                                <button type="submit" class="btn btn-outline-danger btn-sm disabled ">
+                                                    <i class="bi bi-trash"  title=" Process Delete"></i>
+                                                </button>
+{{--                                                <button class="btn btn-sm btn-outline-danger disabled" --}}
+{{--                                                        type="button"--}}
+{{--                                                        disabled--}}
+{{--                                                        style="pointer-events: none; opacity: 0.5; cursor: not-allowed;"--}}
+{{--                                                        tabindex="-1"--}}
+{{--                                                        aria-disabled="true">--}}
+{{--                                                    {{__('Delete')}}--}}
+{{--                                                </button>--}}
                                             </td>
                                             <td class="text-center">
                                                 <div class="d-flex gap-2 justify-content-center">
-                                                    <select class="form-select form-select-sm vendor-select"
-                                                            style="width: 85px"
-                                                            data-tdr-process-id="{{ $processes->id }}"
-                                                            data-process="{{ $process }}">
-                                                        <option value="">Select Vendor</option>
-                                                        @foreach($vendors as $vendor)
-                                                            <option value="{{ $vendor->id }}">{{ $vendor->name }}</option>
-                                                        @endforeach
-                                                    </select>
-                                                    <a href="{{ route('tdr-processes.show', ['tdr_process' =>
-                                                    $processes->id, 'process_id' => $process]) }}" class="btn btn-sm btn-outline-primary form-link"
-                                                       style="width: 60px"
-                                                       data-tdr-process-id="{{ $processes->id }}"
-                                                       data-process="{{ $process }}"
-                                                       target="_blank">{{__('Form')}}</a>
+{{--                                                    <select class="form-select form-select-sm vendor-select disabled" --}}
+{{--                                                            disabled--}}
+{{--                                                            style="pointer-events: none; opacity: 0.5; cursor: not-allowed;"--}}
+{{--                                                            tabindex="-1"--}}
+{{--                                                            aria-disabled="true"--}}
+{{--                                                            data-tdr-process-id="{{ $processes->id }}">--}}
+{{--                                                        <option value="">Select Vendor</option>--}}
+{{--                                                        @foreach($vendors as $vendor)--}}
+{{--                                                            <option value="{{ $vendor->id }}">{{ $vendor->name }}</option>--}}
+{{--                                                        @endforeach--}}
+{{--                                                    </select>--}}
+{{--                                                    <a href="#"--}}
+{{--                                                       class="btn btn-sm btn-outline-primary form-link disabled"--}}
+{{--                                                       style="pointer-events: none; opacity: 0.5; cursor: not-allowed;"--}}
+{{--                                                       tabindex="-1"--}}
+{{--                                                       aria-disabled="true"--}}
+{{--                                                       target="_blank">{{__('Form')}}</a>--}}
                                                 </div>
                                             </td>
                                         </tr>
-                                    @endforeach
+                                    @else
+                                        {{-- Для остальных: как раньше, по одной строке на процесс --}}
+                                        @if(is_array($processData) && !empty($processData))
+                                            @foreach($processData as $process)
+                                                <tr data-id="{{ $processes->id }}">
+                                                    <td class="text-center">{{ $processName }}</td>
+                                                    <td class="ps-2">
+                                                        @php
+                                                            $proc = $proces->firstWhere('id', $process);
+                                                        @endphp
+                                                        @if($proc)
+                                                            {{$proc->process}}@if($processes->ec) ( EC ) @endif
+                                                        @endif
+                                                    </td>
+                                                    <td class="text-center">
+                                                        {{$processes->description ?? ''}}
+                                                    </td>
+                                                    <td class="text-center">
+                                                        {{$processes->notes ?? ''}}
+                                                    </td>
+                                                    <td class="text-center">
+{{--                                                        <a href="{{ route('tdr-processes.edit', ['tdr_process' =>--}}
+{{--                                                        $processes->id]) }}" class="btn btn-sm btn-outline-primary">{{__('Edit')}}</a>--}}
+                                                        <a href="{{ route('tdr-processes.edit', ['tdr_process' =>
+                                                        $processes->id]) }}"
+                                                           class="btn btn-outline-primary btn-sm me-2">
+                                                            <i class="bi bi-pencil-square" title=" Process Edit"></i>
+                                                        </a>
+
+                                                        <form id="deleteForm_{{ $processes->id }}" action="{{ route('tdr-processes.destroy', ['tdr_process' => $processes->id]) }}" method="POST" style="display:inline;">
+                                                            @csrf
+                                                            <input type="hidden" name="tdrId" value="{{ $current_tdr->id }}">
+                                                            <input type="hidden" name="process" value="{{ $process }}">
+                                                            @method('DELETE')
+                                                            <button type="submit" class="btn btn-outline-danger btn-sm ">
+                                                                <i class="bi bi-trash"  title=" Process Delete"></i>
+                                                            </button>
+{{--                                                            <button class="btn btn-sm btn-outline-danger" type="button"--}}
+{{--                                                                    name="btn_delete" data-bs-toggle="modal"--}}
+{{--                                                                    data-bs-target="#useConfirmDelete" data-title="Delete--}}
+{{--                                                                    Confirmation:  {{ $processes->processName ? $processes->processName->name : 'N/A' }}">--}}
+{{--                                                                {{__('Delete')}}--}}
+{{--                                                            </button>--}}
+                                                        </form>
+                                                    </td>
+                                                    <td class="text-center">
+                                                        <div class="d-flex gap-2 justify-content-center">
+                                                            <select class="form-select form-select-sm vendor-select"
+                                                                    style="width: 85px"
+                                                                    data-tdr-process-id="{{ $processes->id }}"
+                                                                    data-process="{{ $process }}">
+                                                                <option value="">Select Vendor</option>
+                                                                @foreach($vendors as $vendor)
+                                                                    <option value="{{ $vendor->id }}">{{ $vendor->name }}</option>
+                                                                @endforeach
+                                                            </select>
+                                                            <a href="{{ route('tdr-processes.show', ['tdr_process' =>
+                                                            $processes->id, 'process_id' => $process]) }}" class="btn btn-sm btn-outline-primary form-link"
+                                                               style="width: 60px"
+                                                               data-tdr-process-id="{{ $processes->id }}"
+                                                               data-process="{{ $process }}"
+                                                               target="_blank">{{__('Form')}}</a>
+                                                        </div>
+                                                    </td>
+                                                </tr>
+                                            @endforeach
+                                        @endif
+                                    @endif
                                 @endif
                             @endforeach
                             </tbody>

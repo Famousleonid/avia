@@ -224,11 +224,20 @@
                                     @php
                                         // Декодируем JSON-поле processes
                                         $processData = json_decode($processes->processes, true);
-                                        // Получаем имя процесса из связанной модели ProcessName
-                                        $processName = $processes->processName->name;
+                                        // Проверяем, что $processData является массивом
+                                        if (!is_array($processData)) {
+                                            $processData = [];
+                                        }
+                                        // Получаем имя процесса из связанной модели ProcessName (с проверкой на null)
+                                        $processName = $processes->processName ? $processes->processName->name : 'N/A';
                                     @endphp
 
-                                    @foreach($processData as $process)
+                                    @if(!$processes->processName)
+                                        @continue
+                                    @endif
+
+                                    @if(is_array($processData) && !empty($processData))
+                                        @foreach($processData as $process)
                                         @if(strpos($processName, 'EC') === false)
                                         <tr data-id="{{ $processes->id }}">
                                             <td class="text-center">{{ $processName }}</td>
@@ -240,8 +249,12 @@
                                                 @endforeach
                                             </td>
                                             <td class="text-center">
+
                                                 <a href="{{ route('tdr-processes.edit', ['tdr_process' => $processes->id]) }}"
-                                                   class="btn btn-sm btn-outline-primary">{{__('Edit')}}</a>
+                                                   class="btn btn-outline-primary btn-sm me-2">
+                                                    <i class="bi bi-pencil-square" title=" Process Edit"></i>
+                                                </a>
+
                                                 <form id="deleteForm_{{ $processes->id }}"
                                                       action="{{ route('tdr-processes.destroy', ['tdr_process' => $processes->id]) }}"
                                                       method="POST"
@@ -250,14 +263,17 @@
                                                     <input type="hidden" name="tdrId" value="{{ $current_tdr->id }}">
                                                     <input type="hidden" name="process" value="{{ $process }}">
                                                     @method('DELETE')
-                                                    <button class="btn btn-sm btn-outline-danger"
-                                                            type="button"
-                                                            name="btn_delete"
-                                                            data-bs-toggle="modal"
-                                                            data-bs-target="#useConfirmDelete"
-                                                            data-title="Delete Confirmation: {{ $processes->processName->name }}">
-                                                        {{__('Delete')}}
+                                                    <button type="submit" class="btn btn-outline-danger btn-sm ">
+                                                        <i class="bi bi-trash"  title=" Process Delete"></i>
                                                     </button>
+{{--                                                    <button class="btn btn-sm btn-outline-danger"--}}
+{{--                                                            type="button"--}}
+{{--                                                            name="btn_delete"--}}
+{{--                                                            data-bs-toggle="modal"--}}
+{{--                                                            data-bs-target="#useConfirmDelete"--}}
+{{--                                                            data-title="Delete Confirmation: {{ $processes->processName ? $processes->processName->name : 'N/A' }}">--}}
+{{--                                                        {{__('Delete')}}--}}
+{{--                                                    </button>--}}
                                                 </form>
                                             </td>
                                             <td class="vendor-checkbox-column">
@@ -281,7 +297,8 @@
                                             </td>
                                         </tr>
                                         @endif
-                                    @endforeach
+                                        @endforeach
+                                    @endif
                                 @endif
                             @endforeach
                             </tbody>
