@@ -345,7 +345,7 @@
                         @if(isset($ndt_processes))
                             @foreach($ndt_processes as $process)
                                 @if($process->process_names_id == ($ndt1_name_id ?? null))
-                                    <span @if(strlen($process->process) > 30) class="process-text-long"
+                                    <span @if(strlen($process->process) > 25) class="process-text-long"
                                         @endif>{{$process->process}}</span>
                                 @endif
                             @endforeach
@@ -359,7 +359,7 @@
                         @if(isset($ndt_processes))
                             @foreach($ndt_processes as $process)
                                 @if($process->process_names_id == ($ndt4_name_id ?? null))
-                                    <span @if(strlen($process->process) > 30) class="process-text-long"
+                                    <span @if(strlen($process->process) > 25) class="process-text-long"
                                         @endif>{{$process->process}}</span>
                                 @endif
                             @endforeach
@@ -384,7 +384,8 @@
                         @if(isset($ndt_processes))
                             @foreach($ndt_processes as $process)
                                 @if($process->process_names_id == ($ndt5_name_id ?? null))
-                                    <span @if(strlen($process->process) > 40) class="process-text-long" @endif>{{$process->process}}</span>
+                                    <span @if(strlen($process->process) > 25) class="process-text-long"
+                                        @endif>{{$process->process}}</span>
                                 @endif
                             @endforeach
                         @endif
@@ -405,7 +406,8 @@
                         @if(isset($ndt_processes))
                             @foreach($ndt_processes as $process)
                                 @if($process->process_names_id == ($ndt6_name_id ?? null))
-                                    <span @if(strlen($process->process) > 40) class="process-text-long" @endif>{{$process->process}}</span>
+                                    <span @if(strlen($process->process) > 25) class="process-text-long"
+                                        @endif>{{$process->process}}</span>
                                 @endif
                             @endforeach
                         @endif
