@@ -150,7 +150,7 @@ class MobileController extends Controller
         // createDraft сам присвоит number и is_draft=true
         $wo = Workorder::createDraft($data);
 
-        return redirect()->route('mobile.show');
+        return redirect()->route('mobile.show', $wo->id);
     }
 
 }
