@@ -41,10 +41,10 @@ class MobileComponentController extends Controller
             ->filter(fn($tdr) => (bool)$tdr->component)
             ->groupBy('component_id');
 
-        // code name по component_id (показываем все коды через запятую)
-        $codeNamesByComponent = $tdrsByComponent->map(function ($group) {
-            return $group->pluck('codes.name')->filter()->unique()->implode(', ');
-        });
+//        // code name по component_id (показываем все коды через запятую)
+//        $codeNamesByComponent = $tdrsByComponent->map(function ($group) {
+//            return $group->pluck('codes.name')->filter()->unique()->implode(', ');
+//        });
 
         // Детальная информация по TDR для каждого компонента
         $tdrsDetailsByComponent = $tdrsByComponent->map(function ($group) {
@@ -70,9 +70,8 @@ class MobileComponentController extends Controller
                 ->get()
             : collect();
 
-        return view('mobile.pages.components', compact(
-            'workorder', 'components', 'manualComponents',
-        'manualId','component_conditions','codes','necessaries','manuals','codeNamesByComponent', 'tdrsDetailsByComponent' ));
+        return view('mobile.pages.components', compact('workorder', 'components', 'manualComponents','manualId',
+                            'component_conditions','codes','necessaries','manuals', 'tdrsDetailsByComponent' ));
     }
 
     public function componentStore(Request $request)
@@ -172,59 +171,74 @@ class MobileComponentController extends Controller
         ]);
     }
 
-    public function attachToWorkorder(Request $request)
+    public function storeAttach(Request $request)
     {
         $validated = $request->validate([
-            'workorder_id' => ['required', 'exists:workorders,id'],
-            'component_id' => ['required', 'exists:components,id'],
-            'code_id' => ['required', 'exists:codes,id'],
-
+            'workorder_id'   => ['required', 'exists:workorders,id'],
+            'component_id'   => ['required', 'exists:components,id'],
+            'code_id'        => ['required', 'exists:codes,id'],
             'necessaries_id' => ['nullable', 'exists:necessaries,id'],
-            'qty' => ['nullable', 'integer', 'min:1'],
-            'serial_number' => ['nullable', 'string', 'max:255'],
-
-            'use_log_card' => ['nullable'],
-            'use_tdr' => ['nullable'],
+            'qty'            => ['nullable', 'integer', 'min:1'],
+            'serial_number'  => ['nullable', 'string', 'max:255'],
         ]);
 
-        $workorderId = (int)$validated['workorder_id'];
-        $componentId = (int)$validated['component_id'];
-        $codeId = (int)$validated['code_id'];
+        $workorderId = (int) $validated['workorder_id'];
+        $componentId = (int) $validated['component_id'];
+        $codeId      = (int) $validated['code_id'];
 
-        // Get code to check if it's Missing
         $code = Code::find($codeId);
-        $isMissing = $code && stripos($code->name, 'missing') !== false;
+        $isMissing = $code && stripos((string)$code->name, 'missing') !== false;
 
-        // Prepare data
+        // -------- flags by rules --------
+        if ($isMissing) {
+            $useTdr = 0;
+            $useProcessForms = 0;
+        } else {
+            $useTdr = 1;
+            $useProcessForms = 1; // default for all non-missing
+        }
+
         $tdrData = [
-            'workorder_id' => $workorderId,
-            'component_id' => $componentId,
-            'codes_id' => $codeId,
-            'use_log_card' => $request->boolean('use_log_card'),
-            'use_tdr' => $request->boolean('use_tdr'),
+            'workorder_id'       => $workorderId,
+            'component_id'       => $componentId,
+            'codes_id'           => $codeId,
+            'necessaries_id'     => $validated['necessaries_id'] ?? null,
+            'qty'                => 1,
+            'serial_number'      => null,
+            'order_component_id' => null,
+            'use_tdr'            => $useTdr,
+            'use_process_forms'  => $useProcessForms,
         ];
 
-        // If Missing - add qty
-        if ($isMissing && isset($validated['qty'])) {
-            $tdrData['qty'] = (int)$validated['qty'];
+        // Missing: qty optional
+        if ($isMissing) {
+            if (isset($validated['qty'])) {
+                $tdrData['qty'] = (int) $validated['qty'];
+            }
         }
-        // For other codes - check necessaries
-        else if (isset($validated['necessaries_id'])) {
-            $tdrData['necessaries_id'] = (int)$validated['necessaries_id'];
+        // Not missing: analyze necessary for special cases + your existing qty/serial logic
+        else if (!empty($validated['necessaries_id'])) {
 
-            // Get necessary to check type
-            $necessary = Necessary::find($tdrData['necessaries_id']);
-            if ($necessary) {
-                $necessaryName = strtolower($necessary->name);
+            $necessary = Necessary::find((int)$validated['necessaries_id']);
+            $necessaryName = strtolower(trim((string) optional($necessary)->name));
 
-                // If Order New - add qty
-                if (stripos($necessaryName, 'order') !== false && stripos($necessaryName, 'new') !== false) {
-                    if (isset($validated['qty'])) {
-                        $tdrData['qty'] = (int)$validated['qty'];
-                    }
+            // SPECIAL: "Order new"
+            if ($necessaryName === 'order new') {
+                $tdrData['use_tdr'] = 1;
+                $tdrData['use_process_forms'] = 0;
+                $tdrData['order_component_id'] = $componentId;
+
+                if (isset($validated['qty'])) {
+                    $tdrData['qty'] = (int) $validated['qty'];
                 }
-                // If Repair - add serial number
-                else if (stripos($necessaryName, 'repair') !== false) {
+            }
+            // other necessaries: keep default flags (1/1), but keep your qty/serial rules
+            else {
+                if (str_contains($necessaryName, 'order') && str_contains($necessaryName, 'new')) {
+                    if (isset($validated['qty'])) {
+                        $tdrData['qty'] = (int) $validated['qty'];
+                    }
+                } elseif (str_contains($necessaryName, 'repair')) {
                     if (isset($validated['serial_number'])) {
                         $tdrData['serial_number'] = $validated['serial_number'];
                     }
@@ -232,10 +246,9 @@ class MobileComponentController extends Controller
             }
         }
 
-        // Allow multiple TDRs for same component with different codes
         Tdr::create($tdrData);
 
-        return redirect()->back()->with('success', 'Component attached.');
+        return redirect()->back()->with('success', 'Parts attached.');
     }
 
     public function updatePhoto(Request $request, Component $component)
@@ -296,5 +309,94 @@ class MobileComponentController extends Controller
         return back()->with('success', 'Component updated');
     }
 
+    public function updateAttach(Request $request, Tdr $tdr)
+    {
+        $validated = $request->validate([
+            'code_id'          => ['required', 'exists:codes,id'],
+            'necessaries_id'   => ['nullable', 'exists:necessaries,id'],
+            'qty'              => ['nullable', 'integer', 'min:1'],
+            'serial_number'    => ['nullable', 'string', 'max:255'],
+        ]);
+
+        $codeId = (int) $validated['code_id'];
+
+        $code = Code::find($codeId);
+        $isMissing = $code && stripos((string)$code->name, 'missing') !== false;
+
+        // -------- flags by rules --------
+        if ($isMissing) {
+            $useTdr = 0;
+            $useProcessForms = 0;
+        } else {
+            $useTdr = 1;
+            $useProcessForms = 1; // default for all non-missing
+        }
+
+        $data = [
+            'codes_id'           => $codeId,
+            'use_log_card'       => $request->boolean('use_log_card'),
+
+            'use_tdr'            => $useTdr,
+            'use_process_forms'  => $useProcessForms,
+            'order_component_id' => null,
+
+            'necessaries_id'     => null,
+            'qty'                => 1,     // qty всегда число
+            'serial_number'      => null,
+        ];
+
+        if ($isMissing) {
+            // Missing: qty можно менять
+            $data['qty'] = (int) ($validated['qty'] ?? 1);
+        } else {
+            $necessariesId = !empty($validated['necessaries_id']) ? (int) $validated['necessaries_id'] : null;
+
+            if ($necessariesId) {
+                $data['necessaries_id'] = $necessariesId;
+
+                $necessary = Necessary::find($necessariesId);
+                $n = strtolower(trim((string)($necessary?->name ?? '')));
+
+                // SPECIAL: "Order new" (строго)
+                if ($n === 'order new') {
+                    $data['use_tdr'] = 1;
+                    $data['use_process_forms'] = 0;
+                    $data['order_component_id'] = (int) $tdr->component_id;
+
+                    $data['qty'] = (int) ($validated['qty'] ?? 1);
+                }
+                // other: keep default flags (1/1), but keep your qty/serial rules
+                else {
+                    if (str_contains($n, 'order') && str_contains($n, 'new')) {
+                        $data['qty'] = (int) ($validated['qty'] ?? 1);
+                    } elseif (str_contains($n, 'repair')) {
+                        $data['serial_number'] = $validated['serial_number'] ?? null;
+                        // qty остаётся 1
+                    }
+                }
+            }
+        }
+
+        $tdr->update($data);
+
+        return back()->with('success', 'Parts updated.');
+    }
+
+
+
+    public function destroyAttach(Request $request, Tdr $tdr)
+    {
+
+        $tdr->delete();
+
+        if ($request->expectsJson()) {
+            return response()->json([
+                'ok' => true,
+                'id' => $tdr->id,
+            ]);
+        }
+
+        return back()->with('success', 'Parts removed.');
+    }
 
 }

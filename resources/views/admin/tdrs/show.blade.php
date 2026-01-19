@@ -35,6 +35,13 @@
             background-color: #030334 !important;
             box-shadow: 0 2px 2px -1px rgba(0, 0, 0, 0.1);
         }
+        .img-icon {
+            transition: transform 0.2s ease;
+        }
+        .img-icon:hover {
+            transform: scale(1.1);
+
+        }
 
     </style>
 
@@ -292,7 +299,7 @@
                                                 </div>
                                             @else
                                                 {{-- TODO: не находит картинку --}}
-                                                <p>Manual1 not found</p>
+                                                <p>Manual not found</p>
                                             @endif
                                             <div>
                                                 <div class="d-flex pt-2">
@@ -496,7 +503,7 @@
                                                     $unitConditionsId = $unit->conditions_id;
                                                 @endphp
                                                 <tr>
-                                                    <td class="p-3"> 
+                                                    <td class="p-3">
                                                         {{ $conditionName }}
                                                         @if($unitComponentId)
                                                             <small class="text-muted">(Component ID: {{ $unitComponentId }}, Codes: {{ $unitCodesId }}, Conditions: {{ $unitConditionsId }})</small>
@@ -771,10 +778,9 @@
                                     <td class="text-center fs-8">
                                         {{ $missingCondition->name }}
                                     </td>
-                                    <td class="p-2 text-center">
-                                        {{-- Нет кнопки удаления для этой строки --}}
-                                        <img src="{{ asset('img/missing2.png')}}" alt="missing"
-                                             style="width: 40px;" class=""  data-bs-toggle="modal"
+                                    <td class="text-center img-icon">
+                                        <img src="{{ asset('img/missing4.png')}}" alt="missing"
+                                             style="width: 50px;" class=""  data-bs-toggle="modal"
                                              data-bs-target="#missingModal{{$current_wo->number}}"
                                         >
                                     </td>
@@ -839,7 +845,7 @@
                                             @endif
                                         @endif
                                     </td>
-                                    <td class="p-2 text-center">
+                                    <td class="p-1 text-center img-icon">
                                         {{-- Кнопка удаления только для обычных unit inspections (без компонентов) --}}
                                         @if(!$tdr->component_id)
                                             <form action="{{ route('tdrs.destroy', $tdr->id) }}" method="POST"
@@ -852,7 +858,7 @@
                                             </form>
                                         @endif
                                         @if($tdr->necessaries_id == $necessary->id)
-                                            <img src="{{ asset('img/order.png')}}" alt="order"
+                                            <img src="{{ asset('img/scrap2.png')}}" alt="order"
                                                  style="width: 40px;" class=""
                                                  data-bs-toggle="modal"
                                                  data-bs-target="#orderModal{{$current_wo->number}}">

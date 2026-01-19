@@ -9,6 +9,7 @@ use Spatie\Activitylog\LogOptions;
 use Spatie\Activitylog\Traits\LogsActivity;
 use Spatie\MediaLibrary\HasMedia;
 use Spatie\MediaLibrary\InteractsWithMedia;
+use Illuminate\Database\Eloquent\Builder;
 
 class Workorder extends Model implements HasMedia
 {
@@ -204,6 +205,89 @@ class Workorder extends Model implements HasMedia
                 ]
             );
         }
+    }
+
+    protected static function booted(): void
+    {
+        static::addGlobalScope('exclude_drafts', function (Builder $builder) {
+            $builder->where('is_draft', false);
+        });
+    }
+
+    public function scopeOnlyDrafts(Builder $query): Builder
+    {
+        return $query
+            ->withoutGlobalScope('exclude_drafts')
+            ->where('is_draft', true);
+    }
+
+    public function scopeWithDrafts(Builder $query): Builder
+    {
+        return $query->withoutGlobalScope('exclude_drafts');
+    }
+
+
+    public static function createDraft(array $attributes = []): self
+    {
+        // На случай редких коллизий (если два человека одновременно)
+        $attempts = 0;
+
+        while ($attempts < 5) {
+            $attempts++;
+
+            $last = self::withoutGlobalScope('exclude_drafts')
+                ->where('is_draft', true)
+                ->whereBetween('number', [1, 99999])
+                ->max('number');
+
+            $next = (int)($last ?? 0) + 1;
+
+            if ($next > 99999) {
+                throw new \RuntimeException('Draft number range 1..99999 exhausted');
+            }
+
+            try {
+                $wo = new self();
+                $wo->fill($attributes);
+                $wo->number = $next;
+                $wo->is_draft = true;
+
+                if (empty($wo->user_id) && auth()->check()) {
+                    $wo->user_id = auth()->id();
+                }
+
+                $wo->save();
+
+                return $wo;
+
+            } catch (QueryException $e) {
+                // MySQL duplicate key
+                if ((int)($e->errorInfo[1] ?? 0) === 1062) {
+                    usleep(150000);
+                    continue;
+                }
+                throw $e;
+            }
+        }
+
+        throw new \RuntimeException('Could not allocate a draft number, try again.');
+    }
+
+
+    public static function nextDraftNumber(): int
+    {
+        $last = self::withoutGlobalScope('exclude_drafts')
+            ->where('is_draft', true)
+            ->whereBetween('number', [1, 99999])
+            ->max('number');
+
+        $next = (int)($last ?? 0) + 1;
+
+        if ($next > 99999) {
+            throw new \RuntimeException('Draft number range 1..99999 exhausted');
+        }
+
+        return $next;
     }
 
 

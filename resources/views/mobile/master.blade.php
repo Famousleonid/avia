@@ -87,7 +87,7 @@
 <script src="https://cdn.jsdelivr.net/npm/@fancyapps/ui@5.0/dist/fancybox/fancybox.umd.js"></script>
 <script src="{{asset('assets/select2/js/select2.min.js')}}"></script>
 <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
-<script src="{{ asset('js/main.js') }}"></script>
+<script src="{{ asset('js/main.js') }}?v={{ filemtime(public_path('js/main.js')) }}"></script>
 
 <script>
     document.addEventListener('DOMContentLoaded', () => {

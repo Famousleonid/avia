@@ -321,40 +321,171 @@ function showInfoMessage(message, duration)    { showNotification(message, 'info
 function showWarningMessage(message, duration) { showNotification(message, 'warning', duration); }
 
 
-// =====================================================
-// Глобальная загрузка table-height-adjuster.js (ОТКЛЮЧЕНО - файл не существует)
-// =====================================================
-/*
-(function() {
-    if (typeof adjustTableHeightToRange === 'undefined' && typeof calculateMaxTableRows === 'undefined') {
-        var existingScript = document.querySelector('script[src*="table-height-adjuster.js"]');
-        if (existingScript) {
-            console.log('table-height-adjuster.js уже загружается или загружен');
-            return;
+
+window.notify = function (message, type = 'info', durationMs = 6000) {
+    // убираем предыдущие (как у тебя)
+    document.querySelectorAll('.notify-status').forEach(el => el.remove());
+
+    const map = {
+        success: 'alert-success',
+        error: 'alert-danger',
+        danger: 'alert-danger',
+        warning: 'alert-warning',
+        info: 'alert-info'
+    };
+
+    const cls = map[type] || map.info;
+
+    const sec = Math.max(2, Math.round(durationMs / 1000));
+
+    const el = document.createElement('div');
+    el.className = `notify-status alert ${cls}`;
+    el.setAttribute('role', 'alert');
+
+    el.innerHTML = `
+    <div class="notify-text" style="flex:1; min-width: 0;">${String(message)}</div>
+    <button type="button" class="btn-close" aria-label="Close"></button>
+    <span class="notify-countdown">${sec}</span>
+  `;
+
+    document.body.appendChild(el);
+
+    const countdownEl = el.querySelector('.notify-countdown');
+    const closeBtn = el.querySelector('.btn-close');
+
+    let value = sec;
+    let closed = false;
+
+    const cleanup = () => {
+        if (closed) return;
+        closed = true;
+        el.classList.add('hide');
+        el.classList.remove('show');
+
+        clearInterval(tick);
+
+        // убрать после анимации
+        setTimeout(() => el.remove(), 1100);
+    };
+
+    // показать
+    setTimeout(() => el.classList.add('show'), 80);
+
+    // countdown
+    const tick = setInterval(() => {
+        value--;
+        if (value <= 0) {
+            countdownEl.textContent = '0';
+            cleanup();
+        } else {
+            countdownEl.textContent = String(value);
+        }
+    }, 1000);
+
+    // авто-скрытие
+    const autoTimer = setTimeout(cleanup, durationMs);
+
+    // крестик
+    closeBtn.addEventListener('click', () => {
+        clearTimeout(autoTimer);
+        cleanup();
+    });
+};
+
+window.notifySuccess = (msg, ms) => window.notify(msg, 'success', ms ?? 6000);
+window.notifyError   = (msg, ms) => window.notify(msg, 'error',   ms ?? 6000);
+window.notifyInfo    = (msg, ms) => window.notify(msg, 'info',    ms ?? 6000);
+window.notifyWarn    = (msg, ms) => window.notify(msg, 'warning', ms ?? 6000);
+
+
+window.confirmDialog = function ({
+                                     title = 'Confirm',
+                                     message = 'Are you sure?',
+                                     okText = 'OK',
+                                     cancelText = 'Cancel',
+                                     danger = false
+                                 } = {}) {
+    return new Promise((resolve) => {
+        // создаём один раз
+        let modalEl = document.getElementById('globalConfirmModal');
+        if (!modalEl) {
+            modalEl = document.createElement('div');
+            modalEl.id = 'globalConfirmModal';
+            modalEl.className = 'modal fade';
+            modalEl.tabIndex = -1;
+            modalEl.innerHTML = `
+        <div class="modal-dialog modal-dialog-centered">
+          <div class="modal-content bg-dark text-light border border-secondary">
+            <div class="modal-header">
+              <h5 class="modal-title" id="globalConfirmTitle"></h5>
+              <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body" id="globalConfirmBody"></div>
+            <div class="modal-footer">
+              <button type="button" class="btn btn-outline-secondary" data-cancel></button>
+              <button type="button" class="btn" data-ok></button>
+            </div>
+          </div>
+        </div>
+      `;
+            document.body.appendChild(modalEl);
         }
 
-        var script = document.createElement('script');
-        var baseUrl = window.location.origin;
-        var scriptPath = baseUrl + '/js/table-height-adjuster.js';
+        const titleEl  = modalEl.querySelector('#globalConfirmTitle');
+        const bodyEl   = modalEl.querySelector('#globalConfirmBody');
+        const okBtn    = modalEl.querySelector('[data-ok]');
+        const cancelBtn= modalEl.querySelector('[data-cancel]');
 
-        script.src = scriptPath;
-        script.async = false;
-        script.onload = function() {
-            window.dispatchEvent(new Event('tableHeightAdjusterLoaded'));
-        };
-        script.onerror = function() {
-            console.error('Ошибка загрузки table-height-adjuster.js по пути: ' + scriptPath);
-            console.error('Проверьте, существует ли файл по этому пути');
+        titleEl.textContent = title;
+        bodyEl.textContent = message;
+        cancelBtn.textContent = cancelText;
+        okBtn.textContent = okText;
+
+        okBtn.className = danger ? 'btn btn-danger' : 'btn btn-info';
+
+        const bsModal = bootstrap.Modal.getOrCreateInstance(modalEl, { backdrop: 'static' });
+
+        let resolved = false;
+
+        const cleanup = () => {
+            okBtn.removeEventListener('click', onOk);
+            cancelBtn.removeEventListener('click', onCancel);
+            modalEl.removeEventListener('hidden.bs.modal', onHidden);
         };
 
-        var head = document.head || document.getElementsByTagName('head')[0];
-        head.appendChild(script);
-    } else {
-        console.log('table-height-adjuster.js уже загружен');
-        window.dispatchEvent(new Event('tableHeightAdjusterLoaded'));
-    }
-})();
-*/
+        const finish = (val) => {
+            if (resolved) return;
+            resolved = true;
+            cleanup();
+            resolve(val);
+        };
+
+        const onOk = () => {
+            if (typeof window.hapticTap === 'function') window.hapticTap(20);
+            bsModal.hide();
+            finish(true);
+        };
+
+        const onCancel = () => {
+            if (typeof window.hapticTap === 'function') window.hapticTap(10);
+            bsModal.hide();
+            finish(false);
+        };
+
+        const onHidden = () => {
+            // если закрыли крестиком/тапом
+            finish(false);
+        };
+
+        okBtn.addEventListener('click', onOk);
+        cancelBtn.addEventListener('click', onCancel);
+        modalEl.addEventListener('hidden.bs.modal', onHidden);
+
+        bsModal.show();
+    });
+};
+
+
 
 
 // ====== HAPTIC FEEDBACK (mobile) ======

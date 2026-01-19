@@ -1,4 +1,4 @@
-{{--show.blade--}}
+{{--showdraft.blade--}}
 
 @extends('mobile.master')
 
@@ -141,13 +141,10 @@
         <div id="block-info" class="rounded-3 border border-info gradient-pane shadow-sm" style="margin: 3px; padding: 2px;">
 
             <div class="d-flex justify-content-between align-items-center w-100 fw-bold fs-2 ms-3">
-
-                @if($workorder->is_draft)
-                    <span class="text-warning">Draft: {{ $workorder->number }}</span>
-                @elseif($workorder->isDone())
-                    <span class="text-secondary">{{ $workorder->number }}</span>
-                @else
+                @if(!$workorder->isDone())
                     <span class="text-info">W {{ $workorder->number }}</span>
+                @else
+                    <span class="text-secondary">{{ $workorder->number }}</span>
                 @endif
 
                 @if($workorder->open_at)
@@ -584,3 +581,4 @@
         });
     </script>
 @endsection
+

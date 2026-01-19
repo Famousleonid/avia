@@ -4,12 +4,15 @@ namespace App\Http\Controllers\Mobile;
 
 use App\Http\Controllers\Controller;
 use App\Models\Component;
+use App\Models\Customer;
 use App\Models\GeneralTask;
 use App\Models\Main;
+use App\Models\Manual;
 use App\Models\Material;
 use App\Models\Task;
 use App\Models\Tdr;
 use App\Models\Team;
+use App\Models\Unit;
 use App\Models\User;
 use App\Models\Workorder;
 use Illuminate\Http\Request;
@@ -24,8 +27,9 @@ class MobileController extends Controller
 
         $userId = Auth::id();
 
-        $workorders = Workorder::with(['unit', 'media'])
-            ->orderBy('number', 'desc')
+        $workorders = Workorder::withDrafts()
+            ->with(['unit.manuals', 'customer', 'instruction',])
+            ->orderByDesc('number')
             ->get();
 
         return view('mobile.pages.index', compact('workorders', 'userId'));
@@ -102,6 +106,51 @@ class MobileController extends Controller
         $user->save();
 
         return redirect()->back()->with('success', 'New password saved');
+    }
+
+    public function createDraft()
+    {
+
+        $draftNumber = Workorder::nextDraftNumber();
+        $units = Unit::query()->orderBy('part_number')->get(['id','part_number','name']);
+        $customers = Customer::query()->orderBy('name')->get(['id','name']);
+        $manuals = Manual::query()->orderBy('title')->get(['id','number']);
+
+        return view('mobile.pages.createdraft', compact('draftNumber','units','customers', 'manuals'));
+
+    }
+
+    public function storeDraft(\Illuminate\Http\Request $request)
+    {
+        $data = $request->validate([
+            'unit_id'        => ['required','integer'],
+            'customer_id'    => ['required','integer'],
+            'instruction_id' => ['nullable','integer'],
+            'serial_number'  => ['nullable','string','max:255'],
+            'description'    => ['nullable','string','max:255'],
+            'open_at'        => ['nullable','date'],
+            'customer_po'    => ['nullable','string','max:255'],
+
+            'external_damage'        => ['nullable'],
+            'received_disassembly'   => ['nullable'],
+            'disassembly_upon_arrival'=> ['nullable'],
+            'nameplate_missing'      => ['nullable'],
+            'extra_parts'            => ['nullable'],
+        ]);
+
+        // чекбоксы → bool
+        foreach (['external_damage','received_disassembly','disassembly_upon_arrival','nameplate_missing','extra_parts'] as $k) {
+            $data[$k] = $request->boolean($k);
+        }
+
+        $data['user_id'] = auth()->id();
+        $data['instruction_id'] = 6 ;
+
+
+        // createDraft сам присвоит number и is_draft=true
+        $wo = Workorder::createDraft($data);
+
+        return redirect()->route('mobile.show');
     }
 
 }

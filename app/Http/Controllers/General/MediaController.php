@@ -26,9 +26,9 @@ class MediaController extends Controller
         return redirect()->route('cabinet.profile');
     }
 
-    public function store_photo_workorders(Request $request, $id)
+    public function store_photo_workorders(Request $request, Workorder $workorder)
     {
-        $workorder = Workorder::findOrFail($id);
+
         $category = $request->query('category', 'photos');
 
         if ($request->hasFile('photos')) {
@@ -129,10 +129,10 @@ class MediaController extends Controller
         return response()->file($path);
     }
 
-    public function get_photos($id, Request $request)
+    public function get_photos(Workorder $workorder, Request $request)
     {
         $category = $request->query('category', 'photos'); // по умолчанию photos
-        $workorder = Workorder::findOrFail($id);
+
 
         $uploadedPhotos = [];
 

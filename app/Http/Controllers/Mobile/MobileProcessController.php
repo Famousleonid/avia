@@ -10,30 +10,29 @@ class MobileProcessController extends Controller
 {
     public function process(Workorder $workorder)
     {
-
         $workorder->load([
             'unit',
             'media',
-            'tdrs.component.media',        // ✅ компонент у Tdr
+            'tdrs.component.media',
             'tdrs.tdrProcesses.processName',
         ]);
 
-        // Собираем компоненты для этого воркордера
         $components = $workorder->tdrs
-            ->filter(fn($tdr) => $tdr->component)       // только Tdr с компонентом
-            ->groupBy('component_id')                    // группируем по компоненту
+            ->filter(fn ($tdr) => (bool) $tdr->component)
+            ->groupBy('component_id')
             ->map(function ($group) {
-                $first = $group->first();
-                $component = $first->component;
+                $component = $group->first()->component;
+
                 $component->processesForWorkorder = $group
-                    ->flatMap->tdrProcesses           // собираем все tdrProcesses из группы
+                    ->flatMap(fn ($tdr) => $tdr->tdrProcesses ?? collect())
                     ->values();
 
                 return $component;
             })
+            // ✅ ВАЖНО: фильтр по наличию процессов
+            ->filter(fn ($component) => $component->processesForWorkorder->isNotEmpty())
             ->values();
 
         return view('mobile.pages.process', compact('workorder', 'components'));
-
     }
 }

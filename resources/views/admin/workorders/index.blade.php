@@ -80,7 +80,7 @@
             height: 10px;
             border-radius: 999px;
             display: inline-block;
-            border: 1px solid rgba(255,255,255,.35);
+            border: 1px solid rgba(255, 255, 255, .35);
             opacity: .95;
             cursor: help;
         }
@@ -246,16 +246,18 @@
                     <img src="{{ asset('img/plus.png') }}" width="30" alt="Add" data-bs-toggle="tooltip"
                          title="Add new workorder">
                 </a>
-                @role('Admin')
-                <form method="POST" action="{{ route('workorders.recalcStages') }}" class="ms-2"
-                      onsubmit="return confirm('Recalculate stages for ALL workorders?');">
-                    @csrf
-                    <button type="submit" class="btn btn-outline-warning btn-sm"
-                            onclick="if (typeof showLoadingSpinner === 'function') showLoadingSpinner();">
-                        <i class="bi bi-arrow-repeat me-1"></i> Recalc stages
-                    </button>
-                </form>
-                @endrole
+
+                @if(is_admin())
+                    <form method="POST" action="{{ route('workorders.recalcStages') }}" class="ms-2"
+                          onsubmit="return confirm('Recalculate stages for ALL workorders?');">
+                        @csrf
+                        <button type="submit" class="btn btn-outline-warning btn-sm"
+                                onclick="if (typeof showLoadingSpinner === 'function') showLoadingSpinner();">
+                            <i class="bi bi-arrow-repeat me-1"></i> Recalc stages
+                        </button>
+                    </form>
+                @endif
+
 
             </div>
 
@@ -337,7 +339,7 @@
                         </th>
                         <th class="text-center text-primary col-approve">Approve</th>
                         @hasanyrole('Admin|Manager')
-                            <th class="text-center text-primary col-stages">Stages</th>
+                        <th class="text-center text-primary col-stages">Stages</th>
                         @endhasanyrole
                         <th class="text-center text-primary">Component</th>
                         <th class="text-center text-primary">Description</th>
@@ -351,7 +353,7 @@
                         <th class="text-center text-primary sortable">Technik <i class="bi bi-chevron-expand ms-1"></i></th>
 
                         @role('Admin')
-                            <th class="text-center text-primary col-delete">Delete</th>
+                        <th class="text-center text-primary col-delete">Delete</th>
                         @endrole
                     </tr>
                     </thead>
@@ -401,40 +403,40 @@
                             </td>
 
                             @hasanyrole('Admin|Manager')
-                                <td class="text-center">
-                                    @php
-                                        $byGt = $workorder->generalTaskStatuses->keyBy('general_task_id');
-                                        $mainsByTask = $workorder->main
-                                            ? $workorder->main->whereNotNull('task_id')->keyBy('task_id')
-                                            : collect();
-                                    @endphp
+                            <td class="text-center">
+                                @php
+                                    $byGt = $workorder->generalTaskStatuses->keyBy('general_task_id');
+                                    $mainsByTask = $workorder->main
+                                        ? $workorder->main->whereNotNull('task_id')->keyBy('task_id')
+                                        : collect();
+                                @endphp
 
-                                    <div class="d-inline-flex gap-1 align-items-center">
-                                        @foreach($generalTasks as $gt)
-                                            @php
-                                                $st = $byGt->get($gt->id);
+                                <div class="d-inline-flex gap-1 align-items-center">
+                                    @foreach($generalTasks as $gt)
+                                        @php
+                                            $st = $byGt->get($gt->id);
 
-                                                // ✅ started = есть хотя бы один main по задачам этого general_task
-                                                $gtTasks = $tasksByGeneral->get($gt->id, collect());
-                                                $started = $gtTasks->pluck('id')->contains(fn($tid) => $mainsByTask->has($tid));
+                                            // ✅ started = есть хотя бы один main по задачам этого general_task
+                                            $gtTasks = $tasksByGeneral->get($gt->id, collect());
+                                            $started = $gtTasks->pluck('id')->contains(fn($tid) => $mainsByTask->has($tid));
 
-                                                if (!$started) {
-                                                    $class = 'empty'; // серый
-                                                    $title = $gt->name . ' (not started)';
-                                                } elseif ($st && $st->is_done) {
-                                                    $class = 'done'; // зелёный
-                                                    $title = $gt->name . ' (done)';
-                                                } else {
-                                                    $class = 'todo'; // красный
-                                                    $title = $gt->name . ' (in progress)';
-                                                }
-                                            @endphp
+                                            if (!$started) {
+                                                $class = 'empty'; // серый
+                                                $title = $gt->name . ' (not started)';
+                                            } elseif ($st && $st->is_done) {
+                                                $class = 'done'; // зелёный
+                                                $title = $gt->name . ' (done)';
+                                            } else {
+                                                $class = 'todo'; // красный
+                                                $title = $gt->name . ' (in progress)';
+                                            }
+                                        @endphp
 
-                                            <span class="stage-dot {{ $class }}"
-                                                  title="{{ $title }}"></span>
-                                        @endforeach
-                                    </div>
-                                </td>
+                                        <span class="stage-dot {{ $class }}"
+                                              title="{{ $title }}"></span>
+                                    @endforeach
+                                </div>
+                            </td>
                             @endhasanyrole
 
                             <td class="text-center">{{ $workorder->unit->part_number }}</td>

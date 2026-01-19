@@ -4,7 +4,7 @@ return [
     'workorders' => [
         'viewAny' => ['Admin','Manager', 'Team Leader', 'Technician'],
         'view'    => ['Admin','Manager', 'Team Leader', 'Technician'],
-        'create'  => ['Admin','Manager', 'Team Leader', 'Technician'],
+        'create'  => ['Admin','Manager', 'Team Leader', 'Technician','Shipping'],
         'update'  => ['Admin','Manager', 'Team Leader', 'Technician'],
         'delete'  => ['Admin'],
         'approve' => ['Admin','Manager'],

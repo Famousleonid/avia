@@ -64,9 +64,11 @@ Route::get('/', function (\Illuminate\Http\Request $request) {
 // ----------------------- Mobile route -----------------------------------------------------------------
 Route::prefix('mobile')->name('mobile.')->middleware(['auth','verified'])->group(function () {
 
-    // --- general pages остаются в MobileController ---
+    // --- general pages  ---
     Route::get('/', [MobileController::class, 'index'])->name('index');
     Route::get('/show/{workorder}', [MobileController::class, 'show'])->name('show');
+    Route::get('/draft', [MobileController::class, 'createDraft'])->name('draft');
+    Route::post('/workorders/draft', [MobileController::class, 'storeDraft'])->name('draft.store');
 
     // --- tasks ---
     Route::get('/tasks/{workorder}', [MobileTaskController::class, 'tasks'])->name('tasks');
@@ -78,11 +80,11 @@ Route::prefix('mobile')->name('mobile.')->middleware(['auth','verified'])->group
     Route::get('/components/{workorder}', [MobileComponentController::class, 'components'])->name('components');
     Route::post('/component/store', [MobileComponentController::class, 'componentStore'])->name('component.store');
     Route::patch('/components/{component}', [MobileComponentController::class, 'update'])->name('components.update');
-
-
-    // ВАЖНО: убрал /mobile/... внутри группы (иначе будет /mobile/mobile/...)
     Route::post('/components/quick-store', [MobileComponentController::class, 'quickStore'])->name('components.quickStore');
-    Route::post('/workorders/components/attach', [MobileComponentController::class, 'attachToWorkorder'])->name('workorders.components.attach');
+    Route::post('/workorders/components/attach', [MobileComponentController::class, 'storeAttach'])->name('workorders.components.attach');
+    Route::patch('/workorders/components/attach/{tdr}', [MobileComponentController::class,'updateAttach'])->name('workorders.components.attach.update');
+    Route::delete('/workorders/components/attach/{tdr}', [MobileComponentController::class, 'destroyAttach'])->name('workorders.components.attach.destroy');
+
     Route::post('/components/{component}/photo', [MobileComponentController::class, 'updatePhoto'])->name('components.updatePhoto');
 
     // --- process ---
@@ -94,7 +96,7 @@ Route::prefix('mobile')->name('mobile.')->middleware(['auth','verified'])->group
         ->name('materials.updateDescription'); // фикс имени (без mobile.mobile...)
 
     // --- media ---
-    Route::post('/workorders/photo/{id}', [MediaController::class, 'store_photo_workorders'])->name('workorders.media.store');
+    Route::post('/workorders/photo/{workorder}', [MediaController::class, 'store_photo_workorders'])->name('workorders.media.store');
     Route::delete('/workorders/photo/delete/{id}', [MediaController::class, 'delete_photo'])->name('workorders.photo.delete');
     Route::get('/workorders/photos/{id}', [MediaController::class, 'get_photos'])->name('workorders.photos');
 

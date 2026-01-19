@@ -88,7 +88,7 @@
                 <span class="menu-label">Workorder</span>
             </a>
         @endif
-
+        @notrole('Shipping')
         <a href="{{ route('mobile.tasks', $currentWorkorderId) }}" data-spinner
            class="flex-fill text-center d-flex flex-column align-items-center justify-content-center text-white">
             <div class="menu-icon-wrapper {{ $isActive('mobile.tasks') ? 'active' : '' }}">
@@ -122,9 +122,12 @@
             <span class="menu-label">Process</span>
         </a>
 
+        @endnotrole
 
 
     @else
+
+        @notrole('Shipping')
 
         <a href="{{ route('mobile.materials') }}" data-spinner
            class="flex-fill text-center d-flex flex-column align-items-center justify-content-center text-white">
@@ -147,7 +150,20 @@
             </div>
             <span class="menu-label">Profile</span>
         </a>
+        @endnotrole
 
+        @roles('Shipping|Manager|Admin')
+            <a href="{{ route('mobile.draft') }}" data-spinner
+               class="flex-fill text-center d-flex flex-column align-items-center justify-content-center text-white">
+                <div class="menu-icon-wrapper {{ $isActive('mobile.draft') ? 'active' : '' }}">
+                    <i class="bi bi-wallet"></i>
+                    <svg viewBox="0 0 36 36">
+                        <circle cx="18" cy="18" r="18"/>
+                    </svg>
+                </div>
+                <span class="menu-label">Create Draft WO</span>
+            </a>
+        @endrole
 
         <form id="{{ $menuId }}" action="{{ route('logout') }}" method="POST" style="display: none;">@csrf</form>
         <a href="#"

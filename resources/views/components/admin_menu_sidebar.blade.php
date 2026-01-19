@@ -82,11 +82,14 @@
     @endrole
 
     @if (auth()->user()->roleIs('Admin'))
+
+        @if(is_admin())
         <li class="nav-item press-spinner">
             <a href="{{route('workorders.logs')}}" class="nav-link">
                 <i class="bi bi-stickies me-2"></i> <span>Log</span>
             </a>
         </li>
+        @endif
 
         <li class="nav-item press-spinner">
             <a href="{{route('mobile.index')}}" class="nav-link">

@@ -1,4 +1,4 @@
-{{--component.blade --}}
+{{--mobile.component.blade --}}
 
 @extends('mobile.master')
 
@@ -160,12 +160,15 @@
 
         /* actions: без радиусов и без границ, просто фон */
         .swipe-actions {
-            position: absolute;
-            inset: 0 0 0 auto; /* top/right/bottom + auto left */
+            position:absolute;
+            inset:0 0 0 auto;
             width: var(--actions-width);
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            z-index: 1;
+            z-index:1;
+            display:flex;
+            gap:12px;
+            align-items:center;
+            justify-content:center;
+            padding: 0 14px;
         }
 
         /* кнопки действий — без рамок, на всю высоту */
@@ -196,8 +199,8 @@
             z-index: 2;
             background: #343A40; /* как у твоей строки */
             border: 1px solid rgba(255, 255, 255, .12); /* как было border-secondary */
-            border-left: 0; /* если надо ровно как list-group */
-            border-right: 0;
+            border-left: 1px solid #323232;
+            border-right: 1px solid black;
             border-radius: 0; /* если у списка нет скруглений */
             transform: translateX(0);
             transition: transform .18s cubic-bezier(.4, 0, .2, 1);
@@ -207,15 +210,11 @@
 
         /* когда открыто — убираем правую рамку, чтобы actions были “продолжением” */
         .swipe-item.is-open .swipe-content {
-            transform: translateX(calc(-1 * var(--actions-width)));
-            border-right-color: transparent; /* убирает “шов” справа */
+            border-right-color: black;
             z-index: 50;
         }
 
-        /* опционально: разделитель между кнопками (как iOS) */
-        .swipe-actions .btn-action + .btn-action {
-            box-shadow: inset 1px 0 0 rgba(0, 0, 0, .25);
-        }
+
 
         .swipe-content * {
             -webkit-tap-highlight-color: transparent;
@@ -224,6 +223,88 @@
         .components-list-container > .swipe-item {
             flex-shrink: 0;
         }
+
+        /* Контейнер экшенов справа */
+        .swipe-actions.ios-actions{
+            display:flex;
+            gap:12px;
+            align-items:center;
+            justify-content:center;
+            padding: 0 14px;
+            height: 100%;
+        }
+
+        /* Круглая кнопка как iOS */
+        .ios-action{
+            width:40px;
+            height:40px;
+            border-radius:999px;
+            border:0;
+            background: rgba(255,255,255,.75); /* серый круг */
+            backdrop-filter: blur(6px);
+            -webkit-backdrop-filter: blur(6px);
+            display:inline-flex;
+            align-items:center;
+            justify-content:center;
+            box-shadow: 0 8px 18px rgba(0,0,0,.18);
+        }
+
+        .ios-action i{
+            font-size: 20px;
+            line-height: 1;
+        }
+
+        /* Синий / красный как в iOS */
+        .ios-action--blue i{ color:#0a84ff; }
+        .ios-action--red  i{ color:#ff3b30; }
+
+        /* Нажатие */
+        .ios-action:active{ transform: scale(.96); }
+
+        /* ПЛАВНОЕ И МЕДЛЕННОЕ движение туда/обратно */
+        .tdr-swipe-item .swipe-content{
+            will-change: transform;
+            transition: transform 520ms cubic-bezier(.2,.8,.2,1); /* медленнее */
+        }
+
+        /* Когда тащим пальцем — без transition (иначе липко) */
+        .tdr-swipe-item.is-dragging .swipe-content{
+            transition: none !important;
+        }
+        .tdr-swipe-item.is-closing .swipe-content{
+            transition: transform 900ms cubic-bezier(.22,1,.36,1);
+        }
+
+        /* Кнопки меньше + из точки */
+        .tdr-swipe-item .swipe-actions .ios-action{
+            width: 38px;            /* было 44 */
+            height: 38px;
+        }
+
+        .tdr-swipe-item .swipe-actions .ios-action i{
+            font-size: 18px;        /* было 20 */
+        }
+
+        /* По умолчанию кнопки “спрятаны” (сжаты в точку) */
+        .tdr-swipe-item .swipe-actions .ios-action{
+            opacity: 0;
+            transform: scale(0);
+            transform-origin: 50% 50%;
+            transition:
+                transform 260ms cubic-bezier(.2,.9,.2,1),
+                opacity   220ms ease;
+        }
+
+        /* Когда строка открыта — “вылетают” из точки */
+        .tdr-swipe-item.is-open .swipe-actions .ios-action{
+            opacity: 1;
+            transform: scale(1);
+        }
+
+        /* Лёгкая задержка чтобы выглядело как iOS (по очереди) */
+        .tdr-swipe-item.is-open .swipe-actions .ios-action:nth-child(1){ transition-delay: 40ms; }
+        .tdr-swipe-item.is-open .swipe-actions .ios-action:nth-child(2){ transition-delay: 90ms; }
+
 
     </style>
 
@@ -266,9 +347,10 @@
             <div class="col-12 p-0 d-flex flex-column" style="min-height: 0; flex: 1 1 0;">
 
                 <div class="bg-dark py-2 px-3 d-flex justify-content-between align-items-center border-bottom mt-1 flex-shrink-0">
+
                     <div class="d-flex align-items-center gap-2">
-                        <h6 class="mb-0 text-primary">{{ __('Components') }}</h6>
-                        <span class="text-info">({{ $components->count() }})</span>
+                        <h6 class="mb-0 text-primary">{{ __('Parts') }}</h6>
+                        <span id="partsCount" class="text-info">({{ $components->count() }})</span>
                     </div>
 
                     <button class="btn btn-success btn-sm text-format" id="openAddComponentBtn">
@@ -278,7 +360,7 @@
 
                 @if($components->isEmpty())
                     <div class="text-center text-muted small py-3 flex-shrink-0">
-                        {{ __('COMPONENTS NOT CREATED') }}
+                        {{ __('PARTS NOT CREATED') }}
                     </div>
                 @else
 
@@ -290,111 +372,116 @@
                             @endphp
                             @if(!$component) @continue @endif
 
-                            <div class="list-group-item bg-transparent text-light border-secondary p-0 swipe-item"
+                            <div class="list-group-item bg-transparent text-light border-secondary p-0 component-card"
                                  data-component-id="{{ $component->id }}">
 
-                                {{-- ACTIONS (справа, под контентом) --}}
-                                <div class="swipe-actions">
-                                    <button type="button"
-                                            class="btn-action btn-edit js-swipe-edit"
-                                            data-detail-id="{{ $tdr['id'] ?? '' }}"                {{-- ID существующей строки --}}
-                                            data-component-id="{{ $component->id }}"
-                                            data-component-text="{{ trim(($component->ipl_num ?? '—').' | '.($component->part_number ?? '—').' | '.($component->name ?? ('#'.$component->id))) }}"
-                                            data-code-id="{{ $tdr['code_id'] ?? '' }}"
-                                            data-necessaries-id="{{ $tdr['necessaries_id'] ?? '' }}"
-                                            data-qty="{{ $tdr['qty'] ?? '' }}"
-                                            data-serial="{{ $tdr['serial_number'] ?? '' }}"
-                                            title="Edit part">
-                                        ✎
-                                    </button>
 
+                            {{-- Верх карточки: компонент (без свайпа) --}}
+                                <div class="p-2" style="background:#343A40;">
+                                    <div class="component-row">
 
-                                    <button type="button"
-                                            class="btn-action btn-delete js-swipe-delete"
-                                            data-component-id="{{ $component->id }}"
-                                            title="Delete">
-                                        🗑
-                                    </button>
-                                </div>
-
-                                {{-- CONTENT (двигается свайпом) --}}
-                                <div class="swipe-content">
-                                    <div class="p-2">
-
-                                        <div class="component-row">
-
-                                            {{-- LEFT: avatar --}}
-                                            <div>
-                                                @if($component->getFirstMediaBigUrl('components'))
-                                                    <a href="{{ $component->getFirstMediaBigUrl('components') }}"
-                                                       data-fancybox="component-{{ $component->id }}">
-                                                        <img class="component-avatar"
-                                                             src="{{ $component->getFirstMediaThumbnailUrl('components')
-                                      ?: $component->getFirstMediaBigUrl('components') }}"
-                                                             alt="{{ $component->name ?? 'Component' }}"
-                                                             width="40" height="40">
-                                                    </a>
-                                                @else
-                                                    <img class="component-avatar opacity-50"
-                                                         src="{{ asset('img/noimage.png') }}"
-                                                         alt="No image"
+                                        {{-- LEFT: avatar --}}
+                                        <div>
+                                            @if($component->getFirstMediaBigUrl('components'))
+                                                <a href="{{ $component->getFirstMediaBigUrl('components') }}"
+                                                   data-fancybox="component-{{ $component->id }}">
+                                                    <img class="component-avatar"
+                                                         src="{{ $component->getFirstMediaThumbnailUrl('components') ?: $component->getFirstMediaBigUrl('components') }}"
+                                                         alt="{{ $component->name ?? 'Component' }}"
                                                          width="40" height="40">
+                                                </a>
+                                            @else
+                                                <img class="component-avatar opacity-50"
+                                                     src="{{ asset('img/noimage.png') }}"
+                                                     alt="No image"
+                                                     width="40" height="40">
+                                            @endif
+                                        </div>
+
+                                        {{-- CENTER: info --}}
+                                        <div class="break-anywhere">
+                                            <a href="#"
+                                               class="fw-semibold text-info text-decoration-none js-component-edit-link"
+                                               data-log-card="{{ $component->log_card ? 1 : 0 }}"
+                                               data-component-id="{{ $component->id }}"
+                                               data-name="{{ e($component->name) }}"
+                                               data-ipl="{{ e($component->ipl_num) }}"
+                                               data-part="{{ e($component->part_number) }}"
+                                               data-eff="{{ e($component->eff_code) }}"
+                                               data-is-bush="{{ $component->is_bush ? 1 : 0 }}"
+                                               data-bush-ipl="{{ e($component->bush_ipl_num) }}">
+                                                {{ $component->name ?? ('#'.$component->id) }}
+                                            </a>
+
+                                            <div class="small  text-muted component-meta">
+                                                <span class="me-2"><span class="text-secondary">IPL:</span> {{ $component->ipl_num ?? '—' }}</span>
+                                                <span class="me-2"><span class="text-secondary">P/N:</span> {{ $component->part_number ?? '—' }}</span>
+                                                @if($component->is_bush)
+                                                    <span class="badge bg-secondary text-dark ms-1">BUSH</span>
                                                 @endif
                                             </div>
+                                        </div>
 
-                                            {{-- CENTER: info --}}
-                                            <div class="break-anywhere">
+                                    </div>
+                                </div>
 
-                                                <a href="#"
-                                                   class="fw-semibold text-info text-decoration-none js-component-edit-link"
-                                                   data-log-card="{{ $component->log_card ? 1 : 0 }}"
-                                                   data-component-id="{{ $component->id }}"
-                                                   data-name="{{ e($component->name) }}"
-                                                   data-ipl="{{ e($component->ipl_num) }}"
-                                                   data-part="{{ e($component->part_number) }}"
-                                                   data-eff="{{ e($component->eff_code) }}"
-                                                   data-is-bush="{{ $component->is_bush ? 1 : 0 }}"
-                                                   data-bush-ipl="{{ e($component->bush_ipl_num) }}">
-                                                    {{ $component->name ?? ('#'.$component->id) }}
-                                                </a>
+                                {{-- НИЗ карточки: список строк TDR, каждая со свайпом --}}
+                                <div class="mt-1">
+                                    @if(($tdrsDetailsByComponent[$component->id] ?? collect())->isNotEmpty())
+                                        @foreach($tdrsDetailsByComponent[$component->id] as $tdr)
+                                            @php
+                                                // Текст для кнопки "picked" в модалке
+                                                $componentText = trim(($component->ipl_num ?? '—').' | '.($component->part_number ?? '—').' | '.($component->name ?? ('#'.$component->id)));
+                                            @endphp
 
-                                                <div class="small text-secondary component-meta">
-                                                    <span class="me-2">
-                                                        <span class="text-muted">IPL:</span> {{ $component->ipl_num ?? '—' }}
-                                                    </span>
-                                                    <span class="me-2">
-                                                        <span class="text-muted">P/N:</span> {{ $component->part_number ?? '—' }}
-                                                    </span>
+                                            <div class="tdr-swipe-item swipe-item ps-5"
+                                                 data-component-id="{{ $component->id }}"
+                                                 style="--actions-width:120px;">
 
-                                                    @if($component->is_bush)
-                                                        <span class="badge bg-info text-dark ms-1">BUSH</span>
-                                                    @endif
+                                                {{-- ACTIONS (для ЭТОЙ строки $tdr) --}}
+                                                <div class="swipe-actions">
+                                                    <button type="button"
+                                                            class="btn-action btn-edit js-swipe-edit ios-action ios-action--blue"
+                                                            data-detail-id="{{ $tdr['id'] }}"
+                                                            data-component-id="{{ $component->id }}"
+                                                            data-component-text="{{ $componentText }}"
+                                                            data-code-id="{{ $tdr['code_id'] ?? '' }}"
+                                                            data-necessaries-id="{{ $tdr['necessaries_id'] ?? '' }}"
+                                                            data-qty="{{ $tdr['qty'] ?? '' }}"
+                                                            data-serial="{{ $tdr['serial_number'] ?? '' }}"
+                                                            title="Edit">
+                                                        <i class="bi bi-pencil-fill"></i>
+                                                    </button>
+
+                                                    <button type="button"
+                                                            class="btn-action btn-delete js-swipe-delete ios-action ios-action--red"
+                                                            data-detail-id="{{ $tdr['id'] }}"
+                                                            data-component-id="{{ $component->id }}"
+                                                            title="Delete">
+                                                        <i class="bi bi-trash3-fill"></i>
+                                                    </button>
                                                 </div>
 
-                                                {{-- Codes / TDR --}}
-                                                <div class="small mt-1">
-                                                    @if(($tdrsDetailsByComponent[$component->id] ?? collect())->isNotEmpty())
-                                                        @foreach($tdrsDetailsByComponent[$component->id] as $tdr)
-                                                            <div class="mb-1">
-                                                                <span class="fw-bold text-white">{{ $tdr['code_name'] }}</span>
-                                                                <span class="text-muted">
-                                                                → {{ $tdr['necessaries_name'] }}
-                                                                    @if($tdr['serial_number'])
-                                                                        (SN: {{ $tdr['serial_number'] }})
-                                                                    @endif
-                                                                </span>
-                                                            </div>
-                                                        @endforeach
-                                                    @else
-                                                        <span class="text-muted">Code: —</span>
-                                                    @endif
+                                                {{-- CONTENT (свайпается) --}}
+                                                <div class="swipe-content">
+                                                    <div class="px-2 py-2 small">
+                                                        <div class="mb-1">
+                                                            <span class="fw-bold text-white">{{ $tdr['code_name'] }}</span><span class="text-muted"> → {{ $tdr['necessaries_name'] }}
+                                                                @if($tdr['serial_number'])
+                                                                    (SN: {{ $tdr['serial_number'] }})
+                                                                @endif
+                                                            </span>
+                                                        </div>
+                                                    </div>
                                                 </div>
 
                                             </div>
-
-                                        </div>
-                                    </div>
+                                        @endforeach
+                                    @else
+                                        <div class="px-2 py-2 small text-muted">Code: —</div>
+                                    @endif
                                 </div>
+
                             </div>
 
 
@@ -762,6 +849,10 @@
                 if (necessariesSelect) necessariesSelect.required = false;
 
                 document.getElementById('component_id').value = '';
+                document.getElementById('detail_id').value = '';
+                const titleEl = addComponentModal.querySelector('.modal-title');
+                if (titleEl) titleEl.textContent = 'Add Parts';
+
                 const picked = document.getElementById('pickedComponentText');
                 if (picked) {
                     picked.textContent = 'Tap to choose…';
@@ -1045,9 +1136,9 @@
                 if (pickerBushContainer) pickerBushContainer.classList.add('d-none');
             });
 
-// ============================================================
-// CAMERA (native like show) for components
-// ============================================================
+            // ============================================================
+            // CAMERA (native like show) for components
+            // ============================================================
 
             const uploadForm = document.getElementById('component-photo-upload-form');
 
@@ -1409,20 +1500,54 @@
                 }
             });
 
-// ===== Swipe left to show actions (edit/delete) =====
+
+            // ===== Swipe left to show actions (edit/delete) =====
             (function initSwipeActions() {
-                const ACTION_W = 120; // 2 buttons * 60
+                const ACTIONS_DELAY = 180;
+                const ACTION_W = 120;     // 2 buttons * 60
                 const THRESH_OPEN = 35;
                 const THRESH_CLOSE = 20;
 
+                const DAMP = 0.78;        // "тяжесть" движения (0.7..0.9) меньше = медленнее
+                const MIN_START = 10;     // легче стартовать свайп
+
+                function showActionsWithDelay(item) {
+                    clearTimeout(item._actionsTimer);
+                    item._actionsTimer = setTimeout(() => item.classList.add('actions-show'), ACTIONS_DELAY);
+                }
+                function hideActions(item) {
+                    clearTimeout(item._actionsTimer);
+                    item.classList.remove('actions-show');
+                }
+
+                function openItem(item, content) {
+                    item.classList.remove('is-closing');
+                    item.classList.add('is-open');
+                    content.style.transform = `translateX(${-ACTION_W}px)`;
+                    showActionsWithDelay(item);
+                }
+
+                function closeItemSmooth(item, content) {
+                    item.classList.remove('is-open');
+                    hideActions(item);
+
+                    item.classList.add('is-closing');
+                    content.style.transform = 'translateX(0px)';
+
+                    clearTimeout(item._closingTimer);
+                    item._closingTimer = setTimeout(() => item.classList.remove('is-closing'), 950);
+                }
+
                 function closeAll(exceptEl = null) {
-                    document.querySelectorAll('.swipe-item.is-open').forEach(el => {
+                    document.querySelectorAll('.tdr-swipe-item.is-open, .tdr-swipe-item.actions-show').forEach(el => {
                         if (exceptEl && el === exceptEl) return;
-                        el.classList.remove('is-open');
+                        const c = el.querySelector('.swipe-content');
+                        if (!c) return;
+                        closeItemSmooth(el, c);
                     });
                 }
 
-                document.querySelectorAll('.swipe-item').forEach(item => {
+                document.querySelectorAll('.tdr-swipe-item').forEach(item => {
                     item.style.setProperty('--actions-width', ACTION_W + 'px');
 
                     const content = item.querySelector('.swipe-content');
@@ -1431,15 +1556,25 @@
                     let startX = 0, startY = 0;
                     let dx = 0, dy = 0;
                     let dragging = false;
+                    let swiping = false;
 
+                    // чтобы pointermove работал стабильно
+                    content.style.touchAction = 'pan-y';
                     content.addEventListener('pointerdown', (e) => {
-                        // только палец/стилус
                         startX = e.clientX;
                         startY = e.clientY;
                         dx = dy = 0;
                         dragging = true;
-
+                        swiping = false;
+                        hideActions(item);
+                        // захват указателя, чтобы не терять события
+                        item.classList.remove('is-closing');
+                        item.classList.remove('is-dragging');
+                        startOffset = item.classList.contains('is-open') ? -ACTION_W : 0;
+                        try { content.setPointerCapture(e.pointerId); } catch (_) {}
                     });
+
+                    let startOffset = 0;
 
                     content.addEventListener('pointermove', (e) => {
                         if (!dragging) return;
@@ -1447,38 +1582,70 @@
                         dx = e.clientX - startX;
                         dy = e.clientY - startY;
 
-                        // если движение больше вертикальное — даём скроллу работать
-                        if (Math.abs(dy) > Math.abs(dx)) return;
-                        if (Math.abs(dx) < 12) return;
+                        // если вертикаль сильнее — не мешаем скроллу
+                        if (!swiping && Math.abs(dy) > Math.abs(dx)) return;
 
-                        // не даём тянуть вправо (позитивный dx)
+                        // ждём чуть-чуть, чтобы отличить тап от свайпа
+                        if (!swiping && Math.abs(dx) < MIN_START) return;
+
+                        // теперь считаем что это свайп
+                        swiping = true;
+
+                        // тянуть только влево
                         let x = Math.min(0, dx);
 
-                        // ограничим максимумом ширины действий
+                        // "тяжёлый" свайп (медленнее)
+                        x = x * DAMP;
+
+                        // ограничим ширину
                         x = Math.max(x, -ACTION_W);
 
-                        content.style.transition = 'none';
+                        // отключаем плавность только во время drag
+                        item.classList.add('is-dragging');
+
+                        // если хотя бы чуть открыл — показываем кнопки из точки
+                        // if (x < -6) item.classList.add('is-open');
+                        // else item.classList.remove('is-open');
+
+                         x = startOffset + (dx * DAMP);
+                        x = Math.min(0, Math.max(-ACTION_W, x));
+
                         content.style.transform = `translateX(${x}px)`;
+
+
                     });
 
-                    const finish = () => {
+                    const finish = (e) => {
                         if (!dragging) return;
                         dragging = false;
 
-                        content.style.transition = '';
+                        item.classList.remove('is-dragging');
 
-                        const isOpen = item.classList.contains('is-open');
-
-                        // dx отрицательный = влево
-                        if (!isOpen && dx < -THRESH_OPEN) {
-                            closeAll(item);
-                            item.classList.add('is-open');
-                        } else if (isOpen && dx > THRESH_CLOSE) {
-                            item.classList.remove('is-open');
+                        if (!swiping) {
+                            try { content.releasePointerCapture(e.pointerId); } catch (_) {}
+                            return;
                         }
 
-                        // вернуть transform под класс
-                        content.style.transform = '';
+                        const m = content.style.transform.match(/translateX\((-?\d+(\.\d+)?)px\)/);
+                        const currentX = m ? parseFloat(m[1]) : (wasOpen ? -ACTION_W : 0);
+
+                        const wasOpen = item.classList.contains('is-open');
+
+                        // решаем, что хотим сделать
+                        let willOpen = currentX <= (-ACTION_W * 0.5); // дальше половины — открыть
+
+                        if (!wasOpen && dx < -THRESH_OPEN) willOpen = true;
+                        else if (wasOpen && dx > THRESH_CLOSE) willOpen = false;
+
+                        if (willOpen) {
+                            closeAll(item);
+                            openItem(item, content);
+                            if (!wasOpen) haptic('light');
+                        } else {
+                            closeItemSmooth(item, content);
+                        }
+
+                        try { content.releasePointerCapture(e.pointerId); } catch (_) {}
                     };
 
                     content.addEventListener('pointerup', finish);
@@ -1487,25 +1654,20 @@
 
                 // tap outside closes
                 document.addEventListener('click', (e) => {
-                    const inside = e.target.closest('.swipe-item');
+                    const inside = e.target.closest('.tdr-swipe-item');
                     if (!inside) closeAll(null);
                 });
 
                 // кнопки действий
-                document.addEventListener('click', (e) => {
+                document.addEventListener('click', async (e) => {
 
                     const editBtn = e.target.closest('.js-swipe-edit');
                     if (editBtn) {
                         const detailId = editBtn.dataset.detailId;
                         const componentId = editBtn.dataset.componentId;
 
-                        // 1) detail id
-                        const detailInput = document.getElementById('detail_id');
-                        if (detailInput) detailInput.value = detailId || '';
-
-                        // 2) component
-                        const hidden = document.getElementById('component_id');
-                        if (hidden) hidden.value = componentId || '';
+                        document.getElementById('detail_id').value = detailId || '';
+                        document.getElementById('component_id').value = componentId || '';
 
                         const picked = document.getElementById('pickedComponentText');
                         if (picked) {
@@ -1513,7 +1675,6 @@
                             picked.textContent = editBtn.dataset.componentText || `#${componentId}`;
                         }
 
-                        // 3) заполнить поля
                         const codeSelect = document.getElementById('code_id');
                         const necessariesSelect = document.getElementById('necessaries_id');
                         const qtyInput = document.getElementById('qty');
@@ -1523,35 +1684,28 @@
                             codeSelect.value = editBtn.dataset.codeId || '';
                             codeSelect.dispatchEvent(new Event('change', { bubbles: true }));
                         }
-
                         if (necessariesSelect) {
                             necessariesSelect.value = editBtn.dataset.necessariesId || '';
                             necessariesSelect.dispatchEvent(new Event('change', { bubbles: true }));
                         }
-
                         if (qtyInput) qtyInput.value = editBtn.dataset.qty || '1';
                         if (serialInput) serialInput.value = editBtn.dataset.serial || '';
 
-                        // 4) переключить форму на UPDATE
                         const form = document.getElementById('componentAttachForm');
-
-                        // Пример: отдельный update route по detail_id
-                        // form.action = `.../details/${detailId}`
-
-                        // Или если update идёт через тот же endpoint:
-                        // form.action = "{{ route('mobile.workorders.components.attach') }}";
-
-                        // Если нужен PATCH:
-                        let m = form.querySelector('input[name="_method"]');
-                        if (!m) {
-                            m = document.createElement('input');
+                        if (detailId) {
+                            form.action = `{{ route('mobile.workorders.components.attach.update', ['tdr' => '__id__']) }}`.replace('__id__', detailId);
+                            // метод PATCH
+                            form.querySelector('input[name="_method"]')?.remove();
+                            const m = document.createElement('input');
                             m.type = 'hidden';
                             m.name = '_method';
+                            m.value = 'PATCH';
                             form.appendChild(m);
+                        } else {
+                            form.action = `{{ route('mobile.workorders.components.attach') }}`;
+                            form.querySelector('input[name="_method"]')?.remove();
                         }
-                        m.value = 'PATCH';
 
-                        // заголовок модалки
                         if (addComponentModal) {
                             const titleEl = addComponentModal.querySelector('.modal-title');
                             if (titleEl) titleEl.textContent = 'Edit Parts';
@@ -1562,20 +1716,87 @@
                         return;
                     }
 
-
-
                     const delBtn = e.target.closest('.js-swipe-delete');
+
                     if (delBtn) {
-                        const id = delBtn.dataset.componentId;
+                        const detailId = delBtn.dataset.detailId;
+                        const swipeItem = delBtn.closest('.tdr-swipe-item');
+                        const componentId = delBtn.dataset.componentId;
+
                         closeAll(null);
-                        // тут вызови свой delete handler (если есть)
-                        if (confirm('Delete this component?')) {
-                            console.log('TODO delete component id=', id);
-                            // deleteComponent(id)
+
+                        if (!detailId) {
+                            window.notify('Missing row id', 'error');
+                            return;
                         }
+
+                        const ok = await window.confirmDialog({
+                            title: 'Delete',
+                            message: 'Delete this row?',
+                            okText: 'Delete',
+                            cancelText: 'Cancel',
+                            danger: true
+                        });
+
+                        if (!ok) return;
+
+                        try {
+                            const res = await fetch(
+                                `{{ route('mobile.workorders.components.attach.destroy', ['tdr' => '__id__']) }}`.replace('__id__', detailId),
+                                {
+                                    method: 'DELETE',
+                                    headers: {
+                                        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
+                                        'X-Requested-With': 'XMLHttpRequest',
+                                        'Accept': 'application/json',
+                                    },
+                                }
+                            );
+
+                            const json = await res.json().catch(() => ({}));
+                            if (!res.ok || !json?.ok) throw new Error(json?.message || 'Delete failed');
+
+                            window.notify('Deleted', 'success', 3000);
+                            if (typeof window.hapticTap === 'function') window.hapticTap(25);
+
+                            swipeItem.remove();
+
+                            const componentCard = document.querySelector(
+                                `.component-card[data-component-id="${componentId}"]`
+                            );
+
+                            if (componentCard) {
+                                const rowsLeft = componentCard.querySelectorAll('.tdr-swipe-item').length;
+
+                                if (rowsLeft === 0) {
+                                    componentCard.remove();
+                                }
+                            }
+
+                            recountPartsCount();
+
+
+                        } catch (err) {
+                            console.error(err);
+                            window.notify(err?.message || 'Delete error', 'error');
+                        }
+
+                        return;
                     }
+
                 });
             })();
+
+            function recountPartsCount() {
+                const counter = document.getElementById('partsCount');
+                if (!counter) return;
+
+                // считаем только реальные карточки компонентов
+                const count = document.querySelectorAll('.component-card').length;
+
+                counter.textContent = `(${count})`;
+            }
+
 
 
         });
