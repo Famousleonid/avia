@@ -2,7 +2,7 @@
     $menuId = $position === 'top' ? 'logout-form-top' : 'logout-form-bottom';
     $borderClass = $position === 'top' ? ' border-bottom' : ' border-top';
     $isActive = fn($route) => request()->routeIs($route);
-     $currentWorkorderId = $workorder->id ?? null;
+    $currentWorkorderId = $workorder->id ?? null;
 
     $onShowPage = request()->routeIs('mobile.show','mobile.tasks', 'mobile.components','mobile.process'); // страница одного воркордера
 @endphp
@@ -59,7 +59,6 @@
         line-height: 1;
     }
 </style>
-
 
 <div class="{{ $borderClass }} bg-primary d-flex justify-content-between align-items-center" style="height: 60px;">
 
@@ -124,7 +123,6 @@
 
         @endnotrole
 
-
     @else
 
         @notrole('Shipping')
@@ -153,17 +151,17 @@
         @endnotrole
 
         @roles('Shipping|Manager|Admin')
-            <a href="{{ route('mobile.draft') }}" data-spinner
-               class="flex-fill text-center d-flex flex-column align-items-center justify-content-center text-white">
-                <div class="menu-icon-wrapper {{ $isActive('mobile.draft') ? 'active' : '' }}">
-                    <i class="bi bi-wallet"></i>
-                    <svg viewBox="0 0 36 36">
-                        <circle cx="18" cy="18" r="18"/>
-                    </svg>
-                </div>
-                <span class="menu-label">Create Draft WO</span>
-            </a>
-        @endrole
+        <a href="{{ route('mobile.draft') }}" data-spinner
+           class="flex-fill text-center d-flex flex-column align-items-center justify-content-center text-white">
+            <div class="menu-icon-wrapper {{ $isActive('mobile.draft') ? 'active' : '' }}">
+                <i class="bi bi-wallet"></i>
+                <svg viewBox="0 0 36 36">
+                    <circle cx="18" cy="18" r="18"/>
+                </svg>
+            </div>
+            <span class="menu-label">Create Draft</span>
+        </a>
+        @endroles
 
         <form id="{{ $menuId }}" action="{{ route('logout') }}" method="POST" style="display: none;">@csrf</form>
         <a href="#"
@@ -177,5 +175,6 @@
             </div>
             <span class="menu-label">Logout</span>
         </a>
+    @endif
 </div>
-@endif
+

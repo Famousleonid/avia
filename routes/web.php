@@ -118,12 +118,12 @@ Route::group(['middleware' => ['auth']], function () {
     Route::get('/workorders/{workorder}/logs-json', [WorkorderController::class, 'logsForWorkorder'])->name('workorders.logs-json');
 
     Route::resource('/users', UserController::class);
-    Route::resource('/mains',  MainController::class);
+    Route::resource('/mains',  MainController::class)->except(['show']);
+    Route::get('/mains/{workorder}', [MainController::class, 'show'])->name('mains.show');
+
+
   //  Route::patch('/mains/general-task/{workorder}/{generalTask}', [MainController::class, 'updateGeneralTaskDates'])->name('mains.updateGeneralTaskDates');
     Route::get('/main-rows/{main}/activity', [MainController::class, 'activity'])->name('mains.activity');
-
-
-   // Route::get('/progress', [MainController::class, 'progress'])->name('progress.index');
 
     Route::resource('/workorders', WorkorderController::class);
 

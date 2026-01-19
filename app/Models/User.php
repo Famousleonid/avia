@@ -48,8 +48,8 @@ class User extends Authenticatable implements MustVerifyEmail, HasMedia
 
     public function roleIs(string|array $roles): bool
     {
-        $roles = (array)$roles;
-        return in_array($this->roleName(), $roles, true) || ($this->is_admin ?? false);
+        $roles = (array) $roles;
+        return in_array($this->roleName(), $roles, true);
     }
 
     public function hasAnyRole(string $pipeSeparated): bool

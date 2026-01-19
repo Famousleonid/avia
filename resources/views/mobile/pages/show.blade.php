@@ -172,7 +172,7 @@
 
             <div class="d-flex justify-content-between align-items-center w-100 fw-bold text-info ms-3">
                 <div>
-                    <span class="text-secondary fw-normal">Unit: </span>
+                    <span class="text-secondary fw-normal">Component: </span>
                     <span class="text-white">{{ $workorder->unit?->name ?? '-' }}</span>
                 </div>
             </div>

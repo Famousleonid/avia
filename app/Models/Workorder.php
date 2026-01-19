@@ -17,7 +17,7 @@ class Workorder extends Model implements HasMedia
 
     protected $fillable = ['number', 'user_id', 'unit_id', 'instruction_id', 'external_damage','received_disassembly','nameplate_missing','disassembly_upon_arrival',
         'preliminary_test_false','part_missing','extra_parts','new_parts', 'open_at', 'customer_id', 'approve', 'approve_at', 'description', 'manual',
-        'serial_number', 'place', 'created_at','amdt', 'rm_report', 'customer_po'];
+        'serial_number', 'place', 'created_at','amdt', 'rm_report', 'customer_po','modified','is_draft'];
 
     protected $dates = ['approve_at','deleted_at','open_at'];
 
@@ -279,6 +279,7 @@ class Workorder extends Model implements HasMedia
         $last = self::withoutGlobalScope('exclude_drafts')
             ->where('is_draft', true)
             ->whereBetween('number', [1, 99999])
+            ->lockForUpdate()
             ->max('number');
 
         $next = (int)($last ?? 0) + 1;

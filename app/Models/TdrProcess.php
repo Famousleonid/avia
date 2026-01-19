@@ -4,10 +4,13 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Spatie\Activitylog\LogOptions;
+use Spatie\Activitylog\Models\Activity;
+use Spatie\Activitylog\Traits\LogsActivity;
 
 class TdrProcess extends Model
 {
-    use HasFactory;
+    use HasFactory, LogsActivity;
 
     // Поля, которые можно массово назначать
     protected $fillable = [
@@ -40,5 +43,23 @@ class TdrProcess extends Model
     public function processName()
     {
         return $this->belongsTo(ProcessName::class, 'process_names_id');
+    }
+
+    public function getActivitylogOptions(): LogOptions
+    {
+        return LogOptions::defaults()
+            ->useLogName('tdr_process')
+            ->logOnly([
+                'date_start',
+                'date_finish',
+            ])
+            ->logOnlyDirty()                // логировать ТОЛЬКО изменившиеся поля
+            ->dontSubmitEmptyLogs();        // не создавать пустые записи
+    }
+    public function tapActivity(Activity $activity, string $eventName)
+    {
+        if (auth()->check()) {
+            $activity->causer()->associate(auth()->user());
+        }
     }
 }

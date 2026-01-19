@@ -236,28 +236,39 @@ class WorkorderController extends Controller
         $manuals = Manual::all();
         $users = User::all();
         $currentUser = Auth::user();
+        $draftInstructionId = Instruction::where('name','Draft')->value('id');
 
-        return view('admin.workorders.create', compact('customers', 'units', 'instructions', 'users', 'currentUser', 'manuals'));
+        return view('admin.workorders.create', compact('customers', 'units', 'instructions', 'users', 'currentUser', 'manuals','draftInstructionId'));
     }
-
     public function store(Request $request)
     {
+        $draftInstructionId = Instruction::where('name', 'Draft')->value('id');
 
-        $request->validate([
-            'number' => 'required|unique:workorders,number',
-            'unit_id' => 'required',
-            'customer_id' => 'required',
-            'instruction_id' => 'required',
-        ]);
-
-        $number = Workorder::where('number', $request['number'])->first();
-        if ($number) {
+        if (!$draftInstructionId) {
             return redirect()
                 ->route('workorders.create')
-                ->with('error', 'Workorder number is already exists.');
+                ->with('error', 'Instruction "Draft" not found.');
         }
 
-        $request->merge([
+        $isDraft = ((int)$request->input('instruction_id') === (int)$draftInstructionId);
+
+        // ✅ Базовая валидация (number НЕ требуем тут, иначе Draft не пройдет)
+        $rules = [
+            'unit_id' => ['required', 'exists:units,id'],
+            'customer_id' => ['required', 'exists:customers,id'],
+            'instruction_id' => ['required', 'exists:instructions,id'],
+            'number' => ['nullable'], // ✅ draft может быть без номера
+        ];
+
+        // ✅ Если НЕ draft — номер обязателен и уникален
+        if (!$isDraft) {
+            $rules['number'] = ['required', 'unique:workorders,number'];
+        }
+
+        $data = $request->validate($rules);
+
+        // ✅ Чекбоксы (как у тебя)
+        $data = array_merge($data, [
             'part_missing' => $request->has('part_missing') ? 1 : 0,
             'external_damage' => $request->has('external_damage') ? 1 : 0,
             'received_disassembly' => $request->has('received_disassembly') ? 1 : 0,
@@ -267,9 +278,29 @@ class WorkorderController extends Controller
             'extra_parts' => $request->has('extra_parts') ? 1 : 0,
         ]);
 
-        $workorder = Workorder::create($request->all());
+        // ✅ Draft: ставим is_draft и генерим номер в контроллере
+        if ($isDraft) {
+            $data['is_draft'] = true;
+            $data['number'] = Workorder::nextDraftNumber(); // int
+        } else {
+            $data['is_draft'] = false;
+        }
 
-        // Если description заполнено и unit->name пустое, обновляем unit->name
+        // ✅ user_id (у тебя есть hidden, но безопаснее так)
+        $data['user_id'] = $request->input('user_id', auth()->id());
+
+        // ✅ остальные поля, которые ты отправляешь (description, serial_number, etc.)
+        $data['serial_number'] = $request->input('serial_number');
+        $data['description'] = $request->input('description');
+        $data['amdt'] = $request->input('amdt');
+        $data['place'] = $request->input('place');
+        $data['open_at'] = $request->input('open_at');
+        $data['customer_po'] = $request->input('customer_po');
+        $data['modified'] = $request->input('modified');
+
+        $workorder = Workorder::create($data);
+
+        // ✅ Если description заполнено и unit->name пустое — обновляем unit->name
         if (!empty($request->description)) {
             $unit = Unit::find($workorder->unit_id);
             if ($unit && empty($unit->name)) {
@@ -280,6 +311,7 @@ class WorkorderController extends Controller
 
         return redirect()->route('workorders.index')->with('success', 'Workorder added');
     }
+
 
     public function destroy(Workorder $workorder)
     {

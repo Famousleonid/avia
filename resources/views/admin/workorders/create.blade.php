@@ -195,7 +195,7 @@
 
                                         <div class="form-group col-lg-4 mt-2">
                                             <label for="customer_po">Customer PO</label>
-                                            <input type="text" name="customer_po" id="customer_po" maxlength="30" value="" class="form-control @error ('place') is-invalid @enderror" placeholder="">
+                                            <input type="text" name="customer_po" id="customer_po" maxlength="30" value="" class="form-control @error ('customer_po') is-invalid @enderror" placeholder="">
                                         </div>
 
                                         <div class="form-group col-lg-4  mt-2">
@@ -211,7 +211,10 @@
                                             </select>
                                         </div>
 
-
+                                        <div class="form-group col-lg-4 mt-2">
+                                            <label for="customer_po">Modified</label>
+                                            <input type="text" name="modified" id="modified" maxlength="30" value="" class="form-control @error ('modified') is-invalid @enderror" placeholder="">
+                                        </div>
 
                                     </div>
 
@@ -330,6 +333,27 @@
             const unitSelect = document.getElementById('unit_id');
             const descriptionInput = document.getElementById('description');
 
+            const DRAFT_INSTRUCTION_ID = {{ $draftInstructionId ?? 0 }};
+
+            function isDraftSelected() {
+                return String(instructionSelect.value) === String(DRAFT_INSTRUCTION_ID);
+            }
+            function toggleNumberField() {
+                if (isDraftSelected()) {
+                    numberInput.value = '';
+                    numberInput.setAttribute('readonly', 'readonly');
+                    numberInput.setAttribute('placeholder', 'Auto number for Draft');
+                    numberInput.classList.remove('is-invalid-shadow');
+                } else {
+                    numberInput.removeAttribute('readonly');
+                    numberInput.setAttribute('placeholder', 'Enter workorder number');
+                }
+            }
+
+            instructionSelect.addEventListener('change', toggleNumberField);
+            toggleNumberField();
+
+
             unitSelect.onchange = function () {
                 const selectedOption = this.options[this.selectedIndex];
                 const unitName = selectedOption.getAttribute('data-name');
@@ -337,6 +361,8 @@
             };
 
             function check1() {
+                if (isDraftSelected()) return true; // ✅ draft — номер не обязателен
+
                 const el = $('#number_id');
                 if (!el.val()) {
                     el.addClass('is-invalid-shadow');

@@ -11,10 +11,10 @@ use Illuminate\Http\Request;
 
 class MobileTaskController extends Controller
 {
-    public function tasks($workorder_id, Request $request)
+    public function tasks(Workorder $workorder, Request $request)
     {
 
-        $workorder = Workorder::with('generalTaskStatuses')->findOrFail($workorder_id);
+        $workorder = Workorder::with('generalTaskStatuses')->findOrFail($workorder->id);
 
         $general_tasks = GeneralTask::orderBy('sort_order')->orderBy('id')->get();
 
@@ -26,7 +26,7 @@ class MobileTaskController extends Controller
         $tasksByGeneral = $tasks->groupBy('general_task_id');
 
         $mains = Main::with(['user', 'task'])
-            ->where('workorder_id', $workorder_id)
+            ->where('workorder_id', $workorder->id)
             ->get();
 
         $mainsByTask = $mains->keyBy('task_id');

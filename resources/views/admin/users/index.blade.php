@@ -93,7 +93,7 @@
     </style>
 
     <div class="card shadow mt-1 pt-2">
-        @if (is_admin())
+        @role('Admin')
             <div class="card-header my-1 shadow">
                 <div class="d-flex justify-content-between">
                     <h5 class="text-primary">{{__('Manage Users')}}( <span
@@ -111,7 +111,7 @@
                     </div>
                 </div>
             </div>
-        @endif
+        @endrole
 
         @if(count($users))
             <div class="table-wrapper me3 p-2 pt-0">
@@ -128,9 +128,9 @@
                         <th class="text-primary bg-gradient text-center">{{__('Role') }}</th>
                         <th class="text-primary bg-gradient text-center">{{__('Stamp') }}</th>
                         <th class="text-primary bg-gradient text-center">{{__('Create Date')}}</th>
-                        @if (is_admin())
+                        @role('Admin')
                             <th class="text-primary bg-gradient text-center">{{__('Action') }}</th>
-                        @endif
+                        @endrole
                     </tr>
                     </thead>
                     <tbody>
@@ -153,7 +153,7 @@
                             <td class="text-center"><span
                                     style="display: none">{{$user->created_at}}</span>{{$user->created_at->format('d.m.Y')}}
                             </td>
-
+                            @role('Admin')
                             <td class="text-center">
                                 @if((auth()->check() && auth()->id() === $user->id) || auth()->user()->roleIs('Admin'))
                                     <a href="{{ route('users.edit', ['user' => $user->id]) }}"
@@ -175,7 +175,7 @@
                                     </form>
                                 @endcan
                             </td>
-
+                            @endrole
                         </tr>
                     @endforeach
                     </tbody>
@@ -194,63 +194,75 @@
     <script>
         document.addEventListener('DOMContentLoaded', function () {
 
-            // Sorting
             const table = document.getElementById('userTable');
-            const headers = document.querySelectorAll('.sortable');
+            if (!table) return;
+
+            // ---------------- Sorting ----------------
+            const headers = table.querySelectorAll('thead th.sortable');
+
             headers.forEach(header => {
                 header.addEventListener('click', () => {
                     const columnIndex = Array.from(header.parentNode.children).indexOf(header);
-                    const rows = Array.from(table.querySelectorAll('tbody tr'));
+                    const tbody = table.querySelector('tbody');
+                    if (!tbody) return;
+
+                    const rows = Array.from(tbody.querySelectorAll('tr'));
                     const direction = header.dataset.direction === 'asc' ? 'desc' : 'asc';
                     header.dataset.direction = direction;
 
-                    // Удаление активного класса с других столбцов
                     headers.forEach(h => h.classList.remove('active'));
                     header.classList.add('active');
 
-                    // Сортировка строк
                     rows.sort((a, b) => {
-                        const aText = a.cells[columnIndex]?.innerText.trim() || '';
-                        const bText = b.cells[columnIndex]?.innerText.trim() || '';
-                        return direction === 'asc' ? aText.localeCompare(bText) : bText.localeCompare(aText);
+                        const aText = (a.cells[columnIndex]?.innerText || '').trim();
+                        const bText = (b.cells[columnIndex]?.innerText || '').trim();
+                        return direction === 'asc'
+                            ? aText.localeCompare(bText, undefined, {numeric: true, sensitivity: 'base'})
+                            : bText.localeCompare(aText, undefined, {numeric: true, sensitivity: 'base'});
                     });
 
-                    // Перестановка строк
-                    rows.forEach(row => table.querySelector('tbody').appendChild(row));
+                    rows.forEach(row => tbody.appendChild(row));
                 });
             });
 
-            // Search
+            // ---------------- Search ----------------
             const searchInput = document.getElementById('searchUserInput');
-            searchInput.addEventListener('input', () => {
-                const filter = searchInput.value.toLowerCase();
-                const rows = table.querySelectorAll('tbody tr');
-                rows.forEach(row => {
-                    const text = row.innerText.toLowerCase();
-                    row.style.display = text.includes(filter) ? '' : 'none';
+            if (searchInput) {
+                searchInput.addEventListener('input', () => {
+                    const filter = searchInput.value.toLowerCase();
+                    const rows = table.querySelectorAll('tbody tr');
+
+                    rows.forEach(row => {
+                        const text = row.innerText.toLowerCase();
+                        row.style.display = text.includes(filter) ? '' : 'none';
+                    });
                 });
-            });
+            }
 
-// --------------- Delete modal -----------------------------------------------------------------------------------
-
+            // ---------------- Delete modal ----------------
             const modal = document.getElementById('useConfirmDelete');
             const confirmDeleteBtn = document.getElementById('confirmDeleteBtn');
-            let deleteForm = null;
-            modal.addEventListener('show.bs.modal', function (event) {
-                const button = event.relatedTarget;
-                deleteForm = button.closest('form');
-                const title = button.getAttribute('data-title');
-                const modalTitle = modal.querySelector('#confirmDeleteLabel');
-                modalTitle.textContent = title || 'Delete Confirmation';
-            });
-            confirmDeleteBtn.addEventListener('click', function () {
-                if (deleteForm) {
-                    deleteForm.submit();
-                }
-            });
-// --------------- End Delete modal -----------------------------------------------------------------------------------
+
+            if (modal && confirmDeleteBtn) {
+                let deleteForm = null;
+
+                modal.addEventListener('show.bs.modal', function (event) {
+                    const button = event.relatedTarget;
+                    deleteForm = button?.closest('form') || null;
+
+                    const title = button?.getAttribute('data-title');
+                    const modalTitle = modal.querySelector('#confirmDeleteLabel');
+                    if (modalTitle) modalTitle.textContent = title || 'Delete Confirmation';
+                });
+
+                confirmDeleteBtn.addEventListener('click', function () {
+                    if (deleteForm) deleteForm.submit();
+                });
+            }
 
         });
     </script>
+
+
 @endsection
 

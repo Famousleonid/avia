@@ -187,6 +187,10 @@
                                                 @endforeach
                                             </select>
                                         </div>
+                                        <div class="form-group col-lg-4 mt-2">
+                                            <label for="customer_po">Modified</label>
+                                            <input type="text" name="modified" id="modified" maxlength="30" value="{{ old('modified', $current_wo->modified) }}" class="form-control @error ('place') is-invalid @enderror" placeholder="">
+                                        </div>
 
                                     </div>
 

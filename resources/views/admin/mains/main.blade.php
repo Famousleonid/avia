@@ -186,19 +186,18 @@
                                         <div class="col-12 col-lg-4 d-flex">
                                             <div class="border rounded p-1 w-100">
                                                 <div class="small">
-                                                    <div class="d-flex gap-1">
-                                                        <span class="text-info ">Unit Part number:</span>
+                                                    <div class="d-flex gap-2">
+                                                        <span class="text-info ">Component PN:</span>
                                                         <span>{{ $current_workorder->unit->part_number ?? '—' }}</span>
+                                                        @if($current_workorder->modified) <span>&nbsp;  <span class="text-muted">mod: </span> {{$current_workorder->modified}} </span> @endif
                                                     </div>
                                                     <div class="d-flex gap-1">
-                                                        <span class="text-info me-5">Serial:</span>
-                                                        <span
-                                                            class="ms-4">{{ $current_workorder->serial_number ?? ($current_workorder->unit->serial_number ?? '—') }}</span>
+                                                        <span class="text-info ">Serial number:</span>
+                                                        <span class="ms-4">{{ $current_workorder->serial_number ?? ($current_workorder->unit->serial_number ?? '—') }}</span>
                                                     </div>
                                                     <div class="d-flex gap-1">
                                                         <span class="text-info me-4">Instruction:</span>
-                                                        <span
-                                                            class="ms-3">{{ $current_workorder->instruction->name ?? '—' }}</span>
+                                                        <span class="ms-3">{{ $current_workorder->instruction->name ?? '—' }}</span>
                                                     </div>
                                                 </div>
                                             </div>
@@ -361,7 +360,10 @@
                                                         </td>
 
                                                         {{-- user --}}
-                                                        <td class="js-fade-on-ignore {{ $isIgnored ? 'is-ignored' : '' }}">
+                                                        <td class="js-fade-on-ignore {{ $isIgnored ? 'is-ignored' : '' }}"
+                                                            data-bs-toggle="tooltip"
+                                                            title="{{ $main?->user?->name ?? '' }}"
+                                                        >
                                                             {{ $main?->user?->name ?? '' }}
 
                                                         </td>

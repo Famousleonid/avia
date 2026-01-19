@@ -80,7 +80,7 @@
             height: 10px;
             border-radius: 999px;
             display: inline-block;
-            border: 1px solid rgba(255, 255, 255, .35);
+            border: 1px solid rgba(255,255,255,.35);
             opacity: .95;
             cursor: help;
         }
@@ -246,18 +246,16 @@
                     <img src="{{ asset('img/plus.png') }}" width="30" alt="Add" data-bs-toggle="tooltip"
                          title="Add new workorder">
                 </a>
-
-                @if(is_admin())
-                    <form method="POST" action="{{ route('workorders.recalcStages') }}" class="ms-2"
-                          onsubmit="return confirm('Recalculate stages for ALL workorders?');">
-                        @csrf
-                        <button type="submit" class="btn btn-outline-warning btn-sm"
-                                onclick="if (typeof showLoadingSpinner === 'function') showLoadingSpinner();">
-                            <i class="bi bi-arrow-repeat me-1"></i> Recalc stages
-                        </button>
-                    </form>
-                @endif
-
+                @role('Admin')
+                <form method="POST" action="{{ route('workorders.recalcStages') }}" class="ms-2"
+                      onsubmit="return confirm('Recalculate stages for ALL workorders?');">
+                    @csrf
+                    <button type="submit" class="btn btn-outline-warning btn-sm"
+                            onclick="if (typeof showLoadingSpinner === 'function') showLoadingSpinner();">
+                        <i class="bi bi-arrow-repeat me-1"></i>
+                    </button>
+                </form>
+                @endrole
 
             </div>
 
@@ -307,7 +305,6 @@
                 </div>
                 @endroles
 
-
                 <label class="checkbox-group">
                     <input type="checkbox" id="woDone">
                     <span>WO active</span>
@@ -321,6 +318,11 @@
                 <label class="checkbox-group">
                     <input type="checkbox" id="approvedCheckbox">
                     <span>Approved</span>
+                </label>
+
+                <label class="checkbox-group">
+                    <input type="checkbox" id="draftCheckbox">
+                    <span>Draft</span>
                 </label>
 
             </div>
@@ -339,7 +341,7 @@
                         </th>
                         <th class="text-center text-primary col-approve">Approve</th>
                         @hasanyrole('Admin|Manager')
-                        <th class="text-center text-primary col-stages">Stages</th>
+                            <th class="text-center text-primary col-stages">Stages</th>
                         @endhasanyrole
                         <th class="text-center text-primary">Component</th>
                         <th class="text-center text-primary">Description</th>
@@ -353,7 +355,7 @@
                         <th class="text-center text-primary sortable">Technik <i class="bi bi-chevron-expand ms-1"></i></th>
 
                         @role('Admin')
-                        <th class="text-center text-primary col-delete">Delete</th>
+                            <th class="text-center text-primary col-delete">Delete</th>
                         @endrole
                     </tr>
                     </thead>
@@ -364,14 +366,21 @@
                             data-tech-id="{{ $workorder->user_id }}"
                             data-customer-id="{{ $workorder->customer_id }}"
                             data-status="{{ $workorder->isDone() ? 'Completed' : 'active' }}"
-                            data-approved="{{ $workorder->approve_at ? '1' : '0' }}">
+                            data-approved="{{ $workorder->approve_at ? '1' : '0' }}"
+                            data-draft="{{ $workorder->is_draft ? '1' : '0' }}">
 
                             <td class="text-center">
                                 @if($workorder->isDone())
                                     <a href="{{ route('mains.show', $workorder->id) }}" class="text-decoration-none" data-spinner>
                                         <span class="text-muted">{{ $workorder->number }}</span>
                                     </a>
-                                @else
+                                @elseif($workorder->is_draft)
+                                    <a href="{{ route('mains.show', $workorder->id) }}" class="text-decoration-none" data-spinner>
+                                        <span style="font-size: 16px; color: yellowgreen;">
+                                            Draft&nbsp;{{ $workorder->number }}
+                                        </span>
+                                    </a>
+                                    @else
                                     <a href="{{ route('mains.show', $workorder->id) }}" class="text-decoration-none" data-spinner>
                                         <span style="font-size: 16px; color: #0DDDFD;">
                                             w&nbsp;{{ $workorder->number }}
@@ -403,40 +412,40 @@
                             </td>
 
                             @hasanyrole('Admin|Manager')
-                            <td class="text-center">
-                                @php
-                                    $byGt = $workorder->generalTaskStatuses->keyBy('general_task_id');
-                                    $mainsByTask = $workorder->main
-                                        ? $workorder->main->whereNotNull('task_id')->keyBy('task_id')
-                                        : collect();
-                                @endphp
+                                <td class="text-center">
+                                    @php
+                                        $byGt = $workorder->generalTaskStatuses->keyBy('general_task_id');
+                                        $mainsByTask = $workorder->main
+                                            ? $workorder->main->whereNotNull('task_id')->keyBy('task_id')
+                                            : collect();
+                                    @endphp
 
-                                <div class="d-inline-flex gap-1 align-items-center">
-                                    @foreach($generalTasks as $gt)
-                                        @php
-                                            $st = $byGt->get($gt->id);
+                                    <div class="d-inline-flex gap-1 align-items-center">
+                                        @foreach($generalTasks as $gt)
+                                            @php
+                                                $st = $byGt->get($gt->id);
 
-                                            // ✅ started = есть хотя бы один main по задачам этого general_task
-                                            $gtTasks = $tasksByGeneral->get($gt->id, collect());
-                                            $started = $gtTasks->pluck('id')->contains(fn($tid) => $mainsByTask->has($tid));
+                                                // ✅ started = есть хотя бы один main по задачам этого general_task
+                                                $gtTasks = $tasksByGeneral->get($gt->id, collect());
+                                                $started = $gtTasks->pluck('id')->contains(fn($tid) => $mainsByTask->has($tid));
 
-                                            if (!$started) {
-                                                $class = 'empty'; // серый
-                                                $title = $gt->name . ' (not started)';
-                                            } elseif ($st && $st->is_done) {
-                                                $class = 'done'; // зелёный
-                                                $title = $gt->name . ' (done)';
-                                            } else {
-                                                $class = 'todo'; // красный
-                                                $title = $gt->name . ' (in progress)';
-                                            }
-                                        @endphp
+                                                if (!$started) {
+                                                    $class = 'empty'; // серый
+                                                    $title = $gt->name . ' (not started)';
+                                                } elseif ($st && $st->is_done) {
+                                                    $class = 'done'; // зелёный
+                                                    $title = $gt->name . ' (done)';
+                                                } else {
+                                                    $class = 'todo'; // красный
+                                                    $title = $gt->name . ' (in progress)';
+                                                }
+                                            @endphp
 
-                                        <span class="stage-dot {{ $class }}"
-                                              title="{{ $title }}"></span>
-                                    @endforeach
-                                </div>
-                            </td>
+                                            <span class="stage-dot {{ $class }}"
+                                                  title="{{ $title }}"></span>
+                                        @endforeach
+                                    </div>
+                                </td>
                             @endhasanyrole
 
                             <td class="text-center">{{ $workorder->unit->part_number }}</td>
@@ -526,7 +535,6 @@
 
 @endsection
 
-
 @section('scripts')
     <script>
         const currentUserId = {{ auth()->id() }};
@@ -541,6 +549,7 @@
             const checkboxMy = document.getElementById('currentUserCheckbox');
             const checkboxDone = document.getElementById('woDone');
             const checkboxApproved = document.getElementById('approvedCheckbox');
+            const checkboxDraft = document.getElementById('draftCheckbox');
 
             const customerFilter = document.getElementById('customerFilter');
             const technikFilter = document.getElementById('technikFilter');
@@ -566,14 +575,17 @@
             const savedMy = localStorage.getItem('myWorkordersCheckbox');
             const savedDone = localStorage.getItem('doneCheckbox');
             const savedApproved = localStorage.getItem('approvedCheckbox');
+            const savedDraft = localStorage.getItem('draftCheckbox');
 
             checkboxMy.checked = savedMy !== null ? savedMy === 'true' : true;
             checkboxDone.checked = savedDone !== null ? savedDone === 'true' : false;
             checkboxApproved.checked = savedApproved !== null ? savedApproved === 'true' : false;
+            checkboxDraft.checked = savedDraft !== null ? savedDraft === 'true' : false;
 
             localStorage.setItem('myWorkordersCheckbox', checkboxMy.checked);
             localStorage.setItem('doneCheckbox', checkboxDone.checked);
             localStorage.setItem('approvedCheckbox', checkboxApproved.checked);
+            localStorage.setItem('draftCheckbox', checkboxDraft.checked);
 
             // восстановление фильтров select из localStorage
             const savedCustomer = localStorage.getItem('woCustomerFilter') || '';
@@ -602,6 +614,7 @@
                 const onlyMy = checkboxMy.checked;
                 const onlyActive = checkboxDone.checked;
                 const onlyApproved = checkboxApproved.checked;
+                const onlyDraft = checkboxDraft.checked;
 
                 const selectedCustomer = customerFilter ? customerFilter.value : '';
                 const selectedTechnik = technikFilter ? technikFilter.value : '';
@@ -616,17 +629,19 @@
                     const rowCustomerId = row.getAttribute('data-customer-id');
                     const rowStatus = row.getAttribute('data-status') || 'active';
                     const rowApproved = row.getAttribute('data-approved') === '1';
+                    const rowDraft = row.getAttribute('data-draft') === '1';
 
                     const matchesSearch = !filterText || rowText.includes(filterText);
                     const matchesUser = onlyMy ? String(rowTechId) === String(currentUserId) : true;
                     const matchesStatus = onlyActive ? rowStatus === 'active' : true;
                     const matchesApproved = onlyApproved ? rowApproved : true;
+                    const matchesDraft = onlyDraft ? rowDraft : true;
                     const matchesCustomer = selectedCustomer ? String(rowCustomerId) === String(selectedCustomer) : true;
                     const matchesTechnik = selectedTechnik ? String(rowTechId) === String(selectedTechnik) : true;
 
                     row.style.display =
                         (matchesSearch && matchesUser && matchesStatus &&
-                            matchesApproved && matchesCustomer && matchesTechnik)
+                            matchesApproved && matchesCustomer && matchesTechnik && matchesDraft)
                             ? ''
                             : 'none';
                 });
@@ -686,6 +701,11 @@
 
             checkboxApproved.addEventListener('change', () => {
                 localStorage.setItem('approvedCheckbox', checkboxApproved.checked);
+                filterTable();
+            });
+
+            checkboxDraft.addEventListener('change', () => {
+                localStorage.setItem('draftCheckbox', checkboxDraft.checked);
                 filterTable();
             });
 
