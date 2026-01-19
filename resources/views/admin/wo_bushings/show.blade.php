@@ -516,17 +516,26 @@
                                             if(!$savedBushingsGrouped->has($bushIplNum)) {
                                                 $savedBushingsGrouped[$bushIplNum] = collect();
                                             }
+
+                                            // Нормализуем NDT: всегда массив id
+                                            $ndtValue = $bushItem['processes']['ndt'] ?? [];
+                                            if (is_null($ndtValue)) {
+                                                $ndtValue = [];
+                                            } elseif (!is_array($ndtValue)) {
+                                                $ndtValue = [$ndtValue];
+                                            }
+
                                             $savedBushingsGrouped[$bushIplNum]->push([
                                                 'component' => $component,
                                                 'data' => [
                                                     'qty' => $bushItem['qty'],
-                                                'machining' => $bushItem['processes']['machining'] ?? null,
-                                                'stress_relief' => $bushItem['processes']['stress_relief'] ?? null,
-                                                'ndt' => $bushItem['processes']['ndt'] ?? null,
-                                                'passivation' => $bushItem['processes']['passivation'] ?? null,
-                                                'cad' => $bushItem['processes']['cad'] ?? null,
-                                                'anodizing' => $bushItem['processes']['anodizing'] ?? null,
-                                                'xylan' => $bushItem['processes']['xylan'] ?? null,
+                                                    'machining' => $bushItem['processes']['machining'] ?? null,
+                                                    'stress_relief' => $bushItem['processes']['stress_relief'] ?? null,
+                                                    'ndt' => $ndtValue,
+                                                    'passivation' => $bushItem['processes']['passivation'] ?? null,
+                                                    'cad' => $bushItem['processes']['cad'] ?? null,
+                                                    'anodizing' => $bushItem['processes']['anodizing'] ?? null,
+                                                    'xylan' => $bushItem['processes']['xylan'] ?? null,
                                                 ]
                                             ]);
                                         }
@@ -544,7 +553,17 @@
                                         // Получаем названия процессов
                                         $machiningProcess = $machiningProcesses->firstWhere('id', $data['machining'] ?? null);
                                         $stressReliefProcess = $stressReliefProcesses->firstWhere('id', $data['stress_relief'] ?? null);
-                                        $ndtProcess = $ndtProcesses->firstWhere('id', $data['ndt'] ?? null);
+
+                                        // NDT: может быть массивом id
+                                        $ndtIds = isset($data['ndt']) ? (array)$data['ndt'] : [];
+                                        $ndtNames = [];
+                                        foreach ($ndtIds as $ndtId) {
+                                            $ndtProc = $ndtProcesses->firstWhere('id', $ndtId);
+                                            if ($ndtProc) {
+                                                $ndtNames[] = $ndtProc->process_name->name;
+                                            }
+                                        }
+
                                         $passivationProcess = $passivationProcesses->firstWhere('id', $data['passivation'] ?? null);
                                         $cadProcess = $cadProcesses->firstWhere('id', $data['cad'] ?? null);
                                         $anodizingProcess = $anodizingProcesses->firstWhere('id', $data['anodizing'] ?? null);
@@ -564,7 +583,7 @@
                                             {{ $stressReliefProcess ? $stressReliefProcess->process : '-' }}
                                         </td>
                                         <td>
-                                            {{ $ndtProcess ? $ndtProcess->process_name->name : '-' }}
+                                            {{ !empty($ndtNames) ? implode(' / ', $ndtNames) : '-' }}
                                         </td>
                                         <td>
                                             {{ $passivationProcess ? $passivationProcess->process : '-' }}

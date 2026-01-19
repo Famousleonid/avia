@@ -3,7 +3,7 @@
 @section('content')
     <style>
         .container {
-            max-width: 900px;
+            max-width: 1050px;
         }
 
         /* Стили для длинного текста процесса */
@@ -66,6 +66,85 @@
             transform: translateY(-50%) !important;
             z-index: 1;
         }
+
+        /* Увеличенный размер для дополнительного NDT селекта */
+        .select2-ndt-plus + .select2-container .select2-selection--multiple {
+            min-height: 70px !important;
+            padding: 12px !important;
+            font-size: 16px !important;
+            line-height: 1.5 !important;
+            display: flex !important;
+            align-items: center !important;
+        }
+
+        .select2-ndt-plus + .select2-container .select2-selection__rendered {
+            padding: 8px 12px !important;
+            min-height: 60px !important;
+            display: flex !important;
+            flex-wrap: wrap !important;
+            justify-content: flex-end !important;
+            align-items: center !important;
+            flex-grow: 1 !important;
+        }
+
+        .select2-ndt-plus + .select2-container .select2-selection__choice {
+            margin: 6px 6px 6px 0 !important;
+            padding: 8px 12px !important;
+            font-size: 15px !important;
+            line-height: 1.4 !important;
+        }
+
+        .select2-ndt-plus + .select2-container .select2-search--inline {
+            order: -1 !important;
+            flex-grow: 0 !important;
+            margin-right: auto !important;
+        }
+
+        .select2-ndt-plus + .select2-container .select2-search--inline .select2-search__field {
+            padding: 8px 12px !important;
+            font-size: 16px !important;
+            min-height: 40px !important;
+            width: auto !important;
+            min-width: 200px !important;
+        }
+
+        /* Скрываем поле поиска, когда есть выбранные элементы */
+        .select2-ndt-plus + .select2-container.has-selections .select2-search--inline {
+            display: none !important;
+        }
+
+        /* Выделение выбранных тегов дополнительных NDT процессов */
+        .select2-ndt-plus + .select2-container .select2-selection__choice {
+            background-color: #0d6efd !important;
+            border-color: #0d6efd !important;
+            color: white !important;
+            font-weight: 500 !important;
+        }
+
+        .select2-ndt-plus + .select2-container .select2-selection__choice__remove {
+            color: white !important;
+            opacity: 0.8 !important;
+        }
+
+        .select2-ndt-plus + .select2-container .select2-selection__choice__remove:hover {
+            color: white !important;
+            opacity: 1 !important;
+        }
+
+        /* Серый стиль для блока с деталями дополнительных NDT процессов */
+        .ndt-plus-process-options {
+            opacity: 0.6;
+            color: #6c757d;
+        }
+
+        .ndt-plus-process-options .form-check-label {
+            color: #6c757d !important;
+        }
+
+        .ndt-plus-process-options .fw-bold {
+            color: #6c757d !important;
+        }
+
         .card-body {
             max-height: 75vh;
             overflow-y: auto;
@@ -98,36 +177,36 @@
                 </div>
             </div>
             <div class="card-body">
-                @if($existingExtraProcess && $existingExtraProcess->processes)
-                    <div class="alert alert-secondary">
-                        <strong class="m-1">Existing Processes:</strong><br>
-                        @if(is_array($existingExtraProcess->processes) && array_keys($existingExtraProcess->processes) !== range(0, count($existingExtraProcess->processes) - 1))
-                            {{-- Старая структура: ассоциативный массив --}}
-                            @foreach($existingExtraProcess->processes as $processNameId => $processId)
-                                @php
-                                    $processName = \App\Models\ProcessName::find($processNameId);
-                                    $process = \App\Models\Process::find($processId);
-                                @endphp
-                                @if($processName && $process)
-                                    <span class="badge bg-secondary ms-5  @if(strlen($process->process) > 40) process-text-long
-                                    @endif">{{ $processName->name }}: {{ $process->process }}</span>
-                                @endif
-                            @endforeach
-                        @else
-                            {{-- Новая структура: массив объектов --}}
-                            @foreach($existingExtraProcess->processes as $processItem)
-                                @php
-                                    $processName = \App\Models\ProcessName::find($processItem['process_name_id']);
-                                    $process = \App\Models\Process::find($processItem['process_id']);
-                                @endphp
-                                @if($processName && $process)
-                                    <span class="badge bg-secondary ms-5 @if(strlen($process->process) > 40) process-text-long
-                                    @endif">{{ $processName->name }}: {{ $process->process }}</span>
-                                @endif
-                            @endforeach
-                        @endif
-                    </div>
-                @endif
+{{--                @if($existingExtraProcess && $existingExtraProcess->processes)--}}
+{{--                    <div class="alert alert-secondary">--}}
+{{--                        <strong class="m-1">Existing Processes:</strong><br>--}}
+{{--                        @if(is_array($existingExtraProcess->processes) && array_keys($existingExtraProcess->processes) !== range(0, count($existingExtraProcess->processes) - 1))--}}
+{{--                             Старая структура: ассоциативный массив --}}
+{{--                            @foreach($existingExtraProcess->processes as $processNameId => $processId)--}}
+{{--                                @php--}}
+{{--                                    $processName = \App\Models\ProcessName::find($processNameId);--}}
+{{--                                    $process = \App\Models\Process::find($processId);--}}
+{{--                                @endphp--}}
+{{--                                @if($processName && $process)--}}
+{{--                                    <span class="badge bg-secondary ms-5  @if(strlen($process->process) > 40) process-text-long--}}
+{{--                                    @endif">{{ $processName->name }}: {{ $process->process }}</span>--}}
+{{--                                @endif--}}
+{{--                            @endforeach--}}
+{{--                        @else--}}
+{{--                             Новая структура: массив объектов --}}
+{{--                            @foreach($existingExtraProcess->processes as $processItem)--}}
+{{--                                @php--}}
+{{--                                    $processName = \App\Models\ProcessName::find($processItem['process_name_id']);--}}
+{{--                                    $process = \App\Models\Process::find($processItem['process_id']);--}}
+{{--                                @endphp--}}
+{{--                                @if($processName && $process)--}}
+{{--                                    <span class="badge bg-secondary ms-5 @if(strlen($process->process) > 40) process-text-long--}}
+{{--                                    @endif">{{ $processName->name }}: {{ $process->process }}</span>--}}
+{{--                                @endif--}}
+{{--                            @endforeach--}}
+{{--                        @endif--}}
+{{--                    </div>--}}
+{{--                @endif--}}
 
                 <form id="createProcessesForm" role="form" method="POST" action="{{route('extra_processes.store_processes')}}" class="createProcessesForm">
                     @csrf
@@ -135,51 +214,56 @@
                     <input type="hidden" name="component_id" value="{{$component->id }}">
 
                     <div class="form-group mb-3">
-                        <div class="d-flex justify-content-around">
-                            <div>
-                                <label for="serial_num" class="form-label">Serial Number</label>
-                                <input type="text" name="serial_num" id="serial_num" class="form-control" style="width: 250px" value="{{ $existingExtraProcess->serial_num ?? '' }}">
-                            </div>
-                            <div style="width: 150px">
-                                <label for="qty" class="form-label">Quantity</label>
-                                <input type="number" name="qty" id="qty" class="form-control" value="{{ $existingExtraProcess->qty ?? 1 }}" min="1" required>
-                            </div>
-                        </div>
+{{--                        <div class="d-flex justify-content-around">--}}
+{{--                            <div>--}}
+{{--                                <label for="serial_num" class="form-label">Serial Number</label>--}}
+{{--                                <input type="text" name="serial_num" id="serial_num" class="form-control" style="width: 250px" value="{{ $existingExtraProcess->serial_num ?? '' }}">--}}
+{{--                            </div>--}}
+{{--                            <div style="width: 150px">--}}
+{{--                                <label for="qty" class="form-label">Quantity</label>--}}
+{{--                                <input type="number" name="qty" id="qty" class="form-control" value="{{ $existingExtraProcess->qty ?? 1 }}" min="1" required>--}}
+{{--                            </div>--}}
+{{--                        </div>--}}
                     </div>
 
                     <div id="processes-container" data-manual-id="{{ $manual_id }}">
                         <!-- Начальная строка -->
                         <div class="process-row mb-3">
                             <div class="row">
-                                <div class="col-md-6">
+                                <div class="col-md-4">
                                     <label for="process_names">Process Name:</label>
-                                    <select name="processes[0][process_names_id]" class="form-control select2-process" required>
+                                    <select name="processes[0][process_names_id]" class="form-control select2-process"
+
+                                            required>
                                         <option value="">Select Process Name</option>
-                                        @foreach ($processNames as $processName)
-                                            @php
-                                                $isSelected = false;
-                                                if ($existingExtraProcess && $existingExtraProcess->processes) {
-                                                    if (is_array($existingExtraProcess->processes) && array_keys($existingExtraProcess->processes) !== range(0, count($existingExtraProcess->processes) - 1)) {
-                                                        // Старая структура: ассоциативный массив
-                                                        $isSelected = isset($existingExtraProcess->processes[$processName->id]);
-                                                    } else {
-                                                        // Новая структура: массив объектов
-                                                        foreach ($existingExtraProcess->processes as $processItem) {
-                                                            if ($processItem['process_name_id'] == $processName->id) {
-                                                                $isSelected = true;
-                                                                break;
-                                                            }
-                                                        }
-                                                    }
+                            @foreach ($processNames as $processName)
+                                @php
+                                    $isSelected = false;
+
+                                    // Исключаем процесс, если он уже выбран в других строках (для всех процессов, включая NDT)
+                                    if ($existingExtraProcess && $existingExtraProcess->processes) {
+                                        if (is_array($existingExtraProcess->processes) && array_keys($existingExtraProcess->processes) !== range(0, count($existingExtraProcess->processes) - 1)) {
+                                            // Старая структура: ассоциативный массив
+                                            $isSelected = isset($existingExtraProcess->processes[$processName->id]);
+                                        } else {
+                                            // Новая структура: массив объектов
+                                            foreach ($existingExtraProcess->processes as $processItem) {
+                                                // Проверяем только основной process_name_id, не plus_process_names
+                                                if (isset($processItem['process_name_id']) && $processItem['process_name_id'] == $processName->id) {
+                                                    $isSelected = true;
+                                                    break;
                                                 }
-                                            @endphp
-                                            @if(!$isSelected)
-                                                <option value="{{ $processName->id }}">{{ $processName->name }}</option>
-                                            @endif
-                                        @endforeach
+                                            }
+                                        }
+                                    }
+                                @endphp
+                                @if(!$isSelected)
+                                    <option value="{{ $processName->id }}">{{ $processName->name }}</option>
+                                @endif
+                            @endforeach
                                     </select>
                                 </div>
-                                <div class="col-md-3">
+                                <div class="col-md-5">
                                     <label for="process">Processes (Specification):</label>
 
                                     <button type="button" class="btn btn-link mb-1" data-bs-toggle="modal"
@@ -190,6 +274,27 @@
 
                                     <div class="process-options">
                                         <!-- Здесь будут radio buttons для выбранного имени процесса -->
+                                    </div>
+
+{{--                                     Дополнительный селект для NDT процессов (скрыт по умолчанию)--}}
+                                    <div class="ndt-plus-process-container mt-3" style="display: none; visibility: visible;">
+                                        <label for="ndt_plus_process_0">Additional NDT Process(es):</label>
+                                        <select name="processes[0][ndt_plus_process][]"
+                                                class="form-control select2-ndt-plus"
+                                                id="ndt_plus_process_0"
+                                                data-row-index="0"
+                                                multiple
+                                                style="width: 100%; min-height: 70px; padding: 12px; font-size: 16px;">
+                                            @foreach ($ndtProcessNames as $ndtProcessName)
+                                                <option value="{{ $ndtProcessName->id }}"
+                                                        data-process-name="{{ $ndtProcessName->name }}">
+                                                    {{ $ndtProcessName->name }}
+                                                </option>
+                                            @endforeach
+                                        </select>
+                                        <div class="ndt-plus-process-options mt-2">
+                                            <!-- Здесь будут radio buttons для дополнительных NDT процессов -->
+                                        </div>
                                     </div>
                                 </div>
                                 <div class="col-md-3">
@@ -248,8 +353,17 @@
     </div>
 @endsection
 
-@section('scripts')
+    @section('scripts')
     <script>
+        // Получаем все NDT process_names_id для проверки
+        const ndtProcessNames = @json($ndtProcessNames->pluck('id')->toArray());
+        const ndtProcessNamesData = @json($ndtProcessNames->keyBy('id'));
+
+        // Функция для проверки, является ли процесс NDT
+        function isNdtProcess(processNameId) {
+            return ndtProcessNames.includes(parseInt(processNameId));
+        }
+
         // Динамическое добавление новых строк
         document.getElementById('add-process').addEventListener('click', function () {
             const container = document.getElementById('processes-container');
@@ -259,13 +373,15 @@
             newRow.classList.add('process-row', 'mb-3');
             newRow.innerHTML = `
                 <div class="row">
-                    <div class="col-md-6">
+                    <div class="col-md-4">
                         <label for="process_names">Process Name:</label>
                         <select name="processes[${index}][process_names_id]" class="form-control select2-process" required>
                             <option value="">Select Process Name</option>
                             @foreach ($processNames as $processName)
                                 @php
                                     $isSelected = false;
+
+                                    // Исключаем процесс, если он уже выбран в других строках (для всех процессов, включая NDT)
                                     if ($existingExtraProcess && $existingExtraProcess->processes) {
                                         if (is_array($existingExtraProcess->processes) && array_keys($existingExtraProcess->processes) !== range(0, count($existingExtraProcess->processes) - 1)) {
                                             // Старая структура: ассоциативный массив
@@ -273,7 +389,8 @@
                                         } else {
                                             // Новая структура: массив объектов
                                             foreach ($existingExtraProcess->processes as $processItem) {
-                                                if ($processItem['process_name_id'] == $processName->id) {
+                                                // Проверяем только основной process_name_id, не plus_process_names
+                                                if (isset($processItem['process_name_id']) && $processItem['process_name_id'] == $processName->id) {
                                                     $isSelected = true;
                                                     break;
                                                 }
@@ -287,7 +404,7 @@
                             @endforeach
                         </select>
                     </div>
-                    <div class="col-md-3">
+                    <div class="col-md-5">
                         <label for="process">Processes:</label>
                         <button type="button" class="btn btn-link mb-1" data-bs-toggle="modal"
                                 data-bs-target="#addProcessModal">
@@ -296,6 +413,27 @@
                         </button>
                         <div class="process-options">
                             <!-- Здесь будут radio buttons для выбранного имени процесса -->
+                        </div>
+
+                        {{-- Дополнительный селект для NDT процессов (скрыт по умолчанию) --}}
+                        <div class="ndt-plus-process-container mt-3" style="display: none; visibility: visible;">
+                            <label for="ndt_plus_process_${index}">Additional NDT Process(es):</label>
+                            <select name="processes[${index}][ndt_plus_process][]"
+                                    class="form-control select2-ndt-plus"
+                                    id="ndt_plus_process_${index}"
+                                    data-row-index="${index}"
+                                    multiple
+                                    style="width: 100%; min-height: 70px; padding: 12px; font-size: 16px;">
+                                @foreach ($ndtProcessNames as $ndtProcessName)
+                                    <option value="{{ $ndtProcessName->id }}"
+                                            data-process-name="{{ $ndtProcessName->name }}">
+                                        {{ $ndtProcessName->name }}
+                                    </option>
+                                @endforeach
+                            </select>
+                            <div class="ndt-plus-process-options mt-2">
+                                <!-- Здесь будут radio buttons для дополнительных NDT процессов -->
+                            </div>
                         </div>
                     </div>
                     <div class="col-md-3">
@@ -311,6 +449,77 @@
                 </div>`;
 
             container.appendChild(newRow);
+
+            // Инициализируем Select2 для нового селекта Process Name
+            if (typeof $ !== 'undefined' && $.fn.select2) {
+                $(newRow).find('.select2-process').select2({
+                    theme: 'bootstrap-5',
+                    width: '100%'
+                }).on('select2:select', function (e) {
+                    const selectElement = e.target;
+                    const processNameId = selectElement.value;
+                    console.log('select2:select event fired', { processNameId, selectElement });
+
+                    const processRow = selectElement.closest('.process-row');
+
+                    // Показываем/скрываем селект для дополнительных NDT процессов
+                    const ndtPlusContainer = processRow ? processRow.querySelector('.ndt-plus-process-container') : null;
+                    if (ndtPlusContainer) {
+                        if (isNdtProcess(processNameId)) {
+                            ndtPlusContainer.style.display = 'block';
+                            // Инициализируем Select2 для дополнительного селекта NDT
+                            const ndtPlusSelect = ndtPlusContainer.querySelector('.select2-ndt-plus');
+                            if (ndtPlusSelect && typeof $ !== 'undefined' && $.fn.select2) {
+                                const isSelect2Initialized = $(ndtPlusSelect).hasClass('select2-hidden-accessible');
+                                if (!isSelect2Initialized) {
+                                    $(ndtPlusSelect).select2({
+                                        theme: 'bootstrap-5',
+                                        width: '100%',
+                                        multiple: true,
+                                        placeholder: 'Select Additional NDT Process(es)'
+                                    }).on('select2:select select2:unselect select2:close', function (e) {
+                                        loadNdtPlusProcesses(this);
+                                        updateSelect2SearchVisibility(this);
+                                    });
+                                }
+                                // Исключаем выбранный NDT процесс из опций
+                                $(ndtPlusSelect).find(`option[value="${processNameId}"]`).remove();
+                                $(ndtPlusSelect).trigger('change');
+
+                                // Обновляем видимость поля поиска
+                                setTimeout(() => {
+                                    updateSelect2SearchVisibility(ndtPlusSelect);
+                                }, 50);
+                            }
+                        } else {
+                            ndtPlusContainer.style.display = 'none';
+                            const ndtPlusSelect = ndtPlusContainer.querySelector('.select2-ndt-plus');
+                            if (ndtPlusSelect && typeof $ !== 'undefined' && $.fn.select2) {
+                                $(ndtPlusSelect).val(null).trigger('change');
+                            }
+                        }
+                    }
+
+                    // Загружаем процессы для выбранного Process Name
+                    loadProcessesForRow(selectElement);
+                });
+            }
+
+            // Инициализируем Select2 для дополнительного селекта NDT в новой строке
+            if (typeof $ !== 'undefined' && $.fn.select2) {
+                const ndtPlusSelect = newRow.querySelector('.select2-ndt-plus');
+                if (ndtPlusSelect) {
+                    $(ndtPlusSelect).select2({
+                        theme: 'bootstrap-5',
+                        width: '100%',
+                        multiple: true,
+                        placeholder: 'Select Additional NDT Process(es)'
+                    }).on('select2:select select2:unselect select2:close', function (e) {
+                        loadNdtPlusProcesses(this);
+                        updateSelect2SearchVisibility(this);
+                    });
+                }
+            }
         });
 
         // Обработка отправки формы
@@ -319,16 +528,27 @@
 
             const workorderId = document.querySelector('input[name="workorder_id"]').value;
             const componentId = document.querySelector('input[name="component_id"]').value;
-            const serial_num = document.querySelector('input[name="serial_num"]').value;
-            const qty = document.querySelector('input[name="qty"]').value;
+            const serial_numInput = document.querySelector('input[name="serial_num"]');
+            const qtyInput = document.querySelector('input[name="qty"]');
+            const serial_num = serial_numInput ? serial_numInput.value : null;
+            const qty = qtyInput ? qtyInput.value : 1;
             const processRows = document.querySelectorAll('.process-row');
             const processesData = [];
             let hasSelectedRadio = false;
 
-            processRows.forEach(row => {
+            processRows.forEach((row, rowIndex) => {
                 const processNameSelect = row.querySelector('.select2-process');
+                if (!processNameSelect) {
+                    return;
+                }
+
                 const processNameId = processNameSelect.value;
-                const processName = processNameSelect.options[processNameSelect.selectedIndex].text;
+                if (!processNameId) {
+                    return;
+                }
+
+                const processName = processNameSelect.options[processNameSelect.selectedIndex] ?
+                    processNameSelect.options[processNameSelect.selectedIndex].text : '';
 
                 const selectedRadio = row.querySelector('.process-options input[type="radio"]:checked');
 
@@ -342,12 +562,40 @@
 
                 if (selectedRadio) {
                     const processId = selectedRadio.value;
-                    processesData.push({
+
+                    // Собираем данные о дополнительных NDT процессах
+                    const ndtPlusSelect = row.querySelector('.select2-ndt-plus');
+                    const plusProcessNames = [];
+                    const plusProcessIds = [];
+
+                    if (ndtPlusSelect && typeof $ !== 'undefined' && $.fn.select2) {
+                        const selectedNdtPlusIds = $(ndtPlusSelect).val() || [];
+                        if (selectedNdtPlusIds.length > 0) {
+                            plusProcessNames.push(...selectedNdtPlusIds.map(id => parseInt(id)));
+
+                            // Собираем process_id из radio buttons для дополнительных NDT
+                            const ndtPlusRadios = row.querySelectorAll('.ndt-plus-process-options input[type="radio"]:checked');
+                            ndtPlusRadios.forEach(radio => {
+                                plusProcessIds.push(parseInt(radio.value));
+                            });
+                        }
+                    }
+
+                    // Формируем объект процесса
+                    const processData = {
                         process_names_id: processNameId,
                         processes: [parseInt(processId)], // Массив с одним элементом для совместимости
                         description: descriptionValue || null,
                         notes: notesValue || null
-                    });
+                    };
+
+                    // Если это NDT процесс с дополнительными NDT, добавляем поля
+                    if (isNdtProcess(processNameId) && plusProcessNames.length > 0) {
+                        processData.plus_process_names = plusProcessNames;
+                        processData.plus_process_ids = plusProcessIds;
+                    }
+
+                    processesData.push(processData);
                     hasSelectedRadio = true;
                 }
             });
@@ -357,23 +605,6 @@
                 return;
             }
 
-            // Отладочная информация
-            console.log('Sending data:', {
-                workorder_id: workorderId,
-                component_id: componentId,
-                serial_num: serial_num,
-                qty: qty,
-                processes: processesData
-            });
-
-            console.log('Processes order:', processesData.map((item, index) => ({
-                order: index + 1,
-                process_name_id: item.process_names_id,
-                process_id: item.processes[0]
-            })));
-
-            console.log('Raw processesData structure:', JSON.stringify(processesData, null, 2));
-
             const requestBody = {
                 workorder_id: workorderId,
                 component_id: componentId,
@@ -381,9 +612,6 @@
                 qty: qty,
                 processes: JSON.stringify(processesData)
             };
-
-            console.log('Request body:', requestBody);
-            console.log('Request body JSON:', JSON.stringify(requestBody, null, 2));
 
             fetch(`{{ route('extra_processes.store_processes') }}`, {
                 method: 'POST',
@@ -395,78 +623,251 @@
                 body: JSON.stringify(requestBody)
             })
             .then(response => {
-                console.log('Response status:', response.status);
                 if (!response.ok) {
-                    return response.json().then(errorData => {
+                    return response.text().then(text => {
+                        let errorData;
+                        try {
+                            errorData = JSON.parse(text);
+                        } catch (e) {
+                            errorData = { message: text || `HTTP ${response.status}: ${response.statusText}` };
+                        }
                         throw new Error(errorData.message || `HTTP ${response.status}: ${response.statusText}`);
                     });
                 }
-                return response.json();
+
+                return response.text().then(text => {
+                    try {
+                        return JSON.parse(text);
+                    } catch (e) {
+                        throw new Error('Invalid JSON response from server');
+                    }
+                });
             })
             .then(data => {
-                console.log('Success:', data);
                 if (data.message) {
                     alert(data.message);
                 }
                 if (data.redirect) {
                     window.location.href = data.redirect;
+                } else {
+                    location.reload();
                 }
             })
             .catch(error => {
-                console.error('Error:', error);
+                console.error('Error details:', error);
+                console.error('Error stack:', error.stack);
                 alert('Error saving processes: ' + error.message);
             });
         });
 
         // Обновление radio buttons при изменении выбранного имени процесса
+        // Этот обработчик для нативных select элементов (если Select2 не инициализирован)
         document.addEventListener('change', function (event) {
-            if (event.target.classList.contains('select2-process')) {
-                const processNameId = event.target.value;
-                const processOptionsContainer = event.target.closest('.process-row').querySelector('.process-options');
-                const manualId = document.getElementById('processes-container').dataset.manualId;
-                const saveButton = document.querySelector('button[type="submit"]');
+            if (event.target.classList.contains('select2-process') && !$(event.target).hasClass('select2-hidden-accessible')) {
+                // Только для нативных select, не для Select2
+                loadProcessesForRow(event.target);
+            }
+        });
 
-                processOptionsContainer.innerHTML = '';
+        // Функция для загрузки процессов для выбранного Process Name
+        function loadProcessesForRow(selectElement) {
+            const processNameId = selectElement.value;
+            const processRow = selectElement.closest('.process-row');
+            const processOptionsContainer = processRow ? processRow.querySelector('.process-options') : null;
+            const manualId = document.getElementById('processes-container') ? document.getElementById('processes-container').dataset.manualId : null;
+            const saveButton = document.querySelector('button[type="submit"]');
 
-                if (processNameId) {
-                    console.log(`/get-process/${processNameId}?manual_id=${manualId}`);
-                    fetch(`/get-process/${processNameId}?manual_id=${manualId}`)
-                        .then(response => {
-                            if (!response.ok) {
-                                throw new Error('Network response was not ok');
-                            }
-                            return response.json();
-                        })
-                        .then(data => {
-                            if (data && data.length > 0) {
-                                // Получаем индекс строки для правильного именования
-                                const container = document.getElementById('processes-container');
-                                const rows = container.querySelectorAll('.process-row');
-                                const index = Array.from(rows).indexOf(processOptionsContainer.closest('.process-row'));
+            if (!processNameId || !processOptionsContainer) {
+                return;
+            }
 
-                                data.forEach(process => {
-                                    const radioDiv = document.createElement('div');
-                                    radioDiv.classList.add('form-check');
-                                    radioDiv.innerHTML = `
-                                        <input type="radio" name="processes[${index}][process]" value="${process.id}" class="form-check-input" required>
-                                        <label class="form-check-label">${process.process}</label>
-                                    `;
-                                    processOptionsContainer.appendChild(radioDiv);
-                                });
+            processOptionsContainer.innerHTML = '';
+
+            if (processNameId) {
+                fetch(`/get-process/${processNameId}?manual_id=${manualId}`)
+                    .then(response => {
+                        if (!response.ok) {
+                            throw new Error('Network response was not ok');
+                        }
+                        return response.json();
+                    })
+                    .then(data => {
+                        if (data && data.length > 0) {
+                            // Получаем индекс строки для правильного именования
+                            const container = document.getElementById('processes-container');
+                            const rows = container.querySelectorAll('.process-row');
+                            const index = Array.from(rows).indexOf(processOptionsContainer.closest('.process-row'));
+
+                            data.forEach(process => {
+                                const radioDiv = document.createElement('div');
+                                radioDiv.classList.add('form-check');
+                                radioDiv.innerHTML = `
+                                    <input type="radio" name="processes[${index}][process]" value="${process.id}" class="form-check-input" required>
+                                    <label class="form-check-label">${process.process}</label>
+                                `;
+                                processOptionsContainer.appendChild(radioDiv);
+                            });
+                            if (saveButton) {
                                 saveButton.disabled = false;
-                            } else {
-                                const noSpecLabel = document.createElement('div');
-                                noSpecLabel.classList.add('text-muted', 'mt-2');
-                                noSpecLabel.innerHTML = 'No specification. Add specification for this process.';
-                                processOptionsContainer.appendChild(noSpecLabel);
+                            }
+                        } else {
+                            const noSpecLabel = document.createElement('div');
+                            noSpecLabel.classList.add('text-muted', 'mt-2');
+                            noSpecLabel.innerHTML = 'No specification. Add specification for this process.';
+                            processOptionsContainer.appendChild(noSpecLabel);
+                            if (saveButton) {
                                 saveButton.disabled = true;
                             }
-                        })
-                        .catch(error => {
-                            console.error('Ошибка при получении процессов:', error);
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Ошибка при получении процессов:', error);
+                        if (saveButton) {
                             saveButton.disabled = true;
-                        });
+                        }
+                    });
+            }
+        }
+
+        // Функция для управления видимостью поля поиска в Select2
+        function updateSelect2SearchVisibility(selectElement) {
+            if (!selectElement || typeof $ === 'undefined') return;
+
+            const selectedValues = $(selectElement).val() || [];
+            const select2Container = $(selectElement).next('.select2-container');
+
+            if (select2Container.length) {
+                if (selectedValues.length > 0) {
+                    select2Container.addClass('has-selections');
+                } else {
+                    select2Container.removeClass('has-selections');
                 }
+            }
+        }
+
+        // Функция для загрузки процессов для дополнительных NDT
+        function loadNdtPlusProcesses(selectElement) {
+            const selectedValues = $(selectElement).val() || [];
+            const processRow = selectElement.closest('.process-row');
+            const ndtPlusOptionsContainer = processRow.querySelector('.ndt-plus-process-options');
+            const manualId = document.getElementById('processes-container').dataset.manualId;
+
+            if (!ndtPlusOptionsContainer || selectedValues.length === 0) {
+                if (ndtPlusOptionsContainer) {
+                    ndtPlusOptionsContainer.innerHTML = '';
+                }
+                return;
+            }
+
+            ndtPlusOptionsContainer.innerHTML = '<div class="text-muted">Loading processes...</div>';
+
+            // Загружаем процессы для каждого выбранного дополнительного NDT
+            const loadPromises = selectedValues.map(ndtProcessNameId => {
+                return fetch(`/get-process/${ndtProcessNameId}?manual_id=${manualId}`)
+                    .then(response => response.json())
+                    .then(data => {
+                        return { ndtProcessNameId, processes: data || [] };
+                    });
+            });
+
+            Promise.all(loadPromises).then(results => {
+                ndtPlusOptionsContainer.innerHTML = '';
+
+                // Получаем индекс строки
+                const container = document.getElementById('processes-container');
+                const rows = container.querySelectorAll('.process-row');
+                const index = Array.from(rows).indexOf(processRow);
+
+                results.forEach(({ ndtProcessNameId, processes }) => {
+                    if (processes.length > 0) {
+                        const ndtProcessName = ndtProcessNamesData[ndtProcessNameId];
+                        const processNameLabel = ndtProcessName ? ndtProcessName.name : `NDT-${ndtProcessNameId}`;
+
+                        const label = document.createElement('div');
+                        label.className = 'fw-bold mt-2';
+                        label.textContent = processNameLabel + ':';
+                        ndtPlusOptionsContainer.appendChild(label);
+
+                        processes.forEach(process => {
+                            const radioDiv = document.createElement('div');
+                            radioDiv.classList.add('form-check');
+                            radioDiv.innerHTML = `
+                                <input type="radio"
+                                       name="processes[${index}][ndt_plus_process_radio][${ndtProcessNameId}]"
+                                       value="${process.id}"
+                                       class="form-check-input ndt-plus-process-radio"
+                                       data-ndt-process-name-id="${ndtProcessNameId}"
+                                       required>
+                                <label class="form-check-label">${process.process}</label>
+                            `;
+                            ndtPlusOptionsContainer.appendChild(radioDiv);
+                        });
+                    }
+                });
+
+                // Обновляем видимость поля поиска после загрузки
+                updateSelect2SearchVisibility(selectElement);
+            }).catch(error => {
+                console.error('Ошибка при загрузке процессов для дополнительных NDT:', error);
+                ndtPlusOptionsContainer.innerHTML = '<div class="text-danger">Error loading processes</div>';
+            });
+        }
+
+        // Инициализация для начальной строки
+        document.addEventListener('DOMContentLoaded', function() {
+            // Инициализируем Select2 для начальной строки
+            if (typeof $ !== 'undefined' && $.fn.select2) {
+                $('.select2-process').select2({
+                    theme: 'bootstrap-5',
+                    width: '100%'
+                }).on('select2:select', function (e) {
+                    const selectElement = e.target;
+                    const processNameId = selectElement.value;
+                    console.log('select2:select event fired', { processNameId, selectElement });
+
+                    const processRow = selectElement.closest('.process-row');
+
+                    // Показываем/скрываем селект для дополнительных NDT процессов
+                    const ndtPlusContainer = processRow ? processRow.querySelector('.ndt-plus-process-container') : null;
+                    if (ndtPlusContainer) {
+                        if (isNdtProcess(processNameId)) {
+                            ndtPlusContainer.style.display = 'block';
+                            // Инициализируем Select2 для дополнительного селекта NDT
+                            const ndtPlusSelect = ndtPlusContainer.querySelector('.select2-ndt-plus');
+                            if (ndtPlusSelect && typeof $ !== 'undefined' && $.fn.select2) {
+                                const isSelect2Initialized = $(ndtPlusSelect).hasClass('select2-hidden-accessible');
+                                if (!isSelect2Initialized) {
+                                    $(ndtPlusSelect).select2({
+                                        theme: 'bootstrap-5',
+                                        width: '100%',
+                                        multiple: true,
+                                        placeholder: 'Select Additional NDT Process(es)'
+                                    }).on('select2:select select2:unselect select2:close', function (e) {
+                                        loadNdtPlusProcesses(this);
+                                        updateSelect2SearchVisibility(this);
+                                    });
+                                }
+                                // Исключаем выбранный NDT процесс из опций
+                                $(ndtPlusSelect).find(`option[value="${processNameId}"]`).remove();
+                                $(ndtPlusSelect).trigger('change');
+
+                                // Обновляем видимость поля поиска
+                                setTimeout(() => {
+                                    updateSelect2SearchVisibility(ndtPlusSelect);
+                                }, 50);
+                            }
+                        } else {
+                            ndtPlusContainer.style.display = 'none';
+                            const ndtPlusSelect = ndtPlusContainer.querySelector('.select2-ndt-plus');
+                            if (ndtPlusSelect && typeof $ !== 'undefined' && $.fn.select2) {
+                                $(ndtPlusSelect).val(null).trigger('change');
+                            }
+                        }
+                    }
+
+                    // Загружаем процессы для выбранного Process Name
+                    loadProcessesForRow(selectElement);
+                });
             }
         });
 

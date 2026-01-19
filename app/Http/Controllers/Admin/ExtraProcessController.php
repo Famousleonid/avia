@@ -78,6 +78,9 @@ class ExtraProcessController extends Controller
             ->where('component_id', $componentId)
             ->first();
 
+        // Получаем все NDT process names для дополнительного селекта
+        $ndtProcessNames = ProcessName::where('name', 'like', 'NDT-%')->get();
+
         \Log::info('ExtraProcess createProcesses data', [
             'current_wo_id' => $current_wo->id,
             'component_id' => $component->id,
@@ -94,7 +97,8 @@ class ExtraProcessController extends Controller
             'processNames',
             'processes',
             'manual_id',
-            'existingExtraProcess'
+            'existingExtraProcess',
+            'ndtProcessNames'
         ));
     }
 
@@ -223,13 +227,25 @@ class ExtraProcessController extends Controller
                     // Проверяем, что process_id существует
                     $process = Process::find($processId);
                     if ($process) {
-                        // Сохраняем в порядке добавления как массив объектов
-                        $processesJson[] = [
+                        // Формируем объект процесса
+                        $processObject = [
                             'process_name_id' => $processNameId,
                             'process_id' => $processId,
                             'description' => $processData['description'] ?? null,
                             'notes' => $processData['notes'] ?? null
                         ];
+
+                        // Если это NDT процесс с дополнительными NDT, добавляем поля
+                        $processName = ProcessName::find($processNameId);
+                        if ($processName && strpos($processName->name, 'NDT-') === 0) {
+                            if (isset($processData['plus_process_names']) && !empty($processData['plus_process_names'])) {
+                                $processObject['plus_process_names'] = $processData['plus_process_names'];
+                                $processObject['plus_process_ids'] = $processData['plus_process_ids'] ?? [];
+                            }
+                        }
+
+                        // Сохраняем в порядке добавления как массив объектов
+                        $processesJson[] = $processObject;
                     }
                 }
             }
@@ -434,15 +450,28 @@ class ExtraProcessController extends Controller
                         }
 
                         if (!$exists) {
-                            $finalProcesses[] = [
+                            // Формируем объект процесса
+                            $processObject = [
                                 'process_name_id' => $processNameId,
                                 'process_id' => $processId,
                                 'description' => $processData['description'] ?? null,
                                 'notes' => $processData['notes'] ?? null
                             ];
+
+                            // Если это NDT процесс с дополнительными NDT, добавляем поля
+                            $processName = ProcessName::find($processNameId);
+                            if ($processName && strpos($processName->name, 'NDT-') === 0) {
+                                if (isset($processData['plus_process_names']) && !empty($processData['plus_process_names'])) {
+                                    $processObject['plus_process_names'] = $processData['plus_process_names'];
+                                    $processObject['plus_process_ids'] = $processData['plus_process_ids'] ?? [];
+                                }
+                            }
+
+                            $finalProcesses[] = $processObject;
                             \Log::info("Added new process to finalProcesses", [
                                 'processNameId' => $processNameId,
-                                'processId' => $processId
+                                'processId' => $processId,
+                                'hasPlusProcess' => isset($processObject['plus_process_names'])
                             ]);
                         } else {
                             \Log::info("Process name already exists, skipping", ['processNameId' => $processNameId]);
@@ -481,11 +510,11 @@ class ExtraProcessController extends Controller
                 'processes' => $finalProcesses,
                 'qty' => $qty,
             ];
-            
+
             if (isset($serial_num)) {
                 $updateData['serial_num'] = $serial_num;
             }
-            
+
             $existingExtraProcess->update($updateData);
 
             return response()->json([
@@ -552,7 +581,7 @@ class ExtraProcessController extends Controller
                     if ($processName) {
                         // Определяем ключ группы: для NDT процессов используем 'NDT_GROUP', иначе processNameId
                         $groupKey = ($processName->process_sheet_name == 'NDT') ? 'NDT_GROUP' : $processNameId;
-                        
+
                         if (!isset($processGroups[$groupKey])) {
                             // Для NDT группы создаем виртуальный ProcessName или используем первый найденный NDT процесс
                             if ($groupKey == 'NDT_GROUP') {
@@ -608,7 +637,7 @@ class ExtraProcessController extends Controller
                         $processNameId = $processItem['process_name_id'];
                         // Определяем ключ группы: для NDT процессов используем 'NDT_GROUP', иначе processNameId
                         $groupKey = ($processName->process_sheet_name == 'NDT') ? 'NDT_GROUP' : $processNameId;
-                        
+
                         if (!isset($processGroups[$groupKey])) {
                             // Для NDT группы создаем виртуальный ProcessName или используем первый найденный NDT процесс
                             if ($groupKey == 'NDT_GROUP') {
@@ -723,7 +752,7 @@ class ExtraProcessController extends Controller
 
         // Определяем, является ли это NDT группой
         $isNdtGroup = ($processName->process_sheet_name == 'NDT');
-        
+
         // Если это NDT группа, получаем все NDT process_name_ids
         $ndtProcessNameIds = [];
         if ($isNdtGroup) {
@@ -969,12 +998,12 @@ class ExtraProcessController extends Controller
         // Получаем параметры для фильтрации конкретного процесса
         $processIndex = $request->input('process_index');
         $processNameId = $request->input('process_name_id');
-        
+
         // Фильтруем процессы для редактирования только выбранного
         $processesToEdit = [];
         if ($processIndex !== null || $processNameId !== null) {
             $allProcesses = $extra_process->processes ?? [];
-            
+
             if (is_array($allProcesses) && array_keys($allProcesses) !== range(0, count($allProcesses) - 1)) {
                 // Старая структура: ассоциативный массив
                 if ($processNameId && isset($allProcesses[$processNameId])) {
@@ -1010,6 +1039,9 @@ class ExtraProcessController extends Controller
             $query->where('manual_id', $manual_id);
         })->get();
 
+        // Получаем все NDT process names для дополнительного селекта
+        $ndtProcessNames = ProcessName::where('name', 'like', 'NDT-%')->get();
+
         return view('admin.extra_processes.edit', compact(
             'current_wo',
             'component',
@@ -1019,7 +1051,8 @@ class ExtraProcessController extends Controller
             'manual_id',
             'processesToEdit',
             'processIndex',
-            'processNameId'
+            'processNameId',
+            'ndtProcessNames'
         ));
     }
 
@@ -1061,7 +1094,7 @@ class ExtraProcessController extends Controller
 
             // Получаем существующие процессы
             $existingProcesses = $extra_process->processes ?? [];
-            
+
             // Если редактируется конкретный процесс, обновляем только его
             if ($processIndex !== null || $processNameId !== null) {
                 // Формируем обновленный процесс из данных формы
@@ -1087,12 +1120,22 @@ class ExtraProcessController extends Controller
                         // Проверяем, что process_id существует
                         $process = Process::find($newProcessId);
                         if ($process) {
+                            // Формируем объект процесса
                             $updatedProcess = [
                                 'process_name_id' => $newProcessNameId,
                                 'process_id' => $newProcessId,
                                 'description' => $processData['description'] ?? null,
                                 'notes' => $processData['notes'] ?? null
                             ];
+
+                            // Если это NDT процесс с дополнительными NDT, добавляем поля
+                            if ($processName && strpos($processName->name, 'NDT-') === 0) {
+                                if (isset($processData['plus_process_names']) && !empty($processData['plus_process_names'])) {
+                                    $updatedProcess['plus_process_names'] = $processData['plus_process_names'];
+                                    $updatedProcess['plus_process_ids'] = $processData['plus_process_ids'] ?? [];
+                                }
+                            }
+
                             break;
                         }
                     }
@@ -1175,12 +1218,23 @@ class ExtraProcessController extends Controller
                         // Проверяем, что process_id существует
                         $process = Process::find($processId);
                         if ($process) {
-                            $processesJson[] = [
+                            // Формируем объект процесса
+                            $processObject = [
                                 'process_name_id' => $processNameId,
                                 'process_id' => $processId,
                                 'description' => $processData['description'] ?? null,
                                 'notes' => $processData['notes'] ?? null
                             ];
+
+                            // Если это NDT процесс с дополнительными NDT, добавляем поля
+                            if ($processName && strpos($processName->name, 'NDT-') === 0) {
+                                if (isset($processData['plus_process_names']) && !empty($processData['plus_process_names'])) {
+                                    $processObject['plus_process_names'] = $processData['plus_process_names'];
+                                    $processObject['plus_process_ids'] = $processData['plus_process_ids'] ?? [];
+                                }
+                            }
+
+                            $processesJson[] = $processObject;
                         }
                     }
                 }
@@ -1191,11 +1245,11 @@ class ExtraProcessController extends Controller
                 'processes' => $processesJson,
                 'qty' => $qty,
             ];
-            
+
             if (isset($serial_num)) {
                 $updateData['serial_num'] = $serial_num;
             }
-            
+
             $extra_process->update($updateData);
 
             return response()->json([
@@ -1552,7 +1606,7 @@ class ExtraProcessController extends Controller
             DB::transaction(function() use ($processesOrder) {
                 foreach ($processesOrder as $extraProcessId => $orderData) {
                     $extraProcess = ExtraProcess::find($extraProcessId);
-                    
+
                     if (!$extraProcess) {
                         \Log::warning('ExtraProcess not found', ['id' => $extraProcessId]);
                         continue;
@@ -1560,7 +1614,7 @@ class ExtraProcessController extends Controller
 
                     // Получаем текущие процессы
                     $currentProcesses = $extraProcess->processes ?? [];
-                    
+
                     if (empty($currentProcesses) || !is_array($currentProcesses)) {
                         \Log::warning('ExtraProcess has no processes or invalid format', [
                             'id' => $extraProcessId,
@@ -1571,7 +1625,7 @@ class ExtraProcessController extends Controller
 
                     // Проверяем структуру данных
                     $isOldFormat = array_keys($currentProcesses) !== range(0, count($currentProcesses) - 1);
-                    
+
                     if ($isOldFormat) {
                         // Старая структура: ассоциативный массив
                         // Конвертируем в новую структуру для обработки
@@ -1589,7 +1643,7 @@ class ExtraProcessController extends Controller
 
                     // Создаем новый массив процессов в правильном порядке
                     $reorderedProcesses = [];
-                    
+
                     // Сортируем orderData по new_index
                     usort($orderData, function($a, $b) {
                         return $a['new_index'] - $b['new_index'];

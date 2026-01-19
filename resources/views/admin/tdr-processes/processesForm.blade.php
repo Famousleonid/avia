@@ -37,6 +37,15 @@
                 margin-left: var(--print-body-margin-left, 2px);
                 padding: 0;
             }
+            .parent {
+                max-width: 100% !important;
+                width: 100% !important;
+                margin-right: 10px;
+                box-sizing: border-box;
+                /* Изменяем grid на проценты для адаптивности при печати, сохраняя пропорции */
+                /* Оригинальные размеры: 315px 320px (каждая пара = ~635px, всего 3 пары) */
+                grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+            }
 
             /* Отключаем разрывы страниц внутри элементов */
             table, h1, p {
@@ -244,11 +253,13 @@
 
         /* Стили для длинного текста процесса */
         .process-text-long {
-            font-size: 0.9em;
-            /*line-height: 0.9;*/
+            font-size: 0.8em;
+            line-height: 1;
             letter-spacing: -0.5px;
-            transform: scale(0.95);
+            /*transform: scale(0.95);*/
             transform-origin: left;
+            display: inline-block;
+            vertical-align: middle;
         }
         .description-text-long {
             font-size: 0.9rem;
@@ -338,6 +349,38 @@
             height: auto;
             margin: 0 5px; /* Отступы вокруг изображения */
         }
+        /* Оптимизированный grid для .parent - используем адаптивные единицы */
+        .parent {
+            display: grid;
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+            gap: 0;
+            width: 100%;
+        }
+
+        /* Стили для колонок внутри .parent */
+        .parent > div {
+            padding: 0 5px;
+        }
+
+        /* Общие стили для строк процесса NDT */
+        .ndt-process-row {
+            min-height: 26px;
+            line-height: 1;
+        }
+
+        .ndt-process-row-tall {
+            height: 30px;
+        }
+
+        .ndt-process-row-cmm {
+            height: 56px;
+        }
+
+        .ndt-process-label {
+            min-height: 26px;
+        }
+
+
     </style>
 </head>
 <body>
@@ -769,97 +812,130 @@
     </div>
 
         @if($process_name->process_sheet_name =='NDT')
-        <div class="row mt-3">
-            <div class="col-5">
-                <div class="text-start"><strong>MAGNETIC PARTICLE AS PER:</strong></div>
-                <div class="row " style="min-height: 26px ; line-height: 1">
 
-                    <div class="col-1">#1</div>
-                    <div class="col-11 border-b">
-                        @foreach($ndt_processes as $process)
-                            @if($process->process_names_id == $ndt1_name_id)
-                                <span @if(strlen($process->process) > 30) class="process-text-long"
-                                    @endif>{{$process->process}}</span>
-                            @endif
-                        @endforeach
-                    </div>
-                </div>
-                <div class="text-start"><strong>LIQUID/FLUID PENETRANT AS PER:</strong></div>
+        @php
+            // Оптимизация: предварительная фильтрация процессов по ID для уменьшения количества циклов
+            // Вместо 8 циклов по всему массиву, создаем индекс для O(1) доступа
+            $ndt_processes_by_id = [];
+            if(isset($ndt_processes) && is_iterable($ndt_processes)) {
+                foreach($ndt_processes as $process) {
+                    $ndt_processes_by_id[$process->process_names_id] = $process;
+                }
+            }
+        @endphp
 
-                <div class="row " style="min-height: 26px; line-height: 1">
-                    <div class="col-1">#4</div>
-                    <div class="col-11 border-b">
-                        @foreach($ndt_processes as $process)
-                            @if($process->process_names_id == $ndt4_name_id)
-                                <span @if(strlen($process->process) > 30) class="process-text-long"
-                                    @endif>{{$process->process}}</span>
-                            @endif
-                        @endforeach
-                    </div>
-                </div>
-                <div class="text-start"><strong>ULTRASOUND AS PER:</strong></div>
-
-                <div class="row " style="height: 26px">
-                    <div class="col-1">#7</div>
-                    <div class="col-11 border-b"></div>
-                </div>
-            </div>
-            <div class="col-3 mt-3">
-                <div class="row mt-2" style="height: 26px">
-                    <div class="col-2">#2</div>
+        <div class="parent mt-3">
+            <div class="div1">
+                <div class="text-start fs-7 ndt-process-label"><strong>MAGNETIC PARTICLE AS PER:</strong></div>
+                <div class="row ndt-process-row">
+                    <div class="col-1 fs-7">#1</div>
                     <div class="col-10 border-b">
-{{--                        @foreach($ndt_processes as $process)--}}
-{{--                            @if($process->process_names_id == $ndt2_name_id)--}}
-{{--                                {{$process->process}}--}}
-{{--                            @endif--}}
-{{--                        @endforeach--}}
-                    </div>
-                </div>
-                <div class="row mt-4" style="height: 26px">
-                    <div class="col-2">#5</div>
-                    <div class="col-10 border-b">
-                        @foreach($ndt_processes as $process)
-                            @if($process->process_names_id == $ndt5_name_id)
-                                <span @if(strlen($process->process) > 40) class="process-text-long" @endif>{{$process->process}}</span>
-                            @endif
-                        @endforeach
-                    </div>
-                </div>
-                <div class="text-end mt-4"><strong>CMM No:</strong></div>
-
-            </div>
-            <div class="col-4 mt-3">
-                <div class="row mt-2" style="height: 26px">
-                    <div class="col-2 text-end">#3</div>
-                    <div class="col-10 border-b">
-{{--                        @foreach($ndt_processes as $process)--}}
-{{--                            @if($process->process_names_id == $ndt3_name_id)--}}
-{{--                                {{$process->process}}--}}
-{{--                            @endif--}}
-{{--                        @endforeach--}}
-                    </div>
-                </div>
-                <div class="text-start"><strong>EDDY CURRENT AS PER:</strong></div>
-                <div class="row " style="height: 26px">
-                    <div class="col-2 text-end">#6</div>
-                    <div class="col-10 border-b">
-                        @foreach($ndt_processes as $process)
-                            @if($process->process_names_id == $ndt6_name_id)
-                                <span @if(strlen($process->process) > 40) class="process-text-long" @endif>{{$process->process}}</span>
-                            @endif
-                        @endforeach
-                    </div>
-                </div>
-                <div class="row border-all mt-2" style="height: 56px">
-                    @foreach($manuals as $manual)
-                        @if($manual->id == $current_wo->unit->manual_id)
-                            <h6 class="text-center mt-3"><strong> {{substr($manual->number, 0, 8)}}</strong></h6>
+                        @if(isset($ndt_processes_by_id[$ndt1_name_id ?? null]))
+                            <span @if(strlen($ndt_processes_by_id[$ndt1_name_id]->process) > 20) class="process-text-long" @endif>
+                                {{$ndt_processes_by_id[$ndt1_name_id]->process}}
+                            </span>
                         @endif
-                    @endforeach
+                    </div>
+                </div>
 
+                <div class="text-start fs-7 ndt-process-label"><strong>LIQUID/FLUID PENETRANT AS PER:</strong></div>
+                <div class="row ndt-process-row">
+                    <div class="col-1 fs-7">#4</div>
+                    <div class="col-10 border-b">
+                        @if(isset($ndt_processes_by_id[$ndt4_name_id ?? null]))
+                            <span @if(strlen($ndt_processes_by_id[$ndt4_name_id]->process) > 20) class="process-text-long" @endif>
+                                {{$ndt_processes_by_id[$ndt4_name_id]->process}}
+                            </span>
+                        @endif
+                    </div>
+                </div>
+
+                <div class="text-start fs-7 ndt-process-label"><strong>ULTRASOUND AS PER:</strong></div>
+                <div class="row ndt-process-row">
+                    <div class="col-1 fs-7">#7</div>
+                    <div class="col-10 border-b">
+                        @if(isset($ndt_processes_by_id[$ndt7_name_id ?? null]))
+                            <span @if(strlen($ndt_processes_by_id[$ndt7_name_id]->process) > 20) class="process-text-long" @endif>
+                                {{$ndt_processes_by_id[$ndt7_name_id]->process}}
+                            </span>
+                        @endif
+                    </div>
+                </div>
+            </div>
+
+            <div class="div2">
+                <div class="row ndt-process-row-tall mt-4">
+                    <div class="col-1 fs-7">#2</div>
+                    <div class="col-10 border-b">
+                        @if(isset($ndt_processes_by_id[$ndt2_name_id ?? null]))
+                            <span @if(strlen($ndt_processes_by_id[$ndt2_name_id]->process) > 20) class="process-text-long" @endif>
+                                {{$ndt_processes_by_id[$ndt2_name_id]->process}}
+                            </span>
+                        @endif
+                    </div>
+                </div>
+
+                <div class="row ndt-process-row-tall mt-4">
+                    <div class="col-1 fs-7">#5</div>
+                    <div class="col-10 border-b">
+                        @if(isset($ndt_processes_by_id[$ndt5_name_id ?? null]))
+                            <span @if(strlen($ndt_processes_by_id[$ndt5_name_id]->process) > 25) class="process-text-long" @endif>
+                                {{$ndt_processes_by_id[$ndt5_name_id]->process}}
+                            </span>
+                        @endif
+                    </div>
+                </div>
+
+                <div class="row ndt-process-row mt-4">
+                    <div class="col-1 fs-7">#8</div>
+                    <div class="col-10 border-b">
+                        @if(isset($ndt_processes_by_id[$ndt8_name_id ?? null]))
+                            <span @if(strlen($ndt_processes_by_id[$ndt8_name_id]->process) > 25) class="process-text-long" @endif>
+                                {{$ndt_processes_by_id[$ndt8_name_id]->process}}
+                            </span>
+                        @endif
+                    </div>
+                </div>
+            </div>
+
+            <div class="div3">
+                <div class="row ndt-process-row-tall mt-4">
+                    <div class="col-1 fs-7 ">#3</div>
+                    <div class="col-10 border-b">
+                        @if(isset($ndt_processes_by_id[$ndt3_name_id ?? null]))
+                            <span @if(strlen($ndt_processes_by_id[$ndt3_name_id]->process) > 20) class="process-text-long" @endif>
+                                {{$ndt_processes_by_id[$ndt3_name_id]->process}}
+                            </span>
+                        @endif
+                    </div>
+                </div>
+
+                <div class="text-start ms-3 fs-7 ndt-process-label"><strong>EDDY CURRENT AS PER:</strong></div>
+                <div class="row ndt-process-row">
+                    <div class="col-1 fs-7 text-end">#6</div>
+                    <div class="col-10 border-b">
+                        @if(isset($ndt_processes_by_id[$ndt6_name_id ?? null]))
+                            <span @if(strlen($ndt_processes_by_id[$ndt6_name_id]->process) > 40) class="process-text-long" @endif>
+                                {{$ndt_processes_by_id[$ndt6_name_id]->process}}
+                            </span>
+                        @endif
+                    </div>
+                </div>
+
+                <div class="row ndt-process-row-cmm mt-2">
+                    <div class="col-4 fs-7 text-end mt-3"><strong>CMM No:</strong></div>
+                    <div class="col-8 border-all">
+                        @foreach($manuals as $manual)
+                            @if($manual->id == $current_wo->unit->manual_id)
+                                <h6 class="text-center mt-3"><strong>{{substr($manual->number, 0, 8)}}</strong></h6>
+                            @endif
+                        @endforeach
+                    </div>
                 </div>
             </div>
         </div>
+
+
 
     <div class="page table-header">
         <div class="row mt-2 ">
@@ -896,7 +972,25 @@
         {{ $component->tdr->component->name }}
         </div>
         <div class="col-2 border-l-b details-row text-center" style="height: 32px">
-        {{ substr($component->processName->name, -1) }}
+        @php
+            // Получаем номер основного процесса
+            $processNumbers = [substr($component->processName->name, -1)];
+
+            // Если есть дополнительные NDT процессы, добавляем их номера
+            if ($component->plus_process) {
+                $plusProcessIds = explode(',', $component->plus_process);
+                foreach ($plusProcessIds as $plusProcessId) {
+                    $plusProcessName = \App\Models\ProcessName::find($plusProcessId);
+                    if ($plusProcessName && strpos($plusProcessName->name, 'NDT-') === 0) {
+                        $processNumbers[] = substr($plusProcessName->name, -1);
+                    }
+                }
+            }
+
+            // Сортируем номера и объединяем через ' & '
+            sort($processNumbers);
+            echo implode(' & ', $processNumbers);
+        @endphp
         </div>
         <div class="col-1 border-l-b details-row text-center" style="height: 32px">
         {{ $component->tdr->qty }}
@@ -1193,7 +1287,7 @@
                     window.location.reload();
                 }, 100);
             }, { once: true });
-            
+
             // Закрываем модальное окно
             modal.hide();
         } else {
@@ -1309,7 +1403,7 @@
 
                         function processBatch() {
                             const endIndex = Math.min(currentIndex + batchSize, rowsArray.length);
-                            
+
                             for (let i = currentIndex; i < endIndex; i++) {
                                 const row = rowsArray[i];
                                 const rowIndex = parseInt(row.getAttribute('data-row-index')) || 0;
@@ -1321,9 +1415,9 @@
                                     row.classList.remove('print-hide-row');
                                 }
                             }
-                            
+
                             currentIndex = endIndex;
-                            
+
                             if (currentIndex < rowsArray.length) {
                                 // Продолжаем обработку в следующем тайм-слоте
                                 setTimeout(processBatch, 0);
@@ -1331,7 +1425,7 @@
                                 setTimeout(function() { callback(maxIndex); }, 0);
                             }
                         }
-                        
+
                         // Начинаем обработку
                         setTimeout(processBatch, 0);
                     };

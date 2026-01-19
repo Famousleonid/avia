@@ -48,7 +48,7 @@ class TdrProcessController extends Controller
             $machiningEC = ProcessName::where('name', 'Machining (EC)')->first();
             $machining = ProcessName::where('name', 'Machining')->first();
             $machiningBlend = ProcessName::where('name', 'Machining (Blend)')->first();
-            
+
             if ($machiningEC) {
                 $this->machiningProcessNameId = $machiningEC->id;
             } elseif ($machining) {
@@ -159,13 +159,20 @@ class TdrProcessController extends Controller
         $tdrProcesses = TdrProcess::where('tdrs_id', $tdrId)->orderBy('sort_order')->get();
 
         // Передаем данные в представление
+        // Получаем все NDT процессы для дополнительного выбора
+        $ndtProcessNames = ProcessName::where(function($query) {
+            $query->where('name', 'like', 'NDT-%')
+                  ->orWhereIn('name', ['NDT-1', 'NDT-2', 'NDT-3', 'NDT-4', 'NDT-5', 'NDT-6', 'NDT-7', 'NDT-8']);
+        })->get();
+
         return view('admin.tdr-processes.createProcesses', compact(
             'current_tdr',
             'current_wo',
             'processNames',
             'processes',
             'tdrProcesses',
-            'manual_id'
+            'manual_id',
+            'ndtProcessNames'
         ));
     }
 
@@ -267,7 +274,7 @@ class TdrProcessController extends Controller
 
         $tdrId = $request->input('tdrs_id');
         $processesInput = $request->input('processes');
-        
+
         // Обрабатываем processes: может быть массивом или JSON строкой (для обратной совместимости)
         if (is_string($processesInput)) {
             $processesData = json_decode($processesInput, true);
@@ -306,7 +313,7 @@ class TdrProcessController extends Controller
         $machiningEC = ProcessName::where('name', 'Machining (EC)')->first();
         $machining = ProcessName::where('name', 'Machining')->first();
         $machiningBlend = ProcessName::where('name', 'Machining (Blend)')->first();
-        
+
         if ($machiningEC) {
             $machiningProcessNameId = $machiningEC->id;
             Log::info('Machining process ID determined: Machining (EC)', ['id' => $machiningProcessNameId]);
@@ -345,6 +352,7 @@ class TdrProcessController extends Controller
             TdrProcess::create([
                 'tdrs_id' => $tdrId,
                 'process_names_id' => $data['process_names_id'],
+                'plus_process' => $data['plus_process'] ?? null, // Дополнительные NDT process_names_id через запятую
                 'processes' => json_encode($data['processes']), // Сохраняем массив ID процессов
                 'sort_order' => $maxSortOrder + $sortOrderCounter + 1, // Устанавливаем sort_order в конец списка
                 'date_start' => null,
@@ -407,11 +415,11 @@ class TdrProcessController extends Controller
                             // Обновляем существующую запись EC: добавляем новые процессы в JSON-массив
                             $existingProcesses = json_decode($existingEcProcess->processes, true) ?: [];
                             $newProcesses = $data['processes'];
-                            
+
                             // Объединяем массивы и убираем дубликаты
                             $mergedProcesses = array_unique(array_merge($existingProcesses, $newProcesses));
                             $mergedProcesses = array_values($mergedProcesses); // Переиндексируем массив
-                            
+
                             $existingEcProcess->update([
                                 'processes' => json_encode($mergedProcesses),
                                 // Обновляем description и notes, если они переданы (опционально)
@@ -882,12 +890,16 @@ class TdrProcessController extends Controller
             $query->where('manual_id', $manual_id);
         })->get();
 
+        // Получаем все NDT process names для дополнительного селекта
+        $ndtProcessNames = ProcessName::where('name', 'like', 'NDT-%')->get();
+
         return view('admin.tdr-processes.edit', compact(
             'current_tdr',
             'current_wo',
             'current_tdr_processes',
             'processNames',
-            'processes'
+            'processes',
+            'ndtProcessNames'
         ));
     }
 
@@ -911,6 +923,7 @@ class TdrProcessController extends Controller
             'processes.*.process' => 'required|array',
             'processes.*.process.*' => 'integer|exists:processes,id',
             'processes.*.ec' => 'nullable|boolean',
+            'processes.*.plus_process' => 'nullable|string', // Дополнительные NDT process_names_id через запятую
             'description' => 'nullable|string|max:255', // Валидация для description
             'notes' => 'nullable|string|max:255', // Валидация для notes
         ]);
@@ -936,10 +949,18 @@ class TdrProcessController extends Controller
         }
         // Если не Machining (EC), ecValue уже установлен в false
 
+        // Обрабатываем plus_process: если это NDT процесс, сохраняем дополнительные NDT process_names_id
+        $plusProcess = null;
+        $processName = ProcessName::find($processData['process_names_id']);
+        if ($processName && strpos($processName->name, 'NDT-') === 0) {
+            $plusProcess = $processData['plus_process'] ?? null;
+        }
+
         // Формируем данные для обновления
         $dataToUpdate = [
             'tdrs_id' => $validated['tdrs_id'],
             'process_names_id' => $processData['process_names_id'],
+            'plus_process' => $plusProcess, // Дополнительные NDT process_names_id через запятую
             'processes' => json_encode($processesArray), // Преобразуем массив в JSON
             'ec' => $ecValue, // Используем вычисленное значение EC
             'description' => $request->input('description') ?? null, // Добавляем поле description (необязательное)
@@ -998,9 +1019,9 @@ class TdrProcessController extends Controller
         $machiningProcessNameId = $this->getMachiningProcessNameId();
 
         // Проверяем, является ли удаляемая запись процессом Machining
-        $isMachining = $machiningProcessNameId !== null && 
+        $isMachining = $machiningProcessNameId !== null &&
                        (int)$tdrProcess->process_names_id === $machiningProcessNameId;
-        
+
         // Сохраняем процессы удаляемой записи для последующего удаления из EC
         $processesToRemoveFromEC = null;
         if ($isMachining) {
@@ -1018,12 +1039,12 @@ class TdrProcessController extends Controller
         // Если processes пустой или не является массивом, удаляем всю запись
         if (!is_array($processData)) {
             $tdrProcess->delete();
-            
+
             // Если это был Machining, обрабатываем EC запись
             if ($isMachining && $processesToRemoveFromEC) {
                 $this->handleEcProcessOnMachiningDelete($tdrId, $processesToRemoveFromEC);
             }
-            
+
             return redirect()->route('tdrs.processes', ['workorder_id' => $tdr->workorder->id])
                 ->with('success', 'Process deleted successfully.');
         }
@@ -1031,12 +1052,12 @@ class TdrProcessController extends Controller
         // Если processes содержит только одно значение, удаляем всю запись
         if (count($processData) === 1) {
             $tdrProcess->delete();
-            
+
             // Если это был Machining, обрабатываем EC запись
             if ($isMachining && $processesToRemoveFromEC) {
                 $this->handleEcProcessOnMachiningDelete($tdrId, $processesToRemoveFromEC);
             }
-            
+
             return redirect()->route('tdrs.processes', ['workorder_id' => $tdr->workorder->id])
                 ->with('success', 'Process deleted successfully.');
         }
@@ -1062,7 +1083,7 @@ class TdrProcessController extends Controller
 
     /**
      * Обрабатывает запись EC при обновлении процесса Machining
-     * 
+     *
      * @param int $tdrId ID компонента
      * @param int $oldProcessNamesId Старый process_names_id
      * @param int $newProcessNamesId Новый process_names_id
@@ -1102,9 +1123,9 @@ class TdrProcessController extends Controller
                 $ecProcesses = json_decode($ecProcess->processes, true) ?: [];
                 $mergedProcesses = array_unique(array_merge($ecProcesses, $newProcesses));
                 $mergedProcesses = array_values($mergedProcesses);
-                
+
                 $ecProcess->update(['processes' => json_encode($mergedProcesses)]);
-                
+
                 Log::info('Updated existing EC process record after changing to Machining (EC)', [
                     'tdrs_id' => $tdrId,
                     'ec_process_id' => $ecProcess->id,
@@ -1113,7 +1134,7 @@ class TdrProcessController extends Controller
             } else {
                 // Создаем новую запись EC
                 $maxSortOrder = TdrProcess::where('tdrs_id', $tdrId)->max('sort_order') ?? 0;
-                
+
                 TdrProcess::create([
                     'tdrs_id' => $tdrId,
                     'process_names_id' => $ecProcessNameId,
@@ -1125,7 +1146,7 @@ class TdrProcessController extends Controller
                     'description' => null,
                     'notes' => null,
                 ]);
-                
+
                 Log::info('Created new EC process record after changing to Machining (EC)', [
                     'tdrs_id' => $tdrId,
                     'ec_process_name_id' => $ecProcessNameId,
@@ -1161,16 +1182,16 @@ class TdrProcessController extends Controller
                     }
                 }
             }
-            
+
             // Добавляем новые процессы, которых еще нет в EC
             foreach ($newProcesses as $newProcessId) {
                 if (!in_array((int)$newProcessId, array_map('intval', $ecProcesses))) {
                     $ecProcesses[] = $newProcessId;
                 }
             }
-            
+
             $ecProcesses = array_values(array_unique($ecProcesses));
-            
+
             if (empty($ecProcesses)) {
                 // Если EC пуст, удаляем запись
                 $ecProcess->delete();
@@ -1195,12 +1216,12 @@ class TdrProcessController extends Controller
                 });
             }
             $ecProcesses = array_values($ecProcesses);
-            
+
             // Проверяем, остались ли еще записи Machining (EC) для этого компонента
             $remainingMachining = TdrProcess::where('tdrs_id', $tdrId)
                 ->where('process_names_id', $machiningProcessNameId)
                 ->get();
-            
+
             if ($remainingMachining->isEmpty() || empty($ecProcesses)) {
                 // Если нет больше Machining (EC) ИЛИ EC пуст - удаляем запись EC
                 $ecProcess->delete();
@@ -1223,7 +1244,7 @@ class TdrProcessController extends Controller
 
     /**
      * Обрабатывает запись EC при удалении процесса Machining
-     * 
+     *
      * @param int $tdrId ID компонента
      * @param array $processesToRemove Процессы, которые нужно удалить из EC записи
      */
@@ -1252,7 +1273,7 @@ class TdrProcessController extends Controller
                 'tdrs_id' => $tdrId,
                 'count' => $ecProcesses->count()
             ]);
-            
+
             // Собираем все процессы из всех EC записей
             $allEcProcesses = [];
             foreach ($ecProcesses as $ecProc) {
@@ -1261,13 +1282,13 @@ class TdrProcessController extends Controller
             }
             $allEcProcesses = array_unique($allEcProcesses);
             $allEcProcesses = array_values($allEcProcesses);
-            
+
             // Обновляем первую запись всеми процессами
             $ecProcess = $ecProcesses->first();
             $ecProcess->update([
                 'processes' => json_encode($allEcProcesses)
             ]);
-            
+
             // Удаляем остальные дублирующие записи EC
             foreach ($ecProcesses->skip(1) as $duplicateEc) {
                 $duplicateEc->delete();
@@ -1282,7 +1303,7 @@ class TdrProcessController extends Controller
 
         // Получаем текущие процессы из EC записи
         $ecProcessesArray = json_decode($ecProcess->processes, true) ?: [];
-        
+
         // Удаляем процессы, которые были в удаленном Machining
         $remainingProcesses = array_filter($ecProcessesArray, function ($processId) use ($processesToRemove) {
             return !in_array((int)$processId, array_map('intval', $processesToRemove));
@@ -1291,7 +1312,7 @@ class TdrProcessController extends Controller
 
         // Проверяем, остались ли еще записи Machining для этого компонента (используем кэшированный метод)
         $machiningProcessNameId = $this->getMachiningProcessNameId();
-        
+
         $remainingMachiningProcesses = collect();
         if ($machiningProcessNameId) {
             $remainingMachiningProcesses = TdrProcess::where('tdrs_id', $tdrId)

@@ -104,6 +104,29 @@
             margin-bottom: 0.25rem;
         }
 
+        /* Стили для чекбоксов NDT */
+        .ndt-checkboxes {
+            display: flex;
+            flex-direction: column;
+            gap: 0.25rem;
+            max-height: 200px;
+            overflow-y: auto;
+            padding: 0.25rem;
+        }
+
+        .ndt-checkboxes .form-check {
+            margin-bottom: 0;
+        }
+
+        .ndt-checkboxes .form-check-input {
+            margin-top: 0.25rem;
+        }
+
+        .ndt-checkboxes .form-check-label {
+            margin-left: 0.25rem;
+            cursor: pointer;
+        }
+
         /* Стили для неактивных полей */
         .form-control:disabled,
         .form-select:disabled {
@@ -242,52 +265,52 @@
             <form id="bushings-form" method="POST" action="{{ route('wo_bushings.store') }}">
                 @csrf
                 <input type="hidden" name="workorder_id" value="{{ $current_wo->id }}">
-        @endif
-        <div class="card-header m-1 shadow ">
-            <div class="d-flex justify-content-between align-items-center">
-                <div>
-                    <h4 class="text-primary ms-2 mb-0">{{__('Work Order: ')}} {{$current_wo->number}}</h4>
-                    <div>
-                        <h4 class="ps-xl-5 mb-0">{{__('CREATE BUSHINGS')}}</h4>
+                @endif
+                <div class="card-header m-1 shadow ">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h4 class="text-primary ms-2 mb-0">{{__('Work Order: ')}} {{$current_wo->number}}</h4>
+                            <div>
+                                <h4 class="ps-xl-5 mb-0">{{__('CREATE BUSHINGS')}}</h4>
+                            </div>
+                        </div>
+                        <div>
+                            <button type="button" class="btn btn-outline-info me-2" style="height: 60px;width: 140px" data-bs-toggle="modal" data-bs-target="#addBushingsFromManualModal">
+                                <i class="fas fa-exchange-alt"></i> {{ __('Add from Manual') }}
+                            </button>
+                            <a href="{{ route('processes.create', ['manual_id' => $current_wo->unit->manual_id, 'return_to' => route('wo_bushings.create', $current_wo->id)]) }}"
+                               class="btn btn-outline-primary me-2" style="height: 60px;width: 100px">
+                                <i class="fas fa-cogs"></i> {{ __('Add Processes') }}
+                            </a>
+                            <a href="{{ route('components.create', ['manual_id' => $current_wo->unit->manual_id ?? null, 'redirect' => route('wo_bushings.create', $current_wo->id)]) }}"
+                               class="btn btn-outline-primary me-2" style="height: 60px;width: 110px">
+                                <i class="fas fa-plus"></i> {{ __('Add Component') }}
+                            </a>
+                        </div>
+                        <div class="d-flex align-items-center">
+                            @if($bushings->flatten()->count() > 0)
+                                <button type="submit" class="btn btn-success btn-lg me-2">
+                                    <i class="fas fa-plus"></i> Create Bushings Data
+                                </button>
+                                <button type="button" class="btn btn-secondary btn-lg me-2" onclick="clearForm()">
+                                    <i class="fas fa-eraser"></i> Clear All
+                                </button>
+                            @endif
+                            <a href="{{ route('wo_bushings.show', $current_wo->id) }}"
+                               class="btn btn-outline-secondary me-2" style="height: 60px;width: 110px">
+                                {{ __('Back to Bushings') }}
+                            </a>
+                        </div>
                     </div>
                 </div>
-                <div>
-                    <button type="button" class="btn btn-outline-info me-2" style="height: 60px;width: 140px" data-bs-toggle="modal" data-bs-target="#addBushingsFromManualModal">
-                        <i class="fas fa-exchange-alt"></i> {{ __('Add from Manual') }}
-                    </button>
-                    <a href="{{ route('processes.create', ['manual_id' => $current_wo->unit->manual_id, 'return_to' => route('wo_bushings.create', $current_wo->id)]) }}"
-                       class="btn btn-outline-primary me-2" style="height: 60px;width: 100px">
-                        <i class="fas fa-cogs"></i> {{ __('Add Processes') }}
-                    </a>
-                    <a href="{{ route('components.create', ['manual_id' => $current_wo->unit->manual_id ?? null, 'redirect' => route('wo_bushings.create', $current_wo->id)]) }}"
-                       class="btn btn-outline-primary me-2" style="height: 60px;width: 110px">
-                        <i class="fas fa-plus"></i> {{ __('Add Component') }}
-                    </a>
-                </div>
-                <div class="d-flex align-items-center">
-                    @if($bushings->flatten()->count() > 0)
-                        <button type="submit" class="btn btn-success btn-lg me-2">
-                            <i class="fas fa-plus"></i> Create Bushings Data
-                        </button>
-                        <button type="button" class="btn btn-secondary btn-lg me-2" onclick="clearForm()">
-                            <i class="fas fa-eraser"></i> Clear All
-                        </button>
-                    @endif
-                    <a href="{{ route('wo_bushings.show', $current_wo->id) }}"
-                       class="btn btn-outline-secondary me-2" style="height: 60px;width: 110px">
-                        {{ __('Back to Bushings') }}
-                    </a>
-                </div>
-            </div>
-        </div>
 
 
 
-        @if($bushings->flatten()->count() > 0)
-            <div class="d-flex justify-content-center mt-3">
-                <div class="table-wrapper me-3">
-                        <table class="display table shadow table-hover align-middle table-bordered ">
-                            <thead class="">
+                @if($bushings->flatten()->count() > 0)
+                    <div class="d-flex justify-content-center mt-3">
+                        <div class="table-wrapper me-3">
+                            <table class="display table shadow table-hover align-middle table-bordered ">
+                                <thead class="">
                                 <tr class="header-row bg-gradient">
                                     <th class="text-primary text-center">Bushings</th>
                                     <th class="text-primary text-center "> Select</th>
@@ -300,8 +323,8 @@
                                     <th class="text-primary text-center">Anodizing</th>
                                     <th class="text-primary text-center">Xylan</th>
                                 </tr>
-                            </thead>
-                            <tbody>
+                                </thead>
+                                <tbody>
                                 @foreach($bushings as $bushIplNum => $bushingGroup)
                                     {{-- Group row with all bushings in first column and group controls --}}
                                     <tr>
@@ -354,15 +377,21 @@
                                             </select>
                                         </td>
                                         <td>
-                                            <select name="group_bushings[{{ $bushIplNum ?: 'no_ipl' }}][ndt]"
-                                                    class="form-select" data-group="{{ $bushIplNum ?: 'no_ipl' }}" disabled>
-                                                <option value="">-- Select NDT --</option>
+                                            <div class="ndt-checkboxes" data-group="{{ $bushIplNum ?: 'no_ipl' }}">
                                                 @foreach($ndtProcesses as $process)
-                                                    <option value="{{ $process->id }}">
-                                                        {{ $process->process_name->name }}
-                                                    </option>
+                                                    <div class="form-check">
+                                                        <input type="checkbox"
+                                                               name="group_bushings[{{ $bushIplNum ?: 'no_ipl' }}][ndt][]"
+                                                               value="{{ $process->id }}"
+                                                               class="form-check-input"
+                                                               data-group="{{ $bushIplNum ?: 'no_ipl' }}"
+                                                               disabled>
+                                                        <label class="form-check-label" style="font-size: 0.875rem;">
+                                                            {{ $process->process_name->name }}
+                                                        </label>
+                                                    </div>
                                                 @endforeach
-                                            </select>
+                                            </div>
                                         </td>
                                         <td>
                                             <select name="group_bushings[{{ $bushIplNum ?: 'no_ipl' }}][passivation]"
@@ -410,10 +439,10 @@
                                         </td>
                                     </tr>
                                 @endforeach
-                            </tbody>
-                        </table>
-                </div>
-            </div>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
             </form>
         @else
             <div class="text-center mt-5">
@@ -459,12 +488,20 @@
 
             // Активируем/деактивируем поля группы
             groupFields.forEach(field => {
-                field.disabled = !hasSelected;
-                if (!hasSelected) {
-                    if (field.classList.contains('qty-input')) {
-                        field.value = '1'; // Возвращаем значение по умолчанию для QTY
-                    } else {
-                        field.value = ''; // Очищаем значения для остальных полей
+                // Для чекбоксов NDT используем другой подход
+                if (field.type === 'checkbox' && field.name && field.name.includes('[ndt]')) {
+                    field.disabled = !hasSelected;
+                    if (!hasSelected) {
+                        field.checked = false;
+                    }
+                } else if (field.tagName === 'SELECT' || field.classList.contains('qty-input')) {
+                    field.disabled = !hasSelected;
+                    if (!hasSelected) {
+                        if (field.classList.contains('qty-input')) {
+                            field.value = '1'; // Возвращаем значение по умолчанию для QTY
+                        } else {
+                            field.value = ''; // Очищаем значения для остальных полей
+                        }
                     }
                 }
                 console.log('Field disabled state:', field.disabled, 'for field:', field.name);
@@ -612,22 +649,22 @@
                         current_manual_id: currentManualId
                     })
                 })
-                .then(response => response.json())
-                .then(data => {
-                    if (data.success) {
-                        selectedManualBushings = data.bushings;
-                        // Use processes from current manual, not from selected manual
-                        selectedManualProcesses = currentManualProcesses;
-                        renderBushingsList(data.bushings);
-                        addSelectedBtn.style.display = 'block';
-                    } else {
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.success) {
+                            selectedManualBushings = data.bushings;
+                            // Use processes from current manual, not from selected manual
+                            selectedManualProcesses = currentManualProcesses;
+                            renderBushingsList(data.bushings);
+                            addSelectedBtn.style.display = 'block';
+                        } else {
+                            bushingsList.innerHTML = '<div class="alert alert-danger">Error loading bushings</div>';
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Error:', error);
                         bushingsList.innerHTML = '<div class="alert alert-danger">Error loading bushings</div>';
-                    }
-                })
-                .catch(error => {
-                    console.error('Error:', error);
-                    bushingsList.innerHTML = '<div class="alert alert-danger">Error loading bushings</div>';
-                });
+                    });
             });
 
             function renderBushingsList(bushings) {
@@ -786,19 +823,36 @@
 
                     processTypes.forEach(function(processType) {
                         rowHtml += `<td>`;
-                        rowHtml += `<select name="group_bushings[${uniqueGroupKey}][${processType}]" class="form-select" data-group="${uniqueGroupKey}" disabled>`;
-                        rowHtml += `<option value="">-- Select ${processLabels[processType]} --</option>`;
 
-                        // Use processes from current manual
-                        if (selectedManualProcesses[processType] && selectedManualProcesses[processType].length > 0) {
-                            selectedManualProcesses[processType].forEach(function(process) {
-                                const displayText = processType === 'ndt' ? process.name : process.process;
-                                const escapedText = displayText.replace(/"/g, '&quot;').replace(/'/g, '&#39;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-                                rowHtml += `<option value="${process.id}">${escapedText}</option>`;
-                            });
+                        // Для NDT используем чекбоксы, для остальных - select
+                        if (processType === 'ndt') {
+                            rowHtml += `<div class="ndt-checkboxes" data-group="${uniqueGroupKey}">`;
+                            if (selectedManualProcesses[processType] && selectedManualProcesses[processType].length > 0) {
+                                selectedManualProcesses[processType].forEach(function(process) {
+                                    const displayText = process.name;
+                                    const escapedText = displayText.replace(/"/g, '&quot;').replace(/'/g, '&#39;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+                                    rowHtml += `<div class="form-check">`;
+                                    rowHtml += `<input type="checkbox" name="group_bushings[${uniqueGroupKey}][ndt][]" value="${process.id}" class="form-check-input" data-group="${uniqueGroupKey}" disabled>`;
+                                    rowHtml += `<label class="form-check-label" style="font-size: 0.875rem;">${escapedText}</label>`;
+                                    rowHtml += `</div>`;
+                                });
+                            }
+                            rowHtml += `</div>`;
+                        } else {
+                            rowHtml += `<select name="group_bushings[${uniqueGroupKey}][${processType}]" class="form-select" data-group="${uniqueGroupKey}" disabled>`;
+                            rowHtml += `<option value="">-- Select ${processLabels[processType]} --</option>`;
+
+                            // Use processes from current manual
+                            if (selectedManualProcesses[processType] && selectedManualProcesses[processType].length > 0) {
+                                selectedManualProcesses[processType].forEach(function(process) {
+                                    const displayText = process.process;
+                                    const escapedText = displayText.replace(/"/g, '&quot;').replace(/'/g, '&#39;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+                                    rowHtml += `<option value="${process.id}">${escapedText}</option>`;
+                                });
+                            }
+
+                            rowHtml += `</select>`;
                         }
-
-                        rowHtml += `</select>`;
                         rowHtml += `</td>`;
                     });
 

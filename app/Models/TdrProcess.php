@@ -13,6 +13,7 @@ class TdrProcess extends Model
     protected $fillable = [
         'tdrs_id',
         'process_names_id',
+        'plus_process', // Дополнительные NDT process_names_id через запятую (например, "2,4")
         'processes', // JSON-поле для хранения массива процессов
         'description',
         'notes',

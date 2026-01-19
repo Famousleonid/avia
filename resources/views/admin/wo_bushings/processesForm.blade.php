@@ -176,8 +176,8 @@
 
         /* Стили для длинного текста процесса */
         .process-text-long {
-            font-size: 0.85em;
-            line-height: 1.1;
+            font-size: 0.8em;
+            line-height: 1;
             letter-spacing: -0.5px;
             /*transform: scale(0.9);*/
             transform-origin: left;
@@ -288,11 +288,11 @@
                     <div class="col-6 pt-2 border-b">
                         <strong>
                             {{$current_wo->description}}
-{{--                            @if(isset($table_data) && count($table_data) > 1)--}}
-{{--                                Multiple Components ({{ count($table_data) }} items)--}}
-{{--                            @else--}}
-{{--                                {{$table_data[0]['component']->name ?? 'Bushings'}}--}}
-{{--                            @endif--}}
+                            {{--                            @if(isset($table_data) && count($table_data) > 1)--}}
+                            {{--                                Multiple Components ({{ count($table_data) }} items)--}}
+                            {{--                            @else--}}
+                            {{--                                {{$table_data[0]['component']->name ?? 'Bushings'}}--}}
+                            {{--                            @endif--}}
                         </strong>
                     </div>
                 </div>
@@ -301,11 +301,11 @@
                     <div class="col-6 pt-2 border-b">
                         <strong>
                             {{$current_wo->unit->part_number}}
-{{--                            @if(isset($table_data) && count($table_data) > 1)--}}
-{{--                                Various (see table below)--}}
-{{--                            @else--}}
-{{--                                {{$table_data[0]['component']->part_number ?? 'Bushings'}}--}}
-{{--                            @endif--}}
+                            {{--                            @if(isset($table_data) && count($table_data) > 1)--}}
+                            {{--                                Various (see table below)--}}
+                            {{--                            @else--}}
+                            {{--                                {{$table_data[0]['component']->part_number ?? 'Bushings'}}--}}
+                            {{--                            @endif--}}
                         </strong>
                     </div>
                 </div>
@@ -337,7 +337,7 @@
 
     @if($process_name->process_sheet_name == 'NDT')
         <div class="row mt-3">
-            <div class="col-5">
+            <div class="col-4">
                 <div class="text-start"><strong>MAGNETIC PARTICLE AS PER:</strong></div>
                 <div class="row " style="height: 26px">
                     <div class="col-1">#1</div>
@@ -345,13 +345,14 @@
                         @if(isset($ndt_processes))
                             @foreach($ndt_processes as $process)
                                 @if($process->process_names_id == ($ndt1_name_id ?? null))
-                                    <span @if(strlen($process->process) > 25) class="process-text-long"
+                                    <span @if(strlen($process->process) > 20) class="process-text-long"
                                         @endif>{{$process->process}}</span>
                                 @endif
                             @endforeach
                         @endif
                     </div>
                 </div>
+
                 <div class="text-start"><strong>LIQUID/FLUID PENETRANT AS PER:</strong></div>
                 <div class="row " style="height: 26px">
                     <div class="col-1">#4</div>
@@ -359,7 +360,7 @@
                         @if(isset($ndt_processes))
                             @foreach($ndt_processes as $process)
                                 @if($process->process_names_id == ($ndt4_name_id ?? null))
-                                    <span @if(strlen($process->process) > 25) class="process-text-long"
+                                    <span @if(strlen($process->process) > 20) class="process-text-long"
                                         @endif>{{$process->process}}</span>
                                 @endif
                             @endforeach
@@ -369,13 +370,30 @@
                 <div class="text-start"><strong>ULTRASOUND AS PER:</strong></div>
                 <div class="row " style="height: 26px">
                     <div class="col-1">#7</div>
-                    <div class="col-11 border-b"></div>
+                    <div class="col-11 border-b">
+                        @if(isset($ndt_processes))
+                            @foreach($ndt_processes as $process)
+                                @if($process->process_names_id == ($ndt7_name_id ?? null))
+                                    <span @if(strlen($process->process) > 20) class="process-text-long"
+                                        @endif>{{$process->process}}</span>
+                                @endif
+                            @endforeach
+                        @endif
+                    </div>
                 </div>
             </div>
-            <div class="col-3 mt-3">
+            <div class="col-4 mt-3">
                 <div class="row mt-2" style="height: 26px">
                     <div class="col-2">#2</div>
                     <div class="col-10 border-b">
+                        @if(isset($ndt_processes))
+                            @foreach($ndt_processes as $process)
+                                @if($process->process_names_id == ($ndt2_name_id ?? null))
+                                    <span @if(strlen($process->process) > 20) class="process-text-long"
+                                        @endif>{{$process->process}}</span>
+                                @endif
+                            @endforeach
+                        @endif
                     </div>
                 </div>
                 <div class="row mt-4" style="height: 26px">
@@ -390,13 +408,36 @@
                             @endforeach
                         @endif
                     </div>
+
                 </div>
-                <div class="text-end mt-4"><strong>CMM No:</strong></div>
+                <div class="row mt-4" style="height: 26px">
+                    <div class="col-2">#8</div>
+                    <div class="col-10 border-b">
+                        @if(isset($ndt_processes))
+                            @foreach($ndt_processes as $process)
+                                @if($process->process_names_id == ($ndt8_name_id ?? null))
+                                    <span @if(strlen($process->process) > 25) class="process-text-long"
+                                        @endif>{{$process->process}}</span>
+                                @endif
+                            @endforeach
+                        @endif
+                    </div>
+
+                </div>
+
             </div>
             <div class="col-4 mt-3">
                 <div class="row mt-2" style="height: 26px">
                     <div class="col-2 text-end">#3</div>
                     <div class="col-10 border-b">
+                        @if(isset($ndt_processes))
+                            @foreach($ndt_processes as $process)
+                                @if($process->process_names_id == ($ndt3_name_id ?? null))
+                                    <span @if(strlen($process->process) > 20) class="process-text-long"
+                                        @endif>{{$process->process}}</span>
+                                @endif
+                            @endforeach
+                        @endif
                     </div>
                 </div>
                 <div class="text-start"><strong>EDDY CURRENT AS PER:</strong></div>
@@ -406,19 +447,22 @@
                         @if(isset($ndt_processes))
                             @foreach($ndt_processes as $process)
                                 @if($process->process_names_id == ($ndt6_name_id ?? null))
-                                    <span @if(strlen($process->process) > 25) class="process-text-long"
+                                    <span @if(strlen($process->process) > 20) class="process-text-long"
                                         @endif>{{$process->process}}</span>
                                 @endif
                             @endforeach
                         @endif
                     </div>
                 </div>
-                <div class="row border-all mt-2" style="height: 56px">
-                    @foreach($manuals as $manual)
-                        @if($manual->id == $current_wo->unit->manual_id)
-                            <h6 class="text-center mt-3"><strong> {{substr($manual->number, 0, 8)}}</strong></h6>
-                        @endif
-                    @endforeach
+                <div class="row  mt-2" style="height: 56px">
+                    <div class=" col-4 text-end mt-4"><strong>CMM No:</strong></div>
+                    <div class="col-8 border-all">
+                        @foreach($manuals as $manual)
+                            @if($manual->id == $current_wo->unit->manual_id)
+                                <h6 class="text-center mt-3"><strong> {{substr($manual->number, 0, 8)}}</strong></h6>
+                            @endif
+                        @endforeach
+                    </div>
                 </div>
             </div>
         </div>
@@ -457,14 +501,18 @@
                             {{ $data['component']->name }}
                         </div>
                         <div class="col-2 border-l-b details-row text-center" style="height: 32px">
-                            @if(strpos($data['process_name']->name, 'NDT-') === 0)
-                                {{ substr($data['process_name']->name, 4) }}
-                            @elseif($data['process_name']->name === 'Eddy Current Test')
-                                6
-                            @elseif($data['process_name']->name === 'BNI')
-                                5
-                            @else
-                                {{ substr($data['process_name']->name, -1) }}
+                            @if(isset($data['combined_ndt_number']))
+                                {{ $data['combined_ndt_number'] }}
+                            @elseif(isset($data['process_name']) && $data['process_name'])
+                                @if(strpos($data['process_name']->name, 'NDT-') === 0)
+                                    {{ substr($data['process_name']->name, 4) }}
+                                @elseif($data['process_name']->name === 'Eddy Current Test')
+                                    6
+                                @elseif($data['process_name']->name === 'BNI')
+                                    5
+                                @else
+                                    {{ substr($data['process_name']->name, -1) }}
+                                @endif
                             @endif
                         </div>
                         <div class="col-1 border-l-b details-row text-center" style="height: 32px">
@@ -508,11 +556,11 @@
             @endfor
         </div>
     @else
-                        <h6 class="mt-3 ms-3"><strong>
-                    Perform the {{ ucwords(strtolower($process_name->process_sheet_name ?? $process_name->name ?? 'Wo Bushing Process')) }}
-                    as the specified under Process No. and in
-                    accordance with CMM No
-                </strong>.</h6>
+        <h6 class="mt-3 ms-3"><strong>
+                Perform the {{ ucwords(strtolower($process_name->process_sheet_name ?? $process_name->name ?? 'Wo Bushing Process')) }}
+                as the specified under Process No. and in
+                accordance with CMM No
+            </strong>.</h6>
 
         <div class="page table-header">
             <div class="row mt-2 " >
@@ -555,7 +603,7 @@
                         <div class="col-3 border-l-b details-cell text-center process-cell"  style="min-height: 34px">
                             <span @if(strlen($data['process']->process) > 40) class="process-text-long" @endif>{{$data['process']->process}}</span>
 
-{{--                            {{ $data['process']->process }}--}}
+                            {{--                            {{ $data['process']->process }}--}}
                         </div>
                         <div class="col-1 border-l-b details-cell text-center" style="min-height: 34px" >
                             {{ $data['qty'] ?? 1 }}
@@ -650,10 +698,10 @@
                         <div class="row mb-3">
                             <div class="col-md-4">
                                 <label for="ndtTableRows" class="form-label" data-bs-toggle="tooltip"
-                                        data-bs-placement="top"
-                                        title="Максимальное количество строк в таблице NDT. По умолчанию: 20 строк."
-                                        data-tooltip-ru="Максимальное количество строк в таблице NDT. По умолчанию: 20 строк."
-                                        data-tooltip-en="Maximum number of rows in NDT table. Default: 20 rows.">
+                                       data-bs-placement="top"
+                                       title="Максимальное количество строк в таблице NDT. По умолчанию: 20 строк."
+                                       data-tooltip-ru="Максимальное количество строк в таблице NDT. По умолчанию: 20 строк."
+                                       data-tooltip-en="Maximum number of rows in NDT table. Default: 20 rows.">
                                     NDT Table (row)
                                 </label>
                                 <div class="input-group">
@@ -664,10 +712,10 @@
 
                             <div class="col-md-4">
                                 <label for="otherTableRows" class="form-label" data-bs-toggle="tooltip"
-                                        data-bs-placement="top"
-                                        title="Максимальное количество строк в таблицах других процессов. По умолчанию: 20 строк."
-                                        data-tooltip-ru="Максимальное количество строк в таблицах других процессов. По умолчанию: 20 строк."
-                                        data-tooltip-en="Maximum number of rows in other process tables. Default: 20 rows.">
+                                       data-bs-placement="top"
+                                       title="Максимальное количество строк в таблицах других процессов. По умолчанию: 20 строк."
+                                       data-tooltip-ru="Максимальное количество строк в таблицах других процессов. По умолчанию: 20 строк."
+                                       data-tooltip-en="Maximum number of rows in other process tables. Default: 20 rows.">
                                     Other Table (row)
                                 </label>
                                 <div class="input-group">
@@ -698,10 +746,10 @@
                                         <div class="row">
                                             <div class="col-md-4 mb-3">
                                                 <label for="containerMaxWidth" class="form-label" data-bs-toggle="tooltip"
-                                                        data-bs-placement="top"
-                                                        title="Максимальная ширина контейнера с таблицей в пикселях. Рекомендуемое значение: 920px."
-                                                        data-tooltip-ru="Максимальная ширина контейнера с таблицей в пикселях. Рекомендуемое значение: 920px."
-                                                        data-tooltip-en="Maximum width of the table container in pixels. Recommended value: 920px.">
+                                                       data-bs-placement="top"
+                                                       title="Максимальная ширина контейнера с таблицей в пикселях. Рекомендуемое значение: 920px."
+                                                       data-tooltip-ru="Максимальная ширина контейнера с таблицей в пикселях. Рекомендуемое значение: 920px."
+                                                       data-tooltip-en="Maximum width of the table container in pixels. Recommended value: 920px.">
                                                     Max Width (px)
                                                 </label>
                                                 <div class="input-group">
@@ -712,10 +760,10 @@
 
                                             <div class="col-md-4 mb-3">
                                                 <label for="tableFontSize" class="form-label" data-bs-toggle="tooltip"
-                                                        data-bs-placement="top"
-                                                        title="Размер шрифта текста в таблице. Рекомендуемое значение: 0.85rem (13.6px). Увеличьте для лучшей читаемости."
-                                                        data-tooltip-ru="Размер шрифта текста в таблице. Рекомендуемое значение: 0.85rem (13.6px). Увеличьте для лучшей читаемости."
-                                                        data-tooltip-en="Font size for table text. Recommended value: 0.85rem (13.6px). Increase for better readability.">
+                                                       data-bs-placement="top"
+                                                       title="Размер шрифта текста в таблице. Рекомендуемое значение: 0.85rem (13.6px). Увеличьте для лучшей читаемости."
+                                                       data-tooltip-ru="Размер шрифта текста в таблице. Рекомендуемое значение: 0.85rem (13.6px). Увеличьте для лучшей читаемости."
+                                                       data-tooltip-en="Font size for table text. Recommended value: 0.85rem (13.6px). Increase for better readability.">
                                                     Font Size (rem)
                                                 </label>
                                                 <div class="input-group">
@@ -726,10 +774,10 @@
 
                                             <div class="col-md-4 mb-3">
                                                 <label for="containerPadding" class="form-label" data-bs-toggle="tooltip"
-                                                        data-bs-placement="top"
-                                                        title="Внутренние отступы контейнера. По умолчанию: 5px."
-                                                        data-tooltip-ru="Внутренние отступы контейнера. По умолчанию: 5px."
-                                                        data-tooltip-en="Container inner padding. Default: 5px.">
+                                                       data-bs-placement="top"
+                                                       title="Внутренние отступы контейнера. По умолчанию: 5px."
+                                                       data-tooltip-ru="Внутренние отступы контейнера. По умолчанию: 5px."
+                                                       data-tooltip-en="Container inner padding. Default: 5px.">
                                                     Padding (px)
                                                 </label>
                                                 <div class="input-group">
@@ -766,10 +814,10 @@
                                         <div class="row">
                                             <div class="col-md-4 mb-3">
                                                 <label for="bodyWidth" class="form-label" data-bs-toggle="tooltip"
-                                                        data-bs-placement="top"
-                                                        title="Ширина основного контента в процентах. 98% - стандартное значение."
-                                                        data-tooltip-ru="Ширина основного контента в процентах. 98% - стандартное значение."
-                                                        data-tooltip-en="Main content width as percentage. 98% - standard value.">
+                                                       data-bs-placement="top"
+                                                       title="Ширина основного контента в процентах. 98% - стандартное значение."
+                                                       data-tooltip-ru="Ширина основного контента в процентах. 98% - стандартное значение."
+                                                       data-tooltip-en="Main content width as percentage. 98% - standard value.">
                                                     Width (%)
                                                 </label>
                                                 <div class="input-group">
@@ -780,10 +828,10 @@
 
                                             <div class="col-md-4 mb-3">
                                                 <label for="bodyHeight" class="form-label" data-bs-toggle="tooltip"
-                                                        data-bs-placement="top"
-                                                        title="Высота основного контента в процентах. 99% - стандартное значение."
-                                                        data-tooltip-ru="Высота основного контента в процентах. 99% - стандартное значение."
-                                                        data-tooltip-en="Main content height as percentage. 99% - standard value.">
+                                                       data-bs-placement="top"
+                                                       title="Высота основного контента в процентах. 99% - стандартное значение."
+                                                       data-tooltip-ru="Высота основного контента в процентах. 99% - стандартное значение."
+                                                       data-tooltip-en="Main content height as percentage. 99% - standard value.">
                                                     Height (%)
                                                 </label>
                                                 <div class="input-group">
@@ -794,10 +842,10 @@
 
                                             <div class="col-md-4 mb-3">
                                                 <label for="pageMargin" class="form-label" data-bs-toggle="tooltip"
-                                                        data-bs-placement="top"
-                                                        title="Отступ от краев страницы при печати. Рекомендуемое значение: 1mm."
-                                                        data-tooltip-ru="Отступ от краев страницы при печати. Рекомендуемое значение: 1mm."
-                                                        data-tooltip-en="Margin from page edges when printing. Recommended value: 1mm.">
+                                                       data-bs-placement="top"
+                                                       title="Отступ от краев страницы при печати. Рекомендуемое значение: 1mm."
+                                                       data-tooltip-ru="Отступ от краев страницы при печати. Рекомендуемое значение: 1mm."
+                                                       data-tooltip-en="Margin from page edges when printing. Recommended value: 1mm.">
                                                     Margin (mm)
                                                 </label>
                                                 <div class="input-group">
@@ -808,10 +856,10 @@
 
                                             <div class="col-md-4 mb-3">
                                                 <label for="bodyMarginLeft" class="form-label" data-bs-toggle="tooltip"
-                                                        data-bs-placement="top"
-                                                        title="Горизонтальный отступ основного контента от левого края. По умолчанию: 2px."
-                                                        data-tooltip-ru="Горизонтальный отступ основного контента от левого края. По умолчанию: 2px."
-                                                        data-tooltip-en="Horizontal margin of main content from left edge. Default: 2px.">
+                                                       data-bs-placement="top"
+                                                       title="Горизонтальный отступ основного контента от левого края. По умолчанию: 2px."
+                                                       data-tooltip-ru="Горизонтальный отступ основного контента от левого края. По умолчанию: 2px."
+                                                       data-tooltip-en="Horizontal margin of main content from left edge. Default: 2px.">
                                                     Left Margin (px)
                                                 </label>
                                                 <div class="input-group">
@@ -822,10 +870,10 @@
 
                                             <div class="col-md-4 mb-3">
                                                 <label for="containerMarginLeft" class="form-label" data-bs-toggle="tooltip"
-                                                        data-bs-placement="top"
-                                                        title="Отступ контейнера с таблицей от левого края. По умолчанию: 10px."
-                                                        data-tooltip-ru="Отступ контейнера с таблицей от левого края. По умолчанию: 10px."
-                                                        data-tooltip-en="Table container margin from left edge. Default: 10px.">
+                                                       data-bs-placement="top"
+                                                       title="Отступ контейнера с таблицей от левого края. По умолчанию: 10px."
+                                                       data-tooltip-ru="Отступ контейнера с таблицей от левого края. По умолчанию: 10px."
+                                                       data-tooltip-en="Table container margin from left edge. Default: 10px.">
                                                     Table Left Margin (px)
                                                 </label>
                                                 <div class="input-group">
@@ -836,10 +884,10 @@
 
                                             <div class="col-md-4 mb-3">
                                                 <label for="containerMarginRight" class="form-label" data-bs-toggle="tooltip"
-                                                        data-bs-placement="top"
-                                                        title="Отступ контейнера с таблицей от правого края. По умолчанию: 10px."
-                                                        data-tooltip-ru="Отступ контейнера с таблицей от правого края. По умолчанию: 10px."
-                                                        data-tooltip-en="Table container margin from right edge. Default: 10px.">
+                                                       data-bs-placement="top"
+                                                       title="Отступ контейнера с таблицей от правого края. По умолчанию: 10px."
+                                                       data-tooltip-ru="Отступ контейнера с таблицей от правого края. По умолчанию: 10px."
+                                                       data-tooltip-en="Table container margin from right edge. Default: 10px.">
                                                     Table Right Margin (px)
                                                 </label>
                                                 <div class="input-group">
@@ -876,10 +924,10 @@
                                         <div class="row">
                                             <div class="col-md-4 mb-3">
                                                 <label for="footerWidth" class="form-label" data-bs-toggle="tooltip"
-                                                        data-bs-placement="top"
-                                                        title="Ширина колонтитула в пикселях. 800px - стандартное значение."
-                                                        data-tooltip-ru="Ширина колонтитула в пикселях. 800px - стандартное значение."
-                                                        data-tooltip-en="Footer width in pixels. 800px - standard value.">
+                                                       data-bs-placement="top"
+                                                       title="Ширина колонтитула в пикселях. 800px - стандартное значение."
+                                                       data-tooltip-ru="Ширина колонтитула в пикселях. 800px - стандартное значение."
+                                                       data-tooltip-en="Footer width in pixels. 800px - standard value.">
                                                     Width (px)
                                                 </label>
                                                 <div class="input-group">
@@ -890,10 +938,10 @@
 
                                             <div class="col-md-4 mb-3">
                                                 <label for="footerFontSize" class="form-label" data-bs-toggle="tooltip"
-                                                        data-bs-placement="top"
-                                                        title="Размер шрифта текста в колонтитуле. 10px - стандартное значение."
-                                                        data-tooltip-ru="Размер шрифта текста в колонтитуле. 10px - стандартное значение."
-                                                        data-tooltip-en="Footer text font size. 10px - standard value.">
+                                                       data-bs-placement="top"
+                                                       title="Размер шрифта текста в колонтитуле. 10px - стандартное значение."
+                                                       data-tooltip-ru="Размер шрифта текста в колонтитуле. 10px - стандартное значение."
+                                                       data-tooltip-en="Footer text font size. 10px - standard value.">
                                                     Font Size (px)
                                                 </label>
                                                 <div class="input-group">
@@ -904,10 +952,10 @@
 
                                             <div class="col-md-4 mb-3">
                                                 <label for="footerPadding" class="form-label" data-bs-toggle="tooltip"
-                                                        data-bs-placement="top"
-                                                        title="Внутренние отступы колонтитула. Например: '3px 3px'."
-                                                        data-tooltip-ru="Внутренние отступы колонтитула. Например: '3px 3px'."
-                                                        data-tooltip-en="Footer inner padding. Example: '3px 3px'.">
+                                                       data-bs-placement="top"
+                                                       title="Внутренние отступы колонтитула. Например: '3px 3px'."
+                                                       data-tooltip-ru="Внутренние отступы колонтитула. Например: '3px 3px'."
+                                                       data-tooltip-en="Footer inner padding. Example: '3px 3px'.">
                                                     Padding
                                                 </label>
                                                 <div class="input-group">

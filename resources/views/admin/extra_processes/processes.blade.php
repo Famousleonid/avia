@@ -167,20 +167,26 @@
                                                     {{ $notes }}
                                                 </td>
                                                 <td class="text-center">
+{{--                                                    <a href="{{ route('extra_processes.edit', ['extra_process' => $extra_process->id, 'process_name_id' => $processNameId]) }}"--}}
+{{--                                                       class="btn btn-sm btn-outline-primary">{{__('Edit')}}</a>--}}
                                                     <a href="{{ route('extra_processes.edit', ['extra_process' => $extra_process->id, 'process_name_id' => $processNameId]) }}"
-                                                       class="btn btn-sm btn-outline-primary">{{__('Edit')}}</a>
+                                                       class="btn btn-outline-primary btn-sm me-2 ">
+                                                        <i class="bi bi-pencil-square" title=" Process Edit"></i>
+                                                    </a>
                                                     <form id="deleteForm_{{ $extra_process->id }}_{{ $processNameId }}"
                                                           action="{{ route('extra_processes.destroy', ['extra_process' => $extra_process->id]) }}"
-                                                          method="POST" style="display:inline;">
+                                                          method="POST" style="display:inline;" class="delete-process-form">
                                                         @csrf
                                                         @method('DELETE')
                                                         <input type="hidden" name="process_name_id" value="{{ $processNameId }}">
-                                                        <button class="btn btn-sm btn-outline-danger" type="button"
-                                                                name="btn_delete" data-bs-toggle="modal"
-                                                                data-bs-target="#useConfirmDelete"
-                                                                data-title="Delete Confirmation: {{ $processName->name }}">
-                                                            {{__('Delete')}}
-                                                        </button>
+                                                        <button type="submit" class="btn btn-outline-danger btn-sm  ">
+                                                            <i class="bi bi-trash"  title=" Process Delete"></i>
+{{--                                                        <button class="btn btn-sm btn-outline-danger" type="button"--}}
+{{--                                                                name="btn_delete" data-bs-toggle="modal"--}}
+{{--                                                                data-bs-target="#useConfirmDelete"--}}
+{{--                                                                data-title="Delete Confirmation: {{ $processName->name }}">--}}
+{{--                                                            {{__('Delete')}}--}}
+{{--                                                        </button>--}}
                                                     </form>
                                                 </td>
                                                 <td class="text-center">
@@ -211,11 +217,57 @@
                                         @php
                                             $processName = \App\Models\ProcessName::find($processItem['process_name_id']);
                                             $process = \App\Models\Process::find($processItem['process_id']);
+
+                                            // Проверяем, является ли это объединенным NDT процессом
+                                            $isCombinedNdt = false;
+                                            $combinedProcessNames = [];
+                                            $combinedProcessDescriptions = [];
+
+                                            if ($processName && strpos($processName->name, 'NDT-') === 0 && isset($processItem['plus_process_names']) && !empty($processItem['plus_process_names'])) {
+                                                $isCombinedNdt = true;
+                                                $combinedProcessNames[] = $processName->name;
+                                                $combinedProcessDescriptions[] = $process->process ?? '';
+
+                                                // Получаем названия и описания дополнительных NDT процессов
+                                                foreach ($processItem['plus_process_names'] as $plusIndex => $plusProcessNameId) {
+                                                    $plusProcessName = \App\Models\ProcessName::find($plusProcessNameId);
+                                                    if ($plusProcessName) {
+                                                        $combinedProcessNames[] = $plusProcessName->name;
+                                                    }
+
+                                                    // Получаем process_id для дополнительного NDT
+                                                    if (isset($processItem['plus_process_ids'][$plusIndex])) {
+                                                        $plusProcess = \App\Models\Process::find($processItem['plus_process_ids'][$plusIndex]);
+                                                        if ($plusProcess) {
+                                                            $combinedProcessDescriptions[] = $plusProcess->process;
+                                                        }
+                                                    }
+                                                }
+
+                                                // Сортируем номера процессов для отображения
+                                                usort($combinedProcessNames, function($a, $b) {
+                                                    $numA = (int)substr($a, -1);
+                                                    $numB = (int)substr($b, -1);
+                                                    return $numA <=> $numB;
+                                                });
+                                            }
                                         @endphp
                                         @if($processName && $process)
                                             <tr data-id="{{ $extra_process->id }}" data-process-index="{{ $index }}">
-                                                <td class="text-center">{{ $processName->name }}</td>
-                                                <td class="ps-2">{{ $process->process }}</td>
+                                                <td class="text-center">
+                                                    @if($isCombinedNdt)
+                                                        {{ implode(' / ', $combinedProcessNames) }}
+                                                    @else
+                                                        {{ $processName->name }}
+                                                    @endif
+                                                </td>
+                                                <td class="ps-2">
+                                                    @if($isCombinedNdt)
+                                                        {{ implode(' / ', $combinedProcessDescriptions) }}
+                                                    @else
+                                                        {{ $process->process }}
+                                                    @endif
+                                                </td>
                                                 <td class="text-center">
                                                     {{ $processItem['description'] ?? '' }}
                                                 </td>
@@ -224,19 +276,25 @@
                                                 </td>
                                                 <td class="text-center">
                                                     <a href="{{ route('extra_processes.edit', ['extra_process' => $extra_process->id, 'process_index' => $index]) }}"
-                                                       class="btn btn-sm btn-outline-primary">{{__('Edit')}}</a>
+                                                       class="btn btn-outline-primary btn-sm me-2 ">
+                                                        <i class="bi bi-pencil-square" title=" Process Edit"></i>
+                                                    </a>
+{{--                                                    <a href="{{ route('extra_processes.edit', ['extra_process' => $extra_process->id, 'process_index' => $index]) }}"--}}
+{{--                                                       class="btn btn-sm btn-outline-primary">{{__('Edit')}}</a>--}}
                                                     <form id="deleteForm_{{ $extra_process->id }}_{{ $index }}"
                                                           action="{{ route('extra_processes.destroy', ['extra_process' => $extra_process->id]) }}"
-                                                          method="POST" style="display:inline;">
+                                                          method="POST" style="display:inline;" class="delete-process-form">
                                                         @csrf
                                                         @method('DELETE')
                                                         <input type="hidden" name="process_index" value="{{ $index }}">
-                                                        <button class="btn btn-sm btn-outline-danger" type="button"
-                                                                name="btn_delete" data-bs-toggle="modal"
-                                                                data-bs-target="#useConfirmDelete"
-                                                                data-title="Delete Confirmation: {{ $processName->name }}">
-                                                            {{__('Delete')}}
-                                                        </button>
+                                                        <button type="submit" class="btn btn-outline-danger btn-sm  ">
+                                                            <i class="bi bi-trash"  title=" Process Delete"></i>
+{{--                                                        <button class="btn btn-sm btn-outline-danger" type="button"--}}
+{{--                                                                name="btn_delete" data-bs-toggle="modal"--}}
+{{--                                                                data-bs-target="#useConfirmDelete"--}}
+{{--                                                                data-title="Delete Confirmation: {{ $processName->name }}">--}}
+{{--                                                            {{__('Delete')}}--}}
+{{--                                                        </button>--}}
                                                     </form>
                                                 </td>
                                                 <td class="text-center">
@@ -396,6 +454,41 @@
                     const modal = bootstrap.Modal.getInstance(deleteModal);
                     modal.hide();
                 }
+            });
+
+            // Обработчик для форм удаления процессов
+            const deleteForms = document.querySelectorAll('.delete-process-form');
+            deleteForms.forEach(form => {
+                form.addEventListener('submit', function(e) {
+                    e.preventDefault();
+
+                    const formData = new FormData(form);
+
+                    fetch(form.action, {
+                        method: 'POST',
+                        headers: {
+                            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
+                            'Accept': 'application/json',
+                        },
+                        body: formData
+                    })
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.success) {
+                            if (data.redirect) {
+                                window.location.href = data.redirect;
+                            } else {
+                                location.reload();
+                            }
+                        } else {
+                            alert('Error: ' + (data.message || 'Failed to delete process'));
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Error:', error);
+                        alert('Error deleting process');
+                    });
+                });
             });
 
             // Обработчик для дропдауна vendors

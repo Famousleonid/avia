@@ -165,13 +165,24 @@ class WoBushingController extends Controller
         foreach ($groupBushingsData as $groupKey => $groupData) {
             if (isset($groupData['components']) && is_array($groupData['components'])) {
                 foreach ($groupData['components'] as $componentId) {
+
+                    // NDT может быть одним значением или массивом (multiple select)
+                    $ndtInput = $groupData['ndt'] ?? [];
+                    if (is_null($ndtInput) || $ndtInput === '') {
+                        $ndtValues = [];
+                    } elseif (is_array($ndtInput)) {
+                        $ndtValues = array_map('intval', $ndtInput);
+                    } else {
+                        $ndtValues = [(int)$ndtInput];
+                    }
+
                     $bushDataArray[] = [
                         'bushing' => (int)$componentId,
                         'qty' => (int)($groupData['qty'] ?? 1),
                         'processes' => [
                             'machining' => $groupData['machining'] ? (int)$groupData['machining'] : null,
                             'stress_relief' => $groupData['stress_relief'] ? (int)$groupData['stress_relief'] : null,
-                            'ndt' => $groupData['ndt'] ? (int)$groupData['ndt'] : null,
+                            'ndt' => $ndtValues,
                             'passivation' => $groupData['passivation'] ? (int)$groupData['passivation'] : null,
                             'cad' => $groupData['cad'] ? (int)$groupData['cad'] : null,
                             'anodizing' => $groupData['anodizing'] ? (int)$groupData['anodizing'] : null,
@@ -465,13 +476,24 @@ class WoBushingController extends Controller
         foreach ($groupBushingsData as $groupKey => $groupData) {
             if (isset($groupData['components']) && is_array($groupData['components'])) {
                 foreach ($groupData['components'] as $componentId) {
+
+                    // NDT может быть одним значением или массивом (multiple select)
+                    $ndtInput = $groupData['ndt'] ?? [];
+                    if (is_null($ndtInput) || $ndtInput === '') {
+                        $ndtValues = [];
+                    } elseif (is_array($ndtInput)) {
+                        $ndtValues = array_map('intval', $ndtInput);
+                    } else {
+                        $ndtValues = [(int)$ndtInput];
+                    }
+
                     $bushDataArray[] = [
                         'bushing' => (int)$componentId,
                         'qty' => (int)($groupData['qty'] ?? 1),
                         'processes' => [
                             'machining' => $groupData['machining'] ? (int)$groupData['machining'] : null,
                             'stress_relief' => $groupData['stress_relief'] ? (int)$groupData['stress_relief'] : null,
-                            'ndt' => $groupData['ndt'] ? (int)$groupData['ndt'] : null,
+                            'ndt' => $ndtValues,
                             'passivation' => $groupData['passivation'] ? (int)$groupData['passivation'] : null,
                             'cad' => $groupData['cad'] ? (int)$groupData['cad'] : null,
                             'anodizing' => $groupData['anodizing'] ? (int)$groupData['anodizing'] : null,
@@ -573,28 +595,91 @@ class WoBushingController extends Controller
                 ->whereIn('process_names_id', $ndt_ids)
                 ->get();
 
+            // Функция для извлечения номера NDT из имени процесса
+            $getNdtNumber = function($processName) {
+                if (strpos($processName->name, 'NDT-') === 0) {
+                    return substr($processName->name, 4);
+                } elseif ($processName->name === 'Eddy Current Test') {
+                    return '6';
+                } elseif ($processName->name === 'BNI') {
+                    return '5';
+                }
+                return substr($processName->name, -1);
+            };
+
             // Создаем массив данных для отображения в таблице
+            // Группируем NDT процессы по компоненту для объединения номеров
             $tableData = [];
-            if ($bushData) {
+            $componentNdtMap = []; // Карта для группировки NDT по компонентам
+
+            if ($bushData && is_array($bushData)) {
                 foreach ($bushData as $bushItem) {
-                    if (isset($bushItem['bushing']) && isset($bushItem['processes']['ndt'])) {
+                    if (isset($bushItem['bushing']) && isset($bushItem['processes']['ndt']) && !empty($bushItem['processes']['ndt'])) {
                         $component = Component::find($bushItem['bushing']);
-                        if ($component && $bushItem['processes']['ndt']) {
-                            $process = Process::find($bushItem['processes']['ndt']);
-                            if ($process) {
-                                // Получаем конкретный process_name для правильного отображения номера
-                                $specificProcessName = ProcessName::find($process->process_names_id);
-                                $tableData[] = [
-                                    'process_name' => $specificProcessName,
-                                    'process' => $process,
+                        if ($component) {
+                            $componentId = $component->id;
+
+                            // Инициализируем запись для компонента, если её еще нет
+                            if (!isset($componentNdtMap[$componentId])) {
+                                $componentNdtMap[$componentId] = [
                                     'component' => $component,
-                                    'wo_bushing' => $woBushing,
-                                    'qty' => $bushItem['qty'] ?? 1
+                                    'qty' => $bushItem['qty'] ?? 1,
+                                    'ndt_numbers' => [],
+                                    'processes' => []
                                 ];
+                            }
+
+                            // NDT может быть массивом или одним значением
+                            $ndtProcessIds = is_array($bushItem['processes']['ndt'])
+                                ? $bushItem['processes']['ndt']
+                                : [$bushItem['processes']['ndt']];
+
+                            foreach ($ndtProcessIds as $ndtProcessId) {
+                                $process = Process::find($ndtProcessId);
+                                if ($process) {
+                                    // Получаем конкретный process_name для правильного отображения номера
+                                    $specificProcessName = ProcessName::find($process->process_names_id);
+                                    if ($specificProcessName) {
+                                        $ndtNumber = $getNdtNumber($specificProcessName);
+                                        // Добавляем номер, если его еще нет
+                                        if (!in_array($ndtNumber, $componentNdtMap[$componentId]['ndt_numbers'])) {
+                                            $componentNdtMap[$componentId]['ndt_numbers'][] = $ndtNumber;
+                                            $componentNdtMap[$componentId]['processes'][] = $process;
+                                        }
+                                    }
+                                }
                             }
                         }
                     }
                 }
+            }
+
+            // Преобразуем карту в массив tableData с объединенными номерами
+            foreach ($componentNdtMap as $componentData) {
+                if (empty($componentData['ndt_numbers'])) {
+                    continue; // Пропускаем компоненты без NDT номеров
+                }
+
+                // Сортируем номера для правильного отображения (преобразуем в числа для корректной сортировки)
+                $ndtNumbers = $componentData['ndt_numbers'];
+                usort($ndtNumbers, function($a, $b) {
+                    return (int)$a <=> (int)$b;
+                });
+
+                // Объединяем номера через " / "
+                $combinedNdtNumber = implode(' / ', $ndtNumbers);
+
+                // Используем первый процесс для совместимости с шаблоном
+                $firstProcess = !empty($componentData['processes']) ? $componentData['processes'][0] : null;
+
+                $tableData[] = [
+                    'component' => $componentData['component'],
+                    'wo_bushing' => $woBushing,
+                    'qty' => $componentData['qty'],
+                    'combined_ndt_number' => $combinedNdtNumber, // Всегда устанавливаем combined_ndt_number
+                    'process' => $firstProcess,
+                    'process_name' => $firstProcess ? ProcessName::find($firstProcess->process_names_id) : null
+                ];
             }
 
             return view('admin.wo_bushings.processesForm', array_merge($viewData, [
@@ -675,20 +760,20 @@ class WoBushingController extends Controller
     {
         $woBushing = WoBushing::findOrFail($id);
         $current_wo = Workorder::findOrFail($woBushing->workorder_id);
-        
+
         // Получаем связанные данные
         $manual_id = $current_wo->unit->manual_id;
         $components = Component::where('manual_id', $manual_id)->get();
         $manuals = \App\Models\Manual::where('id', $manual_id)->get();
 
         // Получаем данные о втулках
-        $bushData = is_array($woBushing->bush_data) 
-            ? $woBushing->bush_data 
+        $bushData = is_array($woBushing->bush_data)
+            ? $woBushing->bush_data
             : json_decode($woBushing->bush_data, true);
 
         // Группируем втулки по процессам
         $processGroups = [];
-        
+
         if ($bushData) {
             foreach ($bushData as $bushItem) {
                 if (isset($bushItem['bushing']) && isset($bushItem['processes'])) {
@@ -706,17 +791,17 @@ class WoBushingController extends Controller
                             'Anodizing' => 'anodizing',
                             'Xylan' => 'xylan'
                         ];
-                        
+
                         foreach ($processOrder as $processType => $processKey) {
                             // Проверяем, что процесс существует и не равен null
                             if (isset($processes[$processKey]) && $processes[$processKey] !== null) {
                                 $activeProcesses[] = $processType;
                             }
                         }
-                        
+
                         // Создаем уникальный ключ группы БЕЗ сортировки
                         $groupKey = implode('|', $activeProcesses);
-                        
+
                         if (!isset($processGroups[$groupKey])) {
                             $processGroups[$groupKey] = [
                                 'processes' => $activeProcesses,
@@ -724,7 +809,7 @@ class WoBushingController extends Controller
                                 'total_qty' => 0,
                                 'process_numbers' => []
                             ];
-                            
+
                             // Рассчитываем номера процессов для этой группы
                             $processNumber = 1;
                             foreach ($activeProcesses as $process) {
@@ -732,7 +817,7 @@ class WoBushingController extends Controller
                                 $processNumber++;
                             }
                         }
-                        
+
                         $processGroups[$groupKey]['components'][] = [
                             'component' => $component,
                             'qty' => $bushItem['qty'] ?? 1

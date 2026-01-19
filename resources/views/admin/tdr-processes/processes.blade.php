@@ -485,6 +485,41 @@
                                         $processName = $processes->processName ? $processes->processName->name : 'N/A';
                                         // Проверяем, является ли это EC
                                         $isEc = ($ecProcessNameId !== null && (int)$processes->process_names_id === (int)$ecProcessNameId);
+
+                                        // Проверяем, является ли это NDT процесс с дополнительными процессами
+                                        $isNdtWithPlus = false;
+                                        $combinedProcessNames = [];
+                                        $combinedProcessDescriptions = [];
+
+                                        if (strpos($processName, 'NDT-') === 0 && !empty($processes->plus_process)) {
+                                            $isNdtWithPlus = true;
+                                            // Добавляем основной NDT процесс
+                                            $combinedProcessNames[] = $processName;
+
+                                            // Получаем дополнительные NDT процессы
+                                            $plusProcessIds = explode(',', $processes->plus_process);
+                                            foreach ($plusProcessIds as $plusProcessId) {
+                                                $plusProcessName = \App\Models\ProcessName::find(trim($plusProcessId));
+                                                if ($plusProcessName && strpos($plusProcessName->name, 'NDT-') === 0) {
+                                                    $combinedProcessNames[] = $plusProcessName->name;
+                                                }
+                                            }
+
+                                            // Получаем процессы для каждого NDT
+                                            // Процессы для основного NDT
+                                            if (is_array($processData) && !empty($processData)) {
+                                                $mainProcesses = [];
+                                                foreach($processData as $processId) {
+                                                    $proc = $proces->firstWhere('id', $processId);
+                                                    if ($proc) {
+                                                        $mainProcesses[] = $proc->process;
+                                                    }
+                                                }
+                                                if (!empty($mainProcesses)) {
+                                                    $combinedProcessDescriptions[] = implode(', ', $mainProcesses);
+                                                }
+                                            }
+                                        }
                                     @endphp
 
                                     @if(!$processes->processName)
@@ -562,8 +597,66 @@
                                                 </div>
                                             </td>
                                         </tr>
+                                    @elseif($isNdtWithPlus)
+                                        {{-- Для NDT с дополнительными процессами: одна объединенная строка --}}
+                                        <tr data-id="{{ $processes->id }}">
+                                            <td class="text-center">{{ implode(' / ', $combinedProcessNames) }}</td>
+                                            <td class="ps-2">
+                                                @php
+                                                    // Получаем все процессы из массива processes
+                                                    $allProcesses = [];
+                                                    if (is_array($processData) && !empty($processData)) {
+                                                        foreach($processData as $processId) {
+                                                            $proc = $proces->firstWhere('id', $processId);
+                                                            if ($proc) {
+                                                                $allProcesses[] = $proc->process;
+                                                            }
+                                                        }
+                                                    }
+                                                @endphp
+                                                {{ !empty($allProcesses) ? implode(' / ', $allProcesses) : 'No processes' }}@if($processes->ec) ( EC ) @endif
+                                            </td>
+                                            <td class="text-center">
+                                                {{$processes->description ?? ''}}
+                                            </td>
+                                            <td class="text-center">
+                                                {{$processes->notes ?? ''}}
+                                            </td>
+                                            <td class="text-center">
+                                                <a href="{{ route('tdr-processes.edit', ['tdr_process' => $processes->id]) }}"
+                                                   class="btn btn-outline-primary btn-sm me-2">
+                                                    <i class="bi bi-pencil-square" title=" Process Edit"></i>
+                                                </a>
+                                                <form id="deleteForm_{{ $processes->id }}" action="{{ route('tdr-processes.destroy', ['tdr_process' => $processes->id]) }}" method="POST" style="display:inline;">
+                                                    @csrf
+                                                    <input type="hidden" name="tdrId" value="{{ $current_tdr->id }}">
+                                                    @method('DELETE')
+                                                    <button type="submit" class="btn btn-outline-danger btn-sm ">
+                                                        <i class="bi bi-trash"  title=" Process Delete"></i>
+                                                    </button>
+                                                </form>
+                                            </td>
+                                            <td class="text-center">
+                                                <div class="d-flex gap-2 justify-content-center">
+                                                    <select class="form-select form-select-sm vendor-select"
+                                                            style="width: 85px"
+                                                            data-tdr-process-id="{{ $processes->id }}">
+                                                        <option value="">Select Vendor</option>
+                                                        @foreach($vendors as $vendor)
+                                                            <option value="{{ $vendor->id }}">{{ $vendor->name }}</option>
+                                                        @endforeach
+                                                    </select>
+                                                    <a href="{{ route('tdr-processes.show', ['tdr_process' => $processes->id]) }}"
+                                                       class="btn btn-sm btn-outline-primary form-link"
+                                                       style="width: 60px"
+                                                       data-tdr-process-id="{{ $processes->id }}"
+                                                       target="_blank">{{__('Form')}}</a>
+                                                </div>
+                                            </td>
+                                        </tr>
                                     @else
                                         {{-- Для остальных: как раньше, по одной строке на процесс --}}
+                                        {{-- Дополнительные NDT-процессы могут отображаться отдельно, если они созданы как отдельные записи --}}
                                         @if(is_array($processData) && !empty($processData))
                                             @foreach($processData as $process)
                                                 <tr data-id="{{ $processes->id }}">

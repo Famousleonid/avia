@@ -245,14 +245,59 @@
                                                     @php
                                                         $processName = \App\Models\ProcessName::find($processItem['process_name_id']);
                                                         $process = \App\Models\Process::find($processItem['process_id']);
+
+                                                        // Проверяем, является ли это объединенным NDT процессом
+                                                        $isCombinedNdt = false;
+                                                        $combinedProcessNames = [];
+                                                        $combinedProcessDescriptions = [];
+
+                                                        if ($processName && strpos($processName->name, 'NDT-') === 0 && isset($processItem['plus_process_names']) && !empty($processItem['plus_process_names'])) {
+                                                            $isCombinedNdt = true;
+                                                            $combinedProcessNames[] = $processName->name;
+                                                            $combinedProcessDescriptions[] = $process->process ?? '';
+
+                                                            // Получаем названия и описания дополнительных NDT процессов
+                                                            foreach ($processItem['plus_process_names'] as $plusIndex => $plusProcessNameId) {
+                                                                $plusProcessName = \App\Models\ProcessName::find($plusProcessNameId);
+                                                                if ($plusProcessName) {
+                                                                    $combinedProcessNames[] = $plusProcessName->name;
+                                                                }
+
+                                                                // Получаем process_id для дополнительного NDT
+                                                                if (isset($processItem['plus_process_ids'][$plusIndex])) {
+                                                                    $plusProcess = \App\Models\Process::find($processItem['plus_process_ids'][$plusIndex]);
+                                                                    if ($plusProcess) {
+                                                                        $combinedProcessDescriptions[] = $plusProcess->process;
+                                                                    }
+                                                                }
+                                                            }
+
+                                                            // Сортируем номера процессов для отображения
+                                                            usort($combinedProcessNames, function($a, $b) {
+                                                                $numA = (int)substr($a, -1);
+                                                                $numB = (int)substr($b, -1);
+                                                                return $numA <=> $numB;
+                                                            });
+                                                        }
                                                     @endphp
                                                     @if($processName && $process)
                                                         <div class="mb-2 ">
-                                                            <strong>{{ $processName->name }}:</strong>
+                                                            <strong>
+                                                                @if($isCombinedNdt)
+                                                                    {{ implode(' / ', $combinedProcessNames) }}:
+                                                                @else
+                                                                    {{ $processName->name }}:
+                                                                @endif
+                                                            </strong>
 {{--                                                            <br>--}}
                                                             <span class="  ms-2 @if(strlen($process->process) > 40)
-                                                            process-text-long @endif">{{ $process->process
-                                                            }}</span>
+                                                            process-text-long @endif">
+                                                                @if($isCombinedNdt)
+                                                                    {{ implode(' / ', $combinedProcessDescriptions) }}
+                                                                @else
+                                                                    {{ $process->process }}
+                                                                @endif
+                                                            </span>
                                                         </div>
                                                     @endif
                                                 @endforeach

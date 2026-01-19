@@ -73,10 +73,10 @@
                     @method('PUT')
                     <input type="hidden" name="workorder_id" value="{{$current_wo->id }}">
 
-                    <div class="form-group d-flex mb-3">
+                    <div class="form-group d-flex mb-3" >
                         <label for="i_component_id" class="form-label pe-2">Part</label>
 
-                        <select name="component_id" id="i_component_id" class="form-control" style="width: 300px" required>
+                        <select name="component_id" id="i_component_id" class="form-control"  required>
                             <option value="">---</option>
                             @foreach($components as $component)
                                 <option value="{{ $component->id }}"
@@ -87,10 +87,11 @@
                                 </option>
                             @endforeach
                         </select>
-                        <button type="button" class="btn btn-link" data-bs-toggle="modal"
+
+                        <button type="button" class="btn btn-link" data-bs-toggle="modal" style="width: 130px"
                                 data-bs-target="#addComponentModal">{{ __('Add Part') }}
                         </button>
-                    </div>
+            </div>
 
                     <div class="form-group mb-3">
                         <div class="d-flex justify-content-around">

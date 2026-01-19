@@ -50,6 +50,47 @@
             color: #000000;
         }
 
+        /* Увеличенный размер для дополнительного NDT селекта */
+        .select2-ndt-plus + .select2-container .select2-selection--multiple {
+            min-height: 70px !important;
+            padding: 12px !important;
+            font-size: 16px !important;
+            line-height: 1.5 !important;
+            display: flex !important;
+            align-items: center !important;
+        }
+
+        .select2-ndt-plus + .select2-container .select2-selection__rendered {
+            padding: 8px 12px !important;
+            min-height: 60px !important;
+            display: flex !important;
+            flex-wrap: wrap !important;
+            justify-content: flex-end !important;
+            align-items: center !important;
+            flex-grow: 1 !important;
+        }
+
+        .select2-ndt-plus + .select2-container .select2-selection__choice {
+            margin: 6px 6px 6px 0 !important;
+            padding: 8px 12px !important;
+            font-size: 15px !important;
+            line-height: 1.4 !important;
+        }
+
+        .select2-ndt-plus + .select2-container .select2-search--inline {
+            order: -1 !important;
+            flex-grow: 0 !important;
+            margin-right: auto !important;
+        }
+
+        .select2-ndt-plus + .select2-container .select2-search--inline .select2-search__field {
+            padding: 8px 12px !important;
+            font-size: 16px !important;
+            min-height: 40px !important;
+            width: auto !important;
+            min-width: 200px !important;
+        }
+
         .select2-container .select2-selection__clear {
             position: absolute !important;
             right: 10px !important;
@@ -168,6 +209,27 @@
                                     <div class="process-options">
                                         <!-- Здесь будут чекбоксы для выбранного имени процесса -->
                                     </div>
+
+                                    <!-- Дополнительный селект для NDT процессов (скрыт по умолчанию) -->
+                                    <div class="ndt-plus-process-container mt-3" style="display: none; visibility: visible;">
+                                        <label for="ndt_plus_process_0">Additional NDT Process(es):</label>
+                                        <select name="processes[0][ndt_plus_process][]"
+                                                class="form-control select2-ndt-plus"
+                                                id="ndt_plus_process_0"
+                                                data-row-index="0"
+                                                multiple
+                                                style="width: 100%; min-height: 70px; padding: 12px; font-size: 16px;">
+                                            @foreach ($ndtProcessNames as $ndtProcessName)
+                                                <option value="{{ $ndtProcessName->id }}"
+                                                        data-process-name="{{ $ndtProcessName->name }}">
+                                                    {{ $ndtProcessName->name }}
+                                                </option>
+                                            @endforeach
+                                        </select>
+                                        <div class="ndt-plus-process-options mt-2">
+                                            <!-- Здесь будут чекбоксы для дополнительных NDT процессов -->
+                                        </div>
+                                    </div>
                                 </div>
                                 <div class="col-md-4">
 {{--                                    <label for="ec">EC:</label>--}}
@@ -268,7 +330,16 @@
 
         // Данные процессов для использования в динамически создаваемых строках
         const processNamesData = @json($processNames->keyBy('id'));
-        
+
+        // Получаем все NDT process_names_id для проверки
+        const ndtProcessNames = @json($ndtProcessNames->pluck('id')->toArray());
+        const ndtProcessNamesData = @json($ndtProcessNames->keyBy('id'));
+
+        // Функция для проверки, является ли процесс NDT
+        function isNdtProcess(processNameId) {
+            return ndtProcessNames.includes(parseInt(processNameId));
+        }
+
         // Динамическое определение ID процесса Machining для EC checkbox
         // Приоритет: 'Machining (EC)' -> 'Machining' -> 'Machining (Blend)'
         let machiningProcessNameId = null;
@@ -276,7 +347,7 @@
             $machiningEC = $processNames->firstWhere('name', 'Machining (EC)');
             $machining = $processNames->firstWhere('name', 'Machining');
             $machiningBlend = $processNames->firstWhere('name', 'Machining (Blend)');
-            
+
             if ($machiningEC) {
                 $machiningId = $machiningEC->id;
             } elseif ($machining) {
@@ -294,7 +365,7 @@
             machiningProcessNameId = null; // Процесс Machining не найден
             console.warn('Machining process not found in processNames');
         @endif
-        
+
         // Функция для проверки, является ли процесс Machining
         function isMachiningProcess(processNameId) {
             const result = machiningProcessNameId !== null && processNameId == machiningProcessNameId.toString();
@@ -353,6 +424,27 @@
             <div class="process-options">
                 <!-- Здесь будут чекбоксы для выбранного имени процесса -->
             </div>
+
+            <!-- Дополнительный селект для NDT процессов (скрыт по умолчанию) -->
+            <div class="ndt-plus-process-container mt-3" style="display: none; visibility: visible;">
+                <label for="ndt_plus_process_${index}">Additional NDT Process(es):</label>
+                <select name="processes[${index}][ndt_plus_process][]"
+                        class="form-control select2-ndt-plus"
+                        id="ndt_plus_process_${index}"
+                        data-row-index="${index}"
+                        multiple
+                        style="width: 100%; min-height: 70px; padding: 12px; font-size: 16px;">
+                    @foreach ($ndtProcessNames as $ndtProcessName)
+                        <option value="{{ $ndtProcessName->id }}"
+                                data-process-name="{{ $ndtProcessName->name }}">
+                            {{ $ndtProcessName->name }}
+                        </option>
+                    @endforeach
+                </select>
+                <div class="ndt-plus-process-options mt-2">
+                    <!-- Здесь будут чекбоксы для дополнительных NDT процессов -->
+                </div>
+            </div>
         </div>
         <div class="col-md-2">
              {{--                                    <label for="ec">EC:</label>
@@ -386,7 +478,7 @@
                     const selectElement = e.target;
                     const processNameId = selectElement.value;
                     const processRow = selectElement.closest('.process-row');
-                    
+
                     // Показываем/скрываем чекбокс EC для Machining
                     const ecCheckbox = processRow.querySelector('input[name*="[ec]"]');
                     if (ecCheckbox) {
@@ -396,9 +488,40 @@
                             ecCheckbox.closest('.form-check').style.display = 'none';
                         }
                     }
-                    
+
                     loadProcessesForRow(selectElement);
+
+                    // Если это NDT процесс, обновляем опции дополнительного селекта (исключаем выбранный)
+                    if (isNdtProcess(processNameId)) {
+                        const ndtPlusSelect = processRow.querySelector('.select2-ndt-plus');
+                        if (ndtPlusSelect) {
+                            // Удаляем опцию с выбранным NDT процессом
+                            $(ndtPlusSelect).find(`option[value="${processNameId}"]`).remove();
+                            $(ndtPlusSelect).trigger('change');
+                        }
+                    }
                 });
+
+                // Инициализируем Select2 для дополнительного селекта NDT (множественный выбор)
+                $(newRow).find('.select2-ndt-plus').select2({
+                    theme: 'bootstrap-5',
+                    width: '100%',
+                    multiple: true,
+                    placeholder: 'Select Additional NDT Process(es)'
+                });
+
+                // Исключаем уже выбранный NDT процесс из дополнительного селекта при инициализации
+                const processNameSelect = newRow.querySelector('.select2-process');
+                if (processNameSelect && processNameSelect.value) {
+                    const processNameId = processNameSelect.value;
+                    if (isNdtProcess(processNameId)) {
+                        const ndtPlusSelect = newRow.querySelector('.select2-ndt-plus');
+                        if (ndtPlusSelect) {
+                            $(ndtPlusSelect).find(`option[value="${processNameId}"]`).remove();
+                            $(ndtPlusSelect).trigger('change');
+                        }
+                    }
+                }
             }
         });
 
@@ -427,6 +550,33 @@
                     hasCheckedCheckbox = true; // Хотя бы один чекбокс отмечен
                 });
 
+                // Собираем данные о дополнительных NDT процессах (множественный выбор)
+                const ndtPlusSelect = row.querySelector('.select2-ndt-plus');
+                const ndtPlusProcessNameIds = [];
+                const ndtPlusProcessIds = [];
+
+                if (ndtPlusSelect) {
+                    // Получаем все выбранные дополнительные NDT process_names_id из селекта
+                    const selectedNdtPlusProcessNameIds = Array.from(ndtPlusSelect.selectedOptions).map(opt => opt.value);
+
+                    // Получаем выбранные процессы для всех дополнительных NDT
+                    const ndtPlusCheckboxes = row.querySelectorAll('.ndt-plus-process-checkbox:checked');
+                    ndtPlusCheckboxes.forEach(checkbox => {
+                        const ndtProcessNameId = checkbox.getAttribute('data-ndt-process-name-id');
+                        // Проверяем, что это процессы для одного из выбранных дополнительных NDT
+                        if (selectedNdtPlusProcessNameIds.includes(ndtProcessNameId)) {
+                            ndtPlusProcessIds.push(parseInt(checkbox.value));
+                        }
+                    });
+
+                    // Добавляем все выбранные process_names_id дополнительных NDT
+                    selectedNdtPlusProcessNameIds.forEach(id => {
+                        if (id && !ndtPlusProcessNameIds.includes(id)) {
+                            ndtPlusProcessNameIds.push(id);
+                        }
+                    });
+                }
+
                 // Получаем значение чекбокса EC
                 const ecCheckbox = row.querySelector('input[name*="[ec]"]');
                 const ecValue = ecCheckbox ? ecCheckbox.checked : false;
@@ -440,9 +590,18 @@
                 const notesValue = notesInput ? notesInput.value.trim() : null;
 
                 if (selectedProcessIds.length > 0) {
+                    // Объединяем все процессы (основные + дополнительные NDT)
+                    const allProcessIds = [...selectedProcessIds, ...ndtPlusProcessIds];
+
+                    // Формируем строку plus_process из всех выбранных дополнительных NDT process_names_id
+                    const plusProcessString = ndtPlusProcessNameIds.length > 0
+                        ? ndtPlusProcessNameIds.sort((a, b) => parseInt(a) - parseInt(b)).join(',')
+                        : null;
+
                     processesData.push({
                         process_names_id: processNameId,
-                        processes: selectedProcessIds, // Сохраняем массив ID процессов
+                        plus_process: plusProcessString, // Дополнительные NDT process_names_id через запятую (отсортированные)
+                        processes: allProcessIds, // Объединенный массив ID процессов
                         ec: ecValue, // Добавляем значение EC
                         description: descriptionValue || null, // Добавляем значение description
                         notes: notesValue || null // Добавляем значение notes
@@ -499,7 +658,7 @@
                 .catch(error => {
                     console.error('Error:', error);
                     const errorMessage = error.message || 'Error saving processes.';
-                    
+
                     // Показываем уведомление об ошибке
                     if (window.NotificationHandler) {
                         window.NotificationHandler.error('Ошибка при сохранении процессов: ' + errorMessage);
@@ -541,9 +700,9 @@
                 })
                 .then(data => {
                     processOptionsContainer.innerHTML = ''; // Очищаем контейнер
-                    
+
                     let hasProcesses = false;
-                    
+
                     // Отображаем только existingProcesses (уже связанные с manual_id)
                     // Не отмечены, без пометки "(existing)"
                     if (data.existingProcesses && data.existingProcesses.length > 0) {
@@ -558,11 +717,63 @@
                             hasProcesses = true;
                         });
                     }
-                    
+
                     // availableProcesses не отображаем на странице, только в модальном окне
-                    
+
                     if (hasProcesses) {
                         saveButton.disabled = false;
+
+                        // Если это NDT процесс и есть выбранные процессы, показываем дополнительный селект
+                        if (isNdtProcess(processNameId)) {
+                            const ndtPlusContainer = processRow.querySelector('.ndt-plus-process-container');
+                            if (ndtPlusContainer) {
+                                // Проверяем, есть ли уже выбранные процессы
+                                const checkedBoxes = processRow.querySelectorAll('.process-options input[type="checkbox"]:checked');
+                                if (checkedBoxes.length > 0) {
+                                    // Убеждаемся, что контейнер виден
+                                    ndtPlusContainer.style.display = 'block';
+                                    ndtPlusContainer.style.visibility = 'visible';
+                                    ndtPlusContainer.style.opacity = '1';
+
+                                    // Инициализируем Select2, если еще не инициализирован
+                                    const ndtPlusSelect = ndtPlusContainer.querySelector('.select2-ndt-plus');
+                                    if (ndtPlusSelect && typeof $ !== 'undefined' && $.fn.select2) {
+                                        if (!$(ndtPlusSelect).hasClass('select2-hidden-accessible')) {
+                                            setTimeout(function() {
+                                                $(ndtPlusSelect).select2({
+                                                    theme: 'bootstrap-5',
+                                                    width: '100%',
+                                                    multiple: true,
+                                                    placeholder: 'Select Additional NDT Process(es)',
+                                                    dropdownParent: $(ndtPlusContainer)
+                                                }).on('select2:select select2:unselect', function (e) {
+                                                    const selectElement = e.target;
+                                                    const selectedValues = $(selectElement).val() || [];
+                                                    if (selectedValues.length > 0) {
+                                                        loadNdtPlusProcesses(selectElement);
+                                                    } else {
+                                                        const processRow = selectElement.closest('.process-row');
+                                                        const ndtPlusOptionsContainer = processRow ? processRow.querySelector('.ndt-plus-process-options') : null;
+                                                        if (ndtPlusOptionsContainer) {
+                                                            ndtPlusOptionsContainer.innerHTML = '';
+                                                        }
+                                                    }
+                                                });
+
+                                                // Исключаем выбранный основной NDT процесс из опций
+                                                $(ndtPlusSelect).find('option').each(function() {
+                                                    if ($(this).val() === processNameId) {
+                                                        $(this).prop('disabled', true);
+                                                    } else {
+                                                        $(this).prop('disabled', false);
+                                                    }
+                                                });
+                                            }, 100);
+                                        }
+                                    }
+                                }
+                            }
+                        }
                     } else {
                         const noSpecLabel = document.createElement('div');
                         noSpecLabel.classList.add('text-muted', 'mt-2');
@@ -575,7 +786,7 @@
                     console.error('Ошибка при получении процессов:', error);
                     processOptionsContainer.innerHTML = `<div class="text-danger">Error loading processes: ${error.message}</div>`;
                     saveButton.disabled = true;
-                    
+
                     // Показываем уведомление об ошибке
                     if (window.NotificationHandler) {
                         window.NotificationHandler.error('Ошибка при загрузке процессов');
@@ -584,6 +795,611 @@
                     }
                 });
         }
+
+        // Функция для загрузки процессов дополнительных NDT (для множественного выбора)
+        function loadNdtPlusProcesses(selectElement) {
+            // Получаем выбранные значения через Select2 API или напрямую
+            let selectedNdtProcessNameIds = [];
+            if (typeof $ !== 'undefined' && $(selectElement).hasClass('select2-hidden-accessible')) {
+                // Если Select2 инициализирован, используем его API
+                selectedNdtProcessNameIds = $(selectElement).val() || [];
+            } else {
+                // Если Select2 не инициализирован, используем обычный способ
+                selectedNdtProcessNameIds = Array.from(selectElement.selectedOptions || selectElement.options).filter(opt => opt.selected).map(opt => opt.value);
+            }
+            const processRow = selectElement.closest('.process-row');
+            const ndtPlusOptionsContainer = processRow.querySelector('.ndt-plus-process-options');
+            const manualId = document.getElementById('processes-container').dataset.manualId;
+            const rowIndex = selectElement.getAttribute('data-row-index') || '0';
+
+            if (!selectedNdtProcessNameIds.length || !ndtPlusOptionsContainer) {
+                ndtPlusOptionsContainer.innerHTML = '';
+                return;
+            }
+
+            ndtPlusOptionsContainer.innerHTML = '<div class="text-muted">Loading processes...</div>';
+
+            // Загружаем процессы для всех выбранных дополнительных NDT
+            const loadPromises = selectedNdtProcessNameIds.map(processNameId => {
+                return fetch(`{{ route('processes.getProcesses') }}?processNameId=${processNameId}&manualId=${manualId}`)
+                    .then(response => {
+                        if (!response.ok) {
+                            return response.json().then(err => {
+                                throw new Error(err.error || err.message || 'Network response was not ok');
+                            });
+                        }
+                        return response.json();
+                    })
+                    .then(data => {
+                        return { processNameId, processes: data.existingProcesses || [] };
+                    });
+            });
+
+            Promise.all(loadPromises)
+                .then(results => {
+                    ndtPlusOptionsContainer.innerHTML = '';
+
+                    results.forEach(({ processNameId, processes }) => {
+                        if (processes.length > 0) {
+                            // Получаем название процесса для заголовка
+                            let processName = `NDT-${processNameId}`;
+                            if (typeof $ !== 'undefined' && $(selectElement).hasClass('select2-hidden-accessible')) {
+                                const processNameOption = $(selectElement).find(`option[value="${processNameId}"]`);
+                                if (processNameOption.length > 0) {
+                                    processName = processNameOption.text();
+                                }
+                            } else {
+                                const processNameOption = selectElement.querySelector(`option[value="${processNameId}"]`);
+                                if (processNameOption) {
+                                    processName = processNameOption.textContent;
+                                }
+                            }
+
+                            // Добавляем заголовок для группы процессов
+                            const header = document.createElement('div');
+                            header.classList.add('mt-2', 'mb-1');
+                            header.innerHTML = `<strong>${processName}:</strong>`;
+                            ndtPlusOptionsContainer.appendChild(header);
+
+                            // Добавляем чекбоксы для процессов
+                            processes.forEach(process => {
+                                const checkbox = document.createElement('div');
+                                checkbox.classList.add('form-check');
+                                checkbox.innerHTML = `
+                                    <input type="checkbox" name="processes[${rowIndex}][ndt_plus_processes][]"
+                                           value="${process.id}"
+                                           class="form-check-input ndt-plus-process-checkbox"
+                                           data-ndt-process-name-id="${processNameId}">
+                                    <label class="form-check-label">${process.process}</label>
+                                `;
+                                ndtPlusOptionsContainer.appendChild(checkbox);
+                            });
+                        }
+                    });
+
+                    if (ndtPlusOptionsContainer.children.length === 0) {
+                        ndtPlusOptionsContainer.innerHTML = '<div class="text-muted">No processes available</div>';
+                    }
+                })
+                .catch(error => {
+                    console.error('Ошибка при получении дополнительных NDT процессов:', error);
+                    ndtPlusOptionsContainer.innerHTML = `<div class="text-danger">Error loading processes: ${error.message}</div>`;
+                });
+        }
+
+        // Обработчик изменения чекбоксов процессов - показываем/скрываем дополнительный селект NDT
+        document.addEventListener('change', function(event) {
+            if (event.target.matches('.process-options input[type="checkbox"]')) {
+                const checkbox = event.target;
+                const processRow = checkbox.closest('.process-row');
+
+                if (!processRow) {
+                    console.error('Process row not found');
+                    return;
+                }
+
+                const processNameSelect = processRow.querySelector('.select2-process');
+                const processNameId = processNameSelect ? processNameSelect.value : null;
+
+                console.log('Checkbox changed, processNameId:', processNameId);
+                console.log('Process row:', processRow);
+
+                // Ищем контейнер разными способами
+                let ndtPlusContainer = processRow.querySelector('.ndt-plus-process-container');
+                if (!ndtPlusContainer) {
+                    // Пробуем найти в col-md-5
+                    const colMd5 = processRow.querySelector('.col-md-5');
+                    if (colMd5) {
+                        ndtPlusContainer = colMd5.querySelector('.ndt-plus-process-container');
+                    }
+                }
+                if (!ndtPlusContainer) {
+                    // Пробуем найти по ID
+                    const rowIndex = processRow.querySelector('.select2-process')?.name?.match(/processes\[(\d+)\]/)?.[1] || '0';
+                    ndtPlusContainer = document.getElementById(`ndt_plus_process_${rowIndex}`)?.closest('.ndt-plus-process-container');
+                }
+
+                console.log('NDT Plus container found:', ndtPlusContainer);
+
+                if (processNameId && isNdtProcess(processNameId)) {
+                    if (!ndtPlusContainer) {
+                        console.error('NDT Plus container not found in DOM!');
+                        console.log('Process row HTML:', processRow.innerHTML.substring(0, 500));
+                        return;
+                    }
+
+                    // Проверяем, есть ли хотя бы один выбранный процесс
+                    const checkedBoxes = processRow.querySelectorAll('.process-options input[type="checkbox"]:checked');
+                    console.log('Checked boxes count:', checkedBoxes.length);
+
+                    if (checkedBoxes.length > 0) {
+                        // Используем requestAnimationFrame для гарантии, что изменения применятся после всех других обработчиков
+                        requestAnimationFrame(function() {
+                        // Принудительно показываем контейнер
+                        ndtPlusContainer.style.display = 'block';
+                        ndtPlusContainer.style.visibility = 'visible';
+                        ndtPlusContainer.style.opacity = '1';
+                        ndtPlusContainer.style.height = 'auto';
+                        ndtPlusContainer.style.overflow = 'visible';
+
+                        // Убеждаемся, что все дочерние элементы видимы
+                        const allChildren = ndtPlusContainer.querySelectorAll('*');
+                        allChildren.forEach(child => {
+                            if (child.style) {
+                                if (child.style.display === 'none') {
+                                    child.style.display = '';
+                                }
+                                if (child.style.visibility === 'hidden') {
+                                    child.style.visibility = '';
+                                }
+                            }
+                        });
+
+                        console.log('NDT Plus container display:', window.getComputedStyle(ndtPlusContainer).display);
+                        console.log('NDT Plus container visibility:', window.getComputedStyle(ndtPlusContainer).visibility);
+
+                        // Устанавливаем z-index и position для контейнера, чтобы он не был перекрыт
+                        ndtPlusContainer.style.setProperty('position', 'relative', 'important');
+                        ndtPlusContainer.style.setProperty('z-index', '1000', 'important');
+
+                        // Инициализируем Select2 для дополнительного селекта, если еще не инициализирован
+                        const ndtPlusSelect = ndtPlusContainer.querySelector('.select2-ndt-plus');
+                        if (ndtPlusSelect) {
+                            console.log('NDT Plus container shown, select found:', ndtPlusSelect);
+
+                            // Исключаем уже выбранный NDT процесс из опций
+                            if (processNameId) {
+                                const optionToRemove = ndtPlusSelect.querySelector(`option[value="${processNameId}"]`);
+                                if (optionToRemove) {
+                                    optionToRemove.remove();
+                                }
+                            }
+
+                            if (typeof $ !== 'undefined' && $.fn.select2) {
+                                // Используем setTimeout для инициализации после показа контейнера
+                                setTimeout(function() {
+                                    // Проверяем, инициализирован ли уже Select2
+                                    const isSelect2Initialized = $(ndtPlusSelect).hasClass('select2-hidden-accessible');
+
+                                    if (!isSelect2Initialized) {
+                                        console.log('Initializing Select2 for NDT Plus select');
+                                        $(ndtPlusSelect).select2({
+                                            theme: 'bootstrap-5',
+                                            width: '100%',
+                                            multiple: true,
+                                            placeholder: 'Select Additional NDT Process(es)'
+                                        }).on('select2:select select2:unselect', function (e) {
+                                            // Обработчик изменения выбора дополнительных NDT процессов
+                                            const selectElement = e.target;
+                                            const selectedValues = $(selectElement).val() || [];
+                                            if (selectedValues.length > 0) {
+                                                loadNdtPlusProcesses(selectElement);
+                                            } else {
+                                                const processRow = selectElement.closest('.process-row');
+                                                const ndtPlusOptionsContainer = processRow ? processRow.querySelector('.ndt-plus-process-options') : null;
+                                                if (ndtPlusOptionsContainer) {
+                                                    ndtPlusOptionsContainer.innerHTML = '';
+                                                }
+                                            }
+                                        });
+
+                                        // Принудительно показываем контейнер и Select2 элементы после инициализации
+                                        setTimeout(function() {
+                                            // Проверяем и устанавливаем стили для контейнера
+                                            const computedStyle = window.getComputedStyle(ndtPlusContainer);
+                                            if (computedStyle.display === 'none' || computedStyle.visibility === 'hidden') {
+                                                console.warn('Container hidden after Select2 init, forcing visibility');
+                                                ndtPlusContainer.style.setProperty('display', 'block', 'important');
+                                                ndtPlusContainer.style.setProperty('visibility', 'visible', 'important');
+                                                ndtPlusContainer.style.setProperty('opacity', '1', 'important');
+                                                ndtPlusContainer.style.setProperty('position', 'relative', 'important');
+                                                ndtPlusContainer.style.setProperty('z-index', '1000', 'important');
+                                            }
+
+                                            // Проверяем и устанавливаем стили для Select2 контейнера
+                                            const select2Container = $(ndtPlusSelect).next('.select2-container');
+                                            if (select2Container.length > 0) {
+                                                const select2ComputedStyle = window.getComputedStyle(select2Container[0]);
+                                                if (select2ComputedStyle.display === 'none' || select2ComputedStyle.visibility === 'hidden') {
+                                                    console.warn('Select2 container hidden after init, forcing visibility');
+                                                    select2Container.css({
+                                                        'display': 'inline-block !important',
+                                                        'visibility': 'visible !important',
+                                                        'opacity': '1 !important',
+                                                        'position': 'relative !important',
+                                                        'z-index': '1001 !important'
+                                                    });
+                                                }
+
+                                                // Проверяем видимость через getBoundingClientRect
+                                                const rect = select2Container[0].getBoundingClientRect();
+                                                console.log('Select2 container bounding rect:', {
+                                                    top: rect.top,
+                                                    left: rect.left,
+                                                    width: rect.width,
+                                                    height: rect.height,
+                                                    visible: rect.width > 0 && rect.height > 0
+                                                });
+
+                                                if (rect.width === 0 || rect.height === 0) {
+                                                    console.error('Select2 container has zero dimensions!');
+                                                    select2Container.css({
+                                                        'display': 'inline-block !important',
+                                                        'visibility': 'visible !important',
+                                                        'opacity': '1 !important',
+                                                        'width': '100% !important',
+                                                        'min-height': '38px !important'
+                                                    });
+                                                }
+                                            } else {
+                                                console.error('Select2 container not found after initialization!');
+                                            }
+                                        }, 100);
+                                    } else {
+                                        console.log('Select2 already initialized for NDT Plus select, updating visibility...');
+                                        // Если Select2 уже инициализирован, обновляем видимость визуального контейнера
+                                        // Сначала уничтожаем старый экземпляр
+                                        $(ndtPlusSelect).select2('destroy');
+
+                                        // Затем инициализируем заново
+                                        $(ndtPlusSelect).select2({
+                                            theme: 'bootstrap-5',
+                                            width: '100%',
+                                            multiple: true,
+                                            placeholder: 'Select Additional NDT Process(es)'
+                                        }).on('select2:select select2:unselect', function (e) {
+                                            // Обработчик изменения выбора дополнительных NDT процессов
+                                            const selectElement = e.target;
+                                            const selectedValues = $(selectElement).val() || [];
+                                            if (selectedValues.length > 0) {
+                                                loadNdtPlusProcesses(selectElement);
+                                            } else {
+                                                const processRow = selectElement.closest('.process-row');
+                                                const ndtPlusOptionsContainer = processRow ? processRow.querySelector('.ndt-plus-process-options') : null;
+                                                if (ndtPlusOptionsContainer) {
+                                                    ndtPlusOptionsContainer.innerHTML = '';
+                                                }
+                                            }
+                                        });
+
+                                        // Принудительно показываем контейнер и Select2 элементы после переинициализации
+                                        setTimeout(function() {
+                                            // Проверяем и устанавливаем стили для контейнера
+                                            const computedStyle = window.getComputedStyle(ndtPlusContainer);
+                                            if (computedStyle.display === 'none' || computedStyle.visibility === 'hidden') {
+                                                console.warn('Container hidden after Select2 re-init, forcing visibility');
+                                                ndtPlusContainer.style.setProperty('display', 'block', 'important');
+                                                ndtPlusContainer.style.setProperty('visibility', 'visible', 'important');
+                                                ndtPlusContainer.style.setProperty('opacity', '1', 'important');
+                                                ndtPlusContainer.style.setProperty('position', 'relative', 'important');
+                                                ndtPlusContainer.style.setProperty('z-index', '1000', 'important');
+                                            }
+
+                                            // Проверяем и устанавливаем стили для Select2 контейнера
+                                            const select2Container = $(ndtPlusSelect).next('.select2-container');
+                                            if (select2Container.length > 0) {
+                                                const select2ComputedStyle = window.getComputedStyle(select2Container[0]);
+                                                if (select2ComputedStyle.display === 'none' || select2ComputedStyle.visibility === 'hidden') {
+                                                    console.warn('Select2 container hidden after re-init, forcing visibility');
+                                                    select2Container.css({
+                                                        'display': 'inline-block !important',
+                                                        'visibility': 'visible !important',
+                                                        'opacity': '1 !important',
+                                                        'position': 'relative !important',
+                                                        'z-index': '1001 !important'
+                                                    });
+                                                }
+
+                                                // Проверяем видимость через getBoundingClientRect
+                                                const rect = select2Container[0].getBoundingClientRect();
+                                                console.log('Select2 container bounding rect after re-init:', {
+                                                    top: rect.top,
+                                                    left: rect.left,
+                                                    width: rect.width,
+                                                    height: rect.height,
+                                                    visible: rect.width > 0 && rect.height > 0
+                                                });
+
+                                                if (rect.width === 0 || rect.height === 0) {
+                                                    console.error('Select2 container has zero dimensions after re-init!');
+                                                    select2Container.css({
+                                                        'display': 'inline-block !important',
+                                                        'visibility': 'visible !important',
+                                                        'opacity': '1 !important',
+                                                        'width': '100% !important',
+                                                        'min-height': '38px !important'
+                                                    });
+                                                }
+                                            } else {
+                                                console.error('Select2 container not found after re-initialization!');
+                                            }
+                                        }, 100);
+                                    }
+
+                                    // Исключаем выбранный основной NDT процесс из опций
+                                    $(ndtPlusSelect).find('option').each(function() {
+                                        if ($(this).val() === processNameId) {
+                                            $(this).prop('disabled', true);
+                                        } else {
+                                            $(this).prop('disabled', false);
+                                        }
+                                    });
+
+                                    // Обновляем Select2 для применения изменений
+                                    $(ndtPlusSelect).trigger('change');
+
+                                    // Убеждаемся, что оригинальный select скрыт (это нормально для Select2)
+                                    $(ndtPlusSelect).css('display', 'none');
+
+                                    // Убеждаемся, что визуальный контейнер Select2 виден
+                                    // Select2 создает контейнер после оригинального select
+                                    setTimeout(function() {
+                                        const select2Container = $(ndtPlusSelect).next('.select2-container');
+                                        if (select2Container.length > 0) {
+                                            // Принудительно показываем контейнер и все его элементы
+                                            select2Container.css({
+                                                'display': 'inline-block',
+                                                'visibility': 'visible',
+                                                'opacity': '1',
+                                                'height': 'auto',
+                                                'width': '100%',
+                                                'min-height': '38px'
+                                            });
+
+                                            // Проверяем и показываем внутренние элементы
+                                            const select2Selection = select2Container.find('.select2-selection');
+                                            if (select2Selection.length > 0) {
+                                                select2Selection.css({
+                                                    'display': 'flex',
+                                                    'visibility': 'visible',
+                                                    'opacity': '1',
+                                                    'min-height': '38px'
+                                                });
+                                                console.log('Select2 selection found and made visible');
+                                            }
+
+                                            const select2SelectionRendered = select2Container.find('.select2-selection__rendered');
+                                            if (select2SelectionRendered.length > 0) {
+                                                select2SelectionRendered.css({
+                                                    'display': 'block',
+                                                    'visibility': 'visible'
+                                                });
+                                            }
+
+                                            console.log('Select2 container found and made visible:', select2Container);
+                                            console.log('Select2 container computed display:', window.getComputedStyle(select2Container[0]).display);
+                                            console.log('Select2 container computed visibility:', window.getComputedStyle(select2Container[0]).visibility);
+                                            console.log('Select2 container computed height:', window.getComputedStyle(select2Container[0]).height);
+                                            console.log('Select2 container computed width:', window.getComputedStyle(select2Container[0]).width);
+                                            console.log('Select2 container position:', select2Container.position());
+
+                                            // Убеждаемся, что контейнер находится в правильном месте в DOM
+                                            const selectParent = $(ndtPlusSelect).parent();
+                                            const containerParent = select2Container.parent();
+                                            console.log('Select parent:', selectParent[0]);
+                                            console.log('Container parent:', containerParent[0]);
+                                            console.log('Are parents the same?', selectParent[0] === containerParent[0]);
+
+                                            // Убеждаемся, что контейнер находится сразу после select
+                                            const selectNextSibling = ndtPlusSelect.nextElementSibling;
+                                            if (!selectNextSibling || !selectNextSibling.classList.contains('select2-container')) {
+                                                console.log('Moving Select2 container to correct position after select');
+                                                // Если контейнер уже существует, перемещаем его
+                                                if (select2Container.length > 0) {
+                                                    select2Container.detach();
+                                                    $(ndtPlusSelect).after(select2Container);
+                                                }
+                                            } else {
+                                                console.log('Select2 container is already in correct position');
+                                            }
+
+                                            // Убеждаемся, что контейнер имеет правильную ширину
+                                            const containerWidth = ndtPlusContainer.offsetWidth || $(ndtPlusContainer).width();
+                                            if (containerWidth > 0) {
+                                                select2Container.css('width', containerWidth + 'px');
+                                                console.log('Set Select2 container width to:', containerWidth + 'px');
+                                            }
+
+                                            // Дополнительная проверка через небольшую задержку
+                                            setTimeout(function() {
+                                                const computedStyle = window.getComputedStyle(select2Container[0]);
+                                                if (computedStyle.display === 'none' || computedStyle.visibility === 'hidden') {
+                                                    console.warn('Select2 container still hidden, forcing visibility again');
+                                                    select2Container.css({
+                                                        'display': 'inline-block !important',
+                                                        'visibility': 'visible !important',
+                                                        'opacity': '1 !important'
+                                                    });
+                                                }
+
+                                                // Проверяем, что контейнер действительно виден на странице
+                                                const rect = select2Container[0].getBoundingClientRect();
+                                                console.log('Select2 container bounding rect:', {
+                                                    top: rect.top,
+                                                    left: rect.left,
+                                                    width: rect.width,
+                                                    height: rect.height,
+                                                    visible: rect.width > 0 && rect.height > 0
+                                                });
+                                            }, 100);
+                                        } else {
+                                            console.warn('Select2 container not found, trying to find by class');
+                                            // Пробуем найти контейнер другим способом
+                                            const allSelect2Containers = $('.select2-container');
+                                            console.log('Total Select2 containers found:', allSelect2Containers.length);
+                                            // Ищем контейнер, который связан с нашим селектом
+                                            const select2Id = $(ndtPlusSelect).attr('data-select2-id');
+                                            if (select2Id) {
+                                                const containerById = $(`.select2-container[data-select2-id="${select2Id}"]`);
+                                                if (containerById.length > 0) {
+                                                    containerById.css({
+                                                        'display': 'inline-block !important',
+                                                        'visibility': 'visible !important',
+                                                        'opacity': '1 !important'
+                                                    });
+                                                    console.log('Select2 container found by ID and made visible');
+                                                }
+                                            }
+                                        }
+                                    }, 200);
+                                }, 200);
+                            } else {
+                                console.warn('jQuery or Select2 not available');
+                            }
+                        } else {
+                            console.error('NDT Plus select not found in container');
+                        }
+
+                        });
+
+                        // Защита от скрытия контейнера - используем MutationObserver для отслеживания изменений
+                        const checkedBoxesCount = checkedBoxes.length;
+                        if (checkedBoxesCount > 0 && ndtPlusContainer) {
+                            // Функция для принудительного показа контейнера
+                            const forceShowContainer = function() {
+                                const currentCheckedBoxes = processRow.querySelectorAll('.process-options input[type="checkbox"]:checked');
+                                if (currentCheckedBoxes.length > 0) {
+                                    const computedStyle = window.getComputedStyle(ndtPlusContainer);
+                                    if (computedStyle.display === 'none' || computedStyle.visibility === 'hidden') {
+                                        console.warn('Container was hidden, forcing visibility');
+                                        ndtPlusContainer.style.setProperty('display', 'block', 'important');
+                                        ndtPlusContainer.style.setProperty('visibility', 'visible', 'important');
+                                        ndtPlusContainer.style.setProperty('opacity', '1', 'important');
+                                        ndtPlusContainer.style.setProperty('height', 'auto', 'important');
+
+                                        // Также проверяем Select2 контейнер
+                                        const ndtPlusSelectAfter = ndtPlusContainer.querySelector('.select2-ndt-plus');
+                                        if (ndtPlusSelectAfter && typeof $ !== 'undefined' && $.fn.select2) {
+                                            const select2Container = $(ndtPlusSelectAfter).next('.select2-container');
+                                            if (select2Container.length > 0) {
+                                                select2Container.css({
+                                                    'display': 'inline-block !important',
+                                                    'visibility': 'visible !important',
+                                                    'opacity': '1 !important'
+                                                });
+                                            }
+                                        }
+                                    }
+                                }
+                            };
+
+                            // Создаем наблюдатель за изменениями стилей контейнера
+                            const observer = new MutationObserver(function(mutations) {
+                                mutations.forEach(function(mutation) {
+                                    if (mutation.type === 'attributes' && (mutation.attributeName === 'style' || mutation.attributeName === 'class')) {
+                                        setTimeout(forceShowContainer, 10);
+                                    }
+                                });
+                            });
+
+                            // Начинаем наблюдение за изменениями атрибутов
+                            observer.observe(ndtPlusContainer, {
+                                attributes: true,
+                                attributeFilter: ['style', 'class'],
+                                attributeOldValue: true
+                            });
+
+                            // Также наблюдаем за родительскими элементами
+                            const parentObserver = new MutationObserver(function(mutations) {
+                                setTimeout(forceShowContainer, 10);
+                            });
+
+                            // Наблюдаем за родительским элементом
+                            const parentElement = ndtPlusContainer.parentElement;
+                            if (parentElement) {
+                                parentObserver.observe(parentElement, {
+                                    attributes: true,
+                                    attributeFilter: ['style', 'class'],
+                                    childList: true,
+                                    subtree: true
+                                });
+                            }
+
+                            // Сохраняем наблюдатели для последующей очистки
+                            ndtPlusContainer._visibilityObserver = observer;
+                            ndtPlusContainer._parentObserver = parentObserver;
+
+                            // Также проверяем через задержку периодически
+                            const checkInterval = setInterval(function() {
+                                const currentCheckedBoxes = processRow.querySelectorAll('.process-options input[type="checkbox"]:checked');
+                                if (currentCheckedBoxes.length === 0) {
+                                    clearInterval(checkInterval);
+                                    if (ndtPlusContainer._visibilityObserver) {
+                                        ndtPlusContainer._visibilityObserver.disconnect();
+                                    }
+                                    if (ndtPlusContainer._parentObserver) {
+                                        ndtPlusContainer._parentObserver.disconnect();
+                                    }
+                                } else {
+                                    forceShowContainer();
+                                }
+                            }, 200);
+
+                            // Очищаем интервал через 30 секунд (защита от утечек памяти)
+                            setTimeout(function() {
+                                clearInterval(checkInterval);
+                            }, 30000);
+                        }
+                    } else {
+                        ndtPlusContainer.style.display = 'none';
+                        // Очищаем выбранные дополнительные NDT процессы
+                        const ndtPlusSelect = ndtPlusContainer.querySelector('.select2-ndt-plus');
+                        if (ndtPlusSelect) {
+                            if (typeof $ !== 'undefined' && $.fn.select2) {
+                                $(ndtPlusSelect).val(null).trigger('change');
+                            } else {
+                                ndtPlusSelect.value = '';
+                            }
+                        }
+                        const ndtPlusOptions = ndtPlusContainer.querySelector('.ndt-plus-process-options');
+                        if (ndtPlusOptions) {
+                            ndtPlusOptions.innerHTML = '';
+                        }
+                    }
+                }
+            }
+
+            // Обработчик выбора дополнительных NDT процессов (множественный выбор)
+            // Работает как для обычного select, так и для Select2
+            if (event.target.matches('.select2-ndt-plus') || event.target.closest('.select2-ndt-plus')) {
+                const selectElement = event.target.matches('.select2-ndt-plus')
+                    ? event.target
+                    : document.querySelector('.select2-ndt-plus');
+
+                if (selectElement) {
+                    const selectedValues = Array.from(selectElement.selectedOptions || selectElement.options).filter(opt => opt.selected).map(opt => opt.value);
+                    if (selectedValues.length > 0) {
+                        loadNdtPlusProcesses(selectElement);
+                    } else {
+                        const processRow = selectElement.closest('.process-row');
+                        const ndtPlusOptionsContainer = processRow ? processRow.querySelector('.ndt-plus-process-options') : null;
+                        if (ndtPlusOptionsContainer) {
+                            ndtPlusOptionsContainer.innerHTML = '';
+                        }
+                    }
+                }
+            }
+        });
 
         // Обновление чекбоксов при изменении выбранного имени процесса
         // Обработчик для обычного события change
@@ -670,6 +1486,50 @@
 
                 // Используем функцию для загрузки процессов
                 loadProcessesForRow(event.target);
+
+                // Если это NDT процесс, обновляем опции дополнительного селекта (исключаем выбранный)
+                if (isNdtProcess(processNameId)) {
+                    const processRow = event.target.closest('.process-row');
+                    const ndtPlusContainer = processRow.querySelector('.ndt-plus-process-container');
+                    const ndtPlusSelect = ndtPlusContainer ? ndtPlusContainer.querySelector('.select2-ndt-plus') : null;
+
+                    // НЕ скрываем контейнер, если уже есть выбранные процессы
+                    const checkedBoxes = processRow.querySelectorAll('.process-options input[type="checkbox"]:checked');
+                    if (checkedBoxes.length > 0 && ndtPlusContainer) {
+                        // Убеждаемся, что контейнер виден
+                        ndtPlusContainer.style.display = 'block';
+                        ndtPlusContainer.style.visibility = 'visible';
+                    }
+
+                    if (ndtPlusSelect && typeof $ !== 'undefined' && $.fn.select2) {
+                        // Исключаем выбранный NDT процесс из опций
+                        $(ndtPlusSelect).find('option').each(function() {
+                            if ($(this).val() === processNameId) {
+                                $(this).prop('disabled', true);
+                                // Удаляем из выбранных, если был выбран
+                                if ($(ndtPlusSelect).val() && Array.isArray($(ndtPlusSelect).val()) && $(ndtPlusSelect).val().includes($(this).val())) {
+                                    const newValues = $(ndtPlusSelect).val().filter(v => v !== $(this).val());
+                                    $(ndtPlusSelect).val(newValues).trigger('change');
+                                }
+                            } else {
+                                $(this).prop('disabled', false);
+                            }
+                        });
+                        $(ndtPlusSelect).trigger('change');
+                    }
+                } else {
+                    // Если не NDT, скрываем дополнительный селект
+                    const processRow = event.target.closest('.process-row');
+                    const ndtPlusContainer = processRow.querySelector('.ndt-plus-process-container');
+                    if (ndtPlusContainer) {
+                        ndtPlusContainer.style.display = 'none';
+                        // Очищаем выбранные значения
+                        const ndtPlusSelect = ndtPlusContainer.querySelector('.select2-ndt-plus');
+                        if (ndtPlusSelect && typeof $ !== 'undefined' && $.fn.select2) {
+                            $(ndtPlusSelect).val(null).trigger('change');
+                        }
+                    }
+                }
             }
         });
 
@@ -699,7 +1559,7 @@
                 // Existing Processes не отображаются в модальном окне
                 const availableContainer = document.getElementById('availableProcessContainer');
                 availableContainer.innerHTML = '<div class="text-muted">Loading processes...</div>';
-                
+
                 fetch(`{{ route('processes.getProcesses') }}?processNameId=${processNameId}&manualId=${manualId}`)
                     .then(response => {
                         if (!response.ok) {
@@ -729,7 +1589,7 @@
                     .catch(error => {
                         console.error('Error loading processes:', error);
                         availableContainer.innerHTML = `<div class="text-danger">Error loading processes: ${error.message}</div>`;
-                        
+
                         if (window.NotificationHandler) {
                             window.NotificationHandler.error('Ошибка при загрузке процессов');
                         }
@@ -759,7 +1619,7 @@
             // Existing Processes не отображаются в модальном окне
             const availableContainer = document.getElementById('availableProcessContainer');
             availableContainer.innerHTML = '<div class="text-muted">Loading processes...</div>';
-            
+
             fetch(`{{ route('processes.getProcesses') }}?processNameId=${processNameId}&manualId=${manualId}`)
                 .then(response => {
                     if (!response.ok) {
@@ -789,7 +1649,7 @@
                 .catch(error => {
                     console.error('Error loading processes:', error);
                     availableContainer.innerHTML = `<div class="text-danger">Error loading processes: ${error.message}</div>`;
-                    
+
                     if (window.NotificationHandler) {
                         window.NotificationHandler.error('Ошибка при загрузке процессов');
                     }
@@ -815,7 +1675,7 @@
             if (currentRow) {
                 const processOptionsContainer = currentRow.querySelector('.process-options');
                 const saveButton = document.querySelector('button[type="submit"]');
-                
+
                 // Получаем индекс строки для правильного именования чекбоксов
                 const select = currentRow.querySelector('.select2-process');
                 const selectName = select ? select.name : '';
@@ -829,7 +1689,7 @@
                     loadingDiv.className = 'text-muted';
                     loadingDiv.textContent = 'Saving process...';
                     processOptionsContainer.appendChild(loadingDiv);
-                    
+
                     fetch("{{ route('processes.store') }}", {
                         method: 'POST',
                         headers: {
@@ -858,7 +1718,7 @@
                             if (loadingDiv.parentNode) {
                                 loadingDiv.remove();
                             }
-                            
+
                             if (data.success) {
                                 // Добавляем созданный процесс в виде чекбокса в контейнер текущей строки
                                 const div = document.createElement('div');
@@ -895,7 +1755,7 @@
                                 const manualId = document.getElementById('processes-container').dataset.manualId;
                                 const availableContainer = document.getElementById('availableProcessContainer');
                                 availableContainer.innerHTML = '<div class="text-muted">Reloading processes...</div>';
-                                
+
                                 fetch(`{{ route('processes.getProcesses') }}?processNameId=${processNameId}&manualId=${manualId}`)
                                     .then(response => {
                                         if (!response.ok) {
@@ -932,11 +1792,11 @@
                                     .catch(error => {
                                         console.error('Error reloading processes:', error);
                                         container.innerHTML = `<div class="text-danger">Error reloading processes: ${error.message}</div>`;
-                                        
+
                                         if (window.NotificationHandler) {
                                             window.NotificationHandler.error('Ошибка при перезагрузке списка процессов');
                                         }
-                                        
+
                                         // Закрываем модальное окно даже при ошибке перезагрузки списка
                                         const modalEl = document.getElementById('addProcessModal');
                                         const modalInstance = bootstrap.Modal.getInstance(modalEl);
@@ -959,7 +1819,7 @@
                             if (loadingDiv.parentNode) {
                                 loadingDiv.remove();
                             }
-                            
+
                             const errorMsg = "Ошибка при добавлении нового процесса: " + (error.message || 'Unknown error');
                             if (window.NotificationHandler) {
                                 window.NotificationHandler.error(errorMsg);
@@ -979,7 +1839,7 @@
                     loadingDiv.className = 'text-muted';
                     loadingDiv.textContent = 'Saving processes...';
                     processOptionsContainer.appendChild(loadingDiv);
-                    
+
                     selectedCheckboxes.forEach(checkbox => {
                         const processId = checkbox.value;
                         const processLabel = checkbox.nextElementSibling.innerText;
@@ -1013,7 +1873,7 @@
                                 if (loadingDiv.parentNode) {
                                     loadingDiv.remove();
                                 }
-                                
+
                                 // Добавляем процесс в виде чекбокса в контейнер текущей строки
                                 const div = document.createElement('div');
                                 div.classList.add('form-check');
@@ -1063,7 +1923,7 @@
                             // Перезагружаем список процессов в модальном окне (только availableProcesses)
                             const availableContainer = document.getElementById('availableProcessContainer');
                             availableContainer.innerHTML = '<div class="text-muted">Reloading processes...</div>';
-                            
+
                             fetch(`{{ route('processes.getProcesses') }}?processNameId=${processNameId}&manualId=${manualId}`)
                                 .then(response => {
                                     if (!response.ok) {
@@ -1093,7 +1953,7 @@
                                 .catch(error => {
                                     console.error('Error reloading processes:', error);
                                     availableContainer.innerHTML = `<div class="text-danger">Error reloading processes: ${error.message}</div>`;
-                                    
+
                                     if (window.NotificationHandler) {
                                         window.NotificationHandler.error('Ошибка при перезагрузке списка процессов');
                                     }
@@ -1103,7 +1963,7 @@
                             if (loadingDiv.parentNode) {
                                 loadingDiv.remove();
                             }
-                            
+
                             // Показываем сообщение об успехе
                             if (successCount === selectedCheckboxes.length) {
                                 if (window.NotificationHandler) {
@@ -1133,14 +1993,14 @@
                         if (loadingDiv.parentNode) {
                             loadingDiv.remove();
                         }
-                        
+
                         const errorMsg = 'Ошибка при сохранении процессов: ' + (error.message || 'Unknown error');
                         if (window.NotificationHandler) {
                             window.NotificationHandler.error(errorMsg);
                         } else {
                             alert(errorMsg);
                         }
-                        
+
                         // Закрываем модальное окно даже при ошибке
                         const modalEl = document.getElementById('addProcessModal');
                         const modalInstance = bootstrap.Modal.getInstance(modalEl);
@@ -1181,7 +2041,7 @@
                     const selectElement = e.target;
                     const processNameId = selectElement.value;
                     const processRow = selectElement.closest('.process-row');
-                    
+
                     // Показываем/скрываем чекбокс EC для Machining
                     const ecCheckbox = processRow.querySelector('input[name*="[ec]"]');
                     if (ecCheckbox) {
@@ -1191,11 +2051,25 @@
                             ecCheckbox.closest('.form-check').style.display = 'none';
                         }
                     }
-                    
+
                     loadProcessesForRow(selectElement);
+
+                    // Если это NDT процесс, обновляем опции дополнительного селекта (исключаем выбранный)
+                    if (isNdtProcess(processNameId)) {
+                        const ndtPlusSelect = processRow.querySelector('.select2-ndt-plus');
+                        if (ndtPlusSelect) {
+                            // Удаляем опцию с выбранным NDT процессом
+                            $(ndtPlusSelect).find(`option[value="${processNameId}"]`).remove();
+                            $(ndtPlusSelect).trigger('change');
+                        }
+                    }
                 });
+
+                // НЕ инициализируем Select2 для скрытых дополнительных селектов NDT при загрузке страницы
+                // Они будут инициализированы динамически при показе контейнера
+                // Это предотвращает проблемы с видимостью визуального элемента Select2
             }
-            
+
             const processRows = document.querySelectorAll('.process-row');
             processRows.forEach(row => {
                 const select = row.querySelector('.select2-process');
@@ -1210,6 +2084,22 @@
                             ecCheckbox.closest('.form-check').style.display = 'block';
                         } else {
                             ecCheckbox.closest('.form-check').style.display = 'none';
+                        }
+                    }
+
+                    // Если это NDT процесс, исключаем его из дополнительного селекта
+                    if (isNdtProcess(processNameId)) {
+                        const ndtPlusSelect = row.querySelector('.select2-ndt-plus');
+                        if (ndtPlusSelect) {
+                            // Удаляем опцию с выбранным NDT процессом
+                            const optionToRemove = ndtPlusSelect.querySelector(`option[value="${processNameId}"]`);
+                            if (optionToRemove) {
+                                optionToRemove.remove();
+                            }
+                            // Если Select2 уже инициализирован, обновляем его
+                            if (typeof $ !== 'undefined' && $.fn.select2 && $(ndtPlusSelect).hasClass('select2-hidden-accessible')) {
+                                $(ndtPlusSelect).trigger('change');
+                            }
                         }
                     }
 
