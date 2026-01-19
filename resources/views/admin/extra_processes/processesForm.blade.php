@@ -167,7 +167,7 @@
         /* Стили для длинного текста процесса */
         .process-text-long {
             font-size: 0.9em;
-            line-height: 1;
+            line-height: .9;
             letter-spacing: -0.3px;
             display: inline-block;
             transform-origin: left;
@@ -298,10 +298,10 @@
                         <div class="row mb-3">
                             <div class="col-md-4">
                                 <label for="ndtTableRows" class="form-label" data-bs-toggle="tooltip"
-                                        data-bs-placement="top"
-                                        title="Максимальное количество строк в таблице NDT (Non-Destructive Testing). По умолчанию: 16 строк. Используется для всех форм с типом процесса 'NDT'."
-                                        data-tooltip-ru="Максимальное количество строк в таблице NDT (Non-Destructive Testing). По умолчанию: 16 строк. Используется для всех форм с типом процесса 'NDT'."
-                                        data-tooltip-en="Maximum number of rows in NDT (Non-Destructive Testing) table. Default: 16 rows. Used for all forms with 'NDT' process type.">
+                                       data-bs-placement="top"
+                                       title="Максимальное количество строк в таблице NDT (Non-Destructive Testing). По умолчанию: 16 строк. Используется для всех форм с типом процесса 'NDT'."
+                                       data-tooltip-ru="Максимальное количество строк в таблице NDT (Non-Destructive Testing). По умолчанию: 16 строк. Используется для всех форм с типом процесса 'NDT'."
+                                       data-tooltip-en="Maximum number of rows in NDT (Non-Destructive Testing) table. Default: 16 rows. Used for all forms with 'NDT' process type.">
                                     NDT Table (row)
                                 </label>
                                 <div class="input-group">
@@ -313,10 +313,10 @@
 
                             <div class="col-md-4">
                                 <label for="stressTableRows" class="form-label" data-bs-toggle="tooltip"
-                                        data-bs-placement="top"
-                                        title="Максимальное количество строк в таблице Stress Relief (снятие напряжений). По умолчанию: 19 строк. Используется только для форм с типом процесса 'STRESS RELIEF'. Имеет отдельный лимит."
-                                        data-tooltip-ru="Максимальное количество строк в таблице Stress Relief (снятие напряжений). По умолчанию: 19 строк. Используется только для форм с типом процесса 'STRESS RELIEF'. Имеет отдельный лимит."
-                                        data-tooltip-en="Maximum number of rows in Stress Relief table. Default: 19 rows. Used only for forms with 'STRESS RELIEF' process type. Has a separate limit.">
+                                       data-bs-placement="top"
+                                       title="Максимальное количество строк в таблице Stress Relief (снятие напряжений). По умолчанию: 19 строк. Используется только для форм с типом процесса 'STRESS RELIEF'. Имеет отдельный лимит."
+                                       data-tooltip-ru="Максимальное количество строк в таблице Stress Relief (снятие напряжений). По умолчанию: 19 строк. Используется только для форм с типом процесса 'STRESS RELIEF'. Имеет отдельный лимит."
+                                       data-tooltip-en="Maximum number of rows in Stress Relief table. Default: 19 rows. Used only for forms with 'STRESS RELIEF' process type. Has a separate limit.">
                                     Stress Relief Table (row)
                                 </label>
                                 <div class="input-group">
@@ -328,10 +328,10 @@
 
                             <div class="col-md-4">
                                 <label for="regularTableRows" class="form-label" data-bs-toggle="tooltip"
-                                        data-bs-placement="top"
-                                        title="Максимальное количество строк в таблицах других процессов (Machining, CAD, Anodizing и т.д.). По умолчанию: 19 строк. Используется для всех процессов, кроме NDT и Stress Relief."
-                                        data-tooltip-ru="Максимальное количество строк в таблицах других процессов (Machining, CAD, Anodizing и т.д.). По умолчанию: 19 строк. Используется для всех процессов, кроме NDT и Stress Relief."
-                                        data-tooltip-en="Maximum number of rows in other process tables (Machining, CAD, Anodizing, etc.). Default: 19 rows. Used for all processes except NDT and Stress Relief.">
+                                       data-bs-placement="top"
+                                       title="Максимальное количество строк в таблицах других процессов (Machining, CAD, Anodizing и т.д.). По умолчанию: 19 строк. Используется для всех процессов, кроме NDT и Stress Relief."
+                                       data-tooltip-ru="Максимальное количество строк в таблицах других процессов (Machining, CAD, Anodizing и т.д.). По умолчанию: 19 строк. Используется для всех процессов, кроме NDT и Stress Relief."
+                                       data-tooltip-en="Maximum number of rows in other process tables (Machining, CAD, Anodizing, etc.). Default: 19 rows. Used for all processes except NDT and Stress Relief.">
                                     Other Table (row)
                                 </label>
                                 <div class="input-group">
@@ -363,10 +363,10 @@
                                         <div class="row">
                                             <div class="col-md-4 mb-3">
                                                 <label for="containerMaxWidth" class="form-label" data-bs-toggle="tooltip"
-                                                        data-bs-placement="top"
-                                                        title="Максимальная ширина контейнера с таблицей в пикселях. Рекомендуемое значение: 920px для extra processes. Увеличьте, если таблица слишком узкая."
-                                                        data-tooltip-ru="Максимальная ширина контейнера с таблицей в пикселях. Рекомендуемое значение: 920px для extra processes. Увеличьте, если таблица слишком узкая."
-                                                        data-tooltip-en="Maximum width of the table container in pixels. Recommended value: 920px for extra processes. Increase if the table is too narrow.">
+                                                       data-bs-placement="top"
+                                                       title="Максимальная ширина контейнера с таблицей в пикселях. Рекомендуемое значение: 920px для extra processes. Увеличьте, если таблица слишком узкая."
+                                                       data-tooltip-ru="Максимальная ширина контейнера с таблицей в пикселях. Рекомендуемое значение: 920px для extra processes. Увеличьте, если таблица слишком узкая."
+                                                       data-tooltip-en="Maximum width of the table container in pixels. Recommended value: 920px for extra processes. Increase if the table is too narrow.">
                                                     Max Width (px)
                                                 </label>
                                                 <div class="input-group">
@@ -378,10 +378,10 @@
 
                                             <div class="col-md-4 mb-3">
                                                 <label for="containerPadding" class="form-label" data-bs-toggle="tooltip"
-                                                        data-bs-placement="top"
-                                                        title="Внутренние отступы контейнера (пространство между границей контейнера и содержимым). По умолчанию: 5px."
-                                                        data-tooltip-ru="Внутренние отступы контейнера (пространство между границей контейнера и содержимым). По умолчанию: 5px."
-                                                        data-tooltip-en="Container inner padding (space between container border and content). Default: 5px.">
+                                                       data-bs-placement="top"
+                                                       title="Внутренние отступы контейнера (пространство между границей контейнера и содержимым). По умолчанию: 5px."
+                                                       data-tooltip-ru="Внутренние отступы контейнера (пространство между границей контейнера и содержимым). По умолчанию: 5px."
+                                                       data-tooltip-en="Container inner padding (space between container border and content). Default: 5px.">
                                                     Padding (px)
                                                 </label>
                                                 <div class="input-group">
@@ -393,10 +393,10 @@
 
                                             <div class="col-md-4 mb-3">
                                                 <label for="containerMaxHeight" class="form-label" data-bs-toggle="tooltip"
-                                                        data-bs-placement="top"
-                                                        title="Максимальная высота контейнера. 100vh - использует всю высоту экрана (рекомендуется). auto - автоматическая высота по содержимому."
-                                                        data-tooltip-ru="Максимальная высота контейнера. 100vh - использует всю высоту экрана (рекомендуется). auto - автоматическая высота по содержимому."
-                                                        data-tooltip-en="Maximum container height. 100vh - uses full screen height (recommended). auto - automatic height based on content.">
+                                                       data-bs-placement="top"
+                                                       title="Максимальная высота контейнера. 100vh - использует всю высоту экрана (рекомендуется). auto - автоматическая высота по содержимому."
+                                                       data-tooltip-ru="Максимальная высота контейнера. 100vh - использует всю высоту экрана (рекомендуется). auto - автоматическая высота по содержимому."
+                                                       data-tooltip-en="Maximum container height. 100vh - uses full screen height (recommended). auto - automatic height based on content.">
                                                     Max Height
                                                 </label>
                                                 <select class="form-control" id="containerMaxHeight" name="containerMaxHeight">
@@ -436,10 +436,10 @@
                                         <div class="row">
                                             <div class="col-md-4 mb-3">
                                                 <label for="bodyWidth" class="form-label" data-bs-toggle="tooltip"
-                                                        data-bs-placement="top"
-                                                        title="Ширина основного контента в процентах от ширины страницы. 98% - стандартное значение, оставляет небольшие поля по бокам."
-                                                        data-tooltip-ru="Ширина основного контента в процентах от ширины страницы. 98% - стандартное значение, оставляет небольшие поля по бокам."
-                                                        data-tooltip-en="Main content width as percentage of page width. 98% - standard value, leaves small margins on the sides.">
+                                                       data-bs-placement="top"
+                                                       title="Ширина основного контента в процентах от ширины страницы. 98% - стандартное значение, оставляет небольшие поля по бокам."
+                                                       data-tooltip-ru="Ширина основного контента в процентах от ширины страницы. 98% - стандартное значение, оставляет небольшие поля по бокам."
+                                                       data-tooltip-en="Main content width as percentage of page width. 98% - standard value, leaves small margins on the sides.">
                                                     Width (%)
                                                 </label>
                                                 <div class="input-group">
@@ -451,10 +451,10 @@
 
                                             <div class="col-md-4 mb-3">
                                                 <label for="pageMargin" class="form-label" data-bs-toggle="tooltip"
-                                                        data-bs-placement="top"
-                                                        title="Отступ от краев страницы при печати. Рекомендуемое значение: 1mm. Увеличьте, если контент обрезается принтером."
-                                                        data-tooltip-ru="Отступ от краев страницы при печати. Рекомендуемое значение: 1mm. Увеличьте, если контент обрезается принтером."
-                                                        data-tooltip-en="Margin from page edges when printing. Recommended value: 1mm. Increase if content is cut off by the printer.">
+                                                       data-bs-placement="top"
+                                                       title="Отступ от краев страницы при печати. Рекомендуемое значение: 1mm. Увеличьте, если контент обрезается принтером."
+                                                       data-tooltip-ru="Отступ от краев страницы при печати. Рекомендуемое значение: 1mm. Увеличьте, если контент обрезается принтером."
+                                                       data-tooltip-en="Margin from page edges when printing. Recommended value: 1mm. Increase if content is cut off by the printer.">
                                                     Margin (mm)
                                                 </label>
                                                 <div class="input-group">
@@ -466,10 +466,10 @@
 
                                             <div class="col-md-4 mb-3">
                                                 <label for="bodyMarginLeft" class="form-label" data-bs-toggle="tooltip"
-                                                        data-bs-placement="top"
-                                                        title="Горизонтальный отступ основного контента от левого края. Используется для точной настройки позиционирования."
-                                                        data-tooltip-ru="Горизонтальный отступ основного контента от левого края. Используется для точной настройки позиционирования."
-                                                        data-tooltip-en="Horizontal margin of main content from left edge. Used for precise positioning.">
+                                                       data-bs-placement="top"
+                                                       title="Горизонтальный отступ основного контента от левого края. Используется для точной настройки позиционирования."
+                                                       data-tooltip-ru="Горизонтальный отступ основного контента от левого края. Используется для точной настройки позиционирования."
+                                                       data-tooltip-en="Horizontal margin of main content from left edge. Used for precise positioning.">
                                                     Left Margin (px)
                                                 </label>
                                                 <div class="input-group">
@@ -481,10 +481,10 @@
 
                                             <div class="col-md-4 mb-3">
                                                 <label for="containerMarginLeft" class="form-label" data-bs-toggle="tooltip"
-                                                        data-bs-placement="top"
-                                                        title="Отступ контейнера с таблицей от левого края. Влияет на позиционирование таблиц на странице."
-                                                        data-tooltip-ru="Отступ контейнера с таблицей от левого края. Влияет на позиционирование таблиц на странице."
-                                                        data-tooltip-en="Table container margin from left edge. Affects table positioning on the page.">
+                                                       data-bs-placement="top"
+                                                       title="Отступ контейнера с таблицей от левого края. Влияет на позиционирование таблиц на странице."
+                                                       data-tooltip-ru="Отступ контейнера с таблицей от левого края. Влияет на позиционирование таблиц на странице."
+                                                       data-tooltip-en="Table container margin from left edge. Affects table positioning on the page.">
                                                     Table Left Margin (px)
                                                 </label>
                                                 <div class="input-group">
@@ -496,10 +496,10 @@
 
                                             <div class="col-md-4 mb-3">
                                                 <label for="containerMarginRight" class="form-label" data-bs-toggle="tooltip"
-                                                        data-bs-placement="top"
-                                                        title="Отступ контейнера с таблицей от правого края. Используется для симметричного выравнивания."
-                                                        data-tooltip-ru="Отступ контейнера с таблицей от правого края. Используется для симметричного выравнивания."
-                                                        data-tooltip-en="Table container margin from right edge. Used for symmetrical alignment.">
+                                                       data-bs-placement="top"
+                                                       title="Отступ контейнера с таблицей от правого края. Используется для симметричного выравнивания."
+                                                       data-tooltip-ru="Отступ контейнера с таблицей от правого края. Используется для симметричного выравнивания."
+                                                       data-tooltip-en="Table container margin from right edge. Used for symmetrical alignment.">
                                                     Table Right Margin (px)
                                                 </label>
                                                 <div class="input-group">
@@ -536,9 +536,9 @@
                                         <div class="row">
                                             <div class="col-md-4 mb-3">
                                                 <label for="footerWidth" class="form-label" data-bs-toggle="tooltip"
-                                                        data-bs-placement="top"
-                                                        data-tooltip-ru="Ширина колонтитула в пикселях. 800px - стандартное значение. Увеличьте, если текст в колонтитуле не помещается."
-                                                        data-tooltip-en="Footer width in pixels. 800px - standard value. Increase if footer text doesn't fit.">
+                                                       data-bs-placement="top"
+                                                       data-tooltip-ru="Ширина колонтитула в пикселях. 800px - стандартное значение. Увеличьте, если текст в колонтитуле не помещается."
+                                                       data-tooltip-en="Footer width in pixels. 800px - standard value. Increase if footer text doesn't fit.">
                                                     Width on pg (px)
                                                 </label>
                                                 <div class="input-group">
@@ -550,9 +550,9 @@
 
                                             <div class="col-md-4 mb-3">
                                                 <label for="footerFontSize" class="form-label" data-bs-toggle="tooltip"
-                                                        data-bs-placement="top"
-                                                        data-tooltip-ru="Размер шрифта текста в колонтитуле. 10px - стандартное значение. Увеличьте для лучшей читаемости."
-                                                        data-tooltip-en="Footer text font size. 10px - standard value. Increase for better readability.">
+                                                       data-bs-placement="top"
+                                                       data-tooltip-ru="Размер шрифта текста в колонтитуле. 10px - стандартное значение. Увеличьте для лучшей читаемости."
+                                                       data-tooltip-en="Footer text font size. 10px - standard value. Increase for better readability.">
                                                     Font Size (px)
                                                 </label>
                                                 <div class="input-group">
@@ -564,9 +564,9 @@
 
                                             <div class="col-md-4 mb-3">
                                                 <label for="footerPadding" class="form-label" data-bs-toggle="tooltip"
-                                                        data-bs-placement="top"
-                                                        data-tooltip-ru="Внутренние отступы колонтитула в формате CSS (вертикальный горизонтальный). Например: '3px 5px' означает 3px сверху/снизу и 5px слева/справа."
-                                                        data-tooltip-en="Footer inner padding in CSS format (vertical horizontal). Example: '3px 5px' means 3px top/bottom and 5px left/right.">
+                                                       data-bs-placement="top"
+                                                       data-tooltip-ru="Внутренние отступы колонтитула в формате CSS (вертикальный горизонтальный). Например: '3px 5px' означает 3px сверху/снизу и 5px слева/справа."
+                                                       data-tooltip-en="Footer inner padding in CSS format (vertical horizontal). Example: '3px 5px' means 3px top/bottom and 5px left/right.">
                                                     Padding
                                                 </label>
                                                 <div class="input-group">
@@ -611,11 +611,11 @@
                              <span @if(strlen($current_wo->description) > 20) class="description-text-long"
                                 @endif>{{$current_wo->description}}</span>
 
-{{--                            @if(isset($table_data) && count($table_data) > 1)--}}
-{{--                                Multiple Components ({{ count($table_data) }} items)--}}
-{{--                            @else--}}
-{{--                                {{$component->name}}--}}
-{{--                            @endif--}}
+                            {{--                            @if(isset($table_data) && count($table_data) > 1)--}}
+                            {{--                                Multiple Components ({{ count($table_data) }} items)--}}
+                            {{--                            @else--}}
+                            {{--                                {{$component->name}}--}}
+                            {{--                            @endif--}}
                         </strong>
                     </div>
                 </div>
@@ -624,11 +624,11 @@
                     <div class="col-6 pt-2 border-b">
                         <strong>
                             {{$current_wo->unit->part_number}}
-{{--                            @if(isset($table_data) && count($table_data) > 1)--}}
-{{--                                Various (see table below)--}}
-{{--                            @else--}}
-{{--                                {{$component->part_number}}--}}
-{{--                            @endif--}}
+                            {{--                            @if(isset($table_data) && count($table_data) > 1)--}}
+                            {{--                                Various (see table below)--}}
+                            {{--                            @else--}}
+                            {{--                                {{$component->part_number}}--}}
+                            {{--                            @endif--}}
                         </strong>
                     </div>
                 </div>
@@ -653,9 +653,9 @@
                 <div class="row" style="height: 32px">
                     <div class="col-4 pt-2 text-end"><strong>VENDOR:</strong></div>
                     <div class="col-8 pt-2 border-b ">
-                            <strong>
-                                {{ $selectedVendor ? $selectedVendor->name : '' }}
-                            </strong>
+                        <strong>
+                            {{ $selectedVendor ? $selectedVendor->name : '' }}
+                        </strong>
                     </div>
                 </div>
             </div>
@@ -830,7 +830,19 @@
 
                         </div>
                         <div class="col-2 border-l-b details-row text-center" style="height: 32px">
-                            {{ substr($data['process_name']->name, -1) }}
+                            @if(!empty($data['combined_ndt_number']))
+                                {{ $data['combined_ndt_number'] }}
+                            @elseif(isset($data['process_name']) && $data['process_name'])
+                                @if(strpos($data['process_name']->name, 'NDT-') === 0)
+                                    {{ substr($data['process_name']->name, 4) }}
+                                @elseif($data['process_name']->name === 'Eddy Current Test')
+                                    6
+                                @elseif($data['process_name']->name === 'BNI')
+                                    5
+                                @else
+                                    {{ substr($data['process_name']->name, -1) }}
+                                @endif
+                            @endif
                         </div>
                         <div class="col-1 border-l-b details-row text-center" style="height: 32px">
                             {{ $data['extra_process']->qty ?? 1 }}
@@ -886,7 +898,7 @@
                 <div class="col-3 border-all text-center" style="height: 55px">
                     @foreach($manuals as $manual)
                         @if($manual->id == $current_wo->unit->manual_id)
-                                <h6 class="text-center mt-3"> <strong> {{substr($manual->number, 0, 8)}} </strong></h6>
+                            <h6 class="text-center mt-3"> <strong> {{substr($manual->number, 0, 8)}} </strong></h6>
                         @endif
                     @endforeach
                 </div>
@@ -896,11 +908,11 @@
 
 
 
-                        <h6 class="mt-4 ms-3"><strong>
-                    Perform the {{ ucwords(strtolower($process_name->process_sheet_name ?? $process_name->name ?? 'Extra Process')) }}
-                    as the specified under Process No. and in
-                    accordance with CMM No
-                </strong>.</h6>
+        <h6 class="mt-4 ms-3"><strong>
+                Perform the {{ ucwords(strtolower($process_name->process_sheet_name ?? $process_name->name ?? 'Extra Process')) }}
+                as the specified under Process No. and in
+                accordance with CMM No
+            </strong>.</h6>
 
 
 
@@ -922,9 +934,9 @@
                         <h6  class="fs-7" ><strong>PERFORMED</strong> </h6>
                     </div>
                 @else
-                <div class="col-2 border-all pt-2  details-row  text-center"><h6  class="fs-7" ><strong>CMM No.</strong> </h6>
+                    <div class="col-2 border-all pt-2  details-row  text-center"><h6  class="fs-7" ><strong>CMM No.</strong> </h6>
 
-                </div>
+                    </div>
                 @endif
             </div>
         </div>
@@ -975,7 +987,7 @@
                                     @foreach($manuals as $manual)
                                         @if($manual->id == $current_wo->unit->manual_id)
                                             <h6 class="text-center mt-2">
-                                                    {{substr($manual->number, 0, 8)}}
+                                                {{substr($manual->number, 0, 8)}}
                                             </h6>
                                         @endif
                                     @endforeach
@@ -1032,7 +1044,7 @@
         <div class="col-4 text-end pe-4 ">
             {{__('Rev#0, 15/Dec/2012   ')}}
             <p>
-            <strong>Total qty: {{ $totalQty }}</strong>
+                <strong>Total qty: {{ $totalQty }}</strong>
         </div>
     </div>
 </footer>

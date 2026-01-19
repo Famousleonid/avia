@@ -989,7 +989,7 @@
 
             // Сортируем номера и объединяем через ' & '
             sort($processNumbers);
-            echo implode(' & ', $processNumbers);
+            echo implode(' / ', $processNumbers);
         @endphp
         </div>
         <div class="col-1 border-l-b details-row text-center" style="height: 32px">

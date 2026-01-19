@@ -741,8 +741,18 @@ class ExtraProcessController extends Controller
      */
     public function showGroupForms($id, $processNameId, Request $request)
     {
+        \Log::info('ExtraProcess showGroupForms called', [
+            'workorder_id' => $id,
+            'processNameId' => $processNameId
+        ]);
+
         $current_wo = Workorder::findOrFail($id);
         $processName = ProcessName::findOrFail($processNameId);
+
+        \Log::info('ExtraProcess showGroupForms processName', [
+            'process_name' => $processName->name,
+            'process_sheet_name' => $processName->process_sheet_name
+        ]);
 
         // Получаем все extra processes для этого work order
         $extra_processes = ExtraProcess::where('workorder_id', $current_wo->id)
@@ -882,6 +892,15 @@ class ExtraProcessController extends Controller
             $groupedComponents = array_values($groupedComponents);
         }
 
+        \Log::info('ExtraProcess showGroupForms groupedComponents before NDT processing', [
+            'count' => count($groupedComponents),
+            'isNdtGroup' => $isNdtGroup,
+            'sample' => !empty($groupedComponents) ? [
+                'component_id' => $groupedComponents[0]['component']->id ?? null,
+                'process_name' => $groupedComponents[0]['process_name']->name ?? null
+            ] : null
+        ]);
+
         // Базовые данные для представления
         $viewData = [
             'current_wo' => $current_wo,
@@ -928,9 +947,151 @@ class ExtraProcessController extends Controller
                 ->whereIn('process_names_id', $ndt_ids)
                 ->get();
 
+            // Функция для извлечения номера NDT из имени процесса
+            $getNdtNumber = function($processName) {
+                if (strpos($processName->name, 'NDT-') === 0) {
+                    return substr($processName->name, 4);
+                } elseif ($processName->name === 'Eddy Current Test') {
+                    return '6';
+                } elseif ($processName->name === 'BNI') {
+                    return '5';
+                }
+                return substr($processName->name, -1);
+            };
+
+            // Группируем NDT процессы по компонентам для объединения номеров
+            $componentNdtMap = [];
+            \Log::info('ExtraProcess NDT grouping start', [
+                'groupedComponents_count' => count($groupedComponents),
+                'groupedComponents_sample' => !empty($groupedComponents) ? array_map(function($item) {
+                    return [
+                        'component_id' => $item['component']->id ?? null,
+                        'process_name' => $item['process_name']->name ?? null,
+                        'has_process' => isset($item['process'])
+                    ];
+                }, array_slice($groupedComponents, 0, 5)) : []
+            ]);
+
+            foreach ($groupedComponents as $index => $item) {
+                if (!isset($item['component']) || !$item['component']) {
+                    \Log::warning('ExtraProcess NDT: item missing component', ['index' => $index]);
+                    continue;
+                }
+
+                $componentId = $item['component']->id;
+
+                // Инициализируем запись для компонента, если её еще нет
+                if (!isset($componentNdtMap[$componentId])) {
+                    $componentNdtMap[$componentId] = [
+                        'component' => $item['component'],
+                        'extra_process' => $item['extra_process'] ?? null,
+                        'manual' => $item['manual'] ?? null,
+                        'ndt_numbers' => [],
+                        'processes' => [],
+                        'process_names' => []
+                    ];
+                    \Log::info('ExtraProcess NDT: new component added to map', [
+                        'component_id' => $componentId
+                    ]);
+                }
+
+                // Добавляем номер NDT процесса
+                if (isset($item['process_name']) && $item['process_name'] && isset($item['process']) && $item['process']) {
+                    $ndtNumber = $getNdtNumber($item['process_name']);
+                    \Log::info('ExtraProcess NDT number extracted', [
+                        'component_id' => $componentId,
+                        'process_name' => $item['process_name']->name,
+                        'ndt_number' => $ndtNumber,
+                        'existing_numbers' => $componentNdtMap[$componentId]['ndt_numbers']
+                    ]);
+
+                    // Добавляем номер, если его еще нет (используем строгое сравнение)
+                    if (!in_array($ndtNumber, $componentNdtMap[$componentId]['ndt_numbers'], true)) {
+                        $componentNdtMap[$componentId]['ndt_numbers'][] = $ndtNumber;
+                        $componentNdtMap[$componentId]['processes'][] = $item['process'];
+                        $componentNdtMap[$componentId]['process_names'][] = $item['process_name'];
+                        \Log::info('ExtraProcess NDT number added', [
+                            'component_id' => $componentId,
+                            'ndt_number' => $ndtNumber,
+                            'all_numbers' => $componentNdtMap[$componentId]['ndt_numbers']
+                        ]);
+                    } else {
+                        \Log::info('ExtraProcess NDT number already exists, skipping', [
+                            'component_id' => $componentId,
+                            'ndt_number' => $ndtNumber
+                        ]);
+                    }
+                } else {
+                    \Log::warning('ExtraProcess NDT: item missing process_name or process', [
+                        'component_id' => $componentId,
+                        'has_process_name' => isset($item['process_name']),
+                        'has_process' => isset($item['process'])
+                    ]);
+                }
+            }
+
+            \Log::info('ExtraProcess NDT grouping complete', [
+                'componentNdtMap_count' => count($componentNdtMap),
+                'componentNdtMap' => array_map(function($item) {
+                    return [
+                        'component_id' => $item['component']->id,
+                        'ndt_numbers' => $item['ndt_numbers']
+                    ];
+                }, $componentNdtMap)
+            ]);
+
+            // Преобразуем карту в массив tableData с объединенными номерами
+            $tableData = [];
+            foreach ($componentNdtMap as $componentId => $componentData) {
+                if (empty($componentData['ndt_numbers'])) {
+                    \Log::warning('ExtraProcess NDT: component has no ndt_numbers', [
+                        'component_id' => $componentId
+                    ]);
+                    continue; // Пропускаем компоненты без NDT номеров
+                }
+
+                // Сортируем номера для правильного отображения (преобразуем в числа для корректной сортировки)
+                $ndtNumbers = $componentData['ndt_numbers'];
+                usort($ndtNumbers, function($a, $b) {
+                    return (int)$a <=> (int)$b;
+                });
+
+                // Объединяем номера через " / "
+                $combinedNdtNumber = implode(' / ', $ndtNumbers);
+
+                \Log::info('ExtraProcess NDT: creating tableData entry', [
+                    'component_id' => $componentId,
+                    'ndt_numbers' => $ndtNumbers,
+                    'combined_ndt_number' => $combinedNdtNumber
+                ]);
+
+                // Используем первый процесс для совместимости с шаблоном
+                $firstProcess = !empty($componentData['processes']) ? $componentData['processes'][0] : null;
+                $firstProcessName = !empty($componentData['process_names']) ? $componentData['process_names'][0] : null;
+
+                $tableData[] = [
+                    'component' => $componentData['component'],
+                    'extra_process' => $componentData['extra_process'],
+                    'manual' => $componentData['manual'],
+                    'combined_ndt_number' => $combinedNdtNumber, // Всегда устанавливаем combined_ndt_number
+                    'process' => $firstProcess,
+                    'process_name' => $firstProcessName
+                ];
+            }
+
+            \Log::info('ExtraProcess NDT: final tableData', [
+                'count' => count($tableData),
+                'entries' => array_map(function($item) {
+                    return [
+                        'component_id' => $item['component']->id ?? null,
+                        'combined_ndt_number' => $item['combined_ndt_number'] ?? 'NOT SET'
+                    ];
+                }, $tableData)
+            ]);
+
             // Собираем все уникальные номера manual из компонентов
             $manualNumbers = [];
-            foreach ($groupedComponents as $item) {
+            foreach ($tableData as $item) {
                 if (isset($item['manual']) && $item['manual']) {
                     $manualNumber = $item['manual']->number;
                     if (!in_array($manualNumber, $manualNumbers)) {
@@ -940,11 +1101,39 @@ class ExtraProcessController extends Controller
             }
             $manualNumbersString = implode(', ', $manualNumbers);
 
-            return view('admin.extra_processes.processesForm', array_merge($viewData, [
+            // Обновляем table_data в viewData - ВАЖНО: перезаписываем groupedComponents на tableData с объединенными номерами
+            $viewData['table_data'] = $tableData;
+
+            // Отладочная информация (можно удалить после проверки)
+            \Log::info('ExtraProcess NDT tableData', [
+                'count' => count($tableData),
+                'sample' => !empty($tableData) ? [
+                    'component_id' => $tableData[0]['component']->id ?? null,
+                    'combined_ndt_number' => $tableData[0]['combined_ndt_number'] ?? null,
+                    'ndt_numbers_count' => count($componentNdtMap[$tableData[0]['component']->id]['ndt_numbers'] ?? [])
+                ] : null
+            ]);
+
+            // Явно устанавливаем table_data с объединенными номерами
+            $finalViewData = array_merge($viewData, [
                 'ndt_processes' => $ndt_processes,
-                'selectedVendor' => $selectedVendor, // Явно сохраняем selectedVendor
-                'manual_numbers' => $manualNumbersString // Номера manual через запятую для NDT
-            ], $ndt_ids));
+                'selectedVendor' => $selectedVendor,
+                'manual_numbers' => $manualNumbersString
+            ], $ndt_ids);
+
+            // ВАЖНО: Перезаписываем table_data на tableData с объединенными номерами
+            $finalViewData['table_data'] = $tableData;
+
+            \Log::info('ExtraProcess NDT: final viewData', [
+                'table_data_count' => count($finalViewData['table_data'] ?? []),
+                'has_table_data' => isset($finalViewData['table_data']),
+                'first_entry' => !empty($finalViewData['table_data']) ? [
+                    'component_id' => $finalViewData['table_data'][0]['component']->id ?? null,
+                    'combined_ndt_number' => $finalViewData['table_data'][0]['combined_ndt_number'] ?? 'NOT SET'
+                ] : null
+            ]);
+
+            return view('admin.extra_processes.processesForm', $finalViewData);
         }
 
         // Обработка обычных процессов
@@ -1332,49 +1521,139 @@ class ExtraProcessController extends Controller
                 ->whereIn('process_names_id', $ndt_ids)
                 ->get();
 
-            // Фильтруем процессы только для указанного process_name_id
-            $filteredProcesses = [];
+            // Функция для извлечения номера NDT из имени процесса
+            $getNdtNumber = function($processName) {
+                if (strpos($processName->name, 'NDT-') === 0) {
+                    return substr($processName->name, 4);
+                } elseif ($processName->name === 'Eddy Current Test') {
+                    return '6';
+                } elseif ($processName->name === 'BNI') {
+                    return '5';
+                }
+                return substr($processName->name, -1);
+            };
+
+            // Получаем все NDT process_name_ids для группировки
+            $ndtProcessNameIds = ProcessName::where('process_sheet_name', 'NDT')
+                ->pluck('id')
+                ->toArray();
+
+            // Собираем все NDT процессы для этого компонента (включая plus_process_names)
+            $ndtProcessesData = [];
             if ($extra_process->processes && !empty($extra_process->processes)) {
                 if (is_array($extra_process->processes) && array_keys($extra_process->processes) !== range(0, count($extra_process->processes) - 1)) {
                     // Старая структура: ассоциативный массив
-                    if (isset($extra_process->processes[$processNameId])) {
-                        $processId = $extra_process->processes[$processNameId];
-                        $process = Process::find($processId);
-                        if ($process) {
-                            $filteredProcesses[] = [
-                                'process_name_id' => $processNameId,
-                                'process_id' => $processId,
-                                'description' => null, // Старая структура не содержит description
-                                'notes' => null // Старая структура не содержит notes
-                            ];
+                    foreach ($ndtProcessNameIds as $ndtProcessNameId) {
+                        if (isset($extra_process->processes[$ndtProcessNameId])) {
+                            $processId = $extra_process->processes[$ndtProcessNameId];
+                            $process = Process::find($processId);
+                            $ndtProcessName = ProcessName::find($ndtProcessNameId);
+                            if ($process && $ndtProcessName) {
+                                $ndtProcessesData[] = [
+                                    'process_name' => $ndtProcessName,
+                                    'process' => $process,
+                                    'process_name_id' => $ndtProcessNameId,
+                                    'process_id' => $processId
+                                ];
+                            }
                         }
                     }
                 } else {
                     // Новая структура: массив объектов
                     foreach ($extra_process->processes as $processItem) {
-                        if ($processItem['process_name_id'] == $processNameId) {
-                            $filteredProcesses[] = $processItem;
+                        $processNameId = is_array($processItem) ? $processItem['process_name_id'] : null;
+                        
+                        // Проверяем основной процесс
+                        if ($processNameId && in_array($processNameId, $ndtProcessNameIds)) {
+                            $process = Process::find($processItem['process_id']);
+                            $ndtProcessName = ProcessName::find($processNameId);
+                            if ($process && $ndtProcessName) {
+                                $ndtProcessesData[] = [
+                                    'process_name' => $ndtProcessName,
+                                    'process' => $process,
+                                    'process_name_id' => $processNameId,
+                                    'process_id' => $processItem['process_id']
+                                ];
+                            }
+                        }
+                        
+                        // Проверяем plus_process_names (объединенные процессы)
+                        if (isset($processItem['plus_process_names']) && is_array($processItem['plus_process_names'])) {
+                            foreach ($processItem['plus_process_names'] as $plusProcessNameId) {
+                                if (in_array($plusProcessNameId, $ndtProcessNameIds)) {
+                                    // Ищем процесс по plus_process_ids
+                                    $plusProcessId = null;
+                                    if (isset($processItem['plus_process_ids']) && is_array($processItem['plus_process_ids'])) {
+                                        $index = array_search($plusProcessNameId, $processItem['plus_process_names']);
+                                        if ($index !== false && isset($processItem['plus_process_ids'][$index])) {
+                                            $plusProcessId = $processItem['plus_process_ids'][$index];
+                                        }
+                                    }
+                                    
+                                    if ($plusProcessId) {
+                                        $process = Process::find($plusProcessId);
+                                        $ndtProcessName = ProcessName::find($plusProcessNameId);
+                                        if ($process && $ndtProcessName) {
+                                            // Проверяем, не добавлен ли уже этот процесс
+                                            $alreadyAdded = false;
+                                            foreach ($ndtProcessesData as $existing) {
+                                                if ($existing['process_name_id'] == $plusProcessNameId && $existing['process_id'] == $plusProcessId) {
+                                                    $alreadyAdded = true;
+                                                    break;
+                                                }
+                                            }
+                                            if (!$alreadyAdded) {
+                                                $ndtProcessesData[] = [
+                                                    'process_name' => $ndtProcessName,
+                                                    'process' => $process,
+                                                    'process_name_id' => $plusProcessNameId,
+                                                    'process_id' => $plusProcessId
+                                                ];
+                                            }
+                                        }
+                                    }
+                                }
+                            }
                         }
                     }
                 }
             }
 
+            // Группируем NDT процессы и создаем combined_ndt_number
+            $ndtNumbers = [];
+            $firstProcess = null;
+            $firstProcessName = null;
+
+            foreach ($ndtProcessesData as $ndtProcessData) {
+                $ndtNumber = $getNdtNumber($ndtProcessData['process_name']);
+                if (!in_array($ndtNumber, $ndtNumbers, true)) {
+                    $ndtNumbers[] = $ndtNumber;
+                }
+                if ($firstProcess === null) {
+                    $firstProcess = $ndtProcessData['process'];
+                    $firstProcessName = $ndtProcessData['process_name'];
+                }
+            }
+
+            // Сортируем номера для правильного отображения
+            usort($ndtNumbers, function($a, $b) {
+                return (int)$a <=> (int)$b;
+            });
+
+            // Объединяем номера через " / "
+            $combinedNdtNumber = !empty($ndtNumbers) ? implode(' / ', $ndtNumbers) : null;
+
             // Создаем массив данных для отображения в таблице
             $tableData = [];
-            foreach ($filteredProcesses as $processItem) {
-                $processNameId = $processItem['process_name_id'];
-                $processId = $processItem['process_id'];
-
-                $process = Process::find($processId);
-
-                if ($process) {
-                    $tableData[] = [
-                        'process_name' => $processName,
-                        'process' => $process,
-                        'component' => $component,
-                        'extra_process' => $extra_process
-                    ];
-                }
+            if (!empty($ndtProcessesData)) {
+                // Используем первый процесс для совместимости с шаблоном
+                $tableData[] = [
+                    'process_name' => $firstProcessName ?: $processName,
+                    'process' => $firstProcess,
+                    'component' => $component,
+                    'extra_process' => $extra_process,
+                    'combined_ndt_number' => $combinedNdtNumber // Добавляем объединенный номер
+                ];
             }
 
             return view('admin.extra_processes.processesForm', array_merge($viewData, [
