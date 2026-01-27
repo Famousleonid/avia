@@ -141,56 +141,56 @@
             <form id="bushings-form" method="POST" action="{{ route('wo_bushings.update', $woBushing->id) }}">
                 @csrf
                 @method('PUT')
-                @endif
-                <div class="card-header m-1 shadow">
-                    <div class="d-flex justify-content-between align-items-center">
-                        <div>
-                            <div class="text-center" style="width: 100px;">
-                                <h5 class="text-success-emphasis  ps-1">{{__('WO')}}
-                                    <a class="text-success-emphasis " href="{{ route('mains.show', $current_wo->id) }}"
-                                        {{$current_wo->number}}>{{$current_wo->number}}
-                                    </a>
-                                </h5>
-                            </div>
-                        </div>
-                        <div>
-                            <h4 class="ps-xl-5 mb-0">{{__('EDIT BUSHINGS')}}</h4>
-                        </div>
-
-                        <div>
-                            <a href="{{ route('processes.create', ['manual_id' => $current_wo->unit->manual_id, 'return_to' => route
-                    ('wo_bushings.edit', $woBushing->id)]) }}"
-                               class="btn btn-outline-primary me-2" style="height: 60px;width: 100px;line-height: 1.2rem;align-content: center">
-                                <i class="fas fa-cogs"></i> {{ __('Add Processes') }}
+        @endif
+        <div class="card-header m-1 shadow">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <div class="text-center" style="width: 100px;">
+                        <h5 class="text-success-emphasis  ps-1">{{__('WO')}}
+                            <a class="text-success-emphasis " href="{{ route('mains.show', $current_wo->id) }}"
+                                {{$current_wo->number}}>{{$current_wo->number}}
                             </a>
-                            <a href="{{ route('components.create', ['manual_id' => $current_wo->unit->manual_id ?? null, 'redirect' => request()->fullUrl()]) }}"
-                               class="btn btn-outline-primary me-2" style="height: 60px;width: 90px;line-height: 1.2rem;align-content:
-                       center">
-                                <i class="fas fa-plus"></i> {{ __('Add Part') }}
-                            </a>
-                        </div>
-                        <div class="d-flex align-items-center">
-                            @if($bushings->flatten()->count() > 0)
-                                <button type="submit" class="btn btn-primary btn-lg me-2">
-                                    <i class="fas fa-save"></i> Update Bushings Data
-                                </button>
-                                <button type="button" class="btn btn-secondary btn-lg me-2" onclick="clearForm()">
-                                    <i class="fas fa-eraser"></i> Clear All
-                                </button>
-                            @endif
-                            <a href="{{ route('wo_bushings.show', $current_wo->id) }}"
-                               class="btn btn-outline-secondary me-2" style="height: 55px;width: 80px;align-content: center">
-                                {{ __('Back') }}
-                            </a>
-                        </div>
+                        </h5>
                     </div>
                 </div>
+                    <div>
+                        <h4 class="ps-xl-5 mb-0">{{__('EDIT BUSHINGS')}}</h4>
+                    </div>
 
-                @if($bushings->flatten()->count() > 0)
-                    <div class="d-flex justify-content-center mt-3">
-                        <div class="table-wrapper me-3">
-                            <table class="display table shadow table-hover align-middle table-bordered bg-gradient">
-                                <thead>
+                <div>
+                    <a href="{{ route('processes.create', ['manual_id' => $current_wo->unit->manual_id, 'return_to' => route
+                    ('wo_bushings.edit', $woBushing->id)]) }}"
+                       class="btn btn-outline-primary me-2" style="height: 60px;width: 100px;line-height: 1.2rem;align-content: center">
+                        <i class="fas fa-cogs"></i> {{ __('Add Processes') }}
+                    </a>
+                    <a href="{{ route('components.create', ['manual_id' => $current_wo->unit->manual_id ?? null, 'redirect' => request()->fullUrl()]) }}"
+                       class="btn btn-outline-primary me-2" style="height: 60px;width: 90px;line-height: 1.2rem;align-content:
+                       center">
+                        <i class="fas fa-plus"></i> {{ __('Add Part') }}
+                    </a>
+                </div>
+                <div class="d-flex align-items-center">
+                    @if($bushings->flatten()->count() > 0)
+                        <button type="submit" class="btn btn-primary btn-lg me-2">
+                            <i class="fas fa-save"></i> Update Bushings Data
+                        </button>
+                        <button type="button" class="btn btn-secondary btn-lg me-2" onclick="clearForm()">
+                            <i class="fas fa-eraser"></i> Clear All
+                        </button>
+                    @endif
+                    <a href="{{ route('wo_bushings.show', $current_wo->id) }}"
+                       class="btn btn-outline-secondary me-2" style="height: 55px;width: 80px;align-content: center">
+                        {{ __('Back') }}
+                    </a>
+                </div>
+            </div>
+        </div>
+
+        @if($bushings->flatten()->count() > 0)
+            <div class="d-flex justify-content-center mt-3">
+                <div class="table-wrapper me-3">
+                        <table class="display table shadow table-hover align-middle table-bordered bg-gradient">
+                            <thead>
                                 <tr class="header-row">
                                     <th class="text-primary text-center">Bushings</th>
                                     <th class="text-primary text-center">Select</th>
@@ -203,8 +203,8 @@
                                     <th class="text-primary text-center">Anodizing</th>
                                     <th class="text-primary text-center">Xylan</th>
                                 </tr>
-                                </thead>
-                                <tbody>
+                            </thead>
+                            <tbody>
                                 @foreach($bushings as $bushIplNum => $bushingGroup)
                                     @php
                                         // Создаем карту выбранных компонентов из новой структуры bushData
@@ -278,16 +278,16 @@
                                                    class="form-control qty-input" min="0"
                                                    value="{{ $groupData['qty'] ?? '' }}"
                                                    data-group="{{ $bushIplNum ?: 'no_ipl' }}"
-                                                {{ !$groupSelected ? 'disabled' : '' }}>
+                                                   {{ !$groupSelected ? 'disabled' : '' }}>
                                         </td>
                                         <td>
                                             <select name="group_bushings[{{ $bushIplNum ?: 'no_ipl' }}][machining]"
                                                     class="form-select" data-group="{{ $bushIplNum ?: 'no_ipl' }}"
-                                                {{ !$groupSelected ? 'disabled' : '' }}>
+                                                    {{ !$groupSelected ? 'disabled' : '' }}>
                                                 <option value="">-- Select Machining --</option>
                                                 @foreach($machiningProcesses as $process)
                                                     <option value="{{ $process->id }}"
-                                                        {{ isset($groupData['machining']) && $groupData['machining'] == $process->id ? 'selected' : '' }}>
+                                                            {{ isset($groupData['machining']) && $groupData['machining'] == $process->id ? 'selected' : '' }}>
                                                         <span @if(strlen($process->process) > 40) class="process-text-long" @endif>{{ $process->process }}</span>
                                                     </option>
                                                 @endforeach
@@ -296,11 +296,11 @@
                                         <td>
                                             <select name="group_bushings[{{ $bushIplNum ?: 'no_ipl' }}][stress_relief]"
                                                     class="form-select" data-group="{{ $bushIplNum ?: 'no_ipl' }}"
-                                                {{ !$groupSelected ? 'disabled' : '' }}>
+                                                    {{ !$groupSelected ? 'disabled' : '' }}>
                                                 <option value="">-- Select Stress Relief --</option>
                                                 @foreach($stressReliefProcesses as $process)
                                                     <option value="{{ $process->id }}"
-                                                        {{ isset($groupData['stress_relief']) && $groupData['stress_relief'] == $process->id ? 'selected' : '' }}>
+                                                            {{ isset($groupData['stress_relief']) && $groupData['stress_relief'] == $process->id ? 'selected' : '' }}>
                                                         <span @if(strlen($process->process) > 40) class="process-text-long" @endif>{{ $process->process }}</span>
                                                     </option>
                                                 @endforeach
@@ -318,8 +318,8 @@
                                                                value="{{ $process->id }}"
                                                                class="form-check-input"
                                                                data-group="{{ $bushIplNum ?: 'no_ipl' }}"
-                                                            {{ in_array($process->id, $selectedNdtIds) ? 'checked' : '' }}
-                                                            {{ !$groupSelected ? 'disabled' : '' }}>
+                                                               {{ in_array($process->id, $selectedNdtIds) ? 'checked' : '' }}
+                                                               {{ !$groupSelected ? 'disabled' : '' }}>
                                                         <label class="form-check-label" style="font-size: 0.875rem;">
                                                             {{ $process->process_name->name }}
                                                         </label>
@@ -330,11 +330,11 @@
                                         <td>
                                             <select name="group_bushings[{{ $bushIplNum ?: 'no_ipl' }}][passivation]"
                                                     class="form-select" data-group="{{ $bushIplNum ?: 'no_ipl' }}"
-                                                {{ !$groupSelected ? 'disabled' : '' }}>
+                                                    {{ !$groupSelected ? 'disabled' : '' }}>
                                                 <option value="">-- Select Passivation --</option>
                                                 @foreach($passivationProcesses as $process)
                                                     <option value="{{ $process->id }}"
-                                                        {{ isset($groupData['passivation']) && $groupData['passivation'] == $process->id ? 'selected' : '' }}>
+                                                            {{ isset($groupData['passivation']) && $groupData['passivation'] == $process->id ? 'selected' : '' }}>
                                                         <span @if(strlen($process->process) > 40) class="process-text-long" @endif>{{ $process->process }}</span>
                                                     </option>
                                                 @endforeach
@@ -343,11 +343,11 @@
                                         <td>
                                             <select name="group_bushings[{{ $bushIplNum ?: 'no_ipl' }}][cad]"
                                                     class="form-select" data-group="{{ $bushIplNum ?: 'no_ipl' }}"
-                                                {{ !$groupSelected ? 'disabled' : '' }}>
+                                                    {{ !$groupSelected ? 'disabled' : '' }}>
                                                 <option value="">-- Select CAD --</option>
                                                 @foreach($cadProcesses as $process)
                                                     <option value="{{ $process->id }}"
-                                                        {{ isset($groupData['cad']) && $groupData['cad'] == $process->id ? 'selected' : '' }}>
+                                                            {{ isset($groupData['cad']) && $groupData['cad'] == $process->id ? 'selected' : '' }}>
                                                         <span @if(strlen($process->process) > 40) class="process-text-long" @endif>{{ $process->process }}</span>
                                                     </option>
                                                 @endforeach
@@ -356,11 +356,11 @@
                                         <td>
                                             <select name="group_bushings[{{ $bushIplNum ?: 'no_ipl' }}][anodizing]"
                                                     class="form-select" data-group="{{ $bushIplNum ?: 'no_ipl' }}"
-                                                {{ !$groupSelected ? 'disabled' : '' }}>
+                                                    {{ !$groupSelected ? 'disabled' : '' }}>
                                                 <option value="">-- Select Anodizing --</option>
                                                 @foreach($anodizingProcesses as $process)
                                                     <option value="{{ $process->id }}"
-                                                        {{ isset($groupData['anodizing']) && $groupData['anodizing'] == $process->id ? 'selected' : '' }}>
+                                                            {{ isset($groupData['anodizing']) && $groupData['anodizing'] == $process->id ? 'selected' : '' }}>
                                                         <span @if(strlen($process->process) > 40) class="process-text-long" @endif>{{ $process->process }}</span>
                                                     </option>
                                                 @endforeach
@@ -369,11 +369,11 @@
                                         <td>
                                             <select name="group_bushings[{{ $bushIplNum ?: 'no_ipl' }}][xylan]"
                                                     class="form-select" data-group="{{ $bushIplNum ?: 'no_ipl' }}"
-                                                {{ !$groupSelected ? 'disabled' : '' }}>
+                                                    {{ !$groupSelected ? 'disabled' : '' }}>
                                                 <option value="">-- Select Xylan --</option>
                                                 @foreach($xylanProcesses as $process)
                                                     <option value="{{ $process->id }}"
-                                                        {{ isset($groupData['xylan']) && $groupData['xylan'] == $process->id ? 'selected' : '' }}>
+                                                            {{ isset($groupData['xylan']) && $groupData['xylan'] == $process->id ? 'selected' : '' }}>
                                                         <span @if(strlen($process->process) > 40) class="process-text-long" @endif>{{ $process->process }}</span>
                                                     </option>
                                                 @endforeach
@@ -381,10 +381,10 @@
                                         </td>
                                     </tr>
                                 @endforeach
-                                </tbody>
-                            </table>
-                        </div>
-                    </div>
+                            </tbody>
+                        </table>
+                </div>
+            </div>
             </form>
         @else
             <div class="text-center mt-5">

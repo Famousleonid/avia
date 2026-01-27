@@ -325,7 +325,7 @@
             font-size: 0.85rem; /* или любое другое подходящее значение */
         }
         .fs-8 {
-            font-size: 0.7rem; /* или любое другое подходящее значение */
+            font-size: 0.8rem; /* или любое другое подходящее значение */
         }
         .fs-9 {
             font-size: 0.4rem; /* или любое другое подходящее значение */
@@ -838,7 +838,7 @@
                     </div>
                 </div>
 
-                <div class="text-start fs-7 ndt-process-label"><strong>LIQUID/FLUID PENETRANT AS PER:</strong></div>
+                <div class="text-start fs-75 ndt-process-label"><strong>LIQUID/FLUID PENETRANT AS PER:</strong></div>
                 <div class="row ndt-process-row">
                     <div class="col-1 fs-7">#4</div>
                     <div class="col-10 border-b">
@@ -958,12 +958,13 @@
         @endphp
 
         @foreach($ndt_components as $component)
-            <div class="row fs-85 data-row-ndt" data-row-index="{{ $rowIndex }}">
+            <div class="row fs-8 data-row-ndt" data-row-index="{{ $rowIndex }}">
                 <div class="col-1 border-l-b details-row text-center" style="height: 32px">
                     {{ $component->tdr->component->ipl_num }}
                 </div>
-                <div class="col-3 border-l-b details-row text-center" style="height: 32px">
+                <div class="col-3 border-l-b details-row text-center" style="height: 32px;line-height: 1">
                     {{ $component->tdr->component->part_number }}
+                    <br>
                     @if($component->tdr->serial_number)
             SN {{$component->tdr->serial_number}}
                     @endif

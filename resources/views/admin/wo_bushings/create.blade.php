@@ -265,52 +265,52 @@
             <form id="bushings-form" method="POST" action="{{ route('wo_bushings.store') }}">
                 @csrf
                 <input type="hidden" name="workorder_id" value="{{ $current_wo->id }}">
-                @endif
-                <div class="card-header m-1 shadow ">
-                    <div class="d-flex justify-content-between align-items-center">
-                        <div>
-                            <h4 class="text-primary ms-2 mb-0">{{__('Work Order: ')}} {{$current_wo->number}}</h4>
-                            <div>
-                                <h4 class="ps-xl-5 mb-0">{{__('CREATE BUSHINGS')}}</h4>
-                            </div>
-                        </div>
-                        <div>
-                            <button type="button" class="btn btn-outline-info me-2" style="height: 60px;width: 140px" data-bs-toggle="modal" data-bs-target="#addBushingsFromManualModal">
-                                <i class="fas fa-exchange-alt"></i> {{ __('Add from Manual') }}
-                            </button>
-                            <a href="{{ route('processes.create', ['manual_id' => $current_wo->unit->manual_id, 'return_to' => route('wo_bushings.create', $current_wo->id)]) }}"
-                               class="btn btn-outline-primary me-2" style="height: 60px;width: 100px">
-                                <i class="fas fa-cogs"></i> {{ __('Add Processes') }}
-                            </a>
-                            <a href="{{ route('components.create', ['manual_id' => $current_wo->unit->manual_id ?? null, 'redirect' => route('wo_bushings.create', $current_wo->id)]) }}"
-                               class="btn btn-outline-primary me-2" style="height: 60px;width: 110px">
-                                <i class="fas fa-plus"></i> {{ __('Add Component') }}
-                            </a>
-                        </div>
-                        <div class="d-flex align-items-center">
-                            @if($bushings->flatten()->count() > 0)
-                                <button type="submit" class="btn btn-success btn-lg me-2">
-                                    <i class="fas fa-plus"></i> Create Bushings Data
-                                </button>
-                                <button type="button" class="btn btn-secondary btn-lg me-2" onclick="clearForm()">
-                                    <i class="fas fa-eraser"></i> Clear All
-                                </button>
-                            @endif
-                            <a href="{{ route('wo_bushings.show', $current_wo->id) }}"
-                               class="btn btn-outline-secondary me-2" style="height: 60px;width: 110px">
-                                {{ __('Back to Bushings') }}
-                            </a>
-                        </div>
+        @endif
+        <div class="card-header m-1 shadow ">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <h4 class="text-primary ms-2 mb-0">{{__('Work Order: ')}} {{$current_wo->number}}</h4>
+                    <div>
+                        <h4 class="ps-xl-5 mb-0">{{__('CREATE BUSHINGS')}}</h4>
                     </div>
                 </div>
+                <div>
+                    <button type="button" class="btn btn-outline-info me-2" style="height: 60px;width: 140px" data-bs-toggle="modal" data-bs-target="#addBushingsFromManualModal">
+                        <i class="fas fa-exchange-alt"></i> {{ __('Add from Manual') }}
+                    </button>
+                    <a href="{{ route('processes.create', ['manual_id' => $current_wo->unit->manual_id, 'return_to' => route('wo_bushings.create', $current_wo->id)]) }}"
+                       class="btn btn-outline-primary me-2" style="height: 60px;width: 100px">
+                        <i class="fas fa-cogs"></i> {{ __('Add Processes') }}
+                    </a>
+                    <a href="{{ route('components.create', ['manual_id' => $current_wo->unit->manual_id ?? null, 'redirect' => route('wo_bushings.create', $current_wo->id)]) }}"
+                       class="btn btn-outline-primary me-2" style="height: 60px;width: 110px">
+                        <i class="fas fa-plus"></i> {{ __('Add Component') }}
+                    </a>
+                </div>
+                <div class="d-flex align-items-center">
+                    @if($bushings->flatten()->count() > 0)
+                        <button type="submit" class="btn btn-success btn-lg me-2">
+                            <i class="fas fa-plus"></i> Create Bushings Data
+                        </button>
+                        <button type="button" class="btn btn-secondary btn-lg me-2" onclick="clearForm()">
+                            <i class="fas fa-eraser"></i> Clear All
+                        </button>
+                    @endif
+                    <a href="{{ route('wo_bushings.show', $current_wo->id) }}"
+                       class="btn btn-outline-secondary me-2" style="height: 60px;width: 110px">
+                        {{ __('Back to Bushings') }}
+                    </a>
+                </div>
+            </div>
+        </div>
 
 
 
-                @if($bushings->flatten()->count() > 0)
-                    <div class="d-flex justify-content-center mt-3">
-                        <div class="table-wrapper me-3">
-                            <table class="display table shadow table-hover align-middle table-bordered ">
-                                <thead class="">
+        @if($bushings->flatten()->count() > 0)
+            <div class="d-flex justify-content-center mt-3">
+                <div class="table-wrapper me-3">
+                        <table class="display table shadow table-hover align-middle table-bordered ">
+                            <thead class="">
                                 <tr class="header-row bg-gradient">
                                     <th class="text-primary text-center">Bushings</th>
                                     <th class="text-primary text-center "> Select</th>
@@ -323,8 +323,8 @@
                                     <th class="text-primary text-center">Anodizing</th>
                                     <th class="text-primary text-center">Xylan</th>
                                 </tr>
-                                </thead>
-                                <tbody>
+                            </thead>
+                            <tbody>
                                 @foreach($bushings as $bushIplNum => $bushingGroup)
                                     {{-- Group row with all bushings in first column and group controls --}}
                                     <tr>
@@ -439,10 +439,10 @@
                                         </td>
                                     </tr>
                                 @endforeach
-                                </tbody>
-                            </table>
-                        </div>
-                    </div>
+                            </tbody>
+                        </table>
+                </div>
+            </div>
             </form>
         @else
             <div class="text-center mt-5">
@@ -649,22 +649,22 @@
                         current_manual_id: currentManualId
                     })
                 })
-                    .then(response => response.json())
-                    .then(data => {
-                        if (data.success) {
-                            selectedManualBushings = data.bushings;
-                            // Use processes from current manual, not from selected manual
-                            selectedManualProcesses = currentManualProcesses;
-                            renderBushingsList(data.bushings);
-                            addSelectedBtn.style.display = 'block';
-                        } else {
-                            bushingsList.innerHTML = '<div class="alert alert-danger">Error loading bushings</div>';
-                        }
-                    })
-                    .catch(error => {
-                        console.error('Error:', error);
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        selectedManualBushings = data.bushings;
+                        // Use processes from current manual, not from selected manual
+                        selectedManualProcesses = currentManualProcesses;
+                        renderBushingsList(data.bushings);
+                        addSelectedBtn.style.display = 'block';
+                    } else {
                         bushingsList.innerHTML = '<div class="alert alert-danger">Error loading bushings</div>';
-                    });
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    bushingsList.innerHTML = '<div class="alert alert-danger">Error loading bushings</div>';
+                });
             });
 
             function renderBushingsList(bushings) {
@@ -823,7 +823,7 @@
 
                     processTypes.forEach(function(processType) {
                         rowHtml += `<td>`;
-
+                        
                         // Для NDT используем чекбоксы, для остальных - select
                         if (processType === 'ndt') {
                             rowHtml += `<div class="ndt-checkboxes" data-group="${uniqueGroupKey}">`;

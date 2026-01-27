@@ -611,14 +611,14 @@ class WoBushingController extends Controller
             // Группируем NDT процессы по компоненту для объединения номеров
             $tableData = [];
             $componentNdtMap = []; // Карта для группировки NDT по компонентам
-
+            
             if ($bushData && is_array($bushData)) {
                 foreach ($bushData as $bushItem) {
                     if (isset($bushItem['bushing']) && isset($bushItem['processes']['ndt']) && !empty($bushItem['processes']['ndt'])) {
                         $component = Component::find($bushItem['bushing']);
                         if ($component) {
                             $componentId = $component->id;
-
+                            
                             // Инициализируем запись для компонента, если её еще нет
                             if (!isset($componentNdtMap[$componentId])) {
                                 $componentNdtMap[$componentId] = [
@@ -628,12 +628,12 @@ class WoBushingController extends Controller
                                     'processes' => []
                                 ];
                             }
-
+                            
                             // NDT может быть массивом или одним значением
-                            $ndtProcessIds = is_array($bushItem['processes']['ndt'])
-                                ? $bushItem['processes']['ndt']
+                            $ndtProcessIds = is_array($bushItem['processes']['ndt']) 
+                                ? $bushItem['processes']['ndt'] 
                                 : [$bushItem['processes']['ndt']];
-
+                            
                             foreach ($ndtProcessIds as $ndtProcessId) {
                                 $process = Process::find($ndtProcessId);
                                 if ($process) {
@@ -653,25 +653,25 @@ class WoBushingController extends Controller
                     }
                 }
             }
-
+            
             // Преобразуем карту в массив tableData с объединенными номерами
             foreach ($componentNdtMap as $componentData) {
                 if (empty($componentData['ndt_numbers'])) {
                     continue; // Пропускаем компоненты без NDT номеров
                 }
-
+                
                 // Сортируем номера для правильного отображения (преобразуем в числа для корректной сортировки)
                 $ndtNumbers = $componentData['ndt_numbers'];
                 usort($ndtNumbers, function($a, $b) {
                     return (int)$a <=> (int)$b;
                 });
-
+                
                 // Объединяем номера через " / "
                 $combinedNdtNumber = implode(' / ', $ndtNumbers);
-
+                
                 // Используем первый процесс для совместимости с шаблоном
                 $firstProcess = !empty($componentData['processes']) ? $componentData['processes'][0] : null;
-
+                
                 $tableData[] = [
                     'component' => $componentData['component'],
                     'wo_bushing' => $woBushing,
@@ -760,20 +760,20 @@ class WoBushingController extends Controller
     {
         $woBushing = WoBushing::findOrFail($id);
         $current_wo = Workorder::findOrFail($woBushing->workorder_id);
-
+        
         // Получаем связанные данные
         $manual_id = $current_wo->unit->manual_id;
         $components = Component::where('manual_id', $manual_id)->get();
         $manuals = \App\Models\Manual::where('id', $manual_id)->get();
 
         // Получаем данные о втулках
-        $bushData = is_array($woBushing->bush_data)
-            ? $woBushing->bush_data
+        $bushData = is_array($woBushing->bush_data) 
+            ? $woBushing->bush_data 
             : json_decode($woBushing->bush_data, true);
 
         // Группируем втулки по процессам
         $processGroups = [];
-
+        
         if ($bushData) {
             foreach ($bushData as $bushItem) {
                 if (isset($bushItem['bushing']) && isset($bushItem['processes'])) {
@@ -791,17 +791,17 @@ class WoBushingController extends Controller
                             'Anodizing' => 'anodizing',
                             'Xylan' => 'xylan'
                         ];
-
+                        
                         foreach ($processOrder as $processType => $processKey) {
                             // Проверяем, что процесс существует и не равен null
                             if (isset($processes[$processKey]) && $processes[$processKey] !== null) {
                                 $activeProcesses[] = $processType;
                             }
                         }
-
+                        
                         // Создаем уникальный ключ группы БЕЗ сортировки
                         $groupKey = implode('|', $activeProcesses);
-
+                        
                         if (!isset($processGroups[$groupKey])) {
                             $processGroups[$groupKey] = [
                                 'processes' => $activeProcesses,
@@ -809,7 +809,7 @@ class WoBushingController extends Controller
                                 'total_qty' => 0,
                                 'process_numbers' => []
                             ];
-
+                            
                             // Рассчитываем номера процессов для этой группы
                             $processNumber = 1;
                             foreach ($activeProcesses as $process) {
@@ -817,7 +817,7 @@ class WoBushingController extends Controller
                                 $processNumber++;
                             }
                         }
-
+                        
                         $processGroups[$groupKey]['components'][] = [
                             'component' => $component,
                             'qty' => $bushItem['qty'] ?? 1
