@@ -528,7 +528,7 @@ class WorkorderController extends Controller
                         $filePath = $media->getPath();
 
                         if (!file_exists($filePath)) {
-                           // Log::channel('avia')->error("File not found: $filePath");
+                            // Log::channel('avia')->error("File not found: $filePath");
                             continue;
                         }
 
@@ -538,19 +538,19 @@ class WorkorderController extends Controller
                         $relativePath = "$group/$filename";
 
                         $zip->addFileFromPath($relativePath, $filePath);
-                      //  Log::channel('avia')->info("Added to zip: $relativePath");
+                        //  Log::channel('avia')->info("Added to zip: $relativePath");
                     }
                 }
 
                 $zip->finish();
-              //  Log::channel('avia')->info("ZIP stream finished for workorder ID: $id");
+                //  Log::channel('avia')->info("ZIP stream finished for workorder ID: $id");
 
             }, 200, [
                 'Content-Type' => 'application/octet-stream',
                 'Content-Disposition' => 'attachment; filename="workorder_' . $id . '_images.zip"',
             ]);
         } catch (\Throwable $e) {
-          //  Log::channel('avia')->error("ZIP creation failed: " . $e->getMessage());
+            //  Log::channel('avia')->error("ZIP creation failed: " . $e->getMessage());
             return response()->json(['error' => 'Server error'], 500);
         }
     }

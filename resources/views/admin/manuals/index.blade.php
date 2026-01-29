@@ -149,7 +149,6 @@
                                         </a>
                                     @endforeach
                                 </div>
-                                </div>
                             </td>
                             <td class="text-center">
                                 <a href="{{ route('manuals.edit', ['manual' => $cmm->id]) }}" class="btn btn-outline-primary btn-sm">

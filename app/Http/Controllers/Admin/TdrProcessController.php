@@ -61,6 +61,24 @@ class TdrProcessController extends Controller
     }
 
     /**
+     * Получает массив ID процессов, для которых показывается чекбокс EC и создаётся запись EC.
+     * Включает: Machining (EC) / Machining / Machining (Blend), RIL
+     */
+    private function getEcEligibleProcessNameIds(): array
+    {
+        $ids = [];
+        $machiningId = $this->getMachiningProcessNameId();
+        if ($machiningId) {
+            $ids[] = $machiningId;
+        }
+        $ril = ProcessName::where('name', 'RIL')->first();
+        if ($ril) {
+            $ids[] = $ril->id;
+        }
+        return $ids;
+    }
+
+    /**
      * Получает manual_id для TDR записи
      * Сначала пытается получить из компонента, затем из workorder
      */
@@ -165,6 +183,8 @@ class TdrProcessController extends Controller
                   ->orWhereIn('name', ['NDT-1', 'NDT-2', 'NDT-3', 'NDT-4', 'NDT-5', 'NDT-6', 'NDT-7', 'NDT-8']);
         })->get();
 
+        $ecEligibleProcessNameIds = $this->getEcEligibleProcessNameIds();
+
         return view('admin.tdr-processes.createProcesses', compact(
             'current_tdr',
             'current_wo',
@@ -172,7 +192,8 @@ class TdrProcessController extends Controller
             'processes',
             'tdrProcesses',
             'manual_id',
-            'ndtProcessNames'
+            'ndtProcessNames',
+            'ecEligibleProcessNameIds'
         ));
     }
 
@@ -307,29 +328,12 @@ class TdrProcessController extends Controller
         // Счетчик для правильного расчета sort_order (учитывает дополнительные записи EC)
         $sortOrderCounter = 0;
 
-        // Динамическое определение ID процесса Machining для EC checkbox
-        // Приоритет: 'Machining (EC)' -> 'Machining' -> 'Machining (Blend)'
-        $machiningProcessNameId = null;
-        $machiningEC = ProcessName::where('name', 'Machining (EC)')->first();
-        $machining = ProcessName::where('name', 'Machining')->first();
-        $machiningBlend = ProcessName::where('name', 'Machining (Blend)')->first();
-
-        if ($machiningEC) {
-            $machiningProcessNameId = $machiningEC->id;
-            Log::info('Machining process ID determined: Machining (EC)', ['id' => $machiningProcessNameId]);
-        } elseif ($machining) {
-            $machiningProcessNameId = $machining->id;
-            Log::info('Machining process ID determined: Machining', ['id' => $machiningProcessNameId]);
-        } elseif ($machiningBlend) {
-            $machiningProcessNameId = $machiningBlend->id;
-            Log::info('Machining process ID determined: Machining (Blend)', ['id' => $machiningProcessNameId]);
-        } else {
-            Log::warning('Machining process not found in database');
-        }
+        // ID процессов, для которых показывается EC checkbox: Machining (EC)/Machining/Machining (Blend), RIL
+        $ecEligibleIds = $this->getEcEligibleProcessNameIds();
 
         // Сохраняем каждый процесс
         foreach ($processesData as $index => $data) {
-            $isMachining = $machiningProcessNameId !== null && (int)$data['process_names_id'] === $machiningProcessNameId;
+            $isEcEligible = in_array((int)$data['process_names_id'], $ecEligibleIds);
 
             // Проверяем значение ec (может быть true, 1, "1", или отсутствовать)
             $ecValue = isset($data['ec']) ? (
@@ -342,7 +346,7 @@ class TdrProcessController extends Controller
             // Логируем для отладки
             Log::info('Processing process data', [
                 'process_names_id' => $data['process_names_id'],
-                'isMachining' => $isMachining,
+                'isEcEligible' => $isEcEligible,
                 'ec_value' => $data['ec'] ?? null,
                 'ec_checked' => $ecValue,
                 'tdrs_id' => $tdrId
@@ -364,9 +368,9 @@ class TdrProcessController extends Controller
 
             $sortOrderCounter++;
 
-            // Если это процесс 'Machining' с отмеченным чекбоксом 'EC'
-            if ($isMachining && $ecValue) {
-                Log::info('Machining with EC checked - processing', [
+            // Если это EC-eligible процесс (Machining/RIL) с отмеченным чекбоксом 'EC'
+            if ($isEcEligible && $ecValue) {
+                Log::info('EC-eligible process with EC checked - processing', [
                     'tdrs_id' => $tdrId,
                     'process_names_id' => $data['process_names_id']
                 ]);
@@ -893,13 +897,16 @@ class TdrProcessController extends Controller
         // Получаем все NDT process names для дополнительного селекта
         $ndtProcessNames = ProcessName::where('name', 'like', 'NDT-%')->get();
 
+        $ecEligibleProcessNameIds = $this->getEcEligibleProcessNameIds();
+
         return view('admin.tdr-processes.edit', compact(
             'current_tdr',
             'current_wo',
             'current_tdr_processes',
             'processNames',
             'processes',
-            'ndtProcessNames'
+            'ndtProcessNames',
+            'ecEligibleProcessNameIds'
         ));
     }
 
@@ -938,16 +945,14 @@ class TdrProcessController extends Controller
         $oldProcessNamesId = $current_tdr_processes->process_names_id;
         $oldProcesses = json_decode($current_tdr_processes->processes, true) ?: [];
         $newProcessNamesId = $processData['process_names_id'];
-        $machiningProcessNameId = $this->getMachiningProcessNameId();
+        $ecEligibleIds = $this->getEcEligibleProcessNameIds();
 
-        // Определяем значение EC: если новый Process Name не является Machining (EC), сбрасываем флаг EC
-        $isNewMachining = ($machiningProcessNameId !== null && (int)$newProcessNamesId === $machiningProcessNameId);
+        // Определяем значение EC: только для EC-eligible процессов (Machining, RIL)
+        $isNewEcEligible = in_array((int)$newProcessNamesId, $ecEligibleIds);
         $ecValue = false;
-        if ($isNewMachining) {
-            // Только для Machining (EC) используем значение из формы
+        if ($isNewEcEligible) {
             $ecValue = $processData['ec'] ?? false;
         }
-        // Если не Machining (EC), ecValue уже установлен в false
 
         // Обрабатываем plus_process: если это NDT процесс, сохраняем дополнительные NDT process_names_id
         $plusProcess = null;
@@ -972,19 +977,18 @@ class TdrProcessController extends Controller
         $current_tdr_processes->update($dataToUpdate);
         \Log::info('After update:', $current_tdr_processes->fresh()->toArray());
 
-        // Обработка EC записи при обновлении Machining (EC)
-        $isOldMachining = ($machiningProcessNameId !== null && (int)$oldProcessNamesId === $machiningProcessNameId);
-        $ecChecked = $ecValue; // Используем вычисленное значение EC (уже проверено, что это Machining (EC))
+        // Обработка EC записи при обновлении EC-eligible процесса (Machining, RIL)
+        $isOldEcEligible = in_array((int)$oldProcessNamesId, $ecEligibleIds);
 
-        if ($isOldMachining || $isNewMachining) {
-            $this->handleEcProcessOnMachiningUpdate(
+        if ($isOldEcEligible || $isNewEcEligible) {
+            $this->handleEcProcessOnEcEligibleUpdate(
                 $validated['tdrs_id'],
                 $oldProcessNamesId,
                 $newProcessNamesId,
                 $oldProcesses,
                 $processesArray,
-                $machiningProcessNameId,
-                $ecChecked
+                $ecEligibleIds,
+                $ecValue
             );
         }
 
@@ -1015,18 +1019,16 @@ class TdrProcessController extends Controller
         // Находим запись по ID
         $tdrProcess = TdrProcess::findOrFail($tdr_process);
 
-        // Определяем ID процесса Machining для проверки (используем кэшированный метод)
-        $machiningProcessNameId = $this->getMachiningProcessNameId();
+        $ecEligibleIds = $this->getEcEligibleProcessNameIds();
 
-        // Проверяем, является ли удаляемая запись процессом Machining
-        $isMachining = $machiningProcessNameId !== null &&
-                       (int)$tdrProcess->process_names_id === $machiningProcessNameId;
+        // Проверяем, является ли удаляемая запись EC-eligible процессом (Machining, RIL)
+        $isEcEligible = in_array((int)$tdrProcess->process_names_id, $ecEligibleIds);
 
         // Сохраняем процессы удаляемой записи для последующего удаления из EC
         $processesToRemoveFromEC = null;
-        if ($isMachining) {
+        if ($isEcEligible) {
             $processesToRemoveFromEC = json_decode($tdrProcess->processes, true) ?: [];
-            Log::info('Deleting Machining process, will update EC record', [
+            Log::info('Deleting EC-eligible process, will update EC record', [
                 'tdrs_id' => $tdrId,
                 'tdr_process_id' => $tdr_process,
                 'processes_to_remove' => $processesToRemoveFromEC
@@ -1053,9 +1055,8 @@ class TdrProcessController extends Controller
         if (count($processData) === 1) {
             $tdrProcess->delete();
 
-            // Если это был Machining, обрабатываем EC запись
-            if ($isMachining && $processesToRemoveFromEC) {
-                $this->handleEcProcessOnMachiningDelete($tdrId, $processesToRemoveFromEC);
+            if ($isEcEligible && $processesToRemoveFromEC) {
+                $this->handleEcProcessOnEcEligibleDelete($tdrId, $processesToRemoveFromEC);
             }
 
             return redirect()->route('tdrs.processes', ['workorder_id' => $tdr->workorder->id])
@@ -1071,9 +1072,8 @@ class TdrProcessController extends Controller
         $tdrProcess->processes = json_encode(array_values($processData)); // Переиндексируем массив
         $tdrProcess->save();
 
-        // Если это был Machining, обрабатываем EC запись
-        if ($isMachining && $processesToRemoveFromEC) {
-            $this->handleEcProcessOnMachiningDelete($tdrId, $processesToRemoveFromEC);
+        if ($isEcEligible && $processesToRemoveFromEC) {
+            $this->handleEcProcessOnEcEligibleDelete($tdrId, $processesToRemoveFromEC);
         }
 
         // Перенаправляем с сообщением об успехе
@@ -1082,35 +1082,35 @@ class TdrProcessController extends Controller
     }
 
     /**
-     * Обрабатывает запись EC при обновлении процесса Machining
+     * Обрабатывает запись EC при обновлении EC-eligible процесса (Machining, RIL)
      *
      * @param int $tdrId ID компонента
      * @param int $oldProcessNamesId Старый process_names_id
      * @param int $newProcessNamesId Новый process_names_id
      * @param array $oldProcesses Старые процессы
      * @param array $newProcesses Новые процессы
-     * @param int|null $machiningProcessNameId ID для Machining (EC)
+     * @param array $ecEligibleIds ID процессов с EC checkbox (Machining, RIL)
      * @param bool $ecChecked Отмечен ли чекбокс EC
      */
-    private function handleEcProcessOnMachiningUpdate(
+    private function handleEcProcessOnEcEligibleUpdate(
         $tdrId,
         $oldProcessNamesId,
         $newProcessNamesId,
         $oldProcesses,
         $newProcesses,
-        $machiningProcessNameId,
+        array $ecEligibleIds,
         $ecChecked = false
     ) {
         $ecProcessNameId = $this->getEcProcessNameId();
         if (!$ecProcessNameId) {
-            Log::warning('EC ProcessName not found when updating Machining', ['tdrs_id' => $tdrId]);
+            Log::warning('EC ProcessName not found when updating EC-eligible process', ['tdrs_id' => $tdrId]);
             return;
         }
 
-        $isOldMachining = ($machiningProcessNameId !== null && (int)$oldProcessNamesId === $machiningProcessNameId);
-        $isNewMachining = ($machiningProcessNameId !== null && (int)$newProcessNamesId === $machiningProcessNameId);
+        $isOldEcEligible = in_array((int)$oldProcessNamesId, $ecEligibleIds);
+        $isNewEcEligible = in_array((int)$newProcessNamesId, $ecEligibleIds);
 
-        // Вариант C: Тип процесса изменился (с другого на Machining (EC)) и чекбокс EC отмечен
+        // Вариант C: Тип процесса изменился (с другого на EC-eligible) и чекбокс EC отмечен
         // Обрабатываем ПЕРЕД поиском существующей EC записи, так как её может не быть
         if (!$isOldMachining && $isNewMachining && $ecChecked) {
             // Проверяем, существует ли уже запись EC для этого компонента
@@ -1126,7 +1126,7 @@ class TdrProcessController extends Controller
 
                 $ecProcess->update(['processes' => json_encode($mergedProcesses)]);
 
-                Log::info('Updated existing EC process record after changing to Machining (EC)', [
+                Log::info('Updated existing EC process record after changing to EC-eligible', [
                     'tdrs_id' => $tdrId,
                     'ec_process_id' => $ecProcess->id,
                     'merged_processes' => $mergedProcesses
@@ -1167,8 +1167,8 @@ class TdrProcessController extends Controller
 
         $ecProcesses = json_decode($ecProcess->processes, true) ?: [];
 
-        // Вариант A: Тип процесса не изменился (остался Machining (EC))
-        if ($isOldMachining && $isNewMachining) {
+        // Вариант A: Тип процесса не изменился (остался EC-eligible)
+        if ($isOldEcEligible && $isNewEcEligible) {
             // Заменяем старые процессы на новые в EC
             foreach ($oldProcesses as $oldProcessId) {
                 $index = array_search((int)$oldProcessId, array_map('intval', $ecProcesses));
@@ -1207,8 +1207,8 @@ class TdrProcessController extends Controller
                 ]);
             }
         }
-        // Вариант B: Тип процесса изменился (с Machining (EC) на другой)
-        elseif ($isOldMachining && !$isNewMachining) {
+        // Вариант B: Тип процесса изменился (с EC-eligible на другой)
+        elseif ($isOldEcEligible && !$isNewEcEligible) {
             // Удаляем старые процессы из EC
             foreach ($oldProcesses as $oldProcessId) {
                 $ecProcesses = array_filter($ecProcesses, function($id) use ($oldProcessId) {
@@ -1233,7 +1233,7 @@ class TdrProcessController extends Controller
             } else {
                 // Обновляем запись EC
                 $ecProcess->update(['processes' => json_encode($ecProcesses)]);
-                Log::info('Updated EC process record - removed processes after Machining type change', [
+                Log::info('Updated EC process record - removed processes after EC-eligible type change', [
                     'tdrs_id' => $tdrId,
                     'ec_process_id' => $ecProcess->id,
                     'remaining_processes' => $ecProcesses
@@ -1243,17 +1243,16 @@ class TdrProcessController extends Controller
     }
 
     /**
-     * Обрабатывает запись EC при удалении процесса Machining
+     * Обрабатывает запись EC при удалении EC-eligible процесса (Machining, RIL)
      *
      * @param int $tdrId ID компонента
      * @param array $processesToRemove Процессы, которые нужно удалить из EC записи
      */
-    private function handleEcProcessOnMachiningDelete($tdrId, $processesToRemove)
+    private function handleEcProcessOnEcEligibleDelete($tdrId, $processesToRemove)
     {
-        // Находим ProcessName 'EC' (используем кэшированный метод)
         $ecProcessNameId = $this->getEcProcessNameId();
         if (!$ecProcessNameId) {
-            Log::warning('EC ProcessName not found when deleting Machining', ['tdrs_id' => $tdrId]);
+            Log::warning('EC ProcessName not found when deleting EC-eligible process', ['tdrs_id' => $tdrId]);
             return;
         }
 
@@ -1304,26 +1303,21 @@ class TdrProcessController extends Controller
         // Получаем текущие процессы из EC записи
         $ecProcessesArray = json_decode($ecProcess->processes, true) ?: [];
 
-        // Удаляем процессы, которые были в удаленном Machining
+        // Удаляем процессы, которые были в удаленном EC-eligible процессе
         $remainingProcesses = array_filter($ecProcessesArray, function ($processId) use ($processesToRemove) {
             return !in_array((int)$processId, array_map('intval', $processesToRemove));
         });
-        $remainingProcesses = array_values($remainingProcesses); // Переиндексируем
+        $remainingProcesses = array_values($remainingProcesses);
 
-        // Проверяем, остались ли еще записи Machining для этого компонента (используем кэшированный метод)
-        $machiningProcessNameId = $this->getMachiningProcessNameId();
+        $ecEligibleIds = $this->getEcEligibleProcessNameIds();
+        $remainingEcEligibleProcesses = TdrProcess::where('tdrs_id', $tdrId)
+            ->whereIn('process_names_id', $ecEligibleIds)
+            ->get();
 
-        $remainingMachiningProcesses = collect();
-        if ($machiningProcessNameId) {
-            $remainingMachiningProcesses = TdrProcess::where('tdrs_id', $tdrId)
-                ->where('process_names_id', $machiningProcessNameId)
-                ->get();
-        }
-
-        // Если это был последний Machining процесс, удаляем EC запись полностью
-        if ($remainingMachiningProcesses->isEmpty()) {
+        // Если это был последний EC-eligible процесс, удаляем EC запись полностью
+        if ($remainingEcEligibleProcesses->isEmpty()) {
             $ecProcess->delete();
-            Log::info('Deleted EC process record - last Machining process was removed', [
+            Log::info('Deleted EC process record - last EC-eligible process was removed', [
                 'tdrs_id' => $tdrId,
                 'ec_process_id' => $ecProcess->id
             ]);
@@ -1341,7 +1335,7 @@ class TdrProcessController extends Controller
                 $ecProcess->update([
                     'processes' => json_encode($remainingProcesses)
                 ]);
-                Log::info('Updated EC process record - removed processes from deleted Machining', [
+                Log::info('Updated EC process record - removed processes from deleted EC-eligible process', [
                     'tdrs_id' => $tdrId,
                     'ec_process_id' => $ecProcess->id,
                     'removed_processes' => $processesToRemove,

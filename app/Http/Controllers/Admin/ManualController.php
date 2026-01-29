@@ -174,6 +174,8 @@ class ManualController extends Controller
 
     public function show(string $id)
     {
+        $cmm = Manual::findOrFail($id);
+
     }
 
     public function edit($id)

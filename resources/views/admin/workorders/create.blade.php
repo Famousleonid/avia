@@ -2,6 +2,8 @@
 
 @section('style')
 
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/select2-bootstrap-5-theme@1.3.0/dist/select2-bootstrap-5-theme.min.css"/>
+
     <style>
 
         /* ----------------------------------- Select 2 Dark Theme -------------------------------------*/
@@ -332,6 +334,8 @@
             const saveBtn = document.getElementById("ntSaveFormsSubmit");
             const unitSelect = document.getElementById('unit_id');
             const descriptionInput = document.getElementById('description');
+            const instructionSelect = document.getElementById('instruction_id');
+            const numberInput = document.getElementById('number_id');
 
             const DRAFT_INSTRUCTION_ID = {{ $draftInstructionId ?? 0 }};
 
@@ -339,6 +343,7 @@
                 return String(instructionSelect.value) === String(DRAFT_INSTRUCTION_ID);
             }
             function toggleNumberField() {
+                if (!numberInput) return;
                 if (isDraftSelected()) {
                     numberInput.value = '';
                     numberInput.setAttribute('readonly', 'readonly');
@@ -350,8 +355,10 @@
                 }
             }
 
-            instructionSelect.addEventListener('change', toggleNumberField);
-            toggleNumberField();
+            if (instructionSelect) {
+                instructionSelect.addEventListener('change', toggleNumberField);
+                toggleNumberField();
+            }
 
 
             unitSelect.onchange = function () {
@@ -458,7 +465,7 @@
                     dropdown.addClass('select2-light').removeClass('select2-dark');
                 }
             }
-        // ---------------------   Save Unit ------------------------------------------------------------------
+            // ---------------------   Save Unit ------------------------------------------------------------------
             document.getElementById('createUnitBtn').addEventListener('click', function () {
                 const manualId = document.getElementById('cmmSelect').value;
                 const pnInput = document.getElementById('partNumberInput');
@@ -533,7 +540,7 @@
                     });
             });
 
-        // ---------------------   Save Customer --------------------------------------------------------------
+            // ---------------------   Save Customer --------------------------------------------------------------
             document.getElementById('createCustomerBtn').addEventListener('click', function () {
                 const nameInput = document.getElementById('customerNameInput');
                 const name = nameInput.value.trim();

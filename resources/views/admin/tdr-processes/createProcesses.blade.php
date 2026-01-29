@@ -340,44 +340,11 @@
             return ndtProcessNames.includes(parseInt(processNameId));
         }
 
-        // Динамическое определение ID процесса Machining для EC checkbox
-        // Приоритет: 'Machining (EC)' -> 'Machining' -> 'Machining (Blend)'
-        let machiningProcessNameId = null;
-        @php
-            $machiningEC = $processNames->firstWhere('name', 'Machining (EC)');
-            $machining = $processNames->firstWhere('name', 'Machining');
-            $machiningBlend = $processNames->firstWhere('name', 'Machining (Blend)');
+        // ID процессов с EC checkbox: Machining (EC)/Machining/Machining (Blend), RIL
+        const ecEligibleProcessNameIds = @json($ecEligibleProcessNameIds ?? []);
 
-            if ($machiningEC) {
-                $machiningId = $machiningEC->id;
-            } elseif ($machining) {
-                $machiningId = $machining->id;
-            } elseif ($machiningBlend) {
-                $machiningId = $machiningBlend->id;
-            } else {
-                $machiningId = null;
-            }
-        @endphp
-        @if(isset($machiningId) && $machiningId)
-            machiningProcessNameId = {{ $machiningId }};
-            console.log('Machining process ID determined:', machiningProcessNameId);
-        @else
-            machiningProcessNameId = null; // Процесс Machining не найден
-            console.warn('Machining process not found in processNames');
-        @endif
-
-        // Функция для проверки, является ли процесс Machining
-        function isMachiningProcess(processNameId) {
-            const result = machiningProcessNameId !== null && processNameId == machiningProcessNameId.toString();
-            // Отладочная информация (можно убрать в продакшене)
-            if (processNameId) {
-                console.log('isMachiningProcess check:', {
-                    processNameId: processNameId,
-                    machiningProcessNameId: machiningProcessNameId,
-                    result: result
-                });
-            }
-            return result;
+        function isEcEligibleProcess(processNameId) {
+            return ecEligibleProcessNameIds.includes(parseInt(processNameId));
         }
 
         // Динамическое добавление новых строк
@@ -482,7 +449,7 @@
                     // Показываем/скрываем чекбокс EC для Machining
                     const ecCheckbox = processRow.querySelector('input[name*="[ec]"]');
                     if (ecCheckbox) {
-                        if (isMachiningProcess(processNameId)) {
+                        if (isEcEligibleProcess(processNameId)) {
                             ecCheckbox.closest('.form-check').style.display = 'block';
                         } else {
                             ecCheckbox.closest('.form-check').style.display = 'none';
@@ -1477,7 +1444,7 @@
                 const ecCheckbox = processRow.querySelector('input[name*="[ec]"]');
                 if (ecCheckbox) {
                     // Показываем чекбокс EC только для процесса Machining (определяется динамически)
-                    if (isMachiningProcess(processNameId)) {
+                    if (isEcEligibleProcess(processNameId)) {
                         ecCheckbox.closest('.form-check').style.display = 'block';
                     } else {
                         ecCheckbox.closest('.form-check').style.display = 'none';
@@ -2045,7 +2012,7 @@
                     // Показываем/скрываем чекбокс EC для Machining
                     const ecCheckbox = processRow.querySelector('input[name*="[ec]"]');
                     if (ecCheckbox) {
-                        if (isMachiningProcess(processNameId)) {
+                        if (isEcEligibleProcess(processNameId)) {
                             ecCheckbox.closest('.form-check').style.display = 'block';
                         } else {
                             ecCheckbox.closest('.form-check').style.display = 'none';
@@ -2080,7 +2047,7 @@
                     // Показываем/скрываем чекбокс EC в зависимости от выбранного id
                     if (ecCheckbox) {
                         // Показываем чекбокс EC только для процесса Machining (определяется динамически)
-                        if (isMachiningProcess(processNameId)) {
+                        if (isEcEligibleProcess(processNameId)) {
                             ecCheckbox.closest('.form-check').style.display = 'block';
                         } else {
                             ecCheckbox.closest('.form-check').style.display = 'none';
