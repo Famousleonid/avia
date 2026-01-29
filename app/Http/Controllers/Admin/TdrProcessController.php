@@ -1112,7 +1112,7 @@ class TdrProcessController extends Controller
 
         // Вариант C: Тип процесса изменился (с другого на EC-eligible) и чекбокс EC отмечен
         // Обрабатываем ПЕРЕД поиском существующей EC записи, так как её может не быть
-        if (!$isOldMachining && $isNewMachining && $ecChecked) {
+        if (!$isOldEcEligible && $isNewEcEligible && $ecChecked) {
             // Проверяем, существует ли уже запись EC для этого компонента
             $ecProcess = TdrProcess::where('tdrs_id', $tdrId)
                 ->where('process_names_id', $ecProcessNameId)
@@ -1147,7 +1147,7 @@ class TdrProcessController extends Controller
                     'notes' => null,
                 ]);
 
-                Log::info('Created new EC process record after changing to Machining (EC)', [
+                Log::info('Created new EC process record after changing to EC-eligible', [
                     'tdrs_id' => $tdrId,
                     'ec_process_name_id' => $ecProcessNameId,
                     'processes' => $newProcesses
