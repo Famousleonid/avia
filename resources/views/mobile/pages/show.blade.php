@@ -359,7 +359,11 @@
             })();
 
 
-            let currentPhotoCategory = 'photos';
+            let currentPhotoCategory =
+                document.querySelector('.category-label.active')?.dataset.category
+                || document.querySelector('.category-label')?.dataset.category
+                || 'photos';
+
             let currentWorkorderId = null;
             let currentWorkorderNumber = null;
 
