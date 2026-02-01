@@ -410,6 +410,14 @@
         opacity: 0.5;
     }
 
+    .table .form-control.is-invalid,
+    .table-dark .form-control.is-invalid,
+    .form-control.is-invalid {
+        border-color: #dc3545 !important;
+        box-shadow: 0 0 0 .15rem rgba(220,53,69,.25) !important;
+        background-image: none !important; /* чтобы bootstrap иконку не рисовал */
+    }
+
     .is-ignored input,
     .is-ignored .form-check-input {
         pointer-events: none;
@@ -426,6 +434,11 @@
     }
     .lock-icon:hover {
         opacity: 1;
+    }
+
+    .is-saved-field {
+        border-color: rgba(25, 135, 84, 0.9) !important;
+        box-shadow: 0 0 0 0.15rem rgba(25, 135, 84, 0.15) !important;
     }
 
 </style>

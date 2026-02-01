@@ -21,34 +21,64 @@ use Illuminate\Support\Str;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 use ZipStream\Option\Archive as ArchiveOptions;
 use Spatie\Activitylog\Models\Activity;
+use Illuminate\Validation\Rule;
 
 
 class WorkorderController extends Controller
 {
-    public function logs()
+    public function logs(Request $request)
     {
-        $activities = Activity::query()
-            ->where('log_name', 'workorder')
-            ->with(['causer', 'subject']) // subject = Workorder
-            ->orderByDesc('created_at')
-            ->paginate(50);
+        $q = trim((string) $request->get('q', ''));
 
-        // Мапы id → красивое имя
+        $activitiesQuery = Activity::query()
+            ->where('log_name', 'workorder')
+            ->with(['causer', 'subject'])
+            ->orderByDesc('created_at');
+
+        if ($q !== '') {
+            $activitiesQuery->where(function ($qq) use ($q) {
+
+                // 1) событие
+                $qq->where('event', 'like', "%{$q}%")
+
+                    // 2) пользователь
+                    ->orWhereHas('causer', function ($u) use ($q) {
+                        $u->where('name', 'like', "%{$q}%");
+                    })
+
+                    // 3) Workorder.number (ВАЖНО: whereHasMorph!)
+                    ->orWhereHasMorph(
+                        'subject',
+                        [Workorder::class],
+                        function ($s) use ($q) {
+                            $s->where('number', 'like', "%{$q}%");
+                        }
+                    )
+
+                    // 4) изменения (JSON как текст)
+                    ->orWhere('properties', 'like', "%{$q}%");
+            });
+        }
+
+        $activities = $activitiesQuery
+            ->paginate(50)
+            ->appends(['q' => $q]);
+
+        // Мапы id → имя
         $unitsMap        = Unit::pluck('part_number', 'id')->all();
         $customersMap    = Customer::pluck('name', 'id')->all();
         $instructionsMap = Instruction::pluck('name', 'id')->all();
         $usersMap        = User::pluck('name', 'id')->all();
 
-        // Читабельные названия полей
         $fieldLabels = [
-            'number'        => 'WO Number',
-            'unit_id'       => 'Unit',
-            'customer_id'   => 'Customer',
-            'instruction_id'=> 'Instruction',
-            'user_id'       => 'Technik',
-            'approve_at'    => 'Approve date',
-            'approve_name'  => 'Approved by',
-            'description'   => 'Description',
+            'number'         => 'WO Number',
+            'unit_id'        => 'Unit',
+            'customer_id'    => 'Customer',
+            'instruction_id' => 'Instruction',
+            'user_id'        => 'Technik',
+            'approve_at'     => 'Approve date',
+            'approve_name'   => 'Approved by',
+            'description'    => 'Description',
         ];
 
         return view('admin.log.index', compact(
@@ -323,27 +353,54 @@ class WorkorderController extends Controller
 
     public function edit(Workorder $workorder)
     {
+
+        $draftInstructionId = Instruction::where('name', 'Draft')->value('id');
+        $wasDraft = (int)$workorder->instruction_id === (int)$draftInstructionId;
+
+        $instructionsQuery = Instruction::query();
+        if (!$wasDraft) {
+            $instructionsQuery->where('id', '!=', $draftInstructionId);
+        }
+
+        $instructions = $instructionsQuery->get();
         $current_wo = $workorder;
         $customers = Customer::all();
         $units = Unit::all();
-        $instructions = Instruction::all();
         $manuals = Manual::all();
         $users = User::all();
         $open_at = Carbon::parse($current_wo->open_at)->format('Y-m-d');
 
 
-        return view('admin.workorders.edit', compact('users', 'customers', 'units', 'instructions', 'current_wo', 'manuals', 'open_at'));
+        return view('admin.workorders.edit', compact('users', 'customers', 'units', 'instructions', 'current_wo', 'manuals', 'open_at','draftInstructionId','wasDraft'));
 
     }
 
     public function update(Request $request, Workorder $workorder)
     {
-        $request->validate([
-            'unit_id' => 'required',
-            'customer_id' => 'required',
-            'instruction_id' => 'required',
-        ]);
+        $draftInstructionId = Instruction::where('name', 'Draft')->value('id');
+        $wasDraft = (int)$workorder->instruction_id === (int)$draftInstructionId;
+        $newIsDraft = (int)$request->instruction_id === (int)$draftInstructionId;
 
+        // Базовая валидация
+        $rules = [
+            'unit_id' => ['required'],
+            'customer_id' => ['required'],
+            'instruction_id' => ['required'],
+        ];
+
+        // Номер разрешаем менять ТОЛЬКО если воркордер был Draft и стал НЕ Draft
+        $allowChangeNumber = $wasDraft && !$newIsDraft;
+
+        if ($allowChangeNumber) {
+            $rules['number'] = [
+                'required',
+                Rule::unique('workorders', 'number')->ignore($workorder->id),
+            ];
+        }
+
+        $request->validate($rules);
+
+        // Чекбоксы
         $request->merge([
             'part_missing' => $request->has('part_missing') ? 1 : 0,
             'external_damage' => $request->has('external_damage') ? 1 : 0,
@@ -354,11 +411,62 @@ class WorkorderController extends Controller
             'extra_parts' => $request->has('extra_parts') ? 1 : 0,
         ]);
 
+        // ------- activity log for number change attempts -------
+        $oldNumber = (string)$workorder->number;
+        $requestedNumber = (string)($request->input('number') ?? '');
+
+        $attempted = $requestedNumber !== '' && $requestedNumber !== $oldNumber;
+
+        if ($attempted) {
+            $props = [
+                'workorder_id' => $workorder->id,
+                'old' => $oldNumber,
+                'new' => $requestedNumber,
+                'allowed' => $allowChangeNumber,
+                'was_draft' => $wasDraft,
+                'instruction_from_id' => $workorder->instruction_id,
+                'instruction_to_id' => (int)$request->instruction_id,
+                'ip' => $request->ip(),
+                'user_agent' => (string)$request->userAgent(),
+            ];
+
+            // Важно: log_name = changeworkordernumber
+            activity('changeworkordernumber')
+                ->causedBy(Auth::user())
+                ->performedOn($workorder)
+                ->event($allowChangeNumber ? 'changed_request' : 'attempt_blocked')
+                ->withProperties($props)
+                ->log($allowChangeNumber
+                    ? "Requested workorder number change"
+                    : "Blocked workorder number change attempt"
+                );
+        }
+
+
+        // Если менять номер нельзя — железно оставляем старый
+        if (!$allowChangeNumber) {
+            $request->merge(['number' => $workorder->number]);
+        }
+
+        // Draft -> Released: ставим is_draft = 0
+        if ($wasDraft && !$newIsDraft) {
+            $request->merge(['is_draft' => 0]);
+        }
+
+        // (опционально) если был Draft и остался Draft — держим 1
+        if ($wasDraft && $newIsDraft) {
+            $request->merge(['is_draft' => 1]);
+        }
+
+        // если изначально не Draft — всегда 0
+        if (!$wasDraft) {
+            $request->merge(['is_draft' => 0]);
+        }
+
         $workorder->update($request->all());
 
         // Если description заполнено и unit->name пустое, обновляем unit->name
         if (!empty($request->description)) {
-            // Используем unit_id из запроса, так как он мог измениться
             $unitId = $request->unit_id ?? $workorder->unit_id;
             $unit = Unit::find($unitId);
             if ($unit && empty($unit->name)) {
@@ -451,9 +559,6 @@ class WorkorderController extends Controller
         }
     }
 
-
-// use Spatie\MediaLibrary\MediaCollections\Models\Media; // не нужно тут
-
     public function photos($id)
     {
         try {
@@ -509,7 +614,6 @@ class WorkorderController extends Controller
             return response()->json(['error' => 'Server error'], 500);
         }
     }
-
 
     public function downloadAllGrouped($id)
     {
@@ -605,5 +709,22 @@ class WorkorderController extends Controller
         }
 
         return back()->with('success', 'Stages recalculated for all workorders.');
+    }
+
+    public function checkNumber(Request $request)
+    {
+        $number = trim((string)$request->get('number'));
+        $ignoreId = (int)$request->get('ignore_id');
+
+        if ($number === '') {
+            return response()->json(['ok' => false, 'message' => 'Empty number']);
+        }
+
+        $exists = Workorder::query()
+            ->where('number', $number)
+            ->when($ignoreId > 0, fn($q) => $q->where('id', '!=', $ignoreId))
+            ->exists();
+
+        return response()->json(['ok' => true, 'unique' => !$exists]);
     }
 }

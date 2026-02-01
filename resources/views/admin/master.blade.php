@@ -135,6 +135,7 @@
             animation: 'scale',
             theme: 'light-border',
             delay: [100, 50],
+            allowHTML: true,
         });
 
         // Bootstrap tooltips (атрибут data-toggle="tooltip")

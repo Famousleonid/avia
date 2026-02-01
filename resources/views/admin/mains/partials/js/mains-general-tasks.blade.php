@@ -212,7 +212,6 @@ document.addEventListener('DOMContentLoaded', () => {
                     const form = src.closest('form');
                     if (!form) return;
 
-                    safeShowSpinner();
                     if (form.requestSubmit) form.requestSubmit();
                     else form.submit();
                 },

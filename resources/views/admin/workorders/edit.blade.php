@@ -1,7 +1,6 @@
 @extends('admin.master')
 
-@section('content')
-
+@section('style')
     <style>
 
         /* ----------------------------------- Select 2 Dark Theme -------------------------------------*/
@@ -72,6 +71,9 @@
 
 
     </style>
+@endsection
+
+@section('content')
 
     <div class="container pl-3 pr-3 mt-5">
         <div class="card  p-2 shadow bg-gradient">
@@ -96,10 +98,38 @@
                                 <div class="col-lg-9 row">
 
                                     <div class="row ">
+
                                         <div class="form-group col-lg-4 mb-1">
-                                            <label class="mb-1" for="number_id">Workorder № </label>
-                                            <input type="text" id="number" name="number" value="{{ old('number', $current_wo->number) }}" class="form-control" readonly>
+                                            <label class="mb-1" for="number_id">Workorder №</label>
+
+                                            <div class="position-relative">
+                                                <input
+                                                    type="text"
+                                                    id="number"
+                                                    name="number"
+                                                    value="{{ old('number', $current_wo->number) }}"
+                                                    class="form-control pe-5"
+                                                    readonly
+                                                    style="padding-right: 44px !important;"
+                                                >
+
+                                                {{-- yellow lock --}}
+                                                <span id="numberLockIcon"
+                                                      class="position-absolute top-50 end-0 translate-middle-y me-2 text-warning d-none"
+                                                      title="Number is locked">
+                                                      <i class="bi bi-lock-fill"></i>
+                                                </span>
+
+                                                <div class="invalid-feedback" id="numberError"></div>
+                                            </div>
+
+                                            {{-- Draft → Released подсказка --}}
+                                            <div id="draftReleasedHint" class="form-text text-warning d-none">
+                                                Draft → Released: enter a NEW unique number
+                                            </div>
                                         </div>
+
+                                        <div class="invalid-feedback" id="numberError"></div>
 
                                         <div class="form-group col-lg-4 mb-1">
                                             <label for="unit_id">Unit
@@ -435,8 +465,88 @@
                     });
             });
 
+            const instructionSelect = document.getElementById('instruction_id');
+            const numberInput = document.getElementById('number');
+            const submitBtn = document.getElementById('ntSaveFormsSubmit');
+
+            const DRAFT_ID = {{ (int)$draftInstructionId }};
+            const WAS_DRAFT = {{ $wasDraft ? 'true' : 'false' }};
+            const ORIGINAL_NUMBER = numberInput.value;
+            const CURRENT_WO_ID = {{ (int)$current_wo->id }};
+
+            function shouldAllowEditNumber() {
+                const selectedInstructionId = parseInt(instructionSelect.value || '0', 10);
+                // Разрешаем только если воркордер был Draft и сейчас выбран НЕ Draft
+                return WAS_DRAFT && selectedInstructionId !== DRAFT_ID;
+            }
+
+            function applyNumberState() {
+                const allow = shouldAllowEditNumber();
+
+                numberInput.readOnly = !allow;
+                if (numberLockIcon) {
+                    numberLockIcon.classList.toggle('d-none', allow);
+                }
+                numberInput.classList.toggle('is-locked', !allow);
+                numberInput.classList.toggle('is-editable', allow);
+
+                if (!allow) {
+                    numberInput.value = ORIGINAL_NUMBER;
+                    numberInput.classList.remove('is-invalid');
+                    submitBtn.disabled = false;
+                }
+            }
+
+// Вызов при загрузке и при смене instruction
+            applyNumberState();
+            instructionSelect.addEventListener('change', applyNumberState);
+
+// Проверка уникальности — только когда номер редактируемый
+            async function checkNumberUnique() {
+                if (numberInput.readOnly) return true;
+
+                const val = (numberInput.value || '').trim();
+                if (!val) {
+                    numberInput.classList.add('is-invalid');
+                    document.getElementById('numberError').textContent = 'Number is required.';
+                    return false;
+                }
+
+                const url = new URL("{{ route('workorders.checkNumber') }}", window.location.origin);
+                url.searchParams.set('number', val);
+                url.searchParams.set('ignore_id', CURRENT_WO_ID);
+
+                const res = await fetch(url.toString(), { headers: { "X-Requested-With": "XMLHttpRequest" } });
+                const data = await res.json();
+
+                if (!data.ok || data.unique === false) {
+                    numberInput.classList.add('is-invalid');
+                    document.getElementById('numberError').textContent = 'Workorder number already exists.';
+                    return false;
+                }
+
+                numberInput.classList.remove('is-invalid');
+                return true;
+            }
+
+            numberInput.addEventListener('blur', async () => {
+                const ok = await checkNumberUnique();
+                submitBtn.disabled = !ok;
+            });
+
+            document.getElementById('createForm').addEventListener('submit', async (e) => {
+                const ok = await checkNumberUnique();
+                if (!ok) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                }
+            });
+
+
+
+
+
+
         });
-
-
     </script>
 @endsection

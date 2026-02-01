@@ -33,6 +33,7 @@
     // публичные (совместимость со старым кодом)
     window.showLoadingSpinner = function () {
         pendingSpinner++;
+
         if (pendingSpinner < 1) pendingSpinner = 1;
 
         // уже ждём показ — второй таймер не ставим
@@ -43,11 +44,11 @@
             // показываем только если всё ещё есть ожидание
             if (pendingSpinner > 0) showNow();
         }, SHOW_DELAY_MS);
+
     };
 
     window.hideLoadingSpinner = function () {
         pendingSpinner = Math.max(0, pendingSpinner - 1);
-
         if (pendingSpinner === 0) {
             if (showTimer) {
                 clearTimeout(showTimer);
@@ -108,6 +109,8 @@
 
         // отключение спиннера для конкретной формы
         if (form.hasAttribute('data-no-spinner')) return;
+
+        if (form.classList.contains('js-ajax')) return;
 
         if (typeof window.safeShowSpinner === 'function') window.safeShowSpinner();
     }, true);
@@ -496,3 +499,146 @@ window.hapticTap = function (pattern = 10) {
         // silently ignore
     }
 };
+
+// =====================================================
+// GLOBAL AJAX FORM SUBMIT (for inline save without reload)
+// usage: window.ajaxSubmit(form) or just ajaxSubmit(form)
+// =====================================================
+(function () {
+    if (window.__ajaxSubmitBound) return;
+    window.__ajaxSubmitBound = true;
+
+    function getToken() {
+        return document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
+    }
+
+    function clearFieldErrors(form) {
+        form.querySelectorAll('.is-invalid').forEach(el => el.classList.remove('is-invalid'));
+        form.querySelectorAll('.invalid-feedback').forEach(el => el.remove());
+    }
+
+    function showFieldErrors(form, errors) {
+        clearFieldErrors(form);
+
+        if (!errors) return;
+
+        Object.keys(data.errors || {}).forEach((field) => {
+            const input = form.querySelector(`[name="${field}"]`);
+            if (!input) return;
+
+            // если это flatpickr с altInput — подсветим ВИДИМЫЙ input
+            const visible = input._flatpickr?.altInput || input;
+
+            visible.classList.add('is-invalid');
+            setTimeout(() => visible.classList.remove('is-invalid'), 2000);
+        });
+    }
+// ===== helper =====
+    function applySavedState(form, data) {
+        const tr = form.closest('tr');
+        const userCell = tr?.querySelector('.js-last-user');
+        if (userCell && data?.user) userCell.textContent = data.user;
+
+        const icon = form.querySelector('.save-indicator');
+        if (icon) icon.classList.add('d-none');
+
+        form.querySelectorAll('.finish-input').forEach(inp => {
+            const hasValue = inp.value && inp.value.trim() !== '';
+            inp.classList.toggle('has-finish', hasValue);
+
+            inp.classList.add('is-saved-field');
+            setTimeout(() => inp.classList.remove('is-saved-field'), 800);
+
+            inp.dataset.original = inp.value ?? '';
+        });
+    }
+
+
+
+    async function _ajaxSubmit(form) {
+        const url = form?.getAttribute?.('action');
+        if (!url) return;
+
+        const fd = new FormData(form);
+        form.classList.add('is-saving');
+
+        try {
+            const res = await fetch(url, {
+                method: 'POST',
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest',
+                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
+                    'Accept': 'application/json',
+                },
+                body: fd,
+                spinner: false,
+            });
+
+            const data = await res.json().catch(() => ({}));
+
+            // ✅ ошибки
+            if (res.status === 422 || data?.success === false) {
+
+                // 1) toast (у тебя уже есть готовый notifyError)
+                const firstMsg = data?.errors ? Object.values(data.errors)?.[0]?.[0] : 'Validation error';
+                if (firstMsg && typeof window.notifyError === 'function') {
+                    window.notifyError(firstMsg, 2500);
+                }
+
+                // 2) подсветка видимого инпута (flatpickr altInput)
+                Object.keys(data.errors || {}).forEach((field) => {
+                    const input = form.querySelector(`[name="${field}"]`);
+                    if (!input) return;
+
+                    const fp = input._flatpickr || null;
+                    const visible = fp?.altInput || input;
+
+                    visible.classList.add('is-invalid');
+
+                    setTimeout(() => {
+                        visible.classList.remove('is-invalid');
+
+                        // 🔥 очистка значения
+                        if (fp) {
+                            fp.clear();               // flatpickr правильно очистится
+                        } else {
+                            input.value = '';
+                        }
+
+                        // обновить data-original, чтобы не считалось "изменённым"
+                        input.dataset.original = '';
+
+                    }, 2000);
+                });
+
+                return;
+            }
+
+            // ✅ на всякий случай: реальные ошибки сервера
+            if (!res.ok) throw new Error('Request failed');
+
+            clearFieldErrors(form);
+            applySavedState(form, data);
+
+        } catch (e) {
+            console.error(e);
+            if (typeof window.notifyError === 'function') window.notifyError('Request failed', 2500);
+        } finally {
+            form.classList.remove('is-saving');
+            if (typeof window.safeHideSpinner === 'function') window.safeHideSpinner();
+        }
+    }
+
+
+
+
+
+
+    // делаем глобально (и как window.ajaxSubmit, и как ajaxSubmit)
+    window.ajaxSubmit = _ajaxSubmit;
+    // чтобы можно было вызывать просто ajaxSubmit(form)
+    if (typeof window.ajaxSubmit === 'function') {
+        window.ajaxSubmitForm = _ajaxSubmit;
+    }
+
+})();

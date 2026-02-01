@@ -62,4 +62,9 @@ class TdrProcess extends Model
             $activity->causer()->associate(auth()->user());
         }
     }
+
+    public function updatedBy()
+    {
+        return $this->belongsTo(User::class, 'user_id');
+    }
 }

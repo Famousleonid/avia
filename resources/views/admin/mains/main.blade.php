@@ -490,8 +490,11 @@
                             </div>
 
                             <form method="get"
-                                  action="{{ route('mains.show', $current_workorder->id) }}"
+                                  action="{{ url()->current() }}"
                                   class="d-flex align-items-center gap-2">
+                                @foreach(request()->except('show_all') as $k => $v)
+                                    <input type="hidden" name="{{ $k }}" value="{{ $v }}">
+                                @endforeach
                                 <div class="form-check form-switch">
 
                                     {{-- всегда отправляем 0, если чекбокс снят --}}
@@ -528,7 +531,8 @@
                                                         class="table table-sm table-dark table-bordered mb-2 align-middle">
                                                         <thead>
                                                         <tr>
-                                                            <th style="width:40%;">
+                                                            <th style="width:10%; text-align:center" class="fw-normal text-muted">Technik</th>
+                                                            <th style="width:30%;">
                                                                 <div class=" text-info">
                                                                     {{ $cmp->name ?? ('#'.$cmp->id) }}&nbsp;&nbsp;
                                                                     <span class="text-muted" style="font-size: 12px;">
@@ -550,13 +554,27 @@
                                                         <tbody>
                                                         @foreach($prs as $pr)
                                                             <tr>
+                                                                <td class="text-center small text-info js-last-user"
+                                                                    data-tippy-content="
+                                                                    <span style='color:#adb5bd'>Updated by:</span>
+                                                                    <span style='color:#0dcaf0;font-weight:500'>
+                                                                        {{ $pr->updatedBy?->name ?? '—' }}
+                                                                        </span>
+                                                                        <br>
+                                                                        <span style='color:#adb5bd'>Updated at:</span>
+                                                                        <span style='color:#20c997;font-weight:500'>
+                                                                        {{ $pr->updated_at?->format('d-M-Y H:i') ?? '—' }}
+                                                                        </span>">
+                                                                    {{ $pr->updatedBy?->name ?? '—' }}
+                                                                </td>
                                                                 <td>{{ $pr->processName->name ?? '—' }}</td>
 
                                                                 <td>
                                                                     @hasanyrole('Admin|Manager')
                                                                     <form method="POST"
                                                                           action="{{ route('tdrprocesses.updateRepairOrder', $pr) }}"
-                                                                          class="auto-submit-form js-auto-submit auto-submit-order position-relative">
+                                                                          class="auto-submit-form js-auto-submit auto-submit-order position-relative js-ajax"
+                                                                          data-no-spinner>
                                                                         @csrf
                                                                         @method('PATCH')
 
@@ -583,24 +601,28 @@
                                                                 <td>
                                                                     <form method="POST"
                                                                           action="{{ route('tdrprocesses.updateDate', $pr) }}"
-                                                                          class="auto-submit-form ">
+                                                                          class="auto-submit-form js-ajax"
+                                                                          data-no-spinner>
                                                                         @csrf
                                                                         @method('PATCH')
                                                                         <input type="text" data-fp name="date_start"
                                                                                class="form-control form-control-sm finish-input"
                                                                                value="{{ $pr->date_start?->format('Y-m-d') }}"
+                                                                               data-original="{{ $pr->date_start?->format('Y-m-d') ?? '' }}"
                                                                                placeholder="...">
                                                                     </form>
                                                                 </td>
                                                                 <td>
                                                                     <form method="POST"
                                                                           action="{{ route('tdrprocesses.updateDate', $pr) }}"
-                                                                          class="auto-submit-form">
+                                                                          class="auto-submit-form js-ajax"
+                                                                          data-no-spinner>
                                                                         @csrf
                                                                         @method('PATCH')
                                                                         <input type="text" data-fp name="date_finish"
                                                                                class="form-control form-control-sm finish-input"
                                                                                value="{{ $pr->date_finish?->format('Y-m-d') }}"
+                                                                               data-original="{{ $pr->date_finish?->format('Y-m-d') ?? '' }}"
                                                                                placeholder="...">
                                                                     </form>
                                                                 </td>
@@ -622,6 +644,7 @@
                     </div>
 
                 </div>
+
             </div>
         </div>
     </div>
@@ -651,5 +674,85 @@
 
     {{-- Parts / PO / TDRS / Training --}}
     @include('admin.mains.partials.js.mains-parts-training')
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+
+            // 1) submit
+            document.addEventListener('submit', (e) => {
+                const form = e.target;
+                if (!form?.classList?.contains('js-ajax')) return;
+
+                e.preventDefault();
+                if (typeof window.ajaxSubmit === 'function') window.ajaxSubmit(form);
+            }, true);
+
+            // 2) change — для дат и прочего
+            document.addEventListener('change', (e) => {
+                const input = e.target;
+                if (!input?.closest) return;
+
+                const form = input.closest('form.js-ajax');
+                if (!form) return;
+
+                if (input.name === 'repair_order') return;
+
+                if (typeof window.ajaxSubmit === 'function') window.ajaxSubmit(form);
+            }, true);
+
+            // 3) input — индикатор 💾 для repair_order
+            document.addEventListener('input', (e) => {
+                const input = e.target;
+                if (!input || !input.closest) return;
+
+                if (input?.name !== 'repair_order') return;
+
+                const form = input.closest?.('form.js-ajax');
+                if (!form) return;
+
+                const original = input.getAttribute('data-original') ?? '';
+                const icon = form.querySelector('.save-indicator');
+                if (!icon) return;
+
+                icon.classList.toggle('d-none', (input.value ?? '') === original);
+            }, true);
+
+            // 4) blur — сохранить repair_order
+            document.addEventListener('blur', (e) => {
+                const input = e.target;
+                if (!input || !input.closest) return;
+                if (input?.name !== 'repair_order') return;
+
+                const form = input.closest?.('form.js-ajax');
+                if (!form) return;
+
+                const original = input.getAttribute('data-original') ?? '';
+                if ((input.value ?? '') === original) return;
+
+                if (typeof window.ajaxSubmit === 'function') window.ajaxSubmit(form);
+            }, true);
+
+            // 5) Enter в repair_order — сохранить
+            document.addEventListener('keydown', (e) => {
+                const input = e.target;
+                if (input?.name !== 'repair_order') return;
+
+                if (e.key === 'Enter') {
+                    e.preventDefault();
+
+                    const form = input.closest?.('form.js-ajax');
+                    if (!form) return;
+
+                    const original = input.getAttribute('data-original') ?? '';
+                    if ((input.value ?? '') === original) return;
+
+                    if (typeof window.ajaxSubmit === 'function') window.ajaxSubmit(form);
+                }
+            }, true);
+
+        });
+    </script>
+
+
 
 @endsection

@@ -12,12 +12,14 @@ use App\Models\Tdr;
 use App\Models\TdrProcess;
 use App\Models\Vendor;
 use App\Models\Workorder;
+use Carbon\Carbon;
 use Illuminate\Contracts\Foundation\Application;
 use Illuminate\Contracts\View\Factory;
 use Illuminate\Contracts\View\View;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Validator;
 use JetBrains\PhpStorm\NoReturn;
 
 class TdrProcessController extends Controller
@@ -125,7 +127,7 @@ class TdrProcessController extends Controller
      */
     public function index()
     {
-        //
+        return 1;
 
     }
 
@@ -136,7 +138,7 @@ class TdrProcessController extends Controller
      */
     public function create()
     {
-       //
+        return 1;
     }
 
 
@@ -1390,39 +1392,95 @@ class TdrProcessController extends Controller
     }
 
 
-    public function updateDate(Request $request, TdrProcess $tdrProcess)
+    public function updateDate(\Illuminate\Http\Request $request, \App\Models\TdrProcess $tdrProcess)
     {
+        $isAjax = $request->ajax()
+            || $request->expectsJson()
+            || $request->header('X-Requested-With') === 'XMLHttpRequest';
 
-   // Log::channel('avia')->info($request->date_start  . $request->date_finish );
-
-
-        $data = $request->validate([
+        $v = \Illuminate\Support\Facades\Validator::make($request->all(), [
             'date_start'  => ['nullable', 'date'],
             'date_finish' => ['nullable', 'date'],
         ]);
 
-
-        $effectiveStart = $data['date_start'] ?? $tdrProcess->date_start;
-
-
-        if (array_key_exists('date_finish', $data) && $data['date_finish']) {
-            if (!$effectiveStart) {
-                return back()->withErrors([
-                    'date_finish' => 'The start date must be filled in before setting the end date.'
-                ]);
+        // 1) Обычная валидация (формат дат)
+        if ($v->fails()) {
+            if ($isAjax) {
+                return response()->json([
+                    'success' => false,
+                    'errors'  => $v->errors(),
+                ], 422);
             }
+            return back()->withErrors($v)->withInput();
+        }
 
+        $data = $v->validated();
+
+        // текущий start из БД
+        $currentStart = $tdrProcess->date_start ? $tdrProcess->date_start->format('Y-m-d') : null;
+
+        // effectiveStart: если date_start пришёл — он главный (даже пустой), иначе текущий из БД
+        $effectiveStart = array_key_exists('date_start', $data)
+            ? ($data['date_start'] ?: null)
+            : $currentStart;
+
+        // 2) Бизнес-правило: finish нельзя без start
+        if (!empty($data['date_finish']) && !$effectiveStart) {
+            $errors = [
+                'date_finish' => ['The start date must be filled in before setting the end date.']
+            ];
+
+            if ($isAjax) {
+                return response()->json(['success' => false, 'errors' => $errors], 422);
+            }
+            return back()->withErrors($errors)->withInput();
+        }
+
+        // 3) Бизнес-правило: finish не может быть раньше start
+        if (!empty($data['date_finish']) && $effectiveStart) {
             if (\Carbon\Carbon::parse($data['date_finish'])->lt(\Carbon\Carbon::parse($effectiveStart))) {
-                return back()->withErrors([
-                    'date_finish' => 'The end date cannot be earlier than the start date.'
-                ]);
+                $errors = [
+                    'date_finish' => ['The end date cannot be earlier than the start date.']
+                ];
+
+                if ($isAjax) {
+                    return response()->json(['success' => false, 'errors' => $errors], 422);
+                }
+                return back()->withErrors($errors)->withInput();
             }
         }
 
-        $tdrProcess->update($data);
+        // 4) Обновляем только те поля, которые реально пришли в запросе
+        if (array_key_exists('date_start', $data)) {
+            $tdrProcess->date_start = $data['date_start'] ?: null;
+
+            // если старт очистили — логично очистить и finish,
+            // чтобы не осталось "конец без начала"
+            if (empty($data['date_start'])) {
+                $tdrProcess->date_finish = null;
+            }
+        }
+
+        if (array_key_exists('date_finish', $data)) {
+            $tdrProcess->date_finish = $data['date_finish'] ?: null;
+        }
+
+        // фиксируем пользователя
+        $tdrProcess->user_id = auth()->id();
+
+        $tdrProcess->save();
+
+        if ($isAjax) {
+            return response()->json([
+                'success' => true,
+                'user'    => auth()->user()->name ?? 'system',
+            ], 200);
+        }
 
         return back()->with('success', 'Process dates updated');
     }
+
+
 
     /**
      * Генерирует многостраничную страницу из выбранных форм процессов
@@ -1558,4 +1616,18 @@ class TdrProcessController extends Controller
         ]);
     }
 
+
+    protected function validationError(Request $request, string $field, string $message)
+    {
+        if ($request->expectsJson()) {
+            return response()->json([
+                'message' => 'Validation error',
+                'errors' => [
+                    $field => [$message],
+                ],
+            ], 422);
+        }
+
+        return back()->withErrors([$field => $message]);
+    }
 }

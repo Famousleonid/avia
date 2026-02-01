@@ -405,83 +405,20 @@ class MainController extends Controller
 
     public function updateRepairOrder(Request $request, \App\Models\TdrProcess $tdrProcess)
     {
-        $data = $request->validate([
-            'repair_order' => ['nullable', 'string', 'max:50'],
+        $request->validate([
+            'repair_order' => 'nullable|string|max:255',
         ]);
 
-        $tdrProcess->update([
-            'repair_order' => $data['repair_order'] ?? null,
-        ]);
+        $tdrProcess->repair_order = $request->repair_order;
+        $tdrProcess->user_id = auth()->id();
+        $tdrProcess->save();
 
-        return back();
+        return response()->json([
+            'success' => true,
+            'user' => auth()->user()?->name ?? 'system',
+            'updated_at' => now()->format('d.m.Y H:i'),
+        ]);
     }
-
-//    private function prevGeneralTask(GeneralTask $gt): ?GeneralTask
-//    {
-//        $order = $this->generalTaskOrder();
-//        $i = array_search($gt->name, $order, true);
-//        if ($i === false || $i === 0) return null;
-//
-//        return GeneralTask::where('name', $order[$i - 1])->first();
-//    }
-
-//   public function updateGeneralTaskDates(Request $request, Workorder $workorder, GeneralTask $generalTask)
-//    {
-//
-//        $prev = GeneralTask::where('sort_order', '<', $generalTask->sort_order)
-//            ->orderByDesc('sort_order')
-//            ->first();
-//
-//        if ($prev) {
-//            $prevMain = Main::where('workorder_id', $workorder->id)
-//                ->where('general_task_id', $prev->id)
-//                ->whereNull('task_id')
-//                ->first();
-//
-//            if (empty($prevMain?->date_finish)) {
-//                return back()->with('error', "First complete the previous step:  {$prev->name}");
-//            }
-//        }
-//
-//        $data = $request->validate([
-//            'date_start'  => ['nullable', 'date_format:Y-m-d'],
-//            'date_finish' => ['nullable', 'date_format:Y-m-d', 'after_or_equal:date_start'],
-//        ]);
-//
-//        if (!$generalTask->has_start_date) {
-//            unset($data['date_start']);
-//        }
-//
-//        $main = Main::firstOrNew([
-//            'workorder_id'    => $workorder->id,
-//            'general_task_id' => $generalTask->id,
-//            'task_id'         => null,
-//        ]);
-//
-//        $beforeStart  = $main->date_start?->format('Y-m-d');
-//        $beforeFinish = $main->date_finish?->format('Y-m-d');
-//        $beforeUserId = $main->user_id;
-//
-//        if ($request->has('date_start')) {
-//            $main->date_start = $data['date_start'] ?? null;   // clear -> null
-//        }
-//
-//        if ($request->has('date_finish')) {
-//            $main->date_finish = $data['date_finish'] ?? null; // clear -> null
-//        }
-//
-//        $anchorDate = $generalTask->has_start_date ? $main->date_start : $main->date_finish;
-//
-//        if (empty($anchorDate)) {
-//            $main->user_id = null;
-//        } elseif (empty($main->user_id)) {
-//            $main->user_id = auth()->id();
-//        }
-//
-//        $main->save();
-//
-//        return back()->with('success', 'Saved');
-//    }
 
     public function activity(Main $main)
     {
