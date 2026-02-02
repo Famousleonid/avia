@@ -223,7 +223,7 @@
                                         $action = $main
                                             ? route('mains.update', $main->id)
                                             : route('mains.store');
-                                        $isWaitingApprove = ($task->name === 'Waiting approve');
+                                        $isWaitingApprove = ($task->name === 'Approved');
                                         $isCompleteTask   = ($task->name === 'Completed');
                                         $isRestrictedFinish = $isWaitingApprove || $isCompleteTask;
                                         $isIgnored = (bool) ($main?->ignore_row ?? false);

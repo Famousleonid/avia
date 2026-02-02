@@ -297,25 +297,31 @@
                                         <div class="table-responsive border border-secondary rounded h-100"
                                              style="overflow:auto;">
 
+                                            @php
+                                                $gtTasks = ($tasksByGeneral[$gt->id] ?? collect());
+                                                $showStartCol = $gtTasks->contains(fn($t) => (bool) $t->task_has_start_date);
+                                            @endphp
+
                                             <table
                                                 class="table table-dark table-hover table-bordered mb-0 align-middle tasks-table mt-4">
                                                 <colgroup>
                                                     <col class="col-ignore">
                                                     <col class="col-tech">
                                                     <col class="col-task">
-                                                    <col class="col-start">
+                                                    @if($showStartCol)
+                                                        <col class="col-start">
+                                                    @endif
                                                     <col class="col-finish">
                                                     @role('Admin')
                                                     <col class="col-log">
                                                     @endrole
                                                 </colgroup>
-
                                                 <tbody>
                                                 @forelse(($tasksByGeneral[$gt->id] ?? collect()) as $task)
                                                     @php
                                                         $main   = $mainsByTask[$task->id] ?? null;
                                                         $action = $main ? route('mains.update', $main->id) : route('mains.store');
-                                                        $isWaitingApprove = ($task->name === 'Waiting approve');
+                                                        $isWaitingApprove = ($task->name === 'Approved');
                                                         $isCompleteTask   = ($task->name === 'Completed');
                                                         $isRestrictedFinish = $isWaitingApprove || $isCompleteTask;
                                                         $isIgnored = (bool) ($main?->ignore_row ?? false);
@@ -376,34 +382,36 @@
                                                         </td>
 
                                                         {{-- START (если он вообще есть у таска) --}}
-                                                        <td class="js-fade-on-ignore {{ $isIgnored ? 'is-ignored' : '' }}">
-                                                            @if($task->task_has_start_date)
-                                                                <form method="POST"
-                                                                      action="{{ $action }}"
-                                                                      class="js-auto-submit">
-                                                                    @csrf
-                                                                    @if($main)
-                                                                        @method('PATCH')
-                                                                    @endif
+                                                        @if($showStartCol)
+                                                            <td class="js-fade-on-ignore {{ $isIgnored ? 'is-ignored' : '' }}">
+                                                                @if($task->task_has_start_date)
+                                                                    <form method="POST"
+                                                                          action="{{ $action }}"
+                                                                          class="js-auto-submit">
+                                                                        @csrf
+                                                                        @if($main)
+                                                                            @method('PATCH')
+                                                                        @endif
 
-                                                                    @unless($main)
-                                                                        <input type="hidden" name="workorder_id" value="{{ $current_workorder->id }}">
-                                                                        <input type="hidden" name="task_id" value="{{ $task->id }}">
-                                                                    @endunless
+                                                                        @unless($main)
+                                                                            <input type="hidden" name="workorder_id" value="{{ $current_workorder->id }}">
+                                                                            <input type="hidden" name="task_id" value="{{ $task->id }}">
+                                                                        @endunless
 
-                                                                    <input type="text"
-                                                                           name="date_start"
-                                                                           class="form-control form-control-sm js-start finish-input {{ $isIgnored ? 'is-ignored' : '' }}"
-                                                                           value="{{ optional($main?->date_start)->format('Y-m-d') }}"
-                                                                           placeholder="..."
-                                                                           data-fp
-                                                                           @if($isIgnored) disabled @endif>
-
-                                                                </form>
-                                                            @else
-                                                                <span class="text-muted small">—</span>
-                                                            @endif
-                                                        </td>
+                                                                        <input type="text"
+                                                                               name="date_start"
+                                                                               class="form-control form-control-sm js-start finish-input {{ $isIgnored ? 'is-ignored' : '' }}"
+                                                                               value="{{ optional($main?->date_start)->format('Y-m-d') }}"
+                                                                               placeholder="..."
+                                                                               data-fp
+                                                                               @if($isIgnored) disabled @endif>
+                                                                    </form>
+                                                                @else
+                                                                    {{-- пусто, но ячейка есть, чтобы сетка была --}}
+                                                                    <span class="text-muted small">—</span>
+                                                                @endif
+                                                            </td>
+                                                        @endif
 
                                                         {{-- FINISH --}}
                                                         <td class="js-fade-on-ignore {{ $isIgnored ? 'is-ignored' : '' }}">

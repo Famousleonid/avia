@@ -21,7 +21,6 @@ class GeneralTaskController extends Controller
         $validated = $request->validate([
             'name' => 'required|string|max:250',
             'sort_order' => ['required', 'integer', 'min:0'],
-            'has_start_date' => ['required', 'boolean'],
         ]);
 
         GeneralTask::create($validated);
@@ -35,7 +34,6 @@ class GeneralTaskController extends Controller
         $validated = $request->validate([
             'name' => ['required', 'string', 'max:250'],
             'sort_order' => ['required', 'integer', 'min:0'],
-            'has_start_date' => ['required', 'boolean'],
         ]);
 
         $generalTask->update($validated);

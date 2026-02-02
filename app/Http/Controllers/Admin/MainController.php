@@ -275,7 +275,7 @@ class MainController extends Controller
         // === Если апрува нет — чистим старую запись ===
         if (!$workorder->approve_at) {
 
-            $waitingTaskId = Task::where('name', 'Waiting approve')->value('id');
+            $waitingTaskId = Task::where('name', 'Approved')->value('id');
 
             if (!$waitingTaskId) {
                 return;
@@ -294,8 +294,8 @@ class MainController extends Controller
             return;
         }
 
-        // === Получаем задачу Waiting approve ===
-        $waitingTask = Task::where('name', 'Waiting approve')->first();
+        // === Получаем задачу Approved ===
+        $waitingTask = Task::where('name', 'Approved')->first();
         if (!$waitingTask) {
             return;
         }
@@ -350,13 +350,13 @@ class MainController extends Controller
 
         $taskName = $main->task?->name;
 
-        if ($taskName === 'Waiting approve') {
+        if ($taskName === 'Approved') {
             return back()->withErrors([
                 'date_finish' => 'This task is locked and cannot be edited.',
             ]);
         }
 
-        $isRestrictedFinish = in_array($taskName, ['Waiting approve', 'Completed'], true);
+        $isRestrictedFinish = in_array($taskName, ['Approved', 'Completed'], true);
 
         $ignoreRow = $request->boolean('ignore_row');
         $hasStart = $request->has('date_start');

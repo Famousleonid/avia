@@ -68,7 +68,7 @@
         </li>
     @endif
 
-    @roles("Admin|Manager")
+    @role("Admin")
     <li class="nav-item press-spinner">
             <a href="{{route('tasks.index')}}" class="nav-link">
                 <i class="bi bi-list-task me-2"></i> <span>Tasks</span>

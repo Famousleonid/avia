@@ -152,10 +152,11 @@
                 </div>
 
                 <div class="modal-body">
+
                     <form id="editForm"
                           method="POST"
-                          data-action="{{ route('general-tasks.update', ':id') }}"
-                          action="{{ route('general-tasks.update', ':id') }}">
+                          data-action="{{ route('general-tasks.update', 0) }}"
+                          action="{{ route('general-tasks.update', 0) }}">
                         @csrf
                         @method('PUT')
 
@@ -173,6 +174,7 @@
 
                         <button type="submit" class="btn btn-primary" onclick="showLoadingSpinner()">Update</button>
                     </form>
+
                 </div>
 
             </div>
@@ -266,29 +268,29 @@
             const editModalEl = document.getElementById('editModal');
             if (editModalEl) {
                 editModalEl.addEventListener('show.bs.modal', function (event) {
-                    const btn = event.relatedTarget; // кнопка, которая открыла модалку
+                    const btn = event.relatedTarget;
                     if (!btn) return;
 
-                    // читаем data-*
                     const id = btn.getAttribute('data-id') ?? '';
                     const nameJson = btn.getAttribute('data-name') ?? '""';
                     const sort = btn.getAttribute('data-sort') ?? '';
                     const hasStart = btn.getAttribute('data-hasstart') ?? '0';
 
-                    // парсим name (оно в JSON)
                     let name = '';
                     try { name = JSON.parse(nameJson); } catch (e) { name = nameJson; }
 
-                    // заполняем поля
                     document.getElementById('editId').value = id;
                     document.getElementById('editName').value = name;
                     document.getElementById('sortName').value = sort;
-                    document.getElementById('hasStart').checked = String(hasStart) === '1';
 
-                    // action по шаблону (без поломки)
+                    // ✅ безопасно: не ломаемся если чекбокса нет
+                    const hasStartEl = document.getElementById('hasStart');
+                    if (hasStartEl) hasStartEl.checked = String(hasStart) === '1';
+
+                    // ✅ правильная сборка action
                     const form = document.getElementById('editForm');
-                    const baseAction = form.dataset.action;
-                    form.action = baseAction.replace(':id', id);
+                    const baseAction = form.dataset.action; // .../general-tasks/0
+                    form.action = baseAction.replace(/\/0$/, '/' + id);
                 });
 
                 // (опционально) чистим форму при закрытии
@@ -296,10 +298,12 @@
                     document.getElementById('editId').value = '';
                     document.getElementById('editName').value = '';
                     document.getElementById('sortName').value = '';
-                    document.getElementById('hasStart').checked = false;
+
+                    const hasStartEl = document.getElementById('hasStart');
+                    if (hasStartEl) hasStartEl.checked = false;
 
                     const form = document.getElementById('editForm');
-                    form.action = form.dataset.action; // вернём шаблон
+                    form.action = form.dataset.action;
                 });
             }
 

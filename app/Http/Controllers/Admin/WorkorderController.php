@@ -486,7 +486,7 @@ class WorkorderController extends Controller
         $current = Workorder::findOrFail($id);
         $user    = Auth::user();
 
-        $waitingTask = Task::where('name', 'Waiting approve')->first();
+        $waitingTask = Task::where('name', 'Approved')->first();
         if (!$waitingTask) {
             return redirect()->back();
         }
