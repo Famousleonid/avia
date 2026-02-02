@@ -426,9 +426,9 @@
                 <tbody>
                 @foreach($transfers as $transfer)
                     <tr>
-                        <td style="height: 60px">{{ optional($transfer->component)->assy_ipl_num ?? '—' }}</td>
-                        <td>{{ optional($transfer->component)->name ?? '—' }}</td>
-                        <td>{{ optional($transfer->component)->assy_part_number ?? '—' }}</td>
+                        <td style="height: 60px">{{ optional($transfer->component)->assy_ipl_num ?: optional($transfer->component)->ipl_num ?: '—' }}</td>
+                        <td>{{ optional($transfer->component)->name ?: '—' }}</td>
+                        <td>{{ optional($transfer->component)->assy_part_number ?: optional($transfer->component)->part_number ?: '—' }}</td>
                         <td>{{ $transfer->component_sn ?? '—' }}</td>
                         <td>VISUAL</td>
                         <td>FITS & CLEARANCES</td>
