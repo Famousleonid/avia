@@ -125,7 +125,10 @@
                     <tbody>
                     @foreach($cmms as $cmm)
                         <tr>
-                            <td>{{$cmm->number}}</td>
+                            <td>
+                                <a href="{{ route('manuals.show', ['manual' => $cmm->id]) }}">{{$cmm->number}}</a>
+
+                            </td>
                             <td title="{{$cmm->title}}">{{$cmm->title}}</td>
                             <td title="{{$cmm->unit_name}}">{{$cmm->unit_name}}</td>
                             <td class="text-center">
@@ -151,9 +154,11 @@
                                 </div>
                             </td>
                             <td class="text-center">
+
                                 <a href="{{ route('manuals.edit', ['manual' => $cmm->id]) }}" class="btn btn-outline-primary btn-sm">
                                     <i class="bi bi-pencil-square"></i>
                                 </a>
+                                @role('Admin')
                                 <form id="deleteForm_{{$cmm->id}}" action="{{ route('manuals.destroy', ['manual' => $cmm->id]) }}" method="POST" style="display:inline;">
                                     @csrf
                                     @method('DELETE')
@@ -162,6 +167,7 @@
                                         <i class="bi bi-trash"></i>
                                     </button>
                                 </form>
+                                @endrole
                             </td>
                         </tr>
                     @endforeach

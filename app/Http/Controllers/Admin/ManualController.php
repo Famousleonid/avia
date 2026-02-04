@@ -175,6 +175,11 @@ class ManualController extends Controller
     public function show(string $id)
     {
         $cmm = Manual::findOrFail($id);
+        $planes = Plane::all();
+        $builders = Builder::all();
+        $scopes = Scope::all();
+
+        return view('admin.manuals.show', compact('cmm','planes','builders','scopes'));
 
     }
 
