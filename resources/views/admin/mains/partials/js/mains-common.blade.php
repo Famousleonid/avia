@@ -61,5 +61,54 @@ document.addEventListener('DOMContentLoaded', () => {
     if (typeof initAutoSubmit === 'function') {
         initAutoSubmit();
     }
+
+    // --- Notes: indicator + autosave ---
+    document.addEventListener('input', (e) => {
+        const ta = e.target;
+        if (ta?.name !== 'notes') return;
+
+        const form = ta.closest('form.js-ajax');
+        if (!form) return;
+
+        const original = ta.getAttribute('data-original') ?? '';
+        const box = form.closest('.wo-notes-box');
+        const icon = box ? box.querySelector('.js-notes-save-indicator') : null;
+        if (!icon) return;
+
+        icon.classList.toggle('d-none', (ta.value ?? '') === original);
+    }, true);
+
+    document.addEventListener('blur', (e) => {
+        const ta = e.target;
+        if (ta?.name !== 'notes') return;
+
+        const form = ta.closest('form.js-ajax');
+        if (!form) return;
+
+        const original = ta.getAttribute('data-original') ?? '';
+        if ((ta.value ?? '') === original) return;
+
+        if (typeof window.ajaxSubmit === 'function') window.ajaxSubmit(form);
+    }, true);
+
+    document.addEventListener('keydown', (e) => {
+        const ta = e.target;
+        if (ta?.name !== 'notes') return;
+
+        if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
+            e.preventDefault();
+
+            const form = ta.closest('form.js-ajax');
+            if (!form) return;
+
+            const original = ta.getAttribute('data-original') ?? '';
+            if ((ta.value ?? '') === original) return;
+
+            if (typeof window.ajaxSubmit === 'function') window.ajaxSubmit(form);
+        }
+    }, true);
+
+
+
 });
 </script>

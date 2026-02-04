@@ -727,4 +727,63 @@ class WorkorderController extends Controller
 
         return response()->json(['ok' => true, 'unique' => !$exists]);
     }
+
+    public function updateNotes(Request $request, Workorder $workorder)
+    {
+        abort_unless(auth()->user()->hasAnyRole('Admin|Manager'), 403);
+
+        $data = $request->validate([
+            'notes' => ['nullable', 'string'],
+        ]);
+
+        $old = (string) ($workorder->notes ?? '');
+        $new = (string) ($data['notes'] ?? '');
+
+        // если ничего не поменялось — можно вернуть ok без логов
+        if ($old === $new) {
+            return response()->json(['success' => true, 'notes' => $new]);
+        }
+
+        $workorder->notes = $new;
+        $workorder->save();
+
+        // Лог old/new (явно)
+        activity()
+            ->useLog('workorders')
+            ->performedOn($workorder)
+            ->causedBy(auth()->user())
+            ->withProperties([
+                'old' => ['notes' => $old],
+                'new' => ['notes' => $new],
+            ])
+            ->log($old === '' ? 'workorder_notes_created' : 'workorder_notes_updated');
+
+        return response()->json(['success' => true, 'notes' => $new, 'user' => auth()->user()->name]);
+    }
+
+    public function notesLogs(Workorder $workorder)
+    {
+        abort_unless(auth()->user()->hasAnyRole('Admin|Manager'), 403);
+
+        $logs = Activity::query()
+            ->where('subject_type', Workorder::class)
+            ->where('subject_id', $workorder->id)
+            ->where('log_name', 'workorders')
+            ->whereIn('description', ['workorder_notes_created', 'workorder_notes_updated'])
+            ->latest('created_at')
+            ->limit(200)
+            ->get()
+            ->map(function (Activity $a) {
+                $props = $a->properties ?? collect();
+
+                return [
+                    'date' => optional($a->created_at)->format('d-M-Y H:i'),
+                    'user' => $a->causer?->name ?? '—',
+                    'old'  => (string) data_get($props, 'old.notes', ''),
+                    'new'  => (string) data_get($props, 'new.notes', ''),
+                ];
+            });
+
+        return response()->json(['success' => true, 'data' => $logs]);
+    }
 }

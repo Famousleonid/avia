@@ -553,7 +553,18 @@ window.hapticTap = function (pattern = 10) {
         });
     }
 
+    function applyNotesSavedState(form, data) {
+        const ta = form.querySelector('textarea[name="notes"]');
+        if (!ta) return;
 
+        // обновить оригинал = текущее значение
+        ta.dataset.original = ta.value ?? '';
+
+        // спрятать 💾 в шапке
+        const box = form.closest('.wo-notes-box');
+        const icon = box ? box.querySelector('.js-notes-save-indicator') : null;
+        if (icon) icon.classList.add('d-none');
+    }
 
     async function _ajaxSubmit(form) {
         const url = form?.getAttribute?.('action');
@@ -618,7 +629,12 @@ window.hapticTap = function (pattern = 10) {
             if (!res.ok) throw new Error('Request failed');
 
             clearFieldErrors(form);
-            applySavedState(form, data);
+
+            if (form.querySelector('textarea[name="notes"]')) {
+                applyNotesSavedState(form, data);
+            } else {
+                applySavedState(form, data);
+            }
 
         } catch (e) {
             console.error(e);
@@ -629,7 +645,45 @@ window.hapticTap = function (pattern = 10) {
         }
     }
 
+// ===============================
+// NOTES autosave (blur + Ctrl+Enter)
+// ===============================
+    (function () {
+        if (window.__notesAutosaveBound) return;
+        window.__notesAutosaveBound = true;
 
+        document.addEventListener('blur', (e) => {
+            const ta = e.target;
+            if (ta?.name !== 'notes') return;
+
+            const form = ta.closest('form.js-ajax');
+            if (!form) return;
+
+            const original = ta.dataset.original ?? '';
+            if ((ta.value ?? '') === original) return;
+
+            console.log('NOTES autosave blur → ajaxSubmit');
+            window.ajaxSubmit(form);
+        }, true);
+
+        document.addEventListener('keydown', (e) => {
+            const ta = e.target;
+            if (ta?.name !== 'notes') return;
+
+            if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
+                e.preventDefault();
+
+                const form = ta.closest('form.js-ajax');
+                if (!form) return;
+
+                const original = ta.dataset.original ?? '';
+                if ((ta.value ?? '') === original) return;
+
+                console.log('NOTES Ctrl+Enter → ajaxSubmit');
+                window.ajaxSubmit(form);
+            }
+        }, true);
+    })();
 
 
 

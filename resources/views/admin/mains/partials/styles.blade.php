@@ -441,4 +441,57 @@
         box-shadow: 0 0 0 0.15rem rgba(25, 135, 84, 0.15) !important;
     }
 
+    .bottom-col.left,
+    .bottom-col.right {
+        font-size: .85rem;
+    }
+
+    .tasks-table td,
+    .tasks-table th {
+        padding: 3px 6px !important;
+        line-height: 1.05;
+        vertical-align: middle;
+    }
+
+    .tasks-table .lock-icon {
+        font-size: .85rem;
+    }
+
+    .wo-notes-box{
+        background: rgba(255,255,255,0.03);
+    }
+
+    .wo-notes-head{
+        display:flex;
+        align-items:center;
+        justify-content:space-between;
+        padding: 4px 8px;            /* узкая шапка */
+        border-bottom: 1px solid rgba(108,117,125,.35);
+    }
+
+    .wo-notes-title{
+        font-size: .85rem;
+        color: #0dcaf0; /* text-info */
+        line-height: 1;
+        margin: 0;
+    }
+
+    .wo-notes-right{
+        display:flex;
+        align-items:center;
+        gap: 8px;
+    }
+
+    .wo-notes-hint{
+        font-size: .75rem;
+        color: rgba(248,249,250,.65);
+        line-height: 1;
+        white-space: nowrap;
+    }
+
+    .wo-notes-textarea{
+        font-size: .85rem;
+        min-height: 70px;
+        resize: vertical;
+    }
 </style>
