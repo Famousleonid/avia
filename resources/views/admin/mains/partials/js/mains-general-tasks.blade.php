@@ -200,6 +200,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         document.querySelectorAll('input[data-fp]').forEach(src => {
             if (src._flatpickr) return;
+            if (src.disabled) return;
 
             flatpickr(src, {
                 altInput: true,

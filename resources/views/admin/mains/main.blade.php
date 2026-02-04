@@ -303,7 +303,7 @@
                                             @endphp
 
                                             <table
-                                                class="table table-dark table-hover table-bordered mb-0 align-middle tasks-table mt-4">
+                                                class="table table-dark table-hover table-bordered mb-0 align-middle tasks-table mt-1">
                                                 <colgroup>
                                                     <col class="col-ignore">
                                                     <col class="col-tech">
@@ -319,13 +319,15 @@
                                                 <tbody>
                                                 @forelse(($tasksByGeneral[$gt->id] ?? collect()) as $task)
                                                     @php
+                                                        $restrictedDateTaskIds = config('mains.restricted_date_task_ids', []);
+                                                        $isRestrictedByConfig = in_array($task->id, $restrictedDateTaskIds, true);
+                                                        $canEditRestrictedDates = auth()->check() && auth()->user()->hasAnyRole('Admin|Manager');
+                                                        $lockDates = $isRestrictedByConfig && !$canEditRestrictedDates;
+
                                                         $main   = $mainsByTask[$task->id] ?? null;
                                                         $action = $main ? route('mains.update', $main->id) : route('mains.store');
-                                                        $isWaitingApprove = ($task->name === 'Approved');
-                                                        $isCompleteTask   = ($task->name === 'Completed');
-                                                        $isRestrictedFinish = $isWaitingApprove || $isCompleteTask;
                                                         $isIgnored = (bool) ($main?->ignore_row ?? false);
-                                                        $canEditFinish = !$isRestrictedFinish  || (auth()->check() && auth()->user()->hasAnyRole('Admin|Manager'));
+
                                                     @endphp
 
                                                     <tr class="align-middle">
@@ -351,15 +353,13 @@
                                                                        name="ignore_row"
                                                                        value="0"
                                                                        class="js-ignore-hidden">
-                                                                @if(!$isWaitingApprove )
-                                                                    @if($canEditFinish)
+                                                                @if(!$lockDates)
                                                                         <input class="form-check-input m-0 js-ignore-row {{ $isIgnored ? 'is-ignored' : '' }}"
                                                                                type="checkbox"
                                                                                name="ignore_row"
                                                                                value="1"
                                                                                {{ $isIgnored ? 'checked' : '' }}
                                                                                title="Ignore this row">
-                                                                    @endif
                                                                 @endif
                                                             </form>
 
@@ -404,7 +404,13 @@
                                                                                value="{{ optional($main?->date_start)->format('Y-m-d') }}"
                                                                                placeholder="..."
                                                                                data-fp
-                                                                               @if($isIgnored) disabled @endif>
+                                                                               @if($isIgnored || $lockDates) disabled @endif>
+                                                                        @if($isIgnored || $lockDates)
+                                                                            <span class="lock-icon text-warning"
+                                                                                  data-tippy-content="{{ $lockDates ? 'Only Admin/Manager can edit this date' : 'Row ignored' }}">
+                                                                                  <i class="bi bi-lock-fill"></i>
+                                                                            </span>
+                                                                        @endif
                                                                     </form>
                                                                 @else
                                                                     {{-- пусто, но ячейка есть, чтобы сетка была --}}
@@ -412,6 +418,7 @@
                                                                 @endif
                                                             </td>
                                                         @endif
+
 
                                                         {{-- FINISH --}}
                                                         <td class="js-fade-on-ignore {{ $isIgnored ? 'is-ignored' : '' }}">
@@ -435,10 +442,9 @@
                                                                            value="{{ optional($main?->date_finish)->format('Y-m-d') }}"
                                                                            placeholder="..."
                                                                            data-fp
-                                                                           @if($isWaitingApprove ) disabled @endif
-                                                                           @if($isIgnored || !$canEditFinish) disabled @endif>
+                                                                           @if($isIgnored || $lockDates) disabled @endif>
 
-                                                                    @if($isIgnored || !$canEditFinish)
+                                                                    @if($isIgnored || $lockDates)
                                                                         <span class="lock-icon text-warning"
                                                                               data-tippy-content="Only the manager can edit">
                                                                               <i class="bi bi-lock-fill"></i>
@@ -477,6 +483,48 @@
                                                 @endforelse
                                                 </tbody>
                                             </table>
+                                            {{-- Workorder Notes --}}
+                                            @hasanyrole('Admin|Manager')
+                                            <div class="mt-2 border border-secondary rounded wo-notes-box">
+                                                {{-- Header --}}
+                                                <div class="wo-notes-head">
+                                                    <div class="wo-notes-title">Workorder Notes</div>
+
+                                                    <div class="wo-notes-right">
+                                                        <div class="wo-notes-hint">autosave on blur / Ctrl+Enter</div>
+
+                                                        {{-- 💾 индикатор изменений (появляется только если текст изменён) --}}
+                                                        <i class="bi bi-save text-warning d-none js-notes-save-indicator" title="Unsaved"></i>
+
+                                                        {{-- кнопка логов --}}
+                                                        <button type="button"
+                                                                class="btn btn-outline-info btn-sm js-open-wo-notes-log"
+                                                                data-url="{{ route('workorders.notes.logs', $current_workorder) }}"
+                                                                title="Notes log">
+                                                            <i class="bi bi-clock-history"></i>
+                                                        </button>
+                                                    </div>
+                                                </div>
+
+                                                {{-- Body --}}
+                                                <div class="p-2 pt-1">
+                                                    <form method="POST"
+                                                          action="{{ route('workorders.notes.update', $current_workorder) }}"
+                                                          class="js-ajax"
+                                                          data-no-spinner>
+                                                        @csrf
+                                                        @method('PATCH')
+
+                                                        <textarea name="notes"
+                                                                  class="form-control form-control-sm bg-dark text-light border-secondary wo-notes-textarea"
+                                                                  rows="3"
+                                                                  placeholder="Type notes..."
+                                                                  data-original="{{ $current_workorder->notes ?? '' }}">{{ $current_workorder->notes ?? '' }}</textarea>
+                                                    </form>
+                                                </div>
+                                            </div>
+                                            @endhasanyrole
+
                                         </div>
                                     </div>
 
@@ -657,6 +705,40 @@
         </div>
     </div>
 
+    {{-- modal log notes --}}
+    <div class="modal fade" id="woNotesLogModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-xl modal-dialog-scrollable">
+            <div class="modal-content bg-dark text-light border-secondary">
+                <div class="modal-header border-secondary">
+                    <h6 class="modal-title">Workorder Notes Log</h6>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                </div>
+
+                <div class="modal-body">
+                    <div class="table-responsive">
+                        <table class="table table-dark table-bordered align-middle mb-0">
+                            <thead>
+                            <tr class="text-muted small">
+                                <th style="width: 270px;">Date</th>
+                                <th style="width: 280px;">User</th>
+                                <th style="width: 35%;">Old</th>
+                                <th style="width: 35%;">New</th>
+                            </tr>
+                            </thead>
+                            <tbody id="woNotesLogTbody">
+                            <tr><td colspan="4" class="text-muted small">Loading...</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <div class="modal-footer border-secondary">
+                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Close</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     {{-- Форма для delete через модалку (mains / tdrprocesses) --}}
     <form id="deleteForm" method="POST" class="d-none">
         @csrf
@@ -757,6 +839,55 @@
                     if (typeof window.ajaxSubmit === 'function') window.ajaxSubmit(form);
                 }
             }, true);
+
+            document.addEventListener('click', async (e) => {
+                const btn = e.target.closest('.js-open-wo-notes-log');
+                if (!btn) return;
+
+                const url = btn.getAttribute('data-url');
+                const tbody = document.getElementById('woNotesLogTbody');
+                if (!url || !tbody) return;
+
+                tbody.innerHTML = `<tr><td colspan="4" class="text-muted small">Loading...</td></tr>`;
+
+                try {
+                    const res = await fetch(url, { headers: { 'X-Requested-With': 'XMLHttpRequest' } });
+                    const json = await res.json();
+
+                    const rows = (json?.data || []);
+                    if (!rows.length) {
+                        tbody.innerHTML = `<tr><td colspan="4" class="text-muted small">No logs</td></tr>`;
+                    } else {
+                        tbody.innerHTML = rows.map(r => `
+                <tr>
+                    <td class="text-muted small">${escapeHtml(r.date ?? '')}</td>
+                    <td class="text-info small">${escapeHtml(r.user ?? '')}</td>
+                    <td><div class="small" style="white-space:pre-wrap">${escapeHtml(r.old ?? '')}</div></td>
+                    <td><div class="small" style="white-space:pre-wrap">${escapeHtml(r.new ?? '')}</div></td>
+                </tr>
+            `).join('');
+                    }
+
+                    const modalEl = document.getElementById('woNotesLogModal');
+                    const modal = bootstrap.Modal.getOrCreateInstance(modalEl);
+                    modal.show();
+
+                } catch (err) {
+                    tbody.innerHTML = `<tr><td colspan="4" class="text-danger small">Error loading logs</td></tr>`;
+                }
+            }, true);
+
+// маленький helper
+            function escapeHtml(s) {
+                return String(s ?? '')
+                    .replaceAll('&', '&amp;')
+                    .replaceAll('<', '&lt;')
+                    .replaceAll('>', '&gt;')
+                    .replaceAll('"', '&quot;')
+                    .replaceAll("'", '&#039;');
+            }
+
+
 
         });
     </script>
