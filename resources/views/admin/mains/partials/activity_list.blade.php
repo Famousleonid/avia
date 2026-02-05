@@ -27,16 +27,26 @@
                 $taskGeneral = data_get($p, 'task.general');
                 $taskName    = data_get($p, 'task.name');
 
-               $bStart  = $bStart  ?? data_get($p, 'old.date_start');
-               $bFinish = $bFinish ?? data_get($p, 'old.date_finish');
-               $aStart  = $aStart  ?? data_get($p, 'attributes.date_start');
-               $aFinish = $aFinish ?? data_get($p, 'attributes.date_finish');
+                // даты ИСКЛЮЧИТЕЛЬНО из activity_log
+                $bStartRaw  = data_get($p, 'old.date_start');
+                $aStartRaw  = data_get($p, 'attributes.date_start');
+                $bFinishRaw = data_get($p, 'old.date_finish');
+                $aFinishRaw = data_get($p, 'attributes.date_finish');
 
-                $mainId = data_get($p, 'main_id', $a->subject_id);
+                // форматирование
+                $fmt = fn($v) => $v ? \Carbon\Carbon::parse($v)->format('d.m.Y') : null;
+
+                $bStart  = $fmt($bStartRaw);
+                $aStart  = $fmt($aStartRaw);
+                $bFinish = $fmt($bFinishRaw);
+                $aFinish = $fmt($aFinishRaw);
 
                 $dash = '<span class="text-danger">—</span>';
 
                 $taskLine = trim(($taskGeneral ? $taskGeneral.' → ' : '').($taskName ?? ''));
+
+                // это approve?
+                $isApprove = strtolower($taskName ?? '') === 'approved';
             @endphp
 
             <div class="border border-secondary rounded p-3">

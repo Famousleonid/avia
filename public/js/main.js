@@ -566,7 +566,17 @@ window.hapticTap = function (pattern = 10) {
         if (icon) icon.classList.add('d-none');
     }
 
+    function setNotesSaving(form, on) {
+        const box = form.closest('.wo-notes-box');
+        if (!box) return;
+
+        const saving = box.querySelector('.js-notes-saving');
+        if (saving) saving.classList.toggle('d-none', !on);
+    }
+
     async function _ajaxSubmit(form) {
+        if (form.classList.contains('is-saving')) return;
+        if (form.querySelector('textarea[name="notes"]')) setNotesSaving(form, true);
         const url = form?.getAttribute?.('action');
         if (!url) return;
 
@@ -640,6 +650,7 @@ window.hapticTap = function (pattern = 10) {
             console.error(e);
             if (typeof window.notifyError === 'function') window.notifyError('Request failed', 2500);
         } finally {
+            if (form.querySelector('textarea[name="notes"]')) setNotesSaving(form, false);
             form.classList.remove('is-saving');
             if (typeof window.safeHideSpinner === 'function') window.safeHideSpinner();
         }

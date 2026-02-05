@@ -126,7 +126,7 @@ Route::group(['middleware' => ['auth']], function () {
     Route::get('/main-rows/{main}/activity', [MainController::class, 'activity'])->name('mains.activity');
     Route::resource('/workorders', WorkorderController::class);
 
-        Route::get('/workorders/approve/{id}/', [WorkorderController::class, 'approve'])->name('workorders.approve');
+    Route::post('/workorders/{workorder}/approve', [WorkorderController::class, 'approveAjax'])->name('workorders.approve.ajax');
         Route::post('workorders/{workorder}/inspection', [WorkorderController::class, 'updateInspect'])->name('workorders.inspection');
         Route::get('/workorders/{id}/photos', [WorkorderController::class, 'photos'])->name('workorders.photos');
         Route::get('/workorders/download/{id}/all', [WorkorderController::class, 'downloadAllGrouped'])->name('workorders.downloadAllGrouped');

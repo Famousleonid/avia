@@ -83,7 +83,6 @@ class Workorder extends Model implements HasMedia
                 'approve_name',
                 'description',
                 'serial_number',
-                'notes',
             ])
             ->logOnlyDirty()                // логировать ТОЛЬКО изменившиеся поля
             ->dontSubmitEmptyLogs();        // не создавать пустые записи

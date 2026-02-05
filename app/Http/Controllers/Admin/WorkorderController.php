@@ -270,6 +270,7 @@ class WorkorderController extends Controller
 
         return view('admin.workorders.create', compact('customers', 'units', 'instructions', 'users', 'currentUser', 'manuals','draftInstructionId'));
     }
+
     public function store(Request $request)
     {
         $draftInstructionId = Instruction::where('name', 'Draft')->value('id');
@@ -341,7 +342,6 @@ class WorkorderController extends Controller
 
         return redirect()->route('workorders.index')->with('success', 'Workorder added');
     }
-
 
     public function destroy(Workorder $workorder)
     {
@@ -478,62 +478,76 @@ class WorkorderController extends Controller
         return redirect()->route('workorders.index')->with('success', 'Workorder was edited successfully');
     }
 
-    public function approve($id)
+    public function approveAjax(Request $request, Workorder $workorder)
     {
-
         abort_unless(auth()->user()->hasAnyRole('Admin|Manager'), 403);
 
-        $current = Workorder::findOrFail($id);
-        $user    = Auth::user();
+        $request->validate([
+            // дата из инпута будет "YYYY-MM-DD" или пусто
+            'approve_date' => ['nullable', 'date_format:Y-m-d'],
+        ]);
 
-        $waitingTask = Task::where('name', 'Approved')->first();
-        if (!$waitingTask) {
-            return redirect()->back();
+        $user = Auth::user();
+
+        $approvedTask = Task::where('name', 'Approved')->first();
+        if (!$approvedTask) {
+            return response()->json([
+                'ok' => false,
+                'message' => 'Task "Approved" not found',
+            ], 422);
         }
 
-        $waitingTaskId = $waitingTask->id;
-        $generalTaskId = $waitingTask->general_task_id;
+        $waitingTaskId = $approvedTask->id;
+        $generalTaskId = $approvedTask->general_task_id;
 
-        $mainQuery = Main::where('workorder_id', $current->id)
+        // если дату стерли => null
+        $approveDate = $request->input('approve_date');
+        $newApproveAt = $approveDate ? Carbon::createFromFormat('Y-m-d', $approveDate)->startOfDay() : null;
+
+        // main по Approved
+        $mainQuery = Main::where('workorder_id', $workorder->id)
             ->where('task_id', $waitingTaskId);
 
-        if (is_null($current->approve_at)) {
-
-            $current->approve_at = now();
-            $current->approve_name = $user->name;
-            $current->save();
-
-            $main = $mainQuery->first();
-
-            if (!$main) {
-                $main = new Main();
-                $main->workorder_id = $current->id;
-                $main->task_id = $waitingTaskId;
-                $main->general_task_id = $generalTaskId; // ← ключевая строка
-            }
-
-            $main->user_id = $user->id;
-            $main->date_finish = $current->approve_at;
-            $main->save();
-
-        } else {
-
-            $current->approve_at = null;
-            $current->approve_name = null;
-            $current->save();
+        if (is_null($newApproveAt)) {
+            // снять аппрув
+            $workorder->approve_at = null;
+            $workorder->approve_name = null;
+            $workorder->save();
 
             if ($main = $mainQuery->first()) {
                 $main->date_finish = null;
                 $main->user_id = null;
                 $main->save();
             }
+        } else {
+            // поставить/изменить аппрув
+            $workorder->approve_at = $newApproveAt;
+            $workorder->approve_name = $user->name; // всегда текущий юзер
+            $workorder->save();
+
+            $main = $mainQuery->first();
+            if (!$main) {
+                $main = new Main();
+                $main->workorder_id = $workorder->id;
+                $main->task_id = $waitingTaskId;
+                $main->general_task_id = $generalTaskId; // важно
+            }
+
+            $main->user_id = $user->id;
+            $main->date_finish = $newApproveAt;
+            $main->save();
         }
 
-        $current->recalcGeneralTaskStatuses($generalTaskId);
-        $current->syncDoneByCompletedTask();
+        $workorder->recalcGeneralTaskStatuses($generalTaskId);
+        $workorder->syncDoneByCompletedTask();
 
-        return redirect()->back();
-
+        return response()->json([
+            'ok' => true,
+            'approved' => (bool) $workorder->approve_at,
+            'approve_at_iso' => $workorder->approve_at ? $workorder->approve_at->format('Y-m-d') : null,
+            'approve_at_human' => $workorder->approve_at ? $workorder->approve_at->format('d.m.Y') : null,
+            'approve_name' => $workorder->approve_name,
+        ]);
     }
 
     public function updateInspect(Request $request, $id)

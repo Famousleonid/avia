@@ -484,18 +484,19 @@
                                                 </tbody>
                                             </table>
                                             {{-- Workorder Notes --}}
-                                            @hasanyrole('Admin|Manager')
-                                            <div class="mt-2 border border-secondary rounded wo-notes-box">
+
+                                            <div class="mt-3 border border-secondary rounded wo-notes-box">
                                                 {{-- Header --}}
                                                 <div class="wo-notes-head">
                                                     <div class="wo-notes-title">Workorder Notes</div>
 
                                                     <div class="wo-notes-right">
                                                         <div class="wo-notes-hint">autosave on blur / Ctrl+Enter</div>
-
+                                                        <i class="bi bi-save text-warning d-none js-notes-save-indicator" title="Unsaved"></i>
+                                                        <span class="text-muted small d-none js-notes-saving">Saving...</span>
                                                         {{-- 💾 индикатор изменений (появляется только если текст изменён) --}}
                                                         <i class="bi bi-save text-warning d-none js-notes-save-indicator" title="Unsaved"></i>
-
+                                                        @hasanyrole('Admin|Manager')
                                                         {{-- кнопка логов --}}
                                                         <button type="button"
                                                                 class="btn btn-outline-info btn-sm js-open-wo-notes-log"
@@ -503,6 +504,7 @@
                                                                 title="Notes log">
                                                             <i class="bi bi-clock-history"></i>
                                                         </button>
+                                                        @endhasanyrole
                                                     </div>
                                                 </div>
 
@@ -517,13 +519,13 @@
 
                                                         <textarea name="notes"
                                                                   class="form-control form-control-sm bg-dark text-light border-secondary wo-notes-textarea"
-                                                                  rows="3"
+                                                                  rows="4"
                                                                   placeholder="Type notes..."
                                                                   data-original="{{ $current_workorder->notes ?? '' }}">{{ $current_workorder->notes ?? '' }}</textarea>
                                                     </form>
                                                 </div>
                                             </div>
-                                            @endhasanyrole
+
 
                                         </div>
                                     </div>
@@ -786,6 +788,7 @@
                 if (!form) return;
 
                 if (input.name === 'repair_order') return;
+                if (input.name === 'notes') return;
 
                 if (typeof window.ajaxSubmit === 'function') window.ajaxSubmit(form);
             }, true);

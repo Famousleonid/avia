@@ -80,7 +80,7 @@
             height: 10px;
             border-radius: 999px;
             display: inline-block;
-            border: 1px solid rgba(255,255,255,.35);
+            border: 1px solid rgba(255, 255, 255, .35);
             opacity: .95;
             cursor: help;
         }
@@ -226,6 +226,23 @@
             background: linear-gradient(135deg, #212529 0%, #2c3035 100%);
             color: #f8f9fa;
         }
+
+        .approve-inline {
+            position: fixed; /* привязываем к экрану по координатам клика */
+            z-index: 3000;
+            width: 155px;
+            padding: 4px;
+            background: rgba(33, 37, 41, 0.95);
+            border: 1px solid rgba(13, 110, 253, 0.45);
+            border-radius: 8px;
+            box-shadow: 0 10px 25px rgba(0,0,0,.35);
+        }
+
+        .approve-inline input[type="date"]{
+            height: 32px;
+            font-size: .8rem;
+        }
+
     </style>
 
 @endsection
@@ -341,7 +358,7 @@
                         </th>
                         <th class="text-center text-primary col-approve">Approve</th>
                         @hasanyrole('Admin|Manager')
-                            <th class="text-center text-primary col-stages">Stages</th>
+                        <th class="text-center text-primary col-stages">Stages</th>
                         @endhasanyrole
                         <th class="text-center text-primary">Component</th>
                         <th class="text-center text-primary">Description</th>
@@ -355,7 +372,7 @@
                         <th class="text-center text-primary sortable">Technik <i class="bi bi-chevron-expand ms-1"></i></th>
 
                         @role('Admin')
-                            <th class="text-center text-primary col-delete">Delete</th>
+                        <th class="text-center text-primary col-delete">Delete</th>
                         @endrole
                     </tr>
                     </thead>
@@ -380,7 +397,7 @@
                                             Draft&nbsp;{{ $workorder->number }}
                                         </span>
                                     </a>
-                                    @else
+                                @else
                                     <a href="{{ route('mains.show', $workorder->id) }}" class="text-decoration-none" data-spinner>
                                         <span style="font-size: 16px; color: #0DDDFD;">
                                             w&nbsp;{{ $workorder->number }}
@@ -391,14 +408,18 @@
 
                             <td class="text-center">
                                 @hasanyrole('Admin|Manager')
-                                <a href="{{ route('workorders.approve', $workorder->id) }}"
-                                   class="change_approve"
-                                   onclick="showLoadingSpinner()">
+                                <a href="#"
+                                   class="approve-btn"
+                                   data-id="{{ $workorder->id }}"
+                                   data-approve-at="{{ $workorder->approve_at ? $workorder->approve_at->format('Y-m-d') : '' }}"
+                                   data-approve-title="{{ $workorder->approve_at ? ($workorder->approve_at->format('d.m.Y') . ' ' . $workorder->approve_name) : '' }}"
+                                   onclick="return false;">
                                     @if($workorder->approve_at)
-                                        <img src="{{ asset('img/ok.png') }}" width="20"
+                                        <img class="approve-icon"
+                                             src="{{ asset('img/ok.png') }}" width="20"
                                              title="{{ $workorder->approve_at->format('d.m.Y') }} {{ $workorder->approve_name }}">
                                     @else
-                                        <img src="{{ asset('img/icon_no.png') }}" width="12">
+                                        <img class="approve-icon" src="{{ asset('img/icon_no.png') }}" width="12">
                                     @endif
                                 </a>
                                 @else
@@ -410,42 +431,41 @@
                                     @endif
                                     @endhasanyrole
                             </td>
-
                             @hasanyrole('Admin|Manager')
-                                <td class="text-center">
-                                    @php
-                                        $byGt = $workorder->generalTaskStatuses->keyBy('general_task_id');
-                                        $mainsByTask = $workorder->main
-                                            ? $workorder->main->whereNotNull('task_id')->keyBy('task_id')
-                                            : collect();
-                                    @endphp
+                            <td class="text-center">
+                                @php
+                                    $byGt = $workorder->generalTaskStatuses->keyBy('general_task_id');
+                                    $mainsByTask = $workorder->main
+                                        ? $workorder->main->whereNotNull('task_id')->keyBy('task_id')
+                                        : collect();
+                                @endphp
 
-                                    <div class="d-inline-flex gap-1 align-items-center">
-                                        @foreach($generalTasks as $gt)
-                                            @php
-                                                $st = $byGt->get($gt->id);
+                                <div class="d-inline-flex gap-1 align-items-center">
+                                    @foreach($generalTasks as $gt)
+                                        @php
+                                            $st = $byGt->get($gt->id);
 
-                                                // ✅ started = есть хотя бы один main по задачам этого general_task
-                                                $gtTasks = $tasksByGeneral->get($gt->id, collect());
-                                                $started = $gtTasks->pluck('id')->contains(fn($tid) => $mainsByTask->has($tid));
+                                            // ✅ started = есть хотя бы один main по задачам этого general_task
+                                            $gtTasks = $tasksByGeneral->get($gt->id, collect());
+                                            $started = $gtTasks->pluck('id')->contains(fn($tid) => $mainsByTask->has($tid));
 
-                                                if (!$started) {
-                                                    $class = 'empty'; // серый
-                                                    $title = $gt->name . ' (not started)';
-                                                } elseif ($st && $st->is_done) {
-                                                    $class = 'done'; // зелёный
-                                                    $title = $gt->name . ' (done)';
-                                                } else {
-                                                    $class = 'todo'; // красный
-                                                    $title = $gt->name . ' (in progress)';
-                                                }
-                                            @endphp
+                                            if (!$started) {
+                                                $class = 'empty'; // серый
+                                                $title = $gt->name . ' (not started)';
+                                            } elseif ($st && $st->is_done) {
+                                                $class = 'done'; // зелёный
+                                                $title = $gt->name . ' (done)';
+                                            } else {
+                                                $class = 'todo'; // красный
+                                                $title = $gt->name . ' (in progress)';
+                                            }
+                                        @endphp
 
-                                            <span class="stage-dot {{ $class }}"
-                                                  title="{{ $title }}"></span>
-                                        @endforeach
-                                    </div>
-                                </td>
+                                        <span class="stage-dot {{ $class }}"
+                                              title="{{ $title }}"></span>
+                                    @endforeach
+                                </div>
+                            </td>
                             @endhasanyrole
 
                             <td class="text-center">{{ $workorder->unit->part_number }}</td>
@@ -764,6 +784,188 @@
             });
 
             filterTable();
+
+            // --- Inline approve date picker рядом с кликом ---
+            let approvePopover = null; // текущий поповер
+            let approveInput = null;
+
+            function closeApprovePopover() {
+                if (approvePopover) {
+                    approvePopover.remove();
+                    approvePopover = null;
+                    approveInput = null;
+                }
+            }
+
+            async function saveApprove(workorderId, approveDate) {
+                const csrf = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
+
+                const res = await fetch(`{{ url('/workorders') }}/${workorderId}/approve`, {
+                    method: 'POST',
+                    headers: {
+                        'X-CSRF-TOKEN': csrf,
+                        'Accept': 'application/json',
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ approve_date: approveDate || null }),
+                });
+
+                const data = await res.json();
+                if (!res.ok || !data.ok) throw data;
+
+                // --- обновляем UI ---
+                const link = document.querySelector(`.approve-btn[data-id="${workorderId}"]`);
+                if (link) {
+                    const img = link.querySelector('.approve-icon');
+                    if (data.approved) {
+                        link.dataset.approveAt = data.approve_at_iso || '';
+                        if (img) {
+                            img.src = `{{ asset('img/ok.png') }}`;
+                            img.width = 20;
+                            img.title = `${data.approve_at_human} ${data.approve_name}`;
+                        }
+                    } else {
+                        link.dataset.approveAt = '';
+                        if (img) {
+                            img.src = `{{ asset('img/icon_no.png') }}`;
+                            img.width = 12;
+                            img.removeAttribute('title');
+                        }
+                    }
+
+                    const row = link.closest('tr');
+                    if (row) row.setAttribute('data-approved', data.approved ? '1' : '0');
+                }
+
+                // применить текущие фильтры
+                document.getElementById('searchInput')?.dispatchEvent(new Event('input'));
+                return data;
+            }
+
+// показать поповер рядом с кнопкой (по координатам клика)
+            document.querySelectorAll('.approve-btn').forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    e.preventDefault();
+
+                    // если уже открыт на этом же месте — просто закрыть
+                    if (approvePopover) {
+                        closeApprovePopover();
+                        return;
+                    }
+
+                    const id = btn.dataset.id;
+                    const current = btn.dataset.approveAt || '';
+
+                    approvePopover = document.createElement('div');
+                    approvePopover.className = 'approve-inline';
+                    approvePopover.innerHTML = `
+            <input type="date" class="form-control form-control-sm" value="${current}">
+<!--            <div class="text-muted small mt-1" style="line-height:1.1">-->
+<!--                pick date → save<br>clear → Enter to save-->
+<!--            </div>-->
+        `;
+
+                    document.body.appendChild(approvePopover);
+                    approveInput = approvePopover.querySelector('input[type="date"]');
+
+                    // позиционирование рядом с местом клика
+                    const pad = 8;
+                    const rect = approvePopover.getBoundingClientRect();
+                    let left = e.clientX + pad;
+                    let top  = e.clientY + pad;
+
+                    // чтобы не вылезало за экран
+                    const vw = window.innerWidth;
+                    const vh = window.innerHeight;
+                    if (left + rect.width > vw - 6) left = vw - rect.width - 6;
+                    if (top + rect.height > vh - 6) top = vh - rect.height - 6;
+
+                    approvePopover.style.left = `${left}px`;
+                    approvePopover.style.top  = `${top}px`;
+
+                    // открыть календарь (где поддерживается showPicker)
+                    setTimeout(() => {
+                        try { approveInput?.focus(); } catch(_) {}
+                        try { approveInput?.showPicker?.(); } catch(_) {}
+                    }, 0);
+
+                    // 1) выбрал дату -> сразу сохранить
+                    approveInput.addEventListener('change', async () => {
+                        const val = approveInput.value; // YYYY-MM-DD
+                        try {
+                            if (typeof showLoadingSpinner === 'function') showLoadingSpinner();
+                            await saveApprove(id, val);
+                            closeApprovePopover();
+                        } catch (err) {
+                            console.error(err);
+                            alert(err?.message || 'Approve save failed');
+                        } finally {
+                            if (typeof hideLoadingSpinner === 'function') hideLoadingSpinner();
+                        }
+                    });
+
+                    // 2) стер дату -> сохранить ТОЛЬКО по Enter
+                    approveInput.addEventListener('keydown', async (evt) => {
+                        if (evt.key !== 'Enter') return;
+
+                        // если дата есть — Enter ничего не делает (сохраняем только change)
+                        if (approveInput.value) return;
+
+                        evt.preventDefault();
+
+                        try {
+                            if (typeof showLoadingSpinner === 'function') showLoadingSpinner();
+                            await saveApprove(id, null);
+                            closeApprovePopover();
+                        } catch (err) {
+                            console.error(err);
+                            alert(err?.message || 'Approve remove failed');
+                        } finally {
+                            if (typeof hideLoadingSpinner === 'function') hideLoadingSpinner();
+                        }
+                    });
+                });
+            });
+
+// клик вне поповера — закрыть
+            document.addEventListener('mousedown', (e) => {
+                if (!approvePopover) return;
+                const inside = approvePopover.contains(e.target) || e.target.closest('.approve-btn');
+                if (!inside) closeApprovePopover();
+            });
+
+// Esc — закрыть
+            document.addEventListener('keydown', (e) => {
+                if (e.key === 'Escape') closeApprovePopover();
+            });
+
+
         });
+
+        const approveModalEl = document.getElementById('approveModal');
+        const approveModal = approveModalEl ? new bootstrap.Modal(approveModalEl) : null;
+
+        const approveWoId = document.getElementById('approveWoId');
+        const approveDateInput = document.getElementById('approveDateInput');
+        const approveSaveBtn = document.getElementById('approveSaveBtn');
+        const approveHint = document.getElementById('approveHint');
+
+        document.querySelectorAll('.approve-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const id = btn.dataset.id;
+                const approveAt = btn.dataset.approveAt || '';
+                const title = btn.dataset.approveTitle || '';
+
+                approveWoId.value = id;
+                approveDateInput.value = approveAt; // покажет текущую если есть
+                approveHint.textContent = title ? `Current: ${title}` : 'Not approved yet';
+
+                approveModal?.show();
+            });
+        });
+
+
+
+
     </script>
 @endsection
