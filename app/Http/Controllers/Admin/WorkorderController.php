@@ -744,7 +744,7 @@ class WorkorderController extends Controller
 
     public function updateNotes(Request $request, Workorder $workorder)
     {
-        abort_unless(auth()->user()->hasAnyRole('Admin|Manager'), 403);
+        abort_unless(auth()->check(), 403);
 
         $data = $request->validate([
             'notes' => ['nullable', 'string'],
