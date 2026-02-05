@@ -4,8 +4,12 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\Builder;
+use App\Models\Component;
 use App\Models\Manual;
+use App\Models\ManualProcess;
 use App\Models\Plane;
+use App\Models\Process;
+use App\Models\ProcessName;
 use App\Models\Scope;
 use App\Models\Unit;
 use Illuminate\Http\Request;
@@ -175,11 +179,50 @@ class ManualController extends Controller
     public function show(string $id)
     {
         $cmm = Manual::findOrFail($id);
+
         $planes = Plane::all();
         $builders = Builder::all();
         $scopes = Scope::all();
 
-        return view('admin.manuals.show', compact('cmm','planes','builders','scopes'));
+//Components CMM
+        $units = Unit::where('manual_id', $cmm->id)->get();
+
+// Parts (sorted by IPL Number in natural order: 1-10, 1-20, 1-20A, 1-30, ...)
+        $parts = Component::where('manual_id', $cmm->id)->get()->sortBy(function ($part) {
+            $ipl = $part->ipl_num ?? '';
+
+            // Ожидаемый формат: "1-10", "1-20A" и т.п.
+            if (!preg_match('/^(\d+)-(\d+)([A-Za-z]?)$/', $ipl, $m)) {
+                // Неизвестный формат отправляем в конец
+                return PHP_INT_MAX;
+            }
+
+            $section = (int)$m[1];      // число до дефиса (1)
+            $number = (int)$m[2];       // число после дефиса (10, 20, 100)
+            $suffix = strtoupper($m[3] ?? ''); // суффикс A, B и т.п.
+
+            // Без суффикса должны идти раньше, чем с суффиксом
+            $suffixVal = $suffix === '' ? 0 : (ord($suffix) - 64); // A=1, B=2...
+
+            // Строим общее числовое значение для сортировки
+            return $section * 1_000_000 + $number * 100 + $suffixVal;
+        })->values();
+
+
+        // Processes: процессы руководства с подгруженным именем, сортировка по ProcessName (abc)
+        $manualProcesses = ManualProcess::where('manual_id', $cmm->id)
+            ->with(['process.process_name'])
+            ->get()
+            ->sortBy(function ($mp) {
+                return $mp->process && $mp->process->process_name
+                    ? $mp->process->process_name->name
+                    : '';
+            })
+            ->values();
+
+        return view('admin.manuals.show', compact('cmm','planes','builders','scopes',
+        'units','parts','manualProcesses'
+        ));
 
     }
 

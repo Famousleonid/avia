@@ -102,7 +102,6 @@
                 <table id="unitTable" class="display table table-sm table-hover table-striped align-middle table-bordered">
                     <thead class="bg-gradient">
                     <tr>
-                        </th>
                         <th class="text-primary sortable bg-gradient text-center">
                             {{ __('Components Description') }} <i class="bi bi-chevron-expand ms-1"></i>
                         </th>
