@@ -6,6 +6,7 @@
 
     .sidebar {
         overflow-y: auto;
+        scrollbar-gutter: stable; /* резерв под скроллбар, без прыжков */
         background-color: #343A40;
         color: #B9BEC7;
         box-shadow: 0 0 15px 0 var(--shadow-top-color);
