@@ -195,9 +195,6 @@ Route::group(['middleware' => ['auth']], function () {
 
         Route::resource('/trainings', TrainingController::class);
 
-    Route::resource('/scopes',  ScopeController::class);
-    Route::resource('/conditions',  ConditionController::class);
-    Route::resource('/planes',PlaneController::class);
 
     // Components CSV routes - must be before resource route
     Route::post('/components/upload-csv', [ComponentController::class, 'uploadCsv'])->name('components.upload-csv');
@@ -215,16 +212,12 @@ Route::group(['middleware' => ['auth']], function () {
 
     Route::patch('/components/{component}/single', [ComponentController::class, 'updateSingle'])->name('components.updateSingle');
     Route::resource('/components', ComponentController::class);
-    Route::resource('/process-names',ProcessNameController::class);
     Route::resource('/processes', ProcessController::class);
     Route::resource('/tdr-processes',TdrProcessController::class);
     Route::resource('/manual_processes', ManualProcessController::class);
     Route::resource('/log_card', LogCardController::class);
     Route::resource('/customers',  CustomerController::class);
-    Route::resource('/roles',  RoleController::class);
-    Route::resource('/teams',  TeamController::class);
     Route::resource('/tasks',  TaskController::class);
-    Route::resource('/builders', BuilderController::class);
     Route::resource('/general-tasks',  GeneralTaskController::class);
 
     Route::resource('/units', UnitController::class)->except(['update']);
@@ -259,8 +252,6 @@ Route::group(['middleware' => ['auth']], function () {
     Route::get('log_card/create/{id}', [LogCardController::class, 'create'])->name('log_card.create');
     Route::get('log_card/edit/{id}', [LogCardController::class, 'edit'])->name('log_card.edit');
     Route::get('log_card/show/{id}', [LogCardController::class, 'show'])->name('log_card.show');
-
-    Route::post('/vendors', [VendorController::class, 'store'])->name('vendors.store');
 
     Route::post('/components/store_from_inspection', [ComponentController::class, 'storeFromInspection'])->name('components.storeFromInspection');
     Route::post('/components/store_from_extra', [ComponentController::class, 'storeFromExtra'])->name('components.storeFromExtra');
@@ -322,6 +313,17 @@ Route::group(['middleware' => ['auth']], function () {
         Route::get('/{file}', [ManualCsvController::class, 'view'])->name('view');
         Route::delete('/{file}', [ManualCsvController::class, 'delete'])->name('delete');
     });
+
+    Route::resource('builders', DirectoryController::class)->only(['index','store','update','destroy'])->defaults('dict','builders');
+    Route::resource('codes', DirectoryController::class)->only(['index','store','update','destroy'])->defaults('dict','codes');
+    Route::resource('instructions', DirectoryController::class)->only(['index','store','update','destroy'])->defaults('dict','instructions');
+    Route::resource('necessaries', DirectoryController::class)->only(['index','store','update','destroy'])->defaults('dict','necessaries');
+    Route::resource('planes', DirectoryController::class)->only(['index','store','update','destroy'])->defaults('dict','planes');
+    Route::resource('process-names', DirectoryController::class)->only(['index','store','update','destroy'])->defaults('dict','process_names');
+    Route::resource('roles', DirectoryController::class)->only(['index','store','update','destroy'])->defaults('dict','roles');
+    Route::resource('scopes', DirectoryController::class)->only(['index','store','update','destroy'])->defaults('dict','scopes');
+    Route::resource('teams', DirectoryController::class)->only(['index','store','update','destroy'])->defaults('dict','teams');
+    Route::resource('vendors', DirectoryController::class)->only(['index','store','update','destroy'])->defaults('dict','vendors');
 
 
 });
