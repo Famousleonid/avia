@@ -9,6 +9,7 @@ use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
+use Symfony\Component\Mailer\Exception\TransportExceptionInterface;
 
 
 class UserController extends Controller
@@ -58,9 +59,25 @@ class UserController extends Controller
             $user->addMedia($request->file('img'))->toMediaCollection('avatar');
         }
 
-        $user->sendEmailVerificationNotification();
+        try {
+            $user->sendEmailVerificationNotification();
 
-        return redirect()->route('users.index')->with('success', 'Пользователь добавлен');
+            return redirect()
+                ->route('users.index')
+                ->with('success', 'The user has been added. A confirmation email has been sent.');
+        } catch (TransportExceptionInterface $e) {
+
+            return redirect()
+                ->route('users.index')
+                ->with('warning', 'The user was added, but the email was NOT sent (SMTP is not configured locally).');
+        } catch (\Throwable $e) {
+
+            return redirect()
+                ->route('users.index')
+                ->with('warning', 'The user was added, but the letter was NOT sent (sending error).');
+        }
+
+        return redirect()->route('users.index')->with('success', 'Technik was added successfully');
     }
 
     public function edit(User $user)
