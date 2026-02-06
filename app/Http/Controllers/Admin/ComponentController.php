@@ -244,6 +244,57 @@ class ComponentController extends Controller
         return redirect()->route('components.index')->with('success', 'Component updated successfully');
 
     }
+
+    /**
+     * Обновить один Component (part) по ID — для модалки на manual.show (вкладка Parts).
+     * Принимает те же поля, что и create: ipl_num, assy_ipl_num, part_number, assy_part_number,
+     * name, units_assy, eff_code, log_card, repair, is_bush, bush_ipl_num, опционально img, assy_img.
+     */
+    public function updateSingle(Request $request, $id)
+    {
+        $component = Component::findOrFail($id);
+
+        $validated = $request->validate([
+            'ipl_num'          => 'required|string|max:50',
+            'assy_ipl_num'     => 'nullable|string|max:50',
+            'part_number'      => 'required|string|max:50',
+            'assy_part_number' => 'nullable|string|max:50',
+            'name'             => 'required|string|max:250',
+            'units_assy'       => 'nullable|string|max:100',
+            'eff_code'         => 'nullable|string|max:100',
+            'bush_ipl_num'     => 'nullable|string|max:50',
+            'img'              => 'nullable|file|image|max:5120',
+            'assy_img'         => 'nullable|file|image|max:5120',
+        ]);
+
+        $validated['assy_ipl_num'] = $request->input('assy_ipl_num');
+        $validated['log_card']     = $request->has('log_card') ? 1 : 0;
+        $validated['repair']       = $request->has('repair') ? 1 : 0;
+        $validated['is_bush']      = $request->has('is_bush') ? 1 : 0;
+        $validated['bush_ipl_num'] = $request->input('bush_ipl_num');
+
+        unset($validated['img'], $validated['assy_img']);
+        $component->update($validated);
+
+        if ($request->hasFile('img')) {
+            if ($component->getMedia('components')->isNotEmpty()) {
+                $component->getMedia('components')->first()->delete();
+            }
+            $component->addMedia($request->file('img'))->toMediaCollection('components');
+        }
+        if ($request->hasFile('assy_img')) {
+            if ($component->getMedia('assy_components')->isNotEmpty()) {
+                $component->getMedia('assy_components')->first()->delete();
+            }
+            $component->addMedia($request->file('assy_img'))->toMediaCollection('assy_components');
+        }
+
+        return response()->json([
+            'success' => true,
+            'id'      => $component->id,
+        ]);
+    }
+
     public function showJson($id)
     {
         $component = Component::findOrFail($id);
@@ -312,10 +363,15 @@ class ComponentController extends Controller
             ->route('tdrs.inspection.component', ['workorder_id' => $request->workorder_id])
             ->with('success', 'Component updated successfully.');
     }
-    public function destroy($id)
+    public function destroy(Request $request, $id)
     {
         $component = Component::findOrFail($id);
         $component->delete();
+
+        $redirect = $request->input('redirect');
+        if ($redirect) {
+            return redirect($redirect)->with('success', __('Component (part) deleted successfully.'));
+        }
 
         return redirect()->route('components.index')
             ->with('success', 'Компонент успешно удален.');
@@ -842,6 +898,11 @@ class ComponentController extends Controller
             $message = "Successfully processed {$successCount} components: {$createCount} created, {$updateCount} updated.";
             if ($errorCount > 0) {
                 $message .= " {$errorCount} rows had errors.";
+            }
+
+            // Если передан redirect (например с manual.show#nav-parts), возвращаем редирект
+            if ($request->filled('redirect')) {
+                return redirect($request->input('redirect'))->with('success', $message);
             }
 
             return response()->json([

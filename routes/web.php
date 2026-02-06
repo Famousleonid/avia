@@ -213,6 +213,7 @@ Route::group(['middleware' => ['auth']], function () {
     Route::get('/components/{component}/json', [ComponentController::class, 'showJson'])->name('components.showJson');
     Route::post('/components/{component}/update-from-inspection', [ComponentController::class, 'updateFromInspection'])->name('components.updateFromInspection');
 
+    Route::patch('/components/{component}/single', [ComponentController::class, 'updateSingle'])->name('components.updateSingle');
     Route::resource('/components', ComponentController::class);
     Route::resource('/process-names',ProcessNameController::class);
     Route::resource('/processes', ProcessController::class);
@@ -228,6 +229,8 @@ Route::group(['middleware' => ['auth']], function () {
 
     Route::resource('/units', UnitController::class)->except(['update']);
     Route::post('/units/{manualId}', [UnitController::class, 'update'])->name('units.update');
+    Route::delete('/units/{unit}/single', [UnitController::class, 'destroySingle'])->name('units.destroySingle');
+    Route::patch('/units/{unit}/single', [UnitController::class, 'updateSingle'])->name('units.updateSingle');
 
     Route::resource('/wo_bushings', WoBushingController::class)->except(['create']);
     Route::get('/wo_bushings/create/{id}', [WoBushingController::class, 'create'])->name('wo_bushings.create');

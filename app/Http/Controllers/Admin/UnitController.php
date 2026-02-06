@@ -245,6 +245,44 @@ class UnitController extends Controller
         return redirect()->route('units.index')->with('error', 'Мануал не найден.');
     }
 
+    /**
+     * Удалить ОДИН конкретный Unit (component) по его ID.
+     */
+    public function destroySingle(Unit $unit)
+    {
+        // Если есть связанные workorders, запрещаем удаление, чтобы не ломать целостность
+        $workorderCount = $unit->workorders()->count();
+        if ($workorderCount > 0) {
+            return back()->with('error', "Нельзя удалить компонент: к нему привязано {$workorderCount} workorder(ов).");
+        }
+
+        $unit->delete();
+
+        return back()->with('success', 'Component deleted successfully.');
+    }
+
+    /**
+     * Обновить ОДИН конкретный Unit (component) по его ID.
+     */
+    public function updateSingle(Unit $unit, Request $request)
+    {
+        $data = $request->validate([
+            'part_number' => 'required|string|max:255',
+            'eff_code'    => 'nullable|string|max:255',
+            'verified'    => 'required|boolean',
+        ]);
+
+        $unit->update($data);
+
+        return response()->json([
+            'success' => true,
+            'id' => $unit->id,
+            'part_number' => $unit->part_number,
+            'eff_code' => $unit->eff_code,
+            'verified' => $unit->verified,
+        ]);
+    }
+
 
 
 }

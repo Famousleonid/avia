@@ -78,8 +78,9 @@
                                             @endforeach
                                         </div>
                                     @endif
-                                    <small class="text-muted d-block ps-4 fs-7">{{__('Upload CSV files with component process
-                                    requirements')}}</small>
+                                    <small class="text-muted d-block ps-4 fs-7">
+                                        {{__('Upload CSV files with component process requirements')}}
+                                    </small>
                                 </div>
                             </div>
 

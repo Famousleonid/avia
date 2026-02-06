@@ -106,7 +106,11 @@ class ManualProcessController extends Controller
             $process->save();
         }
 
-        return redirect()->route('processes.edit',['id' => $manualId])
+        $redirectTo = $request->input('return_to');
+        if ($redirectTo) {
+            return redirect($redirectTo)->with('success', 'Process updated successfully');
+        }
+        return redirect()->route('processes.edit', ['id' => $manualId])
             ->with('success', 'Process updated successfully');
     }
 
@@ -118,14 +122,15 @@ class ManualProcessController extends Controller
      */
     public function destroy($id)
     {
-//        dd($id);
-
         $manualProcess = ManualProcess::findOrFail($id);
         $manualId = $manualProcess->manual_id;
-//        dd($manualProcess, $manualId);
         $manualProcess->delete();
 
-        return redirect()->route('processes.edit',['id' => $manualId])
+        $redirectTo = request()->input('return_to');
+        if ($redirectTo) {
+            return redirect($redirectTo)->with('success', 'Process deleted successfully');
+        }
+        return redirect()->route('processes.edit', ['id' => $manualId])
             ->with('success', 'Process deleted successfully');
     }
 }

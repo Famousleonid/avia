@@ -66,7 +66,7 @@
     <div class="container mt-3">
         <div class="card bg-gradient">
             <div class="card-header">
-                <h4 class="text-primary">{{__('Add Replaseable Part')}}</h4>
+                <h4 class="text-primary">{{__('Add Replaceable Part')}}</h4>
             </div>
             <div class="card-body" id="create_div_inputs">
                 <form id="createForm" class="createForm" role="form" method="POST" action="{{route('components.store')
@@ -74,7 +74,15 @@
                     @csrf
                     <input type="hidden" name="redirect" value="{{ old('redirect', request('redirect', route('components.index'))) }}">
 
+                    @php
+                        $fromPartsTab = str_contains(request('redirect', ''), '#nav-parts');
+                    @endphp
+                    @if($fromPartsTab)
+                        <input type="hidden" name="manual_id" value="{{ old('manual_id', request('manual_id')) }}">
+                    @endif
+
                     <div class="">
+                        @if(!$fromPartsTab)
                         <div class=" form-group mb-3">
                             <label for="manual_id" class="form-label">CMM</label>
                             <select name="manual_id" id="manual_id" class="form-control">
@@ -94,6 +102,7 @@
                             </select>
 
                         </div>
+                        @endif
                         <div class="form-group">
                             <label for="name">{{ __('Name') }}</label>
                             <input id='name' type="text" class="form-control" name="name" required>
@@ -207,11 +216,13 @@
             // --------------------------------- Select 2 --------------------------------------------------------
 
             $(document).ready(function () {
-                $('#manual_id').select2({
-                    placeholder: '---',
-                    theme: 'bootstrap-5',
-                    allowClear: true
-                });
+                if ($('#manual_id').length) {
+                    $('#manual_id').select2({
+                        placeholder: '---',
+                        theme: 'bootstrap-5',
+                        allowClear: true
+                    });
+                }
             });
             $(function() {
                 applyTheme();

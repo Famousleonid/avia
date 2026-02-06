@@ -16,9 +16,12 @@
                 </div>
             </div>
             <div class="card-body">
-                <form action="{{ route('manual_processes.update', ['manual_process' => $manualProcess->id]) }}" method="POST">
+                <form action="{{ route('manual_processes.update', $manualProcess) }}" method="POST">
                     @csrf
                     @method('PUT')
+                    @if(request('return_to'))
+                        <input type="hidden" name="return_to" value="{{ request('return_to') }}">
+                    @endif
 
                     <div class="mb-3">
                         <label for="process" class="form-label">Process</label>
@@ -26,8 +29,7 @@
                     </div>
 
                     <button type="submit" class="btn btn-outline-primary">Update</button>
-                    <a href="{{ route('processes.edit',['id' => $manualId]) }}" class="btn
-                    btn-outline-secondary">Cancel</a>
+                    <a href="{{ request('return_to', route('processes.edit', ['id' => $manualId])) }}" class="btn btn-outline-secondary">Cancel</a>
                 </form>
             </div>
         </div>
