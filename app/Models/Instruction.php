@@ -8,7 +8,7 @@ use Illuminate\Database\Eloquent\Model;
 class Instruction extends Model
 {
     use HasFactory;
-
+    public $timestamps = false;
     protected $fillable = ['name'];
 
     public function workorder()

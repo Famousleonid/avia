@@ -1,32 +1,25 @@
 <?php
 
 use App\Http\Controllers\Admin\CabinetController;
-use App\Http\Controllers\Admin\BuilderController;
 use App\Http\Controllers\Admin\ComponentController;
-use App\Http\Controllers\Admin\ConditionController;
 use App\Http\Controllers\Admin\CustomerController;
+use App\Http\Controllers\Admin\DirectoryController;
 use App\Http\Controllers\Admin\ExtraProcessController;
 use App\Http\Controllers\Admin\GeneralTaskController;
 use App\Http\Controllers\Admin\LogCardController;
 use App\Http\Controllers\Admin\ManualProcessController;
-use App\Http\Controllers\Admin\PlaneController;
 use App\Http\Controllers\Admin\ProcessController;
-use App\Http\Controllers\Admin\ProcessNameController;
 use App\Http\Controllers\Admin\RmReportController;
-use App\Http\Controllers\Admin\RoleController;
-use App\Http\Controllers\Admin\ScopeController;
 use App\Http\Controllers\Admin\TaskController;
 use App\Http\Controllers\Admin\TdrController;
 use App\Http\Controllers\Admin\TdrProcessController;
 use App\Http\Controllers\Admin\TransferController;
-use App\Http\Controllers\Admin\TeamController;
 use App\Http\Controllers\Admin\ManualController;
 use App\Http\Controllers\Admin\MaterialController;
 use App\Http\Controllers\Admin\UserController;
 use App\Http\Controllers\Admin\MainController;
 use App\Http\Controllers\Admin\TrainingController;
 use App\Http\Controllers\Admin\UnitController;
-use App\Http\Controllers\Admin\VendorController;
 use App\Http\Controllers\Admin\WorkorderController;
 use App\Http\Controllers\Admin\WoBushingController;
 use App\Http\Controllers\Admin\NdtCadCsvController;
@@ -195,9 +188,6 @@ Route::group(['middleware' => ['auth']], function () {
 
         Route::resource('/trainings', TrainingController::class);
 
-    Route::resource('/scopes',  ScopeController::class);
-    Route::resource('/conditions',  ConditionController::class);
-    Route::resource('/planes',PlaneController::class);
 
     // Components CSV routes - must be before resource route
     Route::post('/components/upload-csv', [ComponentController::class, 'uploadCsv'])->name('components.upload-csv');
@@ -215,16 +205,12 @@ Route::group(['middleware' => ['auth']], function () {
 
     Route::patch('/components/{component}/single', [ComponentController::class, 'updateSingle'])->name('components.updateSingle');
     Route::resource('/components', ComponentController::class);
-    Route::resource('/process-names',ProcessNameController::class);
     Route::resource('/processes', ProcessController::class);
     Route::resource('/tdr-processes',TdrProcessController::class);
     Route::resource('/manual_processes', ManualProcessController::class);
     Route::resource('/log_card', LogCardController::class);
     Route::resource('/customers',  CustomerController::class);
-    Route::resource('/roles',  RoleController::class);
-    Route::resource('/teams',  TeamController::class);
     Route::resource('/tasks',  TaskController::class);
-    Route::resource('/builders', BuilderController::class);
     Route::resource('/general-tasks',  GeneralTaskController::class);
 
     Route::resource('/units', UnitController::class)->except(['update']);
@@ -259,8 +245,6 @@ Route::group(['middleware' => ['auth']], function () {
     Route::get('log_card/create/{id}', [LogCardController::class, 'create'])->name('log_card.create');
     Route::get('log_card/edit/{id}', [LogCardController::class, 'edit'])->name('log_card.edit');
     Route::get('log_card/show/{id}', [LogCardController::class, 'show'])->name('log_card.show');
-
-    Route::post('/vendors', [VendorController::class, 'store'])->name('vendors.store');
 
     Route::post('/components/store_from_inspection', [ComponentController::class, 'storeFromInspection'])->name('components.storeFromInspection');
     Route::post('/components/store_from_extra', [ComponentController::class, 'storeFromExtra'])->name('components.storeFromExtra');
@@ -325,6 +309,15 @@ Route::group(['middleware' => ['auth']], function () {
     });
 
 
+
 });
 
-
+Route::middleware(['auth'])
+    ->prefix('admin')
+    ->name('admin.')
+    ->group(function () {
+        foreach (array_keys(config('directories')) as $slug) {
+            Route::resource($slug, DirectoryController::class)
+                ->only(['index', 'store', 'update', 'destroy']);
+        }
+    });

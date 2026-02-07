@@ -84,27 +84,57 @@
             <i class="bi bi-chevron-down ms-auto lib-chevron"></i>
         </button>
 
-        <ul class="list-unstyled collapse ms-3" id="menu-lib">
+
+        <ul class="list-unstyled collapse ms-4" id="menu-lib">
+
             <li class="nav-item press-spinner">
-                <a href="{{route('roles.index')}}" class="nav-link">
-                    <i class="bi bi-award-fill me-2"></i> <span>Roles</span>
-                </a>
+                <a href="{{route('general-tasks.index')}}" class="nav-link"><i class="bi bi-dot"></i><span>General Tasks</span></a>
             </li>
+
             <li class="nav-item press-spinner">
-                <a href="{{route('teams.index')}}" class="nav-link">
-                    <i class="bi bi-microsoft-teams me-2"></i> <span>Teams</span>
-                </a>
+                <a href="{{route('tasks.index')}}" class="nav-link"><i class="bi bi-dot"></i><span>Tasks</span></a>
             </li>
+
             <li class="nav-item press-spinner">
-                <a href="{{route('general-tasks.index')}}" class="nav-link">
-                    <i class="bi bi-stickies me-2"></i> <span>General Tasks</span>
-                </a>
+                <a href="{{route('admin.roles.index')}}" class="nav-link"><i class="bi bi-dot"></i><span>Roles</span></a>
             </li>
+
             <li class="nav-item press-spinner">
-                <a href="{{route('tasks.index')}}" class="nav-link">
-                    <i class="bi bi-list-task me-2"></i> <span>Tasks</span>
-                </a>
+                <a href="{{route('admin.teams.index')}}" class="nav-link"><i class="bi bi-dot"></i><span>Teams</span></a>
             </li>
+
+            <li class="nav-item press-spinner">
+                <a href="{{route('admin.builders.index')}}" class="nav-link"><i class="bi bi-dot"></i> <span>Builders</span></a>
+            </li>
+
+            <li class="nav-item press-spinner">
+                <a href="{{route('admin.vendors.index')}}" class="nav-link"><i class="bi bi-dot"></i> <span>Vendors</span></a>
+            </li>
+
+            <li class="nav-item press-spinner">
+                <a href="{{route('admin.codes.index')}}" class="nav-link"><i class="bi bi-dot"></i> <span>Codes</span></a>
+            </li>
+
+            <li class="nav-item press-spinner">
+                <a href="{{route('admin.process_names.index')}}" class="nav-link"><i class="bi bi-dot"></i><span>Process Names</span></a>
+            </li>
+
+            <li class="nav-item press-spinner">
+                <a href="{{route('admin.scopes.index')}}" class="nav-link"><i class="bi bi-dot"></i><span>Scopes</span></a>
+            </li>
+
+            <li class="nav-item press-spinner">
+                <a href="{{route('admin.planes.index')}}" class="nav-link"><i class="bi bi-dot"></i><span>Planes</span></a>
+            </li>
+
+            <li class="nav-item press-spinner">
+                <a href="{{route('admin.instructions.index')}}" class="nav-link"><i class="bi bi-dot"></i><span>Instructions</span></a>
+            </li>
+
+            <li class="nav-item press-spinner">
+                <a href="{{route('admin.necessaries.index')}}" class="nav-link"><i class="bi bi-dot"></i><span>Necessaries</span></a>
+            </li>
+
         </ul>
     </li>
 

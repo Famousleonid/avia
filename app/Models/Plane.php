@@ -9,7 +9,7 @@ class Plane extends Model
 {
     use HasFactory;
     protected $fillable = ['type'];
-
+    public $timestamps = false;
     public function manual()
     {
         return $this->hasMany(Manual::class);

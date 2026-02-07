@@ -11,5 +11,5 @@ class Necessary extends Model
     protected $fillable = [
         'name',
     ];
-
+    public $timestamps = false;
 }
