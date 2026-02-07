@@ -69,7 +69,7 @@
                 <h4>{{ __('Select Unit') }}</h4>
             </div>
             <div class="card-body">
-                <form method="POST" action="{{ route('trainings.store') }}" onsubmit="return validateTrainingDate()">
+                <form method="POST" action="{{ route('trainings.store') }}" id="training_create_form">
                     @csrf
                     <input type="hidden" name="return_url" value="{{ request()->get('return_url', url()->previous()) }}">
                     <div class="form-group mt-2">
@@ -91,20 +91,29 @@
                     <div class="form-group mt-3">
                         <label for="date_training">{{ __('First Training Date') }}</label>
                         <input type="date" id="date_training" name="date_training" class="form-control" required>
-                        <small class="form-text text-muted">
-                            <i class="bi bi-info-circle"></i>
-                            If the date is more than 2 years ago, you will need to provide the last training date.
-                        </small>
                     </div>
 
-                    <div class="form-group mt-3" id="last_training_date_group" style="display: none;">
-                        <label for="last_training_date">{{ __('Last Existing Training Date') }} <span class="text-danger">*</span></label>
-                        <input type="date" id="last_training_date" name="last_training_date" class="form-control">
+                    <div class="form-group mt-3">
+                        <label>{{ __('Subsequent Training Dates') }}</label>
+                        <small class="form-text text-muted d-block mb-1">
+                            <i class="bi bi-info-circle"></i>
+                            {{ __('Add all past training dates for this unit (after the first date).') }}
+                        </small>
+                        <div id="training_dates_list"></div>
+                        <button type="button" class="btn btn-outline-secondary btn-sm mt-1" id="add_training_date_btn">
+                            <i class="bi bi-plus"></i> {{ __('Add Date') }}
+                        </button>
+                        <div id="training_dates_error" class="text-danger mt-1" style="display: none;"></div>
+                    </div>
+
+                    <div class="form-group mt-3" id="additional_training_date_group" style="display: none;">
+                        <label for="additional_training_date">{{ __('Additional Training Date') }}</label>
+                        <input type="date" id="additional_training_date" name="additional_training_date" class="form-control">
                         <small class="form-text text-muted">
                             <i class="bi bi-info-circle"></i>
-                            Please enter the date of the last existing training. Missing yearly trainings between First Training Date and this date will be created, and a new training will be created with today's date.
+                            {{ __('Last training was more than 360 days ago. You can add a training on the date of adding the unit or choose another date.') }}
                         </small>
-                        <div id="last_training_date_error" class="text-danger mt-1" style="display: none;"></div>
+                        <div id="additional_training_date_error" class="text-danger mt-1" style="display: none;"></div>
                     </div>
                     <div class="text-end">
                         <button type="submit" class="btn btn-primary mt-3">{{ __('Add Component') }}</button>
@@ -121,13 +130,30 @@
         </div>
     </div>
 
+    <!-- Modal: add additional training when last > 360 days -->
+    <div class="modal fade" id="additionalTrainingModal" tabindex="-1" aria-labelledby="additionalTrainingModalLabel" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="additionalTrainingModalLabel">{{ __('Additional Training') }}</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <p>{{ __('Last training was more than 360 days ago. Add an additional training on the date of adding the unit?') }}</p>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal" id="additionalModalNo">{{ __('No') }}</button>
+                    <button type="button" class="btn btn-primary" id="additionalModalYes">{{ __('Yes') }}</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <script>
-
-
         window.addEventListener('load', function () {
-
-
-            // --------------------------------- Select 2 --------------------------------------------------------
+            const DAYS_THRESHOLD = 360;
+            let additionalTrainingAsked = false;
+            let formPendingSubmit = false;
 
             $(document).ready(function () {
                 $('#manuals_id').select2({
@@ -152,90 +178,154 @@
                 }
             }
 
-            // -----------------------------------------------------------------------------------------------------
+            function getFirstDate() {
+                const v = $('#date_training').val();
+                return v ? new Date(v + 'T00:00:00') : null;
+            }
 
-            // Проверка даты First Training Date и показ поля для даты последнего тренинга
-            $('#date_training').on('change', function() {
-                const firstTrainingDate = new Date($(this).val());
-                const today = new Date();
-                const twoYearsAgo = new Date(today.getFullYear() - 2, today.getMonth(), today.getDate());
+            function getTodayStart() {
+                const t = new Date();
+                t.setHours(0, 0, 0, 0);
+                return t;
+            }
 
-                // Если дата больше чем 2 года назад, показываем поле для последнего тренинга
-                if (firstTrainingDate < twoYearsAgo) {
-                    $('#last_training_date_group').show();
-                    $('#last_training_date').prop('required', true);
-                } else {
-                    $('#last_training_date_group').hide();
-                    $('#last_training_date').prop('required', false);
-                    $('#last_training_date').val('');
-                    $('#last_training_date_error').hide();
-                }
+            function getTrainingDatesEntered() {
+                const dates = [];
+                document.querySelectorAll('input[name="training_dates[]"]').forEach(function(inp) {
+                    if (inp.value) dates.push(inp.value);
+                });
+                return dates.sort();
+            }
 
-                // Проверяем валидность даты последнего тренинга если она уже введена
-                if ($('#last_training_date').val()) {
-                    validateLastTrainingDate();
-                }
+            function getLastEnteredDate() {
+                const dates = getTrainingDatesEntered();
+                if (dates.length === 0) return null;
+                return new Date(dates[dates.length - 1] + 'T00:00:00');
+            }
+
+            function daysBetween(d1, d2) {
+                const a = new Date(d1.getFullYear(), d1.getMonth(), d1.getDate());
+                const b = new Date(d2.getFullYear(), d2.getMonth(), d2.getDate());
+                return Math.floor((b - a) / (24 * 60 * 60 * 1000));
+            }
+
+            function addTrainingDateRow(value) {
+                const id = 'td_' + Date.now() + '_' + Math.random().toString(36).slice(2, 6);
+                const row = document.createElement('div');
+                row.className = 'input-group input-group-sm mb-1';
+                row.id = id;
+                row.innerHTML =
+                    '<input type="date" name="training_dates[]" class="form-control" value="' + (value || '') + '">' +
+                    '<button type="button" class="btn btn-outline-danger remove-training-date" data-row-id="' + id + '" aria-label="Remove"><i class="bi bi-dash"></i></button>';
+                document.getElementById('training_dates_list').appendChild(row);
+                $(row).find('.remove-training-date').on('click', function() {
+                    document.getElementById(id).remove();
+                });
+            }
+
+            document.getElementById('add_training_date_btn').addEventListener('click', function() {
+                addTrainingDateRow('');
             });
 
-            // Валидация даты последнего тренинга
-            $('#last_training_date').on('change', function() {
-                validateLastTrainingDate();
-            });
-
-            function validateLastTrainingDate() {
-                const firstDate = new Date($('#date_training').val());
-                const lastDate = new Date($('#last_training_date').val());
-                const today = new Date();
-                today.setHours(0, 0, 0, 0); // Убираем время для корректного сравнения
-
-                $('#last_training_date_error').hide();
-                $('#last_training_date').removeClass('is-invalid');
-
-                if (!lastDate || isNaN(lastDate.getTime())) {
-                    return;
+            function validateSubsequentDates() {
+                const firstDate = getFirstDate();
+                const today = getTodayStart();
+                $('#training_dates_error').hide();
+                let valid = true;
+                document.querySelectorAll('input[name="training_dates[]"]').forEach(function(inp) {
+                    inp.classList.remove('is-invalid');
+                    if (!inp.value) return;
+                    const d = new Date(inp.value + 'T00:00:00');
+                    if (firstDate && d <= firstDate) {
+                        inp.classList.add('is-invalid');
+                        valid = false;
+                    }
+                    if (d > today) {
+                        inp.classList.add('is-invalid');
+                        valid = false;
+                    }
+                });
+                if (!valid) {
+                    $('#training_dates_error').text('{{ __("Each date must be after First Training Date and not in the future.") }}').show();
                 }
+                return valid;
+            }
 
-                if (lastDate < firstDate) {
-                    $('#last_training_date_error').text('Last training date must be after First Training Date.').show();
-                    $('#last_training_date').addClass('is-invalid');
+            function validateAdditionalDate() {
+                const v = $('#additional_training_date').val();
+                if (!v) return true;
+                const firstDate = getFirstDate();
+                const today = getTodayStart();
+                const d = new Date(v + 'T00:00:00');
+                $('#additional_training_date_error').hide();
+                $('#additional_training_date').removeClass('is-invalid');
+                if (firstDate && d < firstDate) {
+                    $('#additional_training_date_error').text('{{ __("Additional training date must be on or after First Training Date.") }}').show();
+                    $('#additional_training_date').addClass('is-invalid');
                     return false;
                 }
-
-                if (lastDate >= today) {
-                    $('#last_training_date_error').text('Last training date must be before today.').show();
-                    $('#last_training_date').addClass('is-invalid');
+                if (d > today) {
+                    $('#additional_training_date_error').text('{{ __("Additional training date cannot be in the future.") }}').show();
+                    $('#additional_training_date').addClass('is-invalid');
                     return false;
                 }
-
                 return true;
             }
 
-            // Валидация формы перед отправкой
+            $('#additional_training_date').on('change', function() {
+                validateAdditionalDate();
+            });
+
             function validateTrainingDate() {
-                const firstDate = new Date($('#date_training').val());
-                const today = new Date();
-                const twoYearsAgo = new Date(today.getFullYear() - 2, today.getMonth(), today.getDate());
+                if (!validateSubsequentDates()) return false;
+                if (!validateAdditionalDate()) return false;
 
-                if (firstDate < twoYearsAgo) {
-                    const lastDate = $('#last_training_date').val();
-                    if (!lastDate) {
-                        alert('Please provide the Last Existing Training Date when First Training Date is more than 2 years ago.');
-                        $('#last_training_date').focus();
-                        return false;
-                    }
+                const subsequentDates = getTrainingDatesEntered();
+                const lastEntered = subsequentDates.length ? getLastEnteredDate() : getFirstDate();
+                const today = getTodayStart();
+                const needAsk = lastEntered && daysBetween(lastEntered, today) >= DAYS_THRESHOLD;
+                const hasAdditional = $('#additional_training_date').val() && $('#additional_training_date_group').is(':visible');
 
-                    if (!validateLastTrainingDate()) {
-                        return false;
-                    }
+                if (needAsk && !additionalTrainingAsked && !hasAdditional) {
+                    formPendingSubmit = true;
+                    const modal = new bootstrap.Modal(document.getElementById('additionalTrainingModal'));
+                    modal.show();
+                    return false;
                 }
 
                 return true;
             }
 
+            document.getElementById('additionalModalNo').addEventListener('click', function() {
+                additionalTrainingAsked = true;
+                bootstrap.Modal.getInstance(document.getElementById('additionalTrainingModal')).hide();
+                if (formPendingSubmit) {
+                    formPendingSubmit = false;
+                    document.getElementById('training_create_form').submit();
+                }
+            });
+
+            document.getElementById('additionalModalYes').addEventListener('click', function() {
+                additionalTrainingAsked = true;
+                bootstrap.Modal.getInstance(document.getElementById('additionalTrainingModal')).hide();
+                $('#additional_training_date_group').show();
+                const todayStr = getTodayStart().toISOString().slice(0, 10);
+                if (!$('#additional_training_date').val()) {
+                    $('#additional_training_date').val(todayStr);
+                }
+                $('#additional_training_date').focus();
+                formPendingSubmit = false;
+                // User confirms or changes the date and clicks "Add Component" again
+            });
+
+            document.getElementById('training_create_form').addEventListener('submit', function(e) {
+                if (formPendingSubmit) return;
+                if (!validateTrainingDate()) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    return false;
+                }
+            });
         });
-
-
-
-
     </script>
 @endsection

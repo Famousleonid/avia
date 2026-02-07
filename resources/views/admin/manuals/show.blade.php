@@ -148,6 +148,20 @@
             font-size: 12px;
             color: grey;
         }
+        /* Просмотр STD CSV в модалке: прокрутка + фиксированный заголовок */
+        .std-csv-view-table-wrap {
+            max-height: 70vh;
+            overflow: auto;
+        }
+        .std-csv-view-thead th {
+            position: sticky;
+            top: 0;
+            z-index: 2;
+            /*background: var(--bs-light) !important;*/
+            background: #c2c2d9 !important;
+            white-space: nowrap;
+            font-size: 12px;
+        }
         #nav-tab .nav-link:focus,
         #nav-tab .nav-link:focus-visible {
             outline: none;
@@ -439,10 +453,11 @@
                                         <span class="badge bg-secondary">{{ $csvFile->getCustomProperty('process_type') ?: '—' }}</span>
                                     </td>
                                     <td class="align-content-center">
-                                        <a href="{{ route('manuals.csv.view', ['manual' => $cmm->id, 'file' => $csvFile->id]) }}" target="_blank" class="btn btn-sm btn-outline-info me-1">
+                                        <button type="button" class="btn btn-sm btn-outline-info me-1 std-csv-view-btn"
+                                                data-file-id="{{ $csvFile->id }}"
+                                                data-file-name="{{ $csvFile->file_name }}">
                                             <i class="bi bi-view-list"></i>
-{{--                                            {{ __('View') }}--}}
-                                        </a>
+                                        </button>
                                         <button type="button" class="btn btn-sm btn-outline-danger"
                                                 onclick="deleteStdCsvFile('{{ route('manuals.csv.delete', ['manual' => $cmm->id, 'file' => $csvFile->id]) }}', this)">
                                             <i class="bi bi-trash"></i>
@@ -588,6 +603,33 @@
         </div>
     </div>
 
+    {{-- Модальное окно просмотра STD Process CSV (в том же окне, прокрутка, фиксированный заголовок) --}}
+    <div class="modal fade" id="stdCsvViewModal" tabindex="-1" aria-labelledby="stdCsvViewModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-xl modal-dialog-scrollable">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="stdCsvViewModalLabel">{{ __('STD Process file') }}</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body p-0">
+                    <div id="stdCsvViewLoading" class="text-center py-5 text-muted">{{ __('Loading...') }}</div>
+                    <div id="stdCsvViewTableWrap" class="std-csv-view-table-wrap" style="display: none;">
+                        <table class="table table-bordered table-striped table-sm mb-0">
+                            <thead class="table-light std-csv-view-thead">
+                                <tr id="stdCsvViewTheadRow"></tr>
+                            </thead>
+                            <tbody id="stdCsvViewTbody"></tbody>
+                        </table>
+                    </div>
+                    <div id="stdCsvViewError" class="alert alert-danger m-3" style="display: none;"></div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">{{ __('Close') }}</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <div class="modal fade" id="uploadCsvModal" tabindex="-1" aria-labelledby="uploadCsvModalLabel" aria-hidden="true">
         <div class="modal-dialog modal-lg">
             <div class="modal-content">
@@ -666,6 +708,60 @@
     </div>
 
     <script>
+        // STD Processes CSV: просмотр в модалке (то же окно, прокрутка, фиксированный заголовок)
+        function openStdCsvView(fileId, fileName) {
+            var modal = document.getElementById('stdCsvViewModal');
+            var titleEl = document.getElementById('stdCsvViewModalLabel');
+            var loadingEl = document.getElementById('stdCsvViewLoading');
+            var tableWrap = document.getElementById('stdCsvViewTableWrap');
+            var errorEl = document.getElementById('stdCsvViewError');
+            var theadRow = document.getElementById('stdCsvViewTheadRow');
+            var tbody = document.getElementById('stdCsvViewTbody');
+
+            if (titleEl) titleEl.textContent = fileName || '{{ __("STD Process file") }}';
+            if (loadingEl) { loadingEl.style.display = 'block'; }
+            if (tableWrap) { tableWrap.style.display = 'none'; }
+            if (errorEl) { errorEl.style.display = 'none'; errorEl.textContent = ''; }
+            if (theadRow) theadRow.innerHTML = '';
+            if (tbody) tbody.innerHTML = '';
+
+            var dataUrl = '{{ route("manuals.csv.data", ["manual" => $cmm->id, "file" => "__ID__"]) }}'.replace('__ID__', fileId);
+
+            fetch(dataUrl, { headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' } })
+                .then(function (r) { return r.json(); })
+                .then(function (data) {
+                    if (loadingEl) loadingEl.style.display = 'none';
+                    if (!data.success) {
+                        if (errorEl) { errorEl.textContent = data.error || '{{ __("Error loading file") }}'; errorEl.style.display = 'block'; }
+                        return;
+                    }
+                    var headers = data.headers || [];
+                    var records = data.records || [];
+                    headers.forEach(function (h) {
+                        var th = document.createElement('th');
+                        th.textContent = h;
+                        th.scope = 'col';
+                        if (theadRow) theadRow.appendChild(th);
+                    });
+                    records.forEach(function (row) {
+                        var tr = document.createElement('tr');
+                        row.forEach(function (cell) {
+                            var td = document.createElement('td');
+                            td.textContent = cell;
+                            tr.appendChild(td);
+                        });
+                        if (tbody) tbody.appendChild(tr);
+                    });
+                    if (tableWrap) tableWrap.style.display = 'block';
+                })
+                .catch(function (err) {
+                    if (loadingEl) loadingEl.style.display = 'none';
+                    if (errorEl) { errorEl.textContent = err.message || '{{ __("Error loading file") }}'; errorEl.style.display = 'block'; }
+                });
+
+            (new bootstrap.Modal(modal)).show();
+        }
+
         // STD Processes CSV: удаление файла
         function deleteStdCsvFile(url, buttonEl) {
             if (!confirm('{{ __("Are you sure you want to delete this file?") }}')) return;
@@ -704,6 +800,16 @@
 
         document.addEventListener('DOMContentLoaded', function () {
             // STD Processes CSV: загрузка файла
+            // Просмотр STD CSV по клику (в т.ч. для динамически добавленных строк)
+            document.addEventListener('click', function (e) {
+                var btn = e.target.closest('.std-csv-view-btn');
+                if (!btn) return;
+                e.preventDefault();
+                var fileId = btn.getAttribute('data-file-id');
+                var fileName = btn.getAttribute('data-file-name') || '';
+                if (fileId) openStdCsvView(fileId, fileName);
+            });
+
             var btnStdCsvUpload = document.getElementById('btn-std-csv-upload');
             if (btnStdCsvUpload) {
                 btnStdCsvUpload.addEventListener('click', function () {
@@ -741,15 +847,15 @@
                                 var count = tbody ? tbody.querySelectorAll('tr').length : 0;
                                 var tr = document.createElement('tr');
                                 tr.setAttribute('data-process-type', data.file.process_type);
-                                var viewUrl = '{{ route("manuals.csv.view", ["manual" => $cmm->id, "file" => "__ID__"]) }}'.replace('__ID__', data.file.id);
                                 var deleteUrl = '{{ route("manuals.csv.delete", ["manual" => $cmm->id, "file" => "__ID__"]) }}'.replace('__ID__', data.file.id);
+                                var fileName = (data.file.name || '').replace(/"/g, '&quot;');
                                 tr.innerHTML =
                                     '<td class="align-content-center">' + (count + 1) + '</td>' +
                                     '<td class="align-content-center">' + (data.file.name || '') + '</td>' +
                                     '<td class="align-content-center"><span class="badge bg-secondary">' + (data.file.process_type || '') + '</span></td>' +
                                     '<td class="align-content-center">' +
-                                    '<a href="' + viewUrl + '" target="_blank" class="btn btn-sm btn-outline-info me-1"><i class="fas fa-eye"></i> {{ __("View") }}</a> ' +
-                                    '<button type="button" class="btn btn-sm btn-outline-danger" onclick="deleteStdCsvFile(\'' + deleteUrl.replace(/'/g, "\\'") + '\', this)"><i class="fas fa-trash"></i> {{ __("Delete") }}</button>' +
+                                    '<button type="button" class="btn btn-sm btn-outline-info me-1 std-csv-view-btn" data-file-id="' + data.file.id + '" data-file-name="' + fileName + '"><i class="bi bi-view-list"></i></button> ' +
+                                    '<button type="button" class="btn btn-sm btn-outline-danger" onclick="deleteStdCsvFile(\'' + deleteUrl.replace(/'/g, "\\'") + '\', this)"><i class="bi bi-trash"></i></button>' +
                                     '</td>';
                                 if (tbody) tbody.appendChild(tr);
                                 document.getElementById('stdCsvUploadForm').reset();

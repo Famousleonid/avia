@@ -106,6 +106,48 @@ class ManualCsvController extends Controller
         }
     }
 
+    /**
+     * Return CSV file content as JSON (for inline/modal view).
+     */
+    public function data(Manual $manual, $file)
+    {
+        try {
+            $media = $manual->getMedia('csv_files')->firstWhere('id', $file);
+
+            if (!$media) {
+                return response()->json(['success' => false, 'error' => 'CSV файл не найден'], 404);
+            }
+
+            $path = $media->getPath();
+            $records = [];
+            $headers = [];
+
+            if (($handle = fopen($path, 'r')) !== false) {
+                if (($data = fgetcsv($handle, 0, ',')) !== false) {
+                    $headers = $data;
+                }
+                while (($data = fgetcsv($handle, 0, ',')) !== false) {
+                    $records[] = $data;
+                }
+                fclose($handle);
+            }
+
+            return response()->json([
+                'success' => true,
+                'file_name' => $media->file_name,
+                'process_type' => $media->getCustomProperty('process_type'),
+                'headers' => $headers,
+                'records' => $records,
+            ]);
+        } catch (\Exception $e) {
+            \Log::error('Error reading CSV file: ' . $e->getMessage());
+            return response()->json([
+                'success' => false,
+                'error' => 'Ошибка при чтении файла: ' . $e->getMessage(),
+            ], 500);
+        }
+    }
+
     public function delete(Manual $manual, $file)
     {
         try {

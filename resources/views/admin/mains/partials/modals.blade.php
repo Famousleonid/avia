@@ -176,3 +176,82 @@
     </div>
 </div>
 
+{{-- Modal: Update training — выбор даты (по умолчанию сегодня) --}}
+<div class="modal fade" id="mainsUpdateTrainingModal" tabindex="-1" aria-labelledby="mainsUpdateTrainingModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="mainsUpdateTrainingModalLabel">{{ __('Update training') }}</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <label class="form-label">{{ __('Training date') }}</label>
+                <input type="date" id="mainsUpdateTrainingDateInput" class="form-control">
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">{{ __('Cancel') }}</button>
+                <button type="button" class="btn btn-primary" id="mainsUpdateTrainingSaveBtn">{{ __('Add training') }}</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+{{-- Modal: Add trainings (как в training.create: первая дата + последующие + доп. при 360 дней) --}}
+<div class="modal fade" id="mainsAddTrainingsModal" tabindex="-1" aria-labelledby="mainsAddTrainingsModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="mainsAddTrainingsModalLabel">{{ __('Add trainings for this unit') }}</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form id="mainsAddTrainingsForm" method="POST" action="{{ route('trainings.store') }}">
+                @csrf
+                <input type="hidden" name="return_url" value="{{ route('mains.show', $current_workorder->id) }}">
+                <input type="hidden" name="manuals_id" id="mainsAddTrainingsManualId" value="">
+                <div class="modal-body">
+                    <div class="form-group mt-2">
+                        <label for="mains_date_training">{{ __('First Training Date') }}</label>
+                        <input type="date" id="mains_date_training" name="date_training" class="form-control" required>
+                    </div>
+                    <div class="form-group mt-3">
+                        <label>{{ __('Subsequent Training Dates') }}</label>
+                        <small class="form-text text-muted d-block mb-1">{{ __('Add all past training dates for this unit (after the first date).') }}</small>
+                        <div id="mains_training_dates_list"></div>
+                        <button type="button" class="btn btn-outline-secondary btn-sm mt-1" id="mains_add_training_date_btn"><i class="bi bi-plus"></i> {{ __('Add Date') }}</button>
+                        <div id="mains_training_dates_error" class="text-danger mt-1" style="display: none;"></div>
+                    </div>
+                    <div class="form-group mt-3" id="mains_additional_training_date_group" style="display: none;">
+                        <label for="mains_additional_training_date">{{ __('Additional Training Date') }}</label>
+                        <input type="date" id="mains_additional_training_date" name="additional_training_date" class="form-control">
+                        <small class="form-text text-muted">{{ __('Last training was more than 360 days ago. You can add a training on the date of adding the unit or choose another date.') }}</small>
+                        <div id="mains_additional_training_date_error" class="text-danger mt-1" style="display: none;"></div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">{{ __('Cancel') }}</button>
+                    <button type="submit" class="btn btn-primary">{{ __('Add trainings') }}</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+{{-- Modal: 360 дней — добавить дополнительную тренировку? --}}
+<div class="modal fade" id="mainsAdditionalTrainingModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">{{ __('Additional Training') }}</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <p>{{ __('Last training was more than 360 days ago. Add an additional training on the date of adding the unit?') }}</p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal" id="mainsAdditionalModalNo">{{ __('No') }}</button>
+                <button type="button" class="btn btn-primary" id="mainsAdditionalModalYes">{{ __('Yes') }}</button>
+            </div>
+        </div>
+    </div>
+</div>
+

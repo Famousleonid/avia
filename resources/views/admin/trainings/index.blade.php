@@ -157,7 +157,13 @@
                                             data-tippy-content="{{ __('View Training Reports') }}"
                                             data-tippy-placement="top">
                                         <i class="bi bi-journal-text"></i>
-{{--                                        <span class="d-none d-sm-inline">{{ __('View') }}</span>--}}
+                                    </button>
+                                    <button class="btn btn-warning btn-sm d-inline-flex align-items-center gap-1"
+                                            data-bs-toggle="modal"
+                                            data-bs-target="#editTrainingModal{{ $trainingList['first_training']->manuals_id }}"
+                                            data-tippy-content="{{ __('Edit training dates') }}"
+                                            data-tippy-placement="top">
+                                        <i class="bi bi-pencil"></i>
                                     </button>
                                     @admin
                                     <button
@@ -233,6 +239,43 @@
                                             @endroles
                                             <button type="button" class="btn btn-secondary ms-5" data-bs-dismiss="modal">
                                                 Close
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Модальное окно Edit: редактирование дат тренировок -->
+                            <div class="modal fade" id="editTrainingModal{{ $trainingList['first_training']->manuals_id }}" tabindex="-1"
+                                 aria-labelledby="editTrainingModalLabel{{ $trainingList['first_training']->manuals_id }}" aria-hidden="true">
+                                <div class="modal-dialog">
+                                    <div class="modal-content">
+                                        <div class="modal-header">
+                                            <h5 class="modal-title" id="editTrainingModalLabel{{ $trainingList['first_training']->manuals_id }}">
+                                                {{ __('Edit training dates') }} — {{ $trainingList['first_training']->manual->title ?? 'N/A' }}
+                                            </h5>
+                                            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                                        </div>
+                                        <div class="modal-body">
+                                            @foreach($trainingList['trainings'] as $training)
+                                                <div class="row mb-2 align-items-center edit-training-row"
+                                                     data-training-id="{{ $training->id }}"
+                                                     data-original-date="{{ \Carbon\Carbon::parse($training->date_training)->format('Y-m-d') }}">
+                                                    <div class="col-auto">
+                                                        <span class="text-muted">{{ __('Form') }} {{ $training->form_type }}</span>
+                                                    </div>
+                                                    <div class="col">
+                                                        <input type="date" class="form-control form-control-sm edit-training-date-input"
+                                                               value="{{ \Carbon\Carbon::parse($training->date_training)->format('Y-m-d') }}">
+                                                    </div>
+                                                </div>
+                                            @endforeach
+                                        </div>
+                                        <div class="modal-footer">
+                                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">{{ __('Cancel') }}</button>
+                                            <button type="button" class="btn btn-primary edit-training-save-btn"
+                                                    data-modal-id="editTrainingModal{{ $trainingList['first_training']->manuals_id }}">
+                                                {{ __('Save') }}
                                             </button>
                                         </div>
                                     </div>
@@ -329,73 +372,83 @@
             </div>
         </div>
     </div>
+
+    <!-- Modal: Update — одна дата нового тренинга -->
+    <div class="modal fade" id="updateTrainingModal" tabindex="-1" aria-labelledby="updateTrainingModalLabel" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="updateTrainingModalLabel">{{ __('Update training') }}</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <p class="text-muted small mb-2" id="updateTrainingModalSubtitle"></p>
+                    <label class="form-label">{{ __('Training date') }}</label>
+                    <input type="date" id="updateTrainingDateInput" class="form-control">
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">{{ __('Cancel') }}</button>
+                    <button type="button" class="btn btn-primary" id="updateTrainingConfirmBtn">{{ __('Add training') }}</button>
+                </div>
+            </div>
+        </div>
+    </div>
     <script>
 
         function handleUpdateTraining(manualsId, dateTraining, manualsTitle) {
-// Определяем номер недели и год последней тренировки
-            const lastTrainingDate = new Date(dateTraining);
-            const lastTrainingYear = lastTrainingDate.getFullYear();
-            const lastTrainingWeek = getWeekNumber(lastTrainingDate);
+            document.getElementById('updateTrainingModalLabel').textContent = '{{ __("Update training") }}: ' + manualsTitle;
+            document.getElementById('updateTrainingModalSubtitle').textContent = '';
 
-// Получаем текущую дату
-            const currentYear = new Date().getFullYear();
+            const inputEl = document.getElementById('updateTrainingDateInput');
+            const today = new Date();
+            inputEl.value = today.getFullYear() + '-' + String(today.getMonth() + 1).padStart(2, '0') + '-' + String(today.getDate()).padStart(2, '0');
 
-// Создаем массив для данных, которые будем отправлять
+            const modal = new bootstrap.Modal(document.getElementById('updateTrainingModal'));
+            modal.show();
 
-            let trainingData = {
-                manuals_id: [],
-                date_training: [],
-                form_type: []
-            };
+            document.getElementById('updateTrainingConfirmBtn').onclick = function () {
+                const dateYmd = inputEl.value;
+                if (!dateYmd) {
+                    alert('{{ __("Please select a date.") }}');
+                    return;
+                }
 
-// Генерируем данные для создания тренингов за следующие годы
-            for (let year = lastTrainingYear + 1; year <= currentYear; year++) {
-                const trainingDate = getDateFromWeekAndYear(lastTrainingWeek, year);
-                trainingData.manuals_id.push(manualsId);
-                trainingData.date_training.push(trainingDate.toISOString().split('T')[0]); // Преобразуем в формат YYYY-MM-DD
-                trainingData.form_type.push('112');
-            }
+                const trainingData = {
+                    manuals_id: [manualsId],
+                    date_training: [dateYmd],
+                    form_type: ['112']
+                };
 
-// Подготовка сообщения для подтверждения
-            let confirmationMessage = "Provided data for creating trainings:\n";
-            trainingData.manuals_id.forEach((id, index) => {
-                confirmationMessage += `\nTraining for ${lastTrainingYear + index + 1} years:\n`;
-                confirmationMessage += `Manuals ID: ${id} ${manualsTitle}\n`;
-                confirmationMessage += `Training date: ${trainingData.date_training[index]} \n`;
-                confirmationMessage += `Form: ${trainingData.form_type[index]} \n`;
-            });
-
-// Показываем сообщение для подтверждения
-            if (confirm(confirmationMessage + "\nAre you sure you want to continue creating trainings?")) {
-// Если пользователь подтвердил, выполняем запрос
                 fetch('{{ route('trainings.createTraining') }}', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
                         'X-CSRF-TOKEN': '{{ csrf_token() }}'
                     },
-                    body: JSON.stringify(trainingData) // Отправляем ассоциативный массив
+                    body: JSON.stringify(trainingData)
                 })
                     .then(response => response.json())
-
                     .then(data => {
                         if (data.success) {
-                            let message = `Тренинги обработаны!\nСоздано: ${data.created}`;
+                            let message = '{{ __("Training added.") }}';
+                            if (data.created !== undefined && data.created > 0) {
+                                message = '{{ __("Created") }}: ' + data.created;
+                            }
                             if (data.skipped > 0) {
-                                message += `\nПропущено (уже существуют): ${data.skipped}`;
+                                message += ' ({{ __("already exists") }})';
                             }
                             alert(message);
+                            modal.hide();
                             location.reload();
                         } else {
-                            alert('Ошибка при создании тренингов: ' + (data.message || 'Неизвестная ошибка'));
+                            alert('{{ __("Error") }}: ' + (data.message || ''));
                         }
                     })
-
                     .catch(error => {
                         console.error('Ошибка:', error);
-                        alert('Произошла ошибка: ' + error.message);
+                        alert('{{ __("An error occurred") }}: ' + error.message);
                     });
-            }
+            };
         }
 
         // Обработчик для кнопки Update
@@ -411,6 +464,76 @@
             });
         });
 
+
+        // Edit training dates: Save — PATCH изменённых дат
+        document.addEventListener('DOMContentLoaded', function () {
+            document.querySelectorAll('.edit-training-save-btn').forEach(function (btn) {
+                btn.addEventListener('click', function () {
+                    const modalId = this.getAttribute('data-modal-id');
+                    const modalEl = document.getElementById(modalId);
+                    if (!modalEl) return;
+
+                    const rows = modalEl.querySelectorAll('.edit-training-row');
+                    const updates = [];
+                    rows.forEach(function (row) {
+                        const trainingId = row.getAttribute('data-training-id');
+                        const originalDate = row.getAttribute('data-original-date');
+                        const input = row.querySelector('.edit-training-date-input');
+                        if (!input || !trainingId) return;
+                        const newDate = input.value.trim();
+                        if (newDate && newDate !== originalDate) {
+                            updates.push({ id: trainingId, date_training: newDate });
+                        }
+                    });
+
+                    if (updates.length === 0) {
+                        bootstrap.Modal.getInstance(modalEl).hide();
+                        return;
+                    }
+
+                    const baseUrl = '{{ url("trainings") }}';
+                    const csrfToken = '{{ csrf_token() }}';
+                    let done = 0;
+                    let errors = [];
+
+                    updates.forEach(function (u) {
+                        fetch(baseUrl + '/' + u.id, {
+                            method: 'PATCH',
+                            headers: {
+                                'Content-Type': 'application/json',
+                                'X-CSRF-TOKEN': csrfToken,
+                                'Accept': 'application/json'
+                            },
+                            body: JSON.stringify({ date_training: u.date_training })
+                        })
+                            .then(function (r) { return r.json().then(function (data) { return { ok: r.ok, data: data }; }); })
+                            .then(function (result) {
+                                done++;
+                                if (!result.ok) {
+                                    errors.push(result.data.message || 'ID ' + u.id);
+                                }
+                                if (done === updates.length) {
+                                    bootstrap.Modal.getInstance(modalEl).hide();
+                                    if (errors.length > 0) {
+                                        alert('{{ __("Error") }}: ' + errors.join(', '));
+                                    } else {
+                                        alert('{{ __("Training dates updated.") }}');
+                                        location.reload();
+                                    }
+                                }
+                            })
+                            .catch(function (err) {
+                                done++;
+                                errors.push(err.message);
+                                if (done === updates.length) {
+                                    bootstrap.Modal.getInstance(modalEl).hide();
+                                    alert('{{ __("Error") }}: ' + errors.join(', '));
+                                }
+                            });
+                    });
+                });
+            });
+        });
 
         function getWeekNumber(d) {
             const oneJan = new Date(d.getFullYear(), 0, 1);

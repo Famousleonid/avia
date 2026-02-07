@@ -117,11 +117,10 @@
                                                                                 <div class="text-center ms-2" style="height: 32px;
                                                                         width: 32px">
                                                                                     <button
-                                                                                        class="btn mt-1 btn-outline-success btn-sm"
+                                                                                        class="btn mt-1 btn-outline-success btn-sm mains-update-training-btn"
                                                                                         style="height: 32px;width: 32px"
-                                                                                        title="{{
-                                                                                    __('Update to Today') }}"
-                                                                                        onclick="updateTrainingToToday({{ $manual_id }}, '{{ $trainings->date_training }}')">
+                                                                                        title="{{ __('Update') }}"
+                                                                                        data-manual-id="{{ $manual_id }}">
                                                                                         <i class="bi bi-calendar-check"
                                                                                            style="font-size: 14px;"></i>
                                                                                     </button>
@@ -152,12 +151,11 @@
                                                                             </div>
                                                                             <div class="ms-2">
                                                                                 <button
-                                                                                    class=" mt-1 btn btn-outline-primary btn-sm"
+                                                                                    class="mt-1 btn btn-outline-primary btn-sm mains-add-trainings-btn"
                                                                                     style="height: 32px;width: 32px"
-                                                                                    title="{{__('Create Trainings') }}"
-                                                                                    onclick="createTrainings({{ $manual_id }})">
-                                                                                    <i class="bi bi-plus-circle" style="font-size: 14px;
-                                                                            "></i>
+                                                                                    title="{{ __('Add trainings') }}"
+                                                                                    data-manual-id="{{ $manual_id }}">
+                                                                                    <i class="bi bi-plus-circle" style="font-size: 14px;"></i>
                                                                                 </button>
                                                                             </div>
                                                                         </div>

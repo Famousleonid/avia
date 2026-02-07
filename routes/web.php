@@ -319,6 +319,7 @@ Route::group(['middleware' => ['auth']], function () {
     // CSV файлы для мануалов
     Route::prefix('manuals/{manual}/csv')->name('manuals.csv.')->group(function () {
         Route::post('/', [ManualCsvController::class, 'store'])->name('store');
+        Route::get('/{file}/data', [ManualCsvController::class, 'data'])->name('data');
         Route::get('/{file}', [ManualCsvController::class, 'view'])->name('view');
         Route::delete('/{file}', [ManualCsvController::class, 'delete'])->name('delete');
     });
