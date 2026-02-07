@@ -133,10 +133,10 @@
                                                                             @if($user->id == $user_wo)
                                                                                 <div class="ms-2">
                                                                                     <button
-                                                                                        class="btn mt-1 btn-outline-warning btn-sm"
+                                                                                        class="btn mt-1 btn-outline-warning btn-sm mains-update-training-btn"
                                                                                         style="height:32px;width: 32px"
-                                                                                        title="{{__('Update to Today') }}"
-                                                                                        onclick="updateTrainingToToday({{ $manual_id }}, '{{ $trainings->date_training }}')">
+                                                                                        title="{{ __('Update') }}"
+                                                                                        data-manual-id="{{ $manual_id }}">
                                                                                         <i class="bi bi-calendar-check" style="font-size: 14px;"></i>
                                                                                     </button>
                                                                                 </div>
@@ -166,6 +166,37 @@
                                                     @endif
                                                 </div>
                                             @endif
+
+                                            {{-- Training status (info only) для Admin/Manager/Team Leader при просмотре чужого WO --}}
+                                            @roles('Admin|Manager|Team Leader')
+                                                @if($current_workorder->user_id != auth()->id() && $manual_id)
+                                                    <div class="ms-3 fs-8 text-center border rounded text-nowrap"
+                                                         style="min-height: 40px; width: 220px;">
+                                                        <div class="ms-1 d-flex justify-content-center align-items-center py-1">
+                                                            @if($trainings && $trainings->date_training)
+                                                                @php
+                                                                    $trainingDateInfo = \Carbon\Carbon::parse($trainings->date_training);
+                                                                    $monthsDiffInfo = $trainingDateInfo->diffInMonths(now());
+                                                                @endphp
+                                                                @if($monthsDiffInfo <= 12)
+                                                                    <div class="pb-0" style="color: lawngreen;">
+                                                                        {{ $monthsDiffInfo == 0 ? __('Last training this month') : ($monthsDiffInfo == 1 ? __('Last training 1 month ago') : __('Last training :count months ago', ['count' => $monthsDiffInfo])) }}
+                                                                        <p class="mb-0 small">{{ $trainingDateInfo->format('M d, Y') }}</p>
+                                                                    </div>
+                                                                @else
+                                                                    <div style="color: red;">
+                                                                        {{ __('Last training :count months ago', ['count' => $monthsDiffInfo]) }} ({{ $trainingDateInfo->format('M d, Y') }}). {{ __('Need Update') }}
+                                                                    </div>
+                                                                @endif
+                                                            @else
+                                                                <div style="color: red;" class="small">
+                                                                    {{ __('No trainings for this unit.') }}
+                                                                </div>
+                                                            @endif
+                                                        </div>
+                                                    </div>
+                                                @endif
+                                            @endroles
 
                                             @role('Admin')
                                             <a class="btn btn-outline-warning btn-sm open-log-modal"
