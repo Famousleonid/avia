@@ -1,4 +1,4 @@
-{{-- resources/views/admin/directory/index.blade.php --}}
+{{-- resources/views/admin/directories/index.blade.php --}}
 @extends('admin.master')
 
 @section('content')
@@ -14,7 +14,7 @@
                         <h5 class="mb-0 text-primary">
                             {{ __($cfg['title']) }}
                             <span class="text-secondary">(</span>
-                            <span class="text-success">{{ $items->count() }}</span>
+                            <span class="text-success">{{ $items->total() }}</span>
                             <span class="text-secondary">)</span>
                         </h5>
                     </div>
@@ -24,7 +24,8 @@
                             <div class="position-relative w-100" style="max-width:420px;">
                                 <input id="dirSearchInput" type="text"
                                        class="form-control pe-5 dir-search"
-                                       placeholder="Search...">
+                                       placeholder="Search..."
+                                       value="{{ $q ?? '' }}">
                                 <button type="button"
                                         class="btn position-absolute top-50 end-0 translate-middle-y me-2 p-0 border-0 bg-transparent text-secondary"
                                         title="Clear"
@@ -51,8 +52,8 @@
         {{-- BODY --}}
         <div class="card-body pt-1 m-0">
             @if($items->count())
-                <div class="dir-panel p-1">
-                    <div class="dir-table-wrap p-1">
+                <div class="dir-panel ">
+                    <div class="dir-table-wrap ">
 
                         <table id="dirTable" class="table table-sm table-hover table-bordered mb-0 align-middle shadow-lg">
                             <thead>
@@ -130,7 +131,7 @@
     {{-- ===================== MODALS ===================== --}}
 
     {{-- CREATE --}}
-    <div class="modal fade bg-dark" id="dirCreateModal" tabindex="-1" aria-hidden="true">
+    <div class="modal fade " id="dirCreateModal" tabindex="-1" aria-hidden="true">
         <div class="modal-dialog modal-dialog-centered">
             <div class="modal-content modal-gray shadow">
                 <div class="modal-header">
@@ -168,7 +169,7 @@
 
 
     {{-- EDIT --}}
-    <div class="modal fade bg-dark" id="dirEditModal" tabindex="-1" aria-hidden="true">
+    <div class="modal fade " id="dirEditModal" tabindex="-1" aria-hidden="true">
         <div class="modal-dialog modal-dialog-centered">
             <div class="modal-content modal-gray shadow">
                 <div class="modal-header">
@@ -208,7 +209,7 @@
 
 
     {{-- DELETE --}}
-    <div class="modal fade bg-dark" id="dirDeleteModal" tabindex="-1" aria-hidden="true">
+    <div class="modal fade " id="dirDeleteModal" tabindex="-1" aria-hidden="true">
         <div class="modal-dialog modal-dialog-centered">
             <div class="modal-content modal-gray shadow">
                 <div class="modal-header">

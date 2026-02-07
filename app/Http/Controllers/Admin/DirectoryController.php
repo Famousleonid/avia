@@ -4,150 +4,241 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
+use Illuminate\Support\Arr;
 use Illuminate\Validation\Rule;
-use Illuminate\Support\Str;
 
 class DirectoryController extends Controller
 {
-    private array $map = [
-        'builders' => [
-            'title' => 'Builder',
-            'model' => \App\Models\Builder::class,
-            'fields' => ['name' => 'Name'],
-        ],
-        'codes' => [
-            'title' => 'Codes',
-            'model' => \App\Models\Code::class,
-            'fields' => ['name' => 'Name', 'code' => 'Code'],
-        ],
-        'instructions' => [
-            'title' => 'Instruction',
-            'model' => \App\Models\Instruction::class,
-            'fields' => ['name' => 'Name'],
-        ],
-        'necessaries' => [
-            'title' => 'Necessaries',
-            'model' => \App\Models\Necessary::class,
-            'fields' => ['name' => 'Name'],
-        ],
-        'planes' => [
-            'title' => 'Planes',
-            'model' => \App\Models\Plane::class,
-            'fields' => ['type' => 'Type'],
-        ],
-        'process_names' => [
-            'title' => 'Process names',
-            'model' => \App\Models\ProcessName::class,
-            'fields' => ['name' => 'Name'],
-        ],
-        'roles' => [
-            'title' => 'Roles',
-            'model' => \App\Models\Role::class, // Spatie
-            'fields' => ['name' => 'Name'],
-        ],
-        'scopes' => [
-            'title' => 'Scopes',
-            'model' => \App\Models\Scope::class,
-            'fields' => ['scope' => 'Scope'],
-        ],
-        'teams' => [
-            'title' => 'Teams',
-            'model' => \App\Models\Team::class,
-            'fields' => ['name' => 'Name'],
-        ],
-        'vendors' => [
-            'title' => 'Vendors',
-            'model' => \App\Models\Vendor::class,
-            'fields' => ['name' => 'Name'],
-        ],
-    ];
+    // ---------------------------------------------------------
+    // Helpers
+    // ---------------------------------------------------------
 
-    private function cfg(Request $request): array
+    private function slug(Request $request): string
     {
-        $key = $request->route()->defaults['dict'] ?? null;
-        $cfg = config("directories.$key");
+        // /admin/{resource}
+        // примеры: /admin/teams, /admin/roles, /admin/vendors
+        return (string)$request->segment(2);
+    }
 
-        abort_unless($cfg, 404);
+    private function dir(string $slug): array
+    {
+        $dir = config("directories.$slug");
+        abort_if(!$dir, 404, "Directory [$slug] not configured");
+
+        $model = $dir['model'] ?? null;
+        abort_if(!$model || !class_exists($model), 500, "Model not found for [$slug]");
+
+        $fields = $dir['fields'] ?? null;
+        abort_if(!is_array($fields) || empty($fields), 500, "Fields not configured for [$slug]");
+
+        return $dir;
+    }
+
+    private function normalizedFields(array $dir): array
+    {
+        // Приводим к единому формату:
+        // 'name' => ['label'=>'Name','rules'=>[...] ]
+        // 'code' => 'Code'  -> станет ['label'=>'Code','rules'=>['nullable']]
+        $out = [];
+
+        foreach (($dir['fields'] ?? []) as $field => $meta) {
+            if (is_array($meta)) {
+                $out[$field] = [
+                    'label' => $meta['label'] ?? ucfirst($field),
+                    'rules' => $meta['rules'] ?? ['nullable'],
+                ];
+            } else {
+                $out[$field] = [
+                    'label' => (string)$meta,
+                    'rules' => ['nullable'],
+                ];
+            }
+        }
+
+        return $out;
+    }
+
+    private function fieldKeys(array $normalizedFields): array
+    {
+        return array_keys($normalizedFields);
+    }
+
+    /**
+     * Строим правила из конфига.
+     * Дополнительно поддержим удобный хак:
+     * если в rules есть строка 'unique', то на update автоматически игнорим текущий id
+     * (работает только для валидатора Laravel unique:table,column).
+     */
+    private function rulesFor(Request $request, array $dir, array $normalizedFields, ?int $ignoreId = null): array
+    {
+        $rules = [];
+
+        foreach ($normalizedFields as $field => $meta) {
+            $fieldRules = $meta['rules'] ?? ['nullable'];
+
+            // если rule указан как строка 'unique:table,column' — на update добавим ignore($id)
+            if ($ignoreId) {
+                $fieldRules = $this->injectUniqueIgnoreIfNeeded($fieldRules, $dir, $field, $ignoreId);
+            }
+
+            $rules[$field] = $fieldRules;
+        }
+
+        return $rules;
+    }
+
+    private function injectUniqueIgnoreIfNeeded(array $fieldRules, array $dir, string $field, int $ignoreId): array
+    {
+        $out = [];
+
+        foreach ($fieldRules as $r) {
+            // Пропускаем готовые Rule::unique(...)
+            if ($r instanceof \Illuminate\Validation\Rules\Unique) {
+                $out[] = $r->ignore($ignoreId);
+                continue;
+            }
+
+            // Строковый unique:table,column — превратим в Rule::unique()->ignore()
+            if (is_string($r) && str_starts_with($r, 'unique:')) {
+                // unique:table,column
+                $parts = explode(':', $r, 2);
+                $params = $parts[1] ?? '';
+                [$table, $column] = array_pad(explode(',', $params, 2), 2, null);
+
+                $table = $table ?: null;
+                $column = $column ?: $field;
+
+                if ($table) {
+                    $out[] = Rule::unique($table, $column)->ignore($ignoreId);
+                    continue;
+                }
+            }
+
+            $out[] = $r;
+        }
+
+        return $out;
+    }
+
+    private function cfgForBlade(string $slug, array $dir, array $normalizedFields): array
+    {
+        // твой blade ожидает fields как map: field => label
+        $fields = [];
+        foreach ($normalizedFields as $field => $meta) {
+            $fields[$field] = $meta['label'] ?? ucfirst($field);
+        }
 
         return [
-            'key'        => $key,
-            'title'      => $cfg['title'],
-            'model'      => $cfg['model'],
-            'fields'     => $cfg['fields'],
-            'baseUrl'    => url()->current(),
-            'firstField' => array_key_first($cfg['fields']),
+            'title'      => $dir['title'] ?? ucfirst($slug),
+            'baseUrl'    => url("/admin/{$slug}"),
+            'firstField' => array_key_first($fields) ?: 'name',
+            'fields'     => $fields,
         ];
+    }
+
+    private function applySearch(Request $request, $query, array $dir, array $fieldKeys): array
+    {
+        $search = trim((string)$request->get('q', ''));
+        if ($search === '') return [$query, ''];
+
+        $cols = $dir['search'] ?? $fieldKeys;
+
+        $query->where(function ($q) use ($cols, $search) {
+            foreach ((array)$cols as $col) {
+                $q->orWhere($col, 'like', "%{$search}%");
+            }
+        });
+
+        return [$query, $search];
+    }
+
+    private function applyOrder($query, array $dir)
+    {
+        $order = $dir['order'] ?? ['id' => 'desc'];
+        foreach ((array)$order as $col => $direction) {
+            $query->orderBy($col, $direction);
+        }
+        return $query;
     }
 
     public function index(Request $request)
     {
-        $cfg = $this->cfg($request);
-        $Model = $cfg['model'];
+        $slug = $this->slug($request);
+        $dir  = $this->dir($slug);
 
-        return view('admin.directory.index', [
+        $normalizedFields = $this->normalizedFields($dir);
+        $fieldKeys = $this->fieldKeys($normalizedFields);
+
+        $modelClass = $dir['model'];
+        $query = $modelClass::query();
+
+        [$query, $search] = $this->applySearch($request, $query, $dir, $fieldKeys);
+        $query = $this->applyOrder($query, $dir);
+
+        $items = $query->paginate(50)->withQueryString();
+
+        $cfg = $this->cfgForBlade($slug, $dir, $normalizedFields);
+
+        return view('admin.directories.index', [
+            'slug'  => $slug,
             'cfg'   => $cfg,
-            'items' => $Model::query()
-                ->orderBy($cfg['firstField'])
-                ->get(),
+            'items' => $items,
+            'q'     => $search,
         ]);
     }
 
     public function store(Request $request)
     {
-        $cfg = $this->cfg($request);
-        $Model = $cfg['model'];
+        $slug = $this->slug($request);
+        $dir  = $this->dir($slug);
 
-        $rules = $this->rules($cfg);
-        $data = $request->validate($rules);
+        $normalizedFields = $this->normalizedFields($dir);
+        $fieldKeys = $this->fieldKeys($normalizedFields);
 
-        $Model::create($data);
+        $rules = $this->rulesFor($request, $dir, $normalizedFields);
 
-        return back()->with('success', $cfg['title'].' created');
+        $validated = $request->validate($rules);
+        $data = Arr::only($validated, $fieldKeys);
+
+        $modelClass = $dir['model'];
+        $item = $modelClass::create($data);
+
+        return redirect()->route("admin.$slug.index")->with('success', 'Created');
     }
 
     public function update(Request $request, $id)
     {
-        $cfg = $this->cfg($request);
-        $Model = $cfg['model'];
+        $slug = $this->slug($request);
+        $dir  = $this->dir($slug);
 
-        $item = $Model::findOrFail($id);
+        $normalizedFields = $this->normalizedFields($dir);
+        $fieldKeys = $this->fieldKeys($normalizedFields);
 
-        $rules = $this->rules($cfg, $id);
-        $data = $request->validate($rules);
+        $modelClass = $dir['model'];
+        $item = $modelClass::findOrFail($id);
 
-        $item->update($data);
+        $rules = $this->rulesFor($request, $dir, $normalizedFields, (int)$item->id);
 
-        return back()->with('success', $cfg['title'].' updated');
+        $validated = $request->validate($rules);
+        $data = Arr::only($validated, $fieldKeys);
+
+        $old = Arr::only($item->getAttributes(), $fieldKeys);
+
+        $item->fill($data)->save();
+
+        return redirect()->route("admin.$slug.index")->with('success', 'Updated');
     }
 
     public function destroy(Request $request, $id)
     {
-        $cfg = $this->cfg($request);
-        $Model = $cfg['model'];
+        $slug = $this->slug($request);
+        $dir  = $this->dir($slug);
 
-        $Model::findOrFail($id)->delete();
+        $modelClass = $dir['model'];
+        $item = $modelClass::findOrFail($id);
 
-        return back()->with('success', $cfg['title'].' deleted');
-    }
+        $item->delete();
 
-    private function rules(array $cfg, ?int $ignoreId = null): array
-    {
-        $Model = $cfg['model'];
-        $table = (new $Model)->getTable();
-
-        $rules = [];
-        foreach ($cfg['fields'] as $field => $label) {
-            $r = ['required', 'string', 'max:255'];
-
-            // unique для каждого поля
-            $unique = Rule::unique($table, $field);
-            if ($ignoreId) $unique = $unique->ignore($ignoreId);
-
-            $r[] = $unique;
-
-            $rules[$field] = $r;
-        }
-
-        return $rules;
+        return redirect()->route("admin.$slug.index")->with('success', 'Deleted');
     }
 }

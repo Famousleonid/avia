@@ -9,4 +9,5 @@ class Vendor extends Model
 {
     use HasFactory;
     protected $fillable = ['name'];
+    public $timestamps = false;
 }

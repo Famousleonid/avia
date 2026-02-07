@@ -15,7 +15,7 @@
     /* table bg = thead bg */
     --dir-table-bg: rgba(33,37,41,.98);
 
-    /* modal gray (lighter) */
+    /* modal gray */
     --dir-modal-bg: linear-gradient(180deg, rgba(73,80,87,.92), rgba(52,58,64,.88));
 
     /* text */
@@ -50,7 +50,7 @@
     --dir-text: rgba(33,37,41,.92);
     --dir-muted: rgba(33,37,41,.55);
 
-    --dir-input-bg: rgba(255,255,255,.70);
+    --dir-input-bg: rgba(233,236,239,.85);
     --dir-input-border: rgba(0,0,0,.15);
     --dir-input-text: rgba(33,37,41,.95);
     --dir-input-ph: rgba(33,37,41,.45);
@@ -66,20 +66,28 @@
     background: var(--dir-topbar-bg);
 }
 
+/* ВАЖНО: скролл только тут (один контейнер) */
 .dir-panel{
     border: 1px solid var(--dir-border);
     border-radius: var(--dir-radius-lg);
     background: var(--dir-panel-bg);
+
     height: calc(100vh - 120px);
     overflow-y: auto;
+    overflow-x: hidden;
+
+    /* чтобы фон не "тёк" при скролле */
+    background-clip: padding-box;
 }
 
+/* Обёртка для радиуса/рамок, но без overflow */
 .dir-table-wrap{
-    height: calc(100vh - 130px);
-    overflow: auto;
     border-radius: var(--dir-radius-md);
+    overflow: visible;     /* НЕ делать тут scroll */
+    padding-top: 0 !important;
 }
 
+/* Search */
 .dir-search.form-control{
     background-color: var(--dir-input-bg);
     border-color: var(--dir-input-border);
@@ -91,6 +99,7 @@
     box-shadow: var(--dir-focus-shadow);
 }
 
+/* Icons buttons */
 .btn-icon{
     width: 30px;
     height: 30px;
@@ -100,10 +109,12 @@
     padding: 0;
 }
 
-/* ---------- Table (bg same as header) ---------- */
+/* ---------- Table ---------- */
 #dirTable{
     background: var(--dir-table-bg) !important;
     color: var(--dir-text) !important;
+
+    /* не ломаем table-bordered */
     border-color: var(--dir-border-2) !important;
 }
 
@@ -115,20 +126,32 @@
     border-color: var(--dir-border-2) !important;
 }
 
+/* строки */
 #dirTable tbody td, #dirTable tbody th{
     background: var(--dir-table-bg) !important;
     color: var(--dir-text) !important;
 }
 
-#dirTable thead th{
+/* sticky header: без щели и без просвечивания */
+#dirTable thead{
     position: sticky;
     top: 0;
-    z-index: 3;
-    background: var(--dir-table-bg) !important;
+    z-index: 12;
+    background: var(--dir-table-bg);
+}
+
+#dirTable thead th{
+    position: sticky;
+    top: -1px;                 /* закрывает микро-щель */
+    z-index: 13;
+    background: #343A40 !important;
     color: var(--dir-muted) !important;
+
+    background-clip: padding-box;
     box-shadow: 0 6px 10px rgba(0,0,0,.35);
 }
 
+/* hover/active */
 #dirTable tbody tr:hover td{ background: var(--dir-row-hover) !important; }
 #dirTable tbody tr.is-active td{ background: var(--dir-row-active) !important; }
 
@@ -160,7 +183,7 @@
     border-color: var(--dir-input-border);
 }
 :root[data-bs-theme="light"] .modal-gray .form-control{
-    background: rgba(255,255,255,.70);
+    background: rgba(233,236,239,.85);
     color: rgba(33,37,41,.95);
     border-color: rgba(0,0,0,.15);
 }
@@ -173,3 +196,6 @@
     filter: invert(1) grayscale(1);
     opacity: .85;
 }
+
+/* (опционально) backdrop темнее */
+.modal-backdrop.show{ opacity: .75; }

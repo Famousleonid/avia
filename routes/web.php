@@ -1,32 +1,25 @@
 <?php
 
 use App\Http\Controllers\Admin\CabinetController;
-use App\Http\Controllers\Admin\BuilderController;
 use App\Http\Controllers\Admin\ComponentController;
-use App\Http\Controllers\Admin\ConditionController;
 use App\Http\Controllers\Admin\CustomerController;
+use App\Http\Controllers\Admin\DirectoryController;
 use App\Http\Controllers\Admin\ExtraProcessController;
 use App\Http\Controllers\Admin\GeneralTaskController;
 use App\Http\Controllers\Admin\LogCardController;
 use App\Http\Controllers\Admin\ManualProcessController;
-use App\Http\Controllers\Admin\PlaneController;
 use App\Http\Controllers\Admin\ProcessController;
-use App\Http\Controllers\Admin\ProcessNameController;
 use App\Http\Controllers\Admin\RmReportController;
-use App\Http\Controllers\Admin\RoleController;
-use App\Http\Controllers\Admin\ScopeController;
 use App\Http\Controllers\Admin\TaskController;
 use App\Http\Controllers\Admin\TdrController;
 use App\Http\Controllers\Admin\TdrProcessController;
 use App\Http\Controllers\Admin\TransferController;
-use App\Http\Controllers\Admin\TeamController;
 use App\Http\Controllers\Admin\ManualController;
 use App\Http\Controllers\Admin\MaterialController;
 use App\Http\Controllers\Admin\UserController;
 use App\Http\Controllers\Admin\MainController;
 use App\Http\Controllers\Admin\TrainingController;
 use App\Http\Controllers\Admin\UnitController;
-use App\Http\Controllers\Admin\VendorController;
 use App\Http\Controllers\Admin\WorkorderController;
 use App\Http\Controllers\Admin\WoBushingController;
 use App\Http\Controllers\Admin\NdtCadCsvController;
@@ -314,18 +307,16 @@ Route::group(['middleware' => ['auth']], function () {
         Route::delete('/{file}', [ManualCsvController::class, 'delete'])->name('delete');
     });
 
-    Route::resource('builders', DirectoryController::class)->only(['index','store','update','destroy'])->defaults('dict','builders');
-    Route::resource('codes', DirectoryController::class)->only(['index','store','update','destroy'])->defaults('dict','codes');
-    Route::resource('instructions', DirectoryController::class)->only(['index','store','update','destroy'])->defaults('dict','instructions');
-    Route::resource('necessaries', DirectoryController::class)->only(['index','store','update','destroy'])->defaults('dict','necessaries');
-    Route::resource('planes', DirectoryController::class)->only(['index','store','update','destroy'])->defaults('dict','planes');
-    Route::resource('process-names', DirectoryController::class)->only(['index','store','update','destroy'])->defaults('dict','process_names');
-    Route::resource('roles', DirectoryController::class)->only(['index','store','update','destroy'])->defaults('dict','roles');
-    Route::resource('scopes', DirectoryController::class)->only(['index','store','update','destroy'])->defaults('dict','scopes');
-    Route::resource('teams', DirectoryController::class)->only(['index','store','update','destroy'])->defaults('dict','teams');
-    Route::resource('vendors', DirectoryController::class)->only(['index','store','update','destroy'])->defaults('dict','vendors');
 
 
 });
 
-
+Route::middleware(['auth'])
+    ->prefix('admin')
+    ->name('admin.')
+    ->group(function () {
+        foreach (array_keys(config('directories')) as $slug) {
+            Route::resource($slug, DirectoryController::class)
+                ->only(['index', 'store', 'update', 'destroy']);
+        }
+    });
