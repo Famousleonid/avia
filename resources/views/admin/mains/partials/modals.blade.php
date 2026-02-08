@@ -103,7 +103,7 @@
      aria-labelledby="photoModalLabel" aria-hidden="true">
     <div class="modal-dialog modal-xl modal-dialog-scrollable">
         <div class="modal-content" style="background-color: #343A40">
-            <div class="modal-header">
+            <div class="modal-header p-1">
                 <h5 class="modal-title" id="photoModalLabel">Photos</h5>
                 <button type="button"
                         class="btn-close"

@@ -3,11 +3,6 @@
 @section('style')
 
     @include('admin.mains.partials.styles')
-
-@endsection
-
-@section('content')
-
     <style>
         .fp-locked {
             background-image: none !important;
@@ -80,7 +75,61 @@
         .tippy-box[data-theme~='avia-dark'] .tippy-arrow:before {
             color: #ADB1B5; /* фон стрелки под тёмный */
         }
+
+        /* default: dropzones look normal */
+        .group-dropzone{
+            border: 0;
+            background: transparent;
+            min-height: 90px; /* чтобы было куда дропать даже если пусто */
+        }
+        /* show zones only while dragging */
+        #photoModal.dnd-active .group-dropzone{
+            border: 2px dashed rgba(255,255,255,.28);
+            background: rgba(255,255,255,.04);
+            box-shadow: inset 0 0 0 1px rgba(0,0,0,.45);
+        }
+
+        /* hovered zone stronger */
+        #photoModal.dnd-active .group-dropzone.drop-hover{
+            border-color: rgba(13,202,240,.95);
+            background: rgba(13,202,240,.12);
+        }
+        .group-dropzone.drop-hover{
+            border-color: rgba(13,202,240,.95);
+            background: rgba(13,202,240,.12);
+        }
+
+        /* Optional "Drop here" hint */
+        .group-dropzone::before{
+            content: "Drop here";
+            display: block;
+            font-size: 11px;
+            letter-spacing: .06em;
+            text-transform: uppercase;
+            color: rgba(255,255,255,.35);
+            margin-bottom: 6px;
+        }
+
+        .group-dropzone.drop-hover::before{
+            color: rgba(13,202,240,.95);
+        }
+
+        /* dragging style */
+        .photo-item.dragging{ opacity:.55; }
+
+        .group-hr{
+            border: 0;
+            border-top: 1px solid rgba(255,255,255,.10);
+            opacity: 1;
+        }
+
+
     </style>
+@endsection
+
+@section('content')
+
+
 
     <div class="card dir-page">
         <div class="card-body p-0 shadow-lg">

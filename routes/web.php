@@ -93,6 +93,7 @@ Route::prefix('mobile')->name('mobile.')->middleware(['auth','verified'])->group
     Route::delete('/workorders/photo/delete/{id}', [MediaController::class, 'delete_photo'])->name('workorders.photo.delete');
     Route::get('/workorders/photos/{id}', [MediaController::class, 'get_photos'])->name('workorders.photos');
 
+
     // --- profile (оставляем в MobileController) ---
     Route::get('/profile', [MobileController::class, 'profile'])->name('profile');
     Route::put('/profile/{id}', [MobileController::class, 'update_profile'])->name('update.profile');
@@ -106,6 +107,11 @@ Route::group(['middleware' => ['auth']], function () {
     Route::get('/cabinet', [CabinetController::class, 'index'])->name('cabinet.index');
     Route::get('/image/show/thumb/{mediaId}/{modelId}/{mediaName}', [MediaController::class, 'showThumb'])->name('image.show.thumb');
     Route::get('/image/show/big/{mediaId}/{modelId}/{mediaName}',[MediaController::class, 'showBig'])->name('image.show.big');
+    Route::patch('/workorders/media/{media}/move', [MediaController::class, 'move_workorder_media'])->name('workorders.media.move');
+    Route::post('/workorders/{workorder}/media/upload', [MediaController::class, 'upload_workorder_media'])->name('workorders.media.upload');
+    // Route::patch('/workorders/{workorder}/media/reorder', [MediaController::class, 'reorder_workorder_media'])->name('workorders.media.reorder');
+    Route::get('/workorders/download/{id}/group/{group}', [WorkorderController::class, 'downloadGroup'])->name('workorders.downloadGroup');
+
     Route::post('/users/avatar/{id}', [MediaController::class, 'store_avatar'])->name('avatar.media.store');
     Route::get('workorders-logs', [\App\Http\Controllers\Admin\WorkorderController::class, 'logs'])->name('workorders.logs');
     Route::get('/workorders/{workorder}/logs-json', [WorkorderController::class, 'logsForWorkorder'])->name('workorders.logs-json');

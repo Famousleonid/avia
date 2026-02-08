@@ -673,6 +673,47 @@ class WorkorderController extends Controller
         }
     }
 
+    public function downloadGroup($id, $group)
+    {
+        try {
+            $workorder = Workorder::findOrFail($id);
+
+            $groupsConfig = config('workorder_media.groups', []);
+            $allowed = array_keys($groupsConfig);
+
+            if (!in_array($group, $allowed, true)) {
+                return response()->json(['error' => 'Invalid group'], 422);
+            }
+
+            return new StreamedResponse(function () use ($workorder, $group) {
+                $options = new ArchiveOptions();
+                $options->setSendHttpHeaders(true);
+
+                $zip = new ZipStream(null, $options);
+
+                foreach ($workorder->getMedia($group) as $media) {
+                    $filePath = $media->getPath();
+                    if (!file_exists($filePath)) continue;
+
+                    $filename = Str::slug(pathinfo($media->file_name, PATHINFO_FILENAME)) . '.' .
+                        pathinfo($media->file_name, PATHINFO_EXTENSION);
+
+                    // кладём в папку группы (или просто filename — как хочешь)
+                    $zip->addFileFromPath("$group/$filename", $filePath);
+                }
+
+                $zip->finish();
+
+            }, 200, [
+                'Content-Type' => 'application/octet-stream',
+                'Content-Disposition' => 'attachment; filename="workorder_' . $id . '_' . $group . '.zip"',
+            ]);
+
+        } catch (\Throwable $e) {
+            return response()->json(['error' => 'Server error'], 500);
+        }
+    }
+
     public function pdfs($id)
     {
         try {

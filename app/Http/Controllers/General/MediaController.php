@@ -12,7 +12,6 @@ use Spatie\MediaLibrary\MediaCollections\Models\Media;
 class MediaController extends Controller
 {
 
-
     protected function store_avatar(Request $request, $id)
     {
         $user = User::find($id);
@@ -160,9 +159,6 @@ class MediaController extends Controller
         ]);
     }
 
-    /**
-     * Загрузка PDF файлов для workorder
-     */
     public function store_pdf_workorders(Request $request, $id)
     {
         $workorder = Workorder::findOrFail($id);
@@ -222,9 +218,6 @@ class MediaController extends Controller
         ]);
     }
 
-    /**
-     * Показать PDF файл в браузере
-     */
     public function showPdf($workorderId, $mediaId)
     {
         $workorder = Workorder::findOrFail($workorderId);
@@ -246,10 +239,6 @@ class MediaController extends Controller
         ]);
     }
 
-
-    /**
-     * Скачать PDF файл
-     */
     public function downloadPdf($workorderId, $mediaId)
     {
         $workorder = Workorder::findOrFail($workorderId);
@@ -268,9 +257,6 @@ class MediaController extends Controller
         return response()->download($filePath, $media->file_name);
     }
 
-    /**
-     * Удалить PDF файл
-     */
     public function delete_pdf($id)
     {
         $media = Media::findOrFail($id);
@@ -281,6 +267,48 @@ class MediaController extends Controller
         }
 
         $media->delete();
+
+        return response()->json(['success' => true]);
+    }
+
+    public function move_workorder_media(Request $request, Media $media)
+    {
+        $data = $request->validate([
+            'workorder_id' => ['required','integer'],
+            'to'           => ['required','string','max:50'],
+        ]);
+
+        $workorder = Workorder::findOrFail($data['workorder_id']);
+
+        // защита: медиа должно принадлежать этому воркордеру
+        if ((int)$media->model_id !== (int)$workorder->id || $media->model_type !== $workorder->getMorphClass()) {
+            return response()->json(['message' => 'Media does not belong to this workorder'], 422);
+        }
+
+        $toCollection = $data['to'];
+
+        // move() — штатный способ Spatie (переназначает collection_name и переносит файл)
+        $media->move($workorder, $toCollection);
+
+        return response()->json(['success' => true]);
+    }
+
+    public function upload_workorder_media(Request $request, Workorder $workorder)
+    {
+        $data = $request->validate([
+            'group'        => ['required','string','max:50'],
+            'files'        => ['required'],
+            'files.*'      => ['file','mimes:jpg,jpeg,png,webp','max:15360'], // 15MB
+        ]);
+
+        $group = $data['group'];
+
+        // multiple upload
+        foreach ($request->file('files', []) as $file) {
+            $workorder
+                ->addMedia($file)
+                ->toMediaCollection($group);
+        }
 
         return response()->json(['success' => true]);
     }
