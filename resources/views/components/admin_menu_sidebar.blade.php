@@ -181,13 +181,14 @@
                     <i class="bi bi-stickies me-2"></i> <span>Log</span>
                 </a>
             </li>
-        @endif
 
         <li class="nav-item press-spinner">
             <a href="{{route('mobile.index')}}" class="nav-link">
                 <i class="bi bi-phone me-2"></i> <span>Mobile</span>
             </a>
         </li>
+        @endif
+
         <li class="nav-item border-top">
             <a class="nav-link " href="#" id="{{ $themeToggleId }}">
                 <i class="bi bi-moon me-2"></i>&nbsp; <span>Thema</span>

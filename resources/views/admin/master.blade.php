@@ -66,8 +66,14 @@
 
     <style>
 
+        html, body,
+        .container-fluid,
         .page-layout {
-            height: calc(100vh - var(--footer-h));
+            background-color: #232525 !important;
+        }
+
+        .page-layout {
+            height: calc(100vh - 70);
             overflow: hidden;
         }
 
@@ -83,7 +89,10 @@
             min-height: 0;
             display: flex;
             flex-direction: column;
+            /*background-color: black;*/
         }
+
+
 
     </style>
 
@@ -103,7 +112,7 @@
             @include('components.sidebar')
         </div>
         <div class="content col bg-body pt-2">
-            <div class="content-inner px-2">
+            <div class="content-inner px-1">
                 @include('components.status')
                 @yield('content')
             </div>
@@ -134,7 +143,7 @@
         tippy('[data-tippy-content]', {
             placement: 'top',
             animation: 'scale',
-            theme: 'light-border',
+            theme: 'avia-dark',
             delay: [100, 50],
             allowHTML: true,
         });

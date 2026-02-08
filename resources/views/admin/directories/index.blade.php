@@ -3,10 +3,10 @@
 
 @section('content')
 
-    <div class="card border-0">
+    <div class="card border-0 dir-page">
 
         {{-- TOPBAR --}}
-        <div class="card-header p-0 mx-3 bg-transparent border-0">
+        <div class="card-header p-0 mx-3 bg-transparent border-0 dir-topbar">
             <div class="dir-topbar px-3 py-1">
                 <div class="row g-2 align-items-center">
 
@@ -55,11 +55,11 @@
                 <div class="dir-panel ">
                     <div class="dir-table-wrap ">
 
-                        <table id="dirTable" class="table table-sm table-hover table-bordered mb-0 align-middle shadow-lg">
+                        <table id="dirTable" class="table table-sm table-hover table-bordered mb-0 align-middle shadow-lg dir-table">
                             <thead>
                             <tr>
                                 @foreach($cfg['fields'] as $field => $label)
-                                    <th class="text-primary sortable"
+                                    <th class="text-primary sortable px-2"
                                         data-sort-field="{{ $field }}"
                                         data-direction="asc"
                                         style="min-width:240px;">
@@ -75,13 +75,13 @@
 
                             <tbody id="dirTbody">
                             @foreach($items as $item)
-                                <tr data-row data-id="{{ $item->id }}"
+                                <tr data-row data-id="{{ $item->id }}" class=""
                                     @foreach($cfg['fields'] as $field => $label)
                                         data-{{ $field }}="{{ e((string)($item->{$field} ?? '')) }}"
                                     @endforeach
                                 >
                                     @foreach($cfg['fields'] as $field => $label)
-                                        <td title="{{ $item->{$field} ?? '' }}">
+                                        <td title="{{ $item->{$field} ?? '' }}" class=" px-2 ">
                                             {{ $item->{$field} ?? '' }}
                                         </td>
                                     @endforeach

@@ -243,6 +243,35 @@ class MainController extends Controller
             });
         }
 
+        $historyLimit = 10;
+
+        $trainingAuthLatest = Training::query()
+            ->where('manuals_id', $manual_id)
+            ->where('user_id', auth()->id())
+            ->orderByDesc('date_training')
+            ->first();
+
+        $trainingHistoryAuth = Training::query()
+            ->where('manuals_id', $manual_id)
+            ->where('user_id', auth()->id())
+            ->orderByDesc('date_training')
+            ->limit($historyLimit)
+            ->get(['date_training', 'form_type']);
+
+        $trainingWoLatest = Training::query()
+            ->where('manuals_id', $manual_id)
+            ->where('user_id', $current_workorder->user_id)
+            ->orderByDesc('date_training')
+            ->first();
+
+
+        $trainingHistoryWo = Training::query()
+            ->where('manuals_id', $manual_id)
+            ->where('user_id', $current_workorder->user_id)
+            ->orderByDesc('date_training')
+            ->limit($historyLimit)
+            ->get(['date_training', 'form_type']);
+
         return view('admin.mains.main', compact(
             'users',
             'current_workorder',
@@ -265,10 +294,13 @@ class MainController extends Controller
             'user',
             'generalMains',
             'mainsByTask',
-            'gtAllFinished'
+            'gtAllFinished',
+            'trainingAuthLatest',
+            'trainingHistoryAuth',
+            'trainingWoLatest',
+            'trainingHistoryWo',
         ));
     }
-
 
     protected function syncWaitingApproveMain(Workorder $workorder): void
     {

@@ -2,6 +2,7 @@
     .sidebar-main {
         width: 240px;
         transition: width 0.5s ease;
+
     }
 
     .sidebar {
@@ -9,7 +10,8 @@
         scrollbar-gutter: stable; /* резерв под скроллбар, без прыжков */
         background-color: #343A40;
         color: #B9BEC7;
-        box-shadow: 0 0 15px 0 var(--shadow-top-color);
+        /*box-shadow: 0 0 15px 0 var(--shadow-top-color);*/
+
     }
 
     .user-panel {

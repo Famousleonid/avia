@@ -3,8 +3,9 @@
 
 @section('content')
     <style>
-        .table-wrapper {
-            height: calc(100vh - 170px);
+        .table-wrapper{
+            height: 100%;
+            min-height: 0;      /* важно для flex */
             overflow-y: auto;
             overflow-x: hidden;
         }
@@ -92,31 +93,47 @@
 
     </style>
 
-    <div class="card shadow mt-1 pt-2">
+    <div class="card dir-panel mt-1 pt-2 d-flex flex-column" style="height: 100%;">
         @role('Admin')
-            <div class="card-header my-1 shadow">
-                <div class="d-flex justify-content-between">
-                    <h5 class="text-primary">{{__('Manage Users')}}( <span
-                            class="text-success">{{$users->count()}} </span>)</h5>
-                    <a href="{{ route('users.create') }}"
-                       class="btn btn-outline-primary btn-sm ">{{ __('Add User') }}</a>
-                </div>
-                <div class="d-flex my-2">
-                    <div class="clearable-input ps-2">
-                        <input id="searchUserInput" type="text" class="form-control w-100" placeholder="Search...">
-                        <button class="btn-clear text-secondary" onclick="document.getElementById('searchUserInput').value = '';
-                    document.getElementById('searchUserInput').dispatchEvent(new Event('input'))">
-                            <i class="bi bi-x-circle"></i>
+        <div class="card-header my-1">
+            <div class="d-flex align-items-center gap-3 flex-wrap">
+
+                {{-- Title --}}
+                <h5 class="mb-0 text-primary flex-shrink-0">
+                    {{ __('Manage Users') }}
+                    (<span class="text-success">{{ $users->count() }}</span>)
+                </h5>
+
+                {{-- Search (центр, растягивается) --}}
+                <div class="flex-grow-1 d-flex justify-content-center">
+                    <div class="clearable-input w-100" style="max-width: 420px;">
+                        <input id="searchUserInput"
+                               type="text"
+                               class="form-control"
+                               placeholder="Search...">
+                        <button class="btn-clear text-secondary"
+                                onclick="const i=document.getElementById('searchUserInput'); i.value=''; i.dispatchEvent(new Event('input')); i.focus();">
+                                <i class="bi bi-x-circle"></i>
                         </button>
                     </div>
                 </div>
+
+                {{-- Button --}}
+                <div class="flex-shrink-0">
+                    <a href="{{ route('users.create') }}"
+                       class="btn btn-outline-primary btn-sm">
+                        {{ __('Add User') }}
+                    </a>
+                </div>
+
             </div>
+        </div>
         @endrole
 
         @if(count($users))
-            <div class="table-wrapper me3 p-2 pt-0">
+            <div class="table-wrapper me-3 p-2 pt-0 flex-grow-1">
                 <table id="userTable"
-                       class="display table table-sm table-hover table-striped align-middle table-bordered">
+                       class="display table table-sm table-hover  align-middle table-bordered dir-table">
                     <thead class="bg-gradient">
                     <tr>
                         <th class="text-primary bg-gradient sortable">{{__('Name') }}<i

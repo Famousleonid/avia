@@ -58,7 +58,7 @@
 
     </style>
 
-    <div class="card shadow">
+    <div class="card dir-panel">
         @include('components.status')
 
         <div class="card-header my-1 shadow">
@@ -74,13 +74,14 @@
         </div>
 
         <div class="d-flex my-2 align-items-center gap-2 ps-2">
-            <div class="clearable-input">
-                <input id="searchInput" type="text" class="form-control w-100" placeholder="{{ __('Search...') }}">
-                <button class="btn-clear text-secondary"
-                        onclick="document.getElementById('searchInput').value=''; document.getElementById('searchInput').dispatchEvent(new Event('input'))">
-                    <i class="bi bi-x-circle"></i>
-                </button>
-            </div>
+
+{{--            <div class="clearable-input">--}}
+{{--                <input id="searchInput" type="text" class="form-control w-100" placeholder="{{ __('Search...') }}">--}}
+{{--                <button class="btn-clear text-secondary"--}}
+{{--                        onclick="document.getElementById('searchInput').value=''; document.getElementById('searchInput').dispatchEvent(new Event('input'))">--}}
+{{--                    <i class="bi bi-x-circle"></i>--}}
+{{--                </button>--}}
+{{--            </div>--}}
 
             <div class="ms-auto d-flex gap-2 pe-3">
                 <button id="toggleAll" type="button" class="btn btn-outline-secondary btn-sm">
@@ -90,41 +91,70 @@
         </div>
 
         @if($tasks->count())
-            <div class="table-wrapper me-3 p-2 pt-0">
-                <div class="accordion" id="gtAccordion">
+
+            <div class="table-wrapper me-3 p-2 pt-0 dir-panel">
+
+                <div class="accordion dir-accordion" id="gtAccordion">
+
                     @foreach($groups as $group)
-                        <div class="accordion-item" data-gt-id="{{ $group->id }}">
-                            <h2 class="accordion-header" id="heading-{{ $group->id }}">
-                                <button class="accordion-button collapsed py-2" type="button"
-                                        data-bs-toggle="collapse" data-bs-target="#collapse-{{ $group->id }}"
-                                        aria-expanded="false" aria-controls="collapse-{{ $group->id }}"
-                                        data-total="{{ $group->tasks->count() }}">
-                                    <span class="fw-semibold text-primary">{{ $group->name }}</span>
-                                    <span class="ms-2 text-muted small group-counter">({{ $group->tasks->count() }})</span>
+                        <div class="accordion-item dir-acc-item" data-gt-id="{{ $group->id }}">
+
+                            <h2 class="accordion-header dir-acc-header" id="heading-{{ $group->id }}">
+                                <button
+                                    class="accordion-button collapsed py-2 dir-acc-button"
+                                    type="button"
+                                    data-bs-toggle="collapse"
+                                    data-bs-target="#collapse-{{ $group->id }}"
+                                    aria-expanded="false"
+                                    aria-controls="collapse-{{ $group->id }}"
+                                    data-total="{{ $group->tasks->count() }}"
+                                >
+                        <span class="fw-semibold text-primary dir-acc-title">
+                            {{ $group->name }}
+                        </span>
+
+                                    <span class="ms-2 small dir-acc-counter">
+                            ({{ $group->tasks->count() }})
+                        </span>
                                 </button>
                             </h2>
-                            <div id="collapse-{{ $group->id }}" class="accordion-collapse collapse"
-                                 aria-labelledby="heading-{{ $group->id }}" data-bs-parent="#gtAccordion">
-                                <div class="accordion-body py-2">
+
+                            <div
+                                id="collapse-{{ $group->id }}"
+                                class="accordion-collapse collapse dir-acc-collapse"
+                                aria-labelledby="heading-{{ $group->id }}"
+                                data-bs-parent="#gtAccordion"
+                            >
+                                <div class="accordion-body py-2 dir-acc-body">
+
                                     @if($group->tasks->count())
-                                        <table class="table table-sm table-hover table-striped table-bordered mb-0 ">
+                                        <table class="table table-sm table-hover  table-bordered mb-0 dir-table">
                                             <colgroup>
                                                 <col />
                                                 <col style="width: 140px;" />
                                             </colgroup>
+
                                             <tbody>
                                             @foreach($group->tasks as $task)
                                                 <tr data-task-row data-gt="{{ $group->id }}">
                                                     <td>{{ $task->name }}</td>
+
                                                     <td class="text-center">
-                                                        <button class="btn btn-outline-primary btn-sm me-2"
-                                                                data-bs-toggle="modal" data-bs-target="#editModal"
-                                                                onclick="populateEditModal({{ $task->id }}, '{{ e($task->name) }}', {{ $group->id }})">
+                                                        <button
+                                                            class="btn btn-outline-primary btn-sm me-2 dir-btn-icon"
+                                                            data-bs-toggle="modal"
+                                                            data-bs-target="#editModal"
+                                                            onclick="populateEditModal({{ $task->id }}, '{{ e($task->name) }}', {{ $group->id }})"
+                                                        >
                                                             <i class="bi bi-pencil-square"></i>
                                                         </button>
-                                                        <button class="btn btn-outline-danger btn-sm"
-                                                                data-bs-toggle="modal" data-bs-target="#deleteModal"
-                                                                onclick="populateDeleteModal({{ $task->id }}, '{{ e($task->name) }}')">
+
+                                                        <button
+                                                            class="btn btn-outline-danger btn-sm dir-btn-icon"
+                                                            data-bs-toggle="modal"
+                                                            data-bs-target="#deleteModal"
+                                                            onclick="populateDeleteModal({{ $task->id }}, '{{ e($task->name) }}')"
+                                                        >
                                                             <i class="bi bi-trash"></i>
                                                         </button>
                                                     </td>
@@ -133,15 +163,20 @@
                                             </tbody>
                                         </table>
                                     @else
-                                        <div class="text-muted small">{{ __('No tasks in this group') }}</div>
+                                        <div class="small dir-muted">
+                                            {{ __('No tasks in this group') }}
+                                        </div>
                                     @endif
+
                                 </div>
                             </div>
+
                         </div>
                     @endforeach
 
                 </div>
             </div>
+
         @else
             <p class="px-3 pb-3">{{ __('Task not created') }}</p>
         @endif

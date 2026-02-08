@@ -66,5 +66,23 @@ class MaterialController extends Controller
         return redirect()->route('materials.index')->with('success', 'Material deleted successfully.');
     }
 
+    public function inlineUpdate(Request $request, Material $material)
+    {
+        $data = $request->validate([
+            'field' => 'required|in:description,specification,material,code',
+            'value' => 'nullable|string|max:2000',
+        ]);
+
+        $field = $data['field'];
+        $material->$field = $data['value'];
+        $material->save();
+
+        return response()->json([
+            'success' => true,
+            'id' => $material->id,
+            'field' => $field,
+            'value' => $material->$field,
+        ]);
+    }
 
 }

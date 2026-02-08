@@ -192,6 +192,36 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
+    function lockFlatpickrInput(src) {
+        // 1) запретить открытие по клику/фокусу
+        const stop = (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            e.stopImmediatePropagation();
+            src.blur();
+            return false;
+        };
+
+        // на самом input
+        ['click', 'focus', 'mousedown', 'keydown'].forEach(ev => {
+            src.addEventListener(ev, stop, true);
+        });
+
+        // если flatpickr уже был инициализирован — закрыть и заблокировать altInput тоже
+        if (src._flatpickr) {
+            try { src._flatpickr.close(); } catch (_) {}
+
+            const alt = src._flatpickr.altInput;
+            if (alt) {
+                alt.readOnly = true;
+                alt.setAttribute('tabindex', '-1');
+                ['click', 'focus', 'mousedown', 'keydown'].forEach(ev => {
+                    alt.addEventListener(ev, stop, true);
+                });
+            }
+        }
+    }
+
     // =========================
     // 4. flatpickr для всех input[data-fp] (date_start / date_finish)
     // =========================
@@ -199,20 +229,27 @@ document.addEventListener('DOMContentLoaded', () => {
         if (typeof flatpickr === 'undefined') return;
 
         document.querySelectorAll('input[data-fp]').forEach(src => {
+
+
             if (src._flatpickr) return;
             if (src.disabled) return;
+            const isLocked = src.hasAttribute('data-fp-locked');
 
             flatpickr(src, {
                 altInput: true,
                 altFormat: "d.m.Y",
                 dateFormat: "Y-m-d",
-                allowInput: true,
+               // allowInput: true,
                 disableMobile: true,
+                clickOpens: !isLocked,
+                allowInput: !isLocked,
 
                 onChange(selectedDates, dateStr, instance) {
+
+                    if (isLocked) return; // 🔒 не сабмитим
+
                     const form = src.closest('form');
                     if (!form) return;
-
                     if (form.requestSubmit) form.requestSubmit();
                     else form.submit();
                 },
@@ -222,6 +259,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
                     if (src.classList.contains('finish-input')) instance.altInput.classList.add('finish-input');
                     if (src.value) instance.altInput.classList.add('has-finish');
+
+                    if (isLocked) {
+                        instance.altInput.readOnly = true;
+                        instance.altInput.setAttribute('tabindex', '-1');
+                        instance.altInput.classList.add('fp-locked');
+                    }
 
                     src.style.display = 'none';
                 }

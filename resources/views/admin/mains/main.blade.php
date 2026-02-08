@@ -8,18 +8,91 @@
 
 @section('content')
 
-    <div class="card ">
+    <style>
+        .fp-locked {
+            background-image: none !important;
+            padding-right: .5rem !important;
+            cursor: not-allowed;
+        }
+        .training-status{
+            width: 300px;
+            height: 70px;                 /* одинаковая высота */
+            padding: 8px 10px;
+            border-color: #495057 !important;
+            background: rgba(0,0,0,.15);
+            flex-shrink: 0;
+
+            display: flex;
+            flex-direction: column;
+            justify-content: flex-start;    /* вертикально центрируем контент */
+            gap: 6px;
+        }
+
+        .training-status .training-row{
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 8px;
+        }
+
+        .training-status .small{
+            font-size: 11px;
+        }
+
+        .training-status .text-warning.small{
+            font-size: 11px;
+        }
+
+        .training-status button{
+            margin-top: 2px !important;
+        }
+        .training-status .training-header{
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 6px;
+        }
+
+        .training-status .training-user{
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            max-width: 220px;
+        }
+
+        .training-status .training-status-text{
+            white-space: nowrap;          /* одна строка */
+            overflow: hidden;
+            text-overflow: ellipsis;
+            line-height: 1.2;
+            padding-bottom: 1px;
+            font-size: 12px;
+        }
+
+        .tippy-box[data-theme~='avia-dark'] {
+            border: 1px solid #ADB1B5;
+        }
+
+        .tippy-box[data-theme~='avia-dark'] .tippy-content {
+            padding: 8px 10px;
+        }
+
+        .tippy-box[data-theme~='avia-dark'] .tippy-arrow:before {
+            color: #ADB1B5; /* фон стрелки под тёмный */
+        }
+    </style>
+
+    <div class="card dir-page">
         <div class="card-body p-0 shadow-lg">
             <div class="vh-layout">
 
                 {{-- Top --}}
-                <div class="top-pane border-info gradient-pane">
-                    <div class="row g-2 align-items-stretch ">
+                <div class="top-pane border-info gradient-pane dir-topbar">
+                    <div class="row g-2 align-items-stretch">
 
                         {{-- Manual image --}}
                         <div class="col-12 col-md-2 col-lg-1 d-flex">
-                            <div
-                                class="card h-100 w-100 bg-dark text-light border-secondary d-flex align-items-center justify-content-center p-2">
+                            <div class="card h-100 w-100 bg-dark text-light border-secondary d-flex align-items-center justify-content-center p-2">
                                 @php
                                     $previewHref = $imgFull ?: $imgThumb; // если нет full — открываем то, что показано
                                 @endphp
@@ -33,153 +106,83 @@
                         {{-- Main info --}}
                         <div class="col-12 col-md-10 col-lg-11">
                             <div class="card bg-dark text-light border-secondary h-100">
+
                                 <div class="card-body py-2 d-flex flex-column mb-1">
 
-                                    <div class="d-flex flex-wrap align-items-center justify-content-between mb-3">
+                                    {{-- TOP LINE: left info + right trainings --}}
+                                    <div class="d-flex align-items-start justify-content-between mb-3 gap-3">
+
+                                        {{-- LEFT: number / badges / buttons --}}
                                         <div class="d-flex flex-wrap align-items-center gap-3">
 
                                             <h5 class="mb-0 text-white">w {{ $current_workorder->number }}</h5>
 
                                             @if($current_workorder->approve_at)
                                                 <span class="badge bg-success">
-                                                    Approved {{ $current_workorder->approve_at?->format('d-M-y') ?? '—' }}
-                                                </span>
+                                    Approved {{ $current_workorder->approve_at?->format('d-M-y') ?? '—' }}
+                                </span>
                                             @else
                                                 <span class="badge bg-warning text-dark">Not approved</span>
                                             @endif
 
-                                            <span class="ms-2 fs-4 me-5"
+                                            <span class="ms-2 fs-4 me-3"
                                                   data-tippy-content="{{ $current_workorder->description }}"
                                                   style="cursor:help;">&#9432;</span>
 
                                             {{-- TDR --}}
                                             <a href="{{ route('tdrs.show', $current_workorder->id) }}"
-                                               class="btn btn-outline-success ms-5"
+                                               class="btn btn-outline-success"
                                                data-tippy-content="{{ __('TDR Report') }}"
-                                               data-tippy-placement="top"
                                                onclick="showLoadingSpinner()">
                                                 <i class="bi bi-hammer" style="font-size:20px; line-height:0;"></i>
                                             </a>
 
+                                            {{-- Pictures --}}
                                             <a class="btn btn-outline-info btn-sm open-photo-modal"
                                                data-tippy-content="{{ __('Pictures') }}"
                                                data-id="{{ $current_workorder->id }}"
                                                data-number="{{ $current_workorder->number }}">
-                                                <i class="bi bi-images text-decoration-none"
-                                                   style="font-size: 18px"></i>
+                                                <i class="bi bi-images text-decoration-none" style="font-size:18px"></i>
                                             </a>
 
-                                            @if($current_workorder->user->name == auth()->user()->name)
-                                                {{-- Training status block --}}
-                                                <div class="">
-                                                    @if($manual_id)
-                                                        <div class="ms-4 fs-8 text-center border rounded  " style="height: 40px;
-                                                width: 210px;">
-                                                            <div class="ms-1 d-flex justify-content-center">
-                                                                @if($trainings && $trainings->date_training && $user->id == $user_wo)
-                                                                    @php
-                                                                        $trainingDate = \Carbon\Carbon::parse($trainings->date_training);
-                                                                        $monthsDiff = $trainingDate->diffInMonths(now());
-                                                                        $daysDiff = $trainingDate->diffInDays(now());
-                                                                        $isThisMonth = $trainingDate->isCurrentMonth();
-                                                                        $isThisYear = $trainingDate->isCurrentYear();
-                                                                    @endphp
-                                                                    @if($monthsDiff<=12)
-                                                                        <div class="d-flex justify-content-center">
-                                                                            <div class="pb-0" style="color: lawngreen;">
-                                                                                @if($monthsDiff == 0 && $user->id == $user_wo)
-                                                                                    @if($isThisMonth)
-                                                                                        Last training this month
-                                                                                        <p>{{ $trainingDate->format('M d, Y') }}</p>
-                                                                                    @else
-                                                                                        Last training for this unit
-                                                                                        <p>{{ $trainingDate->format('M d, Y') }}</p>
-                                                                                    @endif
-                                                                                @elseif($monthsDiff == 1)
-                                                                                    @if($user->id == $user_wo)
-                                                                                        Last training {{ $monthsDiff }}
-                                                                                        month ago
-                                                                                        <p>{{ $trainingDate->format('M d, Y') }}</p>
-                                                                                    @endif
-                                                                                @else
-                                                                                    @if($monthsDiff >= 6 && $user->id == $user_wo)
-                                                                                        Last training {{ $monthsDiff }}
-                                                                                        months ago
-                                                                                        <p>{{ $trainingDate->format('M d, Y') }}</p>
-                                                                                    @else
-                                                                                        Last training {{ $monthsDiff }}
-                                                                                        months ago
-                                                                                        <p>{{ $trainingDate->format('M d, Y') }}</p>
-                                                                                    @endif
-                                                                                @endif
-                                                                            </div>
-                                                                            @if($monthsDiff >= 6 && $user->id == $user_wo)
-                                                                                <div class="text-center ms-2" style="height: 32px;
-                                                                        width: 32px">
-                                                                                    <button
-                                                                                        class="btn mt-1 btn-outline-success btn-sm"
-                                                                                        style="height: 32px;width: 32px"
-                                                                                        title="{{
-                                                                                    __('Update to Today') }}"
-                                                                                        onclick="updateTrainingToToday({{ $manual_id }}, '{{ $trainings->date_training }}')">
-                                                                                        <i class="bi bi-calendar-check"
-                                                                                           style="font-size: 14px;"></i>
-                                                                                    </button>
-                                                                                </div>
-                                                                            @endif
-                                                                        </div>
-                                                                    @else
-                                                                        <div style="color: red;">
-                                                                            Last training {{ $monthsDiff }} months ago ({{ $trainingDate->format('M d, Y') }}). Need Update
-                                                                            @if($user->id == $user_wo)
-                                                                                <div class="ms-2">
-                                                                                    <button
-                                                                                        class="btn mt-1 btn-outline-warning btn-sm"
-                                                                                        style="height:32px;width: 32px"
-                                                                                        title="{{__('Update to Today') }}"
-                                                                                        onclick="updateTrainingToToday({{ $manual_id }}, '{{ $trainings->date_training }}')">
-                                                                                        <i class="bi bi-calendar-check" style="font-size: 14px;"></i>
-                                                                                    </button>
-                                                                                </div>
-                                                                            @endif
-                                                                        </div>
-                                                                    @endif
-                                                                @else
-                                                                    @if($user->id == $user_wo)
-                                                                        <div class="d-flex">
-                                                                            <div style="color: red;"> There are no trainings
-                                                                                <p>for this unit.</p>
-                                                                            </div>
-                                                                            <div class="ms-2">
-                                                                                <button
-                                                                                    class=" mt-1 btn btn-outline-primary btn-sm"
-                                                                                    style="height: 32px;width: 32px"
-                                                                                    title="{{__('Create Trainings') }}"
-                                                                                    onclick="createTrainings({{ $manual_id }})">
-                                                                                    <i class="bi bi-plus-circle" style="font-size: 14px;
-                                                                            "></i>
-                                                                                </button>
-                                                                            </div>
-                                                                        </div>
-                                                                    @endif
-                                                                @endif
-                                                            </div>
-                                                        </div>
-                                                    @endif
-                                                </div>
-                                            @endif
-
+                                            {{-- Logs --}}
                                             @role('Admin')
                                             <a class="btn btn-outline-warning btn-sm open-log-modal"
                                                data-tippy-content="{{ __('Logs') }}"
                                                data-url="{{ route('workorders.logs-json', $current_workorder->id) }}">
-                                                <i class="bi bi-clock-history" style="font-size: 18px"></i>
+                                                <i class="bi bi-clock-history" style="font-size:18px"></i>
                                             </a>
                                             @endrole
+
                                         </div>
 
+                                        {{-- RIGHT: trainings (ONE LINE) --}}
+                                        <div class="d-flex align-items-center gap-2 flex-shrink-0">
+
+                                            @if($manual_id)
+                                                <x-training-status
+                                                    :training-user="auth()->user()"
+                                                    :training="$trainingAuthLatest"
+                                                    :manual-id="$manual_id"
+                                                    :history="$trainingHistoryAuth"
+                                                    :is-owner="true"
+                                                />
+                                            @endif
+
+                                            @if($manual_id && $current_workorder->user)
+                                                <x-training-status
+                                                    :training-user="$current_workorder->user"
+                                                    :training="$trainingWoLatest"
+                                                    :manual-id="$manual_id"
+                                                    :history="$trainingHistoryWo"
+                                                    :is-owner="false"
+                                                />
+                                            @endif
+
+                                        </div>
                                     </div>
 
+                                    {{-- SECOND LINE: three info blocks --}}
                                     <div class="row g-2 flex-fill align-items-stretch">
 
                                         {{-- 1) Unit / Serial / Instruction --}}
@@ -187,12 +190,14 @@
                                             <div class="border rounded p-1 w-100">
                                                 <div class="small">
                                                     <div class="d-flex gap-2">
-                                                        <span class="text-info ">Component PN:</span>
+                                                        <span class="text-info">Component PN:</span>
                                                         <span>{{ $current_workorder->unit->part_number ?? '—' }}</span>
-                                                        @if($current_workorder->modified) <span>&nbsp;  <span class="text-muted">mod: </span> {{$current_workorder->modified}} </span> @endif
+                                                        @if($current_workorder->modified)
+                                                            <span>&nbsp;<span class="text-muted">mod: </span>{{ $current_workorder->modified }}</span>
+                                                        @endif
                                                     </div>
                                                     <div class="d-flex gap-1">
-                                                        <span class="text-info ">Serial number:</span>
+                                                        <span class="text-info">Serial number:</span>
                                                         <span class="ms-4">{{ $current_workorder->serial_number ?? ($current_workorder->unit->serial_number ?? '—') }}</span>
                                                     </div>
                                                     <div class="d-flex gap-1">
@@ -206,7 +211,6 @@
                                         {{-- 2) Customer / Technik / Manual --}}
                                         <div class="col-12 col-lg-4 d-flex">
                                             <div class="border rounded p-1 w-100">
-
                                                 <div class="small">
                                                     <div class="d-flex gap-1">
                                                         <span class="text-info">Customer:</span>
@@ -219,26 +223,24 @@
                                                     <div class="d-flex gap-1 align-items-center flex-wrap">
                                                         <span class="text-info me-3">Manual:</span>
                                                         <span>{{ $manual->number ?? '—' }}</span>
-                                                        <span class="text-muted small ms-4"> Lib:</span><span
-                                                            class="text-light">{{ $manual->lib ?? '—' }}</span>
+                                                        <span class="text-muted small ms-4">Lib:</span>
+                                                        <span class="text-light">{{ $manual->lib ?? '—' }}</span>
                                                     </div>
                                                 </div>
-
                                             </div>
                                         </div>
 
                                         {{-- 3) Parts --}}
                                         <div class="col-12 col-lg-4 d-flex">
                                             <div class="border rounded p-1 w-100">
+                                                <div class="small d-flex align-items-center gap-2 parts-line">
+                                                    <span class="text-info me-4">Parts:</span>
 
-                                                <div class=" small d-flex align-items-center gap-2 parts-line">
-                                                    <span class="text-info me-4">Parts: </span>
-                                                    <span class="text-muted ms-3"> Ordered:</span><span
-                                                        id="orderedQty{{ $current_workorder->number }}">{{ $orderedQty ?? 0 }}</span>
+                                                    <span class="text-muted ms-3">Ordered:</span>
+                                                    <span id="orderedQty{{ $current_workorder->number }}">{{ $orderedQty ?? 0 }}</span>
 
                                                     <span class="text-muted">Received:</span>
-                                                    <span
-                                                        id="receivedQty{{ $current_workorder->number }}">{{ $receivedQty ?? 0 }}</span>
+                                                    <span id="receivedQty{{ $current_workorder->number }}">{{ $receivedQty ?? 0 }}</span>
 
                                                     <button type="button"
                                                             class="btn btn-success ms-3"
@@ -257,12 +259,12 @@
                                                     <span class="text-info me-4">Opened:</span>
                                                     <span>{{ $current_workorder->open_at?->format('d-M-y') ?? '—' }}</span>
                                                 </div>
-
                                             </div>
                                         </div>
 
                                     </div>
-                                </div>
+
+                                </div>{{-- card-body --}}
                             </div>
                         </div>
 
@@ -320,8 +322,10 @@
                                                 @forelse(($tasksByGeneral[$gt->id] ?? collect()) as $task)
                                                     @php
                                                         $restrictedDateTaskIds = config('mains.restricted_date_task_ids', []);
+
                                                         $isRestrictedByConfig = in_array($task->id, $restrictedDateTaskIds, true);
                                                         $canEditRestrictedDates = auth()->check() && auth()->user()->hasAnyRole('Admin|Manager');
+
                                                         $lockDates = $isRestrictedByConfig && !$canEditRestrictedDates;
 
                                                         $main   = $mainsByTask[$task->id] ?? null;
@@ -354,12 +358,12 @@
                                                                        value="0"
                                                                        class="js-ignore-hidden">
                                                                 @if(!$lockDates)
-                                                                        <input class="form-check-input m-0 js-ignore-row {{ $isIgnored ? 'is-ignored' : '' }}"
-                                                                               type="checkbox"
-                                                                               name="ignore_row"
-                                                                               value="1"
-                                                                               {{ $isIgnored ? 'checked' : '' }}
-                                                                               title="Ignore this row">
+                                                                    <input class="form-check-input m-0 js-ignore-row {{ $isIgnored ? 'is-ignored' : '' }}"
+                                                                           type="checkbox"
+                                                                           name="ignore_row"
+                                                                           value="1"
+                                                                           {{ $isIgnored ? 'checked' : '' }}
+                                                                           title="Ignore this row">
                                                                 @endif
                                                             </form>
 
@@ -425,7 +429,9 @@
                                                             <div class="position-relative d-inline-block w-100">
                                                                 <form method="POST"
                                                                       action="{{ $action }}"
-                                                                      class="js-auto-submit">
+                                                                      class="js-auto-submit"
+                                                                      @if($task->id === 10) data-tippy-content="Edit in the Workrorder section"@endif
+                                                                >
                                                                     @csrf
                                                                     @if($main)
                                                                         @method('PATCH')
@@ -442,7 +448,9 @@
                                                                            value="{{ optional($main?->date_finish)->format('Y-m-d') }}"
                                                                            placeholder="..."
                                                                            data-fp
-                                                                           @if($isIgnored || $lockDates) disabled @endif>
+
+                                                                           @if($isIgnored || $lockDates) disabled @endif
+                                                                           @if($task->id === 10) data-fp-locked @endif>
 
                                                                     @if($isIgnored || $lockDates)
                                                                         <span class="lock-icon text-warning"
@@ -728,7 +736,9 @@
                             </tr>
                             </thead>
                             <tbody id="woNotesLogTbody">
-                            <tr><td colspan="4" class="text-muted small">Loading...</td></tr>
+                            <tr>
+                                <td colspan="4" class="text-muted small">Loading...</td>
+                            </tr>
                             </tbody>
                         </table>
                     </div>
@@ -854,7 +864,7 @@
                 tbody.innerHTML = `<tr><td colspan="4" class="text-muted small">Loading...</td></tr>`;
 
                 try {
-                    const res = await fetch(url, { headers: { 'X-Requested-With': 'XMLHttpRequest' } });
+                    const res = await fetch(url, {headers: {'X-Requested-With': 'XMLHttpRequest'}});
                     const json = await res.json();
 
                     const rows = (json?.data || []);
@@ -889,7 +899,6 @@
                     .replaceAll('"', '&quot;')
                     .replaceAll("'", '&#039;');
             }
-
 
 
         });

@@ -1,8 +1,23 @@
 /* =========================================================
-   ADMIN DIRECTORY UI (GLOBAL)  data-bs-theme: dark|light
+   ADMIN UI-KIT (one file)
+   Works with: data-bs-theme="dark|light"
+   Base app background: #232525
    ========================================================= */
 
+/* ---------- Global base background (no seams) ---------- */
+html, body,
+.container-fluid,
+.page-layout{
+    background-color: #232525 !important;
+}
+
+
+/* =========================================================
+   THEME TOKENS Dark
+   ========================================================= */
 :root{
+    --dir-bg: #232525;
+
     --dir-radius-lg: .75rem;
     --dir-radius-md: .6rem;
 
@@ -12,31 +27,44 @@
     --dir-topbar-bg: linear-gradient(180deg, rgba(33,37,41,.92), rgba(52,58,64,.80));
     --dir-panel-bg:  linear-gradient(180deg, rgba(33,37,41,.92), rgba(52,58,64,.72));
 
-    /* table bg = thead bg */
     --dir-table-bg: rgba(33,37,41,.98);
+    --dir-thead-bg: #343A40;
 
-    /* modal gray */
     --dir-modal-bg: linear-gradient(180deg, rgba(73,80,87,.92), rgba(52,58,64,.88));
 
-    /* text */
     --dir-text: rgba(248,249,250,.92);
     --dir-muted: rgba(248,249,250,.55);
 
-    /* inputs */
     --dir-input-bg: rgba(33,37,41,.85);
     --dir-input-border: rgba(255,255,255,.15);
     --dir-input-text: rgba(248,249,250,.95);
     --dir-input-ph: rgba(248,249,250,.45);
-    --dir-focus-border: rgba(13,110,253,.55);
-    --dir-focus-shadow: 0 0 0 .2rem rgba(13,110,253,.18);
 
-    /* row hover / active */
     --dir-row-hover: rgba(13,110,253,.10);
     --dir-row-active: rgba(13,110,253,.18);
+
+    --dir-acc-item-bg: rgba(33,37,41,.92);
+    --dir-acc-item-bg2: rgba(52,58,64,.82);
+
+    --dir-acc-btn-bg: rgba(33,37,41,.88);
+    --dir-acc-btn-bg2: rgba(52,58,64,.74);
+
+    --dir-acc-open-bg: rgba(13,110,253,.10);
+    --dir-acc-hover-bg: rgba(13,110,253,.08);
+
+    --dir-acc-border: var(--dir-border);
+    --dir-acc-border2: var(--dir-border-2);
+
+    --dir-acc-shadow: 0 6px 10px rgba(0,0,0,.30);
+
+
 }
 
-/* LIGHT theme — всё равно серое, без белого */
-:root[data-bs-theme="light"]{
+/* ---------- LIGHT (серый, без белого) ---------- */
+html[data-bs-theme="light"]{
+
+    --dir-bg: #C8C8C8;
+
     --dir-border: rgba(0,0,0,.10);
     --dir-border-2: rgba(0,0,0,.12);
 
@@ -44,6 +72,7 @@
     --dir-panel-bg:  linear-gradient(180deg, rgba(233,236,239,.92), rgba(222,226,230,.85));
 
     --dir-table-bg: rgba(233,236,239,.98);
+    --dir-thead-bg: rgba(215,219,223,.98);
 
     --dir-modal-bg: linear-gradient(180deg, rgba(222,226,230,.95), rgba(206,212,218,.90));
 
@@ -57,68 +86,74 @@
 
     --dir-row-hover: rgba(13,110,253,.08);
     --dir-row-active: rgba(13,110,253,.14);
+
+    --dir-acc-item-bg: rgba(233,236,239,.95);
+    --dir-acc-item-bg2: rgba(222,226,230,.90);
+
+    --dir-acc-btn-bg: rgba(233,236,239,.92);
+    --dir-acc-btn-bg2: rgba(222,226,230,.84);
+
+    --dir-acc-open-bg: rgba(13,110,253,.12);
+    --dir-acc-hover-bg: rgba(13,110,253,.08);
+
+    --dir-acc-shadow: 0 4px 8px rgba(0,0,0,.12);
+
 }
 
-/* ---------- Directory topbar/panel ---------- */
+/* =========================================================
+   PAGE LAYOUT
+   ========================================================= */
+.dir-page{
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    background: var(--dir-bg) !important;
+}
+
+/* =========================================================
+   TOPBAR
+   ========================================================= */
 .dir-topbar{
     border: 1px solid var(--dir-border);
     border-radius: var(--dir-radius-lg);
     background: var(--dir-topbar-bg);
+    /*padding: .5rem .75rem;*/
 }
 
-/* ВАЖНО: скролл только тут (один контейнер) */
+/* =========================================================
+   PANEL (single scroll container)
+   ========================================================= */
 .dir-panel{
     border: 1px solid var(--dir-border);
     border-radius: var(--dir-radius-lg);
     background: var(--dir-panel-bg);
-
-    height: calc(100vh - 120px);
+    height: calc(100vh - 120px); /* <-- как у тебя работало */
     overflow-y: auto;
     overflow-x: hidden;
-
-    /* чтобы фон не "тёк" при скролле */
     background-clip: padding-box;
+    display: flex;
+    flex-direction: column;
 }
-
-/* Обёртка для радиуса/рамок, но без overflow */
-.dir-table-wrap{
-    border-radius: var(--dir-radius-md);
-    overflow: visible;     /* НЕ делать тут scroll */
-    padding-top: 0 !important;
-}
-
-/* Search */
-.dir-search.form-control{
-    background-color: var(--dir-input-bg);
-    border-color: var(--dir-input-border);
-    color: var(--dir-input-text);
-}
-.dir-search.form-control::placeholder{ color: var(--dir-input-ph); }
-.dir-search.form-control:focus{
-    border-color: var(--dir-focus-border);
-    box-shadow: var(--dir-focus-shadow);
-}
-
-/* Icons buttons */
-.btn-icon{
-    width: 30px;
-    height: 30px;
-    display: inline-flex;
+.dir-header {
+    padding: .35rem .75rem;      /* меньше вертикальных отступов */
+    min-height: 44px;            /* компактно и ровно */
+    display: flex;
     align-items: center;
-    justify-content: center;
-    padding: 0;
 }
 
-/* ---------- Table ---------- */
-#dirTable{
+
+
+/* =========================================================
+   TABLE (UNIVERSAL)
+   ========================================================= */
+.dir-table{
     background: var(--dir-table-bg) !important;
     color: var(--dir-text) !important;
-
-    /* не ломаем table-bordered */
     border-color: var(--dir-border-2) !important;
 }
 
-#dirTable th, #dirTable td{
+.dir-table th,
+.dir-table td{
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
@@ -126,76 +161,203 @@
     border-color: var(--dir-border-2) !important;
 }
 
-/* строки */
-#dirTable tbody td, #dirTable tbody th{
+.dir-table tbody td{
     background: var(--dir-table-bg) !important;
     color: var(--dir-text) !important;
 }
 
-/* sticky header: без щели и без просвечивания */
-#dirTable thead{
+/* sticky header */
+.dir-table thead{
     position: sticky;
     top: 0;
     z-index: 12;
-    background: var(--dir-table-bg);
 }
 
-#dirTable thead th{
+.dir-table thead th{
     position: sticky;
-    top: -1px;                 /* закрывает микро-щель */
+    top: -1px;
     z-index: 13;
-    background: #343A40 !important;
+    background: var(--dir-thead-bg) !important;
     color: var(--dir-muted) !important;
-
     background-clip: padding-box;
     box-shadow: 0 6px 10px rgba(0,0,0,.35);
 }
 
-/* hover/active */
-#dirTable tbody tr:hover td{ background: var(--dir-row-hover) !important; }
-#dirTable tbody tr.is-active td{ background: var(--dir-row-active) !important; }
-
-/* No results */
-#dirNoResults{
-    border: 1px dashed var(--dir-border-2);
-    border-radius: var(--dir-radius-md);
-    background: rgba(33,37,41,.20);
-    color: var(--dir-text);
-}
-:root[data-bs-theme="light"] #dirNoResults{
-    background: rgba(0,0,0,.04);
+/* light — мягче */
+html[data-bs-theme="light"] .dir-table thead th{
+    box-shadow: 0 4px 8px rgba(0,0,0,.12);
 }
 
-/* ---------- Modals (gray) ---------- */
-.modal-gray{
+/* hover / active */
+.dir-table tbody tr:hover td{
+    background: var(--dir-row-hover) !important;
+}
+.dir-table tbody tr.is-active td{
+    background: var(--dir-row-active) !important;
+}
+
+/* =========================================================
+   INPUTS
+   ========================================================= */
+.dir-input.form-control{
+    background: var(--dir-input-bg);
+    border-color: var(--dir-input-border);
+    color: var(--dir-input-text);
+}
+.dir-input.form-control::placeholder{
+    color: var(--dir-input-ph);
+}
+.dir-input.form-control:focus{
+    box-shadow: 0 0 0 .2rem rgba(13,110,253,.18);
+}
+
+/* =========================================================
+   ICON BUTTONS
+   ========================================================= */
+.dir-btn-icon{
+    width: 30px;
+    height: 30px;
+    padding: 0;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+
+/* =========================================================
+   MODALS
+   ========================================================= */
+.dir-modal{
     background: var(--dir-modal-bg) !important;
-    color: var(--dir-text) !important;
-    border: 1px solid var(--dir-border) !important;
+    color: var(--dir-text);
+    border: 1px solid var(--dir-border);
     border-radius: .9rem;
 }
-.modal-gray .modal-header{
+
+.dir-modal .modal-header{
     background: rgba(0,0,0,.10);
-    border-bottom: 1px solid var(--dir-border) !important;
+    border-bottom: 1px solid var(--dir-border);
 }
-.modal-gray .form-control{
-    background: rgba(33,37,41,.55);
+
+.dir-modal .form-control{
+    background: var(--dir-input-bg);
     color: var(--dir-input-text);
     border-color: var(--dir-input-border);
 }
-:root[data-bs-theme="light"] .modal-gray .form-control{
-    background: rgba(233,236,239,.85);
-    color: rgba(33,37,41,.95);
-    border-color: rgba(0,0,0,.15);
-}
-.modal-gray .form-control::placeholder{ color: var(--dir-input-ph); }
-.modal-gray .form-control:focus{
-    border-color: var(--dir-focus-border);
-    box-shadow: var(--dir-focus-shadow);
-}
-:root[data-bs-theme="dark"] .modal-gray .btn-close{
+
+/* close btn in dark */
+html[data-bs-theme="dark"] .dir-modal .btn-close{
     filter: invert(1) grayscale(1);
     opacity: .85;
 }
 
-/* (опционально) backdrop темнее */
-.modal-backdrop.show{ opacity: .75; }
+/* =========================================================
+   EMPTY / NO RESULTS
+   ========================================================= */
+.dir-empty{
+    border: 1px dashed var(--dir-border-2);
+    border-radius: var(--dir-radius-md);
+    padding: 2rem;
+    text-align: center;
+    color: var(--dir-muted);
+}
+
+/* =========================================================
+   SMALL HELPERS
+   ========================================================= */
+.dir-muted{ color: var(--dir-muted); }
+.dir-text{ color: var(--dir-text); }
+
+
+/*  Accordion */
+.accordion{
+    --bs-accordion-bg: transparent;
+    --bs-accordion-border-color: transparent;
+    --bs-accordion-border-radius: var(--dir-radius-lg);
+    --bs-accordion-btn-focus-border-color: rgba(13,110,253,.35);
+    --bs-accordion-btn-focus-box-shadow: 0 0 0 .2rem rgba(13,110,253,.18);
+    --bs-accordion-active-color: var(--dir-text);
+    --bs-accordion-active-bg: transparent;
+}
+
+/* Item */
+.accordion-item{
+    background: linear-gradient(180deg, var(--dir-acc-item-bg), var(--dir-acc-item-bg2));
+    border: 1px solid var(--dir-acc-border);
+    border-radius: var(--dir-radius-md);
+    overflow: hidden;
+    margin-bottom: .5rem;
+}
+
+/* Header button */
+.accordion-button{
+    background: linear-gradient(180deg, var(--dir-acc-btn-bg), var(--dir-acc-btn-bg2));
+    color: var(--dir-text);
+    padding: .45rem .75rem;
+    border: 0;
+    box-shadow: none;
+}
+
+/* Hover */
+.accordion-button:hover{
+    background: linear-gradient(180deg, var(--dir-acc-btn-bg), var(--dir-acc-hover-bg));
+}
+
+/* Collapsed state (чуть спокойнее) */
+.accordion-button.collapsed{
+    color: var(--dir-text);
+    box-shadow: none;
+}
+
+/* Expanded state (подсветка как active row) */
+.accordion-button:not(.collapsed){
+    background: linear-gradient(180deg, var(--dir-acc-open-bg), var(--dir-acc-btn-bg2));
+    box-shadow: var(--dir-acc-shadow);
+}
+
+/* Стрелка */
+.accordion-button::after{
+    filter: none;
+    opacity: .85;
+}
+html[data-bs-theme="dark"] .accordion-button::after{
+    filter: invert(1) grayscale(1);
+    opacity: .75;
+}
+
+/* Body */
+.accordion-body{
+    background: rgba(0,0,0,.08);
+    border-top: 1px solid var(--dir-acc-border2);
+    color: var(--dir-text);
+}
+
+/* Чуть уплотняем текст/счетчик */
+.accordion-button .group-counter{
+    color: var(--dir-muted) !important;
+}
+
+/* Внутренние таблицы в аккордеоне — в стиле dirTable */
+.accordion-body table{
+    background: var(--dir-table-bg) !important;
+    color: var(--dir-text) !important;
+}
+
+.accordion-body table td,
+.accordion-body table th{
+    border-color: var(--dir-border-2) !important;
+}
+
+/* table-striped в темной теме часто дает белесость — приглушаем */
+html[data-bs-theme="dark"] .accordion-body .table-striped > tbody > tr:nth-of-type(odd) > *{
+    background-color: rgba(255,255,255,.03) !important;
+}
+
+/* Hover строк в таблице */
+.accordion-body .table-hover > tbody > tr:hover > *{
+    background-color: var(--dir-row-hover) !important;
+}
+
+/* Кнопки в action ячейке — чуть компактнее */
+.accordion-body .btn.btn-sm{
+    padding: .2rem .45rem;
+}

@@ -176,7 +176,7 @@ Route::group(['middleware' => ['auth']], function () {
 
     Route::resource('/manuals', ManualController::class);
     Route::resource('/materials',  MaterialController::class);
-
+    Route::patch('/materials/{material}/inline', [MaterialController::class, 'inlineUpdate'])->name('materials.inline');
 
 
         Route::get('trainings/show-all', [TrainingController::class, 'showAll'])->name('trainings.showAll');

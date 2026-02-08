@@ -3,7 +3,7 @@
 @section('content')
     <style>
         .table-wrapper {
-            height: calc(100vh - 180px);
+            height: calc(100vh - 160px);
             overflow-y: auto;
             overflow-x: hidden;
         }
@@ -39,7 +39,7 @@
 
         .table thead th {
             position: sticky;
-            height: 50px;
+            height: 40px;
             top: -1px;
             vertical-align: middle;
             border-top: 1px;
@@ -80,26 +80,58 @@
         .js-table-hidden {
             visibility: hidden;
         }
+
+        /* title */
+        .dir-header .dir-title {
+            margin: 0;
+            line-height: 1.1;
+        }
+
+        /* search input same height as buttons */
+        .dir-header .form-control-sm {
+            height: 32px;
+        }
+
+        /* clearable search */
+        .clearable-input { position: relative; width: 400px; }
+        .clearable-input .btn-clear {
+            position: absolute;
+            right: .45rem;
+            top: 50%;
+            transform: translateY(-50%);
+            background: none;
+            border: none;
+            padding: 0;
+            line-height: 1;
+        }
+        .clearable-input .form-control { padding-right: 2rem; }
+
     </style>
 
-    <div class="card shadow">
+    <div class="card dir-page">
 
-        <div class="card-header my-1 shadow">
-            <div class="d-flex justify-content-between">
-                <h5 class="text-primary">{{__('Manage CMMs')}}( <span class="text-success">{{$cmms->count()}} </span>)</h5>
+        <div class="card-header dir-header shadow-sm">
+            <div class="d-flex w-100 align-items-center justify-content-between gap-2 flex-wrap">
 
-                <div class="d-flex my-2">
-                    <div class="clearable-input ps-2">
-                        <input id="searchInput" type="text" class="form-control w-100" placeholder="Search...">
-                        <button class="btn-clear text-secondary" id="clearSearchBtn" type="button">
-                            <i class="bi bi-x-circle"></i>
-                        </button>
-                    </div>
+                {{-- Left: title --}}
+                <h5 class="text-primary dir-title">
+                    {{__('Manage CMMs')}} (
+                    <span class="text-success">{{$cmms->count()}}</span>
+                    )
+                </h5>
+
+                {{-- Center: search --}}
+                <div class="clearable-input ">
+                    <input id="searchInput" type="text" class="form-control form-control-sm w-100" placeholder="Search...">
+                    <button class="btn-clear text-secondary" id="clearSearchBtn" type="button" title="Clear">
+                        <i class="bi bi-x-circle"></i>
+                    </button>
                 </div>
 
-                <a href="{{ route('manuals.create') }}" class="btn btn-outline-primary " style="height: 40px">{{
-                __('Add CMM')
-                }}</a>
+                {{-- Right: action --}}
+                <a href="{{ route('manuals.create') }}" class="btn btn-outline-primary btn-sm me-5">
+                    {{ __('Add CMM') }}
+                </a>
             </div>
         </div>
 
@@ -108,7 +140,7 @@
 
             <div class="table-wrapper me-3 p-2 pt-0">
 
-                <table id="cmmTable" class="table table-sm table-hover table-striped align-middle table-bordered js-table-hidden">
+                <table id="cmmTable" class="table table-sm table-hover align-middle table-bordered js-table-hidden dir-table">
                     <thead class="bg-gradient">
                     <tr>
                         <th class="text-primary sortable bg-gradient " data-direction="asc">{{__('Number')}}<i class="bi bi-chevron-expand ms-1"></i></th>

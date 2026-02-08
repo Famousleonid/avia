@@ -56,9 +56,9 @@
 @endsection
 
 @section('content')
-    <div class="logs-page">
+    <div class="logs-page dir-page">
 
-        <div class="card shadow logs-card">
+        <div class="card logs-card dir-panel">
             <div class="card-header d-flex justify-content-between align-items-center logs-toolbar gap-2">
                 <h5 class="mb-0 text-primary">Workorders activity log</h5>
 
@@ -83,7 +83,7 @@
             <div class="card-body">
                 <div class="logs-table-wrap">
                     <div class="table-responsive">
-                        <table class="table table-sm table-striped table-hover mb-0 logs-table">
+                        <table class="table table-sm  table-hover mb-0 logs-table dir-table">
                             <thead class="table-light">
                             <tr>
                                 <th class="text-center">Дата</th>
