@@ -80,145 +80,89 @@ class TrainingController extends Controller
 
     /**
      * Store a newly created resource in storage.
+     * New logic: first training date + list of subsequent dates; optional additional date if last > 360 days ago.
      */
     public function store(Request $request)
     {
-        // Получение значения manual из запроса
-        $manual = $request->input('manual');
-
-        // Получение ID текущего пользователя
         $userId = auth()->id();
-        $form_type = 112;
 
-        // Выполнение поиска по таблице trainings
-        if (Training::where('user_id', $userId)->where('manuals_id', $manual)->first()) {
-            $form_type = 132;
-        }
-
-        // Валидация входных данных
-        $validatedData = $request->validate([
-            'manuals_id' => 'required',
-            'date_training' => 'required|date',
-            'last_training_date' => 'nullable|date|after:date_training|before:today'
+        // Убираем пустые значения из списка дат
+        $request->merge([
+            'training_dates' => array_values(array_filter((array) $request->input('training_dates', []))),
         ]);
 
-        // Проверяем, если First Training Date больше чем 2 года назад
-        $dateTraining132 = \Carbon\Carbon::parse($validatedData['date_training']);
-        $twoYearsAgo = now()->subYears(2);
-        $isMoreThanTwoYears = $dateTraining132->lt($twoYearsAgo);
+        $validatedData = $request->validate([
+            'manuals_id' => 'required|exists:manuals,id',
+            'date_training' => 'required|date|before_or_equal:today',
+            'training_dates' => 'nullable|array',
+            'training_dates.*' => 'nullable|date|after:date_training|before_or_equal:today',
+            'additional_training_date' => 'nullable|date|after_or_equal:date_training|before_or_equal:today',
+        ]);
 
-        // Если больше 2 лет, проверяем наличие last_training_date
-        if ($isMoreThanTwoYears) {
-            if (empty($validatedData['last_training_date'])) {
-                return redirect()->back()
-                    ->withInput()
-                    ->withErrors(['last_training_date' => 'Last Existing Training Date is required when First Training Date is more than 2 years ago.']);
-            }
+        $manualId = (int) $validatedData['manuals_id'];
+        $firstDate = \Carbon\Carbon::parse($validatedData['date_training'])->startOfDay();
+        $trainingDates = $validatedData['training_dates'] ?? [];
+        $trainingDates = array_unique(array_filter(array_map(function ($d) {
+            return \Carbon\Carbon::parse($d)->format('Y-m-d');
+        }, $trainingDates)));
+        sort($trainingDates);
 
-            $lastTrainingDate = \Carbon\Carbon::parse($validatedData['last_training_date']);
+        $additionalDate = isset($validatedData['additional_training_date'])
+            ? \Carbon\Carbon::parse($validatedData['additional_training_date'])->format('Y-m-d')
+            : null;
 
-            // Проверяем что last_training_date после first_training_date
-            if ($lastTrainingDate->lte($dateTraining132)) {
-                return redirect()->back()
-                    ->withInput()
-                    ->withErrors(['last_training_date' => 'Last Training Date must be after First Training Date.']);
-            }
-
-            // Проверяем что last_training_date до сегодня
-            if ($lastTrainingDate->gte(now()->startOfDay())) {
-                return redirect()->back()
-                    ->withInput()
-                    ->withErrors(['last_training_date' => 'Last Training Date must be before today.']);
-            }
-        }
-
-        // Устанавливаем дату тренировки для формы 132
-        $manualId = $validatedData['manuals_id'];
-
-        // Проверяем, есть ли уже форма 132 для этого юнита
+        // Form 132 — одна на первую дату (если ещё нет для этого юнита)
         $existingForm132 = Training::where('user_id', $userId)
             ->where('manuals_id', $manualId)
             ->where('form_type', 132)
             ->first();
 
-        // Если тип формы не 132, создаем еще одну запись для формы 132
-        if ($form_type != 132 && !$existingForm132) {
+        if (!$existingForm132) {
             Training::create([
-                'user_id' => $userId, // Текущий пользователь
+                'user_id' => $userId,
                 'manuals_id' => $manualId,
-                'date_training' => $dateTraining132,
+                'date_training' => $firstDate->format('Y-m-d'),
                 'form_type' => 132,
             ]);
         }
 
-        // Создаем первую форму 112 с правильной датой (следующая пятница)
-        $dateTraining112 = \Carbon\Carbon::parse($dateTraining132)->next(\Carbon\Carbon::FRIDAY);
-
-        // Проверяем существование формы 112 для первой даты
-        $existingTraining112 = Training::where('user_id', $userId)
-            ->where('manuals_id', $manualId)
-            ->where('date_training', $dateTraining112->format('Y-m-d'))
-            ->where('form_type', '112')
-            ->first();
-
-        if (!$existingTraining112) {
-            Training::create([
-                'user_id' => $userId,
-                'manuals_id' => $manualId,
-                'date_training' => $dateTraining112->format('Y-m-d'),
-                'form_type' => '112',
-            ]);
-        }
-
-        // Если First Training Date больше чем 2 года назад и есть last_training_date
-        if ($isMoreThanTwoYears && !empty($validatedData['last_training_date'])) {
-            $lastTrainingDate = \Carbon\Carbon::parse($validatedData['last_training_date']);
-
-            // Создаем тренировки между First Training Date и Last Training Date
-            $this->createMissingTrainingsBetweenDates($userId, $manualId, $dateTraining132, $lastTrainingDate);
-
-            // Если с даты последнего тренинга прошло меньше 12 месяцев, не создаем доп. тренинг на сегодня/последнюю пятницу
-            $monthsSinceLast = $lastTrainingDate->diffInMonths(now());
-            if ($monthsSinceLast >= 12) {
-                // Создаем новый тренинг с сегодняшней датой или последней прошедшей пятницей
-                $todayDate = now()->startOfDay();
-
-                // Если сегодня пятница - используем сегодня, иначе последнюю прошедшую пятницу
-                if ($todayDate->dayOfWeek == \Carbon\Carbon::FRIDAY) {
-                    $trainingDate = $todayDate;
-                } else {
-                    $trainingDate = $todayDate->copy()->previous(\Carbon\Carbon::FRIDAY);
-                }
-
-                $existingTodayTraining = Training::where('user_id', $userId)
-                    ->where('manuals_id', $manualId)
-                    ->where('date_training', $trainingDate->format('Y-m-d'))
-                    ->where('form_type', '112')
-                    ->first();
-
-                if (!$existingTodayTraining) {
-                    Training::create([
-                        'user_id' => $userId,
-                        'manuals_id' => $manualId,
-                        'date_training' => $trainingDate->format('Y-m-d'),
-                        'form_type' => '112',
-                    ]);
-                }
+        $ensureTraining112 = function ($dateYmd) use ($userId, $manualId) {
+            $exists = Training::where('user_id', $userId)
+                ->where('manuals_id', $manualId)
+                ->where('date_training', $dateYmd)
+                ->where('form_type', '112')
+                ->exists();
+            if (!$exists) {
+                Training::create([
+                    'user_id' => $userId,
+                    'manuals_id' => $manualId,
+                    'date_training' => $dateYmd,
+                    'form_type' => '112',
+                ]);
             }
-        } else {
-            // Создаем тренировки за все пропущенные годы (начиная со следующего года)
-            $this->createMissingTrainings($userId, $manualId, $dateTraining132);
+        };
+
+        // Form 112 на «следующую пятницу» после первой даты
+        $nextFriday = $firstDate->copy()->next(\Carbon\Carbon::FRIDAY);
+        if ($nextFriday->lte(now())) {
+            $ensureTraining112($nextFriday->format('Y-m-d'));
         }
 
-        // Проверяем, есть ли URL для возврата в запросе
-        $returnUrl = $request->input('return_url');
+        // Form 112 на каждую введённую последующую дату
+        foreach ($trainingDates as $dateYmd) {
+            $ensureTraining112($dateYmd);
+        }
 
-        // Если есть URL возврата и он содержит TDR или mains, используем его
+        // Дополнительная тренировка (если пользователь выбрал «Да» при последней > 360 дней)
+        if ($additionalDate) {
+            $ensureTraining112($additionalDate);
+        }
+
+        $returnUrl = $request->input('return_url');
         if ($returnUrl && (str_contains($returnUrl, '/tdrs/') || str_contains($returnUrl, '/mains/'))) {
             return redirect($returnUrl)->with('success', 'Unit added for trainings.');
         }
 
-        // Проверяем referer как fallback
         $referer = request()->header('referer');
         if ($referer && (str_contains($referer, '/tdrs/') || str_contains($referer, '/mains/'))) {
             return redirect()->back()->with('success', 'Unit added for trainings.');
@@ -495,11 +439,27 @@ public function updateToToday(Request $request)
     }
 
     /**
-     * Update the specified resource in storage.
+     * Update the specified resource in storage (e.g. edit training date).
      */
     public function update(Request $request, string $id)
     {
-        //
+        $training = Training::findOrFail($id);
+
+        if ($training->user_id !== auth()->id()) {
+            return response()->json(['success' => false, 'message' => __('Unauthorized')], 403);
+        }
+
+        $validated = $request->validate([
+            'date_training' => 'required|date|before_or_equal:today',
+        ]);
+
+        $training->date_training = \Carbon\Carbon::parse($validated['date_training'])->format('Y-m-d');
+        $training->save();
+
+        return response()->json([
+            'success' => true,
+            'message' => __('Training date updated.'),
+        ]);
     }
 
     /**

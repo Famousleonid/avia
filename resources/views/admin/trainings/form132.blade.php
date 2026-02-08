@@ -30,15 +30,15 @@
                 size: letter;
                 /*margin: 6mm;*/
                 margin-left: 15mm;
-                margin-top: 10mm;
+                margin-top: 5mm;
                 margin-right: 6mm;
-                margin-bottom: 10mm;
+                margin-bottom: 15mm;
             }
 
             /* Убедитесь, что вся страница помещается на один лист */
             html, body {
-                /*height: 100%;*/
-                width: 105%;
+                /*height: 90%;*/
+                width: 107%;
                 margin-left: 1px;
                 padding: 0;
             }
@@ -795,7 +795,7 @@
         </div>
     </div>
 
-{{--    <p style="height: 40px"></p>--}}
+    <p style="height: 40px"></p>
 
 
     <div class="row border-all " style="width: 920px">
@@ -1433,6 +1433,6 @@
         window.print();
     }
 </script>
-</div>
+
 </body>
 </html>

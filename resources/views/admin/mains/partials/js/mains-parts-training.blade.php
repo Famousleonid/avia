@@ -334,89 +334,176 @@
     PartsModal.init();
 })();
 // ===============================
-// TRAINING
+// TRAINING (Update = выбор даты; Add = форма как в training.create + 360 дней)
 // ===============================
 
-function createTrainings(manualId) {
-    if (!confirm('Create new trainings for this unit?')) return;
+const mainsCreateTrainingUrl = @json(route('trainings.createTraining'));
+const mainsShowUrl = @json(route('mains.show', $current_workorder->id));
+const mainsCsrfToken = @json(csrf_token());
+const DAYS_THRESHOLD = 360;
 
-    const returnUrl = @json(route('mains.show', $current_workorder->id));
-    const baseUrl   = @json(route('trainings.create'));
-
-    window.location.href =
-        `${baseUrl}?manual_id=${manualId}&return_url=${encodeURIComponent(returnUrl)}`;
+function getTodayYmd() {
+    const t = new Date();
+    t.setHours(0, 0, 0, 0);
+    return t.getFullYear() + '-' + String(t.getMonth() + 1).padStart(2, '0') + '-' + String(t.getDate()).padStart(2, '0');
 }
 
-function updateTrainingToToday(manualId, lastTrainingDate, autoUpdate = false) {
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
+// ----- Update training: модалка с одной датой (по умолчанию сегодня) -----
+document.addEventListener('DOMContentLoaded', function () {
+    let mainsUpdateManualId = null;
 
-    let trainingDate;
-    if (today.getDay() === 5) {
-        trainingDate = today;
-    } else {
-        const dayOfWeek    = today.getDay();
-        let daysToSubtract;
-        if (dayOfWeek === 0) {
-            daysToSubtract = 1;
-        } else if (dayOfWeek === 6) {
-            daysToSubtract = 1;
-        } else {
-            daysToSubtract = dayOfWeek + 2;
-        }
-        trainingDate = new Date(today);
-        trainingDate.setDate(today.getDate() - daysToSubtract);
-    }
-
-    const todayStr     = trainingDate.toISOString().split('T')[0];
-    const lastTraining = new Date(lastTrainingDate);
-    const monthsDiff   = Math.floor((today - lastTraining) / (1000 * 60 * 60 * 24 * 30));
-
-    if (!autoUpdate) {
-        const confirmationMessage =
-            `Update training to today's date?\n\n` +
-            `Last training: ${lastTrainingDate} (${monthsDiff} months ago)\n` +
-            `New training date: ${todayStr}\n\n` +
-            `This will create a new training record and update the training status.`;
-
-        if (!confirm(confirmationMessage)) return;
-    }
-
-    const trainingData = {
-        manuals_id:    [manualId],
-        date_training: [todayStr],
-        form_type:     ['112']
-    };
-
-    const updateUrl  = @json(route('trainings.updateToToday'));
-    const mainsShow  = @json(route('mains.show', $current_workorder->id));
-
-    fetch(updateUrl, {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-            'X-CSRF-TOKEN': @json(csrf_token())
-        },
-        body: JSON.stringify(trainingData)
-    })
-        .then(response => response.json())
-        .then(data => {
-            if (data.success) {
-                if (!autoUpdate) {
-                    alert(`Training updated to today!\nCreated: ${data.created} training record(s)`);
-                }
-                window.location.href = mainsShow;
-            } else {
-                if (!autoUpdate) {
-                    alert('Error updating training: ' + (data.message || 'Unknown error'));
-                }
-            }
-        })
-        .catch(error => {
-            console.error('Error:', error);
-            if (!autoUpdate) {
-                alert('An error occurred: ' + error.message);
-            }
+    document.querySelectorAll('.mains-update-training-btn').forEach(function (btn) {
+        btn.addEventListener('click', function () {
+            mainsUpdateManualId = this.getAttribute('data-manual-id');
+            const input = document.getElementById('mainsUpdateTrainingDateInput');
+            if (input) input.value = getTodayYmd();
+            const modal = new bootstrap.Modal(document.getElementById('mainsUpdateTrainingModal'));
+            modal.show();
         });
-}
+    });
+
+    document.getElementById('mainsUpdateTrainingSaveBtn').addEventListener('click', function () {
+        if (!mainsUpdateManualId) return;
+        const input = document.getElementById('mainsUpdateTrainingDateInput');
+        const dateYmd = input && input.value ? input.value.trim() : '';
+        if (!dateYmd) {
+            alert('{{ __("Please select a date.") }}');
+            return;
+        }
+        const trainingData = {
+            manuals_id: [parseInt(mainsUpdateManualId, 10)],
+            date_training: [dateYmd],
+            form_type: ['112']
+        };
+        fetch(mainsCreateTrainingUrl, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': mainsCsrfToken },
+            body: JSON.stringify(trainingData)
+        })
+            .then(function (r) { return r.json(); })
+            .then(function (data) {
+                if (data.success) {
+                    alert(data.message || '{{ __("Training added.") }}');
+                    window.location.href = mainsShowUrl;
+                } else {
+                    alert('{{ __("Error") }}: ' + (data.message || ''));
+                }
+            })
+            .catch(function (err) {
+                alert('{{ __("An error occurred") }}: ' + err.message);
+            });
+    });
+});
+
+// ----- Add trainings: форма как в training.create + 360 дней -----
+document.addEventListener('DOMContentLoaded', function () {
+    const form = document.getElementById('mainsAddTrainingsForm');
+    const manualIdInput = document.getElementById('mainsAddTrainingsManualId');
+    const listEl = document.getElementById('mains_training_dates_list');
+    const addBtn = document.getElementById('mains_add_training_date_btn');
+    const additionalGroup = document.getElementById('mains_additional_training_date_group');
+    const additionalInput = document.getElementById('mains_additional_training_date');
+    const additionalModal = document.getElementById('mainsAdditionalTrainingModal');
+    let additionalTrainingAsked = false;
+    let formPendingSubmit = false;
+
+    document.querySelectorAll('.mains-add-trainings-btn').forEach(function (btn) {
+        btn.addEventListener('click', function () {
+            const manualId = this.getAttribute('data-manual-id');
+            if (manualIdInput) manualIdInput.value = manualId;
+            if (listEl) listEl.innerHTML = '';
+            if (form && form.reset) form.reset();
+            if (manualIdInput) manualIdInput.value = manualId;
+            additionalTrainingAsked = false;
+            if (additionalGroup) additionalGroup.style.display = 'none';
+            if (additionalInput) additionalInput.value = '';
+            const modal = new bootstrap.Modal(document.getElementById('mainsAddTrainingsModal'));
+            modal.show();
+        });
+    });
+
+    function addMainsTrainingDateRow(value) {
+        if (!listEl) return;
+        const row = document.createElement('div');
+        row.className = 'input-group input-group-sm mb-1';
+        row.innerHTML = '<input type="date" name="training_dates[]" class="form-control" value="' + (value || '') + '">' +
+            '<button type="button" class="btn btn-outline-danger btn-sm mains-remove-training-date" aria-label="Remove"><i class="bi bi-dash"></i></button>';
+        listEl.appendChild(row);
+        row.querySelector('.mains-remove-training-date').addEventListener('click', function () { row.remove(); });
+    }
+
+    if (addBtn) addBtn.addEventListener('click', function () { addMainsTrainingDateRow(''); });
+
+    function getMainsFirstDate() {
+        const el = document.getElementById('mains_date_training');
+        return el && el.value ? new Date(el.value + 'T00:00:00') : null;
+    }
+    function getMainsTodayStart() {
+        const t = new Date();
+        t.setHours(0, 0, 0, 0);
+        return t;
+    }
+    function getMainsTrainingDatesEntered() {
+        const dates = [];
+        if (listEl) listEl.querySelectorAll('input[name="training_dates[]"]').forEach(function (inp) {
+            if (inp.value) dates.push(inp.value);
+        });
+        return dates.sort();
+    }
+    function getMainsLastEnteredDate() {
+        const dates = getMainsTrainingDatesEntered();
+        if (dates.length === 0) return null;
+        return new Date(dates[dates.length - 1] + 'T00:00:00');
+    }
+    function daysBetween(d1, d2) {
+        const a = new Date(d1.getFullYear(), d1.getMonth(), d1.getDate());
+        const b = new Date(d2.getFullYear(), d2.getMonth(), d2.getDate());
+        return Math.floor((b - a) / (24 * 60 * 60 * 1000));
+    }
+
+    document.getElementById('mainsAdditionalModalNo').addEventListener('click', function () {
+        additionalTrainingAsked = true;
+        bootstrap.Modal.getInstance(additionalModal).hide();
+        if (formPendingSubmit && form) {
+            form.dataset.allowSubmit = '1';
+            form.submit();
+        }
+        formPendingSubmit = false;
+    });
+    document.getElementById('mainsAdditionalModalYes').addEventListener('click', function () {
+        additionalTrainingAsked = true;
+        bootstrap.Modal.getInstance(additionalModal).hide();
+        if (additionalGroup) additionalGroup.style.display = 'block';
+        if (additionalInput && !additionalInput.value) additionalInput.value = getTodayYmd();
+        if (formPendingSubmit && form) {
+            form.dataset.allowSubmit = '1';
+            form.submit();
+        }
+        formPendingSubmit = false;
+    });
+
+    if (form) {
+        form.addEventListener('submit', function (e) {
+            if (form.dataset.allowSubmit === '1') {
+                form.removeAttribute('data-allow-submit');
+                return;
+            }
+            e.preventDefault();
+            const subsequentDates = getMainsTrainingDatesEntered();
+            const lastEntered = subsequentDates.length ? getMainsLastEnteredDate() : getMainsFirstDate();
+            const today = getMainsTodayStart();
+            const needAsk = lastEntered && daysBetween(lastEntered, today) >= DAYS_THRESHOLD;
+            const hasAdditional = additionalInput && additionalInput.value && additionalGroup && additionalGroup.style.display !== 'none';
+
+            if (needAsk && !additionalTrainingAsked && !hasAdditional) {
+                formPendingSubmit = true;
+                new bootstrap.Modal(additionalModal).show();
+                return;
+            }
+            formPendingSubmit = false;
+            form.dataset.allowSubmit = '1';
+            form.submit();
+        });
+    }
+});
 </script>
