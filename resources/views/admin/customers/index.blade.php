@@ -6,7 +6,6 @@
     <style>
         .table-wrapper{
             flex: 1 1 auto;
-            height: auto !important;       /* перебиваем твой height */
             overflow-y: auto;
             overflow-x: hidden;
         }
@@ -20,7 +19,7 @@
 
         .table thead th {
             position: sticky;
-            height: 50px;
+            height: 32px;
             top: 0;
             vertical-align: middle;
             border-top: 1px;
@@ -57,7 +56,7 @@
         }
     </style>
 
-    <div class="card dir-page dir-panel">
+    <div class="card dir-page ">
 
         {{-- HEADER: left title / center search / right add --}}
         <div class="card-header my-1 dir-header">
@@ -97,7 +96,7 @@
         </div>
 
         @if(count($customers))
-            <div class="table-wrapper me-3 p-2 pt-0 ">
+            <div class="table-wrapper me-3 p-2 pt-0 dir-panel">
                 <table id="cmmTable" class="display table table-sm table-hover table-bordered dir-table">
                     <thead class="bg-gradient">
                     <tr>

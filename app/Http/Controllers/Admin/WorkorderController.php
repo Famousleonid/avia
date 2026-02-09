@@ -255,6 +255,7 @@ class WorkorderController extends Controller
         $customers = Customer::orderBy('name')->get();
         $users     = User::orderBy('name')->get();
 
+
         return view('admin.workorders.index', compact('workorders', 'units', 'manuals','customers','users','generalTasks','tasksByGeneral'));
     }
 

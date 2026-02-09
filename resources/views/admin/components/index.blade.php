@@ -8,15 +8,10 @@
             visibility: hidden;
         }
 
-        .table-wrapper {
-            height: calc(100vh - 180px);
+        .table-wrapper{
+            flex: 1 1 auto;
+            min-height: 0;
             overflow-y: auto;
-            overflow-x: hidden;
-            background: linear-gradient(180deg, #111316 0%, #0b0c0e 100%);
-            border: 1px solid rgba(255,255,255,.08);
-            border-radius: 14px;
-            padding: 10px;
-            box-shadow: 0 10px 30px rgba(0,0,0,.35);
         }
 
         #componentsTable {
@@ -92,7 +87,7 @@
 
         .table thead th {
             position: sticky;
-            height: 50px;
+            height: 32px;
             top: -1px;
             vertical-align: middle;
             border-top: 1px;
@@ -239,8 +234,8 @@
 @section('content')
 
 
-    <div class="card shadow">
-        <div class="card-header my-1 shadow">
+    <div class="card dir-page">
+        <div class="card-header my-0 ">
             <div class="d-flex justify-content-between align-items-center flex-wrap">
 
                 <h5 class="text-primary manage-header">{{__('Replaceable Parts')}}( <span class="text-success"
@@ -287,8 +282,8 @@
 
             @if(count($components))
 
-                <div class="table-wrapper me-3 p-2 pt-0 " id="componentsTableWrapper" style="visibility:hidden">
-                    <table id="componentsTable" class="table table-sm table-hover bg-gradient align-middle table-bordered">
+                <div class="table-wrapper me-3 p-2 pt-0 dir-panel" id="componentsTableWrapper" style="visibility:hidden">
+                    <table id="componentsTable" class="table table-sm table-hover bg-gradient align-middle table-bordered dir-table">
                         <thead class="bg-gradient">
                         <tr>
                             <th class="text-center sortable">{{__('IPL Number')}} <i class="bi bi-chevron-expand ms-1"></i></th>

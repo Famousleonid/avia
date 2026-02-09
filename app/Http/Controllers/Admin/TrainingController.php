@@ -13,14 +13,7 @@ use Illuminate\Http\Request;
 
 class TrainingController extends Controller
 {
-//    public function __construct()
-//    {
-//        $this->middleware('auth');
-//    }
 
-    /**
-     * Display a listing of the resource.
-     */
     public function index()
     {
         // Получаем тренировки пользователя с учётом руководства
@@ -54,9 +47,6 @@ class TrainingController extends Controller
             'planes', 'builders', 'scopes'));
     }
 
-    /**
-     * Show the form for creating a new resource.
-     */
     public function create()
     {
         $userId = auth()->id();
@@ -505,7 +495,7 @@ public function updateToToday(Request $request)
             $users = collect();
             $trainingDates = [];
             $error = null;
-            
+
             // Получаем все manuals, где unit_name_training не пустое
             $manuals = Manual::whereNotNull('unit_name_training')
                 ->where('unit_name_training', '<>', '')
@@ -536,7 +526,7 @@ public function updateToToday(Request $request)
             // Получаем все тренинги одним запросом для оптимизации
             $manualIds = $manuals->pluck('id')->toArray();
             $userIds = $users->pluck('id')->toArray();
-            
+
             $trainings = collect();
             if (!empty($manualIds) && !empty($userIds)) {
                 $trainings = Training::whereIn('manuals_id', $manualIds)
@@ -550,9 +540,9 @@ public function updateToToday(Request $request)
             foreach ($trainings as $training) {
                 $manualId = $training->manuals_id;
                 $userId = $training->user_id;
-                
+
                 // Сохраняем только самую последнюю дату для каждой комбинации
-                if (!isset($trainingDates[$manualId][$userId]) || 
+                if (!isset($trainingDates[$manualId][$userId]) ||
                     $training->date_training > $trainingDates[$manualId][$userId]) {
                     $trainingDates[$manualId][$userId] = $training->date_training;
                 }
@@ -562,21 +552,21 @@ public function updateToToday(Request $request)
         } catch (\Exception $e) {
             \Log::error('Error in showAll: ' . $e->getMessage());
             \Log::error('Stack trace: ' . $e->getTraceAsString());
-            
+
             $manuals = collect();
             $users = collect();
             $trainingDates = [];
             $error = $e->getMessage();
-            
+
             return view('admin.trainings.show_all', compact('manuals', 'users', 'trainingDates', 'error'));
         } catch (\Throwable $e) {
             \Log::error('Fatal error in showAll: ' . $e->getMessage());
-            
+
             $manuals = collect();
             $users = collect();
             $trainingDates = [];
             $error = 'Fatal error: ' . $e->getMessage();
-            
+
             return view('admin.trainings.show_all', compact('manuals', 'users', 'trainingDates', 'error'));
         }
     }

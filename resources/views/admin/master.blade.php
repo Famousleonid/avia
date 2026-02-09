@@ -73,7 +73,7 @@
         }
 
         .page-layout {
-            height: calc(100vh - 70);
+            height: calc(100vh - 35px);
             overflow: hidden;
         }
 

@@ -256,7 +256,12 @@
             <div class="d-flex align-items-center gap-3">
                 <h5 class="text-primary mb-0">
                     {{ __('Workorders') }}
-                    (<span class="text-success">{{ $workorders->count() }}</span>)
+
+                    <span class="text-info" id="woVisible">{{ $workorders->count() }}</span>
+                    <span class="text-muted" style="font-size: 16px;">of</span>
+                    <span class="text-info" id="woTotal">{{ $workorders->count() }}</span>
+
+
                 </h5>
 
                 <a id="admin_new_firm_create" href="{{ route('workorders.create') }}">
@@ -629,6 +634,22 @@
             updateSelectClearButton(technikFilter, clearTechnikBtn);
             let firstFilterDone = false;
 
+            function updateVisibleCounter() {
+                const tableEl = document.getElementById('show-workorder');
+                const counter = document.getElementById('woVisible');
+                if (!tableEl || !counter) return;
+
+                const rows = tableEl.querySelectorAll('tbody tr');
+                let visible = 0;
+
+                rows.forEach(r => {
+                    if (r.style.display !== 'none') visible++;
+                });
+
+                counter.textContent = visible;
+            }
+
+
             function filterTable() {
                 const filterText = searchInput.value.toLowerCase();
                 const onlyMy = checkboxMy.checked;
@@ -647,7 +668,7 @@
                     const rowText = row.innerText.toLowerCase();
                     const rowTechId = row.getAttribute('data-tech-id');
                     const rowCustomerId = row.getAttribute('data-customer-id');
-                    const rowStatus = row.getAttribute('data-status') || 'active';
+                    const rowStatus = (row.dataset.status || 'active').toLowerCase();
                     const rowApproved = row.getAttribute('data-approved') === '1';
                     const rowDraft = row.getAttribute('data-draft') === '1';
 
@@ -667,6 +688,8 @@
                 });
 
                 if (typeof hideLoadingSpinner === 'function') hideLoadingSpinner();
+
+                updateVisibleCounter();
 
                 if (!firstFilterDone) {
                     firstFilterDone = true;
@@ -963,8 +986,6 @@
                 approveModal?.show();
             });
         });
-
-
 
 
     </script>

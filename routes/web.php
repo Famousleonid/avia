@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\Admin\CabinetController;
 use App\Http\Controllers\Admin\ComponentController;
+use App\Http\Controllers\Admin\ConditionController;
 use App\Http\Controllers\Admin\CustomerController;
 use App\Http\Controllers\Admin\DirectoryController;
 use App\Http\Controllers\Admin\ExtraProcessController;
@@ -181,6 +182,7 @@ Route::group(['middleware' => ['auth']], function () {
         Route::delete('transfers/delete-by-tdr/{id}', [TransferController::class, 'deleteByTdr'])->name('transfers.deleteByTdr');
 
     Route::resource('/manuals', ManualController::class);
+    Route::resource('/conditions',  ConditionController::class);
     Route::resource('/materials',  MaterialController::class);
     Route::patch('/materials/{material}/inline', [MaterialController::class, 'inlineUpdate'])->name('materials.inline');
 
@@ -251,6 +253,8 @@ Route::group(['middleware' => ['auth']], function () {
     Route::get('log_card/create/{id}', [LogCardController::class, 'create'])->name('log_card.create');
     Route::get('log_card/edit/{id}', [LogCardController::class, 'edit'])->name('log_card.edit');
     Route::get('log_card/show/{id}', [LogCardController::class, 'show'])->name('log_card.show');
+
+    Route::post('/vendors', [VendorController::class, 'store'])->name('vendors.store');
 
     Route::post('/components/store_from_inspection', [ComponentController::class, 'storeFromInspection'])->name('components.storeFromInspection');
     Route::post('/components/store_from_extra', [ComponentController::class, 'storeFromExtra'])->name('components.storeFromExtra');

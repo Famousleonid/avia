@@ -2,11 +2,12 @@
 
 @section('content')
     <style>
-        .table-wrapper {
-            height: calc(100vh - 160px);
+        .table-wrapper{
+            flex: 1 1 auto;
+            min-height: 0;
             overflow-y: auto;
-            overflow-x: hidden;
         }
+
 
         .table th, .table td {
             white-space: nowrap;
@@ -39,7 +40,7 @@
 
         .table thead th {
             position: sticky;
-            height: 40px;
+            height: 32px;
             top: -1px;
             vertical-align: middle;
             border-top: 1px;

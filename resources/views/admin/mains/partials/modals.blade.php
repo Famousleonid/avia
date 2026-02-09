@@ -197,11 +197,11 @@
 </div>
 
 {{-- Modal: Add trainings (как в training.create: первая дата + последующие + доп. при 360 дней) --}}
-<div class="modal fade" id="mainsAddTrainingsModal" tabindex="-1" aria-labelledby="mainsAddTrainingsModalLabel" aria-hidden="true">
-    <div class="modal-dialog modal-lg">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title" id="mainsAddTrainingsModalLabel">{{ __('Add trainings for this unit') }}</h5>
+<div class="modal fade " id="mainsAddTrainingsModal" tabindex="-1" aria-labelledby="mainsAddTrainingsModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg ">
+        <div class="modal-content dir-modal">
+            <div class="modal-header modal-header">
+                <h5 class="modal-title" id="mainsAddTrainingsModalLabel">{{ __('Add trainings for this unit1') }}</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
             <form id="mainsAddTrainingsForm" method="POST" action="{{ route('trainings.store') }}">

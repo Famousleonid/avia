@@ -53,7 +53,7 @@
         <div class="card-body pt-1 m-0">
             @if($items->count())
                 <div class="dir-panel ">
-                    <div class="dir-table-wrap ">
+                    <div class="">
 
                         <table id="dirTable" class="table table-sm table-hover table-bordered mb-0 align-middle shadow-lg dir-table">
                             <thead>

@@ -127,7 +127,7 @@ html[data-bs-theme="light"]{
     border: 1px solid var(--dir-border);
     border-radius: var(--dir-radius-lg);
     background: var(--dir-panel-bg);
-    height: calc(100vh - 120px); /* <-- как у тебя работало */
+    height: calc(100dvh - 140px); /* <-- как у тебя работало */
     overflow-y: auto;
     overflow-x: hidden;
     background-clip: padding-box;

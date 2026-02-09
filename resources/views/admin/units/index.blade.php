@@ -2,10 +2,10 @@
 
 @section('content')
     <style>
-        .table-wrapper {
-            height: calc(100vh - 180px);
+        .table-wrapper{
+            flex: 1 1 auto;
+            min-height: 0;
             overflow-y: auto;
-            overflow-x: hidden;
         }
 
         .table th, .table td {
@@ -44,7 +44,7 @@
 
         .table thead th {
             position: sticky;
-            height: 50px;
+            height: 32px;
             top: 0;
             vertical-align: middle;
             border-top: 1px;
@@ -70,13 +70,13 @@
         }
     </style>
 
-    <div class="card shadow">
+    <div class="card dir-page">
 
-        <div class="card-header my-1 shadow">
+        <div class="card-header my-1">
             <div class="d-flex justify-content-between">
                 <h5 class="text-primary">{{ __('Manage Components') }}</h5>
 
-                <div class="d-flex my-2">
+                <div class="d-flex my-0">
                     <div class="clearable-input ps-2">
                         <input id="searchInput" type="text" class="form-control w-100" placeholder="Search...">
                         <button class="btn-clear text-secondary"
@@ -98,8 +98,8 @@
                 {{ __('No units available.') }}
             </div>
         @else
-            <div class="table-wrapper me-3 p-2 pt-0">
-                <table id="unitTable" class="display table table-sm table-hover table-striped align-middle table-bordered">
+            <div class="table-wrapper dir-panel me-3 p-2 pt-0 mb-1">
+                <table id="unitTable" class="table table-sm table-hover align-middle table-bordered dir-table">
                     <thead class="bg-gradient">
                     <tr>
                         <th class="text-primary sortable bg-gradient text-center">

@@ -741,18 +741,10 @@ class ExtraProcessController extends Controller
      */
     public function showGroupForms($id, $processNameId, Request $request)
     {
-        \Log::info('ExtraProcess showGroupForms called', [
-            'workorder_id' => $id,
-            'processNameId' => $processNameId
-        ]);
 
         $current_wo = Workorder::findOrFail($id);
         $processName = ProcessName::findOrFail($processNameId);
 
-        \Log::info('ExtraProcess showGroupForms processName', [
-            'process_name' => $processName->name,
-            'process_sheet_name' => $processName->process_sheet_name
-        ]);
 
         // Получаем все extra processes для этого work order
         $extra_processes = ExtraProcess::where('workorder_id', $current_wo->id)
@@ -1562,7 +1554,7 @@ class ExtraProcessController extends Controller
                     // Новая структура: массив объектов
                     foreach ($extra_process->processes as $processItem) {
                         $processNameId = is_array($processItem) ? $processItem['process_name_id'] : null;
-                        
+
                         // Проверяем основной процесс
                         if ($processNameId && in_array($processNameId, $ndtProcessNameIds)) {
                             $process = Process::find($processItem['process_id']);
@@ -1576,7 +1568,7 @@ class ExtraProcessController extends Controller
                                 ];
                             }
                         }
-                        
+
                         // Проверяем plus_process_names (объединенные процессы)
                         if (isset($processItem['plus_process_names']) && is_array($processItem['plus_process_names'])) {
                             foreach ($processItem['plus_process_names'] as $plusProcessNameId) {
@@ -1589,7 +1581,7 @@ class ExtraProcessController extends Controller
                                             $plusProcessId = $processItem['plus_process_ids'][$index];
                                         }
                                     }
-                                    
+
                                     if ($plusProcessId) {
                                         $process = Process::find($plusProcessId);
                                         $ndtProcessName = ProcessName::find($plusProcessNameId);

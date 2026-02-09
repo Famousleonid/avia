@@ -2,10 +2,10 @@
 
 @section('content')
     <style>
-        .table-wrapper {
-            height: calc(100vh - 180px);
+        .table-wrapper{
+            flex: 1 1 auto;
+            min-height: 0;
             overflow-y: auto;
-            overflow-x: hidden;
         }
 
         .table th, .table td {
@@ -39,7 +39,7 @@
 
         .table thead th {
             position: sticky;
-            height: 50px;
+            height: 32px;
             top: -1px;
             vertical-align: middle;
             border-top: 1px;
@@ -101,12 +101,12 @@
 
     </style>
 
-    <div class="card shadow">
-        <div class="card-header my-1 shadow">
+    <div class="card dir-page">
+        <div class="card-header my-0">
             <div class="d-flex justify-content-between">
                 <h5 class="text-primary">{{__('Manage Processes')}}( <span class="text-success"> </span>)</h5>
 
-                <div class="d-flex my-2">
+                <div class="d-flex my-1">
                     <div class="clearable-input ps-2">
                         <input id="searchInput" type="text" class="form-control w-100" placeholder="Search...">
                         <button class="btn-clear text-secondary" onclick="document.getElementById('searchInput').value = '';
@@ -119,9 +119,9 @@
             </div>
         </div>
 
-        <div class="table-wrapper me-3 p-2 pt-0">
-            <table id="processTable" class="display table table-hover table-striped align-middle table-bordered">
-                <thead class="bg-gradient">
+        <div class="table-wrapper dir-panel me-3 p-2 pt-0">
+            <table id="processTable" class="display table table-hover align-middle table-bordered dir-table">
+                <thead class="">
                 <tr>
                     <th class="text-primary sortable text-center" >{{__('Manual')}}</th>
                     <th class="text-primary sortable text-center">{{__('Description')}}</th>

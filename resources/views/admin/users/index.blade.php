@@ -2,12 +2,12 @@
 
 
 @section('content')
+
     <style>
         .table-wrapper{
-            height: 100%;
-            min-height: 0;      /* важно для flex */
+            flex: 1 1 auto;
+            min-height: 0;
             overflow-y: auto;
-            overflow-x: hidden;
         }
 
         .table th, .table td {
@@ -36,7 +36,7 @@
 
         .table thead th {
             position: sticky;
-            height: 50px;
+            height: 32px;
             top: 0;
             vertical-align: middle;
             border-top: 1px;
@@ -93,7 +93,7 @@
 
     </style>
 
-    <div class="card dir-panel mt-1 pt-2 d-flex flex-column" style="height: 100%;">
+    <div class="card dir-page mt-1 pt-2 " >
         @role('Admin')
         <div class="card-header my-1">
             <div class="d-flex align-items-center gap-3 flex-wrap">
@@ -131,7 +131,7 @@
         @endrole
 
         @if(count($users))
-            <div class="table-wrapper me-3 p-2 pt-0 flex-grow-1">
+            <div class="table-wrapper me-3 p-2 pt-0 mb-3">
                 <table id="userTable"
                        class="display table table-sm table-hover  align-middle table-bordered dir-table">
                     <thead class="bg-gradient">
