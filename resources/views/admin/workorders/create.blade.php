@@ -24,6 +24,7 @@
 
         html[data-bs-theme="dark"] .select2-search--dropdown .select2-search__field {
             background-color: #343A40 !important;
+            color: #999999;
         }
 
         html[data-bs-theme="dark"] .select2-container--default .select2-selection--single .select2-selection__rendered {

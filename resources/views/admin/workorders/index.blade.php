@@ -342,8 +342,13 @@
                     <span>Approved</span>
                 </label>
 
-                <label class="checkbox-group">
-                    <input type="checkbox" id="draftCheckbox">
+                <label class="checkbox-group"
+                       @if(!auth()->user()->hasAnyRole('Admin|Manager|Shipping')) hidden @endif>
+
+                    <input type="checkbox"
+                           id="draftCheckbox"
+                           @if(!auth()->user()->hasAnyRole('Admin|Manager|Shipping')) disabled @endif>
+
                     <span>Draft</span>
                 </label>
 
