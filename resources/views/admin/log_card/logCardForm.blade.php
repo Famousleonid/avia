@@ -589,111 +589,135 @@
                 $hasAssyPartNumber = $comp && $comp->assy_part_number;
             @endphp
 
-            <div class="div13 border-l-b-r text-center pt-1 fs-7" style="height: 27px">
-                {{ $comp ? $comp->name : '' }}
-                @if($hasAssySerialNumber && !$hasSerialNumber)
-                    , S/A
-                @endif
+            <div class="div13 border-l-b-r text-start align-content-center ps-2 pt-1 fs-7" style="min-height: 30px" >
+                {{$comp->name}}
+{{--                {{ $comp ? $comp->name : '' }}--}}
+{{--                @if($hasAssySerialNumber && !$hasSerialNumber)--}}
+{{--                    , S/A--}}
+{{--                @endif--}}
             </div>
-            <div class="div14 border-b-r text-center pt-1 fs-7" >
+            <div class="div14 border-b-r text-center  align-content-center pt-1 fs-7" style="line-height: 1.2">
+{{--                {{ $comp->part_number }}--}}
+{{--                @if($hasAssySerialNumber)--}}
+{{--                   ({{ $comp->assy_part_number}})--}}
+{{--                @endif--}}
+
                 @if($hasAssySerialNumber && !$hasSerialNumber)
                     {{ $comp ? $comp->assy_part_number : '' }}
                 @else
-                    {{ $comp ? $comp->part_number : '' }}
-                @endif
-            </div>
-            <div class="div15 border-b-r  text-center pt-1 fs-7" >
-                @if($hasAssySerialNumber && !$hasSerialNumber)
-                    {{ $item['assy_serial_number'] }}
-                @else
-                    {{ $item['serial_number'] }}
-                @endif
-            </div>
-            <div class="div16 border-b-r" > </div>
-
-            @if($hasAssyPartNumber && $hasAssySerialNumber && $hasSerialNumber)
-                <div class="div17 border-b-r text-center pt-1 fs-7" style="grid-column: span 5 / span 5;">
-                    {{__(' ASSY PN ')}} {{$comp->assy_part_number}}{{__('  ASSY SN ')}} {{$item['assy_serial_number'] ?? ''}}
-                </div>
-                <div class="div22 border-b-r text-center pt-1 fs-75" >
-                    @php
-                        $reasonCode = $codes->firstWhere('id', $item['reason']);
-                    @endphp
-                    {{ $reasonCode ? $reasonCode->name : $item['reason'] }}
-                </div>
-            @else
-                <div class="div17 border-b-r" > </div>
-                <div class="div18 border-b-r" > </div>
-                <div class="div19 border-b-r" > </div>
-                <div class="div20 border-b-r" > </div>
-                <div class="div21 border-b-r" > </div>
-                <div class="div22 border-b-r text-center pt-1 fs-75" >
-                    @php
-                        $reasonCode = $codes->firstWhere('id', $item['reason']);
-                    @endphp
-                    {{ $reasonCode ? $reasonCode->name : $item['reason'] }}
-                </div>
-            @endif
-
-        @endforeach
-
-        @for($i=0; $i<9-$log_count; $i++)
-            <div class="div13 border-l-b-r" style="height: 27px"></div>
-            <div class="div14 border-b-r" > </div>
-            <div class="div15 border-b-r" > </div>
-            <div class="div16 border-b-r" > </div>
-            <div class="div17 border-b-r" > </div>
-            <div class="div18 border-b-r" > </div>
-            <div class="div19 border-b-r" > </div>
-            <div class="div20 border-b-r" > </div>
-            <div class="div21 border-b-r" > </div>
-            <div class="div22 border-b-r" > </div>
-        @endfor
-
-    </div>
-
-    <div class="parent mt-2">
-        <div class="div51">NOTES:</div>
-        <div class="div52 fs-7">
-            <div>
-                1. For ultimate lives and/or inspection requirements, refer to Aircraft Airworthiness Data and to the
-                appropriate
-                @foreach($manuals as $manual)
-                    @if($manual->id == $current_wo->unit->manual_id)
-                        <h7 class=""> {{$manual->reg_sb}}</h7>
+                    @if($hasAssySerialNumber && $hasSerialNumber)
+                        {{ $comp ? $comp->part_number : '' }}
+                        ({{ $comp->assy_part_number}})
+                    @else
+                        {{ $comp ? $comp->part_number : '' }}
                     @endif
-                @endforeach
-                Service Bulletin.
-            </div>
-            <div>
-                2. It is the Operator's responsibility to ensure these records are fully and accurately maintained.
-            </div>
-            <div>
-                3. Lives of primary members shall be maintained. Failure to comply may result in premature scrap.
-            </div>
-            <div>
-                4. Should a primary member be removed from the unit it must be suitably tagged to indicate consumed life.
-            </div>
-            <div>
-                5. If the Part No. is changed a new Log Card must be completed, transferring relevant information from the previous Card.
-            </div>
 
-        </div>
-        <div class="div53"></div>
-    </div>
+                @endif
+                </div>
+<div class="div15 border-b-r  text-center align-content-center pt-1 fs-7" style="line-height: 1.2">
+    @if($hasAssySerialNumber && !$hasSerialNumber)
+        {{ $item['assy_serial_number'] }}
+    @else
+        @if($hasAssySerialNumber && $hasSerialNumber)
+            {{ $item['serial_number']}} <br>
+            ({{ $item['assy_serial_number']}})
+        @else
+            {{ $item['serial_number'] }}
+        @endif
+
+    @endif
+
+{{--@if($hasAssySerialNumber && !$hasSerialNumber)--}}
+{{--    {{ $item['assy_serial_number'] }}--}}
+{{--@else--}}
+{{--    {{ $item['serial_number'] }}--}}
+{{--@endif--}}
+</div>
+<div class="div16 border-b-r" > </div>
+
+{{--@if($hasAssyPartNumber && $hasAssySerialNumber && $hasSerialNumber)--}}
+{{--<div class="div17 border-b-r text-center pt-1 fs-7" style="grid-column: span 5 / span 5;">--}}
+{{--    {{__(' ASSY PN ')}} {{$comp->assy_part_number}}{{__('  ASSY SN ')}} {{$item['assy_serial_number'] ?? ''}}--}}
+{{--</div>--}}
+{{--<div class="div22 border-b-r text-center pt-1 fs-75" >--}}
+{{--    @php--}}
+{{--        $reasonCode = $codes->firstWhere('id', $item['reason']);--}}
+{{--    @endphp--}}
+{{--    {{ $reasonCode ? $reasonCode->name : $item['reason'] }}--}}
+{{--</div>--}}
+{{--@else--}}
+<div class="div17 border-b-r" > </div>
+<div class="div18 border-b-r" > </div>
+<div class="div19 border-b-r" > </div>
+<div class="div20 border-b-r" > </div>
+<div class="div21 border-b-r" > </div>
+<div class="div22 border-b-r text-center align-content-center pt-1 fs-75" >
+    @php
+        $reasonCode = $codes->firstWhere('id', $item['reason']);
+    @endphp
+    {{ $reasonCode ? $reasonCode->name : $item['reason'] }}
+</div>
+{{--@endif--}}
+
+@endforeach
+
+@for($i=0; $i<8-$log_count; $i++)
+<div class="div13 border-l-b-r" style="height: 27px"></div>
+<div class="div14 border-b-r" > </div>
+<div class="div15 border-b-r" > </div>
+<div class="div16 border-b-r" > </div>
+<div class="div17 border-b-r" > </div>
+<div class="div18 border-b-r" > </div>
+<div class="div19 border-b-r" > </div>
+<div class="div20 border-b-r" > </div>
+<div class="div21 border-b-r" > </div>
+<div class="div22 border-b-r" > </div>
+@endfor
+
+</div>
+
+<div class="parent mt-2">
+<div class="div51">NOTES:</div>
+<div class="div52 fs-7">
+<div>
+1. For ultimate lives and/or inspection requirements, refer to Aircraft Airworthiness Data and to the
+appropriate
+@foreach($manuals as $manual)
+    @if($manual->id == $current_wo->unit->manual_id)
+        <h7 class=""> {{$manual->reg_sb}}</h7>
+    @endif
+@endforeach
+Service Bulletin.
+</div>
+<div>
+2. It is the Operator's responsibility to ensure these records are fully and accurately maintained.
+</div>
+<div>
+3. Lives of primary members shall be maintained. Failure to comply may result in premature scrap.
+</div>
+<div>
+4. Should a primary member be removed from the unit it must be suitably tagged to indicate consumed life.
+</div>
+<div>
+5. If the Part No. is changed a new Log Card must be completed, transferring relevant information from the previous Card.
+</div>
+
+</div>
+<div class="div53"></div>
+</div>
 
 </div>
 
 <footer >
-    <div class="row" style="width: 100%; padding: 1px 1px;">
-        <div class="col-6 text-start">
-            {{__("Form #008")}}
-        </div>
+<div class="row" style="width: 100%; padding: 1px 1px;">
+<div class="col-6 text-start">
+{{__("Form #008")}}
+</div>
 
-        <div class="col-6 text-end pe-4 ">
-            {{__('Rev#0, 15/Dec/2012   ')}}
-        </div>
-    </div>
+<div class="col-6 text-end pe-4 ">
+{{__('Rev#0, 15/Dec/2012   ')}}
+</div>
+</div>
 </footer>
 
 

@@ -609,37 +609,63 @@
                 $hasAssyPartNumber = $comp && $comp->assy_part_number;
             @endphp
             <div class="div13 border-l-b-r text-center pt-1 fs-7" style="height: 27px">
-                {{ $comp ? $comp->name : '' }}
-                @if($hasAssySerialNumber && !$hasSerialNumber)
-                    , S/A
-                @endif
+                {{$comp->name}}
+{{--                --}}
+{{--                {{ $comp ? $comp->name : '' }}--}}
+{{--                @if($hasAssySerialNumber && !$hasSerialNumber)--}}
+{{--                    , S/A--}}
+{{--                @endif--}}
             </div>
-            <div class="div14 border-b-r text-center pt-1 fs-7" >
+            <div class="div14 border-b-r text-center pt-1 fs-7 " style="line-height: 1.2" >
                 @if($hasAssySerialNumber && !$hasSerialNumber)
                     {{ $comp ? $comp->assy_part_number : '' }}
                 @else
-                    {{ $comp ? $comp->part_number : '' }}
+                    @if($hasAssySerialNumber && $hasSerialNumber)
+                        {{ $comp->part_number }} <br>
+                        ({{ $comp->assy_part_number}})
+                    @else
+                        {{$comp->part_number }}
+                    @endif
+
                 @endif
+
+{{--                @if($hasAssySerialNumber && !$hasSerialNumber)--}}
+{{--                    {{ $comp ? $comp->assy_part_number : '' }}--}}
+{{--                @else--}}
+{{--                    {{ $comp ? $comp->part_number : '' }}--}}
+{{--                @endif--}}
             </div>
-            <div class="div15 border-b-r  text-center pt-1 fs-7" >
+            <div class="div15 border-b-r  text-center pt-1 fs-7" style="line-height: 1.2">
+{{--                {{ $item['serial_number'] }}--}}
+{{--                @if($hasAssySerialNumber)--}}
+{{--                    <br>--}}
+{{--                    ({{ $item['assy_serial_number']}})--}}
+{{--                @endif--}}
+
                 @if($hasAssySerialNumber && !$hasSerialNumber)
                     {{ $item['assy_serial_number'] }}
                 @else
-                    {{ $item['serial_number'] }}
+                    @if($hasAssySerialNumber && $hasSerialNumber)
+                        {{ $item['serial_number']}} <br>
+                        ({{ $item['assy_serial_number']}})
+                    @else
+                        {{ $item['serial_number'] }}
+                    @endif
+
                 @endif
             </div>
             <div class="div16 border-b-r" > </div>
-            @if($hasAssyPartNumber && $hasAssySerialNumber && $hasSerialNumber)
-                <div class="div17 border-b-r text-center pt-1 fs-7" style="grid-column: span 5 / span 5;">
-                    {{__(' ASSY PN ')}} {{$comp->assy_part_number}}{{__(' ASSY SN ')}} {{$item['assy_serial_number'] ?? ''}}
-                </div>
-                <div class="div22 border-b-r text-center pt-1 fs-75" >
-                    @php
-                        $reasonCode = $codes->firstWhere('id', $item['reason']);
-                    @endphp
-                    {{ $reasonCode ? $reasonCode->name : $item['reason'] }}
-                </div>
-            @else
+{{--            @if($hasAssyPartNumber && $hasAssySerialNumber && $hasSerialNumber)--}}
+{{--                <div class="div17 border-b-r text-center pt-1 fs-7" style="grid-column: span 5 / span 5;">--}}
+{{--                    {{__(' ASSY PN ')}} {{$comp->assy_part_number}}{{__(' ASSY SN ')}} {{$item['assy_serial_number'] ?? ''}}--}}
+{{--                </div>--}}
+{{--                <div class="div22 border-b-r text-center pt-1 fs-75" >--}}
+{{--                    @php--}}
+{{--                        $reasonCode = $codes->firstWhere('id', $item['reason']);--}}
+{{--                    @endphp--}}
+{{--                    {{ $reasonCode ? $reasonCode->name : $item['reason'] }}--}}
+{{--                </div>--}}
+{{--            @else--}}
                 <div class="div17 border-b-r" > </div>
                 <div class="div18 border-b-r" > </div>
                 <div class="div19 border-b-r" > </div>
@@ -651,7 +677,7 @@
                     @endphp
                     {{ $reasonCode ? $reasonCode->name : $item['reason'] }}
                 </div>
-            @endif
+{{--            @endif--}}
         @endforeach
 
         @for($i=0; $i<12-$log_count_1; $i++)
@@ -700,38 +726,65 @@
                     $hasAssyPartNumber = $comp && $comp->assy_part_number;
                 @endphp
                 <div class="div13 border-l-b-r text-center pt-1 fs-7" style="height: 27px">
-                    {{ $comp ? $comp->name : '' }}
-                    @if($hasAssySerialNumber && !$hasSerialNumber)
-                        , S/A
-                    @endif
+
+                    {{$comp->name}}
+
+{{--                    {{ $comp ? $comp->name : '' }}--}}
+{{--                    @if($hasAssySerialNumber && !$hasSerialNumber)--}}
+{{--                        , S/A--}}
+{{--                    @endif--}}
                 </div>
-                <div class="div14 border-b-r text-center pt-1 fs-7" >
+                <div class="div14 border-b-r text-center pt-1 fs-7" style="line-height: 1.2">
                     @if($hasAssySerialNumber && !$hasSerialNumber)
                         {{ $comp ? $comp->assy_part_number : '' }}
                     @else
-                        {{ $comp ? $comp->part_number : '' }}
+                        @if($hasAssySerialNumber && $hasSerialNumber)
+                            {{ $comp->part_number }} <br>
+                            ({{ $comp->assy_part_number}})
+                        @else
+                            {{$comp->part_number }}
+                        @endif
+
                     @endif
+
+{{--                    @if($hasAssySerialNumber && !$hasSerialNumber)--}}
+{{--                        {{ $comp ? $comp->assy_part_number : '' }}--}}
+{{--                    @else--}}
+{{--                        {{ $comp ? $comp->part_number : '' }}--}}
+{{--                    @endif--}}
                 </div>
-                <div class="div15 border-b-r  text-center pt-1 fs-7" >
+                <div class="div15 border-b-r  text-center pt-1 fs-7" style="line-height: 1.2">
                     @if($hasAssySerialNumber && !$hasSerialNumber)
                         {{ $item['assy_serial_number'] }}
                     @else
-                        {{ $item['serial_number'] }}
+                        @if($hasAssySerialNumber && $hasSerialNumber)
+                            {{ $item['serial_number']}} <br>
+                            ({{ $item['assy_serial_number']}})
+                        @else
+                            {{ $item['serial_number'] }}
+                        @endif
+
                     @endif
+
+{{--                    @if($hasAssySerialNumber && !$hasSerialNumber)--}}
+{{--                        {{ $item['assy_serial_number'] }}--}}
+{{--                    @else--}}
+{{--                        {{ $item['serial_number'] }}--}}
+{{--                    @endif--}}
                 </div>
                 <div class="div16 border-b-r" > </div>
-                @if($hasAssyPartNumber && $hasAssySerialNumber && $hasSerialNumber)
+{{--                @if($hasAssyPartNumber && $hasAssySerialNumber && $hasSerialNumber)--}}
 
-                    <div class="div17 border-b-r text-center pt-1 fs-7" style="grid-column: span 5 / span 5;">
-                        {{__(' ASSY PN ')}} {{$comp->assy_part_number}}{{__(' ASSY SN ')}} {{$item['assy_serial_number'] ?? ''}}
-                    </div>
-                    <div class="div22 border-b-r text-center pt-1 fs-75" >
-                        @php
-                            $reasonCode = $codes->firstWhere('id', $item['reason']);
-                        @endphp
-                        {{ $reasonCode ? $reasonCode->name : $item['reason'] }}
-                    </div>
-                @else
+{{--                    <div class="div17 border-b-r text-center pt-1 fs-7" style="grid-column: span 5 / span 5;">--}}
+{{--                        {{__(' ASSY PN ')}} {{$comp->assy_part_number}}{{__(' ASSY SN ')}} {{$item['assy_serial_number'] ?? ''}}--}}
+{{--                    </div>--}}
+{{--                    <div class="div22 border-b-r text-center pt-1 fs-75" >--}}
+{{--                        @php--}}
+{{--                            $reasonCode = $codes->firstWhere('id', $item['reason']);--}}
+{{--                        @endphp--}}
+{{--                        {{ $reasonCode ? $reasonCode->name : $item['reason'] }}--}}
+{{--                    </div>--}}
+{{--                @else--}}
                     <div class="div17 border-b-r" > </div>
                     <div class="div18 border-b-r" > </div>
                     <div class="div19 border-b-r" > </div>
@@ -743,7 +796,7 @@
                         @endphp
                         {{ $reasonCode ? $reasonCode->name : $item['reason'] }}
                     </div>
-                @endif
+{{--                @endif--}}
             @endforeach
 
             @for($i=0; $i<22-$log_count_2; $i++)

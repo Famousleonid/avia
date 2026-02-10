@@ -694,25 +694,50 @@
                 $hasAssyPartNumber = $comp && $comp->assy_part_number;
             @endphp
 
-            <div class="div13 border-l-b-r text-center pt-1 fs-7">
-                {{ $comp ? $comp->name : '' }}
-                @if($hasAssySerialNumber && !$hasSerialNumber)
-                    , S/A
-                @endif
+            <div class="div13 border-l-b-r text-center pt-1 fs-7" style="min-height: 30px">
+                {{$comp->name}}
+{{--                {{ $comp ? $comp->name : '' }}--}}
+{{--                @if($hasAssySerialNumber && !$hasSerialNumber)--}}
+{{--                    , S/A--}}
+{{--                @endif--}}
             </div>
-            <div class="div14 border-b-r text-center pt-1 fs-7">
+            <div class="div14 border-b-r text-center pt-1 fs-7" style="line-height: 1.2">
                 @if($hasAssySerialNumber && !$hasSerialNumber)
                     {{ $comp ? $comp->assy_part_number : '' }}
                 @else
-                    {{ $comp ? $comp->part_number : '' }}
+                    @if($hasAssySerialNumber && $hasSerialNumber)
+                        {{ $comp ? $comp->part_number : '' }}
+                        ({{ $comp->assy_part_number}})
+                    @else
+                        {{ $comp ? $comp->part_number : '' }}
+                    @endif
+
                 @endif
+
+{{--                @if($hasAssySerialNumber && !$hasSerialNumber)--}}
+{{--                    {{ $comp ? $comp->assy_part_number : '' }}--}}
+{{--                @else--}}
+{{--                    {{ $comp ? $comp->part_number : '' }}--}}
+{{--                @endif--}}
             </div>
-            <div class="div15 border-b-r  text-center pt-1 fs-7">
+            <div class="div15 border-b-r  text-center pt-1 fs-7" style="line-height: 1.2">
                 @if($hasAssySerialNumber && !$hasSerialNumber)
                     {{ $item['assy_serial_number'] }}
                 @else
-                    {{ $item['serial_number'] }}
+                    @if($hasAssySerialNumber && $hasSerialNumber)
+                        {{ $item['serial_number']}} <br>
+                        ({{ $item['assy_serial_number']}})
+                    @else
+                        {{ $item['serial_number'] }}
+                    @endif
+
                 @endif
+
+{{--                @if($hasAssySerialNumber && !$hasSerialNumber)--}}
+{{--                    {{ $item['assy_serial_number'] }}--}}
+{{--                @else--}}
+{{--                    {{ $item['serial_number'] }}--}}
+{{--                @endif--}}
             </div>
             <div class="div16 border-b-r"> </div>
 
