@@ -333,14 +333,21 @@
 
     PartsModal.init();
 })();
+
 // ===============================
-// TRAINING (Update = выбор даты; Add = форма как в training.create + 360 дней)
+// TRAINING (chooser: Update OR Add) + Add form (360 days) + Update save
 // ===============================
 
-const mainsCreateTrainingUrl = @json(route('trainings.createTraining'));
-const mainsShowUrl = @json(route('mains.show', $current_workorder->id));
-const mainsCsrfToken = @json(csrf_token());
-const DAYS_THRESHOLD = 360;
+'use strict';
+
+const mainsTrainingExistsUrl  = @json(route('trainings.exists'));
+const mainsCreateTrainingUrl  = @json(route('trainings.createTraining'));
+const mainsShowUrl            = @json(route('mains.show', $current_workorder->id));
+const mainsCsrfToken          = @json(csrf_token());
+const DAYS_THRESHOLD          = 360;
+
+// global context for Update modal
+let mainsUpdateManualId = null;
 
 function getTodayYmd() {
     const t = new Date();
@@ -348,163 +355,279 @@ function getTodayYmd() {
     return t.getFullYear() + '-' + String(t.getMonth() + 1).padStart(2, '0') + '-' + String(t.getDate()).padStart(2, '0');
 }
 
+function daysBetween(d1, d2) {
+    const a = new Date(d1.getFullYear(), d1.getMonth(), d1.getDate());
+    const b = new Date(d2.getFullYear(), d2.getMonth(), d2.getDate());
+    return Math.floor((b - a) / (24 * 60 * 60 * 1000));
+}
 
-// ----- Update training: модалка с одной датой (по умолчанию сегодня) -----
+function safeModal(el) {
+    if (!el) return null;
+    return bootstrap.Modal.getOrCreateInstance(el);
+}
+
+async function checkTrainingExists(manualId) {
+    const r = await fetch(mainsTrainingExistsUrl, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRF-TOKEN': mainsCsrfToken
+        },
+        body: JSON.stringify({ manual_id: parseInt(manualId, 10) })
+    });
+    return await r.json();
+}
+
 document.addEventListener('DOMContentLoaded', function () {
-    let mainsUpdateManualId = null;
 
+    // -------------------------------
+    // Elements (may be missing on some pages)
+    // -------------------------------
+    const updateModalEl   = document.getElementById('mainsUpdateTrainingModal');
+    const updateDateInp   = document.getElementById('mainsUpdateTrainingDateInput');
+    const updateSaveBtn   = document.getElementById('mainsUpdateTrainingSaveBtn');
+
+    const addModalEl      = document.getElementById('mainsAddTrainingsModal');
+    const addForm         = document.getElementById('mainsAddTrainingsForm');
+    const manualIdInput   = document.getElementById('mainsAddTrainingsManualId');
+    const listEl          = document.getElementById('mains_training_dates_list');
+    const addDateBtn      = document.getElementById('mains_add_training_date_btn');
+
+    const additionalGroup = document.getElementById('mains_additional_training_date_group');
+    const additionalInput = document.getElementById('mains_additional_training_date');
+
+    const additionalModalEl = document.getElementById('mainsAdditionalTrainingModal');
+    const additionalModalNo = document.getElementById('mainsAdditionalModalNo');
+    const additionalModalYes = document.getElementById('mainsAdditionalModalYes');
+
+    // -------------------------------
+    // 0) Update modal open via .mains-update-training-btn (if you use it somewhere)
+    // -------------------------------
     document.querySelectorAll('.mains-update-training-btn').forEach(function (btn) {
         btn.addEventListener('click', function () {
             mainsUpdateManualId = this.getAttribute('data-manual-id');
-            const input = document.getElementById('mainsUpdateTrainingDateInput');
-            if (input) input.value = getTodayYmd();
-            const modal = new bootstrap.Modal(document.getElementById('mainsUpdateTrainingModal'));
-            modal.show();
+            if (updateDateInp) updateDateInp.value = getTodayYmd();
+            safeModal(updateModalEl)?.show();
         });
     });
 
-    document.getElementById('mainsUpdateTrainingSaveBtn').addEventListener('click', function () {
-        if (!mainsUpdateManualId) return;
-        const input = document.getElementById('mainsUpdateTrainingDateInput');
-        const dateYmd = input && input.value ? input.value.trim() : '';
-        if (!dateYmd) {
-            alert('{{ __("Please select a date.") }}');
-            return;
-        }
-        const trainingData = {
-            manuals_id: [parseInt(mainsUpdateManualId, 10)],
-            date_training: [dateYmd],
-            form_type: ['112']
-        };
-        fetch(mainsCreateTrainingUrl, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': mainsCsrfToken },
-            body: JSON.stringify(trainingData)
-        })
-            .then(function (r) { return r.json(); })
-            .then(function (data) {
-                if (data.success) {
-                    alert(data.message || '{{ __("Training added.") }}');
-                    window.location.href = mainsShowUrl;
-                } else {
-                    alert('{{ __("Error") }}: ' + (data.message || ''));
-                }
-            })
-            .catch(function (err) {
-                alert('{{ __("An error occurred") }}: ' + err.message);
-            });
-    });
-});
-
-// ----- Add trainings: форма как в training.create + 360 дней -----
-document.addEventListener('DOMContentLoaded', function () {
-    const form = document.getElementById('mainsAddTrainingsForm');
-    const manualIdInput = document.getElementById('mainsAddTrainingsManualId');
-    const listEl = document.getElementById('mains_training_dates_list');
-    const addBtn = document.getElementById('mains_add_training_date_btn');
-    const additionalGroup = document.getElementById('mains_additional_training_date_group');
-    const additionalInput = document.getElementById('mains_additional_training_date');
-    const additionalModal = document.getElementById('mainsAdditionalTrainingModal');
-    let additionalTrainingAsked = false;
-    let formPendingSubmit = false;
-
+    // -------------------------------
+    // 1) CHOOSER on "+" button: if exists -> Update modal else -> Add modal
+    // -------------------------------
     document.querySelectorAll('.mains-add-trainings-btn').forEach(function (btn) {
-        btn.addEventListener('click', function () {
+        btn.addEventListener('click', async function () {
             const manualId = this.getAttribute('data-manual-id');
-            if (manualIdInput) manualIdInput.value = manualId;
-            if (listEl) listEl.innerHTML = '';
-            if (form && form.reset) form.reset();
-            if (manualIdInput) manualIdInput.value = manualId;
-            additionalTrainingAsked = false;
-            if (additionalGroup) additionalGroup.style.display = 'none';
-            if (additionalInput) additionalInput.value = '';
-            const modal = new bootstrap.Modal(document.getElementById('mainsAddTrainingsModal'));
-            modal.show();
+            if (!manualId) return;
+
+            try {
+                const data = await checkTrainingExists(manualId);
+                if (!data?.success) {
+                    alert('Error: cannot check trainings.');
+                    return;
+                }
+
+                if (data.exists) {
+                    // ✅ open UPDATE
+                    mainsUpdateManualId = manualId;
+                    if (updateDateInp) updateDateInp.value = getTodayYmd();
+                    safeModal(updateModalEl)?.show();
+                } else {
+                    // ✅ open ADD
+                    if (addForm && addForm.reset) addForm.reset();
+                    if (manualIdInput) manualIdInput.value = manualId;
+                    if (listEl) listEl.innerHTML = '';
+
+                    if (additionalGroup) additionalGroup.style.display = 'none';
+                    if (additionalInput) additionalInput.value = '';
+
+                    // сброс флагов submit-логики
+                    if (addForm) {
+                        addForm.removeAttribute('data-allow-submit');
+                        addForm.dataset.additionalAsked = '0';
+                        addForm.dataset.pendingSubmit = '0';
+                    }
+
+                    safeModal(addModalEl)?.show();
+                }
+            } catch (e) {
+                console.error(e);
+                alert('Error: request failed.');
+            }
         });
     });
 
-    function addMainsTrainingDateRow(value) {
-        if (!listEl) return;
-        const row = document.createElement('div');
-        row.className = 'input-group input-group-sm mb-1';
-        row.innerHTML = '<input type="date" name="training_dates[]" class="form-control" value="' + (value || '') + '">' +
-            '<button type="button" class="btn btn-outline-danger btn-sm mains-remove-training-date" aria-label="Remove"><i class="bi bi-dash"></i></button>';
-        listEl.appendChild(row);
-        row.querySelector('.mains-remove-training-date').addEventListener('click', function () { row.remove(); });
+    // -------------------------------
+    // 2) UPDATE save (one date)
+    // -------------------------------
+    if (updateSaveBtn) {
+        updateSaveBtn.addEventListener('click', function () {
+            if (!mainsUpdateManualId) return;
+
+            const dateYmd = updateDateInp && updateDateInp.value ? updateDateInp.value.trim() : '';
+            if (!dateYmd) {
+                alert('{{ __("Please select a date.") }}');
+                return;
+            }
+
+            const trainingData = {
+                manuals_id: [parseInt(mainsUpdateManualId, 10)],
+                date_training: [dateYmd],
+                form_type: ['112']
+            };
+
+            fetch(mainsCreateTrainingUrl, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN': mainsCsrfToken
+                },
+                body: JSON.stringify(trainingData)
+            })
+                .then(r => r.json())
+                .then(data => {
+                    if (data.success) {
+                        alert(data.message || '{{ __("Training added.") }}');
+                        window.location.href = mainsShowUrl;
+                    } else {
+                        alert('{{ __("Error") }}: ' + (data.message || ''));
+                    }
+                })
+                .catch(err => {
+                    alert('{{ __("An error occurred") }}: ' + err.message);
+                });
+        });
     }
 
-    if (addBtn) addBtn.addEventListener('click', function () { addMainsTrainingDateRow(''); });
+    // -------------------------------
+    // 3) ADD modal helpers: add rows
+    // -------------------------------
+    function addMainsTrainingDateRow(value) {
+        if (!listEl) return;
+
+        const row = document.createElement('div');
+        row.className = 'input-group input-group-sm mb-1';
+        row.innerHTML =
+            '<input type="date" name="training_dates[]" class="form-control" value="' + (value || '') + '">' +
+            '<button type="button" class="btn btn-outline-danger btn-sm mains-remove-training-date" aria-label="Remove">' +
+            '<i class="bi bi-dash"></i></button>';
+
+        listEl.appendChild(row);
+
+        const rm = row.querySelector('.mains-remove-training-date');
+        if (rm) rm.addEventListener('click', function () { row.remove(); });
+    }
+
+    if (addDateBtn) {
+        addDateBtn.addEventListener('click', function () {
+            addMainsTrainingDateRow('');
+        });
+    }
 
     function getMainsFirstDate() {
         const el = document.getElementById('mains_date_training');
         return el && el.value ? new Date(el.value + 'T00:00:00') : null;
     }
+
     function getMainsTodayStart() {
         const t = new Date();
         t.setHours(0, 0, 0, 0);
         return t;
     }
+
     function getMainsTrainingDatesEntered() {
         const dates = [];
-        if (listEl) listEl.querySelectorAll('input[name="training_dates[]"]').forEach(function (inp) {
+        if (!listEl) return dates;
+
+        listEl.querySelectorAll('input[name="training_dates[]"]').forEach(function (inp) {
             if (inp.value) dates.push(inp.value);
         });
-        return dates.sort();
+
+        return dates.sort(); // string sort ok for YYYY-MM-DD
     }
+
     function getMainsLastEnteredDate() {
         const dates = getMainsTrainingDatesEntered();
-        if (dates.length === 0) return null;
+        if (!dates.length) return null;
         return new Date(dates[dates.length - 1] + 'T00:00:00');
     }
-    function daysBetween(d1, d2) {
-        const a = new Date(d1.getFullYear(), d1.getMonth(), d1.getDate());
-        const b = new Date(d2.getFullYear(), d2.getMonth(), d2.getDate());
-        return Math.floor((b - a) / (24 * 60 * 60 * 1000));
+
+    // -------------------------------
+    // 4) Additional modal (Yes/No) handlers
+    // -------------------------------
+    function hideAdditionalModal() {
+        const inst = bootstrap.Modal.getInstance(additionalModalEl);
+        if (inst) inst.hide();
     }
 
-    document.getElementById('mainsAdditionalModalNo').addEventListener('click', function () {
-        additionalTrainingAsked = true;
-        bootstrap.Modal.getInstance(additionalModal).hide();
-        if (formPendingSubmit && form) {
-            form.dataset.allowSubmit = '1';
-            form.submit();
-        }
-        formPendingSubmit = false;
-    });
-    document.getElementById('mainsAdditionalModalYes').addEventListener('click', function () {
-        additionalTrainingAsked = true;
-        bootstrap.Modal.getInstance(additionalModal).hide();
-        if (additionalGroup) additionalGroup.style.display = 'block';
-        if (additionalInput && !additionalInput.value) additionalInput.value = getTodayYmd();
-        if (formPendingSubmit && form) {
-            form.dataset.allowSubmit = '1';
-            form.submit();
-        }
-        formPendingSubmit = false;
-    });
+    if (additionalModalNo) {
+        additionalModalNo.addEventListener('click', function () {
+            if (!addForm) return;
+            addForm.dataset.additionalAsked = '1';
+            hideAdditionalModal();
 
-    if (form) {
-        form.addEventListener('submit', function (e) {
-            if (form.dataset.allowSubmit === '1') {
-                form.removeAttribute('data-allow-submit');
+            if (addForm.dataset.pendingSubmit === '1') {
+                addForm.dataset.allowSubmit = '1';
+                addForm.submit();
+            }
+            addForm.dataset.pendingSubmit = '0';
+        });
+    }
+
+    if (additionalModalYes) {
+        additionalModalYes.addEventListener('click', function () {
+            if (!addForm) return;
+            addForm.dataset.additionalAsked = '1';
+            hideAdditionalModal();
+
+            if (additionalGroup) additionalGroup.style.display = 'block';
+            if (additionalInput && !additionalInput.value) additionalInput.value = getTodayYmd();
+
+            if (addForm.dataset.pendingSubmit === '1') {
+                addForm.dataset.allowSubmit = '1';
+                addForm.submit();
+            }
+            addForm.dataset.pendingSubmit = '0';
+        });
+    }
+
+    // -------------------------------
+    // 5) ADD form submit intercept (360 days logic)
+    // -------------------------------
+    if (addForm) {
+        // init flags
+        addForm.dataset.additionalAsked = addForm.dataset.additionalAsked || '0';
+        addForm.dataset.pendingSubmit = addForm.dataset.pendingSubmit || '0';
+
+        addForm.addEventListener('submit', function (e) {
+            // allow real submit once
+            if (addForm.dataset.allowSubmit === '1') {
+                addForm.removeAttribute('data-allow-submit');
                 return;
             }
+
             e.preventDefault();
+
             const subsequentDates = getMainsTrainingDatesEntered();
             const lastEntered = subsequentDates.length ? getMainsLastEnteredDate() : getMainsFirstDate();
             const today = getMainsTodayStart();
-            const needAsk = lastEntered && daysBetween(lastEntered, today) >= DAYS_THRESHOLD;
-            const hasAdditional = additionalInput && additionalInput.value && additionalGroup && additionalGroup.style.display !== 'none';
 
-            if (needAsk && !additionalTrainingAsked && !hasAdditional) {
-                formPendingSubmit = true;
-                new bootstrap.Modal(additionalModal).show();
+            const needAsk = lastEntered && daysBetween(lastEntered, today) >= DAYS_THRESHOLD;
+            const hasAdditionalShown = additionalGroup && additionalGroup.style.display !== 'none';
+            const hasAdditionalValue = additionalInput && additionalInput.value;
+            const alreadyAsked = addForm.dataset.additionalAsked === '1';
+
+            if (needAsk && !alreadyAsked && !(hasAdditionalShown && hasAdditionalValue)) {
+                // show additional modal question
+                addForm.dataset.pendingSubmit = '1';
+                safeModal(additionalModalEl)?.show();
                 return;
             }
-            formPendingSubmit = false;
-            form.dataset.allowSubmit = '1';
-            form.submit();
+
+            addForm.dataset.pendingSubmit = '0';
+            addForm.dataset.allowSubmit = '1';
+            addForm.submit();
         });
     }
+
 });
 </script>

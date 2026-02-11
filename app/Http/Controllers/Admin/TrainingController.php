@@ -10,6 +10,7 @@ use App\Models\Scope;
 use App\Models\Training;
 use App\Models\User;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 
 class TrainingController extends Controller
 {
@@ -51,15 +52,13 @@ class TrainingController extends Controller
     {
         $userId = auth()->id();
         $planes = Plane::pluck('type', 'id');
-
-        // Получаем ID юнитов, которые уже добавлены для текущего пользователя
         $addedCmmIds = Training::where('user_id', $userId)->pluck('manuals_id');
 
         // Получаем юниты, которые:
         // 1. Не добавлены для текущего пользователя
         // 2. Имеют unit_name_training не NULL И не пустую строку
         $manuals = Manual::whereNotIn('id', $addedCmmIds)
-            ->where(function($query) {
+            ->where(function ($query) {
                 $query->whereNotNull('unit_name_training')
                     ->where('unit_name_training', '<>', '');
             })
@@ -68,17 +67,11 @@ class TrainingController extends Controller
         return view('admin.trainings.create', compact('manuals', 'planes'));
     }
 
-    /**
-     * Store a newly created resource in storage.
-     * New logic: first training date + list of subsequent dates; optional additional date if last > 360 days ago.
-     */
     public function store(Request $request)
     {
         $userId = auth()->id();
-
-        // Убираем пустые значения из списка дат
         $request->merge([
-            'training_dates' => array_values(array_filter((array) $request->input('training_dates', []))),
+            'training_dates' => array_values(array_filter((array)$request->input('training_dates', []))),
         ]);
 
         $validatedData = $request->validate([
@@ -89,7 +82,7 @@ class TrainingController extends Controller
             'additional_training_date' => 'nullable|date|after_or_equal:date_training|before_or_equal:today',
         ]);
 
-        $manualId = (int) $validatedData['manuals_id'];
+        $manualId = (int)$validatedData['manuals_id'];
         $firstDate = \Carbon\Carbon::parse($validatedData['date_training'])->startOfDay();
         $trainingDates = $validatedData['training_dates'] ?? [];
         $trainingDates = array_unique(array_filter(array_map(function ($d) {
@@ -106,6 +99,9 @@ class TrainingController extends Controller
             ->where('manuals_id', $manualId)
             ->where('form_type', 132)
             ->first();
+
+       // dd($existingForm132);
+
 
         if (!$existingForm132) {
             Training::create([
@@ -321,73 +317,89 @@ class TrainingController extends Controller
                 $message .= " (Form 132 already exists)";
             }
 
+            return response()->json([
+                'success' => true,
+                'message' => $message,
+                'created' => $createdCount,
+                'skipped' => $skippedCount
+            ]);
+        } catch (\Exception $e) {
+            return response()->json(['success' => false, 'message' => 'Ошибка: ' . $e->getMessage()], 500);
+        }
+    }
+
+    public function exists(Request $request)
+    {
+        $data = $request->validate([
+            'manual_id' => ['required', 'integer'],
+        ]);
+
+        $userId = Auth::id();
+        $manualId = (int)$data['manual_id'];
+
+        $exists = Training::query()
+            ->where('user_id', $userId)
+            ->where('manuals_id', $manualId)
+            ->exists();
+
         return response()->json([
             'success' => true,
-            'message' => $message,
-            'created' => $createdCount,
-            'skipped' => $skippedCount
+            'exists' => $exists,
         ]);
-    } catch (\Exception $e) {
-        return response()->json(['success' => false, 'message' => 'Ошибка: ' . $e->getMessage()], 500);
     }
-}
 
-/**
- * Обновляет тренировку на сегодняшнюю дату
- */
-public function updateToToday(Request $request)
-{
-    try {
-        $validatedData = $request->validate([
-            'manuals_id.*' => 'required',
-            'date_training.*' => 'required|date',
-            'form_type.*' => 'required|in:112'
-        ]);
+    public function updateToToday(Request $request)
+    {
+        try {
+            $validatedData = $request->validate([
+                'manuals_id.*' => 'required',
+                'date_training.*' => 'required|date',
+                'form_type.*' => 'required|in:112'
+            ]);
 
-        $userId = auth()->id();
-        $createdCount = 0;
-        $skippedCount = 0;
+            $userId = auth()->id();
+            $createdCount = 0;
+            $skippedCount = 0;
 
-        foreach ($validatedData['manuals_id'] as $key => $manualId) {
-            $trainingDate = $validatedData['date_training'][$key];
+            foreach ($validatedData['manuals_id'] as $key => $manualId) {
+                $trainingDate = $validatedData['date_training'][$key];
 
-            // Проверяем существование тренировки формы 112 на сегодняшнюю дату
-            $existingTraining112 = Training::where('user_id', $userId)
-                ->where('manuals_id', $manualId)
-                ->where('date_training', $trainingDate)
-                ->where('form_type', '112')
-                ->first();
+                // Проверяем существование тренировки формы 112 на сегодняшнюю дату
+                $existingTraining112 = Training::where('user_id', $userId)
+                    ->where('manuals_id', $manualId)
+                    ->where('date_training', $trainingDate)
+                    ->where('form_type', '112')
+                    ->first();
 
-            if (!$existingTraining112) {
-                // Создаем тренировку формы 112 на сегодняшнюю дату
-                Training::create([
-                    'user_id' => $userId,
-                    'manuals_id' => $manualId,
-                    'date_training' => $trainingDate,
-                    'form_type' => '112',
-                ]);
-                $createdCount++;
-            } else {
-                $skippedCount++;
+                if (!$existingTraining112) {
+                    // Создаем тренировку формы 112 на сегодняшнюю дату
+                    Training::create([
+                        'user_id' => $userId,
+                        'manuals_id' => $manualId,
+                        'date_training' => $trainingDate,
+                        'form_type' => '112',
+                    ]);
+                    $createdCount++;
+                } else {
+                    $skippedCount++;
+                }
             }
-        }
 
-        $message = "Updated training to today";
-        if ($skippedCount > 0) {
-            $message .= ", skipped {$skippedCount} existing training(s)";
-        }
+            $message = "Updated training to today";
+            if ($skippedCount > 0) {
+                $message .= ", skipped {$skippedCount} existing training(s)";
+            }
 
-        return response()->json([
-            'success' => true,
-            'message' => $message,
-            'created' => $createdCount,
-            'skipped' => $skippedCount
-        ]);
-    } catch (\Exception $e) {
-        return response()->json(['success' => false, 'message' => 'Ошибка: ' . $e->getMessage()], 500);
+            return response()->json([
+                'success' => true,
+                'message' => $message,
+                'created' => $createdCount,
+                'skipped' => $skippedCount
+            ]);
+        } catch (\Exception $e) {
+            return response()->json(['success' => false, 'message' => 'Ошибка: ' . $e->getMessage()], 500);
+        }
     }
-}
-
 
     public function showForm112($id, Request $request)
     {
@@ -395,7 +407,7 @@ public function updateToToday(Request $request)
         $user = $training->user ?? User::find($training->user_id);
         $showImage = $request->query('showImage', 'false'); // Получаем параметр из запроса
 
-        return view('admin.trainings.form112', compact('training', 'showImage','user'));
+        return view('admin.trainings.form112', compact('training', 'showImage', 'user'));
     }
 
     public function showForm132($id, Request $request)
@@ -406,31 +418,19 @@ public function updateToToday(Request $request)
         $showImage = $request->query('showImage', 'false');
 
 
-        return view('admin.trainings.form132', compact('training', 'showImage','user'));
+        return view('admin.trainings.form132', compact('training', 'showImage', 'user'));
     }
 
-
-
-
-    /**
-     * Display the specified resource.
-     */
     public function show(string $id)
     {
         //
     }
 
-    /**
-     * Show the form for editing the specified resource.
-     */
     public function edit(string $id)
     {
         //
     }
 
-    /**
-     * Update the specified resource in storage (e.g. edit training date).
-     */
     public function update(Request $request, string $id)
     {
         $training = Training::findOrFail($id);
@@ -452,9 +452,6 @@ public function updateToToday(Request $request)
         ]);
     }
 
-    /**
-     * Remove the specified resource from storage.
-     */
     public function destroy(string $id)
     {
         //
@@ -484,9 +481,6 @@ public function updateToToday(Request $request)
         }
     }
 
-    /**
-     * Display all trainings for all users
-     */
     public function showAll()
     {
         try {

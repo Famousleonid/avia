@@ -21,6 +21,7 @@ use App\Http\Controllers\Admin\UserController;
 use App\Http\Controllers\Admin\MainController;
 use App\Http\Controllers\Admin\TrainingController;
 use App\Http\Controllers\Admin\UnitController;
+use App\Http\Controllers\Admin\VendorController;
 use App\Http\Controllers\Admin\WorkorderController;
 use App\Http\Controllers\Admin\WoBushingController;
 use App\Http\Controllers\Admin\NdtCadCsvController;
@@ -193,7 +194,7 @@ Route::group(['middleware' => ['auth']], function () {
         Route::post('/trainings/createTraining', [TrainingController::class, 'createTraining'])->name('trainings.createTraining');
         Route::post('/trainings/updateToToday', [TrainingController::class, 'updateToToday'])->name('trainings.updateToToday');
         Route::post('/trainings/delete-all', [TrainingController::class, 'deleteAll'])->name('trainings.deleteAll');
-
+        Route::post('/trainings/exists', [TrainingController::class, 'exists'])->name('trainings.exists');
         Route::resource('/trainings', TrainingController::class);
 
 
@@ -324,10 +325,18 @@ Route::group(['middleware' => ['auth']], function () {
 
 Route::middleware(['auth'])
     ->prefix('admin')
-    ->name('admin.')
     ->group(function () {
+
         foreach (array_keys(config('directories')) as $slug) {
+
             Route::resource($slug, DirectoryController::class)
-                ->only(['index', 'store', 'update', 'destroy']);
+                ->only(['index', 'store', 'update', 'destroy'])
+                ->parameters([$slug => 'id']) // чтобы было {id}, а не {role}/{plane}
+                ->names([
+                    'index'   => "{$slug}.index",
+                    'store'   => "{$slug}.store",
+                    'update'  => "{$slug}.update",
+                    'destroy' => "{$slug}.destroy",
+                ]);
         }
     });

@@ -73,6 +73,7 @@
             @if($manualId)
                 <button
                     class="btn btn-outline-primary btn-sm mains-add-trainings-btn"
+                    data-manual-id="{{ $manualId }}"
                     style="height:30px;width:30px;padding:0;display:flex;align-items:center;justify-content:center;"
                     title="{{ __('Add training') }}">
                     <i class="bi bi-plus-circle" style="font-size:14px;"></i>
@@ -107,7 +108,7 @@
 @else
 
     {{-- Not owner: render ONLY for Admin|Manager --}}
-    @roles("Admin|Manager")
+    @roles("Admin|Manager|Team Leader")
     <div class="training-status ms-4 text-center border rounded" data-tippy-content='{!! $historyHtmlAttr !!}'>
         {{-- Header row --}}
         <div class="training-row">

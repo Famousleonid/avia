@@ -203,7 +203,7 @@ class DirectoryController extends Controller
         $modelClass = $dir['model'];
         $item = $modelClass::create($data);
 
-        return redirect()->route("admin.$slug.index")->with('success', 'Created');
+        return redirect()->route("$slug.index")->with('success', 'Created');
     }
 
     public function update(Request $request, $id)
@@ -226,7 +226,7 @@ class DirectoryController extends Controller
 
         $item->fill($data)->save();
 
-        return redirect()->route("admin.$slug.index")->with('success', 'Updated');
+        return redirect()->route("$slug.index")->with('success', 'Updated');
     }
 
     public function destroy(Request $request, $id)
@@ -239,6 +239,6 @@ class DirectoryController extends Controller
 
         $item->delete();
 
-        return redirect()->route("admin.$slug.index")->with('success', 'Deleted');
+        return redirect()->route("$slug.index")->with('success', 'Deleted');
     }
 }
