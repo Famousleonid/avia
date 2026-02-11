@@ -4,11 +4,12 @@
     'trainingUser',   // User model (for whom this block is rendered)
     'training',       // Training model|null (latest)
     'manualId',       // int|null
-    'isOwner' => false, // bool: true = this block is for current logged-in user
     'history' => null,  // Collection of Training (date_training, form_type), optional
+    'isOwner' => false,
 ])
 
 @php
+
     $trainingDate = null;
     $monthsDiff = null;
     $isThisMonth = false;
@@ -59,14 +60,47 @@
      - Owner (current user) => always show
      - Workorder->user (someone else) => show ONLY Admin|Manager
    ========================================================= --}}
+<style>
+    .training-status {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 6px 10px;
+        white-space: nowrap;
+    }
+
+    .training-row {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+
+    .training-user {
+        margin-bottom: 0;
+    }
+
+    .training-status-text {
+        margin: 0;
+        font-size: 13px;
+    }
+
+    .training-status button {
+        flex-shrink: 0;
+    }
+
+    .training-status-text {
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+</style>
 @if($isOwner)
 
     <div class="training-status ms-4 text-center border rounded" data-tippy-content='{!! $historyHtmlAttr !!}'>
+
         {{-- Header row --}}
         <div class="training-row">
             <div class="training-user fw-semibold text-info small">
                 Training: {{ $trainingUser?->name ?? '—' }}
-                <span class="text-muted">(me)</span>
             </div>
 
             {{-- Owner: PLUS button ALWAYS (if manualId exists) --}}
@@ -77,25 +111,25 @@
                     style="height:30px;width:30px;padding:0;display:flex;align-items:center;justify-content:center;"
                     title="{{ __('Add training') }}">
                     <i class="bi bi-plus-circle" style="font-size:14px;"></i>
-              </button>
-          @else
-              <span style="display:inline-block;width:30px;height:30px;"></span>
-          @endif
-      </div>
+                </button>
+            @else
+                <span style="display:inline-block;width:30px;height:30px;"></span>
+            @endif
+        </div>
 
-      {{-- Body --}}
+        {{-- Body --}}
         @if($trainingDate)
             @if($monthsDiff !== null && $monthsDiff <= 12)
                 <div class="training-status-text" style="color: lawngreen;">
                     @if($monthsDiff === 0 && $isThisMonth)
                         Last training this month · {{ $trainingDate->format('M d, Y') }}
                     @else
-                        Last training {{ $monthsDiff }} month{{ $monthsDiff === 1 ? '' : 's' }} ago · {{ $trainingDate->format('M d, Y') }}
+                        Last training {{ $monthsDiff }} month{{ $monthsDiff === 1 ? '' : 's' }} ago
                     @endif
                 </div>
             @else
                 <div class="training-status-text text-success small">
-                    Last training {{ $monthsDiff }} months ago · {{ $trainingDate->format('M d, Y') }}
+                    Last training {{ $monthsDiff }} months ago
                 </div>
             @endif
         @else
@@ -108,7 +142,6 @@
 @else
 
     {{-- Not owner: render ONLY for Admin|Manager --}}
-    @roles("Admin|Manager|Team Leader")
     <div class="training-status ms-4 text-center border rounded" data-tippy-content='{!! $historyHtmlAttr !!}'>
         {{-- Header row --}}
         <div class="training-row">
@@ -116,8 +149,7 @@
                 Training: {{ $trainingUser?->name ?? '—' }}
             </div>
 
-            {{-- No action buttons for workorder->user (Admin/Manager view-only) --}}
-            <span style="display:inline-block;width:30px;height:30px;"></span>
+
         </div>
 
         {{-- Body --}}
@@ -127,12 +159,12 @@
                     @if($monthsDiff === 0 && $isThisMonth)
                         Last training this month · {{ $trainingDate->format('M d, Y') }}
                     @else
-                        Last training {{ $monthsDiff }} month{{ $monthsDiff === 1 ? '' : 's' }} ago · {{ $trainingDate->format('M d, Y') }}
+                        Last training {{ $monthsDiff }} month{{ $monthsDiff === 1 ? '' : 's' }} ago
                     @endif
                 </div>
             @else
                 <div class="training-status-text text-success small">
-                    Last training {{ $monthsDiff }} months ago · {{ $trainingDate->format('M d, Y') }}
+                    Last training {{ $monthsDiff }} months ago
                 </div>
             @endif
         @else
@@ -141,6 +173,5 @@
             </div>
         @endif
     </div>
-    @endroles
 
 @endif

@@ -9,60 +9,8 @@
             padding-right: .5rem !important;
             cursor: not-allowed;
         }
-        .training-status{
-            width: 300px;
-            height: 70px;                 /* одинаковая высота */
-            padding: 8px 10px;
-            border-color: #495057 !important;
-            background: rgba(0,0,0,.15);
-            flex-shrink: 0;
 
-            display: flex;
-            flex-direction: column;
-            justify-content: flex-start;    /* вертикально центрируем контент */
-            gap: 6px;
-        }
 
-        .training-status .training-row{
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            gap: 8px;
-        }
-
-        .training-status .small{
-            font-size: 11px;
-        }
-
-        .training-status .text-warning.small{
-            font-size: 11px;
-        }
-
-        .training-status button{
-            margin-top: 2px !important;
-        }
-        .training-status .training-header{
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            gap: 6px;
-        }
-
-        .training-status .training-user{
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
-            max-width: 220px;
-        }
-
-        .training-status .training-status-text{
-            white-space: nowrap;          /* одна строка */
-            overflow: hidden;
-            text-overflow: ellipsis;
-            line-height: 1.2;
-            padding-bottom: 1px;
-            font-size: 12px;
-        }
 
         .tippy-box[data-theme~='avia-dark'] {
             border: 1px solid #ADB1B5;
@@ -77,49 +25,53 @@
         }
 
         /* default: dropzones look normal */
-        .group-dropzone{
+        .group-dropzone {
             border: 0;
             background: transparent;
             min-height: 90px; /* чтобы было куда дропать даже если пусто */
         }
+
         /* show zones only while dragging */
-        #photoModal.dnd-active .group-dropzone{
-            border: 2px dashed rgba(255,255,255,.28);
-            background: rgba(255,255,255,.04);
-            box-shadow: inset 0 0 0 1px rgba(0,0,0,.45);
+        #photoModal.dnd-active .group-dropzone {
+            border: 2px dashed rgba(255, 255, 255, .28);
+            background: rgba(255, 255, 255, .04);
+            box-shadow: inset 0 0 0 1px rgba(0, 0, 0, .45);
         }
 
         /* hovered zone stronger */
-        #photoModal.dnd-active .group-dropzone.drop-hover{
-            border-color: rgba(13,202,240,.95);
-            background: rgba(13,202,240,.12);
+        #photoModal.dnd-active .group-dropzone.drop-hover {
+            border-color: rgba(13, 202, 240, .95);
+            background: rgba(13, 202, 240, .12);
         }
-        .group-dropzone.drop-hover{
-            border-color: rgba(13,202,240,.95);
-            background: rgba(13,202,240,.12);
+
+        .group-dropzone.drop-hover {
+            border-color: rgba(13, 202, 240, .95);
+            background: rgba(13, 202, 240, .12);
         }
 
         /* Optional "Drop here" hint */
-        .group-dropzone::before{
+        .group-dropzone::before {
             content: "Drop here";
             display: block;
             font-size: 11px;
             letter-spacing: .06em;
             text-transform: uppercase;
-            color: rgba(255,255,255,.35);
+            color: rgba(255, 255, 255, .35);
             margin-bottom: 6px;
         }
 
-        .group-dropzone.drop-hover::before{
-            color: rgba(13,202,240,.95);
+        .group-dropzone.drop-hover::before {
+            color: rgba(13, 202, 240, .95);
         }
 
         /* dragging style */
-        .photo-item.dragging{ opacity:.55; }
+        .photo-item.dragging {
+            opacity: .55;
+        }
 
-        .group-hr{
+        .group-hr {
             border: 0;
-            border-top: 1px solid rgba(255,255,255,.10);
+            border-top: 1px solid rgba(255, 255, 255, .10);
             opacity: 1;
         }
 
@@ -128,8 +80,6 @@
 @endsection
 
 @section('content')
-
-
 
     <div class="card dir-page">
         <div class="card-body p-0 shadow-lg">
@@ -141,13 +91,15 @@
 
                         {{-- Manual image --}}
                         <div class="col-12 col-md-2 col-lg-1 d-flex">
-                            <div class="card h-100 w-100 bg-dark text-light border-secondary d-flex align-items-center justify-content-center p-2">
+                            <div
+                                class="card h-100 w-100 bg-dark text-light border-secondary d-flex align-items-center justify-content-center p-2">
                                 @php
                                     $previewHref = $imgFull ?: $imgThumb; // если нет full — открываем то, что показано
                                 @endphp
 
                                 <a href="{{ $previewHref }}" data-fancybox="wo-manual" title="Manual">
-                                    <img class="rounded-circle" src="{{ $imgThumb }}" width="70" height="70" alt="Manual preview">
+                                    <img class="rounded-circle" src="{{ $imgThumb }}" width="70" height="70"
+                                         alt="Manual preview">
                                 </a>
                             </div>
                         </div>
@@ -208,7 +160,7 @@
                                         {{-- RIGHT: trainings (ONE LINE) --}}
                                         <div class="d-flex align-items-center gap-2 flex-shrink-0">
 
-                                            @if($manual_id)
+                                            @if($manual_id && auth()->id() === (int)$current_workorder->user_id)
                                                 <x-training-status
                                                     :training-user="auth()->user()"
                                                     :training="$trainingAuthLatest"
@@ -217,7 +169,7 @@
                                                     :is-owner="true"
                                                 />
                                             @endif
-
+                                            @roles("Admin|Manager|Team Leader")
                                             @if($manual_id && $current_workorder->user)
                                                 <x-training-status
                                                     :training-user="$current_workorder->user"
@@ -227,8 +179,9 @@
                                                     :is-owner="false"
                                                 />
                                             @endif
-
+                                            @endroles
                                         </div>
+
                                     </div>
 
                                     {{-- SECOND LINE: three info blocks --}}
@@ -247,11 +200,13 @@
                                                     </div>
                                                     <div class="d-flex gap-1">
                                                         <span class="text-info">Serial number:</span>
-                                                        <span class="ms-4">{{ $current_workorder->serial_number ?? ($current_workorder->unit->serial_number ?? '—') }}</span>
+                                                        <span
+                                                            class="ms-4">{{ $current_workorder->serial_number ?? ($current_workorder->unit->serial_number ?? '—') }}</span>
                                                     </div>
                                                     <div class="d-flex gap-1">
                                                         <span class="text-info me-4">Instruction:</span>
-                                                        <span class="ms-3">{{ $current_workorder->instruction->name ?? '—' }}</span>
+                                                        <span
+                                                            class="ms-3">{{ $current_workorder->instruction->name ?? '—' }}</span>
                                                     </div>
                                                 </div>
                                             </div>
@@ -286,10 +241,12 @@
                                                     <span class="text-info me-4">Parts:</span>
 
                                                     <span class="text-muted ms-3">Ordered:</span>
-                                                    <span id="orderedQty{{ $current_workorder->number }}">{{ $orderedQty ?? 0 }}</span>
+                                                    <span
+                                                        id="orderedQty{{ $current_workorder->number }}">{{ $orderedQty ?? 0 }}</span>
 
                                                     <span class="text-muted">Received:</span>
-                                                    <span id="receivedQty{{ $current_workorder->number }}">{{ $receivedQty ?? 0 }}</span>
+                                                    <span
+                                                        id="receivedQty{{ $current_workorder->number }}">{{ $receivedQty ?? 0 }}</span>
 
                                                     <button type="button"
                                                             class="btn btn-success ms-3"
@@ -339,7 +296,8 @@
                             </div>
 
                             {{-- Tables --}}
-                            <div class="flex-grow-1 min-h-0 js-gt-container" data-wo-id="{{$current_workorder->id}}" hidden>
+                            <div class="flex-grow-1 min-h-0 js-gt-container" data-wo-id="{{$current_workorder->id}}"
+                                 hidden>
 
                                 @foreach($general_tasks as $i => $gt)
 
@@ -397,8 +355,10 @@
                                                                 @endif
 
                                                                 @unless($main)
-                                                                    <input type="hidden" name="workorder_id" value="{{ $current_workorder->id }}">
-                                                                    <input type="hidden" name="task_id" value="{{ $task->id }}">
+                                                                    <input type="hidden" name="workorder_id"
+                                                                           value="{{ $current_workorder->id }}">
+                                                                    <input type="hidden" name="task_id"
+                                                                           value="{{ $task->id }}">
                                                                 @endunless
 
                                                                 {{-- hidden всегда 0, а JS (applyIgnoreState) перепишет на 1/0 при клике --}}
@@ -407,12 +367,13 @@
                                                                        value="0"
                                                                        class="js-ignore-hidden">
                                                                 @if(!$lockDates)
-                                                                    <input class="form-check-input m-0 js-ignore-row {{ $isIgnored ? 'is-ignored' : '' }}"
-                                                                           type="checkbox"
-                                                                           name="ignore_row"
-                                                                           value="1"
-                                                                           {{ $isIgnored ? 'checked' : '' }}
-                                                                           title="Ignore this row">
+                                                                    <input
+                                                                        class="form-check-input m-0 js-ignore-row {{ $isIgnored ? 'is-ignored' : '' }}"
+                                                                        type="checkbox"
+                                                                        name="ignore_row"
+                                                                        value="1"
+                                                                        {{ $isIgnored ? 'checked' : '' }}
+                                                                        title="Ignore this row">
                                                                 @endif
                                                             </form>
 
@@ -430,7 +391,8 @@
                                                         {{-- task --}}
                                                         <td class="js-fade-on-ignore {{ $isIgnored ? 'is-ignored' : '' }}"
                                                             title="{{ $main?->task?->name ?? $task->name }}">
-                                                             <span class="text-truncate d-inline-block" style="max-width: 200px;">
+                                                             <span class="text-truncate d-inline-block"
+                                                                   style="max-width: 200px;">
                                                              {{ $main?->task?->name ?? $task->name }}</span>
                                                         </td>
 
@@ -447,8 +409,10 @@
                                                                         @endif
 
                                                                         @unless($main)
-                                                                            <input type="hidden" name="workorder_id" value="{{ $current_workorder->id }}">
-                                                                            <input type="hidden" name="task_id" value="{{ $task->id }}">
+                                                                            <input type="hidden" name="workorder_id"
+                                                                                   value="{{ $current_workorder->id }}">
+                                                                            <input type="hidden" name="task_id"
+                                                                                   value="{{ $task->id }}">
                                                                         @endunless
 
                                                                         <input type="text"
@@ -487,8 +451,10 @@
                                                                     @endif
 
                                                                     @unless($main)
-                                                                        <input type="hidden" name="workorder_id" value="{{ $current_workorder->id }}">
-                                                                        <input type="hidden" name="task_id" value="{{ $task->id }}">
+                                                                        <input type="hidden" name="workorder_id"
+                                                                               value="{{ $current_workorder->id }}">
+                                                                        <input type="hidden" name="task_id"
+                                                                               value="{{ $task->id }}">
                                                                     @endunless
 
                                                                     <input type="text"
@@ -549,10 +515,13 @@
 
                                                     <div class="wo-notes-right">
                                                         <div class="wo-notes-hint">autosave on blur / Ctrl+Enter</div>
-                                                        <i class="bi bi-save text-warning d-none js-notes-save-indicator" title="Unsaved"></i>
-                                                        <span class="text-muted small d-none js-notes-saving">Saving...</span>
+                                                        <i class="bi bi-save text-warning d-none js-notes-save-indicator"
+                                                           title="Unsaved"></i>
+                                                        <span
+                                                            class="text-muted small d-none js-notes-saving">Saving...</span>
                                                         {{-- 💾 индикатор изменений (появляется только если текст изменён) --}}
-                                                        <i class="bi bi-save text-warning d-none js-notes-save-indicator" title="Unsaved"></i>
+                                                        <i class="bi bi-save text-warning d-none js-notes-save-indicator"
+                                                           title="Unsaved"></i>
                                                         @hasanyrole('Admin|Manager')
                                                         {{-- кнопка логов --}}
                                                         <button type="button"
@@ -646,7 +615,9 @@
                                                         class="table table-sm table-dark table-bordered mb-2 align-middle">
                                                         <thead>
                                                         <tr>
-                                                            <th style="width:10%; text-align:center" class="fw-normal text-muted">Technik</th>
+                                                            <th style="width:10%; text-align:center"
+                                                                class="fw-normal text-muted">Technik
+                                                            </th>
                                                             <th style="width:30%;">
                                                                 <div class=" text-info">
                                                                     {{ $cmp->name ?? ('#'.$cmp->id) }}&nbsp;&nbsp;
@@ -952,7 +923,5 @@
 
         });
     </script>
-
-
 
 @endsection

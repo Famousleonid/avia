@@ -261,7 +261,6 @@
                     <span class="text-muted" style="font-size: 16px;">of</span>
                     <span class="text-info" id="woTotal">{{ $workorders->count() }}</span>
 
-
                 </h5>
 
                 <a id="admin_new_firm_create" href="{{ route('workorders.create') }}">
