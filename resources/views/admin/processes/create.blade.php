@@ -84,7 +84,7 @@
                             <h5 class="modal-title" id="addProcessNameModalLabel">{{ __('Add Process Name') }}</h5>
                             <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Закрыть"></button>
                         </div>
-                        <form action="{{ route('process-names.store') }}" method="POST" id="addProcessName">
+                        <form action="{{ route('process_names.store') }}" method="POST" id="addProcessName">
                             @csrf
                         <div class="modal-body">
                             <input type="hidden" name="manual_id" value="{{ $manual->id }}">
