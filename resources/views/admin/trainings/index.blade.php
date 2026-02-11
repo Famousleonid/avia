@@ -57,9 +57,24 @@
     <div class="container ">
         <div class="card shadow">
             <div class="card-header">
-                <div class="d-flex justify-content-between">
-                    <div class="" style="width: 450px">
-                        <h3>{{ __('Trainings') }}</h3>
+                <div class="d-flex justify-content-between flex-wrap align-items-center gap-2">
+                    <div class="d-flex align-items-center gap-3 flex-wrap">
+                        <h3 class="mb-0">{{ __('Trainings') }}</h3>
+                        @roles("Admin|Manager")
+                        @if($canViewAllUsers && $users->isNotEmpty())
+                            <div class="d-flex align-items-center gap-2">
+                                <label class="form-label mb-0 small text-muted">{{ __('User') }}:</label>
+                                <select class="form-select form-select-sm" id="userSelectDropdown" style="min-width: 180px;"
+                                        onchange="window.location.href='{{ route('trainings.index') }}?user_id=' + this.value">
+                                    @foreach($users as $u)
+                                        <option value="{{ $u->id }}" {{ $selectedUserId == $u->id ? 'selected' : '' }}>
+                                            {{ $u->stamp }} — {{ $u->name }}
+                                        </option>
+                                    @endforeach
+                                </select>
+                            </div>
+                        @endif
+                        @endroles
                     </div>
                     <div class="form-check form-switch pt-1">
                         <input class="form-check-input" type="checkbox"
@@ -74,7 +89,7 @@
 {{--                    </div>--}}
 {{--                    @endadmin--}}
                     <div class="align-middle">
-                        <a href="{{ route('trainings.create') }}"
+                        <a href="{{ route('trainings.create') }}{{ $canViewAllUsers && $selectedUserId != auth()->id() ? '?user_id=' . $selectedUserId : '' }}"
                            class="btn btn-primary align-middle">
                             {{ __('Add Unit') }}</a>
                     </div>
@@ -167,18 +182,17 @@
                                             data-tippy-placement="top">
                                         <i class="bi bi-pencil"></i>
                                     </button>
-                                    @admin
+                                    @roles("Admin|Manager")
                                     <button
                                         class="btn btn-danger btn-sm d-inline-flex align-items-center gap-1 delete-training-btn"
-                                        data-user-id="{{ auth()->id() }}"
+                                        data-user-id="{{ $selectedUserId }}"
                                         data-manual-id="{{ $trainingList['first_training']->manuals_id }}"
                                         data-title="{{ $trainingList['first_training']->manual->title ?? 'N/A' }}"
                                         data-tippy-content="{{ __('Delete Training') }}"
                                         data-tippy-placement="top">
                                         <i class="bi bi-trash"></i>
-{{--                                        <span class="d-none d-sm-inline">{{ __('DELETE') }}</span>--}}
                                     </button>
-                                    @endadmin
+                                    @endroles
                                 </div>
                             </td>
                             <!-- Модальное окно -->
@@ -281,6 +295,20 @@
                                                     </div>
                                                 </div>
                                             @endforeach
+                                            <hr class="my-3">
+                                            <div class="row mb-2 align-items-center add-training-row" data-manuals-id="{{ $trainingList['first_training']->manuals_id }}">
+                                                <div class="col-auto">
+                                                    <span class="text-muted">{{ __('Add training') }}</span>
+                                                </div>
+                                                <div class="col">
+                                                    <input type="date" class="form-control form-control-sm add-training-date-input" placeholder="">
+                                                </div>
+                                                <div class="col-auto">
+                                                    <button type="button" class="btn btn-outline-success btn-sm add-training-in-edit-btn">
+                                                        <i class="bi bi-plus-lg"></i> {{ __('Add') }}
+                                                    </button>
+                                                </div>
+                                            </div>
                                         </div>
                                         <div class="modal-footer">
                                             <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">{{ __('Cancel') }}</button>
@@ -405,6 +433,9 @@
         </div>
     </div>
     <script>
+        const selectedUserId = {{ $selectedUserId }};
+        const authUserId = {{ auth()->id() }};
+        const canEditOtherUser = {{ $canViewAllUsers ? 'true' : 'false' }};
 
         function handleUpdateTraining(manualsId, dateTraining, manualsTitle) {
             document.getElementById('updateTrainingModalLabel').textContent = '{{ __("Update training") }}: ' + manualsTitle;
@@ -429,6 +460,9 @@
                     date_training: [dateYmd],
                     form_type: ['112']
                 };
+                if (canEditOtherUser && selectedUserId !== authUserId) {
+                    trainingData.user_id = selectedUserId;
+                }
 
                 fetch('{{ route('trainings.createTraining') }}', {
                     method: 'POST',
@@ -544,6 +578,54 @@
                                 }
                             });
                     });
+                });
+            });
+
+            // Добавление тренинга в модальном окне Edit
+            document.querySelectorAll('.add-training-in-edit-btn').forEach(function (btn) {
+                btn.addEventListener('click', function () {
+                    const row = this.closest('.add-training-row');
+                    if (!row) return;
+                    const manualsId = row.getAttribute('data-manuals-id');
+                    const input = row.querySelector('.add-training-date-input');
+                    if (!input || !manualsId) return;
+
+                    const dateYmd = input.value.trim();
+                    if (!dateYmd) {
+                        alert('{{ __("Please select a date.") }}');
+                        return;
+                    }
+
+                    const trainingData = {
+                        manuals_id: [manualsId],
+                        date_training: [dateYmd],
+                        form_type: ['112']
+                    };
+                    if (canEditOtherUser && selectedUserId !== authUserId) {
+                        trainingData.user_id = selectedUserId;
+                    }
+
+                    fetch('{{ route('trainings.createTraining') }}', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-CSRF-TOKEN': csrfToken,
+                            'Accept': 'application/json'
+                        },
+                        body: JSON.stringify(trainingData)
+                    })
+                        .then(function (r) { return r.json().then(function (data) { return { ok: r.ok, data: data }; }); })
+                        .then(function (result) {
+                            if (result.ok && result.data.success) {
+                                alert(result.data.message || '{{ __("Training added.") }}');
+                                location.reload();
+                            } else {
+                                alert('{{ __("Error") }}: ' + (result.data.message || ''));
+                            }
+                        })
+                        .catch(function (err) {
+                            alert('{{ __("An error occurred") }}: ' + err.message);
+                        });
                 });
             });
 

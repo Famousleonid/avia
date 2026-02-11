@@ -15,10 +15,24 @@ use Illuminate\Support\Facades\Auth;
 class TrainingController extends Controller
 {
 
-    public function index()
+    public function index(Request $request)
     {
-        // Получаем тренировки пользователя с учётом руководства
-        $trainingLists = auth()->user()->trainings()->with('manual')->get()->groupBy('manuals_id');
+        $user = auth()->user();
+        $canViewAllUsers = $user->roleIs(['Admin', 'Manager']);
+
+        // Для Admin/Manager: разрешить выбор user_id через query
+        $selectedUserId = $user->id;
+        if ($canViewAllUsers && $request->filled('user_id')) {
+            $requestedUserId = (int) $request->user_id;
+            if (User::where('id', $requestedUserId)->exists()) {
+                $selectedUserId = $requestedUserId;
+            }
+        }
+
+        $trainingLists = Training::where('user_id', $selectedUserId)
+            ->with('manual')
+            ->get()
+            ->groupBy('manuals_id');
 
         // Обрабатываем группы тренировок для установки дат
         $formattedTrainingLists = [];
@@ -41,16 +55,42 @@ class TrainingController extends Controller
                 'last_training' => $lastTraining,
                 'trainings' => $sortedTrainings, // Добавляем все тренировки в группу
             ];
-
         }
 
-        return view('admin.trainings.index', compact('formattedTrainingLists',
-            'planes', 'builders', 'scopes'));
+        $users = collect();
+        if ($canViewAllUsers) {
+            $users = User::whereNotNull('stamp')
+                ->where('stamp', '<>', '')
+                ->whereNull('deleted_at')
+                ->get()
+                ->sortBy(function ($u) {
+                    $stamp = trim($u->stamp ?? '');
+                    if (preg_match('/^\d+/', $stamp, $m)) {
+                        return '0_' . str_pad((int) $m[0], 10, '0', STR_PAD_LEFT) . '_' . $stamp;
+                    }
+                    return '1_' . strtoupper($stamp);
+                })
+                ->values();
+        }
+
+        return view('admin.trainings.index', compact(
+            'formattedTrainingLists',
+            'planes',
+            'builders',
+            'scopes',
+            'users',
+            'selectedUserId',
+            'canViewAllUsers'
+        ));
     }
 
-    public function create()
+    public function create(Request $request)
     {
         $userId = auth()->id();
+        if ($request->filled('user_id') && auth()->user()->roleIs(['Admin', 'Manager'])) {
+            $userId = (int) $request->user_id;
+        }
+
         $planes = Plane::pluck('type', 'id');
         $addedCmmIds = Training::where('user_id', $userId)->pluck('manuals_id');
 
@@ -64,12 +104,15 @@ class TrainingController extends Controller
             })
             ->get();
 
-        return view('admin.trainings.create', compact('manuals', 'planes'));
+        return view('admin.trainings.create', compact('manuals', 'planes', 'userId'));
     }
 
     public function store(Request $request)
     {
         $userId = auth()->id();
+        if ($request->filled('user_id') && auth()->user()->roleIs(['Admin', 'Manager'])) {
+            $userId = (int) $request->user_id;
+        }
         $request->merge([
             'training_dates' => array_values(array_filter((array)$request->input('training_dates', []))),
         ]);
@@ -80,6 +123,7 @@ class TrainingController extends Controller
             'training_dates' => 'nullable|array',
             'training_dates.*' => 'nullable|date|after:date_training|before_or_equal:today',
             'additional_training_date' => 'nullable|date|after_or_equal:date_training|before_or_equal:today',
+            'user_id' => 'nullable|integer|exists:users,id',
         ]);
 
         $manualId = (int)$validatedData['manuals_id'];
@@ -154,7 +198,8 @@ class TrainingController extends Controller
             return redirect()->back()->with('success', 'Unit added for trainings.');
         }
 
-        return redirect()->route('trainings.index')->with('success', 'Unit added for trainings.');
+        $indexParams = $userId !== auth()->id() ? ['user_id' => $userId] : [];
+        return redirect()->route('trainings.index', $indexParams)->with('success', 'Unit added for trainings.');
     }
 
     /**
@@ -246,15 +291,18 @@ class TrainingController extends Controller
 
     public function createTraining(Request $request)
     {
-
         try {
             $validatedData = $request->validate([
                 'manuals_id.*' => 'required',
                 'date_training.*' => 'required|date',
-                'form_type.*' => 'required|in:112'
+                'form_type.*' => 'required|in:112',
+                'user_id' => 'nullable|integer|exists:users,id',
             ]);
 
             $userId = auth()->id();
+            if ($request->filled('user_id') && auth()->user()->roleIs(['Admin', 'Manager'])) {
+                $userId = (int) $validatedData['user_id'];
+            }
             $createdCount = 0;
             $skippedCount = 0;
 
@@ -435,7 +483,10 @@ class TrainingController extends Controller
     {
         $training = Training::findOrFail($id);
 
-        if ($training->user_id !== auth()->id()) {
+        $canEdit = $training->user_id === auth()->id()
+            || auth()->user()->roleIs(['Admin', 'Manager']);
+
+        if (!$canEdit) {
             return response()->json(['success' => false, 'message' => __('Unauthorized')], 403);
         }
 
@@ -456,8 +507,10 @@ class TrainingController extends Controller
     {
         $training = Training::findOrFail($id);
 
-        // Разрешаем удалять только свои тренировки
-        if ($training->user_id !== auth()->id()) {
+        $canDelete = $training->user_id === auth()->id()
+            || auth()->user()->roleIs(['Admin', 'Manager']);
+
+        if (!$canDelete) {
             return response()->json([
                 'success' => false,
                 'message' => __('Unauthorized'),
@@ -495,8 +548,19 @@ class TrainingController extends Controller
             'manual_id' => 'required|integer'
         ]);
 
+        $targetUserId = (int) $request->user_id;
+        $canDelete = $targetUserId === auth()->id()
+            || auth()->user()->roleIs(['Admin', 'Manager']);
+
+        if (!$canDelete) {
+            return response()->json([
+                'success' => false,
+                'message' => __('Unauthorized'),
+            ], 403);
+        }
+
         try {
-            $deleted = Training::where('user_id', $request->user_id)
+            $deleted = Training::where('user_id', $targetUserId)
                 ->where('manuals_id', $request->manual_id)
                 ->delete();
 

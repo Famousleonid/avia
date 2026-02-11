@@ -72,6 +72,9 @@
                 <form method="POST" action="{{ route('trainings.store') }}" id="training_create_form">
                     @csrf
                     <input type="hidden" name="return_url" value="{{ request()->get('return_url', url()->previous()) }}">
+                    @if(isset($userId) && $userId != auth()->id())
+                        <input type="hidden" name="user_id" value="{{ $userId }}">
+                    @endif
                     <div class="form-group mt-2">
                         <label for="manuals_id">{{ __('Componenr PN') }}</label>
                         <select id="manuals_id" name="manuals_id" class="form-control" required>
@@ -122,7 +125,7 @@
                                 <i class="bi bi-arrow-left"></i> Back to TDR
                             </a>
                         @endif
-                        <a href="{{ route('trainings.index') }}"
+                        <a href="{{ route('trainings.index', isset($userId) && $userId != auth()->id() ? ['user_id' => $userId] : []) }}"
                            class="btn btn-outline-secondary mt-3">{{ __('Cancel') }} </a>
                     </div>
                 </form>
