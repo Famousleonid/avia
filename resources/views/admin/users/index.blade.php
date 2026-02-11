@@ -145,9 +145,8 @@
                         <th class="text-primary bg-gradient text-center">{{__('Role') }}</th>
                         <th class="text-primary bg-gradient text-center">{{__('Stamp') }}</th>
                         <th class="text-primary bg-gradient text-center">{{__('Create Date')}}</th>
-                        @role('Admin')
-                            <th class="text-primary bg-gradient text-center">{{__('Action') }}</th>
-                        @endrole
+                        <th class="text-primary bg-gradient text-center">{{__('Action') }}</th>
+
                     </tr>
                     </thead>
                     <tbody>
@@ -170,29 +169,36 @@
                             <td class="text-center"><span
                                     style="display: none">{{$user->created_at}}</span>{{$user->created_at->format('d.m.Y')}}
                             </td>
-                            @role('Admin')
                             <td class="text-center">
-                                @if((auth()->check() && auth()->id() === $user->id) || auth()->user()->roleIs('Admin'))
+                                @if(auth()->user()->roleIs('Admin'))
+                                    {{-- Admin: edit + delete everyone --}}
                                     <a href="{{ route('users.edit', ['user' => $user->id]) }}"
-                                        class="btn btn-outline-primary btn-sm">
+                                       class="btn btn-outline-primary btn-sm">
                                         <i class="bi bi-pencil-square"></i>
-                                     </a>
-                                @endif
-                                @can('users.delete')
+                                    </a>
+
                                     <form id="deleteForm_{{$user->id}}"
-                                          action="{{ route('users.destroy', ['user' => $user->id]) }}" method="POST"
-                                          style="display:inline;">
+                                          action="{{ route('users.destroy', ['user' => $user->id]) }}"
+                                          method="POST" style="display:inline;">
                                         @csrf
                                         @method('DELETE')
-                                        <button class="btn btn-sm btn-outline-danger" type="button" name="btn_delete"
+                                        <button class="btn btn-sm btn-outline-danger" type="button"
                                                 data-bs-toggle="modal" data-bs-target="#useConfirmDelete"
                                                 data-title="Delete Confirmation row {{$user->name}}">
                                             <i class="bi bi-trash"></i>
                                         </button>
                                     </form>
-                                @endcan
+
+                                @else
+                                    {{-- Others: can edit only themselves, no delete --}}
+                                    @if(auth()->id() === $user->id)
+                                        <a href="{{ route('users.edit', ['user' => $user->id]) }}"
+                                           class="btn btn-outline-primary btn-sm">
+                                            <i class="bi bi-pencil-square"></i>
+                                        </a>
+                                    @endif
+                                @endif
                             </td>
-                            @endrole
                         </tr>
                     @endforeach
                     </tbody>

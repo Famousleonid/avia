@@ -159,27 +159,18 @@
 
                                         {{-- RIGHT: trainings (ONE LINE) --}}
                                         <div class="d-flex align-items-center gap-2 flex-shrink-0">
-
-                                            @if($manual_id && auth()->id() === (int)$current_workorder->user_id)
-                                                <x-training-status
-                                                    :training-user="auth()->user()"
-                                                    :training="$trainingAuthLatest"
-                                                    :manual-id="$manual_id"
-                                                    :history="$trainingHistoryAuth"
-                                                    :is-owner="true"
-                                                />
-                                            @endif
-                                            @roles("Admin|Manager|Team Leader")
                                             @if($manual_id && $current_workorder->user)
                                                 <x-training-status
-                                                    :training-user="$current_workorder->user"
-                                                    :training="$trainingWoLatest"
                                                     :manual-id="$manual_id"
-                                                    :history="$trainingHistoryWo"
-                                                    :is-owner="false"
+                                                    :unit="$current_workorder->unit"
+                                                    :owner-user="$current_workorder->user"
+                                                    :owner-training="$trainingWoLatest"
+                                                    :owner-history="$trainingHistoryWo"
+
+                                                    :my-training="$trainingAuthLatest"
+                                                    :my-history="$trainingHistoryAuth"
                                                 />
                                             @endif
-                                            @endroles
                                         </div>
 
                                     </div>

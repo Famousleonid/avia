@@ -96,28 +96,46 @@ class UserController extends Controller
     public function update(Request $request, $id)
     {
         $auth = auth()->user();
-        $user = User::find($id);
+        $user = User::findOrFail($id);
 
+        // доступ: Admin -> всех, остальные -> только себя
         if (! $auth->roleIs('Admin') && $auth->id !== $user->id) {
             abort(403, 'You do not have permission to edit this user.');
         }
 
-        $request->phone = $this->removeSpace($request->phone);
-        $request->validate([
-            'name' => 'required',
-            'phone' => '',      // |size:10
-            'stamp' => 'required',
-            'team_id' => 'required',
-        ]);
+        // нормализуем phone (лучше сделать $phone отдельно)
+        $phone = $this->removeSpace($request->input('phone'));
 
-        ($request->has('is_admin')) ? $request->request->add(['is_admin' => 1]) : $request->request->add(['is_admin' => 0]);
+        // базовые правила (email добавим отдельно для Admin)
+        $rules = [
+            'name'    => 'required|string|max:255',
+            'phone'   => 'nullable|string|max:50',
+            'stamp'   => 'required|string|max:255',
+            'team_id' => 'required|integer|exists:teams,id',
+        ];
 
+        // email менять может только Admin
+        if ($auth->roleIs('Admin')) {
+            $rules['email'] = 'required|email|max:255|unique:users,email,' . $user->id;
+        }
+
+        $validated = $request->validate($rules);
+        $validated['phone'] = $phone;
+
+        // is_admin может менять только Admin (и то если поле есть в форме)
+        if ($auth->roleIs('Admin')) {
+            $validated['is_admin'] = $request->has('is_admin') ? 1 : 0;
+        }
+
+        // upload avatar
         if ($request->hasFile('img')) {
             if ($user->getMedia('avatar')->isNotEmpty()) {
                 $user->getMedia('avatar')->first()->delete();
             }
             $user->addMedia($request->file('img'))->toMediaCollection('avatar');
         }
+
+        // upload sign
         if ($request->hasFile('sign')) {
             if ($user->getMedia('sign')->isNotEmpty()) {
                 $user->getMedia('sign')->first()->delete();
@@ -125,11 +143,12 @@ class UserController extends Controller
             $user->addMedia($request->file('sign'))->toMediaCollection('sign');
         }
 
-        $user->update($request->all());
+        // обновляем только разрешённые поля
+        $user->update($validated);
 
         return redirect()->route('users.index')->with('success', 'Changes saved');
-
     }
+
 
     public function destroy($id)
     {

@@ -26,6 +26,7 @@
                     @method('PUT')
 
                     <div class="row">
+
                         <div class="col-md-6 mb-3">
                             <label for="name" class="form-label small">name</label>
                             <input type="text" name="name" id="name" class="form-control" value="{{ $user->name }}"
@@ -33,9 +34,34 @@
                         </div>
 
                         <div class="col-md-6 mb-3">
-                            <label for="email" class="form-label small">email</label>
-                            <input type="email" name="email" id="email" class="form-control" value="{{ $user->email }}"
-                                   required>
+                            <label for="email" class="form-label small">Email</label>
+
+                            <div class="input-group">
+
+                                @role('Admin')
+                                {{-- Admin может редактировать --}}
+                                <input type="email"
+                                       name="email"
+                                       id="email"
+                                       class="form-control"
+                                       value="{{ old('email', $user->email) }}"
+                                       required>
+                                @else
+                                    {{-- Остальные readonly --}}
+                                    <input type="email"
+                                           id="email"
+                                           class="form-control"
+                                           value="{{ $user->email }}"
+                                           readonly>
+
+                                    <span class="input-group-text text-warning email-lock"
+                                          data-tippy-content="Only Admin can edit email"
+                                          style="cursor: help;">
+                <i class="bi bi-lock-fill"></i>
+            </span>
+                                    @endrole
+
+                            </div>
                         </div>
 
                         <div class="col-md-6 mb-3">
@@ -47,7 +73,7 @@
                             <label for="stamp" class="form-label small">stamp</label>
                             <input type="text" name="stamp" id="stamp" class="form-control" value="{{ $user->stamp }}">
                         </div>
-                        @admin
+                        @role('Admin')
                         <div class="col-md-6 mb-3">
                             <label for="role_id" class="form-label small">role</label>
                             <select name="role_id" id="role_id" class="form-select">
@@ -58,7 +84,7 @@
                                 @endforeach
                             </select>
                         </div>
-                        @endadmin
+                        @endrole
 
                         <div class="col-md-6 mb-3">
                             <label for="team_id" class="form-label small" id="team_label">team</label>
@@ -72,13 +98,13 @@
                         </div>
                     </div>
 
-                    @admin
+                    @role('Admin')
                         <div class="form-check mb-3">
                             <input type="checkbox" name="is_admin" id="is_admin"
                                    class="form-check-input" {{ $user->is_admin ? 'checked' : '' }}>
                             <label for="is_admin" class="form-check-label small">admin</label>
                         </div>
-                    @endadmin
+                    @endrole
 
                     <div class="d-flex mb-3">
                         <div class="me-3">

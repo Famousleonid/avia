@@ -83,16 +83,24 @@ return [
     ],
 
     'process_names' => [
-        'title'  => 'Process Names',
-        'model'  => App\Models\ProcessName::class,
+        'title' => 'Process Names',
+        'model' => \App\Models\ProcessName::class,
+        'order' => ['id' => 'desc'],
+
         'fields' => [
             'name' => [
                 'label' => 'Name',
-                'rules' => ['required', 'string', 'max:255', 'unique:process_names,name'],
+                'rules' => ['required','string','max:255'],
+            ],
+            'process_sheet_name' => [
+                'label' => 'Process sheet name',
+                'rules' => ['required','string','max:255'], // или nullable, см. ниже
+            ],
+            'form_number' => [
+                'label' => 'Form number',
+                'rules' => ['nullable','string','max:255'], // или required/int
             ],
         ],
-        'search' => ['name'],
-        'order'  => ['name' => 'asc'],
     ],
 
     'planes' => [
