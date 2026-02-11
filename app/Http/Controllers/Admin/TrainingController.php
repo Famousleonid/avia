@@ -454,7 +454,38 @@ class TrainingController extends Controller
 
     public function destroy(string $id)
     {
-        //
+        $training = Training::findOrFail($id);
+
+        // Разрешаем удалять только свои тренировки
+        if ($training->user_id !== auth()->id()) {
+            return response()->json([
+                'success' => false,
+                'message' => __('Unauthorized'),
+            ], 403);
+        }
+
+        // Форму 132 считаем "базовой" и не даём удалить из этого интерфейса,
+        // чтобы случайно не сломать историю обучения
+        if ($training->form_type == 132) {
+            return response()->json([
+                'success' => false,
+                'message' => __('Form 132 cannot be deleted from this screen.'),
+            ], 422);
+        }
+
+        try {
+            $training->delete();
+
+            return response()->json([
+                'success' => true,
+                'message' => __('Training date deleted.'),
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => $e->getMessage(),
+            ], 500);
+        }
     }
 
     public function deleteAll(Request $request)

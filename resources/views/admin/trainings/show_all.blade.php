@@ -9,13 +9,13 @@
             max-height: 80vh;
             overflow-y: auto;
         }
-        
+
         .table th, .table td {
             white-space: nowrap;
             vertical-align: middle;
             padding: 8px;
         }
-        
+
         /* Sticky колонки - светлая тема */
         .table th:first-child,
         .table td:first-child {
@@ -26,12 +26,12 @@
             min-width: 200px;
             box-shadow: 2px 0 5px rgba(0,0,0,0.1);
         }
-        
+
         .table thead th:first-child {
             background-color: #f8f9fa;
             z-index: 30;
         }
-        
+
         .table th:nth-child(2),
         .table td:nth-child(2) {
             position: sticky;
@@ -43,47 +43,47 @@
             white-space: normal;
             line-height: 1.4;
         }
-        
+
         .table thead th:nth-child(2) {
             background-color: #f8f9fa;
             z-index: 30;
         }
-        
+
         .table thead th {
             background-color: #f8f9fa;
             position: sticky;
             top: 0;
             z-index: 20;
         }
-        
+
         /* Темная тема - переопределение цветов */
         [data-bs-theme="dark"] .table th:first-child,
         [data-bs-theme="dark"] .table td:first-child {
             background-color: #212529 !important;
             color: #fff !important;
         }
-        
+
         [data-bs-theme="dark"] .table thead th:first-child {
             background-color: #495057 !important;
             color: #fff !important;
         }
-        
+
         [data-bs-theme="dark"] .table th:nth-child(2),
         [data-bs-theme="dark"] .table td:nth-child(2) {
             background-color: #212529 !important;
             color: #fff !important;
         }
-        
+
         [data-bs-theme="dark"] .table thead th:nth-child(2) {
             background-color: #495057 !important;
             color: #fff !important;
         }
-        
+
         [data-bs-theme="dark"] .table thead th {
             background-color: #495057 !important;
             color: #fff !important;
         }
-        
+
         .table th.user-column {
             min-width: 120px;
         }
@@ -103,7 +103,7 @@
                     </div>
                 </div>
             </div>
-            
+
             @if(config('app.debug') && isset($manuals) && isset($users))
                 <div class="card-body border-bottom">
                     <small class="text-muted">
@@ -118,7 +118,7 @@
                         <p><strong>Error:</strong> {{ $error }}</p>
                     </div>
                 @endif
-                
+
                 @if(!isset($manuals) || !isset($users) || $manuals->isEmpty() || $users->isEmpty())
                     <div class="alert alert-info text-center">
                         @if(!isset($manuals) || $manuals->isEmpty())
@@ -149,26 +149,26 @@
                                                 $partNumber = $manual->unit_name_training ?? 'N/A';
                                                 if ($partNumber !== 'N/A' && strlen($partNumber) > 40) {
                                                     $targetPos = 40;
-                                                    
+
                                                     // Ищем запятую после 40-го символа
                                                     $commaAfter = strpos($partNumber, ',', $targetPos);
-                                                    
+
                                                     // Ищем последнюю запятую до 40-го символа
                                                     $commaBefore = strrpos(substr($partNumber, 0, $targetPos), ',');
-                                                    
+
                                                     // Выбираем ближайшую запятую
                                                     $commaPos = false;
                                                     if ($commaAfter !== false && $commaBefore !== false) {
                                                         // Выбираем ближайшую к 40-му символу
-                                                        $commaPos = (($commaAfter - $targetPos) < ($targetPos - $commaBefore)) 
-                                                            ? $commaAfter 
+                                                        $commaPos = (($commaAfter - $targetPos) < ($targetPos - $commaBefore))
+                                                            ? $commaAfter
                                                             : $commaBefore;
                                                     } elseif ($commaAfter !== false) {
                                                         $commaPos = $commaAfter;
                                                     } elseif ($commaBefore !== false) {
                                                         $commaPos = $commaBefore;
                                                     }
-                                                    
+
                                                     // Если нашли запятую, разделяем
                                                     if ($commaPos !== false) {
                                                         $firstPart = trim(substr($partNumber, 0, $commaPos + 1));
@@ -186,7 +186,7 @@
                                         @foreach($users as $user)
                                             <td class="text-center">
                                                 @if(isset($trainingDates[$manual->id][$user->id]))
-                                                    {{ Carbon::parse($trainingDates[$manual->id][$user->id])->format('m-d-Y') }}
+                                                    {{ Carbon::parse($trainingDates[$manual->id][$user->id])->format('M-d-Y') }}
                                                 @else
                                                     <span class="text-muted">-</span>
                                                 @endif

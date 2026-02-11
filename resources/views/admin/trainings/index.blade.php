@@ -112,14 +112,16 @@
                                 $trainingList['first_training']->manual->unit_name_training ?? 'N/A' }}</td>
 
                             <td class="text-center">
-                                {{ isset($trainingList['first_training']) ? Carbon::parse($trainingList['first_training']->date_training)->format('m-d-Y') : 'N/A' }}
+                                {{ isset($trainingList['first_training']) ? Carbon::parse
+                                ($trainingList['first_training']->date_training)->format('M-d-Y') : 'N/A' }}
                             </td>
 
                             <td class="text-center"
                                 @if(isset($trainingList['last_training']) && Carbon::parse($trainingList['last_training']->date_training)->diffInDays(Carbon::now()) > 340)
                                     style="color: red"
                                 @endif>
-                                {{ isset($trainingList['last_training']) ? Carbon::parse($trainingList['last_training']->date_training)->format('m-d-Y') : 'N/A' }}
+                                {{ isset($trainingList['last_training']) ? Carbon::parse
+                                ($trainingList['last_training']->date_training)->format('M-d-Y') : 'N/A' }}
                             </td>
 
                             <td class="text-center">
@@ -267,6 +269,15 @@
                                                     <div class="col">
                                                         <input type="date" class="form-control form-control-sm edit-training-date-input"
                                                                value="{{ \Carbon\Carbon::parse($training->date_training)->format('Y-m-d') }}">
+                                                    </div>
+                                                    <div class="col-auto">
+                                                        @if($training->form_type == '112')
+                                                            <button type="button"
+                                                                    class="btn btn-outline-danger btn-sm delete-training-date-btn"
+                                                                    data-training-id="{{ $training->id }}">
+                                                                <i class="bi bi-trash"></i>
+                                                            </button>
+                                                        @endif
                                                     </div>
                                                 </div>
                                             @endforeach
@@ -467,6 +478,10 @@
 
         // Edit training dates: Save — PATCH изменённых дат
         document.addEventListener('DOMContentLoaded', function () {
+            const baseUrl = '{{ url("trainings") }}';
+            const csrfToken = '{{ csrf_token() }}';
+
+            // Сохранение изменённых дат
             document.querySelectorAll('.edit-training-save-btn').forEach(function (btn) {
                 btn.addEventListener('click', function () {
                     const modalId = this.getAttribute('data-modal-id');
@@ -491,8 +506,6 @@
                         return;
                     }
 
-                    const baseUrl = '{{ url("trainings") }}';
-                    const csrfToken = '{{ csrf_token() }}';
                     let done = 0;
                     let errors = [];
 
@@ -531,6 +544,38 @@
                                 }
                             });
                     });
+                });
+            });
+
+            // Удаление отдельной даты тренинга (форма 112)
+            document.querySelectorAll('.delete-training-date-btn').forEach(function (btn) {
+                btn.addEventListener('click', function () {
+                    const trainingId = this.getAttribute('data-training-id');
+                    if (!trainingId) return;
+
+                    if (!confirm('{{ __("Are you sure you want to delete this training date?") }}')) {
+                        return;
+                    }
+
+                    fetch(baseUrl + '/' + trainingId, {
+                        method: 'DELETE',
+                        headers: {
+                            'X-CSRF-TOKEN': csrfToken,
+                            'Accept': 'application/json'
+                        }
+                    })
+                        .then(function (r) { return r.json().then(function (data) { return { ok: r.ok, data: data }; }); })
+                        .then(function (result) {
+                            if (!result.ok) {
+                                alert('{{ __("Error") }}: ' + (result.data.message || ''));
+                                return;
+                            }
+                            alert(result.data.message || '{{ __("Training date deleted.") }}');
+                            location.reload();
+                        })
+                        .catch(function (err) {
+                            alert('{{ __("Error") }}: ' + err.message);
+                        });
                 });
             });
         });

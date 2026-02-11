@@ -597,10 +597,7 @@
 {{--                @endif--}}
             </div>
             <div class="div14 border-b-r text-center  align-content-center pt-1 fs-7" style="line-height: 1.2">
-{{--                {{ $comp->part_number }}--}}
-{{--                @if($hasAssySerialNumber)--}}
-{{--                   ({{ $comp->assy_part_number}})--}}
-{{--                @endif--}}
+
 
                 @if($hasAssySerialNumber && !$hasSerialNumber)
                     {{ $comp ? $comp->assy_part_number : '' }}

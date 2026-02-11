@@ -733,11 +733,7 @@
 
                 @endif
 
-{{--                @if($hasAssySerialNumber && !$hasSerialNumber)--}}
-{{--                    {{ $item['assy_serial_number'] }}--}}
-{{--                @else--}}
-{{--                    {{ $item['serial_number'] }}--}}
-{{--                @endif--}}
+
             </div>
             <div class="div16 border-b-r"> </div>
 
