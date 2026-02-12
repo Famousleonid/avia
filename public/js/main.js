@@ -83,7 +83,11 @@
     window.__spinnerDelegationBound = true;
 
     document.addEventListener('click', function (e) {
-        // ищем ближайший элемент с data-spinner или старым классом .press-spinner
+
+        if (e.target.closest('[data-no-spinner]')) return;
+        if (e.target.closest('[data-bs-toggle]')) return;
+
+        // 2) ищем ближайший элемент с data-spinner или старым классом .press-spinner
         const target = e.target.closest('[data-spinner], .press-spinner');
         if (!target) return;
 
@@ -94,7 +98,6 @@
         }
     }, true);
 })();
-
 
 // =====================================================
 // GLOBAL FORM SUBMIT SPINNER (all forms)
@@ -705,5 +708,102 @@ window.hapticTap = function (pattern = 10) {
     if (typeof window.ajaxSubmit === 'function') {
         window.ajaxSubmitForm = _ajaxSubmit;
     }
+
+    // загрузка юзеров + отправка сообщения
+    (function () {
+        const modalEl = document.getElementById('sendMsgModal');
+        if (!modalEl) return;
+
+        const sel = document.getElementById('msgUsers');
+        const txt = document.getElementById('msgText');
+        const len = document.getElementById('msgLen');
+        const err = document.getElementById('msgErr');
+        const ok  = document.getElementById('msgOk');
+        const btn = document.getElementById('btnSendMsg');
+
+        function showErr(message){
+            err.textContent = message || 'Error';
+            err.classList.remove('d-none');
+            ok.classList.add('d-none');
+        }
+        function showOk(){
+            err.classList.add('d-none');
+            ok.classList.remove('d-none');
+            setTimeout(()=> ok.classList.add('d-none'), 1500);
+        }
+
+        txt.addEventListener('input', ()=> len.textContent = (txt.value || '').length);
+
+        // при открытии — грузим список пользователей
+        modalEl.addEventListener('show.bs.modal', async () => {
+            err.classList.add('d-none');
+            ok.classList.add('d-none');
+            txt.value = '';
+            len.textContent = '0';
+
+            // если уже загружали - не грузим снова
+            if (sel.options.length) return;
+
+            try {
+                const res = await fetch('/admin/messages/users', {
+                    headers: { 'X-Requested-With': 'XMLHttpRequest' }
+                });
+                const data = await res.json();
+
+                sel.innerHTML = '';
+                data.forEach(u => {
+                    const opt = document.createElement('option');
+                    opt.value = u.id;
+                    opt.textContent = u.name;
+                    sel.appendChild(opt);
+                });
+            } catch (e) {
+                showErr('Cannot load users');
+            }
+        });
+
+        btn.addEventListener('click', async () => {
+            const userIds = Array.from(sel.selectedOptions).map(o => o.value);
+            const message = (txt.value || '').trim();
+
+            if (!userIds.length) return showErr('Select at least one user');
+            if (!message) return showErr('Type a message');
+
+            btn.disabled = true;
+
+            try {
+                const token = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+
+                const res = await fetch('/admin/messages/send', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRF-TOKEN': token,
+                        'X-Requested-With': 'XMLHttpRequest'
+                    },
+                    body: JSON.stringify({ user_ids: userIds, message })
+                });
+
+                const data = await res.json();
+                if (!res.ok || !data.ok) {
+                    return showErr(data.message || 'Send failed');
+                }
+
+                showOk();
+                txt.value = '';
+                len.textContent = '0';
+                sel.selectedIndex = -1;
+            } catch (e) {
+                showErr('Send failed');
+            } finally {
+                btn.disabled = false;
+            }
+        });
+    })();
+
+
+
+
+
 
 })();

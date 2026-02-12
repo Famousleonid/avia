@@ -577,7 +577,7 @@ class WorkorderController extends Controller
     public function photos($id)
     {
         try {
-            $workorder = Workorder::findOrFail($id);
+            $workorder = Workorder::withDrafts()->findOrFail($id);
             $groups = config('workorder_media.groups');
 
             if (!is_array($groups) || empty($groups)) {
@@ -619,13 +619,10 @@ class WorkorderController extends Controller
                 'media'  => $media,  // данные по коллекциям
             ]);
 
+        } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
+            return response()->json(['error' => 'Workorder not found'], 404);
         } catch (\Throwable $e) {
-
-//            Log::channel('avia')->error('Workorder photos API failed', [
-//                'workorder_id' => $id,
-//                'error' => $e->getMessage(),
-//            ]);
-
+            Log::channel('avia')->error('WO photos error', ['id'=>$id, 'e'=>$e->getMessage()]);
             return response()->json(['error' => 'Server error'], 500);
         }
     }

@@ -4,16 +4,25 @@
         transition: width 0.5s ease;
 
     }
-
-    .sidebar {
-        overflow-y: auto;
-        scrollbar-gutter: stable; /* резерв под скроллбар, без прыжков */
-        background-color: #343A40;
-        color: #B9BEC7;
-        /*box-shadow: 0 0 15px 0 var(--shadow-top-color);*/
-
+    nav.sidebar.sidebar-main,
+    .sidebar.sidebar-main,
+    .sidebar-main{
+        position: relative;
+        z-index: 3000;
     }
 
+    .sidebar {
+        overflow: visible;              /* ключ! */
+        scrollbar-gutter: stable;
+        background-color:#343A40;
+        color:#B9BEC7;
+
+    }
+    .sidebar-scroll{
+        overflow-y: auto;
+        overflow-x: hidden;
+        min-height: 0;
+    }
     .user-panel {
         background-color: #343A40;
         color: var(--sidebar-color);
@@ -85,20 +94,44 @@
     html[data-sidebar-collapsed="1"] .user-panel > div.me-2 {
         margin-right: 0 !important;
     }
+
+    .send-msg-btn{
+        padding: .20rem .45rem;
+        line-height: 1;
+    }
+
+    /* ================= СВЕРНУТОЕ СОСТОЯНИЕ ================= */
+    html[data-sidebar-collapsed="1"] .user-panel{
+        justify-content: center !important;
+    }
+
+    /* скрываем всё в user-panel кроме send */
+    html[data-sidebar-collapsed="1"] .user-panel .me-2,
+    html[data-sidebar-collapsed="1"] .user-panel .user-info-text{
+        display:none !important;
+    }
+
+    /* send по центру */
+    html[data-sidebar-collapsed="1"] .user-panel .send-msg-btn{
+        margin: 0 !important;
+    }
+
 </style>
 
 
 <nav id="sidebarMenu" class="d-none d-lg-block sidebar sidebar-main">
     <div class="position-sticky d-flex flex-column" style="height: 95vh;">
 
-        <div class="border-bottom row p-3">
-            <div class="col-3">
-                <img src="{{ asset('img/favicon.webp') }}" width="30" alt="Logo">
-            </div>
-            <div class="col-8 bg-transparent">
-                <a href="{{ route('front.index') }}" class="brand-link">
-                    @include('components.logo')
-                </a>
+        <div class="border-bottom p-3 d-flex align-items-center gap-2">
+
+            <img src="{{ asset('img/favicon.webp') }}" width="30" alt="Logo" class="flex-shrink-0">
+
+            <a href="{{ route('front.index') }}" class="brand-link flex-grow-1">
+                @include('components.logo')
+            </a>
+
+            <div class="sidebar-bell flex-shrink-0">
+                @include('partials.notifications-bell')
             </div>
         </div>
 
@@ -110,39 +143,56 @@
         </div>
 
         <div class="border-bottom border-1 p-2">
-            <div class="user-panel mt-2 ml-3 pb-2 d-flex">
-                <div class="me-2">
-                    <a href="{{ Auth::user()->getFirstMediaBigUrl('avatar') }}" data-fancybox="gallery">
-                        <img class="rounded-circle"
-                             src="{{ Auth::user()->getFirstMediaThumbnailUrl('avatar') }}"
-                             width="40" height="40" alt="Image"/>
-                    </a>
+            <div class="user-panel mt-2 ml-3 pb-2 d-flex align-items-center justify-content-between gap-2">
+                <div class="d-flex align-items-center">
+                    <div class="me-2">
+                        <a href="{{ Auth::user()->getFirstMediaBigUrl('avatar') }}" data-fancybox="gallery">
+                            <img class="rounded-circle"
+                                 src="{{ Auth::user()->getFirstMediaThumbnailUrl('avatar') }}"
+                                 width="40" height="40" alt="Image"/>
+                        </a>
+                    </div>
+
+                    <div class="h5 ms-2 mt-2 text-white user-info-text">
+                        <span>{{ Auth::user()->name }}</span>
+                        <span class="text-secondary fs-6 user-role-text">
+                    {{ Auth::user()->role->name }}
+                </span>
+                    </div>
                 </div>
-                <div class="h5 ms-2 mt-2 text-white user-info-text">
-                    <span>{{Auth::user()->name}} </span>
-                    <span class="text-secondary fs-6 user-role-text">
-                        {{Auth::user()->role->name}}
-                    </span>
-                </div>
+
+                {{-- SEND MSG --}}
+                <button
+                    type="button"
+                    class="btn btn-sm btn-outline-info send-msg-btn flex-shrink-0"
+                    data-bs-toggle="modal"
+                    data-bs-target="#sendMsgModal"
+                    title="Send message"
+                >
+                    <i class="bi bi-send"></i>
+                </button>
             </div>
         </div>
 
-        <div class="flex-grow-1 d-flex flex-column">
+        <div class="flex-grow-1 sidebar-scroll">
             @if(Auth()->user())
                 @include('components.admin_menu_sidebar', ['themeToggleId' => 'themeToggle'])
             @endif
+
+                <div class="p-3 mt-auto border-top border-bottom border-1">
+                    <a class="nav-link" href="{{ route('logout') }}"
+                       onclick="event.preventDefault(); document.getElementById('logout-form-menu').submit();">
+                        <i class="bi bi-box-arrow-right me-2"></i>
+                        <span class="logout-text">Logout</span>
+                    </a>
+                    <form id="logout-form-menu" action="{{ route('logout') }}" method="POST" class="d-none">
+                        @csrf
+                    </form>
+                </div>
+
         </div>
 
-        <div class="p-3 mt-auto border-top border-bottom border-1">
-            <a class="nav-link" href="{{ route('logout') }}"
-               onclick="event.preventDefault(); document.getElementById('logout-form-menu').submit();">
-                <i class="bi bi-box-arrow-right me-2"></i>
-                <span class="logout-text">Logout</span>
-            </a>
-            <form id="logout-form-menu" action="{{ route('logout') }}" method="POST" class="d-none">
-                @csrf
-            </form>
-        </div>
+
     </div>
 </nav>
 
@@ -191,5 +241,47 @@
         <form id="logout-form-menu-mobile" action="{{ route('logout') }}" method="POST" class="d-none">
             @csrf
         </form>
+    </div>
+</div>
+
+{{---------------------------------- modal message -------------------}}
+
+<div class="modal fade" id="sendMsgModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content bg-dark text-light border-secondary">
+            <div class="modal-header border-secondary">
+                <h5 class="modal-title">Send message</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+
+            <div class="modal-body">
+                <div class="mb-2">
+                    <label class="form-label text-secondary small mb-1">To (one or many)</label>
+                    <select id="msgUsers"
+                            class="form-select form-select-sm bg-dark text-light border-secondary"
+                            multiple>
+                    </select>
+                </div>
+
+                <div class="mb-2">
+                    <label class="form-label text-secondary small mb-1">Message</label>
+                    <textarea id="msgText" class="form-control bg-dark text-light border-secondary"
+                              rows="4" maxlength="1000" placeholder="Type here..."></textarea>
+                    <div class="text-secondary small mt-1">
+                        <span id="msgLen">0</span>/1000
+                    </div>
+                </div>
+
+                <div id="msgErr" class="text-danger small d-none"></div>
+                <div id="msgOk" class="text-success small d-none">Sent ✅</div>
+            </div>
+
+            <div class="modal-footer border-secondary">
+                <button type="button" class="btn btn-outline-secondary btn-sm" data-bs-dismiss="modal">Close</button>
+                <button type="button" class="btn btn-info btn-sm" id="btnSendMsg">
+                    <i class="bi bi-send me-1"></i> Send
+                </button>
+            </div>
+        </div>
     </div>
 </div>

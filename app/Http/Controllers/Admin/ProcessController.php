@@ -34,7 +34,7 @@ class ProcessController extends Controller
         foreach ($processes as $process) {
             foreach ($process->manuals as $manual) {
                 $groupedProcesses[$manual->id][] = [
-                    'process_name' => $process->process_name->name,
+                    'process_name' => optional($process->process_name)->name,
                     'process' => $process->process,
                 ];
             }
@@ -174,7 +174,7 @@ class ProcessController extends Controller
         $machiningEC = ProcessName::where('name', 'Machining (EC)')->first();
         $machining = ProcessName::where('name', 'Machining')->first();
         $machiningBlend = ProcessName::where('name', 'Machining (Blend)')->first();
-        
+
         if ($machiningEC) {
             $machiningProcessNameIds[] = $machiningEC->id;
         }
@@ -184,7 +184,7 @@ class ProcessController extends Controller
         if ($machiningBlend) {
             $machiningProcessNameIds[] = $machiningBlend->id;
         }
-        
+
         $isMachiningProcess = in_array((int)$processNameId, $machiningProcessNameIds);
 
         // Получаем ID процессов, которые уже связаны с данным manual_id
@@ -198,7 +198,7 @@ class ProcessController extends Controller
             $existingProcesses = Process::whereIn('id', $existingProcessIds)
                 ->whereIn('process_names_id', $machiningProcessNameIds)
                 ->get();
-            
+
             // Фильтруем процессы для выбора (исключаем существующие) для всех вариантов Machining
             $availableProcesses = Process::whereIn('process_names_id', $machiningProcessNameIds)
                 ->whereNotIn('id', $existingProcessIds)
@@ -208,7 +208,7 @@ class ProcessController extends Controller
             $existingProcesses = Process::whereIn('id', $existingProcessIds)
                 ->where('process_names_id', $processNameId)
                 ->get();
-            
+
             // Фильтруем процессы для выбора (исключаем существующие)
             $availableProcesses = Process::where('process_names_id', $processNameId)
                 ->whereNotIn('id', $existingProcessIds)

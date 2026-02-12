@@ -109,7 +109,7 @@ return [
         'fields' => [
             'type' => [
                 'label' => 'Type',
-                'rules' => ['required', 'string', 'max:255', 'unique:planes,name'],
+                'rules' => ['required', 'string', 'max:255', 'unique:planes,type'],
             ],
         ],
         'search' => ['type'],

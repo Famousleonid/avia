@@ -27,6 +27,7 @@ use App\Http\Controllers\Admin\WoBushingController;
 use App\Http\Controllers\Admin\NdtCadCsvController;
 use App\Http\Controllers\Front\FrontController;
 use App\Http\Controllers\General\MediaController;
+use App\Http\Controllers\General\NotificationController;
 use App\Http\Controllers\Mobile\MobileComponentController;
 use App\Http\Controllers\Mobile\MobileController;
 use App\Http\Controllers\Mobile\MobileProcessController;
@@ -319,9 +320,25 @@ Route::group(['middleware' => ['auth']], function () {
         Route::delete('/{file}', [ManualCsvController::class, 'delete'])->name('delete');
     });
 
+    // Notification
 
+    Route::get('/notifications', [NotificationController::class, 'index'])->name('notifications.index');
+    Route::get('/notifications/unread-count', [NotificationController::class, 'unreadCount'])->name('notifications.unreadCount');
+    Route::get('/notifications/latest', [NotificationController::class, 'latest'])->name('notifications.latest');
+    Route::post('/notifications/{id}/read', [NotificationController::class, 'markRead'])->name('notifications.read');
+    Route::post('/notifications/read-all', [NotificationController::class, 'readAll'])->name('notifications.readAll');
 
 });
+
+
+Route::middleware(['auth'])->prefix('admin/messages')->group(function () {
+    Route::get('/users', [\App\Http\Controllers\Admin\MessageController::class, 'users'])
+        ->name('admin.messages.users');
+
+    Route::post('/send', [\App\Http\Controllers\Admin\MessageController::class, 'send'])
+        ->name('admin.messages.send');
+});
+
 
 Route::middleware(['auth'])
     ->prefix('admin')
