@@ -161,7 +161,7 @@
                     </div>
                 </div>
 
-                {{-- SEND MSG --}}
+                {{----------- SEND MSG ---------------}}
                 <button
                     type="button"
                     class="btn btn-sm btn-outline-info send-msg-btn flex-shrink-0"
@@ -243,37 +243,107 @@
         </form>
     </div>
 </div>
+{{-- ---------------------------------- modal message (NEW layout) ------------------- --}}
 
-{{---------------------------------- modal message -------------------}}
+<style>
+    #sendMsgModal .modal-dialog { max-width: 980px; }
+    #sendMsgModal .modal-content { max-height: 86vh; }
+
+    #sendMsgModal .msg-layout{
+        display:flex; gap:14px;
+        min-height: 62vh;
+    }
+    #sendMsgModal .msg-left{
+        flex:1 1 auto; min-width:0;
+        display:flex; flex-direction:column;
+    }
+    #sendMsgModal .msg-right{
+        width:320px; flex:0 0 320px;
+        display:flex; flex-direction:column;
+        border-left:1px solid rgba(255,255,255,.12);
+        padding-left:14px;
+    }
+    #sendMsgModal .users-scroll{
+        flex:1 1 auto; min-height:0;
+        overflow:auto; padding-right:6px;
+    }
+    #sendMsgModal .user-row{
+        display:flex; align-items:center; gap:10px;
+        padding:6px 8px; border-radius:8px;
+        cursor:pointer; user-select:none;
+    }
+    #sendMsgModal .user-row:hover{ background: rgba(255,255,255,.05); }
+    #sendMsgModal .msg-actions{
+        display:flex; align-items:center; justify-content:space-between; gap:10px;
+    }
+    #sendMsgModal textarea#msgText{
+        resize: vertical;
+        min-height: 260px;
+    }
+    @media (max-width: 992px){
+        #sendMsgModal .modal-dialog{ max-width: 96vw; }
+        #sendMsgModal .msg-layout{ flex-direction:column; min-height:auto; }
+        #sendMsgModal .msg-right{
+            width:100%; flex:0 0 auto;
+            border-left:0; border-top:1px solid rgba(255,255,255,.12);
+            padding-left:0; padding-top:12px;
+        }
+        #sendMsgModal .users-scroll{ max-height: 260px; }
+    }
+</style>
 
 <div class="modal fade" id="sendMsgModal" tabindex="-1" aria-hidden="true">
-    <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-dialog modal-xl modal-dialog-centered">
         <div class="modal-content bg-dark text-light border-secondary">
+
             <div class="modal-header border-secondary">
                 <h5 class="modal-title">Send message</h5>
                 <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
             </div>
 
             <div class="modal-body">
-                <div class="mb-2">
-                    <label class="form-label text-secondary small mb-1">To (one or many)</label>
-                    <select id="msgUsers"
-                            class="form-select form-select-sm bg-dark text-light border-secondary"
-                            multiple>
-                    </select>
-                </div>
+                <div class="msg-layout">
 
-                <div class="mb-2">
-                    <label class="form-label text-secondary small mb-1">Message</label>
-                    <textarea id="msgText" class="form-control bg-dark text-light border-secondary"
-                              rows="4" maxlength="1000" placeholder="Type here..."></textarea>
-                    <div class="text-secondary small mt-1">
-                        <span id="msgLen">0</span>/1000
+                    {{-- LEFT --}}
+                    <div class="msg-left">
+                        <label class="form-label text-secondary small mb-1">Message</label>
+
+                        <textarea id="msgText"
+                                  class="form-control bg-dark text-light border-secondary"
+                                  rows="10" maxlength="1000"
+                                  placeholder="Type here..."></textarea>
+
+                        <div class="msg-actions mt-2">
+                            <div class="text-secondary small">
+                                <span id="msgLen">0</span>/1000
+                            </div>
+
+                            <div class="text-secondary small">
+                                Selected: <span id="msgSelectedCount">0</span>
+                            </div>
+                        </div>
+
+                        <div id="msgErr" class="text-danger small d-none mt-2"></div>
+                        <div id="msgOk" class="text-success small d-none mt-2">Sent ✅</div>
                     </div>
-                </div>
 
-                <div id="msgErr" class="text-danger small d-none"></div>
-                <div id="msgOk" class="text-success small d-none">Sent ✅</div>
+                    {{-- RIGHT --}}
+                    <div class="msg-right">
+                        <div class="d-flex align-items-center justify-content-between mb-2">
+                            <div class="text-secondary small">To (one / many / all)</div>
+
+                            <div class="btn-group btn-group-sm" role="group">
+                                <button type="button" class="btn btn-outline-secondary" id="msgPickAll">All</button>
+                                <button type="button" class="btn btn-outline-secondary" id="msgPickNone">None</button>
+                            </div>
+                        </div>
+
+                        <div class="users-scroll" id="msgUsersList">
+                            <div class="text-muted small">Loading…</div>
+                        </div>
+                    </div>
+
+                </div>
             </div>
 
             <div class="modal-footer border-secondary">
@@ -282,6 +352,165 @@
                     <i class="bi bi-send me-1"></i> Send
                 </button>
             </div>
+
         </div>
     </div>
 </div>
+
+<script>
+    (function () {
+        if (window.__sendMsgModalBound) return;
+        window.__sendMsgModalBound = true;
+
+        const modalEl = document.getElementById('sendMsgModal');
+        const listEl  = document.getElementById('msgUsersList');
+        const taEl    = document.getElementById('msgText');
+        const lenEl   = document.getElementById('msgLen');
+        const selEl   = document.getElementById('msgSelectedCount');
+
+        const errEl   = document.getElementById('msgErr');
+        const okEl    = document.getElementById('msgOk');
+
+        const btnAll  = document.getElementById('msgPickAll');
+        const btnNone = document.getElementById('msgPickNone');
+        const btnSend = document.getElementById('btnSendMsg');
+
+        const csrf = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
+
+        function escapeHtml(s) {
+            return String(s ?? '')
+                .replaceAll('&', '&amp;')
+                .replaceAll('<', '&lt;')
+                .replaceAll('>', '&gt;')
+                .replaceAll('"', '&quot;')
+                .replaceAll("'", '&#039;');
+        }
+
+        function showErr(msg){
+            errEl.textContent = msg || 'Error';
+            errEl.classList.remove('d-none');
+            okEl.classList.add('d-none');
+        }
+        function showOk(){
+            okEl.classList.remove('d-none');
+            errEl.classList.add('d-none');
+        }
+        function clearMsg(){
+            errEl.classList.add('d-none');
+            okEl.classList.add('d-none');
+            errEl.textContent = '';
+        }
+
+        function updateLen(){ lenEl.textContent = String(taEl.value.length); }
+
+        function updateSelectedCount(){
+            const n = listEl.querySelectorAll('input[type="checkbox"]:checked').length;
+            selEl.textContent = String(n);
+        }
+
+        function getSelectedIds(){
+            return Array.from(listEl.querySelectorAll('input[type="checkbox"]:checked'))
+                .map(i => Number(i.value))
+                .filter(Boolean);
+        }
+
+        function renderUsers(users){
+            if (!users || users.length === 0){
+                listEl.innerHTML = `<div class="p-2 text-muted small">No users</div>`;
+                updateSelectedCount();
+                return;
+            }
+
+            listEl.innerHTML = users.map(u => {
+                const id = escapeHtml(u.id);
+                const name = escapeHtml(u.name ?? ('User #' + id));
+                return `
+                <label class="user-row">
+                    <input class="form-check-input m-0" type="checkbox" value="${id}">
+                    <div class="flex-grow-1">
+                        <div class="small text-light">${name}</div>
+                    </div>
+                </label>
+            `;
+            }).join('');
+
+            listEl.querySelectorAll('input[type="checkbox"]').forEach(cb => {
+                cb.addEventListener('change', updateSelectedCount);
+            });
+
+            updateSelectedCount();
+        }
+
+        async function loadUsers(){
+            const r = await fetch(@json(route('admin.messages.users')), {
+                headers: {'Accept': 'application/json'},
+                spinner: false
+            });
+            const data = await r.json();
+            // твой контроллер возвращает массив [{id,name}]
+            renderUsers(Array.isArray(data) ? data : (data.items || []));
+        }
+
+        btnAll?.addEventListener('click', () => {
+            listEl.querySelectorAll('input[type="checkbox"]').forEach(cb => cb.checked = true);
+            updateSelectedCount();
+        });
+
+        btnNone?.addEventListener('click', () => {
+            listEl.querySelectorAll('input[type="checkbox"]').forEach(cb => cb.checked = false);
+            updateSelectedCount();
+        });
+
+        taEl.addEventListener('input', () => {
+            updateLen();
+            clearMsg();
+        });
+
+        modalEl?.addEventListener('shown.bs.modal', async () => {
+            clearMsg();
+            updateLen();
+            listEl.innerHTML = `<div class="p-2 text-muted small">Loading…</div>`;
+            await loadUsers();
+        });
+
+        btnSend?.addEventListener('click', async () => {
+            clearMsg();
+
+            const userIds = getSelectedIds();
+            const message = (taEl.value || '').trim();
+
+            if (userIds.length === 0) return showErr('Select at least one user');
+            if (!message) return showErr('Message is empty');
+
+            btnSend.disabled = true;
+
+            try{
+                const r = await fetch(@json(route('admin.messages.send')), {
+                    method: 'POST',
+                    headers: {
+                        'Accept': 'application/json',
+                        'Content-Type': 'application/json',
+                        'X-CSRF-TOKEN': csrf
+                    },
+                    body: JSON.stringify({ user_ids: userIds, message }),
+                    spinner: false
+                });
+
+                const data = await r.json().catch(() => ({}));
+
+                if (!r.ok || data.ok === false){
+                    const msg = data.message || (data.errors ? Object.values(data.errors).flat().join(' ') : 'Send error');
+                    showErr(msg);
+                } else {
+                    showOk();
+                    // можно очистить текст, а выбранных оставить или снять — как хочешь:
+                    // taEl.value = ''; updateLen();
+                }
+            } catch (e){
+                showErr('Network error');
+            } finally {
+                btnSend.disabled = false;
+            }
+        });
+    })();
+</script>

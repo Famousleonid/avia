@@ -47,8 +47,8 @@
     }
 
     .notif-badge {
-        top: -1px;
-        right: -1px;
+        top: 0;
+        right: -2px;
         font-size: 9px;
         padding: 2px 5px;
         min-width: 16px;
@@ -57,6 +57,9 @@
         display: flex;
         align-items: center;
         justify-content: center;
+    }
+    html[data-sidebar-collapsed="1"] #notifBadge{
+        display: flex !important;
     }
 
 </style>
@@ -70,6 +73,7 @@
        data-bs-toggle="dropdown"
        data-bs-auto-close="outside"
        aria-expanded="false"
+       data-no-spinner
        onclick="return false;">
         <i class="bi bi-bell fs-5"></i>
 
@@ -138,7 +142,8 @@
 
         async function fetchCount() {
             const r = await fetch('{{ route('notifications.unreadCount') }}', {
-                headers: {'Accept': 'application/json'}
+                headers: {'Accept': 'application/json'},
+                spinner: false
             });
             const data = await r.json();
             setBadge(data.count || 0);
@@ -146,33 +151,33 @@
 
         function renderItems(items) {
             if (!items || items.length === 0) {
-                list.innerHTML = `<div class="p-3 text-muted small">No notifications</div>`;
+                list.innerHTML = `<div class="p-3 text-muted small">No unread notifications</div>`;
                 return;
             }
 
             list.innerHTML = items.map(n => {
-                const isUnread = !n.read_at;
-                const title = escapeHtml(n.title);
-                const msg = escapeHtml(n.message);
+                const id   = escapeHtml(n.id);
+                const from = n.from_name ? `From: ${escapeHtml(n.from_name)}` : '';
                 const time = escapeHtml(n.created_at_human);
-                const url = n.url ? escapeHtml(n.url) : '';
-                const id = escapeHtml(n.id);
+                const msg  = escapeHtml(n.text);
+                const url  = n.url ? escapeHtml(n.url) : '';
 
                 return `
-                <div class="px-3 py-2 border-bottom ${isUnread ? 'bg-body-tertiary' : ''}" data-notif-id="${id}">
-                    <div class="d-flex justify-content-between align-items-start gap-2">
-                        <div class="w-100">
-                            <div class="fw-semibold small">${title}</div>
-                            ${msg ? `<div class="text-muted small">${msg}</div>` : ``}
-                            <div class="text-muted" style="font-size:12px">${time}</div>
-                        </div>
-                        <div class="d-flex flex-column gap-1">
-                            ${url ? `<a class="btn btn-sm btn-outline-primary" href="${url}">Open</a>` : ``}
-                            ${isUnread ? `<button class="btn btn-sm btn-outline-secondary js-mark-read" type="button">Read</button>` : ``}
-                        </div>
-                    </div>
-                </div>
-            `;
+  <div class="px-3 py-2 border-bottom" data-notif-id="${id}">
+    <div class="d-flex justify-content-between align-items-start gap-2">
+      <div class="w-100">
+        <div class="d-flex align-items-center justify-content-between small">
+          <div class="text-warning">${from}</div>
+          <div class="text-muted">${time}</div>
+        </div>
+        ${msg ? `<div class="text-light small mt-1">${msg}</div>` : ``}
+      </div>
+      <div class="d-flex flex-column gap-1">
+        ${url ? `<a class="btn btn-sm btn-outline-primary" href="${url}">Open</a>` : ``}
+        <button class="btn btn-sm btn-outline-secondary js-mark-read" type="button">Read</button>
+      </div>
+    </div>
+  </div>`;
             }).join('');
 
             list.querySelectorAll('.js-mark-read').forEach(btn => {
@@ -181,6 +186,7 @@
                     const id = wrap?.dataset?.notifId;
                     if (!id) return;
 
+                    // 1) пометили прочитанным
                     await fetch(`{{ url('/notifications') }}/${id}/read`, {
                         method: 'POST',
                         headers: {
@@ -188,10 +194,19 @@
                             'Content-Type': 'application/json',
                             'X-CSRF-TOKEN': csrf
                         },
-                        body: JSON.stringify({})
+                        body: JSON.stringify({}),
+                        spinner: false
                     });
 
-                    await loadLatest();
+                    // 2) сразу убрали из списка (без лишней перезагрузки)
+                    wrap.remove();
+
+                    // 3) если список стал пустой — покажем заглушку
+                    if (!list.querySelector('[data-notif-id]')) {
+                        list.innerHTML = `<div class="p-3 text-muted small">No unread notifications</div>`;
+                    }
+
+                    // 4) обновили счётчик
                     await fetchCount();
                 });
             });
@@ -199,7 +214,8 @@
 
         async function loadLatest() {
             const r = await fetch('{{ route('notifications.latest') }}', {
-                headers: {'Accept': 'application/json'}
+                headers: {'Accept': 'application/json'},
+                spinner: false
             });
             const data = await r.json();
             renderItems(data.items || []);
@@ -221,7 +237,8 @@
                     'Content-Type': 'application/json',
                     'X-CSRF-TOKEN': csrf
                 },
-                body: JSON.stringify({})
+                body: JSON.stringify({}),
+                spinner: false
             });
 
             await loadLatest();

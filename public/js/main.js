@@ -87,6 +87,7 @@
         if (e.target.closest('[data-no-spinner]')) return;
         if (e.target.closest('[data-bs-toggle]')) return;
 
+
         // 2) ищем ближайший элемент с data-spinner или старым классом .press-spinner
         const target = e.target.closest('[data-spinner], .press-spinner');
         if (!target) return;
@@ -134,6 +135,7 @@
     let pendingFetch = 0;
 
     function shouldSkipSpinner(input, init) {
+
         // 1) кастомный флаг
         if (init && init.spinner === false) return true;
 
@@ -154,11 +156,13 @@
         // 3) если URL содержит маркер
         const url = (typeof input === 'string') ? input : (input && input.url) ? input.url : '';
         if (url.includes('no_spinner=1')) return true;
+        if (url.includes('/_debugbar/')) return true;
 
         return false;
     }
 
     window.fetch = function (input, init = {}) {
+
         const skip = shouldSkipSpinner(input, init);
 
         if (!skip) {

@@ -11,8 +11,23 @@ class NotificationController extends Controller
     {
         $user = $request->user();
 
-        // Все уведомления (и прочитанные тоже)
-        $notifications = $user->notifications()->latest()->paginate(30);
+        $notifications = $user->notifications()
+            ->latest()
+            ->paginate(30)
+            ->through(function ($n) {
+                $d = is_array($n->data) ? $n->data : (json_decode($n->data, true) ?: []);
+
+                return (object)[
+                    'id' => $n->id,
+                    'read_at' => $n->read_at,
+                    'from_name' => $d['from_name'] ?? null,
+                    'from_user_id' => $d['from_user_id'] ?? null,
+                    'text' => $d['text'] ?? '',
+                    'url' => $d['url'] ?? null,
+                    'created_at_human' => optional($n->created_at)->diffForHumans(),
+                    'created_at' => $n->created_at,
+                ];
+            });
 
         return view('notifications.index', compact('notifications'));
     }
@@ -27,24 +42,26 @@ class NotificationController extends Controller
     {
         $user = $request->user();
 
-        $items = $user->notifications()
+        $items = $user->unreadNotifications()
             ->latest()
-            ->limit(8)
+            ->limit(10)
             ->get()
             ->map(function ($n) {
+                $d = is_array($n->data) ? $n->data : (json_decode($n->data, true) ?: []);
+
                 return [
                     'id' => $n->id,
-                    'read_at' => $n->read_at,
+                    'from_name' => $d['from_name'] ?? null,
+                    'from_user_id' => $d['from_user_id'] ?? null,
+                    'text' => $d['text'] ?? '',
+                    'url' => $d['url'] ?? null,
                     'created_at_human' => optional($n->created_at)->diffForHumans(),
-                    'title' => data_get($n->data, 'title', 'Notification'),
-                    'message' => data_get($n->data, 'message', ''),
-                    'url' => data_get($n->data, 'url', null),
-                    'type' => data_get($n->data, 'type', null),
                 ];
             });
 
         return response()->json(['items' => $items]);
     }
+
 
     public function markRead(Request $request, string $id)
     {
@@ -65,4 +82,15 @@ class NotificationController extends Controller
 
         return response()->json(['ok' => true]);
     }
+
+    public function destroy(Request $request, string $id)
+    {
+        $user = $request->user();
+
+        $n = $user->notifications()->where('id', $id)->firstOrFail();
+        $n->delete();
+
+        return response()->json(['ok' => true]);
+    }
+
 }

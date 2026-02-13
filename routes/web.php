@@ -327,16 +327,16 @@ Route::group(['middleware' => ['auth']], function () {
     Route::get('/notifications/latest', [NotificationController::class, 'latest'])->name('notifications.latest');
     Route::post('/notifications/{id}/read', [NotificationController::class, 'markRead'])->name('notifications.read');
     Route::post('/notifications/read-all', [NotificationController::class, 'readAll'])->name('notifications.readAll');
-
+    Route::delete('/notifications/{id}', [NotificationController::class, 'destroy'])->name('notifications.destroy');
 });
 
 
 Route::middleware(['auth'])->prefix('admin/messages')->group(function () {
-    Route::get('/users', [\App\Http\Controllers\Admin\MessageController::class, 'users'])
-        ->name('admin.messages.users');
 
-    Route::post('/send', [\App\Http\Controllers\Admin\MessageController::class, 'send'])
-        ->name('admin.messages.send');
+    Route::get('/users', [\App\Http\Controllers\Admin\MessageController::class, 'users'])->name('admin.messages.users');
+    Route::post('/send', [\App\Http\Controllers\Admin\MessageController::class, 'send'])->name('admin.messages.send');
+
+
 });
 
 
