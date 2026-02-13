@@ -92,6 +92,11 @@
                 page-break-inside: avoid;
             }
 
+            /* Шапка таблицы должна оставаться вместе с данными (предотвращает разрыв между header и data-page) */
+            .table-header {
+                page-break-after: avoid;
+            }
+
             /* Для NDT контейнера - предотвращаем разрыв */
             .ndt-data-container {
                 page-break-inside: avoid;
