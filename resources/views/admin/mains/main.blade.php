@@ -269,7 +269,7 @@
                 </div>
 
                 {{-- Bottom --}}
-                <div class="bottom-row">
+                <div class="bottom-row d-flex align-items-stretch">
 
                     {{-- Left panel --}}
                     <div class="bottom-col left gradient-pane border-info">

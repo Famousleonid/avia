@@ -3,16 +3,18 @@
 namespace App\Models;
 
 use App\Traits\HasMediaHelpers;
-use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Facades\Log;
 use Spatie\MediaLibrary\HasMedia;
 use Spatie\MediaLibrary\InteractsWithMedia;
+use Spatie\Activitylog\Traits\LogsActivity;
+use Spatie\Activitylog\LogOptions;
+
 
 class Manual extends Model implements  HasMedia
 {
-    use SoftDeletes, InteractsWithMedia, HasMediaHelpers;
+    use SoftDeletes, InteractsWithMedia, HasMediaHelpers,LogsActivity;
 
     protected $fillable = [
         'number',
@@ -31,6 +33,20 @@ class Manual extends Model implements  HasMedia
     ];
 
     protected $dates = ['deleted_at'];
+
+
+    public function getActivitylogOptions(): LogOptions
+    {
+        return LogOptions::defaults()
+            ->useLogName('manual')      // log_name в activity_log
+            ->logAll()                  // логировать ВСЕ поля
+            ->logOnly(['number', 'title', 'unit_name', 'training_hours','lib'])
+            ->logExcept(['created_at','updated_at'])
+            ->logOnlyDirty()            // только изменившиеся
+            ->dontSubmitEmptyLogs();    // не создавать пустых логов
+    }
+
+    protected static $recordEvents = ['created', 'updated', 'deleted'];
 
     public $mediaUrlName = 'manuals';
 

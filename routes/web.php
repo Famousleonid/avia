@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Admin\ActivityLogController;
 use App\Http\Controllers\Admin\CabinetController;
 use App\Http\Controllers\Admin\ComponentController;
 use App\Http\Controllers\Admin\ConditionController;
@@ -331,6 +332,7 @@ Route::group(['middleware' => ['auth']], function () {
     Route::get('/notifications/settings', [NotificationController::class, 'show'])->name('notifications.settings.show');
     Route::post('/notifications/settings', [NotificationController::class, 'save'])->name('notifications.settings.save');
 
+    Route::get('/admin/activity', [ActivityLogController::class, 'index'])->name('admin.activity.index');
 
 });
 

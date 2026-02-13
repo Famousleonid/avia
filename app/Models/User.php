@@ -30,8 +30,10 @@ class User extends Authenticatable implements MustVerifyEmail, HasMedia
     public function getActivitylogOptions(): LogOptions
     {
         return LogOptions::defaults()
+            ->useLogName('user')
             ->logAll()
             ->logOnly(['name', 'password', 'phone', 'stamp'])
+            ->logExcept(['created_at','updated_at'])
             ->logOnlyDirty();
     }
 

@@ -84,6 +84,7 @@ class Workorder extends Model implements HasMedia
                 'description',
                 'serial_number',
             ])
+            ->logExcept(['created_at','updated_at'])
             ->logOnlyDirty()                // логировать ТОЛЬКО изменившиеся поля
             ->dontSubmitEmptyLogs();        // не создавать пустые записи
     }
