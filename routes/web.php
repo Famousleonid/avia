@@ -328,6 +328,10 @@ Route::group(['middleware' => ['auth']], function () {
     Route::post('/notifications/{id}/read', [NotificationController::class, 'markRead'])->name('notifications.read');
     Route::post('/notifications/read-all', [NotificationController::class, 'readAll'])->name('notifications.readAll');
     Route::delete('/notifications/{id}', [NotificationController::class, 'destroy'])->name('notifications.destroy');
+    Route::get('/notifications/settings', [NotificationController::class, 'show'])->name('notifications.settings.show');
+    Route::post('/notifications/settings', [NotificationController::class, 'save'])->name('notifications.settings.save');
+
+
 });
 
 

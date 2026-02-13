@@ -203,6 +203,12 @@ class DirectoryController extends Controller
         $modelClass = $dir['model'];
         $item = $modelClass::create($data);
 
+        if ($request->expectsJson()) {
+            return response()->json(
+                ['id' => $item->id] + $item->only($fieldKeys)
+            );
+        }
+
         return redirect()->route("$slug.index")->with('success', 'Created');
     }
 

@@ -37,30 +37,54 @@ class MessageController extends Controller
         ]);
 
         $fromUser = auth()->user();
+
         // нельзя отправить самому себе
-        if (in_array($fromUser->id, $data['user_ids'])) {
+        if (in_array($fromUser->id, $data['user_ids'], true)) {
             return response()->json([
                 'ok' => false,
                 'message' => 'You cannot send message to yourself'
             ], 422);
         }
 
+        // грузим получателей вместе с prefs
+        $recipients = User::query()
+            ->whereIn('id', $data['user_ids'])
+            ->get(['id', 'name', 'notification_prefs']);
 
-        $recipients = User::whereIn('id', $data['user_ids'])->get();
+        $sent = [];
+        $blocked = [];
 
         foreach ($recipients as $user) {
-            $user->notify(
-                new NewMessageNotification(
-                    fromUserId: $fromUser->id,
-                    fromName: $fromUser->name,
-                    text: $data['message']
-                )
-            );
+            $prefs = $user->notification_prefs ?? [];
+            $mutedUsers = $prefs['muted_users'] ?? [];
+
+            // если получатель забанил отправителя — не шлём
+            if (in_array($fromUser->id, $mutedUsers, true)) {
+                $blocked[] = ['id' => $user->id, 'name' => $user->name];
+                continue;
+            }
+
+            $user->notify(new NewMessageNotification(
+                fromUserId: $fromUser->id,
+                fromName: $fromUser->name,
+                text: $data['message']
+            ));
+
+            $sent[] = ['id' => $user->id, 'name' => $user->name];
         }
 
+        // если НЕ отправилось никому — можно вернуть 403/422, но лучше 200 с ok=true/false по твоему вкусу
+        $ok = count($sent) > 0;
+
         return response()->json([
-            'ok' => true,
-            'message' => 'Message sent successfully'
+            'ok' => $ok,
+            'message' => $ok ? 'Message sent' : 'Message was not sent to any user',
+            'sent' => $sent,
+            'blocked' => $blocked,
+            'blocked_message' => count($blocked)
+                ? 'Some users blocked you and did not receive your message.'
+                : null,
         ]);
     }
+
 }

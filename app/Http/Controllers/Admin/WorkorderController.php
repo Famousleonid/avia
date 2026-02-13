@@ -238,10 +238,16 @@ class WorkorderController extends Controller
 
     public function index()
     {
-        $workorders = Workorder::withDrafts()
+        $query = Workorder::withDrafts()
             ->with(['main.task', 'unit.manuals', 'customer', 'instruction', 'user', 'generalTaskStatuses'])
-            ->orderByDesc('number')
-            ->get();
+            ->orderByDesc('number');
+
+        if (auth()->check() && auth()->user()->roleIs('Technician')) {
+            $query->where('is_draft', 0); // <-- явно 0
+        }
+
+        $workorders = $query->get();
+
 
         $generalTasks = GeneralTask::orderBy('sort_order')->orderBy('id')->get();
         $tasksByGeneral = \App\Models\Task::select('id','name','general_task_id')

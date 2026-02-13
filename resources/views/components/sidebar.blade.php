@@ -2,7 +2,6 @@
     .sidebar-main {
         width: 240px;
         transition: width 0.5s ease;
-
     }
     nav.sidebar.sidebar-main,
     .sidebar.sidebar-main,
@@ -16,7 +15,6 @@
         scrollbar-gutter: stable;
         background-color:#343A40;
         color:#B9BEC7;
-
     }
     .sidebar-scroll{
         overflow-y: auto;
@@ -115,9 +113,7 @@
     html[data-sidebar-collapsed="1"] .user-panel .send-msg-btn{
         margin: 0 !important;
     }
-
 </style>
-
 
 <nav id="sidebarMenu" class="d-none d-lg-block sidebar sidebar-main">
     <div class="position-sticky d-flex flex-column" style="height: 95vh;">
@@ -156,8 +152,8 @@
                     <div class="h5 ms-2 mt-2 text-white user-info-text">
                         <span>{{ Auth::user()->name }}</span>
                         <span class="text-secondary fs-6 user-role-text">
-                    {{ Auth::user()->role->name }}
-                </span>
+                            {{ Auth::user()->role->name }}
+                        </span>
                     </div>
                 </div>
 
@@ -179,20 +175,18 @@
                 @include('components.admin_menu_sidebar', ['themeToggleId' => 'themeToggle'])
             @endif
 
-                <div class="p-3 mt-auto border-top border-bottom border-1">
-                    <a class="nav-link" href="{{ route('logout') }}"
-                       onclick="event.preventDefault(); document.getElementById('logout-form-menu').submit();">
-                        <i class="bi bi-box-arrow-right me-2"></i>
-                        <span class="logout-text">Logout</span>
-                    </a>
-                    <form id="logout-form-menu" action="{{ route('logout') }}" method="POST" class="d-none">
-                        @csrf
-                    </form>
-                </div>
+            <div class="p-3 mt-auto border-top border-bottom border-1">
+                <a class="nav-link" href="{{ route('logout') }}"
+                   onclick="event.preventDefault(); document.getElementById('logout-form-menu').submit();">
+                    <i class="bi bi-box-arrow-right me-2"></i>
+                    <span class="logout-text">Logout</span>
+                </a>
+                <form id="logout-form-menu" action="{{ route('logout') }}" method="POST" class="d-none">
+                    @csrf
+                </form>
+            </div>
 
         </div>
-
-
     </div>
 </nav>
 
@@ -243,6 +237,7 @@
         </form>
     </div>
 </div>
+
 {{-- ---------------------------------- modal message (NEW layout) ------------------- --}}
 
 <style>
@@ -324,6 +319,7 @@
                         </div>
 
                         <div id="msgErr" class="text-danger small d-none mt-2"></div>
+                        <div id="msgWarn" class="text-warning small d-none mt-2"></div>
                         <div id="msgOk" class="text-success small d-none mt-2">Sent ✅</div>
                     </div>
 
@@ -369,6 +365,7 @@
         const selEl   = document.getElementById('msgSelectedCount');
 
         const errEl   = document.getElementById('msgErr');
+        const warnEl  = document.getElementById('msgWarn');
         const okEl    = document.getElementById('msgOk');
 
         const btnAll  = document.getElementById('msgPickAll');
@@ -390,15 +387,27 @@
             errEl.textContent = msg || 'Error';
             errEl.classList.remove('d-none');
             okEl.classList.add('d-none');
+            warnEl?.classList.add('d-none');
+            if (warnEl) warnEl.textContent = '';
         }
-        function showOk(){
+        function showWarn(msg){
+            if (!warnEl) return;
+            warnEl.textContent = msg || '';
+            if (msg) warnEl.classList.remove('d-none');
+            else warnEl.classList.add('d-none');
+        }
+        function showOk(text){
+            okEl.textContent = text || 'Sent ✅';
             okEl.classList.remove('d-none');
             errEl.classList.add('d-none');
+            // warn может быть вместе с ok
         }
         function clearMsg(){
             errEl.classList.add('d-none');
             okEl.classList.add('d-none');
+            warnEl?.classList.add('d-none');
             errEl.textContent = '';
+            if (warnEl) warnEl.textContent = '';
         }
 
         function updateLen(){ lenEl.textContent = String(taEl.value.length); }
@@ -425,12 +434,12 @@
                 const id = escapeHtml(u.id);
                 const name = escapeHtml(u.name ?? ('User #' + id));
                 return `
-                <label class="user-row">
-                    <input class="form-check-input m-0" type="checkbox" value="${id}">
-                    <div class="flex-grow-1">
-                        <div class="small text-light">${name}</div>
-                    </div>
-                </label>
+<label class="user-row">
+  <input class="form-check-input m-0" type="checkbox" value="${id}">
+  <div class="flex-grow-1">
+    <div class="small text-light">${name}</div>
+  </div>
+</label>
             `;
             }).join('');
 
@@ -447,7 +456,6 @@
                 spinner: false
             });
             const data = await r.json();
-            // твой контроллер возвращает массив [{id,name}]
             renderUsers(Array.isArray(data) ? data : (data.items || []));
         }
 
@@ -501,11 +509,27 @@
                 if (!r.ok || data.ok === false){
                     const msg = data.message || (data.errors ? Object.values(data.errors).flat().join(' ') : 'Send error');
                     showErr(msg);
-                } else {
-                    showOk();
-                    // можно очистить текст, а выбранных оставить или снять — как хочешь:
-                    // taEl.value = ''; updateLen();
+                    return;
                 }
+
+                const sentCount = Array.isArray(data.sent) ? data.sent.length : 0;
+                const blocked = Array.isArray(data.blocked) ? data.blocked : [];
+                const blockedCount = blocked.length;
+
+                if (sentCount > 0) {
+                    showOk(sentCount > 1 ? `Sent ✅ (${sentCount})` : 'Sent ✅');
+                } else {
+                    showErr(data.message || 'Message was not sent');
+                    return;
+                }
+
+                if (blockedCount > 0) {
+                    const names = blocked.map(x => x?.name).filter(Boolean).join(', ');
+                    showWarn(`Did not send to: ${names} (they blocked you)`);
+                } else {
+                    showWarn('');
+                }
+
             } catch (e){
                 showErr('Network error');
             } finally {

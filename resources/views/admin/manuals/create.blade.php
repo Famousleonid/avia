@@ -171,7 +171,7 @@
                     <h5 class="modal-title" id="addAirCraftModalLabel">{{ __('Add AirCraft') }}</h5>
                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Закрыть"></button>
                 </div>
-                <form method="POST" id="addAirCraftForm">
+                <form method="POST" id="addAirCraftForm" data-no-spinner>
                     @csrf
                     <div class="modal-body">
                         <div class="form-group">
@@ -196,7 +196,7 @@
                     <h5 class="modal-title" id="addMFRModalLabel">{{ __('Add MFR') }}</h5>
                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
-                <form method="POST" id="addMFRForm">
+                <form method="POST" id="addMFRForm" data-no-spinner>
                     @csrf
                     <div class="modal-body">
                         <div class="form-group">
@@ -221,7 +221,7 @@
                     <h5 class="modal-title" id="addScopeModalLabel">{{ __('Add Scope') }}</h5>
                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
-                <form method="POST" id="addScopeForm">
+                <form method="POST" id="addScopeForm" data-no-spinner>
                     @csrf
                     <div class="modal-body">
                         <div class="form-group">
@@ -292,31 +292,42 @@
                     method: 'POST',
                     body: formData,
                     headers: {
-                        'X-CSRF-TOKEN': '{{ csrf_token() }}'
+                        'X-CSRF-TOKEN': '{{ csrf_token() }}',
+                        'Accept': 'application/json',
                     }
                 })
                     .then(response => response.json())
-                    .then(data => {
-                        // Добавляем новый элемент в Select
-                        let select = document.getElementById(selectId);
-                        let option = document.createElement('option');
-                        option.value = data[dataKey];
-                        option.text = data[dataValue];
-                        option.selected = true; // Автоматически выбираем новый элемент
-                        select.add(option);
 
-                        // Закрываем модальное окно
+                    .then(data => {
+
+                        console.log('response:', data); // временно для проверки
+
+                        let select = document.getElementById(selectId);
+
+                        // Правильное добавление option
+                        let newOption = new Option(
+                            data[dataValue], // текст
+                            data[dataKey],   // value
+                            true,
+                            true
+                        );
+
+                        select.add(newOption);
+
+                        // Уведомляем select что он обновился
+                        select.dispatchEvent(new Event('change', { bubbles: true }));
+
+                        // Если используется Select2
+                        if (window.jQuery && $(select).data('select2')) {
+                            $(select).trigger('change');
+                        }
+
                         let modal = bootstrap.Modal.getInstance(document.getElementById(modalId));
                         modal.hide();
 
-                        // Сброс формы
                         document.getElementById(formId).reset();
                         this.submitted = false;
                     })
-                    .catch(error => {
-                        console.error('Ошибка:', error);
-                        this.submitted = false;
-                    });
             });
         }
 

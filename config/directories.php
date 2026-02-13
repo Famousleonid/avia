@@ -75,7 +75,7 @@ return [
         'fields' => [
             'scope' => [
                 'label' => 'Scope',
-                'rules' => ['required', 'string', 'max:255', 'unique:scopes,name'],
+                'rules' => ['required', 'string', 'max:255', 'unique:scopes,scope'],
             ],
         ],
         'search' => ['scope'],
