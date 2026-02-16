@@ -2,6 +2,8 @@
 
 namespace App\Providers;
 
+use App\Models\Workorder;
+use App\Observers\WorkorderObserver;
 use Illuminate\Support\Facades\Blade;
 use Illuminate\Support\ServiceProvider;
 
@@ -67,5 +69,9 @@ class AppServiceProvider extends ServiceProvider
 
             return !auth()->user()->roleIs($rolesArray);
         });
+
+        Workorder::observe(WorkorderObserver::class);
+
+
     }
 }

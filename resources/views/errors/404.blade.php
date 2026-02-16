@@ -2,7 +2,7 @@
 <html lang="ru">
 <head>
     <meta charset="UTF-8">
-    <title>Страница не найдена</title>
+    <title>Page not found</title>
     <meta name="viewport" content="width=device-width, initial-scale=1">
 
     {{-- Bootstrap 5 --}}
@@ -44,12 +44,12 @@
 <body>
 <div class="error-container">
     <div class="error-code">404</div>
-    <div class="error-message">Упс! Такой страницы нет 🙈</div>
+    <div class="error-message">Oops! There is no such page. 🙈</div>
 
     <img src="https://http.cat/404" alt="Кот 404">
 
-    <p class="mb-4">Возможно, вы потерялись. Давайте вернёмся на главную?</p>
-    <a href="{{ url('/') }}" class="btn btn-primary">На главную</a>
+    <p class="mb-4">You might be lost. Let's get back to the main page.</p>
+    <a href="{{ url('/') }}" class="btn btn-primary">Home</a>
 </div>
 </body>
 </html>

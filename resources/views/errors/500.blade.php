@@ -2,7 +2,7 @@
 <html lang="ru">
 <head>
     <meta charset="UTF-8">
-    <title>Ошибка сервера</title>
+    <title>Server error</title>
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
 
@@ -38,10 +38,10 @@
 <body>
 <div class="error-box">
     <div class="error-code">500</div>
-    <div class="error-message">Упс! Что-то пошло не так...</div>
+    <div class="error-message">Oops! Something went wrong...</div>
     <img src="{{asset('/img/500.png')}}" alt="404" class="img-fluid" width="850">
-    <p>Попробуйте обновить страницу или вернуться позже.</p>
-    <a href="{{ url('/') }}" class="btn btn-danger btn-home">На главную</a>
+    <p>Please try refreshing the page or come back later.</p>
+    <a href="{{ url('/') }}" class="btn btn-danger btn-home">Home</a>
 </div>
 </body>
 </html>

@@ -114,6 +114,11 @@
         }
         #notifSettingsModal .ns-scroll{ max-height: 260px; }
     }
+
+    .notif-row-clickable{
+        cursor: pointer;
+    }
+
 </style>
 
 <div class="dropdown sidebar-bell">
@@ -315,7 +320,9 @@
                 const url  = n.url ? escapeHtml(n.url) : '';
 
                 return `
-<div class="px-3 py-2 border-bottom" data-notif-id="${id}">
+<div class="px-3 py-2 border-bottom notif-row ${url ? 'notif-row-clickable' : ''}"
+     data-notif-id="${id}"
+     ${url ? `data-url="${url}"` : ''}>
   <div class="d-flex justify-content-between align-items-start gap-2">
     <div class="w-100">
       <div class="d-flex align-items-center justify-content-between small">
@@ -330,6 +337,7 @@
     </div>
   </div>
 </div>`;
+
             }).join('');
 
             list.querySelectorAll('.js-mark-read').forEach(btn => {
@@ -356,6 +364,17 @@
                     }
 
                     await fetchCount();
+                });
+            });
+            list.querySelectorAll('.notif-row-clickable').forEach(row => {
+                row.addEventListener('click', (e) => {
+                    // если клик по кнопке или ссылке — не перехватываем
+                    if (e.target.closest('a, button')) return;
+
+                    const url = row.dataset.url;
+                    if (url) {
+                        window.location.href = url;
+                    }
                 });
             });
         }
@@ -654,5 +673,7 @@
 
         modalEl.addEventListener('shown.bs.modal', loadSettings);
         window.__notifSettingsReload = loadSettings;
+
+
     })();
 </script>

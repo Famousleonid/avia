@@ -3,7 +3,7 @@
 <html lang="ru">
 <head>
     <meta charset="UTF-8">
-    <title>419 — Сессия истекла</title>
+    <title>419 — Session expired</title>
     <meta name="viewport" content="width=device-width, initial-scale=1">
 
     {{-- Bootstrap 5 --}}
@@ -44,12 +44,12 @@
 <body>
 <div class="error-container">
     <div class="error-code">419</div>
-    <div class="error-message">Сессия истекла ☕</div>
+    <div class="error-message">Session expired ☕</div>
 
     <img src="{{asset('/img/419.jpeg')}}" alt="404" class="img-fluid">
 
-    <p>Кажется, вы слишком долго были неактивны. Пожалуйста, обновите страницу или авторизуйтесь снова.</p>
-    <a href="{{ url()->previous() ?? url('/') }}" class="btn btn-warning mt-3">Назад</a>
+    <p>It looks like you've been inactive for too long. Please refresh the page or log in again.</p>
+    <a href="{{ url()->previous() ?? url('/') }}" class="btn btn-warning mt-3">Return</a>
 </div>
 </body>
 </html>
