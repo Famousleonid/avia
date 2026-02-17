@@ -9,9 +9,11 @@
             text-align: center;
             align-content: center;
         }
+
         .fs-8 {
             font-size: 0.8rem;
         }
+
         .fs-7 {
             font-size: 0.7rem;
         }
@@ -31,16 +33,14 @@
             background-color: #030334 !important;
             box-shadow: 0 2px 2px -1px rgba(0, 0, 0, 0.1);
         }
+
         #tdr__Table thead th {
             background-color: #030334 !important;
             box-shadow: 0 2px 2px -1px rgba(0, 0, 0, 0.1);
         }
-        .img-icon {
-            transition: transform 0.2s ease;
-        }
-        .img-icon:hover {
-            transform: scale(1.1);
 
+        .img-icon:hover {
+            cursor: pointer;
         }
 
     </style>
@@ -62,7 +62,7 @@
                     </div>
 
 
-                    <div class="ps-2 d-flex" >
+                    <div class="ps-2 d-flex">
                         {{--                        <div class=" ms-4">--}}
                         {{--                            <a href="{{ route('mains.show', $current_wo->id) }}" class="btn--}}
                         {{--                                            btn-outline-success " title="{{ __('WO Tasks') }}"--}}
@@ -76,7 +76,7 @@
                                     title="{{ __('PDF Library') }}"
                                     style="height: 55px;width: 55px ;align-content: center"
                                     data-id="{{ $current_wo->id }}"
-                                    data-number="{{ $current_wo->number }}" >
+                                    data-number="{{ $current_wo->number }}">
                                 <i class="bi bi-file-earmark-pdf" style="font-size: 26px; "></i>
                             </button>
                             {{-- Badge with count of uploaded PDF files --}}
@@ -92,7 +92,8 @@
                         @if(count($processParts))
                             <div class="me-2">
                                 <a href="{{route('tdrs.processes',['workorder_id' => $current_wo->id])}}"
-                                   class="btn fs-8 btn-outline-primary " style="height: 55px;width: 100px; align-content: center;line-height: 1rem"
+                                   class="btn fs-8 btn-outline-primary "
+                                   style="height: 55px;width: 100px; align-content: center;line-height: 1rem"
                                    onclick="showLoadingSpinner()">
                                     {{__('All Parts Processes')}}
                                 </a>
@@ -137,7 +138,8 @@
                         </div>
                         <div>
                             <a href="{{route('wo_bushings.show',['wo_bushing' => $current_wo->id])}}"
-                               class="btn  fs-8 btn-outline-primary ms-2" style="min-height: 55px;width: 85px ; align-content: center;line-height: 1rem"
+                               class="btn  fs-8 btn-outline-primary ms-2"
+                               style="min-height: 55px;width: 85px ; align-content: center;line-height: 1rem"
                                onclick="showLoadingSpinner
                                    ()">
                                 {{__('Bushing Processes')}}
@@ -145,7 +147,8 @@
                         </div>
                         <div>
                             <a href="{{route('rm_reports.show',['rm_report' => $current_wo->id])}}"
-                               class="btn  fs-8 btn-outline-primary ms-2 " style="height: 55px;width: 150px; align-content: center;line-height: 1rem"
+                               class="btn  fs-8 btn-outline-primary ms-2 "
+                               style="height: 55px;width: 150px; align-content: center;line-height: 1rem"
                                onclick="showLoadingSpinner
                                    ()">
                                 {{__('Repair & Modification Record')}}
@@ -268,8 +271,6 @@
                             @endphp
 
 
-
-
                         </div>
 
                         <!--  WO INfo -->
@@ -281,7 +282,8 @@
                                         <div>
                                             <h4 class="modal-title">{{__('Work order ')}}{{$current_wo->number}}</h4>
                                         </div>
-                                        <button type="button" class="btn-close pb-2" data-bs-dismiss="modal" aria-label="Close"></button>
+                                        <button type="button" class="btn-close pb-2" data-bs-dismiss="modal"
+                                                aria-label="Close"></button>
                                     </div>
                                     <div class="modal-body">
                                         <div class="d-flex">
@@ -291,8 +293,10 @@
                                             @if ($current_wo->unit && $current_wo->unit->manuals)
                                                 <div>
                                                     <div class="m-2">
-                                                        <a href="{{ $current_wo->unit->manuals->getFirstMediaBigUrl('manuals') }}" data-fancybox="gallery">
-                                                            <img class="" src="{{ $current_wo->unit->manuals->getFirstMediaThumbnailUrl('manuals')}}"
+                                                        <a href="{{ $current_wo->unit->manuals->getFirstMediaBigUrl('manuals') }}"
+                                                           data-fancybox="gallery">
+                                                            <img class=""
+                                                                 src="{{ $current_wo->unit->manuals->getFirstMediaThumbnailUrl('manuals')}}"
                                                                  width="150" height="150" alt="Image"/>
                                                         </a>
                                                     </div>
@@ -307,24 +311,29 @@
                                                     <div style="width: 150px">{{$current_wo->description}}</div>
                                                 </div>
                                                 <div class="d-flex ">
-                                                    <div class="text-end pe-3" style="width: 150px">{{'Part Number: '}}</div>
+                                                    <div class="text-end pe-3"
+                                                         style="width: 150px">{{'Part Number: '}}</div>
                                                     <div style="width: 150px">{{$current_wo->unit->part_number}}</div>
                                                 </div>
                                                 <div class="d-flex ">
-                                                    <div class="text-end pe-3" style="width: 150px">{{'Serial Number: '}}</div>
+                                                    <div class="text-end pe-3"
+                                                         style="width: 150px">{{'Serial Number: '}}</div>
                                                     <div style="width: 150px">{{$current_wo->serial_number}}</div>
                                                 </div>
                                                 <div class="d-flex ">
-                                                    <div class="text-end pe-3" style="width: 150px">{{'Instruction: '}}</div>
+                                                    <div class="text-end pe-3"
+                                                         style="width: 150px">{{'Instruction: '}}</div>
                                                     <div style="width: 150px">{{$current_wo->instruction->name}}</div>
                                                 </div>
                                                 <div class="d-flex ">
                                                     <div class="text-end pe-3" style="width: 150px">{{'CMM: '}}</div>
-                                                    <div style="width: 150px">{{$current_wo->unit->manuals->number}}</div>
+                                                    <div
+                                                        style="width: 150px">{{$current_wo->unit->manuals->number}}</div>
                                                 </div>
                                                 <div class="d-flex ">
                                                     <div class="text-end pe-3" style="width: 150px">{{'MFR: '}}</div>
-                                                    <div style="width: 150px">{{$current_wo->unit->manuals->builder->name}}</div>
+                                                    <div
+                                                        style="width: 150px">{{$current_wo->unit->manuals->builder->name}}</div>
                                                 </div>
                                                 <div class="d-flex ">
                                                     <div class="text-end pe-3" style="width: 150px">{{'Lib: '}}</div>
@@ -411,14 +420,16 @@
                         </div>
                         <!--  Missing Modal -->
                         <div class="modal fade" id="missingModal{{$current_wo->number}}" tabindex="-1"
-                             role="dialog" aria-labelledby="missingModalLabel{{$current_wo->number}}" aria-hidden="true">
+                             role="dialog" aria-labelledby="missingModalLabel{{$current_wo->number}}"
+                             aria-hidden="true">
                             <div class="modal-dialog modal-dialog-centered" role="document">
                                 <div class="modal-content bg-gradient" style="width: 1000px">
                                     <div class="modal-header">
                                         <div>
                                             <div class="d-flex justify-content-between" style="width: 600px">
                                                 <h4 class="modal-title">{{__('Work order ')}}{{$current_wo->number}}</h4>
-                                                <button type="button" class="btn-close pb-2" data-bs-dismiss="modal" aria-label="Close"></button>
+                                                <button type="button" class="btn-close pb-2" data-bs-dismiss="modal"
+                                                        aria-label="Close"></button>
                                             </div>
 
                                             <div class="d-flex justify-content-between">
@@ -434,14 +445,20 @@
                                         </div>
                                     </div>
                                     <div class="table-wrapper">
-                                        <table class="display table table-cm table-hover table-striped align-middle table-bordered">
+                                        <table
+                                            class="display table table-cm table-hover table-striped align-middle table-bordered">
                                             <thead class="bg-gradient">
                                             <tr>
-                                                <th class="text-primary bg-gradient">{{__('IPL')}}<i class="ms-1"></i></th>
-                                                <th class="text-primary bg-gradient">{{__('Part Description')}}<i class="ms-1"></i></th>
-                                                <th class="text-primary bg-gradient">{{__('Part Number')}}<i class="ms-1"></i></th>
-                                                <th class="text-primary bg-gradient">{{__('QTY')}}<i class="ms-1"></i></th>
-                                                <th class="text-primary bg-gradient">{{__('Delete')}}<i class="ms-1"></i></th>
+                                                <th class="text-primary bg-gradient">{{__('IPL')}}<i class="ms-1"></i>
+                                                </th>
+                                                <th class="text-primary bg-gradient">{{__('Part Description')}}<i
+                                                        class="ms-1"></i></th>
+                                                <th class="text-primary bg-gradient">{{__('Part Number')}}<i
+                                                        class="ms-1"></i></th>
+                                                <th class="text-primary bg-gradient">{{__('QTY')}}<i class="ms-1"></i>
+                                                </th>
+                                                <th class="text-primary bg-gradient">{{__('Delete')}}<i
+                                                        class="ms-1"></i></th>
                                             </tr>
                                             </thead>
                                             <tbody>
@@ -456,11 +473,13 @@
                                                     <td class="p-3"> {{$part->qty}} </td>
                                                     <td class="p-3">
                                                         <!-- Кнопка удаления -->
-                                                        <form action="{{ route('tdrs.destroy', $part->id) }}" method="POST"
+                                                        <form action="{{ route('tdrs.destroy', $part->id) }}"
+                                                              method="POST"
                                                               onsubmit="return confirm('Are you sure you want to delete this item?');">
                                                             @csrf
                                                             @method('DELETE')
-                                                            <button type="submit" class="btn btn-danger btn-sm">{{__('Delete')}}</button>
+                                                            <button type="submit"
+                                                                    class="btn btn-danger btn-sm">{{__('Delete')}}</button>
                                                         </form>
                                                     </td>
                                                 </tr>
@@ -482,10 +501,12 @@
                                             <h5 class="modal-title">{{__('Work order ')}}{{$current_wo->number}}</h5>
                                             <h5 class="modal-title">{{__('Inspections  ')}}</h5>
                                         </div>
-                                        <button type="button" class="btn-close pb-2" data-bs-dismiss="modal" aria-label="Close"></button>
+                                        <button type="button" class="btn-close pb-2" data-bs-dismiss="modal"
+                                                aria-label="Close"></button>
                                     </div>
                                     <div class="table-wrapper">
-                                        <table class="display table table-cm table-hover table-striped align-middle table-bordered">
+                                        <table
+                                            class="display table table-cm table-hover table-striped align-middle table-bordered">
                                             <thead class="">
                                             <tr>
                                                 <th class="text-primary text-center">{{__('Teardown Inspection')}}</th>
@@ -506,16 +527,20 @@
                                                     <td class="p-3">
                                                         {{ $conditionName }}
                                                         @if($unitComponentId)
-                                                            <small class="text-muted">(Component ID: {{ $unitComponentId }}, Codes: {{ $unitCodesId }}, Conditions: {{ $unitConditionsId }})</small>
+                                                            <small class="text-muted">(Component
+                                                                ID: {{ $unitComponentId }}, Codes: {{ $unitCodesId }},
+                                                                Conditions: {{ $unitConditionsId }})</small>
                                                         @endif
                                                     </td>
                                                     <td class="p-3">
                                                         <!-- Кнопка удаления -->
-                                                        <form action="{{ route('tdrs.destroy', $unit->id) }}" method="POST"
+                                                        <form action="{{ route('tdrs.destroy', $unit->id) }}"
+                                                              method="POST"
                                                               onsubmit="return confirm('Are you sure you want to delete this item?');">
                                                             @csrf
                                                             @method('DELETE')
-                                                            <button type="submit" class="btn btn-danger btn-sm">{{__('Delete')}}</button>
+                                                            <button type="submit"
+                                                                    class="btn btn-danger btn-sm">{{__('Delete')}}</button>
                                                         </form>
                                                     </td>
                                                 </tr>
@@ -535,40 +560,55 @@
 
                                         <h4 class="modal-title me-4">{{__('Work order W')}}{{$current_wo->number}}</h4>
                                         <h4 class="modal-title ms-5 ">{{__('Ordered Parts  ')}}</h4>
-                                        <button type="button" class="btn-close pb-2 text-end" data-bs-dismiss="modal" aria-label="Close"></button>
+                                        <button type="button" class="btn-close pb-2 text-end" data-bs-dismiss="modal"
+                                                aria-label="Close"></button>
 
 
                                     </div>
                                     @if(count($ordersPartsNew))
                                         <div class="table-wrapper">
-                                            <table class="display table table-cm table-hover table-striped align-middle table-bordered">
+                                            <table
+                                                class="display table table-cm table-hover table-striped align-middle table-bordered">
                                                 <thead class="bg-gradient">
                                                 <tr>
-                                                    <th class="text-primary  bg-gradient " data-direction="asc">{{__('IPL')}}<i class="  ms-1"></i></th>
-                                                    <th class="text-primary  bg-gradient " data-direction="asc">{{__('Part Description') }}<i class="  ms-1"></i></th>
-                                                    <th class="text-primary  bg-gradient " style="width: 250px;" data-direction="asc">{{__('Part Number')}}<i class="  ms-1"></i></th>
-                                                    <th class="text-primary  bg-gradient " data-direction="asc">{{__('QTY')}}<i class="bi  ms-1"></i></th>
-                                                    <th class="text-primary  bg-gradient ">{{__('Conditions')}}<i class="bi  ms-1"></i></th>
-                                                    <th class="text-primary  bg-gradient ">{{__('Delete')}}<i class="bi  ms-1"></i></th>
+                                                    <th class="text-primary  bg-gradient "
+                                                        data-direction="asc">{{__('IPL')}}<i class="  ms-1"></i></th>
+                                                    <th class="text-primary  bg-gradient "
+                                                        data-direction="asc">{{__('Part Description') }}<i
+                                                            class="  ms-1"></i></th>
+                                                    <th class="text-primary  bg-gradient " style="width: 250px;"
+                                                        data-direction="asc">{{__('Part Number')}}<i class="  ms-1"></i>
+                                                    </th>
+                                                    <th class="text-primary  bg-gradient "
+                                                        data-direction="asc">{{__('QTY')}}<i class="bi  ms-1"></i></th>
+                                                    <th class="text-primary  bg-gradient ">{{__('Conditions')}}<i
+                                                            class="bi  ms-1"></i></th>
+                                                    <th class="text-primary  bg-gradient ">{{__('Delete')}}<i
+                                                            class="bi  ms-1"></i></th>
                                                 </tr>
                                                 </thead>
                                                 <tbody>
                                                 @foreach($ordersPartsNew as $part)
                                                     <tr>
 
-                                                        <td class="p-3" style="width: 150px"> {{$part->orderComponent->ipl_num ?? ''}} </td>
+                                                        <td class="p-3"
+                                                            style="width: 150px"> {{$part->orderComponent->ipl_num ?? ''}} </td>
 
-                                                        <td class="p-3" style="width: 250px"> {{$part->orderComponent->name ?? ''}} </td>
-                                                        <td class="p-3" style="width: 250px;"> {{$part->orderComponent->part_number ?? ''}} </td>
+                                                        <td class="p-3"
+                                                            style="width: 250px"> {{$part->orderComponent->name ?? ''}} </td>
+                                                        <td class="p-3"
+                                                            style="width: 250px;"> {{$part->orderComponent->part_number ?? ''}} </td>
                                                         <td class="p-3"> {{$part->qty}} </td>
                                                         <td class="p-3"> {{$part->codes->name}} </td>
                                                         <td class="p-3">
                                                             <!-- Кнопка удаления -->
-                                                            <form action="{{ route('tdrs.destroy', $part->id) }}" method="POST"
+                                                            <form action="{{ route('tdrs.destroy', $part->id) }}"
+                                                                  method="POST"
                                                                   onsubmit="return confirm('Are you sure you want to delete this item?');">
                                                                 @csrf
                                                                 @method('DELETE')
-                                                                <button type="submit" class="btn btn-danger btn-sm">{{__('Delete')}}</button>
+                                                                <button type="submit"
+                                                                        class="btn btn-danger btn-sm">{{__('Delete')}}</button>
                                                             </form>
                                                         </td>
                                                     </tr>
@@ -594,7 +634,8 @@
                                             <h4 class="modal-title">{{__('Work order ')}}{{$current_wo->number}}</h4>
                                             <h4 class="modal-title">{{__('Forms  ')}}</h4>
                                         </div>
-                                        <button type="button" class="btn-close pb-2" data-bs-dismiss="modal" aria-label="Close"></button>
+                                        <button type="button" class="btn-close pb-2" data-bs-dismiss="modal"
+                                                aria-label="Close"></button>
                                     </div>
                                     <div class="modal-body">
 
@@ -779,11 +820,12 @@
                                         {{ $missingCondition->name }}
                                     </td>
                                     <td class="text-center img-icon">
-                                        <img src="{{ asset('img/missing4.png')}}" alt="missing"
-                                             style="width: 50px;" class=""  data-bs-toggle="modal"
+                                        <img src="{{ asset('img/missing.gif')}}" alt="missing"
+                                             style="width: 50px;" class="" data-bs-toggle="modal"
                                              data-bs-target="#missingModal{{$current_wo->number}}"
                                         >
                                     </td>
+
                                 </tr>
                             @endif
                             {{-- Обычные Unit Inspections (без записей компонентов с missing) --}}
@@ -845,21 +887,23 @@
                                             @endif
                                         @endif
                                     </td>
-                                    <td class="p-1 text-center img-icon">
+                                    <td class="p-0 text-center img-icon">
                                         {{-- Кнопка удаления только для обычных unit inspections (без компонентов) --}}
                                         @if(!$tdr->component_id)
-                                            <form action="{{ route('tdrs.destroy', $tdr->id) }}" method="POST"
-                                                  onsubmit="return confirm('Are you sure you want to delete this item?');">
-                                                @csrf
-                                                @method('DELETE')
-                                                <button type="submit" class="btn btn-outline-danger btn-sm ">
-                                                    <i class="bi bi-trash"></i>
-                                                </button>
-                                            </form>
+                                            <div class="p-1">
+                                                <form action="{{ route('tdrs.destroy', $tdr->id) }}" method="POST"
+                                                      onsubmit="return confirm('Are you sure you want to delete this item?');">
+                                                    @csrf
+                                                    @method('DELETE')
+                                                    <button type="submit" class="btn btn-outline-danger btn-sm ">
+                                                        <i class="bi bi-trash"></i>
+                                                    </button>
+                                                </form>
+                                            </div>
                                         @endif
                                         @if($tdr->necessaries_id == $necessary->id)
-                                            <img src="{{ asset('img/scrap2.png')}}" alt="order"
-                                                 style="width: 40px;" class=""
+                                            <img src="{{ asset('img/scrap.gif')}}" alt="order"
+                                                 style="width: 55px;" class=""
                                                  data-bs-toggle="modal"
                                                  data-bs-target="#orderModal{{$current_wo->number}}">
                                         @endif
@@ -875,7 +919,8 @@
 
                 <div class="me-3" style=" max-height: 70vh; overflow-y: auto;">
                     <div class="table-wrapper me-3 p-2">
-                        <table id="tdr_process_Table" class="display table table-sm table-hover table-striped align-middle table-bordered">
+                        <table id="tdr_process_Table"
+                               class="display table table-sm table-hover table-striped align-middle table-bordered">
                             <thead class="bg-gradient">
                             <tr>
                                 <th class="text-center text-primary sortable">{{__('IPL Number')}} </th>
@@ -947,7 +992,8 @@
                                             @endif
                                         </td>
 
-                                        <td class="d-flex justify-content-center " style="width: 150px; align-content: center">
+                                        <td class="d-flex justify-content-center "
+                                            style="width: 150px; align-content: center">
 
 
                                             <a href="{{ route('tdr-processes.processes',['tdrId'=>$tdr->id])}}"
@@ -958,7 +1004,8 @@
                                                class="btn btn-outline-primary btn-sm me-2">
                                                 <i class="bi bi-pencil-square" title="Component Inspection Edit"></i>
                                             </a>
-                                            <form action="{{ route('tdrs.destroy', ['tdr' => $tdr->id]) }}" method="POST"
+                                            <form action="{{ route('tdrs.destroy', ['tdr' => $tdr->id]) }}"
+                                                  method="POST"
                                                   onsubmit="return confirm('Are you sure you want to delete this item?');">
                                                 @csrf
                                                 @method('DELETE')
@@ -983,7 +1030,6 @@
         </div>
         </div>
 
-
     @else
 
         <!-- Manual data Not COMPLETE  -->
@@ -1002,8 +1048,11 @@
                     <p><strong>{{ __('Revision Date:')}}</strong> {{ $current_wo->unit->manuals->revision_date }}</p>
                     <p><strong>{{ __('AirCraft Type:')}}</strong>
                         {{ $planes[$current_wo->unit->manuals->planes_id] ?? 'N/A' }}</p>
-                    <p><strong>{{ __('MFR:') }}</strong> {{$builders[$current_wo->unit->manuals->builders_id] ?? 'N/A' }}</p>
-                    <p><strong>{{ __('Scope:') }}</strong> {{$scopes[$current_wo->unit->manuals->scopes_id] ?? 'N/A' }}</p>
+                    <p>
+                        <strong>{{ __('MFR:') }}</strong> {{$builders[$current_wo->unit->manuals->builders_id] ?? 'N/A' }}
+                    </p>
+                    <p><strong>{{ __('Scope:') }}</strong> {{$scopes[$current_wo->unit->manuals->scopes_id] ?? 'N/A' }}
+                    </p>
                     <p><strong>{{ __('Library:') }}</strong> {{$current_wo->unit->manuals->lib }}</p>
                 </div>
             </div>
@@ -1030,35 +1079,45 @@
                 <div class="modal-body">
 
                     <div>
-                        <form id="updateWorkOrderForm" data-inspection-route="{{ route('workorders.inspection', $current_wo->id) }}">
+                        <form id="updateWorkOrderForm"
+                              data-inspection-route="{{ route('workorders.inspection', $current_wo->id) }}">
                             @csrf
                             <div class="form-check">
                                 <label class="form-check-label" for="part_missing">Parts Missing</label>
-                                <input class="form-check-input" type="checkbox" name="part_missing" id="part_missing" {{ $current_wo->part_missing ? 'checked' : '' }}>
+                                <input class="form-check-input" type="checkbox" name="part_missing"
+                                       id="part_missing" {{ $current_wo->part_missing ? 'checked' : '' }}>
                             </div>
                             <div class="form-check">
                                 <label class="form-check-label" for="external_damage">External Damage</label>
-                                <input class="form-check-input" type="checkbox" name="external_damage" id="external_damage" {{ $current_wo->external_damage ? 'checked' : '' }}>
+                                <input class="form-check-input" type="checkbox" name="external_damage"
+                                       id="external_damage" {{ $current_wo->external_damage ? 'checked' : '' }}>
                             </div>
                             <div class="form-check">
                                 <label class="form-check-label" for="received_disassembly">Received Disassembly</label>
-                                <input class="form-check-input" type="checkbox" name="received_disassembly" id="received_disassembly" {{ $current_wo->received_disassembly ? 'checked' : '' }}>
+                                <input class="form-check-input" type="checkbox" name="received_disassembly"
+                                       id="received_disassembly" {{ $current_wo->received_disassembly ? 'checked' : '' }}>
                             </div>
                             <div class="form-check">
-                                <label class="form-check-label" for="disassembly_upon_arrival">Disassembly Upon Arrival</label>
-                                <input class="form-check-input" type="checkbox" name="disassembly_upon_arrival" id="disassembly_upon_arrival" {{ $current_wo->disassembly_upon_arrival ? 'checked' : '' }}>
+                                <label class="form-check-label" for="disassembly_upon_arrival">Disassembly Upon
+                                    Arrival</label>
+                                <input class="form-check-input" type="checkbox" name="disassembly_upon_arrival"
+                                       id="disassembly_upon_arrival" {{ $current_wo->disassembly_upon_arrival ? 'checked' : '' }}>
                             </div>
                             <div class="form-check">
                                 <label class="form-check-label" for="nameplate_missing">Name Plate Missing</label>
-                                <input class="form-check-input" type="checkbox" name="nameplate_missing" id="nameplate_missing" {{ $current_wo->nameplate_missing ? 'checked' : '' }}>
+                                <input class="form-check-input" type="checkbox" name="nameplate_missing"
+                                       id="nameplate_missing" {{ $current_wo->nameplate_missing ? 'checked' : '' }}>
                             </div>
                             <div class="form-check">
-                                <label class="form-check-label" for="preliminary_test_false">Preliminary Test - False</label>
-                                <input class="form-check-input" type="checkbox" name="preliminary_test_false" id="preliminary_test_false" {{ $current_wo->preliminary_test_false ? 'checked' : '' }}>
+                                <label class="form-check-label" for="preliminary_test_false">Preliminary Test -
+                                    False</label>
+                                <input class="form-check-input" type="checkbox" name="preliminary_test_false"
+                                       id="preliminary_test_false" {{ $current_wo->preliminary_test_false ? 'checked' : '' }}>
                             </div>
                             <div class="form-check ">
                                 <label class="form-check-label" for="extra_parts">Extra Parts</label>
-                                <input class="form-check-input" type="checkbox" name="extra_parts" id="extra_parts" {{ $current_wo->extra_parts ? 'checked' : '' }}>
+                                <input class="form-check-input" type="checkbox" name="extra_parts"
+                                       id="extra_parts" {{ $current_wo->extra_parts ? 'checked' : '' }}>
                             </div>
                             <div class="modal-footer mt-3" style="height: 60px">
                                 <button type="submit" class="btn btn-outline-primary">{{ __('Save') }}</button>
@@ -1089,7 +1148,7 @@
 
     <!-- Unit Inspection Modal Script -->
     <script>
-        document.addEventListener('DOMContentLoaded', function() {
+        document.addEventListener('DOMContentLoaded', function () {
             const selectAllCheckbox = document.getElementById('selectAllConditions');
             const conditionCheckboxes = document.querySelectorAll('.condition-checkbox');
             const saveBtn = document.getElementById('saveUnitInspectionsBtn');
@@ -1101,13 +1160,13 @@
             const manageConditionModal = document.getElementById('manageConditionModal');
 
             if (manageConditionBtn && unitInspectionModal && manageConditionModal) {
-                manageConditionBtn.addEventListener('click', function() {
+                manageConditionBtn.addEventListener('click', function () {
                     // Store reference to unit inspection modal
                     manageConditionModal.dataset.returnToModal = 'unitInspectionModal';
                 });
 
                 // When manage condition modal closes, reopen unit inspection modal if needed
-                manageConditionModal.addEventListener('hidden.bs.modal', function() {
+                manageConditionModal.addEventListener('hidden.bs.modal', function () {
                     if (manageConditionModal.dataset.returnToModal === 'unitInspectionModal') {
                         const unitModal = new bootstrap.Modal(unitInspectionModal);
                         unitModal.show();
@@ -1118,7 +1177,7 @@
 
             // Select All functionality
             if (selectAllCheckbox) {
-                selectAllCheckbox.addEventListener('change', function() {
+                selectAllCheckbox.addEventListener('change', function () {
                     conditionCheckboxes.forEach(checkbox => {
                         checkbox.checked = this.checked;
                     });
@@ -1127,7 +1186,7 @@
 
             // Update Select All checkbox state
             conditionCheckboxes.forEach(checkbox => {
-                checkbox.addEventListener('change', function() {
+                checkbox.addEventListener('change', function () {
                     const allChecked = Array.from(conditionCheckboxes).every(cb => cb.checked);
                     const someChecked = Array.from(conditionCheckboxes).some(cb => cb.checked);
                     if (selectAllCheckbox) {
@@ -1139,7 +1198,7 @@
 
             // Save button handler
             if (saveBtn) {
-                saveBtn.addEventListener('click', function() {
+                saveBtn.addEventListener('click', function () {
                     const formData = new FormData(form);
                     const workorderId = formData.get('workorder_id');
 
@@ -1211,12 +1270,12 @@
 
     <!-- Manage Condition Modal Script -->
     <script>
-        document.addEventListener('DOMContentLoaded', function() {
+        document.addEventListener('DOMContentLoaded', function () {
             const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '{{ csrf_token() }}';
 
             // Edit Condition
             document.querySelectorAll('.edit-condition-btn').forEach(btn => {
-                btn.addEventListener('click', function() {
+                btn.addEventListener('click', function () {
                     const conditionId = this.getAttribute('data-condition-id');
                     const row = document.querySelector(`tr[data-condition-id="${conditionId}"]`);
 
@@ -1233,7 +1292,7 @@
 
             // Cancel Edit
             document.querySelectorAll('.cancel-edit-btn').forEach(btn => {
-                btn.addEventListener('click', function() {
+                btn.addEventListener('click', function () {
                     const conditionId = this.getAttribute('data-condition-id');
                     const row = document.querySelector(`tr[data-condition-id="${conditionId}"]`);
 
@@ -1253,7 +1312,7 @@
 
             // Save Condition
             document.querySelectorAll('.save-condition-btn').forEach(btn => {
-                btn.addEventListener('click', function() {
+                btn.addEventListener('click', function () {
                     const conditionId = this.getAttribute('data-condition-id');
                     const row = document.querySelector(`tr[data-condition-id="${conditionId}"]`);
                     const input = row.querySelector('.condition-name-edit');
@@ -1313,7 +1372,7 @@
 
             // Delete Condition
             document.querySelectorAll('.delete-condition-btn').forEach(btn => {
-                btn.addEventListener('click', function() {
+                btn.addEventListener('click', function () {
                     const conditionId = this.getAttribute('data-condition-id');
                     const conditionName = this.getAttribute('data-condition-name');
 
@@ -1361,7 +1420,7 @@
             // Add Condition from Manage Modal
             const addConditionFormFromManage = document.getElementById('addConditionFormFromManage');
             if (addConditionFormFromManage) {
-                addConditionFormFromManage.addEventListener('submit', function(e) {
+                addConditionFormFromManage.addEventListener('submit', function (e) {
                     e.preventDefault();
 
                     const formData = new FormData(this);
@@ -1384,7 +1443,7 @@
                                 return response.json();
                             } else {
                                 // If redirect, treat as success
-                                return { success: true };
+                                return {success: true};
                             }
                         })
                         .then(data => {
@@ -1420,32 +1479,36 @@
                 <div class="modal-header">
                     <h5 class="modal-title" id="pdfModalLabel">PDF Library - Workorder W<span
                             id="pdfModalWorkorderNumber"></span></h5>
-                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"
+                            aria-label="Close"></button>
                 </div>
                 <div class="modal-body">
                     <!-- Upload Section -->
                     <div class="mb-4">
-                        <div class="card bg-dark border-secondary" >
-                            <div class="card-body d-flex" >
+                        <div class="card bg-dark border-secondary">
+                            <div class="card-body d-flex">
                                 <h6 class="text-primary mb-3 me-4">Upload PDF Files</h6>
                                 <form id="pdfUploadForm" enctype="multipart/form-data">
                                     <div class="ms-3">
                                         <div class="d-flex">
-                                            <label for="pdfDocumentName" class="form-label  me-2" >
+                                            <label for="pdfDocumentName" class="form-label  me-2">
                                                 Document Name</label>
-                                            <input type="text" class="form-control" id="pdfDocumentName" name="document_name"
+                                            <input type="text" class="form-control" id="pdfDocumentName"
+                                                   name="document_name"
                                                    placeholder="Enter document name (optional)" style="width: 400px"
                                                    maxlength="255">
                                             {{--                                            <small class="text-muted ms-2">Optional: Enter a name for the document</small>--}}
                                         </div>
                                         <div class="input-group mt-2 ms-4 d-flex " style="height: 40px">
-                                            <input type="file" class="form-control" id="pdfFileInput" name="pdf" accept=".pdf"
+                                            <input type="file" class="form-control" id="pdfFileInput" name="pdf"
+                                                   accept=".pdf"
                                                    style="width: 385px"
                                                    required>
                                             <button class="btn btn-primary" type="submit" id="uploadPdfBtn">
                                                 <i class="bi bi-upload"></i> Upload
                                             </button>
-                                            <small class="text-muted ms-3">Max size: 10MB. Upload one file at a time.</small>
+                                            <small class="text-muted ms-3">Max size: 10MB. Upload one file at a
+                                                time.</small>
                                         </div>
 
                                     </div>
@@ -1462,21 +1525,25 @@
                     </div>
 
                     <!-- PDF Viewer Modal -->
-                    <div class="modal fade" id="pdfViewerModal" tabindex="-1" aria-labelledby="pdfViewerModalLabel" aria-hidden="true">
+                    <div class="modal fade" id="pdfViewerModal" tabindex="-1" aria-labelledby="pdfViewerModalLabel"
+                         aria-hidden="true">
                         <div class="modal-dialog modal-xl">
                             <div class="modal-content bg-dark">
                                 <div class="modal-header">
                                     <h5 class="modal-title" id="pdfViewerModalLabel">PDF Viewer</h5>
-                                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"
+                                            aria-label="Close"></button>
                                 </div>
                                 <div class="modal-body p-0" style="min-height: 600px; position: relative;">
-                                    <iframe id="pdfViewerFrame" src="" style="width: 100%; height: 600px; border: none; position: relative;"></iframe>
+                                    <iframe id="pdfViewerFrame" src=""
+                                            style="width: 100%; height: 600px; border: none; position: relative;"></iframe>
                                 </div>
                                 <div class="modal-footer">
                                     <a id="pdfDownloadLink" href="#" class="btn btn-primary" download>
                                         <i class="bi bi-download"></i> Download
                                     </a>
-                                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close
+                                    </button>
                                 </div>
                             </div>
                         </div>
@@ -1491,7 +1558,8 @@
     </div>
 
     <!-- Confirm Delete PDF Modal -->
-    <div class="modal fade" id="confirmDeletePdfModal" tabindex="-1" aria-labelledby="confirmDeletePdfLabel" aria-hidden="true">
+    <div class="modal fade" id="confirmDeletePdfModal" tabindex="-1" aria-labelledby="confirmDeletePdfLabel"
+         aria-hidden="true">
         <div class="modal-dialog modal-dialog-centered">
             <div class="modal-content text-center">
                 <div class="modal-header">
@@ -1509,7 +1577,8 @@
     </div>
 
     <div class="position-fixed bottom-0 end-0 p-3" style="z-index: 1055">
-        <div id="pdfDeletedToast" class="toast bg-success text-white" role="alert" aria-live="assertive" aria-atomic="true">
+        <div id="pdfDeletedToast" class="toast bg-success text-white" role="alert" aria-live="assertive"
+             aria-atomic="true">
             <div class="toast-body">
                 PDF deleted successfully.
             </div>
@@ -1517,16 +1586,19 @@
     </div>
 
     <!-- Modal - Unit Inspection -->
-    <div class="modal fade" id="unitInspectionModal" tabindex="-1" aria-labelledby="unitInspectionModalLabel" aria-hidden="true">
+    <div class="modal fade" id="unitInspectionModal" tabindex="-1" aria-labelledby="unitInspectionModalLabel"
+         aria-hidden="true">
         <div class="modal-dialog modal-lg modal-dialog-scrollable">
             <div class="modal-content bg-gradient">
                 <div class="modal-header">
                     <h5 class="modal-title" id="unitInspectionModalLabel">
-                        <i class="fas fa-clipboard-check"></i> {{ __('Teardown Inspection') }} - {{ __('Work Order') }} {{ $current_wo->number }}
+                        <i class="fas fa-clipboard-check"></i> {{ __('Teardown Inspection') }}
+                        - {{ __('Work Order') }} {{ $current_wo->number }}
                     </h5>
                     <div class="ms-auto me-2">
                         @admin
-                        <button type="button" class="btn btn-outline-warning btn-sm" data-bs-toggle="modal" data-bs-target="#manageConditionModal" data-bs-dismiss="modal">
+                        <button type="button" class="btn btn-outline-warning btn-sm" data-bs-toggle="modal"
+                                data-bs-target="#manageConditionModal" data-bs-dismiss="modal">
                             <i class="fas fa-cog"></i> {{ __('Manage Condition') }}
                         </button>
                         @endadmin
@@ -1584,7 +1656,8 @@
                                                 @endif
                                             </td>
                                             <td class="align-middle">
-                                                <label for="condition_{{ $unit_condition->id }}" style="cursor: pointer; margin: 0;">
+                                                <label for="condition_{{ $unit_condition->id }}"
+                                                       style="cursor: pointer; margin: 0;">
                                                     @if(empty($unit_condition->name))
                                                         {{ __('(No name)') }}
                                                     @else
@@ -1609,7 +1682,8 @@
                     </form>
                 </div>
                 <div class="modal-footer">
-                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">{{ __('Cancel') }}</button>
+                    <button type="button" class="btn btn-outline-secondary"
+                            data-bs-dismiss="modal">{{ __('Cancel') }}</button>
                     <button type="button" class="btn btn-outline-primary" id="saveUnitInspectionsBtn">
                         <i class="fas fa-save"></i> {{ __('Save') }}
                     </button>
@@ -1619,7 +1693,8 @@
     </div>
 
     <!-- Modal - Manage Condition -->
-    <div class="modal fade" id="manageConditionModal" tabindex="-1" aria-labelledby="manageConditionModalLabel" aria-hidden="true">
+    <div class="modal fade" id="manageConditionModal" tabindex="-1" aria-labelledby="manageConditionModalLabel"
+         aria-hidden="true">
         <div class="modal-dialog modal-lg modal-dialog-scrollable">
             <div class="modal-content bg-gradient">
                 <div class="modal-header">
@@ -1631,7 +1706,8 @@
                 <div class="modal-body">
                     <div class="mb-3">
                         @admin
-                        <button type="button" class="btn btn-outline-success btn-sm" data-bs-toggle="modal" data-bs-target="#addConditionModalFromManage">
+                        <button type="button" class="btn btn-outline-success btn-sm" data-bs-toggle="modal"
+                                data-bs-target="#addConditionModalFromManage">
                             <i class="fas fa-plus"></i> {{ __('Add Condition') }}
                         </button>
                         @endadmin
@@ -1698,14 +1774,16 @@
                     </div>
                 </div>
                 <div class="modal-footer">
-                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">{{ __('Close') }}</button>
+                    <button type="button" class="btn btn-outline-secondary"
+                            data-bs-dismiss="modal">{{ __('Close') }}</button>
                 </div>
             </div>
         </div>
     </div>
 
     <!-- Modal - Add Condition (from Manage) -->
-    <div class="modal fade" id="addConditionModalFromManage" tabindex="-1" aria-labelledby="addConditionModalFromManageLabel" aria-hidden="true">
+    <div class="modal fade" id="addConditionModalFromManage" tabindex="-1"
+         aria-labelledby="addConditionModalFromManageLabel" aria-hidden="true">
         <div class="modal-dialog">
             <div class="modal-content bg-gradient">
                 <div class="modal-header">
@@ -1718,12 +1796,15 @@
                         <input type="hidden" name="unit" value="1">
                         <input type="hidden" name="workorder_id" value="{{ $current_wo->id }}">
                         <div class="form-group">
-                            <label for="conditionName">{{ __('Name') }} <small class="text-muted">({{ __('Optional') }})</small></label>
-                            <input id="conditionName" type="text" class="form-control" name="name" placeholder="{{ __('Leave empty to create condition with notes only') }}">
+                            <label for="conditionName">{{ __('Name') }} <small class="text-muted">({{ __('Optional') }}
+                                    )</small></label>
+                            <input id="conditionName" type="text" class="form-control" name="name"
+                                   placeholder="{{ __('Leave empty to create condition with notes only') }}">
                         </div>
                     </div>
                     <div class="modal-footer">
-                        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">{{ __('Cancel') }}</button>
+                        <button type="button" class="btn btn-outline-secondary"
+                                data-bs-dismiss="modal">{{ __('Cancel') }}</button>
                         <button type="submit" class="btn btn-outline-primary">{{ __('Save Condition') }}</button>
                     </div>
                 </form>
