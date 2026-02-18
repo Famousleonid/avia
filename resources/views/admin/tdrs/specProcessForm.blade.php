@@ -262,13 +262,22 @@
 
 </div>
 
-@php
-    $componentsPerPage = 6;
-    // Если $tdr_ws — коллекция, можно воспользоваться chunk:
-    $componentChunks = $tdr_ws->chunk($componentsPerPage);
-@endphp
-
 @foreach($componentChunks as $chunk)
+    @php
+        $maxColumnsPerPage = 6;
+        $columnSlots = [];
+        foreach ($chunk as $item) {
+            if ($item->hasQuarantine) {
+                $columnSlots[] = ['slot' => 'left', 'item' => $item];
+                $columnSlots[] = ['slot' => 'right', 'item' => $item];
+            } else {
+                $columnSlots[] = ['slot' => 'single', 'item' => $item];
+            }
+        }
+        while (count($columnSlots) < $maxColumnsPerPage) {
+            $columnSlots[] = ['slot' => 'empty', 'item' => null];
+        }
+    @endphp
     <div class="container-fluid ">
         <div class="row">
             <div class="col-1">
@@ -373,26 +382,20 @@
             <div class="col-10">
                 <!-- Строка для имен компонентов -->
                 <div class="row g-0">
-                    @foreach($chunk as $index => $component)
-                        @php
-                            $localIndex = $index % 6;
-                        @endphp
-                        <div class="col {{ $localIndex < 5 ? 'border-l-t-b' : 'border-all' }} text-center" style="height:
-                        22px">
-                            @php
-                                $nameLength = mb_strlen($component->component->name);
-                                $fontSize = $nameLength > 20 ? round(20 / $nameLength, 2) . 'em' : '1em';
-                            @endphp
-                            <span style="font-size: {{ $fontSize }};font-weight: bold">
-                                {{ $component->component->name }}
-                            </span>
+                    @foreach($columnSlots as $slotData)
+                        <div class="col {{ $loop->last ? 'border-all' : 'border-l-t-b' }} text-center" style="height: 22px">
+                            @if($slotData['slot'] !== 'empty')
+                                @php $component = $slotData['item']->component; @endphp
+                                @php
+                                    $nameLength = mb_strlen($component->component->name);
+                                    $fontSize = $nameLength > 20 ? round(20 / $nameLength, 2) . 'em' : '1em';
+                                @endphp
+                                <span style="font-size: {{ $fontSize }};font-weight: bold">
+                                    {{ $component->component->name }}
+                                </span>
+                            @endif
                         </div>
                     @endforeach
-
-                    @for($i = count($chunk); $i < $componentsPerPage; $i++)
-                        <div class="col {{ $i < 5 ? 'border-l-t-b' : 'border-all' }} text-center" style="height: 22px">
-                            {{__(' ')}}</div>
-                    @endfor
                 </div>
 
             </div>
@@ -407,18 +410,13 @@
             <!-- Данные Part No. -->
             <div class="col-10">
                 <div class="row g-0 ">
-                    @foreach($chunk as $index => $component)
-                        @php
-                            $localIndex = $index % 6;
-                        @endphp
-                        <div class="col {{ $localIndex < 5 ? 'border-l-b' : 'border-l-b-r'}} text-center" style="height: 22px;font-weight: bold">
-                            {{ $component->component->part_number }}
+                    @foreach($columnSlots as $slotData)
+                        <div class="col {{ $loop->last ? 'border-l-b-r' : 'border-l-b' }} text-center" style="height: 22px;font-weight: bold">
+                            @if($slotData['slot'] !== 'empty')
+                                {{ $slotData['item']->component->component->part_number }}
+                            @endif
                         </div>
                     @endforeach
-                    @for($i = count($chunk); $i < $componentsPerPage; $i++)
-                        <div class="col {{ $i < 5 ? 'border-l-b' : 'border-l-b-r'}} text-center" style="height: 22px">
-                            {{__(' ')}}</div>
-                    @endfor
                 </div>
             </div>
         </div>
@@ -432,16 +430,13 @@
             <!-- Данные Serial No. -->
             <div class="col-10">
                 <div class="row g-0 ">
-                    @foreach($chunk as $index => $component)
-                        @php $localIndex = $index % 6; @endphp
-                        <div class="col {{ $localIndex < 5 ? 'border-l-b' : 'border-l-b-r'}} text-center" style="height: 22px;font-weight: bold">
-                            {{ $component->serial_number }}
+                    @foreach($columnSlots as $slotData)
+                        <div class="col {{ $loop->last ? 'border-l-b-r' : 'border-l-b' }} text-center" style="height: 22px;font-weight: bold">
+                            @if($slotData['slot'] !== 'empty')
+                                {{ $slotData['item']->component->serial_number }}
+                            @endif
                         </div>
                     @endforeach
-                    @for($i = count($chunk); $i < $componentsPerPage; $i++)
-                        <div class="col {{ $i < 5 ? 'border-l-b' : 'border-l-b-r'}} text-center" style="height: 22px">
-                            {{__(' ')}}</div>
-                    @endfor
                 </div>
             </div>
         </div>
@@ -454,156 +449,56 @@
             </div>
             <div class="col-10" >
                 <div class="row g-0">
-                    @for($i = 0; $i < 6; $i++)
+                    @foreach($columnSlots as $slotData)
                         <div class="col fs-8 text-center " style="height: 15px">
                             <strong>RO No.</strong></div>
-                    @endfor
+                    @endforeach
                 </div>
             </div>
         </div>
+        @for($ndtRowIndex = 0; $ndtRowIndex < 3; $ndtRowIndex++)
         <div class="row g-0 fs-7">
-            <div class="col-2 border-l-t ps-1">
-                <div style="height: 18px"><strong></strong></div>
+            <div class="col-2 {{ $ndtRowIndex === 0 ? 'border-l-t' : ($ndtRowIndex === 2 ? 'border-l-b' : 'border-l') }} ps-1">
+                <div style="height: 18px"><strong>{{ $ndtRowIndex === 1 ? 'N.D.T.' : '' }}</strong></div>
             </div>
             <div class="col-10">
                 <div class="row g-0">
-                    @php
-                        $componentIndex = 0;
-                    @endphp
-
-                    @foreach($chunk as $index => $component)
+                    @foreach($columnSlots as $slotData)
                         @php
-                            $localIndex = $index % 6;
-                            $currentTdrId = $component->id;
-                            $ndtForCurrentTdr = collect($ndt_processes)
-                                ->where('tdrs_id', $currentTdrId)
-                                ->values();
-                        @endphp
+                            $showValue = false;
+                            $ndtEntry = null;
+                            if ($slotData['slot'] !== 'empty') {
+                                $component = $slotData['item']->component;
+                                $ndtForCurrentTdr = collect($ndt_processes)->where('tdrs_id', $component->id)->values();
+                                $quarantineNumberLine = $slotData['item']->quarantineNumberLine;
+                                $slot = $slotData['slot'];
 
-                        <div class="col {{ $localIndex < 5 ? 'border-l-t-b' : 'border-all' }} text-center" style="height:
-                     20px">
-                            @if($componentIndex < count($chunk) && isset($ndtForCurrentTdr[0]))
-                                <div class="border-r" style="height: 20px; width: 30px">
-                                    {{ $ndtForCurrentTdr[0]['number_line'] }}
-                                </div>
+                                if ($slot === 'single') {
+                                    $ndtEntry = $ndtForCurrentTdr[$ndtRowIndex] ?? null;
+                                    $showValue = $ndtEntry && $ndtEntry['number_line'] !== null;
+                                } elseif ($quarantineNumberLine !== null) {
+                                    $leftNdts = $ndtForCurrentTdr->filter(fn($n) => $n['number_line'] !== null && $n['number_line'] <= $quarantineNumberLine)->values();
+                                    $rightNdts = $ndtForCurrentTdr->filter(fn($n) => $n['number_line'] !== null && $n['number_line'] > $quarantineNumberLine)->values();
+                                    $ndtEntry = $slot === 'left' ? ($leftNdts[$ndtRowIndex] ?? null) : ($rightNdts[$ndtRowIndex] ?? null);
+                                    $showValue = $ndtEntry !== null;
+                                }
+                            }
+                        @endphp
+                        <div class="col {{ $loop->last ? ($ndtRowIndex === 0 ? 'border-all' : 'border-l-b-r') : ($ndtRowIndex === 0 ? 'border-l-t-b' : 'border-l-b') }} text-center" style="height: 20px{{ $slotData['slot'] === 'empty' ? '; position: relative' : '' }}">
+                            @if($showValue)
+                                <div class="border-r" style="height: 20px; width: 30px">{{ $ndtEntry['number_line'] }}</div>
                             @else
                                 <div class="border-r" style="height: 20px; width: 30px"></div>
+                                @if($slotData['slot'] === 'empty')
+                                    <div style="position: absolute; left: 29px; top: 0; bottom: 0; width: 1px; border-left: 1px solid black;"></div>
+                                @endif
                             @endif
                         </div>
-
-                        @php $componentIndex++; @endphp
                     @endforeach
-
-                    @for($i = count($chunk); $i < $componentsPerPage; $i++)
-                        <div class="col {{ $i < 5 ? 'border-l-t-b' : 'border-all' }} text-center" style="height: 20px;
-                    position: relative;">
-                            {{ __(' ') }}
-                            <!-- Граница внутри ячейки, отступ 30px от левого края -->
-                            <div style="position: absolute; left: 29px; top: 0; bottom: 0; width: 1px; border-left: 1px solid black;"></div>
-
-                        </div>
-                    @endfor
-
-
-                </div>
-            </div>
-
-        </div>
-        <div class="row g-0 fs-7">
-            <div class="col-2 border-l ps-1">
-                <div style="height: 18px"><strong>N.D.T.</strong></div>
-            </div>
-            <div class="col-10">
-                <div class="row g-0">
-                    @php
-                        $componentIndex = 0;
-                    @endphp
-
-                    @foreach($chunk as $index => $component)
-                        @php
-                            $localIndex = $index % 6;
-                            $currentTdrId = $component->id;
-                            $ndtForCurrentTdr = collect($ndt_processes)
-                                ->where('tdrs_id', $currentTdrId)
-                                ->values();
-                        @endphp
-
-                        <div class="col {{ $localIndex < 5 ? 'border-l-b' : 'border-l-b-r' }} text-center" style="height:
-                     20px">
-                            @if($componentIndex < count($chunk) && isset($ndtForCurrentTdr[1]))
-                                <div class="border-r" style="height: 20px; width: 30px">
-                                    {{ $ndtForCurrentTdr[1]['number_line'] }}
-                                </div>
-                            @else
-                                <div class="border-r" style="height: 20px; width: 30px"></div>
-                            @endif
-                        </div>
-
-                        @php $componentIndex++; @endphp
-                    @endforeach
-
-                    @for($i = count($chunk); $i < $componentsPerPage; $i++)
-                        <div class="col {{ $i < 5 ? 'border-l-b' : 'border-l-b-r' }} text-center" style="height: 20px;
-                    position: relative;">
-                            {{ __(' ') }}
-                            <!-- Граница внутри ячейки, отступ 30px от левого края -->
-                            <div style="position: absolute; left: 29px; top: 0; bottom: 0; width: 1px; border-left: 1px solid black;"></div>
-
-                        </div>
-                    @endfor
-
-
                 </div>
             </div>
         </div>
-        <div class="row g-0 fs-7">
-            <div class="col-2 border-l-b ps-1">
-                <div style="height: 18px"><strong></strong></div>
-            </div>
-            <div class="col-10">
-                <div class="row g-0">
-                    @php
-                        $componentIndex = 0;
-                    @endphp
-
-                    @foreach($chunk as $index => $component)
-                        @php
-                            $localIndex = $index % 6;
-                            $currentTdrId = $component->id;
-                            $ndtForCurrentTdr = collect($ndt_processes)
-                                ->where('tdrs_id', $currentTdrId)
-                                ->values();
-                        @endphp
-
-                        <div class="col {{ $localIndex < 5 ? 'border-l-b' : 'border-l-b-r' }} text-center" style="height:
-                     20px">
-                            @if($componentIndex < count($chunk) && isset($ndtForCurrentTdr[2]))
-                                <div class="border-r" style="height: 20px; width: 30px">
-                                    {{ $ndtForCurrentTdr[2]['number_line'] }}
-                                </div>
-                            @else
-                                <div class="border-r" style="height: 20px; width: 30px"></div>
-                            @endif
-                        </div>
-
-                        @php $componentIndex++; @endphp
-                    @endforeach
-
-                    @for($i = count($chunk); $i < $componentsPerPage; $i++)
-                        <div class="col {{ $i < 5 ? 'border-l-b' : 'border-l-b-r' }} text-center" style="height: 20px;
-                    position: relative;">
-                            {{ __(' ') }}
-                            <!-- Граница внутри ячейки, отступ 30px от левого края -->
-                            <div style="position: absolute; left: 29px; top: 0; bottom: 0; width: 1px; border-left: 1px solid black;"></div>
-
-                        </div>
-                    @endfor
-
-
-                </div>
-
-            </div>
-        </div>
+        @endfor
         @foreach($processNames as $name)
             <div class="row g-0 fs-7">
                 <div class="col-2 border-l-b ps-1">
@@ -611,73 +506,58 @@
                 </div>
                 <div class="col-10">
                     <div class="row g-0">
-                        @php
-                            $componentIndex = 0;
-                        @endphp
-
-                        @foreach($chunk as $index => $component)
+                        @foreach($columnSlots as $slotData)
                             @php
-                                $localIndex = $index % 6;
-                                $currentTdrId = isset($component) && isset($component->id) ? $component->id : null;
+                                $numberLines = '';
+                                $hasEcProcess = false;
+                                if ($slotData['slot'] !== 'empty') {
+                                    $component = $slotData['item']->component;
+                                    $currentTdrId = $component->id ?? null;
+                                    $quarantineNumberLine = $slotData['item']->quarantineNumberLine;
+                                    $slot = $slotData['slot'];
 
-                                // Проверяем наличие необходимых переменных
-                                if (isset($processes) && isset($name) && isset($name->id) && $currentTdrId) {
-                                    // Фильтруем только процессы данного компонента с данным именем процесса
-                                    $processForCurrentTdr = $processes
-                                        ->where('process_name_id', $name->id)
-                                        ->where('tdrs_id', $currentTdrId)
-                                        ->values();
-
-
-                                    // Собираем все number_line через запятую с проверкой
-                                    $numberLines = '';
-                                    if ($processForCurrentTdr->isNotEmpty()) {
-                                        $numberLines = $processForCurrentTdr->pluck('number_line')->filter()->implode(',');
-                                    }
-                                } else {
                                     $processForCurrentTdr = collect();
-                                    $numberLines = '';
+                                    if (isset($processes) && $name->id && $currentTdrId) {
+                                        $processForCurrentTdr = $processes
+                                            ->where('process_name_id', $name->id)
+                                            ->where('tdrs_id', $currentTdrId)
+                                            ->values();
+                                    }
 
+                                    if ($processForCurrentTdr->isNotEmpty()) {
+                                        $entries = $processForCurrentTdr->filter(fn($p) => $p['number_line'] !== null);
+                                        $hasEc = fn($coll) => $coll->filter(fn($p) => ($p['ec'] ?? 0) == 1)->isNotEmpty();
+                                        if ($slot === 'single') {
+                                            $numberLines = $entries->pluck('number_line')->implode(',');
+                                            $hasEcProcess = $hasEc($processForCurrentTdr);
+                                        } elseif ($slot === 'left' && $quarantineNumberLine !== null) {
+                                            $leftEntries = $entries->filter(fn($p) => $p['number_line'] <= $quarantineNumberLine);
+                                            $numberLines = $leftEntries->pluck('number_line')->implode(',');
+                                            $hasEcProcess = $hasEc($leftEntries);
+                                        } elseif ($slot === 'right' && $quarantineNumberLine !== null) {
+                                            $rightEntries = $entries->filter(fn($p) => $p['number_line'] > $quarantineNumberLine);
+                                            $numberLines = $rightEntries->pluck('number_line')->implode(',');
+                                            $hasEcProcess = $hasEc($rightEntries);
+                                        }
+                                    }
                                 }
                             @endphp
-                            <div class="col {{ $localIndex < 5 ? 'border-l-b' : 'border-l-b-r' }} text-center" style="height: 22px; position: relative;">
-                                {{--                      Выводим все number_line через запятую --}}
+                            <div class="col {{ $loop->last ? 'border-l-b-r' : 'border-l-b' }} text-center" style="height: 22px; position: relative;">
                                 @if($numberLines)
-                                    <div class="border-r" style="height: 22px; width: 30px">
-                                        {{ $numberLines }}
-                                    </div>
+                                    <div class="border-r" style="height: 22px; width: 30px;">{{ $numberLines }}</div>
                                 @else
                                     <div class="border-r" style="height: 22px; width: 30px"></div>
+                                    @if($slotData['slot'] === 'empty')
+                                        <div style="position: absolute; left: 29px; top: 0; bottom: 0; width: 1px; border-left: 1px solid black;"></div>
+                                    @endif
                                 @endif
-{{--                                место для ЕС для компанента--}}
-                                {{-- Проверяем, есть ли процессы с ec = 1 для данного компонента и имени процесса --}}
-                                @php
-                                    $hasEcProcess = false;
-                                    if (isset($processForCurrentTdr) && $processForCurrentTdr->isNotEmpty()) {
-                                        $hasEcProcess = $processForCurrentTdr->where('ec', 1)->isNotEmpty();
-
-                                    }
-                                @endphp
-                                @if($hasEcProcess)
-                                    <div class="" style="height: 22px; width: 30px;
-                                    position: absolute; right: 45px; top: 0;"
-                                    >
-                                        EC
-                                    </div>
+                                @if($numberLines && in_array($name->name ?? '', ['Quarantine', 'INSPECT']))
+                                    <div style="height: 22px; width: 30px; position: absolute; right: 45px; top: 0;">AT</div>
+                                @elseif($hasEcProcess)
+                                    <div style="height: 22px; width: 30px; position: absolute; right: 45px; top: 0;">EC</div>
                                 @endif
-                                @php $componentIndex++; @endphp
                             </div>
                         @endforeach
-                        @for($i = count($chunk); $i < $componentsPerPage; $i++)
-                            <div class="col {{ $i < 5 ? 'border-l-b' : 'border-l-b-r' }} text-center" style="height: 22px;
-                    position: relative;"> {{ __(' ') }}
-                                <!-- Граница внутри ячейки, отступ 30px от левого края -->
-                                <div style="position: absolute; left: 29px; top: 0; bottom: 0; width: 1px; border-left: 1px
-                                solid black;">
-
-                                </div>
-                            </div>
-                        @endfor
 
                     </div>
                 </div>

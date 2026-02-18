@@ -167,8 +167,8 @@ class TdrProcessController extends Controller
             abort(404, 'Manual not found for component or workorder');
         }
 
-        // Получаем имена процессов
-        $processNames = ProcessName::all();
+        // Получаем имена процессов, отсортированные по алфавиту
+        $processNames = ProcessName::orderBy('name')->get();
 
         // Получаем процессы, связанные с manual_id
         $processes = Process::whereHas('manuals', function ($query) use ($manual_id) {
@@ -887,8 +887,8 @@ class TdrProcessController extends Controller
         // Находим связанный Workorder
         $current_wo = Workorder::find($workorder_id);
 
-        // Получаем имена процессов
-        $processNames = ProcessName::all();
+        // Получаем имена процессов, отсортированные по алфавиту
+        $processNames = ProcessName::orderBy('name')->get();
 
         // Получаем процессы, связанные с manual_id
         $manual_id = $current_wo->unit->manual_id ?? null;
@@ -940,8 +940,11 @@ class TdrProcessController extends Controller
         // Извлекаем данные из запроса
         $processData = $validated['processes'][0]; // Берём первый элемент массива
 
-        // Преобразуем все элементы массива process в целые числа
-        $processesArray = array_map('intval', $processData['process']);
+        // process может быть массивом (checkbox) или скаляром (radio)
+        $processInput = $processData['process'] ?? [];
+        $processesArray = is_array($processInput)
+            ? array_map('intval', $processInput)
+            : [ (int) $processInput ];
 
         // Сохраняем старые данные ДО обновления
         $oldProcessNamesId = $current_tdr_processes->process_names_id;

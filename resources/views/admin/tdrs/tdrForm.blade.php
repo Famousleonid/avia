@@ -666,10 +666,10 @@
                     modal.hide();
                 }
                 
-                alert('Settings saved successfully!');
+                showNotification('Settings saved successfully!', 'success');
             } catch (e) {
                 console.error('Ошибка сохранения настроек:', e);
-                alert('Error saving settings');
+                showNotification('Error saving settings', 'error');
             }
         };
         
@@ -856,7 +856,7 @@
                 applyPrintSettings(defaultSettings);
                 applyTdrFormRowLimits(defaultSettings);
                 loadSettingsToForm(defaultSettings);
-                alert('Settings reset to default!');
+                showNotification('Settings reset to default!', 'success');
             }
         };
 

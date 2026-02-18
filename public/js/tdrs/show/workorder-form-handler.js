@@ -32,7 +32,7 @@ const WorkOrderFormHandler = {
         
         if (!inspectionRoute) {
             console.error('Inspection route not found');
-            alert('Inspection route missing');
+            showNotification('Inspection route missing', 'error');
             return;
         }
 
@@ -51,15 +51,15 @@ const WorkOrderFormHandler = {
         .then(response => response.json())
         .then(data => {
             if (data.success) {
-                alert('Work Order updated successfully!');
+                showNotification('Work Order updated successfully!', 'success');
                 location.reload();
             } else {
-                alert('Failed to update Work Order.');
+                showNotification('Failed to update Work Order.', 'error');
             }
         })
         .catch(error => {
             console.error('Error updating Work Order:', error);
-            alert('An error occurred while updating Work Order.');
+            showNotification('An error occurred while updating Work Order.', 'error');
         })
         .finally(() => {
             if (typeof hideLoadingSpinner === 'function') {

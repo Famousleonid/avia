@@ -409,7 +409,7 @@
             const index = parseInt($('#technicalNoteIndex').val(), 10);
 
             if (noteText === '') {
-                alert('Please enter a note text.');
+                showNotification('Please enter a note text.', 'warning');
                 return;
             }
 
@@ -470,12 +470,12 @@
                         // Перенаправляем на страницу показа
                         window.location.href = '{{ route("rm_reports.show", $current_wo->id) }}';
                     } else {
-                        alert('Error: ' + response.message);
+                        showNotification('Error: ' + response.message, 'error');
                     }
                 },
                 error: function(xhr, status, error) {
                     console.error('Error:', error);
-                    alert('An error occurred while saving the data.');
+                    showNotification('An error occurred while saving the data.', 'error');
                 }
             });
         }
@@ -509,11 +509,11 @@
                         // Устанавливаем action для формы
                         $('#editRmRecordForm').attr('action', '{{ route("rm_reports.updateRecord", ":id") }}'.replace(':id', record.id));
                     } else {
-                        alert('Error loading record data');
+                        showNotification('Error loading record data', 'error');
                     }
                 },
                 error: function() {
-                    alert('Error loading record data');
+                    showNotification('Error loading record data', 'error');
                 }
             });
         }

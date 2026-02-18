@@ -2900,6 +2900,45 @@ class TdrController extends Controller
                 'number_line' => $item['number_line'],
             ];
         });
+
+        // Quarantine: определяем для каждого TDR наличие и number_line
+        $quarantineProcessNameId = ProcessName::where('name', 'Quarantine')->value('id');
+        $quarantineByTdr = [];
+        if ($quarantineProcessNameId) {
+            foreach ($result->where('process_name_id', $quarantineProcessNameId) as $item) {
+                $quarantineByTdr[$item['tdrs_id']] = $item['number_line'];
+            }
+        }
+
+        // Разбиение по столбцам (макс. 6 на страницу). Детали с Quarantine = 2 столбца.
+        $maxColumnsPerPage = 6;
+        $componentChunks = collect();
+        $currentChunk = collect();
+        $currentColumns = 0;
+
+        foreach ($tdr_ws as $component) {
+            $hasQuarantine = isset($quarantineByTdr[$component->id]);
+            $cols = $hasQuarantine ? 2 : 1;
+            $quarantineNumberLine = $quarantineByTdr[$component->id] ?? null;
+
+            if ($currentColumns + $cols > $maxColumnsPerPage && $currentChunk->isNotEmpty()) {
+                $componentChunks->push($currentChunk);
+                $currentChunk = collect();
+                $currentColumns = 0;
+            }
+
+            $currentChunk->push((object)[
+                'component' => $component,
+                'columns' => $cols,
+                'hasQuarantine' => $hasQuarantine,
+                'quarantineNumberLine' => $quarantineNumberLine,
+            ]);
+            $currentColumns += $cols;
+        }
+        if ($currentChunk->isNotEmpty()) {
+            $componentChunks->push($currentChunk);
+        }
+
         // Передаем данные в представление
         return view('admin.tdrs.specProcessForm', [
             'current_wo' => $current_wo,
@@ -2907,6 +2946,7 @@ class TdrController extends Controller
             'ndt_processes' => $ndt_processes, // Отфильтрованная коллекция
             'ndtSums' => $ndtSums, // Добавляем NDT суммы в представление
             'cadSum' => $cadSum,
+            'componentChunks' => $componentChunks,
         ], compact('tdrs', 'tdr_ws','processNames','cadSum_ex'));
     }
 
@@ -2966,48 +3006,89 @@ class TdrController extends Controller
         $tdrs = Tdr::where('workorder_id', $current_wo->id)
             ->where('use_process_forms', true)
             ->with(['tdrProcesses' => function($query) {
-                $query->orderBy('sort_order');
-            }]) // Предварительная загрузка TdrProcess с сортировкой
+                $query->orderBy('sort_order')->with('processName');
+            }])
             ->with('component')
             ->get();
 
-        // Создаем коллекцию для результата
+        // Получаем ID процессов с именем 'EC' для исключения из подсчёта number_line
+        $ecProcessIds = ProcessName::where('name', 'LIKE', 'EC')->pluck('id');
+
+        // Создаем коллекцию для результата (как в specProcessForm)
         $result = collect();
-
-        // Обрабатываем каждый Tdr
         foreach ($tdrs as $tdr) {
-            // Получаем связанные процессы
             $groupedProcesses = $tdr->tdrProcesses;
-
-            // Обрабатываем каждый процесс
-            $groupedProcesses->each(function ($process, $index) use (&$result, $tdr) {
+            $lineNumber = 0;
+            $groupedProcesses->each(function ($process) use (&$result, &$lineNumber, $tdr, $ecProcessIds) {
+                $isEcProcess = $ecProcessIds->contains($process->process_names_id);
+                if (!$isEcProcess) {
+                    $lineNumber++;
+                }
                 $result->push([
                     'tdrs_id' => $tdr->id,
                     'process_name_id' => $process->process_names_id,
-                    'number_line' => $index + 1, // Номер строки
+                    'number_line' => $isEcProcess ? null : $lineNumber,
+                    'ec' => $process->ec,
                 ]);
             });
         }
-// Получаем все ID процессов, где name содержит 'NDT'
-        $ndtIds = ProcessName::where('name', 'LIKE', '%NDT%')->pluck('id');
 
-// Фильтруем коллекцию processes, оставляя только те записи, где process_name_id есть в $ndtIds
+        $ndtIds = ProcessName::where('name', 'LIKE', '%NDT%')->pluck('id');
         $ndt_processes = $result->filter(function ($item) use ($ndtIds) {
             return $ndtIds->contains($item['process_name_id']);
         })->map(function ($item) {
-            // Преобразуем каждую запись в нужный формат
             return [
                 'tdrs_id' => $item['tdrs_id'],
                 'number_line' => $item['number_line'],
             ];
         });
+
+        // Quarantine: определяем для каждого TDR наличие и number_line
+        $quarantineProcessNameId = ProcessName::where('name', 'Quarantine')->value('id');
+        $quarantineByTdr = [];
+        if ($quarantineProcessNameId) {
+            foreach ($result->where('process_name_id', $quarantineProcessNameId) as $item) {
+                $quarantineByTdr[$item['tdrs_id']] = $item['number_line'];
+            }
+        }
+
+        // Разбиение по столбцам (макс. 6 на страницу). Детали с Quarantine = 2 столбца.
+        $maxColumnsPerPage = 6;
+        $componentChunks = collect();
+        $currentChunk = collect();
+        $currentColumns = 0;
+
+        foreach ($tdr_ws as $component) {
+            $hasQuarantine = isset($quarantineByTdr[$component->id]);
+            $cols = $hasQuarantine ? 2 : 1;
+            $quarantineNumberLine = $quarantineByTdr[$component->id] ?? null;
+
+            if ($currentColumns + $cols > $maxColumnsPerPage && $currentChunk->isNotEmpty()) {
+                $componentChunks->push($currentChunk);
+                $currentChunk = collect();
+                $currentColumns = 0;
+            }
+
+            $currentChunk->push((object)[
+                'component' => $component,
+                'columns' => $cols,
+                'hasQuarantine' => $hasQuarantine,
+                'quarantineNumberLine' => $quarantineNumberLine,
+            ]);
+            $currentColumns += $cols;
+        }
+        if ($currentChunk->isNotEmpty()) {
+            $componentChunks->push($currentChunk);
+        }
+
         // Передаем данные в представление
         return view('admin.tdrs.specProcessFormEmp', [
             'current_wo' => $current_wo,
-            'processes' => $result, // Исходная коллекция
-            'ndt_processes' => $ndt_processes, // Отфильтрованная коллекция
-            'ndtSums' => $ndtSums, // Добавляем NDT суммы в представление
+            'processes' => $result,
+            'ndt_processes' => $ndt_processes,
+            'ndtSums' => $ndtSums,
             'cadSum' => $cadSum,
+            'componentChunks' => $componentChunks,
         ], compact('tdrs', 'tdr_ws','processNames','cadSum_ex'));
     }
 

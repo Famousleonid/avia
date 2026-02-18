@@ -63,7 +63,7 @@
 
             } catch (err) {
                 console.error('Delete error:', err);
-                alert('Failed to delete photo');
+                showNotification('Failed to delete photo', 'error');
             } finally {
                 hideSpin();
                 const modalEl = getEl('confirmDeletePhotoModal');
@@ -246,7 +246,7 @@
                     const group = inp.dataset.group;
                     const workorderId = window.currentWorkorderId;
 
-                    if (!workorderId) return alert('Workorder ID missing');
+                    if (!workorderId) return showNotification('Workorder ID missing', 'error');
                     if (!files || !files.length) return;
 
                     const fd = new FormData();
@@ -266,7 +266,7 @@
                         await loadPhotoModal(workorderId);
                     } catch (e) {
                         console.error('Upload error:', e);
-                        alert('Upload failed');
+                        showNotification('Upload failed', 'error');
                     } finally {
                         inp.value = '';
                         hideSpin();
@@ -282,7 +282,7 @@
                     const workorderId = window.currentWorkorderId;
                     const workorderNumber = window.currentWorkorderNumber || 'workorder';
 
-                    if (!workorderId) return alert('Workorder ID missing');
+                    if (!workorderId) return showNotification('Workorder ID missing', 'error');
                     if (!group) return;
 
                     showSpin();
@@ -301,7 +301,7 @@
                         window.URL.revokeObjectURL(url);
                     } catch (e) {
                         console.error(e);
-                        alert('Download failed');
+                        showNotification('Download failed', 'error');
                     } finally {
                         hideSpin();
                     }
@@ -443,7 +443,7 @@
                 }
                 const mediaId = dragMediaId || fallbackId;
 
-                if (!workorderId) return alert('Workorder ID missing');
+                if (!workorderId) return showNotification('Workorder ID missing', 'error');
                 if (!mediaId) return;
                 if (toGroup && dragFromGroup && toGroup === dragFromGroup) return;
 
@@ -466,7 +466,7 @@
                     await loadPhotoModal(workorderId);
                 } catch (err) {
                     console.error('Move error:', err);
-                    alert('Move failed');
+                    showNotification('Move failed', 'error');
                 } finally {
                     hideSpin();
                 }
@@ -480,7 +480,7 @@
         getEl('saveAllPhotos')?.addEventListener('click', function () {
             const workorderId = window.currentWorkorderId;
             const workorderNumber = window.currentWorkorderNumber || 'workorder';
-            if (!workorderId) return alert('Workorder ID missing');
+            if (!workorderId) return showNotification('Workorder ID missing', 'error');
 
             showSpin();
 
@@ -499,7 +499,7 @@
                 })
                 .catch(err => {
                     console.error('Error downloading ZIP:', err);
-                    alert('Download failed');
+                    showNotification('Download failed', 'error');
                 })
                 .finally(() => hideSpin());
         });

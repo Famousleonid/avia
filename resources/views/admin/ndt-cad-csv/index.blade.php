@@ -1417,7 +1417,7 @@ function initializeWhenReady() {
 
             const selectedComponent = $('#ndtComponent option:selected');
             if (!selectedComponent.val()) {
-                alert('Please select a component');
+                showNotification('Please select a component', 'warning');
                 return;
             }
 
@@ -1452,11 +1452,11 @@ function initializeWhenReady() {
                     // Показываем уведомление
                     showNotification('NDT компонент успешно добавлен', 'success');
                 } else {
-                    alert('Error: ' + response.message);
+                    showNotification('Error: ' + response.message, 'error');
                 }
             }).fail(function(xhr) {
                 console.error('NDT add error:', xhr.responseText);
-                alert('Error adding component');
+                showNotification('Error adding component', 'error');
             });
         });
 
@@ -1466,12 +1466,12 @@ function initializeWhenReady() {
 
             const selectedComponent = $('#cadComponent option:selected');
             if (!selectedComponent.val()) {
-                alert('Please select a component');
+                showNotification('Please select a component', 'warning');
                 return;
             }
 
             if (!$('#cadProcess').val()) {
-                alert('Please select a process');
+                showNotification('Please select a process', 'warning');
                 return;
             }
 
@@ -1507,11 +1507,11 @@ function initializeWhenReady() {
                     // Показываем уведомление
                     showNotification('CAD компонент успешно добавлен', 'success');
                 } else {
-                    alert('Error: ' + response.message);
+                    showNotification('Error: ' + response.message, 'error');
                 }
             }).fail(function(xhr) {
                 console.error('CAD add error:', xhr.responseText);
-                alert('Error adding component');
+                showNotification('Error adding component', 'error');
             });
         });
 
@@ -1521,12 +1521,12 @@ function initializeWhenReady() {
 
             const selectedComponent = $('#paintComponent option:selected');
             if (!selectedComponent.val()) {
-                alert('Please select a component');
+                showNotification('Please select a component', 'warning');
                 return;
             }
 
             if (!$('#paintProcess').val()) {
-                alert('Please select a process');
+                showNotification('Please select a process', 'warning');
                 return;
             }
 
@@ -1562,11 +1562,11 @@ function initializeWhenReady() {
                     // Показываем уведомление
                     showNotification('Paint компонент успешно добавлен', 'success');
                 } else {
-                    alert('Error: ' + response.message);
+                    showNotification('Error: ' + response.message, 'error');
                 }
             }).fail(function(xhr) {
                 console.error('Paint add error:', xhr.responseText);
-                alert('Error adding component');
+                showNotification('Error adding component', 'error');
             });
         });
 
@@ -1576,12 +1576,12 @@ function initializeWhenReady() {
 
             const selectedComponent = $('#stressComponent option:selected');
             if (!selectedComponent.val()) {
-                alert('Please select a component');
+                showNotification('Please select a component', 'warning');
                 return;
             }
 
             if (!$('#stressProcess').val()) {
-                alert('Please select a process');
+                showNotification('Please select a process', 'warning');
                 return;
             }
 
@@ -1617,11 +1617,11 @@ function initializeWhenReady() {
                     // Показываем уведомление
                     showNotification('Stress компонент успешно добавлен', 'success');
                 } else {
-                    alert('Error: ' + response.message);
+                    showNotification('Error: ' + response.message, 'error');
                 }
             }).fail(function(xhr) {
                 console.error('Stress add error:', xhr.responseText);
-                alert('Error adding component');
+                showNotification('Error adding component', 'error');
             });
         });
 
@@ -1632,7 +1632,7 @@ function initializeWhenReady() {
 
             const editIndex = $('#ndtEditIndex').val();
             if (!editIndex) {
-                alert('Edit index not found');
+                showNotification('Edit index not found', 'error');
                 return;
             }
 
@@ -1668,11 +1668,11 @@ function initializeWhenReady() {
                     // Показываем уведомление
                     showNotification('NDT компонент успешно обновлен', 'success');
                 } else {
-                    alert('Error: ' + response.message);
+                    showNotification('Error: ' + response.message, 'error');
                 }
             }).fail(function(xhr) {
                 console.error('NDT edit error:', xhr.responseText);
-                alert('Error saving changes');
+                showNotification('Error saving changes', 'error');
             });
         });
 
@@ -1682,7 +1682,7 @@ function initializeWhenReady() {
 
             const editIndex = $('#cadEditIndex').val();
             if (!editIndex) {
-                alert('Edit index not found');
+                showNotification('Edit index not found', 'error');
                 return;
             }
 
@@ -1718,11 +1718,11 @@ function initializeWhenReady() {
                     // Показываем уведомление
                     showNotification('CAD компонент успешно обновлен', 'success');
                 } else {
-                    alert('Error: ' + response.message);
+                    showNotification('Error: ' + response.message, 'error');
                 }
             }).fail(function(xhr) {
                 console.error('CAD edit error:', xhr.responseText);
-                alert('Error saving changes');
+                showNotification('Error saving changes', 'error');
             });
         });
 
@@ -1732,7 +1732,7 @@ function initializeWhenReady() {
 
             const editIndex = $('#paintEditIndex').val();
             if (!editIndex) {
-                alert('Edit index not found');
+                showNotification('Edit index not found', 'error');
                 return;
             }
 
@@ -1768,11 +1768,11 @@ function initializeWhenReady() {
                     // Показываем уведомление
                     showNotification('Paint компонент успешно обновлен', 'success');
                 } else {
-                    alert('Error: ' + response.message);
+                    showNotification('Error: ' + response.message, 'error');
                 }
             }).fail(function(xhr) {
                 console.error('Paint edit error:', xhr.responseText);
-                alert('Error saving changes');
+                showNotification('Error saving changes', 'error');
             });
         });
 
@@ -1782,7 +1782,7 @@ function initializeWhenReady() {
 
             const editIndex = $('#stressEditIndex').val();
             if (!editIndex) {
-                alert('Edit index not found');
+                showNotification('Edit index not found', 'error');
                 return;
             }
 
@@ -1818,11 +1818,11 @@ function initializeWhenReady() {
                     // Показываем уведомление
                     showNotification('Stress компонент успешно обновлен', 'success');
                 } else {
-                    alert('Error: ' + response.message);
+                    showNotification('Error: ' + response.message, 'error');
                 }
             }).fail(function(xhr) {
                 console.error('Stress edit error:', xhr.responseText);
-                alert('Error saving changes');
+                showNotification('Error saving changes', 'error');
             });
         });
 
@@ -1857,7 +1857,7 @@ function initializeWhenReady() {
 
                         showNotification(`Successfully imported ${response.count} components`, 'success');
                     } else {
-                        alert('Error: ' + response.message);
+                        showNotification('Error: ' + response.message, 'error');
                     }
                 }
             });
@@ -2049,11 +2049,11 @@ window.removeNdtComponent = function(index) {
                     // Показываем уведомление
                     showNotification('NDT компонент успешно удален', 'success');
                 } else {
-                    alert('Error: ' + response.message);
+                    showNotification('Error: ' + response.message, 'error');
                 }
             }).fail(function(xhr) {
                 console.error('Ошибка AJAX:', xhr.responseText);
-                alert('Error while deleting component');
+                showNotification('Error while deleting component', 'error');
             });
         } else {
             console.log('jQuery not loaded yet, using fallback');
@@ -2084,11 +2084,11 @@ window.removeCadComponent = function(index) {
                     // Показываем уведомление
                     showNotification('CAD компонент успешно удален', 'success');
                 } else {
-                    alert('Error: ' + response.message);
+                    showNotification('Error: ' + response.message, 'error');
                 }
             }).fail(function(xhr) {
                 console.error('Ошибка AJAX:', xhr.responseText);
-                alert('Error while deleting component');
+                showNotification('Error while deleting component', 'error');
             });
         } else {
             console.log('jQuery not loaded yet, using fallback');
@@ -2119,11 +2119,11 @@ window.removeStressComponent = function(index) {
                     // Показываем уведомление
                     showNotification('Stress компонент успешно удален', 'success');
                 } else {
-                    alert('Error: ' + response.message);
+                    showNotification('Error: ' + response.message, 'error');
                 }
             }).fail(function(xhr) {
                 console.error('Ошибка AJAX:', xhr.responseText);
-                alert('Error while deleting component');
+                showNotification('Error while deleting component', 'error');
             });
         } else {
             console.log('jQuery not loaded yet, using fallback');
@@ -2141,10 +2141,10 @@ window.reloadFromManual = function(type) {
                 _token: $('meta[name="csrf-token"]').attr('content')
             }).done(function(response) {
                 if (response.success) {
-                    alert(`Successfully loaded ${response.count} components`);
+                    showNotification(`Successfully loaded ${response.count} components`, 'success');
                     location.reload();
                 } else {
-                    alert('Ошибка: ' + response.message);
+                    showNotification('Ошибка: ' + response.message, 'error');
                 }
             });
         } else {
@@ -2163,10 +2163,10 @@ window.forceLoadFromManual = function(type) {
                 _token: $('meta[name="csrf-token"]').attr('content')
             }).done(function(response) {
                 if (response.success) {
-                    alert(`Successfully loaded ${response.count} components`);
+                    showNotification(`Successfully loaded ${response.count} components`, 'success');
                     location.reload();
                 } else {
-                    alert('Ошибка: ' + response.message);
+                    showNotification('Ошибка: ' + response.message, 'error');
                 }
             });
         } else {
@@ -2306,7 +2306,7 @@ window.editNdtComponent = function(index) {
     const component = ndtComponents[index];
     if (!component) {
         console.error('NDT Component not found at index:', index);
-        alert('Component not found');
+        showNotification('Component not found', 'error');
         return;
     }
 
@@ -2345,7 +2345,7 @@ window.editCadComponent = function(index) {
     const component = cadComponents[index];
     if (!component) {
         console.error('CAD Component not found at index:', index);
-        alert('Component not found');
+        showNotification('Component not found', 'error');
         return;
     }
 
@@ -2431,7 +2431,7 @@ window.editPaintComponent = function(index) {
     const component = paintComponents[index];
     if (!component) {
         console.error('Paint Component not found at index:', index);
-        alert('Component not found');
+        showNotification('Component not found', 'error');
         return;
     }
 
@@ -2517,7 +2517,7 @@ window.editStressComponent = function(index) {
     const component = stressComponents[index];
     if (!component) {
         console.error('Stress Component not found at index:', index);
-        alert('Component not found');
+        showNotification('Component not found', 'error');
         return;
     }
 
@@ -2617,11 +2617,11 @@ window.removePaintComponent = function(index) {
                     // Показываем уведомление
                     showNotification('Paint компонент успешно удален', 'success');
                 } else {
-                    alert('Error: ' + response.message);
+                    showNotification('Error: ' + response.message, 'error');
                 }
             }).fail(function(xhr) {
                 console.error('Ошибка AJAX:', xhr.responseText);
-                alert('Error while deleting component');
+                showNotification('Error while deleting component', 'error');
             });
         } else {
             console.log('jQuery not loaded yet, using fallback');

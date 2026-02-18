@@ -1570,7 +1570,7 @@
             loadSettingsToForm(defaultSettings);
             applyPrintSettings(defaultSettings);
                 // НЕ применяем ограничения строк сразу - они будут применены при печати
-                alert('Settings reset to default values!');
+                showNotification('Settings reset to default values!', 'success');
         }
     }
 

@@ -477,7 +477,7 @@
                 const unitDescription = descriptionInput.value.trim();
 
                 if (!manualId || !partNumber) {
-                    alert("Please select a CMM and enter a Part Number.");
+                    showNotification("Please select a CMM and enter a Part Number.", 'warning');
                     return;
                 }
 
@@ -537,7 +537,7 @@
                     })
                     .catch(error => {
                         hideLoadingSpinner();
-                        alert("Error: " + error.message);
+                        showNotification("Error: " + error.message, 'error');
                     });
             });
 
@@ -547,7 +547,7 @@
                 const name = nameInput.value.trim();
 
                 if (!name) {
-                    alert("Please enter a Customer name.");
+                    showNotification("Please enter a Customer name.", 'warning');
                     return;
                 }
 
@@ -579,7 +579,7 @@
                     })
                     .catch(error => {
                         hideLoadingSpinner();
-                        alert("Error: " + error.message);
+                        showNotification("Error: " + error.message, 'error');
                     });
             });
 

@@ -87,7 +87,7 @@ const PdfDeleteHandler = {
             this.showSuccessToast('PDF deleted successfully.');
         } catch (error) {
             console.error('Delete error:', error);
-            alert('Failed to delete PDF');
+            showNotification('Failed to delete PDF', 'error');
         } finally {
             if (typeof hideLoadingSpinner === 'function') {
                 hideLoadingSpinner();

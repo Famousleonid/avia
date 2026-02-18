@@ -371,15 +371,15 @@
                         },
                         success: function (response) {
                             if (response.success) {
-                                alert(response.message);
+                                showNotification(response.message, 'success');
                                 location.reload();
                             } else {
-                                alert('Error: ' + (response.error || 'Unknown error'));
+                                showNotification('Error: ' + (response.error || 'Unknown error'), 'error');
                             }
                         },
                         error: function (xhr) {
                             console.error(xhr.responseText);
-                            alert('An error occurred while creating the unit. Please try again.');
+                            showNotification('An error occurred while creating the unit. Please try again.', 'error');
                         }
                     });
                 } else {
@@ -494,10 +494,10 @@
                 };
             });
 
-            if (!manualId) { alert('Error: Manual ID not found'); return; }
-            if (partNumbers.length === 0) { alert('Error: No part numbers to update'); return; }
+            if (!manualId) { showNotification('Error: Manual ID not found', 'error'); return; }
+            if (partNumbers.length === 0) { showNotification('Error: No part numbers to update', 'error'); return; }
             const invalidItems = partNumbers.filter(item => !item.part_number.trim());
-            if (invalidItems.length > 0) { alert('Error: All part numbers must be filled'); return; }
+            if (invalidItems.length > 0) { showNotification('Error: All part numbers must be filled', 'error'); return; }
 
             const requestData = { part_numbers: partNumbers };
             const updateUrl = '{{ route("units.update", ":id") }}'.replace(':id', manualId);
@@ -516,19 +516,19 @@
                 })
                 .then(data => {
                     if (data.success) {
-                        alert('Units updated successfully');
+                        showNotification('Units updated successfully', 'success');
                         $('#editUnitModal').modal('hide');
                         window.location.reload();
                     } else {
-                        alert('Error updating units: ' + (data.error || 'Unknown error'));
+                        showNotification('Error updating units: ' + (data.error || 'Unknown error'), 'error');
                     }
                 })
                 .catch(error => {
                     console.error('Error updating units:', error);
                     if (error.message.includes('404')) {
-                        alert('Error: Route not found. Please check the server configuration.');
+                        showNotification('Error: Route not found. Please check the server configuration.', 'error');
                     } else {
-                        alert('Error updating units: ' + error.message);
+                        showNotification('Error updating units: ' + error.message, 'error');
                     }
                 });
         });

@@ -794,7 +794,7 @@
                 })
                 .catch(function (err) {
                     console.error(err);
-                    alert(err.message || '{{ __("Error deleting file") }}');
+                    showNotification(err.message || '{{ __("Error deleting file") }}', 'error');
                 });
         }
 
@@ -816,11 +816,11 @@
                     var fileInput = document.getElementById('stdCsvFileInput');
                     var processTypeSelect = document.getElementById('stdCsvProcessType');
                     if (!fileInput || !fileInput.files.length) {
-                        alert('{{ __("Please select a file") }}');
+                        showNotification('{{ __("Please select a file") }}', 'warning');
                         return;
                     }
                     if (!processTypeSelect || !processTypeSelect.value) {
-                        alert('{{ __("Please select a process type") }}');
+                        showNotification('{{ __("Please select a process type") }}', 'warning');
                         return;
                     }
                     var formData = new FormData();
@@ -861,14 +861,14 @@
                                 document.getElementById('stdCsvUploadForm').reset();
                                 var modal = bootstrap.Modal.getInstance(document.getElementById('stdCsvUploadModal'));
                                 if (modal) modal.hide();
-                                alert('{{ __("File uploaded successfully") }}');
+                                showNotification('{{ __("File uploaded successfully") }}', 'success');
                             } else {
                                 throw new Error(data.error || '{{ __("Error uploading file") }}');
                             }
                         })
                         .catch(function (err) {
                             console.error(err);
-                            alert(err.message || '{{ __("Error uploading file") }}');
+                            showNotification(err.message || '{{ __("Error uploading file") }}', 'error');
                         });
                 });
             }
@@ -939,7 +939,7 @@
                     const manualId   = this.getAttribute('data-manual-id');
 
                     if (!partNumber) {
-                        alert('Введите Component PN');
+                        showNotification('Введите Component PN', 'warning');
                         return;
                     }
 
@@ -967,10 +967,10 @@
                                 }
                                 location.reload();
                             } else {
-                                alert('Ошибка при создании компонента');
+                                showNotification('Ошибка при создании компонента', 'error');
                             }
                         })
-                        .catch(() => alert('Server error'));
+                        .catch(() => showNotification('Server error', 'error'));
                 });
             }
 
@@ -1003,7 +1003,7 @@
                     const verified   = editVerifiedCheckbox && editVerifiedCheckbox.checked ? 1 : 0;
 
                     if (!partNumber) {
-                        alert('Введите Component PN');
+                        showNotification('Введите Component PN', 'warning');
                         return;
                     }
 
@@ -1030,10 +1030,10 @@
                                 }
                                 location.reload();
                             } else {
-                                alert('Ошибка при обновлении компонента');
+                                showNotification('Ошибка при обновлении компонента', 'error');
                             }
                         })
-                        .catch(() => alert('Server error'));
+                        .catch(() => showNotification('Server error', 'error'));
                 });
             }
 
@@ -1080,7 +1080,7 @@
                     const partNumber = document.getElementById('edit-part-part-number').value.trim();
                     const name = document.getElementById('edit-part-name').value.trim();
                     if (!iplNum || !partNumber || !name) {
-                        alert('Заполните обязательные поля: IPL Number, Part Number, Name');
+                        showNotification('Заполните обязательные поля: IPL Number, Part Number, Name', 'warning');
                         return;
                     }
                     const formData = new FormData(editPartForm);
@@ -1101,11 +1101,11 @@
                                 if (modalInstance) modalInstance.hide();
                                 location.reload();
                             } else {
-                                alert(data && data.message ? data.message : 'Ошибка при обновлении запчасти');
+                                showNotification(data && data.message ? data.message : 'Ошибка при обновлении запчасти', 'error');
                             }
                         })
                         .catch(function (err) {
-                            alert('Ошибка при обновлении запчасти');
+                            showNotification('Ошибка при обновлении запчасти', 'error');
                         });
                 });
             }

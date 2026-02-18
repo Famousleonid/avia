@@ -782,10 +782,10 @@
                 modal.hide();
             }
 
-            alert('Settings saved successfully!');
+            showNotification('Settings saved successfully!', 'success');
         } catch (e) {
             console.error('Ошибка сохранения настроек:', e);
-            alert('Error saving settings');
+            showNotification('Error saving settings', 'error');
         }
     };
 
@@ -1145,7 +1145,7 @@
                 modal.hide();
             }
 
-            alert('Settings reset to default values!');
+            showNotification('Settings reset to default values!', 'success');
         }
     };
 

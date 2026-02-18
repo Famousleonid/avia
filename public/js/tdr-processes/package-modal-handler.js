@@ -207,13 +207,13 @@ class PackageModalHandler {
         const selectedProcesses = PackageModalHandler.getSelectedProcesses();
         
         if (selectedProcesses.length === 0) {
-            alert('Please select at least one process');
+            showNotification('Please select at least one process', 'warning');
             return;
         }
 
         const tdrId = PackageModalHandler.getTdrId();
         if (!tdrId) {
-            alert('Error: TDR ID not found');
+            showNotification('Error: TDR ID not found', 'error');
             return;
         }
 

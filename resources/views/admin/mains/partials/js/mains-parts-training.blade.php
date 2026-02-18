@@ -177,7 +177,7 @@
                 TransferApi.createTransfer(tdrsId, workorderNumber, targetWo)
                     .then(data => {
                         if (!data?.success) {
-                            alert(data?.message || 'Failed to create transfer');
+                            showNotification(data?.message || 'Failed to create transfer', 'error');
                             selectElement.value = prevValue;
                             return;
                         }
@@ -191,7 +191,7 @@
                     })
                     .catch(err => {
                         console.error('Transfer create error:', err);
-                        alert('Error creating transfer');
+                        showNotification('Error creating transfer', 'error');
                         selectElement.value = prevValue;
                     });
             } else {
@@ -212,7 +212,7 @@
                     })
                     .catch(err => {
                         console.error('Transfer delete error:', err);
-                        alert('Error deleting transfer');
+                        showNotification('Error deleting transfer', 'error');
                     });
             }
         },
@@ -422,7 +422,7 @@ document.addEventListener('DOMContentLoaded', function () {
             try {
                 const data = await checkTrainingExists(manualId);
                 if (!data?.success) {
-                    alert('Error: cannot check trainings.');
+                    showNotification('Error: cannot check trainings.', 'error');
                     return;
                 }
 
@@ -451,7 +451,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 }
             } catch (e) {
                 console.error(e);
-                alert('Error: request failed.');
+                showNotification('Error: request failed.', 'error');
             }
         });
     });
@@ -465,7 +465,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
             const dateYmd = updateDateInp && updateDateInp.value ? updateDateInp.value.trim() : '';
             if (!dateYmd) {
-                alert('{{ __("Please select a date.") }}');
+                showNotification('{{ __("Please select a date.") }}', 'warning');
                 return;
             }
 
@@ -486,14 +486,14 @@ document.addEventListener('DOMContentLoaded', function () {
                 .then(r => r.json())
                 .then(data => {
                     if (data.success) {
-                        alert(data.message || '{{ __("Training added.") }}');
+                        showNotification(data.message || '{{ __("Training added.") }}', 'success');
                         window.location.href = mainsShowUrl;
                     } else {
-                        alert('{{ __("Error") }}: ' + (data.message || ''));
+                        showNotification('{{ __("Error") }}: ' + (data.message || ''), 'error');
                     }
                 })
                 .catch(err => {
-                    alert('{{ __("An error occurred") }}: ' + err.message);
+                    showNotification('{{ __("An error occurred") }}: ' + err.message, 'error');
                 });
         });
     }

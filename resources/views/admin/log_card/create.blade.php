@@ -272,7 +272,7 @@
 
                  // Проверяем, что выбран компонент в каждой группе (кроме separate)
                  if (data.length !== allGroups.size + document.querySelectorAll('input[type=radio][name*="separate_"]:checked').length) {
-                     alert('Выберите компонент в каждой группе!');
+                     showNotification('Выберите компонент в каждой группе!', 'warning');
                      e.preventDefault();
                      return false;
                  }

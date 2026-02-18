@@ -140,7 +140,7 @@
                                 <div class="col-md-3" style="width: 200px">
                                     <label for="process_names">Process Name:</label>
                                     <select name="processes[0][process_names_id]" class="form-control select2-process" required>
-                                        <option value="">Select Process Name</option>
+                                        <option value=""></option>
                                         @foreach ($processNames as $processName)
                                             <option value="{{ $processName->id }}" {{ $current_tdr_processes->process_names_id == $processName->id ? 'selected' : '' }}>
                                                 {{ $processName->name }}
@@ -149,7 +149,10 @@
                                     </select>
                                 </div>
                                 <div class="col-md-5">
-                                    <label for="process">Processes:</label>
+                                    <label for="process">Processes (Specification):</label>
+                                    <button type="button" class="btn btn-link mb-1" data-bs-toggle="modal" data-bs-target="#addProcessModal">
+                                        <img src="{{ asset('img/plus.png') }}" alt="+" style="width: 20px;">
+                                    </button>
                                     <div class="process-options">
                                         {{-- Процессы будут загружены динамически через JavaScript --}}
                                         @if($current_tdr_processes->process_names_id)
@@ -158,12 +161,14 @@
                                                 $currentProcesses = json_decode($current_tdr_processes->processes, true) ?: [];
                                                 $currentProcessNameId = $current_tdr_processes->process_names_id;
                                             @endphp
+                                            @php $firstProcessId = $currentProcesses[0] ?? null; @endphp
                                             @foreach ($processes as $process)
                                                 @if($process->process_names_id == $currentProcessNameId)
+                                                    @php $isChecked = $process->id == $firstProcessId; @endphp
                                                     <div class="form-check" data-process-name-id="{{ $process->process_names_id }}">
-                                                        <input type="checkbox" name="processes[0][process][]" value="{{ $process->id }}" class="form-check-input"
-                                                            {{ in_array($process->id, $currentProcesses) ? 'checked' : '' }}>
-                                                        <label class="form-check-label">{{ $process->process }}</label>
+                                                        <input type="radio" name="processes[0][process]" value="{{ $process->id }}" class="form-check-input" id="process_0_{{ $process->id }}"
+                                                            {{ $isChecked ? 'checked' : '' }}>
+                                                        <label class="form-check-label" for="process_0_{{ $process->id }}">{{ $process->process }}</label>
                                                     </div>
                                                 @endif
                                             @endforeach
@@ -222,11 +227,36 @@
         </div>
     </div>
 
+    <!-- Модальное окно для добавления спецификации -->
+    <div class="modal fade" id="addProcessModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">{{ __('Enter Process') }} (<span id="modalProcessName"></span>)</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label for="newProcessInput" class="form-label">{{ __('New Process') }}</label>
+                        <input type="text" class="form-control" id="newProcessInput" placeholder="{{ __('Enter new process') }}">
+                    </div>
+                    <input type="hidden" id="modalProcessNameId">
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">{{ __('Cancel') }}</button>
+                    <button type="button" class="btn btn-primary" id="saveProcessModal">{{ __('Save Process') }}</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <script src="{{ asset('js/tdr-processes/edit-process/edit-process.js') }}"></script>
     <script>
         (function() {
             const config = {
                 getProcessesUrl: '{{ route('processes.getProcesses') }}',
+                processesStoreUrl: '{{ route('processes.store') }}',
+                csrfToken: '{{ csrf_token() }}',
                 ndtProcessNames: @json($ndtProcessNames->pluck('id')->toArray()),
                 ndtProcessNamesData: @json($ndtProcessNames->keyBy('id')),
                 ecEligibleProcessNameIds: @json($ecEligibleProcessNameIds ?? []),

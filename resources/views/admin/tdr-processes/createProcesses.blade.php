@@ -180,7 +180,7 @@
                                     <label for="process_names">Process Name:</label>
                                     <select name="processes[0][process_names_id]" class="form-control select2-process" required
                                             data-process-data='@json($processNames->keyBy('id'))'>
-                                        <option value="">Select Process Name</option>
+                                        <option value=""></option>
                                         @foreach ($processNames as $processName)
                                             <option value="{{ $processName->id }}"
                                                     data-process-id="{{ $processName->id }}"
@@ -279,14 +279,6 @@
                                 <label for="newProcessInput" class="form-label">New Process</label>
                                 <input type="text" class="form-control" id="newProcessInput" placeholder="Enter new process">
                             </div>
-                            <!-- Секция "Available Processes" – доступные для выбора процессы -->
-                            <!-- Existing Processes не отображаются в модальном окне -->
-                            <div class="mb-3">
-                                <h6>Available Processes</h6>
-                                <div id="availableProcessContainer">
-                                    Loading processes...
-                                </div>
-                            </div>
                             <!-- Скрытое поле для хранения выбранного process_name_id -->
                             <input type="hidden" id="modalProcessNameId">
                         </div>
@@ -352,8 +344,8 @@
             const container = document.getElementById('processes-container');
             const index = container.children.length;
 
-            // Формируем опции для select
-            let optionsHtml = '<option value="">Select Process Name</option>';
+            // Формируем опции для select (пустая опция для placeholder, скрыта в dropdown)
+            let optionsHtml = '<option value=""></option>';
             @foreach ($processNames as $processName)
                 optionsHtml += `<option value="{{ $processName->id }}"
                     data-process-id="{{ $processName->id }}"
@@ -439,7 +431,10 @@
             if (typeof $ !== 'undefined' && $.fn.select2) {
                 $(newRow).find('.select2-process').select2({
                     theme: 'bootstrap-5',
-                    width: '100%'
+                    width: '100%',
+                    placeholder: '{{ __("Select Process Name") }}',
+                    allowClear: false,
+                    templateResult: function(data) { if (!data.id) return null; return data.text; }
                 }).on('select2:select', function (e) {
                     // Обработчик события Select2 для загрузки процессов
                     const selectElement = e.target;
@@ -505,17 +500,17 @@
 
             processRows.forEach(row => {
                 const processNameSelect = row.querySelector('.select2-process');
-                const processNameId = processNameSelect.value;
-                const processName = processNameSelect.options[processNameSelect.selectedIndex].text;
+                const processNameId = (typeof $ !== 'undefined' && $(processNameSelect).hasClass('select2-hidden-accessible'))
+                    ? $(processNameSelect).val() : processNameSelect?.value;
+                if (!processNameId) return; // Пропускаем строки без выбранного Process Name
+                const processName = processNameSelect.options[processNameSelect.selectedIndex]?.text || '';
 
-                const checkboxes = row.querySelectorAll('.process-options input[type="checkbox"]:checked');
+                const checkedRadio = row.querySelector('.process-options input[type="radio"]:checked');
                 const selectedProcessIds = [];
-
-                checkboxes.forEach(checkbox => {
-                    const processId = checkbox.value; // Получаем ID процесса
-                    selectedProcessIds.push(parseInt(processId)); // Сохраняем ID
-                    hasCheckedCheckbox = true; // Хотя бы один чекбокс отмечен
-                });
+                if (checkedRadio) {
+                    selectedProcessIds.push(parseInt(checkedRadio.value));
+                    hasCheckedCheckbox = true;
+                }
 
                 // Собираем данные о дополнительных NDT процессах (множественный выбор)
                 const ndtPlusSelect = row.querySelector('.select2-ndt-plus');
@@ -576,9 +571,8 @@
                 }
             });
 
-            // Если ни один чекбокс не отмечен, выводим сообщение
             if (!hasCheckedCheckbox) {
-                alert('Process not added because no checkbox is selected.');
+                showNotification('{{ __("Process not added because no specification is selected.") }}', 'warning');
                 return; // Прерываем выполнение
             }
 
@@ -608,14 +602,8 @@
                     return response.json();
                 })
                 .then(data => {
-                    console.log('Success:', data);
                     if (data.message) {
-                        // Показываем сообщение об успехе
-                        if (window.NotificationHandler) {
-                            window.NotificationHandler.success(data.message);
-                        } else {
-                            alert(data.message);
-                        }
+                        showNotification(data.message, 'success');
                     }
                     // Если есть URL для перенаправления, выполняем редирект
                     if (data.redirect) {
@@ -623,15 +611,8 @@
                     }
                 })
                 .catch(error => {
-                    console.error('Error:', error);
                     const errorMessage = error.message || 'Error saving processes.';
-
-                    // Показываем уведомление об ошибке
-                    if (window.NotificationHandler) {
-                        window.NotificationHandler.error('Ошибка при сохранении процессов: ' + errorMessage);
-                    } else {
-                        alert('Ошибка при сохранении процессов: ' + errorMessage);
-                    }
+                    showNotification('Ошибка при сохранении процессов: ' + errorMessage, 'error');
                 });
         });
 
@@ -674,13 +655,13 @@
                     // Не отмечены, без пометки "(existing)"
                     if (data.existingProcesses && data.existingProcesses.length > 0) {
                         data.existingProcesses.forEach(process => {
-                            const checkbox = document.createElement('div');
-                            checkbox.classList.add('form-check');
-                            checkbox.innerHTML = `
-                                <input type="checkbox" name="processes[${rowIndex}][process][]" value="${process.id}" class="form-check-input">
-                                <label class="form-check-label">${process.process}</label>
+                            const radio = document.createElement('div');
+                            radio.classList.add('form-check');
+                            radio.innerHTML = `
+                                <input type="radio" name="processes[${rowIndex}][process]" value="${process.id}" class="form-check-input" id="process_${rowIndex}_${process.id}">
+                                <label class="form-check-label" for="process_${rowIndex}_${process.id}">${process.process}</label>
                             `;
-                            processOptionsContainer.appendChild(checkbox);
+                            processOptionsContainer.appendChild(radio);
                             hasProcesses = true;
                         });
                     }
@@ -695,8 +676,8 @@
                             const ndtPlusContainer = processRow.querySelector('.ndt-plus-process-container');
                             if (ndtPlusContainer) {
                                 // Проверяем, есть ли уже выбранные процессы
-                                const checkedBoxes = processRow.querySelectorAll('.process-options input[type="checkbox"]:checked');
-                                if (checkedBoxes.length > 0) {
+                                const checkedRadio = processRow.querySelector('.process-options input[type="radio"]:checked');
+                                if (checkedRadio) {
                                     // Убеждаемся, что контейнер виден
                                     ndtPlusContainer.style.display = 'block';
                                     ndtPlusContainer.style.visibility = 'visible';
@@ -750,16 +731,9 @@
                     }
                 })
                 .catch(error => {
-                    console.error('Ошибка при получении процессов:', error);
                     processOptionsContainer.innerHTML = `<div class="text-danger">Error loading processes: ${error.message}</div>`;
                     saveButton.disabled = true;
-
-                    // Показываем уведомление об ошибке
-                    if (window.NotificationHandler) {
-                        window.NotificationHandler.error('Ошибка при загрузке процессов');
-                    } else {
-                        alert('Ошибка при загрузке процессов: ' + error.message);
-                    }
+                    showNotification('Ошибка при загрузке процессов: ' + error.message, 'error');
                 });
         }
 
@@ -849,27 +823,22 @@
                     }
                 })
                 .catch(error => {
-                    console.error('Ошибка при получении дополнительных NDT процессов:', error);
                     ndtPlusOptionsContainer.innerHTML = `<div class="text-danger">Error loading processes: ${error.message}</div>`;
                 });
         }
 
         // Обработчик изменения чекбоксов процессов - показываем/скрываем дополнительный селект NDT
         document.addEventListener('change', function(event) {
-            if (event.target.matches('.process-options input[type="checkbox"]')) {
-                const checkbox = event.target;
-                const processRow = checkbox.closest('.process-row');
+            if (event.target.matches('.process-options input[type="radio"]')) {
+                const radio = event.target;
+                const processRow = radio.closest('.process-row');
 
                 if (!processRow) {
-                    console.error('Process row not found');
                     return;
                 }
 
                 const processNameSelect = processRow.querySelector('.select2-process');
                 const processNameId = processNameSelect ? processNameSelect.value : null;
-
-                console.log('Checkbox changed, processNameId:', processNameId);
-                console.log('Process row:', processRow);
 
                 // Ищем контейнер разными способами
                 let ndtPlusContainer = processRow.querySelector('.ndt-plus-process-container');
@@ -886,20 +855,11 @@
                     ndtPlusContainer = document.getElementById(`ndt_plus_process_${rowIndex}`)?.closest('.ndt-plus-process-container');
                 }
 
-                console.log('NDT Plus container found:', ndtPlusContainer);
-
                 if (processNameId && isNdtProcess(processNameId)) {
-                    if (!ndtPlusContainer) {
-                        console.error('NDT Plus container not found in DOM!');
-                        console.log('Process row HTML:', processRow.innerHTML.substring(0, 500));
-                        return;
-                    }
+                    if (!ndtPlusContainer) return;
 
-                    // Проверяем, есть ли хотя бы один выбранный процесс
-                    const checkedBoxes = processRow.querySelectorAll('.process-options input[type="checkbox"]:checked');
-                    console.log('Checked boxes count:', checkedBoxes.length);
-
-                    if (checkedBoxes.length > 0) {
+                    const checkedRadio = processRow.querySelector('.process-options input[type="radio"]:checked');
+                    if (checkedRadio) {
                         // Используем requestAnimationFrame для гарантии, что изменения применятся после всех других обработчиков
                         requestAnimationFrame(function() {
                         // Принудительно показываем контейнер
@@ -922,9 +882,6 @@
                             }
                         });
 
-                        console.log('NDT Plus container display:', window.getComputedStyle(ndtPlusContainer).display);
-                        console.log('NDT Plus container visibility:', window.getComputedStyle(ndtPlusContainer).visibility);
-
                         // Устанавливаем z-index и position для контейнера, чтобы он не был перекрыт
                         ndtPlusContainer.style.setProperty('position', 'relative', 'important');
                         ndtPlusContainer.style.setProperty('z-index', '1000', 'important');
@@ -932,8 +889,6 @@
                         // Инициализируем Select2 для дополнительного селекта, если еще не инициализирован
                         const ndtPlusSelect = ndtPlusContainer.querySelector('.select2-ndt-plus');
                         if (ndtPlusSelect) {
-                            console.log('NDT Plus container shown, select found:', ndtPlusSelect);
-
                             // Исключаем уже выбранный NDT процесс из опций
                             if (processNameId) {
                                 const optionToRemove = ndtPlusSelect.querySelector(`option[value="${processNameId}"]`);
@@ -949,7 +904,6 @@
                                     const isSelect2Initialized = $(ndtPlusSelect).hasClass('select2-hidden-accessible');
 
                                     if (!isSelect2Initialized) {
-                                        console.log('Initializing Select2 for NDT Plus select');
                                         $(ndtPlusSelect).select2({
                                             theme: 'bootstrap-5',
                                             width: '100%',
@@ -975,7 +929,6 @@
                                             // Проверяем и устанавливаем стили для контейнера
                                             const computedStyle = window.getComputedStyle(ndtPlusContainer);
                                             if (computedStyle.display === 'none' || computedStyle.visibility === 'hidden') {
-                                                console.warn('Container hidden after Select2 init, forcing visibility');
                                                 ndtPlusContainer.style.setProperty('display', 'block', 'important');
                                                 ndtPlusContainer.style.setProperty('visibility', 'visible', 'important');
                                                 ndtPlusContainer.style.setProperty('opacity', '1', 'important');
@@ -988,7 +941,6 @@
                                             if (select2Container.length > 0) {
                                                 const select2ComputedStyle = window.getComputedStyle(select2Container[0]);
                                                 if (select2ComputedStyle.display === 'none' || select2ComputedStyle.visibility === 'hidden') {
-                                                    console.warn('Select2 container hidden after init, forcing visibility');
                                                     select2Container.css({
                                                         'display': 'inline-block !important',
                                                         'visibility': 'visible !important',
@@ -1000,16 +952,7 @@
 
                                                 // Проверяем видимость через getBoundingClientRect
                                                 const rect = select2Container[0].getBoundingClientRect();
-                                                console.log('Select2 container bounding rect:', {
-                                                    top: rect.top,
-                                                    left: rect.left,
-                                                    width: rect.width,
-                                                    height: rect.height,
-                                                    visible: rect.width > 0 && rect.height > 0
-                                                });
-
                                                 if (rect.width === 0 || rect.height === 0) {
-                                                    console.error('Select2 container has zero dimensions!');
                                                     select2Container.css({
                                                         'display': 'inline-block !important',
                                                         'visibility': 'visible !important',
@@ -1018,12 +961,9 @@
                                                         'min-height': '38px !important'
                                                     });
                                                 }
-                                            } else {
-                                                console.error('Select2 container not found after initialization!');
                                             }
                                         }, 100);
                                     } else {
-                                        console.log('Select2 already initialized for NDT Plus select, updating visibility...');
                                         // Если Select2 уже инициализирован, обновляем видимость визуального контейнера
                                         // Сначала уничтожаем старый экземпляр
                                         $(ndtPlusSelect).select2('destroy');
@@ -1054,7 +994,6 @@
                                             // Проверяем и устанавливаем стили для контейнера
                                             const computedStyle = window.getComputedStyle(ndtPlusContainer);
                                             if (computedStyle.display === 'none' || computedStyle.visibility === 'hidden') {
-                                                console.warn('Container hidden after Select2 re-init, forcing visibility');
                                                 ndtPlusContainer.style.setProperty('display', 'block', 'important');
                                                 ndtPlusContainer.style.setProperty('visibility', 'visible', 'important');
                                                 ndtPlusContainer.style.setProperty('opacity', '1', 'important');
@@ -1067,7 +1006,6 @@
                                             if (select2Container.length > 0) {
                                                 const select2ComputedStyle = window.getComputedStyle(select2Container[0]);
                                                 if (select2ComputedStyle.display === 'none' || select2ComputedStyle.visibility === 'hidden') {
-                                                    console.warn('Select2 container hidden after re-init, forcing visibility');
                                                     select2Container.css({
                                                         'display': 'inline-block !important',
                                                         'visibility': 'visible !important',
@@ -1077,18 +1015,8 @@
                                                     });
                                                 }
 
-                                                // Проверяем видимость через getBoundingClientRect
                                                 const rect = select2Container[0].getBoundingClientRect();
-                                                console.log('Select2 container bounding rect after re-init:', {
-                                                    top: rect.top,
-                                                    left: rect.left,
-                                                    width: rect.width,
-                                                    height: rect.height,
-                                                    visible: rect.width > 0 && rect.height > 0
-                                                });
-
                                                 if (rect.width === 0 || rect.height === 0) {
-                                                    console.error('Select2 container has zero dimensions after re-init!');
                                                     select2Container.css({
                                                         'display': 'inline-block !important',
                                                         'visibility': 'visible !important',
@@ -1097,8 +1025,6 @@
                                                         'min-height': '38px !important'
                                                     });
                                                 }
-                                            } else {
-                                                console.error('Select2 container not found after re-initialization!');
                                             }
                                         }, 100);
                                     }
@@ -1142,7 +1068,6 @@
                                                     'opacity': '1',
                                                     'min-height': '38px'
                                                 });
-                                                console.log('Select2 selection found and made visible');
                                             }
 
                                             const select2SelectionRendered = select2Container.find('.select2-selection__rendered');
@@ -1153,45 +1078,30 @@
                                                 });
                                             }
 
-                                            console.log('Select2 container found and made visible:', select2Container);
-                                            console.log('Select2 container computed display:', window.getComputedStyle(select2Container[0]).display);
-                                            console.log('Select2 container computed visibility:', window.getComputedStyle(select2Container[0]).visibility);
-                                            console.log('Select2 container computed height:', window.getComputedStyle(select2Container[0]).height);
-                                            console.log('Select2 container computed width:', window.getComputedStyle(select2Container[0]).width);
-                                            console.log('Select2 container position:', select2Container.position());
-
                                             // Убеждаемся, что контейнер находится в правильном месте в DOM
                                             const selectParent = $(ndtPlusSelect).parent();
                                             const containerParent = select2Container.parent();
-                                            console.log('Select parent:', selectParent[0]);
-                                            console.log('Container parent:', containerParent[0]);
-                                            console.log('Are parents the same?', selectParent[0] === containerParent[0]);
 
                                             // Убеждаемся, что контейнер находится сразу после select
                                             const selectNextSibling = ndtPlusSelect.nextElementSibling;
                                             if (!selectNextSibling || !selectNextSibling.classList.contains('select2-container')) {
-                                                console.log('Moving Select2 container to correct position after select');
                                                 // Если контейнер уже существует, перемещаем его
                                                 if (select2Container.length > 0) {
                                                     select2Container.detach();
                                                     $(ndtPlusSelect).after(select2Container);
                                                 }
-                                            } else {
-                                                console.log('Select2 container is already in correct position');
                                             }
 
                                             // Убеждаемся, что контейнер имеет правильную ширину
                                             const containerWidth = ndtPlusContainer.offsetWidth || $(ndtPlusContainer).width();
                                             if (containerWidth > 0) {
                                                 select2Container.css('width', containerWidth + 'px');
-                                                console.log('Set Select2 container width to:', containerWidth + 'px');
                                             }
 
                                             // Дополнительная проверка через небольшую задержку
                                             setTimeout(function() {
                                                 const computedStyle = window.getComputedStyle(select2Container[0]);
                                                 if (computedStyle.display === 'none' || computedStyle.visibility === 'hidden') {
-                                                    console.warn('Select2 container still hidden, forcing visibility again');
                                                     select2Container.css({
                                                         'display': 'inline-block !important',
                                                         'visibility': 'visible !important',
@@ -1199,21 +1109,10 @@
                                                     });
                                                 }
 
-                                                // Проверяем, что контейнер действительно виден на странице
-                                                const rect = select2Container[0].getBoundingClientRect();
-                                                console.log('Select2 container bounding rect:', {
-                                                    top: rect.top,
-                                                    left: rect.left,
-                                                    width: rect.width,
-                                                    height: rect.height,
-                                                    visible: rect.width > 0 && rect.height > 0
-                                                });
                                             }, 100);
                                         } else {
-                                            console.warn('Select2 container not found, trying to find by class');
                                             // Пробуем найти контейнер другим способом
                                             const allSelect2Containers = $('.select2-container');
-                                            console.log('Total Select2 containers found:', allSelect2Containers.length);
                                             // Ищем контейнер, который связан с нашим селектом
                                             const select2Id = $(ndtPlusSelect).attr('data-select2-id');
                                             if (select2Id) {
@@ -1224,31 +1123,24 @@
                                                         'visibility': 'visible !important',
                                                         'opacity': '1 !important'
                                                     });
-                                                    console.log('Select2 container found by ID and made visible');
                                                 }
                                             }
                                         }
                                     }, 200);
                                 }, 200);
-                            } else {
-                                console.warn('jQuery or Select2 not available');
                             }
-                        } else {
-                            console.error('NDT Plus select not found in container');
                         }
 
                         });
 
                         // Защита от скрытия контейнера - используем MutationObserver для отслеживания изменений
-                        const checkedBoxesCount = checkedBoxes.length;
-                        if (checkedBoxesCount > 0 && ndtPlusContainer) {
+                        if (checkedRadio && ndtPlusContainer) {
                             // Функция для принудительного показа контейнера
                             const forceShowContainer = function() {
-                                const currentCheckedBoxes = processRow.querySelectorAll('.process-options input[type="checkbox"]:checked');
-                                if (currentCheckedBoxes.length > 0) {
+                                const currentCheckedRadio = processRow.querySelector('.process-options input[type="radio"]:checked');
+                                if (currentCheckedRadio) {
                                     const computedStyle = window.getComputedStyle(ndtPlusContainer);
                                     if (computedStyle.display === 'none' || computedStyle.visibility === 'hidden') {
-                                        console.warn('Container was hidden, forcing visibility');
                                         ndtPlusContainer.style.setProperty('display', 'block', 'important');
                                         ndtPlusContainer.style.setProperty('visibility', 'visible', 'important');
                                         ndtPlusContainer.style.setProperty('opacity', '1', 'important');
@@ -1308,8 +1200,8 @@
 
                             // Также проверяем через задержку периодически
                             const checkInterval = setInterval(function() {
-                                const currentCheckedBoxes = processRow.querySelectorAll('.process-options input[type="checkbox"]:checked');
-                                if (currentCheckedBoxes.length === 0) {
+                                const currentCheckedRadio = processRow.querySelector('.process-options input[type="radio"]:checked');
+                                if (!currentCheckedRadio) {
                                     clearInterval(checkInterval);
                                     if (ndtPlusContainer._visibilityObserver) {
                                         ndtPlusContainer._visibilityObserver.disconnect();
@@ -1461,8 +1353,8 @@
                     const ndtPlusSelect = ndtPlusContainer ? ndtPlusContainer.querySelector('.select2-ndt-plus') : null;
 
                     // НЕ скрываем контейнер, если уже есть выбранные процессы
-                    const checkedBoxes = processRow.querySelectorAll('.process-options input[type="checkbox"]:checked');
-                    if (checkedBoxes.length > 0 && ndtPlusContainer) {
+                    const checkedRadio = processRow.querySelector('.process-options input[type="radio"]:checked');
+                    if (checkedRadio && ndtPlusContainer) {
                         // Убеждаемся, что контейнер виден
                         ndtPlusContainer.style.display = 'block';
                         ndtPlusContainer.style.visibility = 'visible';
@@ -1503,124 +1395,36 @@
         // Глобальная переменная для хранения ссылки на текущую строку (например, process-row)
         let currentRow = null;
 
-        // При клике на кнопку, открывающую модальное окно, сохраняем текущую строку и устанавливаем данные модального окна
-        document.querySelectorAll('.btn[data-bs-target="#addProcessModal"]').forEach(btn => {
-            btn.addEventListener('click', function() {
-                // Предполагается, что кнопка находится в блоке с классом .process-row
-                currentRow = this.closest('.process-row');
-                const select = currentRow.querySelector('.select2-process');
-                const processNameId = select.value;
-                const processNameText = select.options[select.selectedIndex].text;
-                // Устанавливаем заголовок модального окна и значение скрытого поля
-                document.getElementById('modalProcessName').innerText = processNameText;
-                document.getElementById('modalProcessNameId').value = processNameId;
-
-                // Очищаем поле ввода нового процесса
-                document.getElementById('newProcessInput').value = '';
-
-                // Получаем manual_id (в данном примере из скрытого поля формы)
-                // const manualId = document.querySelector('input[name="manual_id"]').value;
-                const manualId = document.getElementById('processes-container').dataset.manualId;
-
-                // Загружаем только availableProcesses для выбранного process_name_id и manualId
-                // Existing Processes не отображаются в модальном окне
-                const availableContainer = document.getElementById('availableProcessContainer');
-                availableContainer.innerHTML = '<div class="text-muted">Loading processes...</div>';
-
-                fetch(`{{ route('processes.getProcesses') }}?processNameId=${processNameId}&manualId=${manualId}`)
-                    .then(response => {
-                        if (!response.ok) {
-                            return response.json().then(err => {
-                                throw new Error(err.error || err.message || 'Network response was not ok');
-                            });
-                        }
-                        return response.json();
-                    })
-                    .then(data => {
-                        // Отображаем только Available Processes
-                        availableContainer.innerHTML = '';
-                        if (data.availableProcesses && data.availableProcesses.length > 0) {
-                            data.availableProcesses.forEach(process => {
-                                const div = document.createElement('div');
-                                div.className = 'form-check';
-                                div.innerHTML = `
-                                    <input type="checkbox" class="form-check-input" name="modal_processes[]" value="${process.id}" id="modal_process_${process.id}">
-                                    <label class="form-check-label" for="modal_process_${process.id}">${process.process}</label>
-                                `;
-                                availableContainer.appendChild(div);
-                            });
-                        } else {
-                            availableContainer.innerHTML = '<div class="text-muted">No available processes</div>';
-                        }
-                    })
-                    .catch(error => {
-                        console.error('Error loading processes:', error);
-                        availableContainer.innerHTML = `<div class="text-danger">Error loading processes: ${error.message}</div>`;
-
-                        if (window.NotificationHandler) {
-                            window.NotificationHandler.error('Ошибка при загрузке процессов');
-                        }
-                    });
-            });
+        // При попытке открыть модальное окно добавления спецификации — проверяем, что выбран Process Name
+        document.getElementById('addProcessModal').addEventListener('show.bs.modal', function(e) {
+            const triggerBtn = e.relatedTarget;
+            if (!triggerBtn) return;
+            const row = triggerBtn.closest('.process-row');
+            const select = row?.querySelector('.select2-process');
+            const processNameId = (typeof $ !== 'undefined' && select && $(select).hasClass('select2-hidden-accessible'))
+                ? $(select).val() : select?.value;
+            if (!processNameId || processNameId === '') {
+                e.preventDefault();
+                showNotification('{{ __("Please select Process Name before adding specification.") }}', 'warning');
+            }
         });
 
-        // Используем делегирование событий на контейнере, где находятся все process-row
+        // Делегирование: при клике на "+" сохраняем текущую строку и данные модального окна
         document.getElementById('processes-container').addEventListener('click', function(e) {
             const btn = e.target.closest('.btn[data-bs-target="#addProcessModal"]');
             if (!btn) return;
 
             currentRow = btn.closest('.process-row');
             const select = currentRow.querySelector('.select2-process');
-            const processNameId = select.value;
-            const processNameText = select.options[select.selectedIndex].text;
+            const processNameId = (typeof $ !== 'undefined' && $(select).hasClass('select2-hidden-accessible'))
+                ? $(select).val() : select?.value;
+            if (!processNameId || processNameId === '') return; // Проверка в show.bs.modal покажет сообщение
+            const processNameText = select.options[select.selectedIndex]?.text || '';
             document.getElementById('modalProcessName').innerText = processNameText;
             document.getElementById('modalProcessNameId').value = processNameId;
 
             // Очищаем поле ввода нового процесса
             document.getElementById('newProcessInput').value = '';
-
-            // Получаем manual_id через data-атрибут
-            const manualId = document.getElementById('processes-container').dataset.manualId;
-
-            // Загружаем только availableProcesses
-            // Existing Processes не отображаются в модальном окне
-            const availableContainer = document.getElementById('availableProcessContainer');
-            availableContainer.innerHTML = '<div class="text-muted">Loading processes...</div>';
-
-            fetch(`{{ route('processes.getProcesses') }}?processNameId=${processNameId}&manualId=${manualId}`)
-                .then(response => {
-                    if (!response.ok) {
-                        return response.json().then(err => {
-                            throw new Error(err.error || err.message || 'Network response was not ok');
-                        });
-                    }
-                    return response.json();
-                })
-                .then(data => {
-                    // Отображаем только Available Processes
-                    availableContainer.innerHTML = '';
-                    if (data.availableProcesses && data.availableProcesses.length > 0) {
-                        data.availableProcesses.forEach(process => {
-                            const div = document.createElement('div');
-                            div.className = 'form-check';
-                            div.innerHTML = `
-                                <input type="checkbox" class="form-check-input" name="modal_processes[]" value="${process.id}" id="modal_process_${process.id}">
-                                <label class="form-check-label" for="modal_process_${process.id}">${process.process}</label>
-                            `;
-                            availableContainer.appendChild(div);
-                        });
-                    } else {
-                        availableContainer.innerHTML = '<div class="text-muted">No available processes</div>';
-                    }
-                })
-                .catch(error => {
-                    console.error('Error loading processes:', error);
-                    availableContainer.innerHTML = `<div class="text-danger">Error loading processes: ${error.message}</div>`;
-
-                    if (window.NotificationHandler) {
-                        window.NotificationHandler.error('Ошибка при загрузке процессов');
-                    }
-                });
         });
 
 
@@ -1628,11 +1432,10 @@
         document.getElementById('saveProcessModal').addEventListener('click', function() {
             const processNameId = document.getElementById('modalProcessNameId').value;
             const newProcess = document.getElementById('newProcessInput').value.trim();
-            const selectedCheckboxes = document.querySelectorAll('#availableProcessContainer input[type="checkbox"]:checked');
 
-            // Если ни новое название не введено, ни выбран хотя бы один существующий процесс – предупреждаем пользователя
-            if (newProcess === '' && selectedCheckboxes.length === 0) {
-                alert("Введите новый процесс или выберите существующий.");
+            // Требуем ввод нового процесса вручную
+            if (newProcess === '') {
+                showNotification('{{ __("Please enter the new process name.") }}', 'warning');
                 return;
             }
 
@@ -1680,19 +1483,18 @@
                             return response.json();
                         })
                         .then(data => {
-                            console.log('Response:', data);
                             // Удаляем индикатор загрузки
                             if (loadingDiv.parentNode) {
                                 loadingDiv.remove();
                             }
 
                             if (data.success) {
-                                // Добавляем созданный процесс в виде чекбокса в контейнер текущей строки
+                                // Добавляем созданный процесс в виде radio в контейнер текущей строки
                                 const div = document.createElement('div');
                                 div.classList.add('form-check');
                                 div.innerHTML = `
-                            <input type="checkbox" class="form-check-input" name="processes[${rowIndex}][process][]" value="${data.process.id}" checked>
-                            <label class="form-check-label">${data.process.process}</label>
+                            <input type="radio" class="form-check-input" name="processes[${rowIndex}][process]" value="${data.process.id}" id="process_${rowIndex}_${data.process.id}" checked>
+                            <label class="form-check-label" for="process_${rowIndex}_${data.process.id}">${data.process.process}</label>
                         `;
                                 processOptionsContainer.appendChild(div);
                                 saveButton.disabled = false; // Активируем кнопку Save
@@ -1703,288 +1505,29 @@
                                     noSpecLabel.remove();
                                 }
 
-                                                // Очищаем поле ввода нового процесса
+                                // Очищаем поле ввода нового процесса
                                 document.getElementById('newProcessInput').value = '';
 
-                                // Очищаем выбранные чекбоксы в модальном окне (только доступные, не existing)
-                                document.querySelectorAll('#availableProcessContainer input[type="checkbox"]:checked').forEach(checkbox => {
-                                    checkbox.checked = false;
-                                });
+                                showNotification('Процесс успешно добавлен!', 'success');
 
-                                // Показываем сообщение об успехе
-                                if (window.NotificationHandler) {
-                                    window.NotificationHandler.success('Процесс успешно добавлен!');
-                                } else {
-                                    alert('Процесс успешно добавлен!');
+                                // Закрываем модальное окно
+                                const modalEl = document.getElementById('addProcessModal');
+                                const modalInstance = bootstrap.Modal.getInstance(modalEl);
+                                if (modalInstance) {
+                                    modalInstance.hide();
                                 }
-
-                                // Перезагружаем список процессов в модальном окне (только availableProcesses)
-                                const manualId = document.getElementById('processes-container').dataset.manualId;
-                                const availableContainer = document.getElementById('availableProcessContainer');
-                                availableContainer.innerHTML = '<div class="text-muted">Reloading processes...</div>';
-
-                                fetch(`{{ route('processes.getProcesses') }}?processNameId=${processNameId}&manualId=${manualId}`)
-                                    .then(response => {
-                                        if (!response.ok) {
-                                            return response.json().then(err => {
-                                                throw new Error(err.error || err.message || 'Network response was not ok');
-                                            });
-                                        }
-                                        return response.json();
-                                    })
-                                    .then(data => {
-                                        // Отображаем только Available Processes
-                                        availableContainer.innerHTML = '';
-                                        if (data.availableProcesses && data.availableProcesses.length > 0) {
-                                            data.availableProcesses.forEach(process => {
-                                                const div = document.createElement('div');
-                                                div.className = 'form-check';
-                                                div.innerHTML = `
-                                                    <input type="checkbox" class="form-check-input" name="modal_processes[]" value="${process.id}" id="modal_process_${process.id}">
-                                                    <label class="form-check-label" for="modal_process_${process.id}">${process.process}</label>
-                                                `;
-                                                availableContainer.appendChild(div);
-                                            });
-                                        } else {
-                                            availableContainer.innerHTML = '<div class="text-muted">No available processes</div>';
-                                        }
-
-                                        // Закрываем модальное окно после успешного сохранения
-                                        const modalEl = document.getElementById('addProcessModal');
-                                        const modalInstance = bootstrap.Modal.getInstance(modalEl);
-                                        if (modalInstance) {
-                                            modalInstance.hide();
-                                        }
-                                    })
-                                    .catch(error => {
-                                        console.error('Error reloading processes:', error);
-                                        container.innerHTML = `<div class="text-danger">Error reloading processes: ${error.message}</div>`;
-
-                                        if (window.NotificationHandler) {
-                                            window.NotificationHandler.error('Ошибка при перезагрузке списка процессов');
-                                        }
-
-                                        // Закрываем модальное окно даже при ошибке перезагрузки списка
-                                        const modalEl = document.getElementById('addProcessModal');
-                                        const modalInstance = bootstrap.Modal.getInstance(modalEl);
-                                        if (modalInstance) {
-                                            modalInstance.hide();
-                                        }
-                                    });
                             } else {
-                                const errorMsg = data.message || "Ошибка при добавлении нового процесса.";
-                                if (window.NotificationHandler) {
-                                    window.NotificationHandler.error(errorMsg);
-                                } else {
-                                    alert(errorMsg);
-                                }
+                                showNotification(data.message || "Ошибка при добавлении нового процесса.", 'error');
                             }
                         })
                         .catch(error => {
-                            console.error('Ошибка:', error);
                             // Удаляем индикатор загрузки при ошибке
                             if (loadingDiv.parentNode) {
                                 loadingDiv.remove();
                             }
 
-                            const errorMsg = "Ошибка при добавлении нового процесса: " + (error.message || 'Unknown error');
-                            if (window.NotificationHandler) {
-                                window.NotificationHandler.error(errorMsg);
-                            } else {
-                                alert(errorMsg);
-                            }
+                            showNotification("Ошибка при добавлении нового процесса: " + (error.message || 'Unknown error'), 'error');
                         });
-                }
-
-                // Если выбраны существующие процессы – сохраняем их в manual_processes и добавляем в контейнер
-                if (selectedCheckboxes.length > 0) {
-                    // Создаем массив промисов для всех запросов
-                    const savePromises = [];
-
-                    // Показываем индикатор загрузки
-                    const loadingDiv = document.createElement('div');
-                    loadingDiv.className = 'text-muted';
-                    loadingDiv.textContent = 'Saving processes...';
-                    processOptionsContainer.appendChild(loadingDiv);
-
-                    selectedCheckboxes.forEach(checkbox => {
-                        const processId = checkbox.value;
-                        const processLabel = checkbox.nextElementSibling.innerText;
-
-                        // Отправляем AJAX-запрос для сохранения связи в manual_processes
-                        const savePromise = fetch("{{ route('processes.store') }}", {
-                            method: 'POST',
-                            headers: {
-                                'X-Requested-With': 'XMLHttpRequest',
-                                'Accept': 'application/json',
-                                'Content-Type': 'application/json',
-                                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content
-                            },
-                            body: JSON.stringify({
-                                process_names_id: processNameId,
-                                selected_process_id: processId,
-                                manual_id: manualId
-                            })
-                        })
-                        .then(response => {
-                            if (!response.ok) {
-                                return response.json().then(err => {
-                                    throw new Error(err.error || err.message || 'Network response was not ok');
-                                });
-                            }
-                            return response.json();
-                        })
-                        .then(data => {
-                            if (data.success) {
-                                // Удаляем индикатор загрузки после первого успешного запроса
-                                if (loadingDiv.parentNode) {
-                                    loadingDiv.remove();
-                                }
-
-                                // Добавляем процесс в виде чекбокса в контейнер текущей строки
-                                const div = document.createElement('div');
-                                div.classList.add('form-check');
-                                div.innerHTML = `
-                                    <input type="checkbox" class="form-check-input" name="processes[${rowIndex}][process][]" value="${processId}" checked>
-                                    <label class="form-check-label">${processLabel}</label>
-                                `;
-                                processOptionsContainer.appendChild(div);
-                                return data;
-                            } else {
-                                throw new Error(data.message || 'Error saving process');
-                            }
-                        })
-                        .catch(error => {
-                            console.error('Ошибка при сохранении процесса:', error);
-                            const errorMsg = "Ошибка при сохранении процесса " + processLabel + ": " + (error.message || 'Unknown error');
-                            if (window.NotificationHandler) {
-                                window.NotificationHandler.error(errorMsg);
-                            } else {
-                                alert(errorMsg);
-                            }
-                            return null;
-                        });
-
-                        savePromises.push(savePromise);
-                    });
-
-                    // Ждем завершения всех запросов
-                    Promise.all(savePromises).then(results => {
-                        const successCount = results.filter(r => r !== null).length;
-                        if (successCount > 0) {
-                            saveButton.disabled = false; // Активируем кнопку Save
-
-                            // Очищаем сообщение "No specification"
-                            const noSpecLabel = processOptionsContainer.querySelector('.text-muted');
-                            if (noSpecLabel) {
-                                noSpecLabel.remove();
-                            }
-
-                            // Очищаем выбранные чекбоксы в модальном окне (только доступные, не existing)
-                            selectedCheckboxes.forEach(checkbox => {
-                                if (!checkbox.disabled) {
-                                    checkbox.checked = false;
-                                }
-                            });
-
-                            // Перезагружаем список процессов в модальном окне (только availableProcesses)
-                            const availableContainer = document.getElementById('availableProcessContainer');
-                            availableContainer.innerHTML = '<div class="text-muted">Reloading processes...</div>';
-
-                            fetch(`{{ route('processes.getProcesses') }}?processNameId=${processNameId}&manualId=${manualId}`)
-                                .then(response => {
-                                    if (!response.ok) {
-                                        return response.json().then(err => {
-                                            throw new Error(err.error || err.message || 'Network response was not ok');
-                                        });
-                                    }
-                                    return response.json();
-                                })
-                                .then(data => {
-                                    // Отображаем только Available Processes
-                                    availableContainer.innerHTML = '';
-                                    if (data.availableProcesses && data.availableProcesses.length > 0) {
-                                        data.availableProcesses.forEach(process => {
-                                            const div = document.createElement('div');
-                                            div.className = 'form-check';
-                                            div.innerHTML = `
-                                                <input type="checkbox" class="form-check-input" name="modal_processes[]" value="${process.id}" id="modal_process_${process.id}">
-                                                <label class="form-check-label" for="modal_process_${process.id}">${process.process}</label>
-                                            `;
-                                            availableContainer.appendChild(div);
-                                        });
-                                    } else {
-                                        availableContainer.innerHTML = '<div class="text-muted">No available processes</div>';
-                                    }
-                                })
-                                .catch(error => {
-                                    console.error('Error reloading processes:', error);
-                                    availableContainer.innerHTML = `<div class="text-danger">Error reloading processes: ${error.message}</div>`;
-
-                                    if (window.NotificationHandler) {
-                                        window.NotificationHandler.error('Ошибка при перезагрузке списка процессов');
-                                    }
-                                });
-
-                            // Удаляем индикатор загрузки
-                            if (loadingDiv.parentNode) {
-                                loadingDiv.remove();
-                            }
-
-                            // Показываем сообщение об успехе
-                            if (successCount === selectedCheckboxes.length) {
-                                if (window.NotificationHandler) {
-                                    window.NotificationHandler.success('Все процессы успешно добавлены!');
-                                } else {
-                                    alert('Все процессы успешно добавлены!');
-                                }
-                            } else {
-                                const msg = `Добавлено ${successCount} из ${selectedCheckboxes.length} процессов.`;
-                                if (window.NotificationHandler) {
-                                    window.NotificationHandler.warning(msg);
-                                } else {
-                                    alert(msg);
-                                }
-                            }
-                        }
-
-                        // Закрываем модальное окно после завершения всех запросов
-                        const modalEl = document.getElementById('addProcessModal');
-                        const modalInstance = bootstrap.Modal.getInstance(modalEl);
-                        if (modalInstance) {
-                            modalInstance.hide();
-                        }
-                    }).catch(error => {
-                        console.error('Ошибка при сохранении процессов:', error);
-                        // Удаляем индикатор загрузки при ошибке
-                        if (loadingDiv.parentNode) {
-                            loadingDiv.remove();
-                        }
-
-                        const errorMsg = 'Ошибка при сохранении процессов: ' + (error.message || 'Unknown error');
-                        if (window.NotificationHandler) {
-                            window.NotificationHandler.error(errorMsg);
-                        } else {
-                            alert(errorMsg);
-                        }
-
-                        // Закрываем модальное окно даже при ошибке
-                        const modalEl = document.getElementById('addProcessModal');
-                        const modalInstance = bootstrap.Modal.getInstance(modalEl);
-                        if (modalInstance) {
-                            modalInstance.hide();
-                        }
-                    });
-                } else {
-                    // Если не было выбрано существующих процессов и не был введен новый процесс,
-                    // закрываем модальное окно (это уже обработано выше для нового процесса)
-                    if (newProcess === '') {
-                        const modalEl = document.getElementById('addProcessModal');
-                        const modalInstance = bootstrap.Modal.getInstance(modalEl);
-                        if (modalInstance) {
-                            modalInstance.hide();
-                        }
-                    }
                 }
             } else {
                 // Если currentRow не определен, просто закрываем модальное окно
@@ -2002,7 +1545,10 @@
             if (typeof $ !== 'undefined' && $.fn.select2) {
                 $('.select2-process').select2({
                     theme: 'bootstrap-5',
-                    width: '100%'
+                    width: '100%',
+                    placeholder: '{{ __("Select Process Name") }}',
+                    allowClear: false,
+                    templateResult: function(data) { if (!data.id) return null; return data.text; }
                 }).on('select2:select', function (e) {
                     // Обработчик события Select2 для загрузки процессов
                     const selectElement = e.target;

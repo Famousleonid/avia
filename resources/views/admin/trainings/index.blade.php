@@ -451,7 +451,7 @@
             document.getElementById('updateTrainingConfirmBtn').onclick = function () {
                 const dateYmd = inputEl.value;
                 if (!dateYmd) {
-                    alert('{{ __("Please select a date.") }}');
+                    showNotification('{{ __("Please select a date.") }}', 'warning');
                     return;
                 }
 
@@ -482,16 +482,16 @@
                             if (data.skipped > 0) {
                                 message += ' ({{ __("already exists") }})';
                             }
-                            alert(message);
+                            showNotification(message, 'success');
                             modal.hide();
                             location.reload();
                         } else {
-                            alert('{{ __("Error") }}: ' + (data.message || ''));
+                            showNotification('{{ __("Error") }}: ' + (data.message || ''), 'error');
                         }
                     })
                     .catch(error => {
                         console.error('Ошибка:', error);
-                        alert('{{ __("An error occurred") }}: ' + error.message);
+                        showNotification('{{ __("An error occurred") }}: ' + error.message, 'error');
                     });
             };
         }
@@ -562,9 +562,9 @@
                                 if (done === updates.length) {
                                     bootstrap.Modal.getInstance(modalEl).hide();
                                     if (errors.length > 0) {
-                                        alert('{{ __("Error") }}: ' + errors.join(', '));
+                                        showNotification('{{ __("Error") }}: ' + errors.join(', '), 'error');
                                     } else {
-                                        alert('{{ __("Training dates updated.") }}');
+                                        showNotification('{{ __("Training dates updated.") }}', 'success');
                                         location.reload();
                                     }
                                 }
@@ -574,7 +574,7 @@
                                 errors.push(err.message);
                                 if (done === updates.length) {
                                     bootstrap.Modal.getInstance(modalEl).hide();
-                                    alert('{{ __("Error") }}: ' + errors.join(', '));
+                                    showNotification('{{ __("Error") }}: ' + errors.join(', '), 'error');
                                 }
                             });
                     });
@@ -592,7 +592,7 @@
 
                     const dateYmd = input.value.trim();
                     if (!dateYmd) {
-                        alert('{{ __("Please select a date.") }}');
+                        showNotification('{{ __("Please select a date.") }}', 'warning');
                         return;
                     }
 
@@ -617,14 +617,14 @@
                         .then(function (r) { return r.json().then(function (data) { return { ok: r.ok, data: data }; }); })
                         .then(function (result) {
                             if (result.ok && result.data.success) {
-                                alert(result.data.message || '{{ __("Training added.") }}');
+                                showNotification(result.data.message || '{{ __("Training added.") }}', 'success');
                                 location.reload();
                             } else {
-                                alert('{{ __("Error") }}: ' + (result.data.message || ''));
+                                showNotification('{{ __("Error") }}: ' + (result.data.message || ''), 'error');
                             }
                         })
                         .catch(function (err) {
-                            alert('{{ __("An error occurred") }}: ' + err.message);
+                            showNotification('{{ __("An error occurred") }}: ' + err.message, 'error');
                         });
                 });
             });
@@ -649,14 +649,14 @@
                         .then(function (r) { return r.json().then(function (data) { return { ok: r.ok, data: data }; }); })
                         .then(function (result) {
                             if (!result.ok) {
-                                alert('{{ __("Error") }}: ' + (result.data.message || ''));
+                                showNotification('{{ __("Error") }}: ' + (result.data.message || ''), 'error');
                                 return;
                             }
-                            alert(result.data.message || '{{ __("Training date deleted.") }}');
+                            showNotification(result.data.message || '{{ __("Training date deleted.") }}', 'success');
                             location.reload();
                         })
                         .catch(function (err) {
-                            alert('{{ __("Error") }}: ' + err.message);
+                            showNotification('{{ __("Error") }}: ' + err.message, 'error');
                         });
                 });
             });
@@ -755,15 +755,15 @@
                     .then(response => response.json())
                     .then(data => {
                         if (data.success) {
-                            alert('All training records deleted successfully!');
+                            showNotification('All training records deleted successfully!', 'success');
                             location.reload();
                         } else {
-                            alert('Error deleting records: ' + (data.message || 'Unknown error'));
+                            showNotification('Error deleting records: ' + (data.message || 'Unknown error'), 'error');
                         }
                     })
                     .catch(error => {
                         console.error('Error:', error);
-                        alert('An error occurred while deleting records');
+                        showNotification('An error occurred while deleting records', 'error');
                     })
                     .finally(() => {
                         bootstrap.Modal.getInstance(document.getElementById('confirmDeleteModal')).hide();

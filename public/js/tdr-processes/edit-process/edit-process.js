@@ -40,6 +40,7 @@
             this.initNdtPlusSelect(ndtPlusContainer, ndtPlusSelect);
             this.initPageLoad(processNameSelect, ecCheckboxContainer, ndtPlusContainer, ndtPlusSelect);
             this.bindCheckboxChange();
+            this.bindModal();
             this.bindFormSubmit();
         },
 
@@ -47,7 +48,13 @@
             if (typeof $ === 'undefined' || !$.fn.select2 || !processNameSelect) return;
 
             const self = this;
-            $(processNameSelect).select2({ theme: 'bootstrap-5', width: '100%' })
+            $(processNameSelect).select2({
+                theme: 'bootstrap-5',
+                width: '100%',
+                placeholder: 'Select Process Name',
+                allowClear: false,
+                templateResult: (data) => (data.id ? data.text : null)
+            })
                 .on('select2:select', function (e) {
                     const select = e.target;
                     const processNameId = select.value;
@@ -170,11 +177,12 @@
                     if (isInitialLoad) selectElement.dataset.loaded = 'true';
 
                     if (data.existingProcesses?.length) {
+                        const firstId = currentProcesses[0];
                         data.existingProcesses.forEach(process => {
                             const div = document.createElement('div');
                             div.classList.add('form-check');
-                            const checked = currentProcesses.includes(process.id);
-                            div.innerHTML = `<input type="checkbox" name="processes[${rowIndex}][process][]" value="${process.id}" class="form-check-input" ${checked ? 'checked' : ''}><label class="form-check-label">${process.process}</label>`;
+                            const checked = process.id == firstId;
+                            div.innerHTML = `<input type="radio" name="processes[${rowIndex}][process]" value="${process.id}" class="form-check-input" id="process_${rowIndex}_${process.id}" ${checked ? 'checked' : ''}><label class="form-check-label" for="process_${rowIndex}_${process.id}">${process.process}</label>`;
                             processOptionsContainer.appendChild(div);
                             hasProcesses = true;
                         });
@@ -253,19 +261,133 @@
 
         bindCheckboxChange() {
             document.addEventListener('change', (e) => {
-                if (e.target.matches('.process-options input[type="checkbox"]')) this.updatePlusProcess();
+                if (e.target.matches('.process-options input[type="radio"]')) this.updatePlusProcess();
             });
+        },
+
+        bindModal() {
+            const modal = document.getElementById('addProcessModal');
+            const saveBtn = document.getElementById('saveProcessModal');
+            if (!modal || !saveBtn) return;
+
+            modal.addEventListener('show.bs.modal', (e) => {
+                const triggerBtn = e.relatedTarget;
+                if (!triggerBtn) return;
+                const row = triggerBtn.closest('.process-row');
+                const select = row?.querySelector('.select2-process');
+                const processNameId = (typeof $ !== 'undefined' && select && $(select).hasClass('select2-hidden-accessible'))
+                    ? $(select).val() : select?.value;
+                if (!processNameId || processNameId === '') {
+                    e.preventDefault();
+                    (window.NotificationHandler?.warning || alert)('Please select Process Name before adding specification.');
+                    return;
+                }
+                window._editProcessCurrentRow = row;
+                const processName = select?.options[select.selectedIndex]?.text || '';
+                document.getElementById('modalProcessName').textContent = processName;
+                document.getElementById('modalProcessNameId').value = processNameId;
+                document.getElementById('newProcessInput').value = '';
+            });
+
+            document.getElementById('processes-container')?.addEventListener('click', (e) => {
+                const btn = e.target.closest('.btn[data-bs-target="#addProcessModal"]');
+                if (!btn) return;
+                const row = btn.closest('.process-row');
+                const select = row?.querySelector('.select2-process');
+                const processNameId = (typeof $ !== 'undefined' && $(select).hasClass('select2-hidden-accessible'))
+                    ? $(select).val() : select?.value;
+                if (!processNameId || processNameId === '') return;
+                document.getElementById('modalProcessName').textContent = select?.options[select.selectedIndex]?.text || '';
+                document.getElementById('modalProcessNameId').value = processNameId;
+                document.getElementById('newProcessInput').value = '';
+                window._editProcessCurrentRow = row;
+            });
+
+            saveBtn.addEventListener('click', () => this.saveModalProcess());
+        },
+
+        saveModalProcess() {
+            const row = window._editProcessCurrentRow || document.querySelector('.process-row');
+            const processNameId = document.getElementById('modalProcessNameId')?.value;
+            const newProcess = document.getElementById('newProcessInput')?.value?.trim() || '';
+            const manualId = document.getElementById('processes-container')?.dataset?.manualId;
+            const processOptionsContainer = row?.querySelector('.process-options');
+            const saveButton = document.querySelector('button[type="submit"]');
+
+            if (!newProcess) {
+                (window.NotificationHandler?.warning || alert)('Please enter the new process name.');
+                return;
+            }
+            if (!processNameId || !manualId || !processOptionsContainer) return;
+
+            const match = row?.querySelector('.select2-process')?.name?.match(/processes\[(\d+)\]/);
+            const rowIndex = match ? match[1] : '0';
+
+            const loadingDiv = document.createElement('div');
+            loadingDiv.className = 'text-muted';
+            loadingDiv.textContent = 'Saving...';
+            processOptionsContainer.appendChild(loadingDiv);
+
+            fetch(this.config.processesStoreUrl, {
+                method: 'POST',
+                headers: {
+                    'X-CSRF-TOKEN': this.config.csrfToken,
+                    'Accept': 'application/json',
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    process_names_id: processNameId,
+                    process: newProcess,
+                    manual_id: manualId
+                })
+            })
+                .then(r => r.json())
+                .then(data => {
+                    loadingDiv.remove();
+                    if (data.success && data.process) {
+                        const div = document.createElement('div');
+                        div.classList.add('form-check');
+                        div.innerHTML = `<input type="radio" name="processes[${rowIndex}][process]" value="${data.process.id}" class="form-check-input" id="process_${rowIndex}_${data.process.id}" checked><label class="form-check-label" for="process_${rowIndex}_${data.process.id}">${data.process.process}</label>`;
+                        processOptionsContainer.appendChild(div);
+                        document.getElementById('newProcessInput').value = '';
+                        saveButton.disabled = false;
+                        (window.NotificationHandler?.success || alert)('Process added successfully!');
+                        bootstrap.Modal.getInstance(document.getElementById('addProcessModal'))?.hide();
+                        this.config.currentProcesses = [data.process.id];
+                    } else {
+                        (window.NotificationHandler?.error || alert)(data.message || 'Error');
+                    }
+                })
+                .catch(err => {
+                    loadingDiv.remove();
+                    (window.NotificationHandler?.error || alert)('Error: ' + (err.message || 'Unknown'));
+                });
         },
 
         bindFormSubmit() {
             const form = document.getElementById('editCPForm');
             if (!form) return;
 
-            form.addEventListener('submit', () => {
+            form.addEventListener('submit', (e) => {
                 const processRow = document.querySelector('.process-row');
-                const mainIds = Array.from(processRow?.querySelectorAll('.process-options input[type="checkbox"]:checked') || []).map(cb => parseInt(cb.value));
+                const checkedRadio = processRow?.querySelector('.process-options input[type="radio"]:checked');
                 const ndtIds = Array.from(processRow?.querySelectorAll('.ndt-plus-process-options input[type="checkbox"]:checked') || []).map(cb => parseInt(cb.value));
+
+                if (!checkedRadio) {
+                    e.preventDefault();
+                    (window.NotificationHandler?.warning || alert)('Please select a specification.');
+                    return;
+                }
+
+                const mainId = parseInt(checkedRadio.value);
                 const optionsContainer = processRow?.querySelector('.process-options');
+                checkedRadio.removeAttribute('name');
+
+                const mainInput = document.createElement('input');
+                mainInput.type = 'hidden';
+                mainInput.name = 'processes[0][process][]';
+                mainInput.value = mainId;
+                optionsContainer?.appendChild(mainInput);
 
                 ndtIds.forEach(processId => {
                     const input = document.createElement('input');
@@ -278,7 +400,7 @@
                 const plusHidden = document.getElementById('plus_process_hidden');
                 const ndtPlusSelect = processRow?.querySelector('.select2-ndt-plus');
                 if (ndtPlusSelect && plusHidden) {
-                    const selected = $(ndtPlusSelect).val() || [];
+                    const selected = (typeof $ !== 'undefined' && $(ndtPlusSelect).val()) || [];
                     plusHidden.value = selected.length ? selected.map(id => parseInt(id)).sort((a, b) => a - b).join(',') : '';
                 }
             });

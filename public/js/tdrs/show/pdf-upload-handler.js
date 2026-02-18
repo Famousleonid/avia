@@ -26,13 +26,13 @@ const PdfUploadHandler = {
 
         const workorderId = window.currentPdfWorkorderId;
         if (!workorderId) {
-            alert('Workorder ID missing');
+            showNotification('Workorder ID missing', 'error');
             return;
         }
 
         const fileInput = document.getElementById('pdfFileInput');
         if (!fileInput || !fileInput.files.length) {
-            alert('Please select a PDF file');
+            showNotification('Please select a PDF file', 'warning');
             return;
         }
 
@@ -87,7 +87,7 @@ const PdfUploadHandler = {
             this.showSuccessToast('PDF file uploaded successfully.');
         } catch (error) {
             console.error('Upload error:', error);
-            alert('Upload failed: ' + error.message);
+            showNotification('Upload failed: ' + error.message, 'error');
         } finally {
             if (typeof hideLoadingSpinner === 'function') {
                 hideLoadingSpinner();

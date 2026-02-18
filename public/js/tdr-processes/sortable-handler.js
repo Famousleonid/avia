@@ -112,7 +112,7 @@ class SortableHandler {
             if (window.NotificationHandler) {
                 window.NotificationHandler.error(error.message || 'Ошибка сети при обновлении порядка');
             } else {
-                alert('Ошибка при обновлении порядка: ' + (error.message || 'Неизвестная ошибка'));
+                showNotification('Ошибка при обновлении порядка: ' + (error.message || 'Неизвестная ошибка'), 'error');
             }
             location.reload();
         });

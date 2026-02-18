@@ -254,11 +254,11 @@
                             const modalInstance = bootstrap.Modal.getInstance(modalEl);
                             modalInstance.hide();
                         } else {
-                            alert('Failed to update Serial Number');
+                            showNotification('Failed to update Serial Number', 'error');
                         }
                     })
                     .catch(() => {
-                        alert('Server error');
+                        showNotification('Server error', 'error');
                     });
             });
         });

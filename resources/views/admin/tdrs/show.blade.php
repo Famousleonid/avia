@@ -1252,14 +1252,14 @@
                                 // Reload page to show updated data
                                 window.location.reload();
                             } else {
-                                alert(data.message || '{{ __("An error occurred while saving.") }}');
+                                showNotification(data.message || '{{ __("An error occurred while saving.") }}', 'error');
                                 saveBtn.disabled = false;
                                 saveBtn.innerHTML = '<i class="fas fa-save"></i> {{ __('Save') }}';
                             }
                         })
                         .catch(error => {
                             console.error('Error:', error);
-                            alert('{{ __("An error occurred while saving.") }}');
+                            showNotification('{{ __("An error occurred while saving.") }}', 'error');
                             saveBtn.disabled = false;
                             saveBtn.innerHTML = '<i class="fas fa-save"></i> {{ __('Save') }}';
                         });
@@ -1356,14 +1356,14 @@
                                 // Reload page to update unit inspection modal
                                 window.location.reload();
                             } else {
-                                alert(data.message || '{{ __("An error occurred while saving.") }}');
+                                showNotification(data.message || '{{ __("An error occurred while saving.") }}', 'error');
                                 this.disabled = false;
                                 this.innerHTML = '<i class="fas fa-check"></i> {{ __("Save") }}';
                             }
                         })
                         .catch(error => {
                             console.error('Error:', error);
-                            alert('{{ __("An error occurred while saving.") }}');
+                            showNotification('{{ __("An error occurred while saving.") }}', 'error');
                             this.disabled = false;
                             this.innerHTML = '<i class="fas fa-check"></i> {{ __("Save") }}';
                         });
@@ -1403,14 +1403,14 @@
                                 // Reload page to update unit inspection modal
                                 window.location.reload();
                             } else {
-                                alert(data.message || '{{ __("An error occurred while deleting.") }}');
+                                showNotification(data.message || '{{ __("An error occurred while deleting.") }}', 'error');
                                 this.disabled = false;
                                 this.innerHTML = '<i class="fas fa-trash"></i> {{ __("Delete") }}';
                             }
                         })
                         .catch(error => {
                             console.error('Error:', error);
-                            alert('{{ __("An error occurred while deleting.") }}');
+                            showNotification('{{ __("An error occurred while deleting.") }}', 'error');
                             this.disabled = false;
                             this.innerHTML = '<i class="fas fa-trash"></i> {{ __("Delete") }}';
                         });
@@ -1457,7 +1457,7 @@
                                 // Reload page to update both modals
                                 window.location.reload();
                             } else {
-                                alert(data.message || '{{ __("An error occurred while saving.") }}');
+                                showNotification(data.message || '{{ __("An error occurred while saving.") }}', 'error');
                                 submitBtn.disabled = false;
                                 submitBtn.innerHTML = '{{ __("Save Condition") }}';
                             }

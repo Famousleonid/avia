@@ -571,7 +571,7 @@
 <body>
 <script>
     console.log('Inline script in body works!');
-    alert('Inline script работает!');
+    showNotification('Inline script работает!', 'info');
 </script>
 
 <!-- Кнопка для печати -->

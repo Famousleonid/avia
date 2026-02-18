@@ -1475,7 +1475,7 @@
                 setTimeout(function() {
                     applyTableRowLimits(defaultSettings);
                 }, 50);
-                alert('Settings reset to default values!');
+                showNotification('Settings reset to default values!', 'success');
             }
         };
 

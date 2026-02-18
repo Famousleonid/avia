@@ -63,7 +63,7 @@ class VendorHandler {
             const vendorName = vendorNameInput.value.trim();
 
             if (!vendorName) {
-                alert('Please enter vendor name');
+                showNotification('Please enter vendor name', 'warning');
                 return;
             }
 
@@ -113,14 +113,14 @@ class VendorHandler {
                 if (window.NotificationHandler) {
                     window.NotificationHandler.success('Vendor added successfully!');
                 } else {
-                    alert('Vendor added successfully!');
+                    showNotification('Vendor added successfully!', 'success');
                 }
             } else {
                 const errorMsg = data.message || 'Error adding vendor';
                 if (window.NotificationHandler) {
                     window.NotificationHandler.error('Error: ' + errorMsg);
                 } else {
-                    alert('Error: ' + errorMsg);
+                    showNotification('Error: ' + errorMsg, 'error');
                 }
             }
         })
@@ -129,7 +129,7 @@ class VendorHandler {
             if (window.NotificationHandler) {
                 window.NotificationHandler.error('Error adding vendor');
             } else {
-                alert('Error adding vendor');
+                showNotification('Error adding vendor', 'error');
             }
         });
     }

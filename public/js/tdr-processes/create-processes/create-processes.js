@@ -295,7 +295,7 @@
                 });
 
                 if (!hasChecked) {
-                    alert('Process not added because no checkbox is selected.');
+                    showNotification('Process not added because no checkbox is selected.', 'warning');
                     return;
                 }
 
@@ -306,14 +306,12 @@
                 })
                     .then(r => r.ok ? r.json() : r.json().then(err => { throw new Error(err.error || err.message); }))
                     .then(data => {
-                        if (window.NotificationHandler) window.NotificationHandler.success(data.message || 'Saved');
-                        else alert(data.message || 'Saved');
+                        showNotification(data.message || 'Saved', 'success');
                         if (data.redirect) window.location.href = data.redirect;
                     })
                     .catch(err => {
                         const msg = err.message || 'Error saving processes.';
-                        if (window.NotificationHandler) window.NotificationHandler.error('Ошибка: ' + msg);
-                        else alert('Ошибка: ' + msg);
+                        showNotification('Ошибка: ' + msg, 'error');
                     });
             });
         },

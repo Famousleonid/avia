@@ -565,7 +565,7 @@
                 const vendorName = vendorNameInput.value.trim();
 
                 if (!vendorName) {
-                    alert('Please enter vendor name');
+                    showNotification('Please enter vendor name', 'warning');
                     return;
                 }
 
@@ -621,14 +621,14 @@
                         modal.hide();
 
                         addVendorForm.reset();
-                        alert('Vendor added successfully!');
+                        showNotification('Vendor added successfully!', 'success');
                     } else {
-                        alert('Error: ' + data.message);
+                        showNotification('Error: ' + data.message, 'error');
                     }
                 })
                 .catch(error => {
                     console.error('Error:', error);
-                    alert('Error adding vendor');
+                    showNotification('Error adding vendor', 'error');
                 });
             });
 
@@ -639,7 +639,7 @@
                 // Проверяем, выбран ли vendor
                 const activeVendorItem = document.querySelector('.vendor-header-dropdown-item.active');
                 if (!activeVendorItem) {
-                    alert('Please select a vendor first');
+                    showNotification('Please select a vendor first', 'warning');
                     return;
                 }
 

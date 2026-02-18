@@ -492,7 +492,7 @@
                         if (!res.ok) {
                             const txt = await res.text();
                             console.error('INLINE SAVE ERROR', res.status, txt);
-                            alert(`Save failed (${res.status}). See console.`);
+                            showNotification(`Save failed (${res.status}). See console.`, 'error');
                             throw new Error('HTTP ' + res.status);
                         }
 
@@ -507,7 +507,7 @@
 
                     } catch (e) {
                         console.error(e);
-                        alert('Save failed. Check console.');
+                        showNotification('Save failed. Check console.', 'error');
                         btnSave.disabled = false;
                         btnCancel.disabled = false;
                     }

@@ -925,7 +925,7 @@
                             closeApprovePopover();
                         } catch (err) {
                             console.error(err);
-                            alert(err?.message || 'Approve save failed');
+                            showNotification(err?.message || 'Approve save failed', 'error');
                         } finally {
                             if (typeof hideLoadingSpinner === 'function') hideLoadingSpinner();
                         }
@@ -946,7 +946,7 @@
                             closeApprovePopover();
                         } catch (err) {
                             console.error(err);
-                            alert(err?.message || 'Approve remove failed');
+                            showNotification(err?.message || 'Approve remove failed', 'error');
                         } finally {
                             if (typeof hideLoadingSpinner === 'function') hideLoadingSpinner();
                         }

@@ -244,6 +244,22 @@
     </button>
 </div>
 
+@foreach($componentChunks as $chunk)
+    @php
+        $maxColumnsPerPage = 6;
+        $columnSlots = [];
+        foreach ($chunk as $item) {
+            if ($item->hasQuarantine) {
+                $columnSlots[] = ['slot' => 'left', 'item' => $item];
+                $columnSlots[] = ['slot' => 'right', 'item' => $item];
+            } else {
+                $columnSlots[] = ['slot' => 'single', 'item' => $item];
+            }
+        }
+        while (count($columnSlots) < $maxColumnsPerPage) {
+            $columnSlots[] = ['slot' => 'empty', 'item' => null];
+        }
+    @endphp
 <div class="container-fluid">
     <div class="row">
         <div class="col-1">
@@ -353,23 +369,20 @@
         <div class="col-10">
             <!-- Строка для имен компонентов -->
             <div class="row g-0">
-                @foreach($tdr_ws as $index => $component)
-                    <div class="col {{ $index < 5 ? 'border-l-t-b' : 'border-all' }} text-center" style="height: 22px">
-                        @php
-                            $nameLength = mb_strlen($component->component->name);
-                            $fontSize = $nameLength > 20 ? round(20 / $nameLength, 2) . 'em' : '1em';
-                        @endphp
-                        <span style="font-size: {{ $fontSize }};">
-                            {{ $component->component->name }}
-                        </span>
+                @foreach($columnSlots as $slotData)
+                    <div class="col {{ $loop->last ? 'border-all' : 'border-l-t-b' }} text-center" style="height: 22px">
+                        @if($slotData['slot'] !== 'empty')
+                            @php $component = $slotData['item']->component; @endphp
+                            @php
+                                $nameLength = mb_strlen($component->component->name);
+                                $fontSize = $nameLength > 20 ? round(20 / $nameLength, 2) . 'em' : '1em';
+                            @endphp
+                            <span style="font-size: {{ $fontSize }};">
+                                {{ $component->component->name }}
+                            </span>
+                        @endif
                     </div>
                 @endforeach
-
-                @for($i = count($tdr_ws); $i < 6; $i++)
-                    <div class="col {{ $i < 5 ? 'border-l-t-b' : 'border-all' }} text-center" style="height: 22px">
-                        {{ __(' ') }}
-                    </div>
-                @endfor
             </div>
         </div>
     </div>
@@ -381,16 +394,13 @@
         </div>
         <div class="col-10">
             <div class="row g-0">
-                @foreach($tdr_ws as $index => $component)
-                    <div class="col {{ $index < 5 ? 'border-l-b' : 'border-l-b-r'}} text-center" style="height: 22px">
-                        {{ $component->component->part_number }}
+                @foreach($columnSlots as $slotData)
+                    <div class="col {{ $loop->last ? 'border-l-b-r' : 'border-l-b' }} text-center" style="height: 22px">
+                        @if($slotData['slot'] !== 'empty')
+                            {{ $slotData['item']->component->component->part_number }}
+                        @endif
                     </div>
                 @endforeach
-                @for($i = count($tdr_ws); $i < 6; $i++)
-                    <div class="col {{ $i < 5 ? 'border-l-b' : 'border-l-b-r'}} text-center" style="height: 22px">
-                        {{ __(' ') }}
-                    </div>
-                @endfor
             </div>
         </div>
     </div>
@@ -402,16 +412,13 @@
         </div>
         <div class="col-10">
             <div class="row g-0">
-                @foreach($tdr_ws as $index => $component)
-                    <div class="col {{ $index < 5 ? 'border-l-b' : 'border-l-b-r'}} text-center" style="height: 22px">
-                        {{ $component->serial_number }}
+                @foreach($columnSlots as $slotData)
+                    <div class="col {{ $loop->last ? 'border-l-b-r' : 'border-l-b' }} text-center" style="height: 22px">
+                        @if($slotData['slot'] !== 'empty')
+                            {{ $slotData['item']->component->serial_number }}
+                        @endif
                     </div>
                 @endforeach
-                @for($i = count($tdr_ws); $i < 6; $i++)
-                    <div class="col {{ $i < 5 ? 'border-l-b' : 'border-l-b-r'}} text-center" style="height: 22px">
-                        {{ __(' ') }}
-                    </div>
-                @endfor
             </div>
         </div>
     </div>
@@ -426,11 +433,11 @@
         </div>
         <div class="col-10">
             <div class="row g-0">
-                @for($i = 0; $i < 6; $i++)
+                @foreach($columnSlots as $slotData)
                     <div class="col fs-8 text-center" style="height: 15px">
                         <strong>RO No.</strong>
                     </div>
-                @endfor
+                @endforeach
             </div>
         </div>
     </div>
@@ -442,80 +449,54 @@
         </div>
         <div class="col-10">
             <div class="row g-0">
-                @foreach($tdr_ws as $index => $component)
+                @foreach($columnSlots as $slotData)
                     @php
-                        $currentTdrId = $component->id;
-                        $ndtForCurrentTdr = collect($ndt_processes)
-                            ->where('tdrs_id', $currentTdrId)
-                            ->values();
+                        $showValue = false;
+                        $ndtEntry = null;
+                        if ($slotData['slot'] !== 'empty') {
+                            $component = $slotData['item']->component;
+                            $ndtForCurrentTdr = collect($ndt_processes)->where('tdrs_id', $component->id)->values();
+                            $quarantineNumberLine = $slotData['item']->quarantineNumberLine;
+                            $slot = $slotData['slot'];
+                            $ndtEntry = $ndtForCurrentTdr[0] ?? null;
+                            if ($ndtEntry && $ndtEntry['number_line'] !== null) {
+                                if ($slot === 'single') { $showValue = true; }
+                                elseif ($slot === 'left' && $quarantineNumberLine !== null && $ndtEntry['number_line'] <= $quarantineNumberLine) { $showValue = true; }
+                                elseif ($slot === 'right' && $quarantineNumberLine !== null && $ndtEntry['number_line'] > $quarantineNumberLine) { $showValue = true; }
+                            }
+                        }
                     @endphp
-                    <div class="col {{ $index < 5 ? 'border-l-t-b' : 'border-all' }} text-center" style="height: 20px">
-                        @if(isset($ndtForCurrentTdr[0]))
-                            <div class="border-r filled-data" style="height: 20px; width: 30px">
-                                {{ $ndtForCurrentTdr[0]['number_line'] }}
-                            </div>
+                    <div class="col {{ $loop->last ? 'border-all' : 'border-l-t-b' }} text-center" style="height: 20px{{ $slotData['slot'] === 'empty' ? '; position: relative' : '' }}">
+                        @if($showValue)
+                            <div class="border-r filled-data" style="height: 20px; width: 30px">{{ $ndtEntry['number_line'] }}</div>
                         @else
                             <div class="border-r" style="height: 20px; width: 30px"></div>
+                            @if($slotData['slot'] === 'empty')
+                                <div style="position: absolute; left: 29px; top: 0; bottom: 0; width: 1px; border-left: 1px solid black;"></div>
+                            @endif
                         @endif
                     </div>
                 @endforeach
-                @for($i = count($tdr_ws); $i < 6; $i++)
-                    <div class="col {{ $i < 5 ? 'border-l-t-b' : 'border-all' }} text-center" style="height: 20px; position: relative;">
-                        <div style="position: absolute; left: 29px; top: 0; bottom: 0; width: 1px; border-left: 1px solid black;"></div>
-                    </div>
-                @endfor
             </div>
         </div>
     </div>
 
-    <!-- NDT -->
-    <div class="row g-0 fs-7">
-        <div class="col-2 border-l ps-1">
-            <div style="height: 18px"><strong>N.D.T.</strong></div>
-        </div>
-        <div class="col-10">
-            <div class="row g-0">
-                @foreach($tdr_ws as $index => $component)
-                    @php
-                        $currentTdrId = $component->id;
-                        $ndtForCurrentTdr = collect($ndt_processes)
-                            ->where('tdrs_id', $currentTdrId)
-                            ->values();
-                    @endphp
-                    <div class="col {{ $index < 5 ? 'border-l-b' : 'border-l-b-r' }} text-center" style="height: 20px">
-                        @if(isset($ndtForCurrentTdr[1]))
-                            <div class="border-r filled-data" style="height: 20px; width: 30px">
-                                {{ $ndtForCurrentTdr[1]['number_line'] }}
-                            </div>
-                        @else
-                            <div class="border-r" style="height: 20px; width: 30px"></div>
-                        @endif
-                    </div>
-                @endforeach
-                @for($i = count($tdr_ws); $i < 6; $i++)
-                    <div class="col {{ $i < 5 ? 'border-l-b' : 'border-l-b-r' }} text-center" style="height: 20px; position: relative;">
-                        <div style="position: absolute; left: 29px; top: 0; bottom: 0; width: 1px; border-left: 1px solid black;"></div>
-                    </div>
-                @endfor
-            </div>
-        </div>
-    </div>
-
-    <!-- Дополнительные NDT процессы -->
+    <!-- NDT row 2 (middle) -->
     <div class="row g-0 fs-7">
         <div class="col-2 border-l-b ps-1">
             <div style="height: 18px"><strong></strong></div>
         </div>
         <div class="col-10">
             <div class="row g-0">
-                @foreach($tdr_ws as $index => $component)
+                @foreach($columnSlots as $slotData)
                     @php
-                        $currentTdrId = $component->id;
+                        $component = $slotData['item']->component ?? null;
+                        $currentTdrId = $component ? $component->id : null;
                         $ndtForCurrentTdr = collect($ndt_processes)
                             ->where('tdrs_id', $currentTdrId)
                             ->values();
                     @endphp
-                    <div class="col {{ $index < 5 ? 'border-l-b' : 'border-l-b-r' }} text-center" style="height: 20px">
+                    <div class="col {{ $loop->last ? 'border-l-b-r' : 'border-l-b' }} text-center" style="height: 20px">
                         @if(isset($ndtForCurrentTdr[2]))
                             <div class="border-r filled-data" style="height: 20px; width: 30px">
                                 {{ $ndtForCurrentTdr[2]['number_line'] }}
@@ -525,7 +506,7 @@
                         @endif
                     </div>
                 @endforeach
-                @for($i = count($tdr_ws); $i < 6; $i++)
+                @for($i = count($columnSlots); $i < 6; $i++)
                     <div class="col {{ $i < 5 ? 'border-l-b' : 'border-l-b-r' }} text-center" style="height: 20px; position: relative;">
                         <div style="position: absolute; left: 29px; top: 0; bottom: 0; width: 1px; border-left: 1px solid black;"></div>
                     </div>
@@ -542,16 +523,17 @@
             </div>
             <div class="col-10">
                 <div class="row g-0">
-                    @foreach($tdr_ws as $index => $component)
+                    @foreach($columnSlots as $slotData)
                         @php
-                            $currentTdrId = $component->id;
+                            $component = $slotData['item']->component ?? null;
+                        $currentTdrId = $component ? $component->id : null;
                             $processForCurrentTdr = $processes
                                 ->where('process_name_id', $name->id)
                                 ->where('tdrs_id', $currentTdrId)
                                 ->values();
                             $numberLines = $processForCurrentTdr->pluck('number_line')->implode(',');
                         @endphp
-                        <div class="col {{ $index < 5 ? 'border-l-b' : 'border-l-b-r' }} text-center" style="height: 22px">
+                        <div class="col {{ $loop->last ? 'border-l-b-r' : 'border-l-b' }} text-center" style="height: 22px">
                             @if($numberLines)
                                 <div class="border-r filled-data" style="height: 22px; width: 30px">
                                     {{ $numberLines }}
@@ -561,7 +543,7 @@
                             @endif
                         </div>
                     @endforeach
-                    @for($i = count($tdr_ws); $i < 6; $i++)
+                    @for($i = count($columnSlots); $i < 6; $i++)
                         <div class="col {{ $i < 5 ? 'border-l-b' : 'border-l-b-r' }} text-center" style="height: 22px; position: relative;">
                             <div style="position: absolute; left: 29px; top: 0; bottom: 0; width: 1px; border-left: 1px solid black;"></div>
                         </div>
@@ -589,6 +571,11 @@
         </div>
     </div>
 </footer>
+
+    @if(!$loop->last)
+        <div style="page-break-after: always;"></div>
+    @endif
+@endforeach
 
 <!-- Скрипт для печати -->
 <script>

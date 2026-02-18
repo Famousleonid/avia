@@ -476,7 +476,7 @@
             const index = parseInt(idxInput.value, 10);
 
             if (noteText === '') {
-                alert('Please enter a note text.');
+                showNotification('Please enter a note text.', 'warning');
                 return;
             }
 
@@ -506,7 +506,7 @@
 
             // Проверяем, что есть либо выбранные записи, либо заметки
             if (selectedRecords.length === 0 && !hasNotes) {
-                alert('Please select at least one R&M record or enter at least one technical note to save.');
+                showNotification('Please select at least one R&M record or enter at least one technical note to save.', 'warning');
                 return;
             }
 
@@ -590,11 +590,11 @@
                             '{{ route("rm_reports.updateRecord", ":id") }}'.replace(':id', record.id)
                         );
                     } else {
-                        alert('Error loading record data');
+                        showNotification('Error loading record data', 'error');
                     }
                 })
                 .catch(() => {
-                    alert('Error loading record data');
+                    showNotification('Error loading record data', 'error');
                 });
         }
 

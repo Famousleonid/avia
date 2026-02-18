@@ -483,12 +483,12 @@
             const processType = document.getElementById('csvProcessType').value;
 
             if (!fileInput.files.length) {
-                alert('{{ __("Please select a file") }}');
+                showNotification('{{ __("Please select a file") }}', 'warning');
                 return;
             }
 
             if (!processType) {
-                alert('{{ __("Please select a process type") }}');
+                showNotification('{{ __("Please select a process type") }}', 'warning');
                 return;
             }
 
@@ -523,7 +523,7 @@
             const modal = bootstrap.Modal.getInstance(document.getElementById('csvUploadModal'));
             modal.hide();
 
-            alert('{{ __("File added successfully") }}');
+            showNotification('{{ __("File added successfully") }}', 'success');
         }
 
         // Функция для обновления отображения CSV файлов
