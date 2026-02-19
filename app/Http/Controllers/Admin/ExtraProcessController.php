@@ -39,7 +39,7 @@ class ExtraProcessController extends Controller
         $current_wo = Workorder::findOrFail($id);
         $manual_id = $current_wo->unit->manual_id;
         $components = Component::where('manual_id', $manual_id)->get();
-        $processNames = ProcessName::all();
+        $processNames = ProcessName::orderBy('name')->get();
         // Получаем процессы, связанные с manual_id
         $processes = Process::whereHas('manuals', function ($query) use ($manual_id) {
             $query->where('manual_id', $manual_id);
@@ -66,7 +66,7 @@ class ExtraProcessController extends Controller
         $current_wo = Workorder::findOrFail($workorderId);
         $component = Component::findOrFail($componentId);
         $manual_id = $current_wo->unit->manual_id;
-        $processNames = ProcessName::all();
+        $processNames = ProcessName::orderBy('name')->get();
 
         // Получаем процессы, связанные с manual_id
         $processes = Process::whereHas('manuals', function ($query) use ($manual_id) {
@@ -79,7 +79,7 @@ class ExtraProcessController extends Controller
             ->first();
 
         // Получаем все NDT process names для дополнительного селекта
-        $ndtProcessNames = ProcessName::where('name', 'like', 'NDT-%')->get();
+        $ndtProcessNames = ProcessName::where('name', 'like', 'NDT-%')->orderBy('name')->get();
 
         \Log::info('ExtraProcess createProcesses data', [
             'current_wo_id' => $current_wo->id,
@@ -745,6 +745,9 @@ class ExtraProcessController extends Controller
         $current_wo = Workorder::findOrFail($id);
         $processName = ProcessName::findOrFail($processNameId);
 
+        if (empty($processName->process_sheet_name)) {
+            return redirect()->back()->with('error', __('There is no form for this process.'));
+        }
 
         // Получаем все extra processes для этого work order
         $extra_processes = ExtraProcess::where('workorder_id', $current_wo->id)
@@ -1212,7 +1215,7 @@ class ExtraProcessController extends Controller
         }
 
         // Получаем имена процессов
-        $processNames = ProcessName::all();
+        $processNames = ProcessName::orderBy('name')->get();
 
         // Получаем процессы, связанные с manual_id
         $manual_id = $current_wo->unit->manual_id ?? null;
@@ -1221,7 +1224,7 @@ class ExtraProcessController extends Controller
         })->get();
 
         // Получаем все NDT process names для дополнительного селекта
-        $ndtProcessNames = ProcessName::where('name', 'like', 'NDT-%')->get();
+        $ndtProcessNames = ProcessName::where('name', 'like', 'NDT-%')->orderBy('name')->get();
 
         return view('admin.extra_processes.edit', compact(
             'current_wo',
@@ -1464,6 +1467,10 @@ class ExtraProcessController extends Controller
         $current_wo = Workorder::findOrFail($extra_process->workorder_id);
         $component = Component::findOrFail($extra_process->component_id);
         $processName = ProcessName::findOrFail($processNameId);
+
+        if (empty($processName->process_sheet_name)) {
+            return redirect()->back()->with('error', __('There is no form for this process.'));
+        }
 
         // Получаем vendor_id из запроса
         $vendorId = $request->input('vendor_id');
@@ -1735,7 +1742,8 @@ class ExtraProcessController extends Controller
             'component' => $component,
             'extra_process' => $extra_process,
             'manuals' => \App\Models\Manual::where('id', $manual_id)->get(),
-            'manual_id' => $manual_id
+            'manual_id' => $manual_id,
+            'selectedVendor' => null
         ];
 
         // Если есть процессы, получаем данные для отображения формы
@@ -1753,6 +1761,10 @@ class ExtraProcessController extends Controller
             if (!empty($processNameIds)) {
                 $processName = ProcessName::find($processNameIds[0]);
                 if ($processName) {
+                    if (empty($processName->process_sheet_name)) {
+                        return redirect()->route('extra_processes.showAll', $extra_process->workorder_id)
+                            ->with('error', __('There is no form for this process.'));
+                    }
                     $viewData['process_name'] = $processName;
 
                     // Получаем все процессы для отображения

@@ -121,6 +121,22 @@
                             </div>
                         </div>
 
+                        <div class="row mb-3">
+                            <div class="col-md-4">
+                                <label for="ndtProcessFontSize" class="form-label" data-bs-toggle="tooltip"
+                                        data-bs-placement="top"
+                                        title="Размер шрифта для блока процессов NDT (MAGNETIC PARTICLE, LIQUID PENETRANT и т.д.)."
+                                        data-tooltip-ru="Размер шрифта для блока процессов NDT (MAGNETIC PARTICLE, LIQUID PENETRANT и т.д.)."
+                                        data-tooltip-en="Font size for NDT process block (MAGNETIC PARTICLE, LIQUID PENETRANT, etc.).">
+                                    NDT Process Font (px)
+                                </label>
+                                <div class="input-group">
+                                    <input type="number" class="form-control" id="ndtProcessFontSize" name="ndtProcessFontSize"
+                                           min="6" max="24" step="0.5" value="10">
+                                </div>
+                            </div>
+                        </div>
+
                         <!-- Table Setting (collapse) -->
                         <div class="accordion mb-3" id="tableSettingsAccordion">
                             <div class="accordion-item">
@@ -186,6 +202,45 @@
                                     <option value="auto">auto (automatic)</option>
                                 </select>
                             </div>
+                                            <div class="col-md-4 mb-3">
+                                                <label for="ndtTableDataFontSize" class="form-label" data-bs-toggle="tooltip"
+                                                        data-bs-placement="top"
+                                                        title="Размер шрифта данных в таблице NDT."
+                                                        data-tooltip-ru="Размер шрифта данных в таблице NDT."
+                                                        data-tooltip-en="Font size for NDT table data.">
+                                                    NDT Table Data Font (px)
+                                                </label>
+                                                <div class="input-group">
+                                                    <input type="number" class="form-control" id="ndtTableDataFontSize" name="ndtTableDataFontSize"
+                                                           min="6" max="20" step="0.5" value="9">
+                                                </div>
+                                            </div>
+                                            <div class="col-md-4 mb-3">
+                                                <label for="stressTableDataFontSize" class="form-label" data-bs-toggle="tooltip"
+                                                        data-bs-placement="top"
+                                                        title="Размер шрифта данных в таблице Stress Relief."
+                                                        data-tooltip-ru="Размер шрифта данных в таблице Stress Relief."
+                                                        data-tooltip-en="Font size for Stress Relief table data.">
+                                                    Stress Table Data Font (px)
+                                                </label>
+                                                <div class="input-group">
+                                                    <input type="number" class="form-control" id="stressTableDataFontSize" name="stressTableDataFontSize"
+                                                           min="6" max="20" step="0.5" value="9">
+                                                </div>
+                                            </div>
+                                            <div class="col-md-4 mb-3">
+                                                <label for="otherTableDataFontSize" class="form-label" data-bs-toggle="tooltip"
+                                                        data-bs-placement="top"
+                                                        title="Размер шрифта данных в таблицах Other (CAD, Machining и т.д.)."
+                                                        data-tooltip-ru="Размер шрифта данных в таблицах Other (CAD, Machining и т.д.)."
+                                                        data-tooltip-en="Font size for Other process table data.">
+                                                    Other Table Data Font (px)
+                                                </label>
+                                                <div class="input-group">
+                                                    <input type="number" class="form-control" id="otherTableDataFontSize" name="otherTableDataFontSize"
+                                                           min="6" max="20" step="0.5" value="9">
+                                                </div>
+                                            </div>
                                         </div>
                                     </div>
                                 </div>
@@ -420,21 +475,25 @@
             $hidePrintSettingsModal = ($index > 0); // Показываем модальное окно только в первой форме
             $hideBootstrapJS = ($index > 0); // Загружаем Bootstrap JS только для первой формы
 
-            // Устанавливаем переменные для NDT или обычных процессов
+            // Устанавливаем переменные для NDT или обычных процессов (formData передаётся в include)
             if (isset($formData['ndt_processes'])) {
                 $ndt_processes = $formData['ndt_processes'];
                 $ndt_components = $formData['ndt_components'];
-                $current_ndt_id = $formData['current_ndt_id'];
-                $ndt1_name_id = $formData['ndt1_name_id'];
-                $ndt4_name_id = $formData['ndt4_name_id'];
-                $ndt6_name_id = $formData['ndt6_name_id'];
-                $ndt5_name_id = $formData['ndt5_name_id'];
+                $current_ndt_id = $formData['current_ndt_id'] ?? null;
+                $ndt1_name_id = $formData['ndt1_name_id'] ?? null;
+                $ndt2_name_id = $formData['ndt2_name_id'] ?? null;
+                $ndt3_name_id = $formData['ndt3_name_id'] ?? null;
+                $ndt4_name_id = $formData['ndt4_name_id'] ?? null;
+                $ndt5_name_id = $formData['ndt5_name_id'] ?? null;
+                $ndt6_name_id = $formData['ndt6_name_id'] ?? null;
+                $ndt7_name_id = $formData['ndt7_name_id'] ?? null;
+                $ndt8_name_id = $formData['ndt8_name_id'] ?? null;
             } else {
                 $process_components = $formData['process_components'];
                 $process_tdr_components = $formData['process_tdr_components'];
             }
         @endphp
-        @include('admin.tdr-processes.processesForm', array_merge($formData, ['hidePrintButton' => true, 'hidePrintSettingsModal' => $hidePrintSettingsModal, 'hideBootstrapJS' => $hideBootstrapJS]))
+        @include('admin.tdr-processes.processesForm', array_merge($formData, ['hidePrintButton' => true, 'hidePrintSettingsModal' => $hidePrintSettingsModal, 'hideBootstrapJS' => $hideBootstrapJS, 'embedded' => true]))
     </div>
 @endforeach
 

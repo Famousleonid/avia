@@ -5,6 +5,48 @@
         .container {
             max-width: 860px;
         }
+
+        /* Select2 — поддержка тёмной и светлой темы */
+        html[data-bs-theme="dark"] .select2-selection--single {
+            background-color: #121212 !important;
+            color: #999999 !important;
+            height: 38px !important;
+            border: 1px solid #495057 !important;
+            align-items: center !important;
+            border-radius: 8px;
+        }
+
+        html[data-bs-theme="dark"] .select2-container .select2-selection__rendered {
+            color: #999999 !important;
+            line-height: 2.2 !important;
+        }
+
+        html[data-bs-theme="dark"] .select2-search--dropdown .select2-search__field {
+            background-color: #343A40 !important;
+            color: #fff !important;
+        }
+
+        html[data-bs-theme="dark"] .select2-container .select2-dropdown {
+            max-height: 40vh !important;
+            overflow-y: auto !important;
+            border: 1px solid #495057 !important;
+            border-radius: 8px;
+            background-color: #121212 !important;
+        }
+
+        html[data-bs-theme="dark"] .select2-container .select2-results__option {
+            color: #e9ecef !important;
+        }
+
+        html[data-bs-theme="dark"] .select2-container .select2-results__option--highlighted {
+            background-color: #6ea8fe !important;
+            color: #000000 !important;
+        }
+
+        html[data-bs-theme="light"] .select2-container .select2-dropdown {
+            max-height: 40vh !important;
+            overflow-y: auto !important;
+        }
     </style>
 
     <div class="container mt-3">
@@ -20,53 +62,36 @@
                     <input type="hidden" name="manual_id" value="{{ $manual->id }}">
                     <input type="hidden" name="return_to" value="{{ request()->query('return_to', '') }}">
 
-                    <div class="form-group d-flex">
-                        <div class="form-group ">
-                            <div class="d-flex">
-                                <div class="me-3">
-                                    <label for="process_name_id">{{ __('Process Name') }}</label>
-                                    <select id="process_name_id" name="process_names_id" class="form-control mt-2" required
-                                            style="width: 350px">
-                                        <option value="">{{ __('Select Process Name') }}</option>
-                                        @foreach ($processNames as $processName)
-                                            <option value="{{ $processName->id }}">{{ $processName->id }} - {{ $processName->name }}</option>
-                                        @endforeach
-                                    </select>
-                                    <button type="button" class="btn btn-link" data-bs-toggle="modal"
-                                            data-bs-target="#addProcessNameModal">{{ __('Add Process Name') }}</button>
-                                </div>
-                                <div class=" me-3"><h6 class="ms-3 p-4"> {{__( '        ')}}</h6></div>
-                                <div>
-                                    <h6 class="p-1" style="width: 350px">{{ __('Existing Processes') }}</h6>
-                                    <div id="ex_process-list" class="flex-grow-1 ps-2 border">
-                                        <!-- Динамический список existing процессов -->
-                                    </div>
+                    <div class="form-group">
+                        <div class="row">
+                            <div class="col-md-6">
+                                <label for="process_name_id">{{ __('Process Name') }}</label>
+                                <select id="process_name_id" name="process_names_id" class="form-control mt-2" required
+                                        style="width: 100%">
+                                    <option value="">
+{{--                                        {{__('Select Process Name')}}--}}
+                                    </option>
+                                    @foreach ($processNames as $processName)
+                                        <option value="{{ $processName->id }}">{{ $processName->name }}</option>
+                                    @endforeach
+                                </select>
+{{--                                <button type="button" class="btn btn-link p-0 mt-1" data-bs-toggle="modal"--}}
+{{--                                        data-bs-target="#addProcessNameModal">{{ __('Add Process Name') }}</button>--}}
+                            </div>
+                            <div class="col-md-6">
+                                <h6 class="p-1">{{ __('Existing Processes') }}</h6>
+                                <div id="ex_process-list" class="flex-grow-1 ps-2 border rounded p-2" style="min-height: 80px;">
+                                    <!-- Динамический список existing процессов -->
                                 </div>
                             </div>
-
-                            <div class="d-flex mt-3">
-                                <div class="me-4 ">
-                                    <label for="process">{{ __('Enter Process') }}</label>
-                                    <input id="process" style="width: 350px" type="text" class="form-control mt-2" name="process"
-                                           placeholder="Enter a New process">
-                                </div>
-                                <div class=" me-2"><h6 class="p-4"> {{__( ' Or ')}}</h6></div>
-                                <div>
-
-                                    <div>
-                                        <h6 class="p-1" style="width: 350px">{{ __('Select Process') }}</h6>
-                                        <div id="process-list" class="flex-grow-1 ps-2 border">
-                                            <!-- Динамический список процессов -->
-                                        </div>
-                                    </div>
-
-                                </div>
-                            </div>
-
-                            <input type="hidden" id="selected_process_id" name="selected_process_id">
-                            </div>
-
                         </div>
+
+                        <div class="mt-3">
+                            <label for="process">{{ __('Enter Process') }}</label>
+                            <input id="process" type="text" class="form-control mt-2" name="process"
+                                   placeholder="{{ __('Enter a new process') }}" style="max-width: 500px;">
+                        </div>
+                    </div>
 
                     <div class="text-end m-3">
                         <button type="submit" class="btn btn-outline-primary mt-3 ">{{ __('Save') }}</button>
@@ -126,102 +151,62 @@
     <script>
         document.addEventListener('DOMContentLoaded', function () {
             const processNameSelect = document.getElementById('process_name_id');
-            const processList = document.getElementById('process-list'); // Список доступных процессов
-            const exProcessList = document.getElementById('ex_process-list'); // Список существующих процессов
-            const manualId = document.querySelector('input[name="manual_id"]').value; // Получаем manual_id из скрытого поля
+            const exProcessList = document.getElementById('ex_process-list');
+            const manualId = document.querySelector('input[name="manual_id"]').value;
 
-            console.log('Manual ID loaded:', manualId); // Добавляем для отладки
-
-            // Обработчик для поля ввода нового процесса
-            const processInput = document.getElementById('process');
-            if (processInput) {
-                processInput.addEventListener('input', function() {
-                    // Очищаем выбранный процесс при вводе нового
-                    document.getElementById('selected_process_id').value = '';
-                    // Снимаем выделение с выбранных элементов списка
-                    document.querySelectorAll('.process-item').forEach(item => {
-                        item.style.backgroundColor = '';
-                    });
+            // Select2 для Process Name с поиском
+            if (typeof $ !== 'undefined' && $.fn.select2 && processNameSelect) {
+                $(processNameSelect).select2({
+                    theme: 'bootstrap-5',
+                    width: '100%',
+                    placeholder: '{{__('Select process Name')}}',
+                    allowClear: false,
+                    templateResult: function(data) { if (!data.id) return null; return data.text; },
+                    templateSelection: function(data) { if (!data.id) return data.text || ''; return data.text; }
                 });
             }
 
-            if (processNameSelect && processList && exProcessList) {
-                processNameSelect.addEventListener('change', function () {
-                    const processNameId = this.value;
-
-                    console.log('Process Name ID changed:', processNameId); // Проверка, что событие срабатывает
+            // Загрузка Existing processes при смене Process Name
+            if (processNameSelect && exProcessList) {
+                const loadExisting = function() {
+                    const processNameId = (typeof $ !== 'undefined') ? $(processNameSelect).val() : processNameSelect.value;
 
                     if (processNameId) {
-                        fetch(`/get-processes?processNameId=${processNameId}&manualId=${manualId}`) // Убираем /admin/ префикс
+                        fetch(`/get-processes?processNameId=${processNameId}&manualId=${manualId}`)
                             .then(response => {
-                                if (!response.ok) {
-                                    throw new Error('Ошибка загрузки данных');
-                                }
+                                if (!response.ok) throw new Error('Ошибка загрузки данных');
                                 return response.json();
                             })
                             .then(data => {
-                                console.log('Data received:', data); // Проверка полученных данных
-
-                                // Очистка списков
-                                processList.innerHTML = '';
                                 exProcessList.innerHTML = '';
-
-                                // Отображение существующих процессов
-                                if (data.existingProcesses.length > 0) {
+                                if (data.existingProcesses && data.existingProcesses.length > 0) {
                                     data.existingProcesses.forEach(process => {
-                                        const processItem = document.createElement('div');
-                                        processItem.className = 'process-item';
-                                        processItem.textContent = process.process; // Дисплей процесса
-                                        processItem.dataset.id = process.id;
-                                        processItem.style.cursor = 'pointer';
-                                        processItem.style.marginBottom = '5px';
-
-                                        exProcessList.appendChild(processItem);
+                                        const div = document.createElement('div');
+                                        div.className = 'process-item';
+                                        div.textContent = process.process;
+                                        div.style.marginBottom = '5px';
+                                        exProcessList.appendChild(div);
                                     });
                                 } else {
-                                    exProcessList.innerHTML = '<div>There are no existing processes</div>';
-                                }
-
-                                // Отображение доступных процессов
-                                if (data.availableProcesses.length > 0) {
-                                    data.availableProcesses.forEach(process => {
-                                        const processItem = document.createElement('div');
-                                        processItem.className = 'process-item';
-                                        processItem.textContent = process.process; // Дисплей процесса
-                                        processItem.dataset.id = process.id;
-                                        processItem.style.cursor = 'pointer';
-                                        processItem.style.marginBottom = '5px';
-
-                                        // Обработка выбора процесса из списка
-                                        processItem.addEventListener('click', function () {
-                                            document.getElementById('selected_process_id').value = process.id;
-                                            // Очищаем поле ввода нового процесса при выборе существующего
-                                            document.getElementById('process').value = '';
-                                            document.querySelectorAll('.process-item').forEach(item => {
-                                                item.style.backgroundColor = '';
-                                            });
-                                            this.style.backgroundColor = '#2c74de';
-                                        });
-
-                                        processList.appendChild(processItem);
-                                    });
-                                } else {
-                                    processList.innerHTML = '<div>No processes available</div>';
+                                    exProcessList.innerHTML = '<div class="text-muted small">There are no existing processes</div>';
                                 }
                             })
                             .catch(error => {
                                 console.error('Ошибка:', error);
-                                processList.innerHTML = '<div>Failed to load processes</div>';
-                                exProcessList.innerHTML = '<div>Failed to load processes</div>';
+                                exProcessList.innerHTML = '<div class="text-danger small">Failed to load processes</div>';
                             });
                     } else {
-                        processList.innerHTML = ''; // Очистка списка, если ничего не выбрано
-                        exProcessList.innerHTML = ''; // Очистка списка, если ничего не выбрано
+                        exProcessList.innerHTML = '';
                     }
-                });
+                };
+
+                if (typeof $ !== 'undefined') {
+                    $(processNameSelect).on('change', loadExisting);
+                } else {
+                    processNameSelect.addEventListener('change', loadExisting);
+                }
             }
         });
-
     </script>
 
 @endsection

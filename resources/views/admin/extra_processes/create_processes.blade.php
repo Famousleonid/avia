@@ -235,36 +235,14 @@
                                     <select name="processes[0][process_names_id]" class="form-control select2-process"
 
                                             required>
-                                        <option value="">Select Process Name</option>
+                                        <option value=""></option>
                             @foreach ($processNames as $processName)
-                                @php
-                                    $isSelected = false;
-
-                                    // Исключаем процесс, если он уже выбран в других строках (для всех процессов, включая NDT)
-                                    if ($existingExtraProcess && $existingExtraProcess->processes) {
-                                        if (is_array($existingExtraProcess->processes) && array_keys($existingExtraProcess->processes) !== range(0, count($existingExtraProcess->processes) - 1)) {
-                                            // Старая структура: ассоциативный массив
-                                            $isSelected = isset($existingExtraProcess->processes[$processName->id]);
-                                        } else {
-                                            // Новая структура: массив объектов
-                                            foreach ($existingExtraProcess->processes as $processItem) {
-                                                // Проверяем только основной process_name_id, не plus_process_names
-                                                if (isset($processItem['process_name_id']) && $processItem['process_name_id'] == $processName->id) {
-                                                    $isSelected = true;
-                                                    break;
-                                                }
-                                            }
-                                        }
-                                    }
-                                @endphp
-                                @if(!$isSelected)
                                     <option value="{{ $processName->id }}">{{ $processName->name }}</option>
-                                @endif
                             @endforeach
                                     </select>
                                 </div>
                                 <div class="col-md-5">
-                                    <label for="process">Processes (Specification):</label>
+                                    <label for="process">Processes :</label>
 
                                     <button type="button" class="btn btn-link mb-1" data-bs-toggle="modal"
                                             data-bs-target="#addProcessModal">
@@ -376,31 +354,9 @@
                     <div class="col-md-4">
                         <label for="process_names">Process Name:</label>
                         <select name="processes[${index}][process_names_id]" class="form-control select2-process" required>
-                            <option value="">Select Process Name</option>
+                            <option value=""></option>
                             @foreach ($processNames as $processName)
-                                @php
-                                    $isSelected = false;
-
-                                    // Исключаем процесс, если он уже выбран в других строках (для всех процессов, включая NDT)
-                                    if ($existingExtraProcess && $existingExtraProcess->processes) {
-                                        if (is_array($existingExtraProcess->processes) && array_keys($existingExtraProcess->processes) !== range(0, count($existingExtraProcess->processes) - 1)) {
-                                            // Старая структура: ассоциативный массив
-                                            $isSelected = isset($existingExtraProcess->processes[$processName->id]);
-                                        } else {
-                                            // Новая структура: массив объектов
-                                            foreach ($existingExtraProcess->processes as $processItem) {
-                                                // Проверяем только основной process_name_id, не plus_process_names
-                                                if (isset($processItem['process_name_id']) && $processItem['process_name_id'] == $processName->id) {
-                                                    $isSelected = true;
-                                                    break;
-                                                }
-                                            }
-                                        }
-                                    }
-                                @endphp
-                                @if(!$isSelected)
                                     <option value="{{ $processName->id }}">{{ $processName->name }}</option>
-                                @endif
                             @endforeach
                         </select>
                     </div>
@@ -454,7 +410,11 @@
             if (typeof $ !== 'undefined' && $.fn.select2) {
                 $(newRow).find('.select2-process').select2({
                     theme: 'bootstrap-5',
-                    width: '100%'
+                    width: '100%',
+                    placeholder: '',
+                    allowClear: false,
+                    templateResult: function(data) { if (!data.id || data.id === '') return null; return data.text; },
+                    templateSelection: function(data) { if (data.id && data.id !== '') return data.text; return ''; }
                 }).on('select2:select', function (e) {
                     const selectElement = e.target;
                     const processNameId = selectElement.value;
@@ -520,6 +480,12 @@
                     });
                 }
             }
+
+            // Прокрутка к новой группе и фокус на Process Name
+            newRow.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+            setTimeout(function() {
+                $(newRow).find('.select2-process').select2('open');
+            }, 100);
         });
 
         // Обработка отправки формы
@@ -819,7 +785,11 @@
             if (typeof $ !== 'undefined' && $.fn.select2) {
                 $('.select2-process').select2({
                     theme: 'bootstrap-5',
-                    width: '100%'
+                    width: '100%',
+                    placeholder: '',
+                    allowClear: false,
+                    templateResult: function(data) { if (!data.id || data.id === '') return null; return data.text; },
+                    templateSelection: function(data) { if (data.id && data.id !== '') return data.text; return ''; }
                 }).on('select2:select', function (e) {
                     const selectElement = e.target;
                     const processNameId = selectElement.value;

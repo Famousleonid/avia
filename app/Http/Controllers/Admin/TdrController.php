@@ -978,6 +978,7 @@ class TdrController extends Controller
 
         // Базовые данные для представления
         $viewData = [
+            'module' => 'tdr-processes',
             'current_wo' => $current_wo,
             'components' => $components,
             'manuals' => Manual::where('id', $manual_id)->get(),
@@ -1002,25 +1003,25 @@ class TdrController extends Controller
 
         // Обработка NDT формы (если нужно)
         if ($processName->process_sheet_name == 'NDT') {
-            // Получаем ID process names одним запросом
             $processNames = ProcessName::whereIn('name', [
-                'NDT-1',
-                'NDT-4',
-                'Eddy Current Test',
-                'BNI'
+                'NDT-1', 'NDT-2', 'NDT-3', 'NDT-4', 'NDT-5', 'NDT-6', 'NDT-7', 'NDT-8',
+                'Eddy Current Test', 'BNI'
             ])->pluck('id', 'name');
 
-            // Извлекаем ID по именам
             $ndt_ids = [
                 'ndt1_name_id' => $processNames['NDT-1'] ?? null,
+                'ndt2_name_id' => $processNames['NDT-2'] ?? null,
+                'ndt3_name_id' => $processNames['NDT-3'] ?? null,
                 'ndt4_name_id' => $processNames['NDT-4'] ?? null,
-                'ndt6_name_id' => $processNames['Eddy Current Test'] ?? null,
-                'ndt5_name_id' => $processNames['BNI'] ?? null
+                'ndt5_name_id' => $processNames['BNI'] ?? $processNames['NDT-5'] ?? null,
+                'ndt6_name_id' => $processNames['Eddy Current Test'] ?? $processNames['NDT-6'] ?? null,
+                'ndt7_name_id' => $processNames['NDT-7'] ?? null,
+                'ndt8_name_id' => $processNames['NDT-8'] ?? null,
             ];
+            $ndt_ids_filtered = array_filter($ndt_ids);
 
-            // Получаем NDT processes
             $ndt_processes = Process::whereIn('id', $manualProcesses)
-                ->whereIn('process_names_id', $ndt_ids)
+                ->whereIn('process_names_id', $ndt_ids_filtered)
                 ->get();
 
             return view('admin.tdr-processes.processesForm', array_merge($viewData, [

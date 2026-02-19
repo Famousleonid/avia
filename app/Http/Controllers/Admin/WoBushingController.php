@@ -543,6 +543,10 @@ class WoBushingController extends Controller
         $current_wo = Workorder::findOrFail($woBushing->workorder_id);
         $processName = ProcessName::findOrFail($processNameId);
 
+        if (empty($processName->process_sheet_name)) {
+            return redirect()->back()->with('error', __('There is no form for this process.'));
+        }
+
         // Получаем vendor_id из запроса
         $vendorId = $request->input('vendor_id');
         $selectedVendor = null;
@@ -697,31 +701,30 @@ class WoBushingController extends Controller
         $tableData = [];
         if ($bushData) {
             foreach ($bushData as $bushItem) {
-                if (isset($bushItem['bushing'])) {
+                if (isset($bushItem['bushing']) && isset($bushItem['processes'])) {
                     $component = Component::find($bushItem['bushing']);
                     if ($component) {
-                        // Определяем тип процесса
-                        $processType = null;
+                        $processes = $bushItem['processes'];
                         $processId = null;
 
                         switch ($processName->name) {
                             case 'Machining':
-                                $processId = $bushItem['processes']['machining'] ?? null;
+                                $processId = $processes['machining'] ?? null;
                                 break;
                             case 'Bake (Stress relief)':
-                                $processId = $bushItem['processes']['stress_relief'] ?? null;
+                                $processId = $processes['stress_relief'] ?? null;
                                 break;
                             case 'Passivation':
-                                $processId = $bushItem['processes']['passivation'] ?? null;
+                                $processId = $processes['passivation'] ?? null;
                                 break;
                             case 'Cad plate':
-                                $processId = $bushItem['processes']['cad'] ?? null;
+                                $processId = $processes['cad'] ?? null;
                                 break;
                             case 'Anodizing':
-                                $processId = $bushItem['processes']['anodizing'] ?? null;
+                                $processId = $processes['anodizing'] ?? null;
                                 break;
                             case 'Xylan coating':
-                                $processId = $bushItem['processes']['xylan'] ?? null;
+                                $processId = $processes['xylan'] ?? null;
                                 break;
                         }
 

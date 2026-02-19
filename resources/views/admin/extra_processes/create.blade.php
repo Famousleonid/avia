@@ -150,7 +150,7 @@
                                 <div class="col-md-6">
                                     <label for="process_names">Process Name:</label>
                                     <select name="processes[0][process_names_id]" class="form-control select2-process" required>
-                                        <option value="">Select Process Name</option>
+                                        <option value=""></option>
                                         @foreach ($processNames as $processName)
                                             <option value="{{ $processName->id }}">{{ $processName->name }}</option>
                                         @endforeach
@@ -417,6 +417,18 @@
                 allowClear: true
             });
 
+            // Инициализация Select2 для Process Name
+            $('.select2-process').select2({
+                theme: 'bootstrap-5',
+                width: '100%',
+                placeholder: '',
+                allowClear: false,
+                templateResult: function(data) { if (!data.id || data.id === '') return null; return data.text; },
+                templateSelection: function(data) { if (data.id && data.id !== '') return data.text; return ''; }
+            }).on('select2:select', function(e) {
+                loadProcessesForRow(e.target);
+            });
+
             applyTheme();
         });
 
@@ -486,7 +498,7 @@
                     <div class="col-md-6">
                         <label for="process_names">Process Name:</label>
                         <select name="processes[${index}][process_names_id]" class="form-control select2-process" required>
-                            <option value="">Select Process Name</option>
+                            <option value=""></option>
                             @foreach ($processNames as $processName)
             <option value="{{ $processName->id }}">{{ $processName->name }}</option>
                             @endforeach
@@ -516,6 +528,24 @@
                 </div>`;
 
             container.appendChild(newRow);
+
+            // Инициализация Select2 для нового Process Name
+            $(newRow).find('.select2-process').select2({
+                theme: 'bootstrap-5',
+                width: '100%',
+                placeholder: '',
+                allowClear: false,
+                templateResult: function(data) { if (!data.id || data.id === '') return null; return data.text; },
+                templateSelection: function(data) { if (data.id && data.id !== '') return data.text; return ''; }
+            }).on('select2:select', function(e) {
+                loadProcessesForRow(e.target);
+            });
+
+            // Прокрутка к новой группе и фокус на Process Name
+            newRow.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+            setTimeout(function() {
+                $(newRow).find('.select2-process').select2('open');
+            }, 100);
         });
 
         // Обработка отправки формы
@@ -627,56 +657,57 @@
                 });
         });
 
-        // Обновление чекбоксов при изменении выбранного имени процесса
-        document.addEventListener('change', function (event) {
-            if (event.target.name && event.target.name.includes('[process_names_id]')) {
-                const processNameId = event.target.value;
-                const processRow = event.target.closest('.process-row');
-                const processOptionsContainer = processRow.querySelector('.process-options');
-                const manualId = document.getElementById('processes-container').dataset.manualId;
-                const saveButton = document.querySelector('button[type="submit"]');
+        // Функция загрузки процессов для выбранного Process Name
+        function loadProcessesForRow(selectElement) {
+            const processNameId = selectElement.value;
+            const processRow = selectElement.closest('.process-row');
+            const processOptionsContainer = processRow ? processRow.querySelector('.process-options') : null;
+            const manualId = document.getElementById('processes-container') ? document.getElementById('processes-container').dataset.manualId : null;
+            const saveButton = document.querySelector('button[type="submit"]');
 
-                // Получаем индекс строки
-                const container = document.getElementById('processes-container');
-                const rows = container.querySelectorAll('.process-row');
-                const index = Array.from(rows).indexOf(processRow);
+            if (!processNameId || !processOptionsContainer) return;
 
-                processOptionsContainer.innerHTML = '';
+            const container = document.getElementById('processes-container');
+            const rows = container.querySelectorAll('.process-row');
+            const index = Array.from(rows).indexOf(processRow);
 
-                if (processNameId) {
-                    console.log(`/get-process/${processNameId}?manual_id=${manualId}`);
-                    fetch(`/get-process/${processNameId}?manual_id=${manualId}`)
-                        .then(response => {
-                            if (!response.ok) {
-                                throw new Error('Network response was not ok');
-                            }
-                            return response.json();
-                        })
-                        .then(data => {
-                            if (data && data.length > 0) {
-                                data.forEach(process => {
-                                    const radioDiv = document.createElement('div');
-                                    radioDiv.classList.add('form-check');
-                                    radioDiv.innerHTML = `
-                                        <input type="radio" name="processes[${index}][process]" value="${process.id}" class="form-check-input" required>
-                                        <label class="form-check-label">${process.process}</label>
-                                    `;
-                                    processOptionsContainer.appendChild(radioDiv);
-                                });
-                                saveButton.disabled = false;
-                            } else {
-                                const noSpecLabel = document.createElement('div');
-                                noSpecLabel.classList.add('text-muted', 'mt-2');
-                                noSpecLabel.innerHTML = 'No specification. Add specification for this process.';
-                                processOptionsContainer.appendChild(noSpecLabel);
-                                saveButton.disabled = true;
-                            }
-                        })
-                        .catch(error => {
-                            console.error('Ошибка при получении процессов:', error);
-                            saveButton.disabled = true;
+            processOptionsContainer.innerHTML = '';
+
+            fetch(`/get-process/${processNameId}?manual_id=${manualId}`)
+                .then(response => {
+                    if (!response.ok) throw new Error('Network response was not ok');
+                    return response.json();
+                })
+                .then(data => {
+                    if (data && data.length > 0) {
+                        data.forEach(process => {
+                            const radioDiv = document.createElement('div');
+                            radioDiv.classList.add('form-check');
+                            radioDiv.innerHTML = `
+                                <input type="radio" name="processes[${index}][process]" value="${process.id}" class="form-check-input" required>
+                                <label class="form-check-label">${process.process}</label>
+                            `;
+                            processOptionsContainer.appendChild(radioDiv);
                         });
-                }
+                        if (saveButton) saveButton.disabled = false;
+                    } else {
+                        const noSpecLabel = document.createElement('div');
+                        noSpecLabel.classList.add('text-muted', 'mt-2');
+                        noSpecLabel.innerHTML = 'No specification. Add specification for this process.';
+                        processOptionsContainer.appendChild(noSpecLabel);
+                        if (saveButton) saveButton.disabled = true;
+                    }
+                })
+                .catch(error => {
+                    console.error('Ошибка при получении процессов:', error);
+                    if (saveButton) saveButton.disabled = true;
+                });
+        }
+
+        // Обновление radio при изменении Process Name (для нативного select без Select2)
+        document.addEventListener('change', function (event) {
+            if (event.target.name && event.target.name.includes('[process_names_id]') && !$(event.target).hasClass('select2-hidden-accessible')) {
+                loadProcessesForRow(event.target);
             }
         });
 
