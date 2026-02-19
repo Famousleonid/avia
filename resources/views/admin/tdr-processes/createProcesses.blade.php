@@ -484,6 +484,12 @@
                         }
                     }
                 }
+
+                // Прокрутка к новой группе и фокус на Process Name
+                newRow.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+                setTimeout(function() {
+                    $(newRow).find('.select2-process').select2('open');
+                }, 100);
             }
         });
 
