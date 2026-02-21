@@ -222,15 +222,7 @@ class ProcessController extends Controller
     }
 
 
-//    public function getProcesses(Request $request)
-//    {
-//        $processNameId = $request->query('processNameId');
-//        $processes = Process::where('process_names_id', $processNameId)->get();
-//
-//        return response()->json($processes)
-//            ->header('Access-Control-Allow-Origin', '*')
-//            ->header('Access-Control-Allow-Methods', 'GET');
-//    }
+
     /**
      * Display the specified resource.
      *

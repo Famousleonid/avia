@@ -39,6 +39,33 @@
             box-shadow: 0 2px 2px -1px rgba(0, 0, 0, 0.1);
         }
 
+        /* Order Modal: высота 70vh, фиксированная шапка таблицы, прокрутка */
+        .order-modal .modal-dialog {
+            max-height: 70vh;
+        }
+        .order-modal .modal-content {
+            max-height: 70vh;
+            display: flex;
+            flex-direction: column;
+        }
+        .order-modal .modal-header {
+            flex-shrink: 0;
+        }
+        .order-modal .order-modal-table-wrapper {
+            overflow-y: auto;
+            flex: 1;
+            min-height: 0;
+        }
+        .order-modal .order-modal-table thead {
+            position: sticky;
+            top: 0;
+            z-index: 10;
+        }
+        .order-modal .order-modal-table thead th {
+            background-color: #030334 !important;
+            box-shadow: 0 2px 2px -1px rgba(0, 0, 0, 0.1);
+        }
+
         .img-icon:hover {
             cursor: pointer;
         }
@@ -552,7 +579,7 @@
                             </div>
                         </div>
                         <!--  Ordered Modal -->
-                        <div class="modal fade" id="orderModal{{$current_wo->number}}" tabindex="-1"
+                        <div class="modal fade order-modal" id="orderModal{{$current_wo->number}}" tabindex="-1"
                              role="dialog" aria-labelledby="orderModalLabel{{$current_wo->number}}" aria-hidden="true">
                             <div class="modal-dialog modal-dialog-centered" role="document">
                                 <div class="modal-content bg-gradient" style="width: 700px">
@@ -566,9 +593,9 @@
 
                                     </div>
                                     @if(count($ordersPartsNew))
-                                        <div class="table-wrapper">
+                                        <div class="table-wrapper order-modal-table-wrapper">
                                             <table
-                                                class="display table table-cm table-hover table-striped align-middle table-bordered">
+                                                class="display table table-cm table-hover table-striped align-middle table-bordered order-modal-table">
                                                 <thead class="bg-gradient">
                                                 <tr>
                                                     <th class="text-primary  bg-gradient "
@@ -828,16 +855,16 @@
 
                                 </tr>
                             @endif
-                            {{-- Обычные Unit Inspections (без записей компонентов с missing) --}}
-                            @foreach($inspectsUnit as $tdr)
+                            {{-- Unit Inspections (только component_id = null) --}}
+                            @foreach($inspectsUnit->whereNull('component_id') as $tdr)
                                 <tr>
                                     <td
                                         class="text-center fs-8">
                                         @php
                                             $conditionName = null;
-                                            if ($tdr->conditions) {
+                                            if ($tdr->conditions)  {
                                                 $conditionName = $tdr->conditions->name;
-                                            } else {
+                                            } else  {
                                                 foreach($conditions as $condition) {
                                                     if ($condition->id == $tdr->conditions_id) {
                                                         $conditionName = $condition->name;
@@ -848,8 +875,9 @@
                                             // Проверяем, является ли имя condition одним из "note 1", "note 2" и т.д.
                                             $isNoteCondition = $conditionName && preg_match('/^note\s+\d+$/i', $conditionName);
                                         @endphp
+
                                         @if(!$isNoteCondition)
-                                            {{-- Для обычных conditions показываем имя --}}
+{{--                                             Для обычных conditions показываем имя --}}
                                             @if($tdr->conditions)
                                                 @if(empty($tdr->conditions->name))
                                                     {{ __('(No name)') }}
@@ -867,49 +895,51 @@
                                                     @endif
                                                 @endforeach
                                             @endif
-                                        @endif
-                                        @if($tdr->component_id)
-                                            <fs-8 class="" style="color: #5897fb">(scrap)</fs-8>
-                                            {{ $tdr->component->name ?? '' }}
-                                            @if ($tdr->qty == 1)
-                                                ({{ $tdr->component->ipl_num ?? '' }})
-                                            @else
-                                                 ({{ $tdr->component->ipl_num ?? '' }}, {{$tdr->qty}} pcs)
-                                            @endif
+
                                         @endif
                                         @if($tdr->description)
                                             @if($isNoteCondition)
-                                                {{-- Для note conditions показываем description без скобок --}}
+{{--                                                 Для note conditions показываем description без скобок--}}
                                                 {{ $tdr->description }}
                                             @else
-                                                {{-- Для обычных conditions показываем description в скобках --}}
+{{--                                                 Для обычных conditions показываем description в скобках--}}
                                                 ({{$tdr->description}})
                                             @endif
                                         @endif
                                     </td>
+
                                     <td class="p-0 text-center img-icon">
-                                        {{-- Кнопка удаления только для обычных unit inspections (без компонентов) --}}
-                                        @if(!$tdr->component_id)
-                                            <div class="p-1">
-                                                <form action="{{ route('tdrs.destroy', $tdr->id) }}" method="POST"
-                                                      onsubmit="return confirm('Are you sure you want to delete this item?');">
-                                                    @csrf
-                                                    @method('DELETE')
-                                                    <button type="submit" class="btn btn-outline-danger btn-sm ">
-                                                        <i class="bi bi-trash"></i>
-                                                    </button>
-                                                </form>
-                                            </div>
-                                        @endif
-                                        @if($tdr->necessaries_id == $necessary->id)
-                                            <img src="{{ asset('img/scrap.gif')}}" alt="order"
-                                                 style="width: 55px;" class=""
-                                                 data-bs-toggle="modal"
-                                                 data-bs-target="#orderModal{{$current_wo->number}}">
-                                        @endif
+                                        <div class="p-1">
+                                            <form action="{{ route('tdrs.destroy', $tdr->id) }}" method="POST"
+                                                  onsubmit="return confirm('Are you sure you want to delete this item?');">
+                                                @csrf
+                                                @method('DELETE')
+                                                <button type="submit" class="btn btn-outline-danger btn-sm ">
+                                                    <i class="bi bi-trash"></i>
+                                                </button>
+                                            </form>
+                                        </div>
                                     </td>
                                 </tr>
                             @endforeach
+                            {{-- Строка "Ordered Parts" (компоненты с Order New, не Missing) — одна строка с бейджем суммы qty --}}
+                            @if($hasOrderedParts ?? false)
+                                <tr>
+                                    <td class="text-center ">
+                                        <span class="position-relative d-inline-block mt-2">
+                                            Ordered Parts
+                                            <sup class="badge bg-primary rounded-pill position-absolute" style="top: -0.5em;
+                                            right: -0.3; font-size: 0.65em;">{{ $orderedPartsCount ?? 0 }}</sup>
+                                        </span>
+                                    </td>
+                                    <td class="p-0 text-center img-icon">
+                                        <img src="{{ asset('img/scrap.gif')}}" alt="order"
+                                             style="width: 55px;" class=""
+                                             data-bs-toggle="modal"
+                                             data-bs-target="#orderModal{{$current_wo->number}}">
+                                    </td>
+                                </tr>
+                            @endif
                             </tbody>
                         </table>
                     </div>

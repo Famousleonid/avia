@@ -1175,6 +1175,17 @@ class TdrController extends Controller
             }])
             ->get();
 
+        // Ordered Parts: компоненты с Order New (necessaries_id=2), не Missing (codes_id!=7), для строки "Ordered Parts"
+        $missingCodeId = $code ? $code->id : 7;
+        $orderNewNecessaryId = $necessary ? $necessary->id : 2;
+        $orderedPartsTdrs = Tdr::where('workorder_id', $current_wo->id)
+            ->whereNotNull('component_id')
+            ->where('codes_id', '!=', $missingCodeId)
+            ->where('necessaries_id', $orderNewNecessaryId)
+            ->get();
+        $orderedPartsCount = $orderedPartsTdrs->sum('qty');
+        $hasOrderedParts = $orderedPartsCount > 0;
+
         $ordersPartsNew = Tdr::where('workorder_id', $current_wo->id)
             ->where('codes_id', '!=', $code->id)
             ->where('necessaries_id', $necessary->id)
@@ -1226,7 +1237,7 @@ class TdrController extends Controller
             'necessaries', 'unit_conditions', 'component_conditions',
             'codes', 'conditions', 'missingParts', 'ordersParts', 'inspectsUnit',
             'processParts', 'ordersPartsNew','trainings','user_wo', 'manual_id','log_card','woBushing','prl_parts','tdr_proc','hasTransfers',
-            'hasMissingParts', 'missingCondition'
+            'hasMissingParts', 'missingCondition', 'orderedPartsCount', 'hasOrderedParts'
         ));
     }
 
