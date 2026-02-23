@@ -278,6 +278,21 @@
                 </form>
                 @endrole
 
+                @roles('Admin|Manager')
+                <div class="d-flex gap-2 ms-3">
+                    <button type="button" class="btn btn-sm btn-primary" onclick="printSection('printArea')">
+                        Print
+                    </button>
+
+                    <button type="button" class="btn btn-sm btn-success"  onclick="openPdfVisible('landscape')">
+                        PDF
+                    </button>
+
+                    <button type="button" class="btn btn-sm btn-secondary" onclick="copyHtmlToClipboard('printArea')">
+                        Copy Table
+                    </button>
+                </div>
+                @endrole
             </div>
 
             {{-- Search --}}
@@ -358,7 +373,7 @@
 
         @if(count($workorders))
 
-            <div class="table-wrapper p-2 pt-0">
+            <div class="table-wrapper p-2 pt-0 " id="printArea">
                 <table id="show-workorder" class="table table-sm table-bordered  table-hover w-100 table-panel">
                     <thead class="bg-gradient">
                     <tr>
@@ -389,12 +404,13 @@
                     @foreach ($workorders as $workorder)
 
                         <tr class=""
+                            data-id="{{ $workorder->id }}"
                             data-tech-id="{{ $workorder->user_id }}"
                             data-customer-id="{{ $workorder->customer_id }}"
                             data-status="{{ $workorder->isDone() ? 'Completed' : 'active' }}"
                             data-approved="{{ $workorder->approve_at ? '1' : '0' }}"
-                            data-draft="{{ $workorder->is_draft ? '1' : '0' }}">
-
+                            data-draft="{{ $workorder->is_draft ? '1' : '0' }}"
+                        >
                             <td class="text-center">
                                 @if($workorder->isDone())
                                     <a href="{{ route('mains.show', $workorder->id) }}" class="text-decoration-none" data-spinner>
@@ -993,4 +1009,196 @@
 
 
     </script>
+
+    <script>
+        function printSection(elementId) {
+            const el = document.getElementById(elementId);
+            if (!el) return;
+
+            const cssLinks = Array.from(document.querySelectorAll('link[rel="stylesheet"]'))
+                .map(l => `<link rel="stylesheet" href="${l.href}">`)
+                .join('');
+
+            const style = `
+        <style>
+            body { font-family: Arial, sans-serif; padding: 16px; }
+            table { width: 100%; border-collapse: collapse; }
+            th, td { border: 1px solid #000; padding: 6px; }
+            .table { width:100%; }
+        </style>
+    `;
+
+            const win = window.open('', '', 'height=800,width=1100');
+            win.document.open();
+            win.document.write(`
+        <html>
+        <head>
+            <title>Print</title>
+            ${cssLinks}
+            ${style}
+        </head>
+        <body>
+            ${el.outerHTML}
+        </body>
+        </html>
+    `);
+            win.document.close();
+            win.focus();
+            win.print();
+        }
+
+        async function copyHtmlToClipboard(elementId) {
+            const original = document.getElementById(elementId);
+            if (!original) return;
+
+            // ✅ НАСТРОЙКИ:
+            // Какие столбцы оставить (1 = первый столбец)
+            const keepCols = [1, 4, 6, 8, 9, 10];
+
+            // Если keepCols пустой или null — копируем все столбцы
+            const useKeepCols = Array.isArray(keepCols) && keepCols.length > 0;
+
+            // 1) Клонируем блок, чтобы не портить страницу
+            const clone = original.cloneNode(true);
+
+            // 2) Берём именно таблицу (если в printArea есть что-то кроме неё)
+            const table = clone.querySelector('table');
+            if (!table) return;
+
+            // 3) Ссылки -> просто текст
+            table.querySelectorAll('a').forEach(a => {
+                const text = a.textContent ?? '';
+                a.replaceWith(document.createTextNode(text));
+            });
+
+            // 4) Удаляем лишние столбцы (по thead + tbody)
+            if (useKeepCols) {
+                const keepSet = new Set(keepCols.map(Number)); // 1-based
+
+                table.querySelectorAll('tr').forEach(tr => {
+                    const cells = Array.from(tr.children); // th/td
+                    cells.forEach((cell, idx) => {
+                        const colNumber = idx + 1; // 1-based
+                        if (!keepSet.has(colNumber)) cell.remove();
+                    });
+                });
+            }
+
+            // 5) Убираем классы, чтобы не тянулся dark/bootstrap
+            clone.querySelectorAll('[class]').forEach(el => el.removeAttribute('class'));
+
+            // 6) Инлайн стиль "белый и понятный" для Excel/Word
+            table.setAttribute('border', '1');
+            table.style.borderCollapse = 'collapse';
+            table.style.width = '100%';
+            table.style.background = '#fff';
+            table.style.color = '#000';
+            table.style.fontFamily = 'Arial, sans-serif';
+            table.style.fontSize = '12px';
+
+            table.querySelectorAll('th,td').forEach(cell => {
+                cell.style.border = '1px solid #000';
+                cell.style.padding = '6px';
+                cell.style.background = '#fff';
+                cell.style.color = '#000';
+                cell.style.verticalAlign = 'top';
+                cell.style.whiteSpace = 'nowrap'; // можно убрать если нужно переносить
+            });
+
+            // 7) Копируем HTML + текст
+            const html = table.outerHTML;     // копируем только таблицу
+            const text = table.innerText;     // и plain text
+
+            if (navigator.clipboard && window.ClipboardItem) {
+                const item = new ClipboardItem({
+                    'text/html': new Blob([html], { type: 'text/html' }),
+                    'text/plain': new Blob([text], { type: 'text/plain' }),
+                });
+                await navigator.clipboard.write([item]);
+                alert('Copied (selected columns, links as text)!');
+                return;
+            }
+
+            // fallback
+            const temp = document.createElement('div');
+            temp.style.position = 'fixed';
+            temp.style.left = '-9999px';
+            temp.innerHTML = html;
+            document.body.appendChild(temp);
+
+            const range = document.createRange();
+            range.selectNodeContents(temp);
+            const sel = window.getSelection();
+            sel.removeAllRanges();
+            sel.addRange(range);
+            document.execCommand('copy');
+            sel.removeAllRanges();
+
+            document.body.removeChild(temp);
+            notifySuccess('Copied!', 3500);
+        }
+
+    </script>
+    <script>
+        function getVisibleWorkorderIds() {
+            const rows = document.querySelectorAll('#show-workorder tbody tr');
+            const ids = [];
+
+            rows.forEach(tr => {
+                // если фильтры прячут строки через display:none — это работает
+                const isHidden = tr.offsetParent === null || getComputedStyle(tr).display === 'none';
+                if (!isHidden) {
+                    const id = tr.getAttribute('data-id');
+                    if (id) ids.push(id);
+                }
+            });
+
+            return ids;
+        }
+
+        function openPdfVisible(orientation = 'portrait') {
+            const ids = getVisibleWorkorderIds();
+
+            if (!ids.length) {
+                alert('No visible rows to export.');
+                return;
+            }
+
+            // создаём скрытую POST-форму, чтобы не упереться в лимит длины URL
+            const form = document.createElement('form');
+            form.method = 'POST';
+            form.action = "{{ route('reports.table.pdf') }}";
+            form.target = '_blank';
+
+            // CSRF
+            const csrf = document.createElement('input');
+            csrf.type = 'hidden';
+            csrf.name = '_token';
+            csrf.value = "{{ csrf_token() }}";
+            form.appendChild(csrf);
+
+            // orientation
+            const ori = document.createElement('input');
+            ori.type = 'hidden';
+            ori.name = 'orientation';
+            ori.value = orientation;
+            form.appendChild(ori);
+
+            // ids[]
+            ids.forEach(id => {
+                const inp = document.createElement('input');
+                inp.type = 'hidden';
+                inp.name = 'ids[]';
+                inp.value = id;
+                form.appendChild(inp);
+            });
+
+            document.body.appendChild(form);
+            form.submit();
+            form.remove();
+        }
+    </script>
+
+
+
 @endsection

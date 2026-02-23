@@ -11,6 +11,7 @@ use App\Http\Controllers\Admin\GeneralTaskController;
 use App\Http\Controllers\Admin\LogCardController;
 use App\Http\Controllers\Admin\ManualProcessController;
 use App\Http\Controllers\Admin\ProcessController;
+use App\Http\Controllers\Admin\ReportController;
 use App\Http\Controllers\Admin\RmReportController;
 use App\Http\Controllers\Admin\TaskController;
 use App\Http\Controllers\Admin\TdrController;
@@ -333,6 +334,8 @@ Route::group(['middleware' => ['auth']], function () {
     Route::post('/notifications/settings', [NotificationController::class, 'save'])->name('notifications.settings.save');
 
     Route::get('/admin/activity', [ActivityLogController::class, 'index'])->name('admin.activity.index');
+    Route::post('/reports/table/pdf', [ReportController::class, 'tablePdf'])->name('reports.table.pdf');
+
 
 });
 
