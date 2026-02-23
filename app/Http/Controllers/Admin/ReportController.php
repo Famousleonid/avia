@@ -24,7 +24,7 @@ class ReportController extends Controller
             ->orderBy('number')
             ->get();
 
-        $date = Carbon::now()->format('Y-m-d'); // 2026-02-22
+        $date = Carbon::now()->format('d-M-Y');
         $filename = "avia_{$date}.pdf";
 
         $pdf = Pdf::loadView('pdf.table', compact('rows'))

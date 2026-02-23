@@ -34,7 +34,9 @@
             <td>{{ $row->serial_number }}</td>
             <td>{{ $row->customer->name }}</td>
             <td>{{ $row->instruction->name }}</td>
-            <td>{{ $row->open_at }}</td>
+            <td>
+                {{ $row->open_at ? strtolower($row->open_at->format('d-M-Y')) : '' }}
+            </td>
         </tr>
     @endforeach
     </tbody>
