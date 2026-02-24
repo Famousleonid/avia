@@ -82,22 +82,13 @@
                         <h5 class="text-success-emphasis  ps-1">{{__('WO')}}
                             <a class="text-success-emphasis " href="{{ route('mains.show', $current_wo->id) }}"
                                 {{$current_wo->number}}>{{$current_wo->number}}
-                                {{--                               data-bs-toggle="modal"--}}
-                                {{--                               data-bs-target=#infoModal--}}
                             </a>
                         </h5>
                     </div>
 
 
                     <div class="ps-2 d-flex">
-                        {{--                        <div class=" ms-4">--}}
-                        {{--                            <a href="{{ route('mains.show', $current_wo->id) }}" class="btn--}}
-                        {{--                                            btn-outline-success " title="{{ __('WO Tasks') }}"--}}
-                        {{--                               onclick="showLoadingSpinner()"--}}
-                        {{--                            >--}}
-                        {{--                                <i class="bi bi-list-task " style="font-size: 28px;"></i>--}}
-                        {{--                            </a>--}}
-                        {{--                        </div>--}}
+
                         <div class="me-2 position-relative">
                             <button class="btn  btn-outline-warning ms-2 open-pdf-modal text-center"
                                     title="{{ __('PDF Library') }}"
@@ -698,20 +689,18 @@
                             href="{{ route('tdrs.tdrForm', ['id'=> $current_wo->id]) }}"
                             target="_blank"
                         />
-                        @if(count($processParts)==0)
+                        @if(!$hasProcessFormTdrs)
                             <x-paper-button
                                 text="SP Form"
                                 href="{{ route('tdrs.specProcessFormEmp', ['id'=> $current_wo->id]) }}"
                                 target="_blank"
                             />
-
                         @else
                             <x-paper-button
                                 text="SP Form"
                                 href="{{ route('tdrs.specProcessForm', ['id'=> $current_wo->id]) }}"
                                 target="_blank"
                             />
-
                         @endif
                         <x-paper-button
                             text="R&M Form"
@@ -819,23 +808,17 @@
                 <!- Inspection Unit ->
 
                 <div class="me-3" style="width: 450px; max-height: 70vh; overflow-y: auto;">
-                    <div class="table-wrapper me3 p-2">
+                    <div class="table-wrapper me-3 p-2">
                         <table id="tdr_inspect_Table" class="display table table-sm
                                         table-hover table-striped align-middle table-bordered bg-gradient">
                             <thead>
                             <tr>
                                 <th class=" text-primary text-center  " style="width: 300px;">
-                                    <a href="#" data-bs-toggle="modal" data-bs-target="#unitInspectionModal"
-                                        {{--                                           style="text-decoration: none; color: inherit;"--}}
-                                    >
+                                    <a href="#" data-bs-toggle="modal" data-bs-target="#unitInspectionModal">
                                         {{__('Teardown Inspection')}}
                                     </a>
                                 </th>
                                 <th class=" text-primary text-center " style="width: 50px;">
-                                    {{--                                        <a href="#" data-bs-toggle="modal" data-bs-target="#unitInspectionModal"--}}
-                                    {{--                                           class="btn btn-outline-info btn-sm" style="height: 32px">--}}
-                                    {{--                                            {{ __('Add') }}--}}
-                                    {{--                                        </a>--}}
                                 </th>
                             </tr>
                             </thead>
@@ -947,20 +930,20 @@
 
                 <!- Inspection Component ->
 
-                <div class="me-3" style=" max-height: 70vh; overflow-y: auto;">
-                    <div class="table-wrapper me-3 p-2">
+                <div class="me-3" >
+                    <div class="table-wrapper me-3 p-2" style=" max-height: 60vh; overflow-y: auto;">
                         <table id="tdr_process_Table"
                                class="display table table-sm table-hover table-striped align-middle table-bordered">
                             <thead class="bg-gradient">
                             <tr>
-                                <th class="text-center text-primary sortable">{{__('IPL Number')}} </th>
-                                <th class=" text-center  text-primary sortable">{{__('Part Description')}} </th>
-                                <th class=" text-center text-primary sortable ">{{__('Part number')}} </th>
-                                <th class=" text-center   text-primary sortable">{{__('Serial number')}}</th>
+                                <th class="text-center text-primary sortable"style="width: 60px">{{__('IPL')}} </th>
+                                <th class=" text-center  text-primary sortable"style="width: 200px">{{__('Description')}} </th>
+                                <th class=" text-center text-primary sortable "style="width: 120px">{{__('P/N')}} </th>
+                                <th class=" text-center   text-primary sortable"style="width: 120px">{{__('S/N')}}</th>
                                 <th class=" text-center  text-primary " style="width: 200px">{{__('Necessary')}}</th>
-                                <th class=" text-center  text-primary " style="width: 120px">{{__('Code')}}</th>
+                                <th class=" text-center  text-primary " style="width: 150px">{{__('Code')}}</th>
                                 <th class=" text-center  text-primary " style="width: 60px">{{__('EC')}}</th>
-                                <th class=" text-primary text-center" style="width: 150px"> {{__('Action')}}
+                                <th class=" text-primary text-center" style="width: 150px;"> {{__('Action')}}
                                     <a href="{{ route('tdrs.inspection.component', ['workorder_id' => $current_wo->id])}}"
                                        class="btn btn-outline-info btn-sm ms-3" style="height: 32px">
                                         {{ __('Add') }}
@@ -1022,10 +1005,8 @@
                                             @endif
                                         </td>
 
-                                        <td class="d-flex justify-content-center "
-                                            style="width: 150px; align-content: center">
-
-
+                                        <td class="text-center">
+                                            <div class="d-flex justify-content-center">
                                             <a href="{{ route('tdr-processes.processes',['tdrId'=>$tdr->id])}}"
                                                class="btn btn-outline-primary btn-sm me-2">
                                                 <i class="bi bi-bar-chart-steps" title="Component Processes"></i>
@@ -1041,10 +1022,9 @@
                                                 @method('DELETE')
                                                 <button type="submit" class="btn btn-outline-danger btn-sm">
                                                     <i class="bi bi-trash"></i>
-                                                    {{--                                                            {{__('Delete')}}--}}
                                                 </button>
                                             </form>
-
+                                            </div>
                                         </td>
 
                                     </tr>

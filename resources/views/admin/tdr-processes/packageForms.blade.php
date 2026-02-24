@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Package Process Forms</title>
     <link rel="stylesheet" href="{{asset('assets/Bootstrap 5/bootstrap.min.css')}}">
+    @include('shared.process-forms._styles')
     <style>
         body {
             margin: 0;
@@ -122,6 +123,19 @@
                         </div>
 
                         <div class="row mb-3">
+                            <div class="col-md-4">
+                                <label for="componentNameFontSize" class="form-label" data-bs-toggle="tooltip"
+                                        data-bs-placement="top"
+                                        title="Размер шрифта для Component Name (название компонента в шапке формы)."
+                                        data-tooltip-ru="Размер шрифта для Component Name (название компонента в шапке формы)."
+                                        data-tooltip-en="Font size for Component Name (component name in form header).">
+                                    Component Name Font (px)
+                                </label>
+                                <div class="input-group">
+                                    <input type="number" class="form-control" id="componentNameFontSize" name="componentNameFontSize"
+                                           min="6" max="24" step="0.5" value="12">
+                                </div>
+                            </div>
                             <div class="col-md-4">
                                 <label for="ndtProcessFontSize" class="form-label" data-bs-toggle="tooltip"
                                         data-bs-placement="top"

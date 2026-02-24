@@ -51,6 +51,8 @@ body { margin: 0; padding: 0; font-family: "Times New Roman", serif; }
 .border-b { border-bottom: 1px solid black; }
 .process-text-long { font-size: 0.8em; line-height: 1; letter-spacing: -0.5px; transform-origin: left; display: inline-block; vertical-align: middle; }
 .description-text-long { font-size: 0.9rem; line-height: 1.1; letter-spacing: -0.3px; display: inline-block; vertical-align: top; }
+.header-page .component-name-value { font-size: var(--component-name-font-size, 12px) !important; }
+.header-page .component-name-value[data-long="1"] { line-height: 1.1; letter-spacing: -0.3px; }
 .text-center { text-align: center; }
 .text-black { color: #000; }
 .fs-7 { font-size: 0.9rem; }
@@ -64,6 +66,10 @@ body { margin: 0; padding: 0; font-family: "Times New Roman", serif; }
 .data-page .data-row:not([data-stress="true"]),
 .table-header:has(+ .data-page .data-row:not([data-stress="true"])) .row { font-size: var(--other-table-data-font-size, 9px); }
 .details-row { display: flex; justify-content: center; align-items: center; height: 36px; }
+/* ITEM No. — уменьшенный межстрочный интервал */
+.ndt-data-container .data-row-ndt > div:first-child,
+.data-page .data-row > div:first-child,
+.table-header .row > div:first-child { line-height: 1.1; }
 .details-cell { display: flex; justify-content: center; align-items: center; }
 .parent { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 0; width: 100%; font-size: var(--ndt-process-font-size, 10px); }
 .parent > div { padding: 0 5px; }

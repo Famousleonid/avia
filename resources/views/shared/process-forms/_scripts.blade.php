@@ -31,6 +31,7 @@ if (typeof window.processesFormScriptInitialized === 'undefined') {
         ndtTableRows: '{{ $defaultNdt }}',
         stressTableRows: '{{ $defaultStress }}',
         otherTableRows: '{{ $defaultOther }}',
+        componentNameFontSize: '12',
         ndtProcessFontSize: '10',
         ndtTableDataFontSize: '9',
         stressTableDataFontSize: '9',
@@ -66,6 +67,7 @@ if (typeof window.processesFormScriptInitialized === 'undefined') {
                 ndtTableRows: g('ndtTableRows')?.value ?? saved.ndtTableRows ?? defaultSettings.ndtTableRows,
                 stressTableRows: g('stressTableRows')?.value ?? saved.stressTableRows ?? defaultSettings.stressTableRows,
                 otherTableRows: g('otherTableRows')?.value ?? saved.otherTableRows ?? defaultSettings.otherTableRows,
+                componentNameFontSize: g('componentNameFontSize')?.value ?? saved.componentNameFontSize ?? defaultSettings.componentNameFontSize,
                 ndtProcessFontSize: g('ndtProcessFontSize')?.value ?? saved.ndtProcessFontSize ?? defaultSettings.ndtProcessFontSize,
                 ndtTableDataFontSize: g('ndtTableDataFontSize')?.value ?? saved.ndtTableDataFontSize ?? defaultSettings.ndtTableDataFontSize,
                 stressTableDataFontSize: g('stressTableDataFontSize')?.value ?? saved.stressTableDataFontSize ?? defaultSettings.stressTableDataFontSize,
@@ -106,6 +108,7 @@ if (typeof window.processesFormScriptInitialized === 'undefined') {
         root.style.setProperty('--print-footer-font-size', settings.footerFontSize || defaultSettings.footerFontSize);
         root.style.setProperty('--print-footer-padding', settings.footerPadding || defaultSettings.footerPadding);
         root.style.setProperty('--print-footer-bottom', settings.footerBottom || defaultSettings.footerBottom);
+        root.style.setProperty('--component-name-font-size', (settings.componentNameFontSize || defaultSettings.componentNameFontSize) + 'px');
         root.style.setProperty('--ndt-process-font-size', (settings.ndtProcessFontSize || defaultSettings.ndtProcessFontSize) + 'px');
         root.style.setProperty('--ndt-table-data-font-size', (settings.ndtTableDataFontSize || defaultSettings.ndtTableDataFontSize) + 'px');
         root.style.setProperty('--stress-table-data-font-size', (settings.stressTableDataFontSize || defaultSettings.stressTableDataFontSize) + 'px');
@@ -241,6 +244,7 @@ if (typeof window.processesFormScriptInitialized === 'undefined') {
         if (el('ndtTableRows')) el('ndtTableRows').value = settings.ndtTableRows || defaultSettings.ndtTableRows;
         if (el('stressTableRows')) el('stressTableRows').value = settings.stressTableRows || defaultSettings.stressTableRows;
         if (el('otherTableRows')) el('otherTableRows').value = settings.otherTableRows || defaultSettings.otherTableRows;
+        if (el('componentNameFontSize')) el('componentNameFontSize').value = parseNum(settings.componentNameFontSize) || 12;
         if (el('ndtProcessFontSize')) el('ndtProcessFontSize').value = parseNum(settings.ndtProcessFontSize) || 10;
         if (el('ndtTableDataFontSize')) el('ndtTableDataFontSize').value = parseNum(settings.ndtTableDataFontSize) || 9;
         if (el('stressTableDataFontSize')) el('stressTableDataFontSize').value = parseNum(settings.stressTableDataFontSize) || 9;

@@ -76,8 +76,20 @@
                             </div>
                             @endif
                         </div>
-                        @if($showNdt)
                         <div class="row mb-3">
+                            <div class="col-md-4">
+                                <label for="componentNameFontSize" class="form-label" data-bs-toggle="tooltip" data-bs-placement="top"
+                                    title="Размер шрифта для Component Name (название компонента в шапке формы)."
+                                    data-tooltip-ru="Размер шрифта для Component Name (название компонента в шапке формы)."
+                                    data-tooltip-en="Font size for Component Name (component name in form header).">
+                                    Component Name Font (px)
+                                </label>
+                                <div class="input-group">
+                                    <input type="number" class="form-control" id="componentNameFontSize" name="componentNameFontSize"
+                                        min="6" max="24" step="0.5" value="{{ $formConfig['component_name_font_size'] ?? 12 }}">
+                                </div>
+                            </div>
+                            @if($showNdt)
                             <div class="col-md-4">
                                 <label for="ndtProcessFontSize" class="form-label" data-bs-toggle="tooltip" data-bs-placement="top"
                                     title="Размер шрифта для блока процессов (MAGNETIC PARTICLE, LIQUID PENETRANT и т.д.)."
@@ -90,8 +102,8 @@
                                         min="6" max="24" step="0.5" value="{{ $formConfig['ndt_process_font_size'] ?? 10 }}">
                                 </div>
                             </div>
+                            @endif
                         </div>
-                        @endif
                     </div>
 
                     <div class="accordion mb-3" id="tableSettingsAccordion">

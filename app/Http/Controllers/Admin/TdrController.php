@@ -317,7 +317,7 @@ class TdrController extends Controller
                     ->withInput()
                     ->withErrors(['necessaries_id' => 'Necessary is required for Missing code']);
             }
-            
+
             if (!$necessary || $validated['necessaries_id'] != $necessary->id) {
                 return redirect()->back()
                     ->withInput()
@@ -332,7 +332,7 @@ class TdrController extends Controller
                     ->withInput()
                     ->withErrors(['necessaries_id' => 'Necessary is required for non-Missing codes']);
             }
-            
+
             $isValidNecessary = false;
             if ($necessary && $validated['necessaries_id'] == $necessary->id) {
                 $isValidNecessary = true;
@@ -385,7 +385,7 @@ class TdrController extends Controller
                 'use_process_forms' => $use_process_forms,
                 'order_component_id' => $validated['order_component_id'],
             ]);
-            
+
             // \Log::info('TDR created', [
             //     'tdr_id' => $tdr->id,
             //     'workorder_id' => $tdr->workorder_id,
@@ -407,7 +407,7 @@ class TdrController extends Controller
         // Используем приведение типов для сравнения, т.к. codes_id может быть строкой из формы
         $codesIdInt = $validated['codes_id'] ? (int)$validated['codes_id'] : null;
         $codeIdInt = $code ? (int)$code->id : null;
-        
+
         // \Log::info('Checking if codes_id is Missing', [
         //     'workorder_id' => $workorder->id,
         //     'codes_id' => $validated['codes_id'],
@@ -417,7 +417,7 @@ class TdrController extends Controller
         //     'code_found' => $code ? true : false,
         //     'match' => ($code && $codesIdInt === $codeIdInt)
         // ]);
-        
+
         if ($code && $codesIdInt === $codeIdInt) {
             // Проверяем количество записей с Missing после создания (включая только что созданную)
             $missingCount = Tdr::where('workorder_id', $workorder->id)
@@ -607,7 +607,7 @@ class TdrController extends Controller
 
                     $notes = $conditionData['notes'] ?? '';
                     $tdrId = $conditionData['tdr_id'] ?? null;
-                    
+
                     // Проверяем, существует ли condition
                     $condition = Condition::find($conditionId);
                     if (!$condition) {
@@ -648,7 +648,7 @@ class TdrController extends Controller
                             'use_tdr' => true,
                             'use_process_forms' => false,
                         ]);
-                        
+
                         \Log::info("Created TDR for condition", [
                             'tdr_id' => $newTdr->id,
                             'condition_id' => $conditionId,
@@ -1089,6 +1089,11 @@ class TdrController extends Controller
             }])
             ->get();
 
+        // TDR с use_process_forms=true — источник данных для SP Form (specProcessForm/specProcessFormEmp)
+        $hasProcessFormTdrs = Tdr::where('workorder_id', $current_wo->id)
+            ->where('use_process_forms', true)
+            ->exists();
+
         // Проверка наличия записей с codes_id=Missing для данного workorder
         $hasMissingParts = false;
         if ($code) {
@@ -1097,7 +1102,7 @@ class TdrController extends Controller
                 ->exists();
         }
 
-        // Unit Inspections: 
+        // Unit Inspections:
         // 1. Записи с component_id=null (обычные unit inspections)
         // 2. Записи компонентов с codes_id != Missing и necessaries_id = Order New
         // Записи компонентов с missing НЕ включаются в $inspectsUnit - они отображаются отдельной строкой
@@ -1105,7 +1110,7 @@ class TdrController extends Controller
             ->where(function($query) use ($code, $necessary) {
                 // Обычные unit inspections (component_id = null)
                 $query->whereNull('component_id');
-                
+
                 // ИЛИ записи компонентов с codes_id != Missing и necessaries_id = Order New
                 if ($code && $necessary) {
                     $query->orWhere(function($q) use ($code, $necessary) {
@@ -1128,24 +1133,6 @@ class TdrController extends Controller
             ])
             ->get();
 
-        // Логирование для отладки
-        // \Log::info('Unit Inspections query', [
-        //     'workorder_id' => $current_wo->id,
-        //     'code_id' => $code ? $code->id : null,
-        //     'missing_condition_id' => $missingCondition ? $missingCondition->id : null,
-        //     'inspects_unit_count' => $inspectsUnit->count(),
-        //     'inspects_unit_ids' => $inspectsUnit->pluck('id')->toArray(),
-        //     'inspects_unit_details' => $inspectsUnit->map(function($unit) {
-        //         return [
-        //             'id' => $unit->id,
-        //             'component_id' => $unit->component_id,
-        //             'codes_id' => $unit->codes_id,
-        //             'conditions_id' => $unit->conditions_id,
-        //             'conditions_loaded' => $unit->relationLoaded('conditions'),
-        //             'conditions_name' => $unit->conditions ? $unit->conditions->name : 'NULL'
-        //         ];
-        //     })->toArray()
-        // ]);
 
         // Получаем Missing компоненты (codes_id = 7 или код "Missing")
         $missingParts = Tdr::where('workorder_id', $current_wo->id)
@@ -1184,6 +1171,7 @@ class TdrController extends Controller
             ->where('necessaries_id', $orderNewNecessaryId)
             ->get();
         $orderedPartsCount = $orderedPartsTdrs->sum('qty');
+        $missingPartsCount = $missingParts->sum('qty');
         $hasOrderedParts = $orderedPartsCount > 0;
 
         $ordersPartsNew = Tdr::where('workorder_id', $current_wo->id)
@@ -1237,7 +1225,7 @@ class TdrController extends Controller
             'necessaries', 'unit_conditions', 'component_conditions',
             'codes', 'conditions', 'missingParts', 'ordersParts', 'inspectsUnit',
             'processParts', 'ordersPartsNew','trainings','user_wo', 'manual_id','log_card','woBushing','prl_parts','tdr_proc','hasTransfers',
-            'hasMissingParts', 'missingCondition', 'orderedPartsCount', 'hasOrderedParts'
+            'hasMissingParts', 'missingCondition', 'orderedPartsCount', 'hasOrderedParts', 'hasProcessFormTdrs'
         ));
     }
 
@@ -2853,7 +2841,7 @@ class TdrController extends Controller
         $emptyProcess->name = '';
         $emptyProcess->process_sheet_name = null;
         $emptyProcess->form_number = null;
-        
+
         while ($processNames->count() < 20) {
             $processNames->push(clone $emptyProcess);
         }
@@ -3003,13 +2991,39 @@ class TdrController extends Controller
             ->limit(20)
             ->get();
 
+        // Если пустая форма (use_process_forms=0) — подставляем названия процессов по умолчанию
+        // Порядок: Machining → Stress Relief → Cad Plate → Chrome Plate → Paint (NDT — отдельный блок из 3 строк)
+        if ($processNames->isEmpty()) {
+            $defaultNames = ['Machining', 'Bake (Stress relief)', 'Cad plate', 'Chrome plate'];
+            $processNames = ProcessName::whereIn('name', $defaultNames)
+                ->orderByRaw("FIELD(name, 'Machining', 'Bake (Stress relief)', 'Cad plate', 'Chrome plate')")
+                ->get();
+            $paint = ProcessName::where('name', 'LIKE', 'Paint%')->first();
+            if ($paint) {
+                $processNames->push($paint);
+            }
+            // Если в БД нет — используем заглушки для отображения
+            if ($processNames->isEmpty()) {
+                $fallbackNames = ['Machining', 'Stress Relief', 'Cad Plate', 'Chrome Plate', 'Paint'];
+                $processNames = collect();
+                foreach ($fallbackNames as $n) {
+                    $obj = new \stdClass();
+                    $obj->id = null;
+                    $obj->name = $n;
+                    $obj->process_sheet_name = null;
+                    $obj->form_number = null;
+                    $processNames->push($obj);
+                }
+            }
+        }
+
         // Дополняем коллекцию до 20 элементов пустыми объектами, если элементов меньше
         $emptyProcess = new \stdClass();
         $emptyProcess->id = null;
         $emptyProcess->name = '';
         $emptyProcess->process_sheet_name = null;
         $emptyProcess->form_number = null;
-        
+
         while ($processNames->count() < 20) {
             $processNames->push(clone $emptyProcess);
         }
@@ -3093,6 +3107,11 @@ class TdrController extends Controller
             $componentChunks->push($currentChunk);
         }
 
+        // Если use_process_forms = 0 (нет TDR с формами) — показываем пустую форму-шаблон
+        if ($componentChunks->isEmpty()) {
+            $componentChunks->push(collect());
+        }
+
         // Передаем данные в представление
         return view('admin.tdrs.specProcessFormEmp', [
             'current_wo' => $current_wo,
@@ -3163,7 +3182,7 @@ class TdrController extends Controller
             'workorder_id' => $current_wo->id,
             'total_tdrs' => $current_wo->tdrs->count()
         ]);
-        
+
         foreach ($current_wo->tdrs as $tdr) {
             \Log::info("Processing TDR", [
                 'tdr_id' => $tdr->id,
@@ -3173,7 +3192,7 @@ class TdrController extends Controller
                 'use_tdr' => $tdr->use_tdr,
                 'use_process_forms' => $tdr->use_process_forms
             ]);
-            
+
             // Проверяем наличие компонентов с кодом Missing
             if ($tdr->codes_id == $code->id) {
                 $hasMissingComponents = true;
@@ -3186,10 +3205,10 @@ class TdrController extends Controller
                 $conditions = $tdr->conditions; // Получаем данные о состоянии
                 if ($conditions) {
                     $description = trim((string) $tdr->description);
-                    
+
                     // Проверяем, является ли имя condition одним из "note 1", "note 2" и т.д.
                     $isNoteCondition = preg_match('/^note\s+\d+$/i', $conditions->name);
-                    
+
                     \Log::info("Processing TDR in tdrForm", [
                         'tdr_id' => $tdr->id,
                         'condition_id' => $conditions->id,
@@ -3198,7 +3217,7 @@ class TdrController extends Controller
                         'description' => $description,
                         'description_empty' => ($description === '')
                     ]);
-                    
+
                     if ($isNoteCondition) {
                         // Для conditions с именами "note 1", "note 2" и т.д. добавляем только description
                         // Если description пустой, не добавляем ничего (чтобы не показывать пустые строки)
