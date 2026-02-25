@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Special Process Form </title>
     <link rel="stylesheet" href="{{asset('assets/Bootstrap 5/bootstrap.min.css')}}">
+    @include('shared.spec-process-forms._styles')
 
     <style>
         body {
@@ -237,12 +238,12 @@
 </head>
 
 <body>
-<!-- Кнопка для печати -->
-<div class="text-start m-3">
-    <button class="btn btn-primary no-print" onclick="window.print()">
-        Print Form
-    </button>
+<!-- Кнопки печати -->
+<div class="text-start m-3 no-print">
+    <button class="btn btn-primary" onclick="window.print()">Print Form</button>
+    <button class="btn btn-secondary ms-2" data-bs-toggle="modal" data-bs-target="#printSettingsModal">⚙️ Print Settings</button>
 </div>
+@include('shared.spec-process-forms._print-settings-modal', ['formConfig' => config('process_forms.spec_process_form', [])])
 
 @foreach($componentChunks as $chunk)
     @php
@@ -370,7 +371,7 @@
             <!-- Строка для имен компонентов -->
             <div class="row g-0">
                 @foreach($columnSlots as $slotData)
-                    <div class="col {{ $loop->last ? 'border-all' : 'border-l-t-b' }} text-center" style="height: 22px">
+                    <div class="col {{ $loop->last ? 'border-all' : 'border-l-t-b' }} text-center spec-component-description" style="height: 22px">
                         @if($slotData['slot'] !== 'empty')
                             @php $component = $slotData['item']->component; @endphp
                             @php
@@ -395,7 +396,7 @@
         <div class="col-10">
             <div class="row g-0">
                 @foreach($columnSlots as $slotData)
-                    <div class="col {{ $loop->last ? 'border-l-b-r' : 'border-l-b' }} text-center" style="height: 22px">
+                    <div class="col {{ $loop->last ? 'border-l-b-r' : 'border-l-b' }} text-center spec-component-part-no" style="height: 22px">
                         @if($slotData['slot'] !== 'empty')
                             {{ $slotData['item']->component->component->part_number }}
                         @endif
@@ -413,7 +414,7 @@
         <div class="col-10">
             <div class="row g-0">
                 @foreach($columnSlots as $slotData)
-                    <div class="col {{ $loop->last ? 'border-l-b-r' : 'border-l-b' }} text-center" style="height: 22px">
+                    <div class="col {{ $loop->last ? 'border-l-b-r' : 'border-l-b' }} text-center spec-component-serial-no" style="height: 22px">
                         @if($slotData['slot'] !== 'empty')
                             {{ $slotData['item']->component->serial_number }}
                         @endif
@@ -443,8 +444,9 @@
     </div>
 
     <!-- NDT (3 объединённые строки) -->
+    <div class="spec-process-table-body" data-column-count="{{ count($columnSlots) }}">
     <div class="row g-0 fs-7">
-        <div class="col-2 border-l-t-b ps-1 d-flex align-items-center ps-2" style="height: 60px;">
+        <div class="col-2 border-l-t-b ps-1 d-flex align-items-center ps-2 spec-process-name-cell" style="min-height: calc(var(--spec-process-row-height, 22px) * 3);">
             <strong>NDT</strong>
         </div>
         <div class="col-10">
@@ -467,11 +469,11 @@
                             }
                         }
                     @endphp
-                    <div class="col {{ $loop->last ? ($ndtRowIndex === 0 ? 'border-all' : 'border-l-b-r') : ($ndtRowIndex === 0 ? 'border-l-t-b' : 'border-l-b') }} text-center" style="height: 20px{{ $slotData['slot'] === 'empty' ? '; position: relative' : '' }}">
+                    <div class="col {{ $loop->last ? ($ndtRowIndex === 0 ? 'border-all' : 'border-l-b-r') : ($ndtRowIndex === 0 ? 'border-l-t-b' : 'border-l-b') }} text-center spec-process-row-cell" style="{{ $slotData['slot'] === 'empty' ? 'position: relative' : '' }}">
                         @if($showValue)
-                            <div class="border-r filled-data" style="height: 20px; width: 30px">{{ $ndtEntry['number_line'] }}</div>
+                            <div class="border-r spec-process-row-inner filled-data">{{ $ndtEntry['number_line'] }}</div>
                         @else
-                            <div class="border-r" style="height: 20px; width: 30px"></div>
+                            <div class="border-r spec-process-row-inner"></div>
                             @if($slotData['slot'] === 'empty')
                                 <div style="position: absolute; left: 29px; top: 0; bottom: 0; width: 1px; border-left: 1px solid black;"></div>
                             @endif
@@ -485,9 +487,9 @@
 
     <!-- Другие процессы -->
     @foreach($processNames as $name)
-        <div class="row g-0 fs-7">
-            <div class="col-2 border-l-b ps-1">
-                <div style="height: 20px"><strong>{{ $name->name }}</strong></div>
+        <div class="row g-0 fs-7 spec-process-data-row spec-process-name-row">
+            <div class="col-2 border-l-b ps-1 spec-process-name-cell">
+                <div class="spec-process-name-inner"><strong>{{ $name->name }}</strong></div>
             </div>
             <div class="col-10">
                 <div class="row g-0">
@@ -501,13 +503,13 @@
                                 ->values();
                             $numberLines = $processForCurrentTdr->pluck('number_line')->implode(',');
                         @endphp
-                        <div class="col {{ $loop->last ? 'border-l-b-r' : 'border-l-b' }} text-center" style="height: 22px">
+                        <div class="col {{ $loop->last ? 'border-l-b-r' : 'border-l-b' }} text-center spec-process-row-cell">
                             @if($numberLines)
-                                <div class="border-r filled-data" style="height: 22px; width: 30px">
+                                <div class="border-r spec-process-row-inner filled-data">
                                     {{ $numberLines }}
                                 </div>
                             @else
-                                <div class="border-r" style="height: 22px; width: 30px"></div>
+                                <div class="border-r spec-process-row-inner"></div>
                             @endif
                         </div>
                     @endforeach
@@ -520,6 +522,7 @@
             </div>
         </div>
     @endforeach
+    </div>
 
     <!-- Quality Assurance -->
     <div class="parent mt-1">
@@ -545,11 +548,7 @@
     @endif
 @endforeach
 
-<!-- Скрипт для печати -->
-<script>
-    function printForm() {
-        window.print();
-    }
-</script>
+<script src="{{ asset('assets/Bootstrap 5/bootstrap.bundle.min.js') }}"></script>
+@include('shared.spec-process-forms._scripts', ['formConfig' => config('process_forms.spec_process_form', [])])
 </body>
 </html>

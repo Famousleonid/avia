@@ -2835,14 +2835,14 @@ class TdrController extends Controller
             ->limit(20)
             ->get();
 
-        // Дополняем коллекцию до 20 элементов пустыми объектами, если элементов меньше
+        // Дополняем коллекцию до 10 элементов пустыми объектами, если элементов меньше
         $emptyProcess = new \stdClass();
         $emptyProcess->id = null;
         $emptyProcess->name = '';
         $emptyProcess->process_sheet_name = null;
         $emptyProcess->form_number = null;
 
-        while ($processNames->count() < 20) {
+        while ($processNames->count() < 10) {
             $processNames->push(clone $emptyProcess);
         }
 
@@ -3017,14 +3017,14 @@ class TdrController extends Controller
             }
         }
 
-        // Дополняем коллекцию до 20 элементов пустыми объектами, если элементов меньше
+        // Дополняем коллекцию до 10 элементов пустыми объектами, если элементов меньше
         $emptyProcess = new \stdClass();
         $emptyProcess->id = null;
         $emptyProcess->name = '';
         $emptyProcess->process_sheet_name = null;
         $emptyProcess->form_number = null;
 
-        while ($processNames->count() < 20) {
+        while ($processNames->count() < 10) {
             $processNames->push(clone $emptyProcess);
         }
 

@@ -38,4 +38,19 @@ return [
         'header_title' => 'WO BUSHING',
         'storage_key' => 'woBushingsProcessesForm_print_settings',
     ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | Special Process Form (specProcessForm / specProcessFormEmp)
+    |--------------------------------------------------------------------------
+    */
+    'spec_process_form' => [
+        'storage_key' => 'specProcessForm_print_settings',
+        'process_table_extra_empty_rows' => 0,
+        'process_table_row_height' => 22,
+        'process_name_font_size' => 11,
+        'component_description_font_size' => 11,
+        'component_part_no_font_size' => 11,
+        'component_serial_no_font_size' => 11,
+    ],
 ];
