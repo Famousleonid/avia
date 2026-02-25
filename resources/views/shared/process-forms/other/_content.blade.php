@@ -46,7 +46,7 @@
                     @if(isset($ep) && $ep->serial_num)<br>SN {{ $ep->serial_num }}@endif
                 </div>
                 <div class="col-2 border-l-b details-cell text-center" style="min-height: 34px">{{ $comp->name }}</div>
-                <div class="col-4 border-l-b details-cell text-center process-cell" style="min-height: 34px">
+                <div class="col-4 border-l-b details-cell text-center process-cell" style="min-height: 34px; line-height: 1.1">
                     @php
                         $procText = null;
                         if ($proc && is_object($proc)) {

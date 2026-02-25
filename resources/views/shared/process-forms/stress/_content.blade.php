@@ -58,7 +58,7 @@
                     @if(isset($ep) && $ep->serial_num)<br>SN {{ $ep->serial_num }}@endif
                 </div>
                 <div class="col-2 border-l-b details-cell text-center" style="min-height: 34px">{{ $comp->name }}</div>
-                <div class="col-4 border-l-b details-cell text-center process-cell" style="min-height: 34px">
+                <div class="col-4 border-l-b details-cell text-center process-cell" style="min-height: 34px; line-height: 1.1">
                     @foreach($process_components ?? [] as $component_process)
                         @if($component_process->id == ($proc->id ?? $proc))
                             <span @if(strlen($component_process->process) > 40) class="process-text-long" @endif>
