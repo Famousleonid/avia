@@ -51,8 +51,9 @@
             @php $comp = $data['component'] ?? null; $proc = $data['process'] ?? null; $ep = $data['extra_process'] ?? null; @endphp
             @if($comp)
             <div class="row fs-85 data-row" data-row-index="{{ $rowIndex }}" data-stress="true">
-                <div class="col-1 border-l-b details-cell text-center" style="min-height: 34px">{{ $comp->ipl_num }}</div>
-                <div class="col-2 border-l-b details-cell text-center" style="min-height: 34px">
+                <div class="col-1 border-l-b details-cell text-center" style="min-height: 34px;line-height: 1.1">{{
+                $comp->ipl_num }}</div>
+                <div class="col-2 border-l-b details-cell text-center" style="min-height: 34px; line-height: 1.1">
                     {{ $comp->part_number }}
                     @if(isset($ep) && $ep->serial_num)<br>SN {{ $ep->serial_num }}@endif
                 </div>
@@ -60,7 +61,7 @@
                 <div class="col-4 border-l-b details-cell text-center process-cell" style="min-height: 34px">
                     @foreach($process_components ?? [] as $component_process)
                         @if($component_process->id == ($proc->id ?? $proc))
-                            <span @if(strlen($component_process->process) > 25) class="process-text-long" @endif>
+                            <span @if(strlen($component_process->process) > 40) class="process-text-long" @endif>
                                 {{ $component_process->process }}
                                 @if(isset($data['description']) && $data['description'])<br><span>{{ $data['description'] }}</span>@endif
                             </span>

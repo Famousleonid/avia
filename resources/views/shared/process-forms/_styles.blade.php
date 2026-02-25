@@ -49,7 +49,8 @@ body { margin: 0; padding: 0; font-family: "Times New Roman", serif; }
 .border-t-r-b { border-top: 1px solid black; border-right: 1px solid black; border-bottom: 1px solid black; }
 .border-r-b { border-right: 1px solid black; border-bottom: 1px solid black; }
 .border-b { border-bottom: 1px solid black; }
-.process-text-long { font-size: 0.8em; line-height: 1; letter-spacing: -0.5px; transform-origin: left; display: inline-block; vertical-align: middle; }
+.process-text-long { font-size: 0.95em; line-height: 1; letter-spacing: -0.5px; transform-origin: left; display: inline-block;
+    vertical-align: middle; }
 .description-text-long { font-size: 0.9rem; line-height: 1.1; letter-spacing: -0.3px; display: inline-block; vertical-align: top; }
 .header-page .component-name-value { font-size: var(--component-name-font-size, 12px) !important; }
 .header-page .component-name-value[data-long="1"] { line-height: 1.1; letter-spacing: -0.3px; }
