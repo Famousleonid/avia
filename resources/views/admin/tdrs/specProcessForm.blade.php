@@ -376,7 +376,7 @@
         <div class="row g-0 fs-7">
             <!-- Заголовок "Description" -->
             <div class="col-2 border-l-t-b ps-1">
-                <div style="height: 20px"><strong>Description</strong> </div>
+                <div class="fs-9" style="height: 20px"><strong>Description</strong> </div>
             </div>
             <!-- Основная часть таблицы -->
             <div class="col-10">
@@ -405,7 +405,7 @@
         <div class="row g-0 fs-7">
 
             <div class="col-2 border-l-b ps-1">
-                <div style="height: 20px"><strong> Part No.</strong></div>
+                <div class="fs-9" style="height: 20px"><strong> Part No.</strong></div>
             </div>
             <!-- Данные Part No. -->
             <div class="col-10">
@@ -425,7 +425,7 @@
         <div class="row g-0 fs-7">
 
             <div class="col-2 border-l-b ps-1">
-                <div style="height: 20px"><strong> Serial No</strong>.</div>
+                <div class="fs-9" style="height: 20px"><strong> Serial No</strong>.</div>
             </div>
             <!-- Данные Serial No. -->
             <div class="col-10">

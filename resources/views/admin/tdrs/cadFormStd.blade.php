@@ -223,7 +223,7 @@
                      style="width: 180px; margin: 6px 10px 0;">
             </div>
             <div class="col-9">
-                <h2 class="mt-3 text-black"><strong>CAD PLATE PROCESS SHEET</strong></h2>
+                <h2 class="mt-3 text-black"><strong>CADMIUM PLATING PROCESS SHEET</strong></h2>
             </div>
         </div>
         <div class="row ">
@@ -413,26 +413,26 @@
     window.tdrFormApplyTableRowLimits = function(settings) {
         const cadMaxRows = parseInt(settings.cadTableRows) || 19;
         console.log('Применение ограничений строк CAD:', { cadMaxRows, settings });
-        
+
         const allRowsContainer = document.querySelector('.all-rows-container');
         if (!allRowsContainer) {
             console.warn('Контейнер .all-rows-container не найден!');
             return;
         }
-        
+
         // Удаляем все созданные ранее динамические страницы
         document.querySelectorAll('.dynamic-page-wrapper').forEach(function(wrapper) {
             wrapper.remove();
         });
-        
+
         // Удаляем все пустые строки из контейнера перед пересчётом
         document.querySelectorAll('.all-rows-container .data-row.empty-row').forEach(function(row) {
             row.remove();
         });
-        
+
         // Собираем все строки из контейнера (только строки с данными, без пустых)
         const allRows = Array.from(allRowsContainer.querySelectorAll('.data-row:not(.empty-row)'));
-        
+
         // Разделяем на manual-row и data-rows
         const manualRows = allRows.filter(function(row) {
             return row.classList.contains('manual-row');
@@ -440,14 +440,14 @@
         const dataRows = allRows.filter(function(row) {
             return !row.classList.contains('manual-row');
         });
-        
+
         const hasManualRows = manualRows.length > 0;
         console.log('Найдено manual-row:', hasManualRows, 'количество:', manualRows.length);
         console.log('Найдено строк с данными:', dataRows.length);
-        
+
         let totalRows;
         let rowsToProcess;
-        
+
         if (hasManualRows) {
             // Случай с manual-row: считаем все строки (manual + data)
             totalRows = allRows.length;
@@ -457,17 +457,17 @@
             totalRows = dataRows.length;
             rowsToProcess = dataRows;
         }
-        
+
         // Вычисляем количество страниц
         const totalPages = Math.max(1, Math.ceil(totalRows / cadMaxRows));
         console.log('Всего строк:', totalRows, ', Лимит на странице:', cadMaxRows, ', Создано страниц:', totalPages);
-        
+
         // Находим элементы для копирования
         const originalHeader = document.querySelector('.header-page');
         const originalTableHeader = document.querySelector('.table-header');
         const originalFooter = document.querySelector('footer');
         const firstContainerFluid = document.querySelector('.container-fluid');
-        
+
         // Скрываем строки, которые не на первой странице
         rowsToProcess.forEach(function(row, index) {
             if (index < cadMaxRows) {
@@ -476,57 +476,57 @@
                 row.style.display = 'none';
             }
         });
-        
+
         // Обновляем footer для первой страницы
         const firstPageNumberEl = originalFooter.querySelector('.page-number');
         const firstTotalPagesEl = originalFooter.querySelector('.total-pages');
         if (firstPageNumberEl) firstPageNumberEl.textContent = '1';
         if (firstTotalPagesEl) firstTotalPagesEl.textContent = totalPages;
-        
+
         // Создаём дополнительные страницы (начиная со второй)
         for (let pageIndex = 1; pageIndex < totalPages; pageIndex++) {
             const startIndex = pageIndex * cadMaxRows;
             const endIndex = Math.min(startIndex + cadMaxRows, rowsToProcess.length);
             const pageRows = rowsToProcess.slice(startIndex, endIndex);
-            
+
             // Создаём контейнер для новой страницы (как container-fluid)
             const dynamicPageWrapper = document.createElement('div');
             dynamicPageWrapper.className = 'container-fluid dynamic-page-wrapper';
-            
+
             // Создаём новую страницу
             const pageDiv = document.createElement('div');
             pageDiv.className = 'page data-page';
             pageDiv.setAttribute('data-page-index', pageIndex + 1);
             pageDiv.style.pageBreakBefore = 'always';
-            
+
             // Копируем header
             if (originalHeader) {
                 const headerClone = originalHeader.cloneNode(true);
                 pageDiv.appendChild(headerClone);
             }
-            
+
             // Копируем table-header
             if (originalTableHeader) {
                 const tableHeaderClone = originalTableHeader.cloneNode(true);
                 pageDiv.appendChild(tableHeaderClone);
             }
-            
+
             // Создаём контейнер для строк этой страницы
             const rowsContainer = document.createElement('div');
             rowsContainer.className = 'page-rows-container';
-            
+
             // Клонируем строки для этой страницы
             pageRows.forEach(function(row) {
                 const rowClone = row.cloneNode(true);
                 rowClone.style.display = '';
                 rowsContainer.appendChild(rowClone);
             });
-            
+
             // Добавляем пустые строки на последней странице, если нужно
             if (pageIndex === totalPages - 1) {
                 const rowsOnLastPage = pageRows.length;
                 const emptyRowsNeeded = rowsOnLastPage === 0 ? cadMaxRows : (cadMaxRows - rowsOnLastPage);
-                
+
                 if (emptyRowsNeeded > 0 && emptyRowsNeeded < cadMaxRows) {
                     for (let i = 0; i < emptyRowsNeeded; i++) {
                         const emptyRow = document.createElement('div');
@@ -544,9 +544,9 @@
                     console.log('Добавлено пустых строк на последнюю страницу:', emptyRowsNeeded, 'из', cadMaxRows, '(строк на странице:', rowsOnLastPage, ')');
                 }
             }
-            
+
             pageDiv.appendChild(rowsContainer);
-            
+
             // Копируем footer с правильной нумерацией
             if (originalFooter) {
                 const footerClone = originalFooter.cloneNode(true);
@@ -560,10 +560,10 @@
                 }
                 pageDiv.appendChild(footerClone);
             }
-            
+
             // Добавляем pageDiv в dynamicPageWrapper
             dynamicPageWrapper.appendChild(pageDiv);
-            
+
             // Вставляем страницу после первого container-fluid
             if (firstContainerFluid && firstContainerFluid.parentNode) {
                 firstContainerFluid.parentNode.insertBefore(dynamicPageWrapper, firstContainerFluid.nextSibling);
@@ -571,12 +571,12 @@
                 document.body.appendChild(dynamicPageWrapper);
             }
         }
-        
+
         // Добавляем пустые строки на первую страницу, если это единственная страница и нужно
         if (totalPages === 1) {
             const rowsOnFirstPage = rowsToProcess.length;
             const emptyRowsNeeded = rowsOnFirstPage === 0 ? cadMaxRows : (cadMaxRows - rowsOnFirstPage);
-            
+
             if (emptyRowsNeeded > 0 && emptyRowsNeeded < cadMaxRows) {
                 for (let i = 0; i < emptyRowsNeeded; i++) {
                     const emptyRow = document.createElement('div');
@@ -594,7 +594,7 @@
                 console.log('Добавлено пустых строк на первую страницу:', emptyRowsNeeded, 'из', cadMaxRows, '(строк на странице:', rowsOnFirstPage, ')');
             }
         }
-        
+
         console.log('Ограничения строк применены. Всего страниц:', totalPages);
     };
 </script>
