@@ -6,10 +6,9 @@
     <style>
         .fp-locked {
             background-image: none !important;
-            padding-right: .5rem !important;
+            padding-right: 0.5rem !important;
             cursor: not-allowed;
         }
-
 
 
         .tippy-box[data-theme~='avia-dark'] {
@@ -75,6 +74,19 @@
             opacity: 1;
         }
 
+        /*.lock-icon {*/
+        /*    position: absolute;*/
+        /*    right: .55rem;*/
+        /*    top: 50%;*/
+        /*    transform: translateY(-50%);*/
+        /*    pointer-events: none; !* чтобы не мешал клику в input *!*/
+        /*    z-index: 3;*/
+        /*}*/
+
+        .finish-input.fp-locked {
+            background-image: none !important;
+            padding-right: 2rem !important;
+        }
 
     </style>
 @endsection
@@ -405,20 +417,23 @@
                                                                             <input type="hidden" name="task_id"
                                                                                    value="{{ $task->id }}">
                                                                         @endunless
-
-                                                                        <input type="text"
-                                                                               name="date_start"
-                                                                               class="form-control form-control-sm js-start finish-input {{ $isIgnored ? 'is-ignored' : '' }}"
-                                                                               value="{{ optional($main?->date_start)->format('Y-m-d') }}"
-                                                                               placeholder="..."
-                                                                               data-fp
-                                                                               @if($isIgnored || $lockDates) disabled @endif>
-                                                                        @if($isIgnored || $lockDates)
-                                                                            <span class="lock-icon text-warning"
-                                                                                  data-tippy-content="{{ $lockDates ? 'Only Admin/Manager can edit this date' : 'Row ignored' }}">
+                                                                        <div class="position-relative">
+                                                                            <input type="text"
+                                                                                   name="date_start"
+                                                                                   class="form-control form-control-sm js-start finish-input
+                                                                                          {{ $isIgnored ? 'is-ignored' : '' }}
+                                                                                          {{ ($isIgnored || $lockDates) ? 'fp-locked' : '' }}"
+                                                                                   value="{{ optional($main?->date_start)->format('Y-m-d') }}"
+                                                                                   placeholder="..."
+                                                                                   data-fp
+                                                                                   @if($isIgnored || $lockDates) disabled @endif>
+                                                                            @if($isIgnored || $lockDates)
+                                                                                <span class="lock-icon text-warning"
+                                                                                      data-tippy-content="{{ $lockDates ? 'Only Admin/Manager can edit this date' : 'Row ignored' }}">
                                                                                   <i class="bi bi-lock-fill"></i>
                                                                             </span>
-                                                                        @endif
+                                                                            @endif
+                                                                        </div>
                                                                     </form>
                                                                 @else
                                                                     {{-- пусто, но ячейка есть, чтобы сетка была --}}
@@ -450,7 +465,9 @@
 
                                                                     <input type="text"
                                                                            name="date_finish"
-                                                                           class="form-control form-control-sm js-finish finish-input {{ $isIgnored ? 'is-ignored' : '' }}"
+                                                                           class="form-control form-control-sm js-finish finish-input
+                                                                               {{ $isIgnored ? 'is-ignored' : '' }}
+                                                                               {{ ($isIgnored || $lockDates) ? 'fp-locked' : '' }}"
                                                                            value="{{ optional($main?->date_finish)->format('Y-m-d') }}"
                                                                            placeholder="..."
                                                                            data-fp

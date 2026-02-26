@@ -146,35 +146,27 @@
                                value="{{ old('customer_po') }}">
                         @error('customer_po') <div class="invalid-feedback">{{ $message }}</div> @enderror
                     </div>
+
                     <div class="mt-2">
                         <label class="form-label small text-white-50 mb-1">Storage</label>
 
                         <div class="row g-2">
-                            <div class="col-12 col-md-4">
+                            <div class="col-4">
                                 <input name="storage_rack"
                                        placeholder="Rack"
                                        class="form-control bg-black text-light border-secondary @error('storage_rack') is-invalid @enderror">
-                                @error('storage_rack')
-                                <div class="invalid-feedback">{{ $message }}</div>
-                                @enderror
                             </div>
 
-                            <div class="col-12 col-md-4">
+                            <div class="col-4">
                                 <input name="storage_2"
                                        placeholder="Level"
                                        class="form-control bg-black text-light border-secondary @error('storage_level') is-invalid @enderror">
-                                @error('storage_level')
-                                <div class="invalid-feedback">{{ $message }}</div>
-                                @enderror
                             </div>
 
-                            <div class="col-12 col-md-4">
+                            <div class="col-4">
                                 <input name="storage_column"
                                        placeholder="Column"
                                        class="form-control bg-black text-light border-secondary @error('storage_column') is-invalid @enderror">
-                                @error('storage_column')
-                                <div class="invalid-feedback">{{ $message }}</div>
-                                @enderror
                             </div>
                         </div>
                     </div>

@@ -2,6 +2,7 @@
 
 namespace App\Providers;
 
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\View;
 use Illuminate\Support\ServiceProvider;
 use Jenssegers\Agent\Facades\Agent;
@@ -17,6 +18,7 @@ class AgentServiceProvider extends ServiceProvider
     {
         $agent = new Agent();
         View::share('agent', $agent);
+        Carbon::setLocale('en');
 
     }
 }
