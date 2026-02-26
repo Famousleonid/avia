@@ -1047,47 +1047,34 @@
             win.print();
         }
 
+
+
+    </script>
+    <script>
         async function copyHtmlToClipboard(elementId) {
             const original = document.getElementById(elementId);
             if (!original) return;
 
-            // ✅ НАСТРОЙКИ:
-            // Какие столбцы оставить (1 = первый столбец)
             const keepCols = [1, 4, 6, 8, 9, 10];
-
-            // Если keepCols пустой или null — копируем все столбцы
             const useKeepCols = Array.isArray(keepCols) && keepCols.length > 0;
 
-            // 1) Клонируем блок, чтобы не портить страницу
             const clone = original.cloneNode(true);
-
-            // 2) Берём именно таблицу (если в printArea есть что-то кроме неё)
             const table = clone.querySelector('table');
             if (!table) return;
 
-            // 3) Ссылки -> просто текст
-            table.querySelectorAll('a').forEach(a => {
-                const text = a.textContent ?? '';
-                a.replaceWith(document.createTextNode(text));
-            });
+            table.querySelectorAll('a').forEach(a => a.replaceWith(document.createTextNode(a.textContent ?? '')));
 
-            // 4) Удаляем лишние столбцы (по thead + tbody)
             if (useKeepCols) {
-                const keepSet = new Set(keepCols.map(Number)); // 1-based
-
+                const keepSet = new Set(keepCols.map(Number));
                 table.querySelectorAll('tr').forEach(tr => {
-                    const cells = Array.from(tr.children); // th/td
-                    cells.forEach((cell, idx) => {
-                        const colNumber = idx + 1; // 1-based
-                        if (!keepSet.has(colNumber)) cell.remove();
+                    Array.from(tr.children).forEach((cell, idx) => {
+                        if (!keepSet.has(idx + 1)) cell.remove();
                     });
                 });
             }
 
-            // 5) Убираем классы, чтобы не тянулся dark/bootstrap
             clone.querySelectorAll('[class]').forEach(el => el.removeAttribute('class'));
 
-            // 6) Инлайн стиль "белый и понятный" для Excel/Word
             table.setAttribute('border', '1');
             table.style.borderCollapse = 'collapse';
             table.style.width = '100%';
@@ -1095,28 +1082,31 @@
             table.style.color = '#000';
             table.style.fontFamily = 'Arial, sans-serif';
             table.style.fontSize = '12px';
-
             table.querySelectorAll('th,td').forEach(cell => {
                 cell.style.border = '1px solid #000';
                 cell.style.padding = '6px';
                 cell.style.background = '#fff';
                 cell.style.color = '#000';
                 cell.style.verticalAlign = 'top';
-                cell.style.whiteSpace = 'nowrap'; // можно убрать если нужно переносить
+                cell.style.whiteSpace = 'nowrap';
             });
 
-            // 7) Копируем HTML + текст
-            const html = table.outerHTML;     // копируем только таблицу
-            const text = table.innerText;     // и plain text
+            const html = table.outerHTML;
+            const text = table.innerText;
 
-            if (navigator.clipboard && window.ClipboardItem) {
-                const item = new ClipboardItem({
-                    'text/html': new Blob([html], { type: 'text/html' }),
-                    'text/plain': new Blob([text], { type: 'text/plain' }),
-                });
-                await navigator.clipboard.write([item]);
-                alert('Copied (selected columns, links as text)!');
-                return;
+            // ✅ сначала пробуем современный API, но если упал — идём в fallback
+            try {
+                if (navigator.clipboard && window.ClipboardItem) {
+                    const item = new ClipboardItem({
+                        'text/html': new Blob([html], { type: 'text/html' }),
+                        'text/plain': new Blob([text], { type: 'text/plain' }),
+                    });
+                    await navigator.clipboard.write([item]);
+                    notifySuccess('Copied', 3500);
+                    return;
+                }
+            } catch (e) {
+                // упали — пойдём в fallback ниже
             }
 
             // fallback
@@ -1131,14 +1121,16 @@
             const sel = window.getSelection();
             sel.removeAllRanges();
             sel.addRange(range);
-            document.execCommand('copy');
+
+            const ok = document.execCommand('copy');
             sel.removeAllRanges();
-
             document.body.removeChild(temp);
-            notifySuccess('Copied!', 3500);
-        }
 
+            if (ok) notifySuccess('Copied!', 3500);
+            else notifySuccess('Copy blocked by browser', 3500);
+        }
     </script>
+
     <script>
         function getVisibleWorkorderIds() {
             const rows = document.querySelectorAll('#show-workorder tbody tr');

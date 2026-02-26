@@ -58,7 +58,7 @@
 @section('content')
     <div class="draft-wrap">
 
-        <div class="card bg-dark text-light border-secondary shadow-sm" id="draftCard">
+        <div class="card bg-dark text-light border-secondary " id="draftCard">
             <div class="card-header d-flex justify-content-between align-items-center">
                 <div class="fw-semibold">Create Draft Workorder</div>
                 <div class="small text-white-50">
@@ -66,7 +66,7 @@
                 </div>
             </div>
 
-            <div class="card-body">
+            <div class="card-body pt-0 mt-0">
 
 
                 <form method="POST" action="{{ route('mobile.draft.store') }}" id="draftForm">
@@ -101,7 +101,6 @@
                         @error('unit_id') <div class="invalid-feedback">{{ $message }}</div> @enderror
                     </div>
 
-                    {{-- Customer (можно тоже сделать select2, но оставил обычным) --}}
                     <div class="mb-2">
                         <label class="form-label small text-white-50 mb-1">Customer <span class="text-danger">*</span></label>
                         <select name="customer_id"
@@ -147,6 +146,38 @@
                                value="{{ old('customer_po') }}">
                         @error('customer_po') <div class="invalid-feedback">{{ $message }}</div> @enderror
                     </div>
+                    <div class="mt-2">
+                        <label class="form-label small text-white-50 mb-1">Storage</label>
+
+                        <div class="row g-2">
+                            <div class="col-12 col-md-4">
+                                <input name="storage_rack"
+                                       placeholder="Rack"
+                                       class="form-control bg-black text-light border-secondary @error('storage_rack') is-invalid @enderror">
+                                @error('storage_rack')
+                                <div class="invalid-feedback">{{ $message }}</div>
+                                @enderror
+                            </div>
+
+                            <div class="col-12 col-md-4">
+                                <input name="storage_2"
+                                       placeholder="Level"
+                                       class="form-control bg-black text-light border-secondary @error('storage_level') is-invalid @enderror">
+                                @error('storage_level')
+                                <div class="invalid-feedback">{{ $message }}</div>
+                                @enderror
+                            </div>
+
+                            <div class="col-12 col-md-4">
+                                <input name="storage_column"
+                                       placeholder="Column"
+                                       class="form-control bg-black text-light border-secondary @error('storage_column') is-invalid @enderror">
+                                @error('storage_column')
+                                <div class="invalid-feedback">{{ $message }}</div>
+                                @enderror
+                            </div>
+                        </div>
+                    </div>
 
                     <div class="mt-3">
                         <div class="row g-2 small">
@@ -162,12 +193,12 @@
                                     <span>Received Disassembly</span>
                                 </label>
                             </div>
-                            <div class="col-6">
-                                <label class="form-check d-flex align-items-center gap-2">
-                                    <input class="form-check-input" type="checkbox" name="disassembly_upon_arrival" value="1" @checked(old('disassembly_upon_arrival'))>
-                                    <span>Disassembly Upon Arrival</span>
-                                </label>
-                            </div>
+{{--                            <div class="col-6">--}}
+{{--                                <label class="form-check d-flex align-items-center gap-2">--}}
+{{--                                    <input class="form-check-input" type="checkbox" name="disassembly_upon_arrival" value="1" @checked(old('disassembly_upon_arrival'))>--}}
+{{--                                    <span>Disassembly Upon Arrival</span>--}}
+{{--                                </label>--}}
+{{--                            </div>--}}
                             <div class="col-6">
                                 <label class="form-check d-flex align-items-center gap-2">
                                     <input class="form-check-input" type="checkbox" name="nameplate_missing" value="1" @checked(old('nameplate_missing'))>

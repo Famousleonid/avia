@@ -13,7 +13,7 @@
 @section('content')
 
     <div class="d-flex justify-content-center align-items-center vh-100">
-        <img src="{{ asset('img/avia190.png') }}" alt="Company Logo" class="img-fluid " style="max-width: 80%;">
+        <img src="{{ asset('img/avia190.png') }}" alt="Company Logo" class="img-fluid " style="max-width: 40%;">
     </div>
 
 @endsection

@@ -1,4 +1,5 @@
-{{--showdraft.blade--}}
+{{--showdraft.blade--}}{{--
+
 
 @extends('mobile.master')
 
@@ -137,7 +138,9 @@
 
     <div class="container-fluid d-flex flex-column bg-dark p-0 page-root">
 
-        {{-- Блок с информацией по воркордеру --}}
+        --}}
+{{-- Блок с информацией по воркордеру --}}{{--
+
         <div id="block-info" class="rounded-3 border border-info gradient-pane shadow-sm" style="margin: 3px; padding: 2px;">
 
             <div class="d-flex justify-content-between align-items-center w-100 fw-bold fs-2 ms-3">
@@ -233,7 +236,9 @@
 
         <hr class="border-secondary opacity-50 my-1">
 
-        {{-- Таблица с 4 группами фото + общая камера --}}
+        --}}
+{{-- Таблица с 4 группами фото + общая камера --}}{{--
+
         <div class="table-wrapper" style="flex-grow: 1; min-height: 0;">
 
             <div class="table-body-scrollable">
@@ -250,13 +255,17 @@
                     @endphp
                     @foreach($categories as $type => $label)
                         <tr>
-                            {{-- Левая колонка: название группы --}}
+                            --}}
+{{-- Левая колонка: название группы --}}{{--
+
                             <td class="category-label {{ $loop->first ? 'active' : '' }} ps-3"
                                 data-category="{{ $type }}">
                                 {{ $label }}
                             </td>
 
-                            {{-- Средняя колонка: превью / счетчик --}}
+                            --}}
+{{-- Средняя колонка: превью / счетчик --}}{{--
+
                             <td class="text-center col-media"
                                 data-workorder-id="{{ $workorder->id }}"
                                 data-category="{{ $type }}">
@@ -290,7 +299,9 @@
                                 </div>
                             </td>
 
-                            {{-- Правая колонка: одна камера на все строки --}}
+                            --}}
+{{-- Правая колонка: одна камера на все строки --}}{{--
+
                             @if($loop->first)
                                 <td class="text-center col-camera" rowspan="{{ count($categories) }}">
                                     <a href="#"
@@ -311,7 +322,9 @@
         </div>
     </div>
 
-    {{-- скрытая форма для загрузки фото с камеры --}}
+    --}}
+{{-- скрытая форма для загрузки фото с камеры --}}{{--
+
     <form id="photo-upload-form"
           data-url-template="/mobile/workorders/photo/WORKORDER_ID"
           method="POST"
@@ -582,3 +595,4 @@
     </script>
 @endsection
 
+--}}

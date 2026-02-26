@@ -564,35 +564,25 @@
                                 <h6 class="mb-0 text-primary">&nbsp;& Repair Processes</h6>
                             </div>
 
-                            <form method="get"
-                                  action="{{ url()->current() }}"
-                                  class="d-flex align-items-center gap-2">
-                                @foreach(request()->except('show_all') as $k => $v)
-                                    <input type="hidden" name="{{ $k }}" value="{{ $v }}">
-                                @endforeach
-                                <div class="form-check form-switch">
+                            <div class="form-check form-switch" data-no-spinner>
+                                <input class="form-check-input"
+                                       type="checkbox"
+                                       id="showAll"
+                                       autocomplete="off"
+                                       data-no-spinner>
 
-                                    {{-- всегда отправляем 0, если чекбокс снят --}}
-                                    <input type="hidden" name="show_all" value="0">
+                                <label class="form-check-label small"
+                                       for="showAll"
+                                       data-no-spinner>
+                                    Show all
+                                </label>
+                            </div>
 
-                                    {{-- если чекбокс включён, уйдёт show_all=1 и перекроет 0 --}}
-                                    <input class="form-check-input"
-                                           type="checkbox"
-                                           id="showAll"
-                                           name="show_all"
-                                           value="1"
-                                           {{ $showAll ? 'checked' : '' }}
-                                           autocomplete="off"
-                                           onclick="this.form.submit()">
-
-                                    <label class="form-check-label small" for="showAll">Show all</label>
-                                </div>
-                            </form>
                         </div>
 
                         @if($components->isEmpty())
                             <div class="text-muted small">
-                                No components with processes {{ $showAll ? '(all)' : '(open only)' }}.
+                                No components with processes.
                             </div>
                         @else
                             <div class="list-group list-group-flush" style="overflow:auto;">
@@ -630,7 +620,11 @@
                                                         </thead>
                                                         <tbody>
                                                         @foreach($prs as $pr)
-                                                            <tr>
+                                                            @php
+                                                                $isClosed = !empty($pr->date_finish);
+                                                            @endphp
+
+                                                            <tr data-closed="{{ $isClosed ? 1 : 0 }}">
                                                                 <td class="text-center small text-info js-last-user"
                                                                     data-tippy-content="
                                                                     <span style='color:#adb5bd'>Updated by:</span>
@@ -912,6 +906,46 @@
             }
 
 
+        });
+    </script>
+    <script>
+        document.addEventListener('click', (e) => {
+            const isShowAll = e.target?.closest?.('#showAll') || e.target?.closest?.('label[for="showAll"]');
+            if (!isShowAll) return;
+
+            // ✅ убиваем глобальные click-спиннеры (data-spinner/.press-spinner)
+            e.stopImmediatePropagation();
+        }, true); // capture
+    </script>
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+
+            const STORAGE_KEY = 'avia_show_all_right';
+            const checkbox = document.getElementById('showAll');
+            if (!checkbox) return;
+
+            function applyFilter(showAll) {
+                const rightPanel = document.querySelector('.bottom-col.right');
+                if (!rightPanel) return;
+
+                rightPanel.querySelectorAll('tr[data-closed]').forEach(tr => {
+                    const isClosed = tr.dataset.closed === '1';
+                    tr.style.display = (!showAll && isClosed) ? 'none' : '';
+                });
+            }
+
+            // restore
+            const saved = localStorage.getItem(STORAGE_KEY);
+            const showAll = saved === '1';
+            checkbox.checked = showAll;
+            applyFilter(showAll);
+
+            // ✅ реагируем на реальное изменение чекбокса
+            checkbox.addEventListener('input', () => {
+                const state = checkbox.checked;
+                localStorage.setItem(STORAGE_KEY, state ? '1' : '0');
+                applyFilter(state);
+            });
         });
     </script>
 

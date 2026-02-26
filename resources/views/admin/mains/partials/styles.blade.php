@@ -242,26 +242,9 @@
         background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='%236c757d' viewBox='0 0 16 16'%3E%3Cpath d='M3 0a1 1 0 0 0-1 1v1H1.5A1.5 1.5 0 0 0 0 3.5v11A1.5 1.5 0 0 0 1.5 16h13a1.5 1.5 0 0 0 1.5-1.5v-11A1.5 1.5 0 0 0 14.5 2H14V1a1 1 0 0 0-2 0v1H4V1a1 1 0 0 0-1-1zM1 5h14v9.5a.5.5 0 0 1-.5.5h-13a.5.5 0 0 1-.5-.5V5z'/%3E%3C/svg%3E"),
         url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='%23198754' viewBox='0 0 16 16'%3E%3Cpath d='M13.485 1.929a.75.75 0 010 1.06L6.818 9.657a.75.75 0 01-1.06 0L2.515 6.414a.75.75 0 111.06-1.06L6 7.778l6.425-6.425a.75.75 0 011.06 0z'/%3E%3C/svg%3E");
         background-repeat: no-repeat, no-repeat;
-        background-position: right .5rem center, right 2rem center;
+        background-position: right .5rem center, right .5rem center;
         background-size: 1rem 1rem, 1rem 1rem;
     }
-
-    /* =========================================================
-    5) Small UI pieces
-    ========================================================= */
-    /*.select-task {*/
-    /*    border: 0;*/
-    /*    width: 100%;*/
-    /*    text-align: left;*/
-    /*    padding: .5rem .75rem;*/
-    /*    background: transparent;*/
-    /*    border-radius: .5rem;*/
-    /*}*/
-
-    /*.select-task:hover {*/
-    /*    background: rgba(0, 123, 255, .15);*/
-    /*    cursor: pointer;*/
-    /*}*/
 
     #taskTabContent {
         max-height: 40vh;
@@ -493,5 +476,9 @@
         font-size: .85rem;
         min-height: 70px;
         resize: vertical;
+    }
+
+    #photoModal {
+        z-index: 8000 !important;
     }
 </style>

@@ -152,7 +152,7 @@
                     <tbody>
                     @foreach($users as $user)
                         <tr>
-                            <td @if(!$user->email_verified_at) style="color:red" @endif>{{$user->name}}</td>
+                            <td @if(is_null($user->email_verified_at)) style="color:red !important;" @endif>{{$user->name}}</td>
                             <td class="">{{$user->email}}</td>
                             <td class="text-center"
                                 style="color: {{ $user->team ? '#ffffff' : '#808080' }};">{{ $user->team->name ?? 'Unknown team' }}</td>

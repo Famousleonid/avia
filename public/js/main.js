@@ -32,6 +32,7 @@
 
     // публичные (совместимость со старым кодом)
     window.showLoadingSpinner = function () {
+
         pendingSpinner++;
 
         if (pendingSpinner < 1) pendingSpinner = 1;
@@ -86,13 +87,15 @@
 
         if (e.target.closest('[data-no-spinner]')) return;
         if (e.target.closest('[data-bs-toggle]')) return;
-
+        if (e.target.closest('#showAll')) return;
+        if (e.target.closest('#showAll') || e.target.closest('label[for="showAll"]')) return;
 
         // 2) ищем ближайший элемент с data-spinner или старым классом .press-spinner
         const target = e.target.closest('[data-spinner], .press-spinner');
         if (!target) return;
 
         if (typeof window.safeShowSpinner === 'function') {
+
             window.safeShowSpinner();
         } else if (typeof window.showLoadingSpinner === 'function') {
             try { window.showLoadingSpinner(); } catch (_) {}
@@ -108,6 +111,7 @@
     window.__globalSubmitSpinnerBound = true;
 
     document.addEventListener('submit', function (e) {
+
         const form = e.target;
         if (!form || form.tagName !== 'FORM') return;
 
@@ -680,7 +684,6 @@ window.hapticTap = function (pattern = 10) {
             const original = ta.dataset.original ?? '';
             if ((ta.value ?? '') === original) return;
 
-            console.log('NOTES autosave blur → ajaxSubmit');
             window.ajaxSubmit(form);
         }, true);
 
@@ -696,8 +699,6 @@ window.hapticTap = function (pattern = 10) {
 
                 const original = ta.dataset.original ?? '';
                 if ((ta.value ?? '') === original) return;
-
-                console.log('NOTES Ctrl+Enter → ajaxSubmit');
                 window.ajaxSubmit(form);
             }
         }, true);

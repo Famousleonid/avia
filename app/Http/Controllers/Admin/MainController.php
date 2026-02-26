@@ -74,7 +74,6 @@ class MainController extends Controller
     public function show(Workorder $workorder, Request $request)
     {
         // Если binding уже возвращает Workorder::withDrafts(), то withDrafts() ниже можно убрать.
-        // Но оставляем безопасно.
         $current_workorder = Workorder::withDrafts()
             ->with([
                 'customer', 'user', 'instruction',
@@ -98,10 +97,6 @@ class MainController extends Controller
 
         $tasksByGeneral = $tasks->groupBy('general_task_id');
 
-        $showAll = $request->has('show_all')
-            ? $request->get('show_all') === '1'
-            : true;
-
         // mains by task
         $mains = Main::with(['user', 'task'])
             ->where('workorder_id', $current_workorder->id)
@@ -115,20 +110,14 @@ class MainController extends Controller
         if ($current_workorder->unit?->manual) {
             $components = $current_workorder->unit->manual
                 ->components()
-                ->whereHas('tdrs', function ($q) use ($current_workorder, $showAll) {
+                ->whereHas('tdrs', function ($q) use ($current_workorder ) {
                     $q->where('workorder_id', $current_workorder->id)
-                        ->whereHas('tdrProcesses', function ($qq) use ($showAll) {
-                            if (!$showAll) {
-                                $qq->whereNull('date_finish');
-                            }
+                        ->whereHas('tdrProcesses', function ($qq)  {
                         });
                 })
-                ->with(['tdrs' => function ($q) use ($current_workorder, $showAll) {
+                ->with(['tdrs' => function ($q) use ($current_workorder) {
                     $q->where('workorder_id', $current_workorder->id)
-                        ->with(['tdrProcesses' => function ($qq) use ($showAll) {
-                            if (!$showAll) {
-                                $qq->whereNull('date_finish');
-                            }
+                        ->with(['tdrProcesses' => function ($qq)  {
                             $qq->with('processName')->orderBy('id');
                         }])
                         ->orderBy('id');
@@ -283,7 +272,6 @@ class MainController extends Controller
             'imgFull',
             'manual',
             'components',
-            'showAll',
             'ordersPartsNew',
             'prl_parts',
             'orderedQty',

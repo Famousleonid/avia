@@ -342,8 +342,8 @@
                                     <td class="align-content-center">{{$p->units_assy}} </td>
                                     <td class="align-content-center">
                                         @if($p->getMedia('components')->isNotEmpty())
-                                            <a href="{{ $component->getFirstMediaBigUrl('components') }}" data-fancybox="gallery">
-                                                <img class="rounded-circle" src="{{ $component->getFirstMediaThumbnailUrl('components') }}" width="40" height="40" alt="IMG"/>
+                                            <a href="{{ $p->getFirstMediaBigUrl('components') }}" data-fancybox="gallery">
+                                                <img class="rounded-circle" src="{{ $p->getFirstMediaThumbnailUrl('components') }}" width="40" height="40" alt="IMG"/>
                                             </a>
                                         @else
                                             <span class="text-muted small">—</span>

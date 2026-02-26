@@ -282,8 +282,10 @@ document.addEventListener('DOMContentLoaded', () => {
         // если это чекбокс ignore_row, его обрабатывает другой скрипт
         if (e.target.closest('.js-ignore-row')) return;
 
+
         const input = e.target.closest('form.js-auto-submit input');
         if (!input) return;
+        if (input.id === 'showAll') return;
 
         if (input.form.requestSubmit) input.form.requestSubmit();
         else input.form.submit();

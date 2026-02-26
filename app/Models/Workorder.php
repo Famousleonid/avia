@@ -5,6 +5,7 @@ namespace App\Models;
 use App\Traits\HasMediaHelpers;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Illuminate\Database\QueryException;
 use Spatie\Activitylog\LogOptions;
 use Spatie\Activitylog\Traits\LogsActivity;
 use Spatie\MediaLibrary\HasMedia;
@@ -17,9 +18,14 @@ class Workorder extends Model implements HasMedia
 
     protected $fillable = ['number', 'user_id', 'unit_id', 'instruction_id', 'external_damage','received_disassembly','nameplate_missing','disassembly_upon_arrival',
         'preliminary_test_false','part_missing','extra_parts','new_parts', 'open_at', 'customer_id', 'approve', 'approve_at', 'description', 'manual',
-        'serial_number', 'place', 'created_at','amdt', 'rm_report', 'customer_po','modified','is_draft'];
+        'serial_number', 'place', 'amdt', 'rm_report', 'customer_po','modified','is_draft','storage_rack','storage_level','storage_column',];
 
-    protected $dates = ['approve_at','deleted_at','open_at'];
+    protected $casts = [
+        'approve_at' => 'datetime',
+        'open_at'    => 'datetime',
+        'is_draft'   => 'boolean',
+        'approve'    => 'boolean',
+    ];
 
     public $mediaUrlName = 'workorders';
 
@@ -236,7 +242,8 @@ class Workorder extends Model implements HasMedia
         while ($attempts < 5) {
             $attempts++;
 
-            $last = self::withoutGlobalScope('exclude_drafts')
+            $last = self::withTrashed() // ✅ учитываем deleted_at
+            ->withoutGlobalScope('exclude_drafts')
                 ->where('is_draft', true)
                 ->whereBetween('number', [1, 99999])
                 ->max('number');
@@ -277,7 +284,8 @@ class Workorder extends Model implements HasMedia
 
     public static function nextDraftNumber(): int
     {
-        $last = self::withoutGlobalScope('exclude_drafts')
+        $last = self::withTrashed() // ✅ учитываем deleted_at
+        ->withoutGlobalScope('exclude_drafts')
             ->where('is_draft', true)
             ->whereBetween('number', [1, 99999])
             ->lockForUpdate()
@@ -292,5 +300,24 @@ class Workorder extends Model implements HasMedia
         return $next;
     }
 
+    public function getStorageLocationAttribute(): ?string
+    {
+        if (!$this->storage_rack && !$this->storage_level && !$this->storage_column) return null;
 
+        $parts = [];
+
+        if ($this->storage_rack) {
+            $parts[] = 'Rack: ' . $this->storage_rack;
+        }
+
+        if ($this->storage_level) {
+            $parts[] = 'Level: ' . $this->storage_level;
+        }
+
+        if ($this->storage_column) {
+            $parts[] = 'Column: ' . $this->storage_column;
+        }
+
+        return empty($parts) ? null : implode(' _ ', $parts);
+    }
 }

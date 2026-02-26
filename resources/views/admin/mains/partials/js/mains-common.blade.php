@@ -41,7 +41,7 @@ document.addEventListener('DOMContentLoaded', () => {
     confirmBt?.addEventListener('click', function () {
         if (!pendingAction) return;
         delForm.setAttribute('action', pendingAction);
-        safeShowSpinner();
+     //   safeShowSpinner();
         delForm.submit();
     });
 
@@ -50,7 +50,7 @@ document.addEventListener('DOMContentLoaded', () => {
     //    Чекбокс: #showAll (в своей форме)
     // =========================
     document.getElementById('showAll')?.addEventListener('change', function () {
-        safeShowSpinner();
+     //   safeShowSpinner();
         if (this.form?.requestSubmit) this.form.requestSubmit();
         else this.form?.submit();
     });

@@ -295,7 +295,10 @@ class WorkorderController extends Controller
             'unit_id' => ['required', 'exists:units,id'],
             'customer_id' => ['required', 'exists:customers,id'],
             'instruction_id' => ['required', 'exists:instructions,id'],
-            'number' => ['nullable'], // ✅ draft может быть без номера
+            'number' => ['nullable'],
+            'storage_rack'   => ['nullable','integer','min:1','max:999'],
+            'storage_level'  => ['nullable','integer','min:1','max:999'],
+            'storage_column' => ['nullable','integer','min:1','max:999'],
         ];
 
         // ✅ Если НЕ draft — номер обязателен и уникален
@@ -393,6 +396,9 @@ class WorkorderController extends Controller
             'unit_id' => ['required'],
             'customer_id' => ['required'],
             'instruction_id' => ['required'],
+            'storage_rack'   => ['nullable','integer','min:1','max:999'],
+            'storage_level'  => ['nullable','integer','min:1','max:999'],
+            'storage_column' => ['nullable','integer','min:1','max:999'],
         ];
 
         // Номер разрешаем менять ТОЛЬКО если воркордер был Draft и стал НЕ Draft
@@ -636,7 +642,7 @@ class WorkorderController extends Controller
     public function downloadAllGrouped($id)
     {
         try {
-            $workorder = Workorder::findOrFail($id);
+            $workorder = Workorder::withDrafts()->findOrFail($id);
             $groups = array_keys(config('workorder_media.groups'));
 
             return new StreamedResponse(function () use ($workorder, $groups, $id) {
@@ -680,7 +686,7 @@ class WorkorderController extends Controller
     public function downloadGroup($id, $group)
     {
         try {
-            $workorder = Workorder::findOrFail($id);
+            $workorder = Workorder::withDrafts()->findOrFail($id);
 
             $groupsConfig = config('workorder_media.groups', []);
             $allowed = array_keys($groupsConfig);
@@ -844,5 +850,21 @@ class WorkorderController extends Controller
             });
 
         return response()->json(['success' => true, 'data' => $logs]);
+    }
+
+    public function updateStorage(Request $request, \App\Models\Workorder $workorder)
+    {
+        $data = $request->validate([
+            'storage_rack'   => ['nullable','integer','min:0','max:999'],
+            'storage_level'  => ['nullable','integer','min:0','max:999'],
+            'storage_column' => ['nullable','integer','min:0','max:999'],
+        ]);
+
+        $workorder->update($data);
+
+        return response()->json([
+            'success' => true,
+            'storage_location' => $workorder->storage_location,
+        ]);
     }
 }

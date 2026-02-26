@@ -11,6 +11,7 @@ use App\Models\Unit;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Validation\Rule;
 use Throwable;
 
 
@@ -66,17 +67,18 @@ class UnitController extends Controller
     {
         try {
             if (!$request->ajax()) {
-                Log::channel('avia')->warning('Non-AJAX request to UnitController@store');
                 return response()->json(['error' => 'Invalid request type'], 400);
             }
-
-            Log::channel('avia')->info('Unit store raw payload', $request->all());
 
             // Ветка 1: фронт прислал ОДИН юнит (manual_id + part_number)
             if ($request->has(['manual_id', 'part_number'])) {
                 $data = $request->validate([
                     'manual_id'   => 'required|exists:manuals,id',
-                    'part_number' => 'required|string|max:255',
+                    'part_number' => [
+                        'required','string','max:255',
+                        Rule::unique('units', 'part_number')
+                            ->where(fn($q) => $q->where('manual_id', $request->input('manual_id'))),
+                    ],
                     'eff_code'    => 'nullable|string|max:255',
                     'name'        => 'nullable|string|max:255',
                     'description' => 'nullable|string|max:255',
@@ -90,8 +92,6 @@ class UnitController extends Controller
                     'description' => $data['description'] ?? null,
                     'verified'    => false,
                 ]);
-
-                Log::channel('avia')->info('Unit created (single)', ['id' => $unit->id]);
 
                 // Отдаём то, что ожидает фронт при добавлении опции в селект
                 return response()->json([
@@ -107,11 +107,13 @@ class UnitController extends Controller
             $validated = $request->validate([
                 'cmm_id'            => 'required|exists:manuals,id',
                 'units'             => 'required|array|min:1',
-                'units.*.part_number' => 'required|string|max:255',
+                'units.*.part_number' => [
+                    'required','string','max:255',
+                    Rule::unique('units', 'part_number')
+                        ->where(fn($q) => $q->where('manual_id', $request->input('cmm_id'))),
+                ],
                 'units.*.eff_code'    => 'nullable|string|max:255',
             ]);
-
-            Log::channel('avia')->info('Unit batch validated', $validated);
 
             $createdUnits = [];
             foreach ($validated['units'] as $unitData) {
@@ -123,11 +125,6 @@ class UnitController extends Controller
                 ]);
             }
 
-            Log::channel('avia')->info('Units created (batch)', [
-                'count'     => count($createdUnits),
-                'manual_id' => $validated['cmm_id'],
-            ]);
-
             return response()->json([
                 'success' => true,
                 'message' => count($createdUnits) . ' unit(s) created successfully',
@@ -135,10 +132,6 @@ class UnitController extends Controller
             ], 201);
 
         } catch (Throwable $e) {
-            Log::channel('avia')->error('Unit store exception', [
-                'message' => $e->getMessage(),
-                'trace'   => $e->getTraceAsString(),
-            ]);
             return response()->json(['error' => 'Server error'], 500);
         }
     }

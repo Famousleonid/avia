@@ -323,38 +323,23 @@ class ManualController extends Controller
                         'verified' => 1,
                     ]);
                     $newUnits[] = $newUnit->id;
-                    \Log::info('Created new unit', [
-                        'unit_id' => $newUnit->id,
-                        'part_number' => $partNumber,
-                        'eff_code' => $effCode
-                    ]);
                 }
             }
 
             // Удаляем только те units, которые больше не используются
             $unitsToDelete = array_diff($existingUnits, $newUnits);
             if (!empty($unitsToDelete)) {
-                \Log::info('Units to delete', ['unit_ids' => $unitsToDelete]);
+
 
                 // Проверяем, есть ли связанные workorders
                 foreach ($unitsToDelete as $unitId) {
                     $unit = Unit::find($unitId);
                     if ($unit) {
-                        $workorderCount = $unit->workorder()->count();
-                        \Log::info('Checking unit for deletion', [
-                            'unit_id' => $unitId,
-                            'part_number' => $unit->part_number,
-                            'workorder_count' => $workorderCount
-                        ]);
+                        $workorderCount = $unit->workorders()->count();
 
                         if ($workorderCount == 0) {
                             $unit->delete();
-                            \Log::info('Deleted unit', ['unit_id' => $unitId]);
                         } else {
-                            \Log::warning('Cannot delete unit - has workorders', [
-                                'unit_id' => $unitId,
-                                'workorder_count' => $workorderCount
-                            ]);
                         }
                     }
                 }

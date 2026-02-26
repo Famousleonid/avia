@@ -138,7 +138,7 @@
     <div class="container-fluid d-flex flex-column bg-dark p-0 page-root">
 
         {{-- Блок с информацией по воркордеру --}}
-        <div id="block-info" class="rounded-3 border border-info gradient-pane shadow-sm" style="margin: 3px; padding: 2px;">
+        <div id="block-info" class="rounded-3 border border-info gradient-pane " style="margin: 3px; padding: 2px;">
 
             <div class="d-flex justify-content-between align-items-center w-100 fw-bold fs-2 ms-3">
 
@@ -149,10 +149,10 @@
                 @else
                     <span class="text-info">W {{ $workorder->number }}</span>
                 @endif
-
+                <div class="fw-normal" style="font-size: 14px;">{{ $workorder->user->name }}</div>
                 @if($workorder->open_at)
                     <span class="text-secondary fw-normal fs-6 me-4">
-                        Open at: {{ $workorder->open_at->format('d-M-Y') }}
+                        Open:{{ $workorder->open_at->format('d-M-y') }}
                     </span>
                 @endif
             </div>
@@ -236,7 +236,69 @@
 
         <hr class="border-secondary opacity-50 my-1">
 
-        {{-- Таблица с 4 группами фото + общая камера --}}
+        {{-------------------------------------------------------------------------------------------}}
+
+        <div class="rounded-3 border border-info m-1 p-2">
+            <div class="d-flex align-items-start justify-content-between gap-2">
+                <div>
+                    <div id="storageView_{{ $workorder->id }}" class="d-flex align-items-center">
+                        <span class="text-info fw-semibold me-2">Storage</span>
+                        <span id="storageText_{{ $workorder->id }}" class="text-white">{{ $workorder->storage_location ?? '—' }}</span>
+                    </div>
+
+                    <form id="storageForm_{{ $workorder->id }}" class="mt-2 d-none">
+                        <div class="row g-2">
+                            <div class="col-4">
+                                <label class="form-label mb-1">Rack</label>
+                                <input type="number" min="1" class="form-control form-control-sm"
+                                       name="storage_rack"
+                                       value="{{ old('storage_rack', $workorder->storage_rack ?? '') }}">
+                            </div>
+                            <div class="col-4">
+                                <label class="form-label mb-1">Level</label>
+                                <input type="number" min="1" class="form-control form-control-sm"
+                                       name="storage_level"
+                                       value="{{ old('storage_level', $workorder->storage_level ?? '') }}">
+                            </div>
+                            <div class="col-4">
+                                <label class="form-label mb-1">Column</label>
+                                <input type="number" min="1" class="form-control form-control-sm"
+                                       name="storage_column"
+                                       value="{{ old('storage_column', $workorder->storage_column ?? '') }}">
+                            </div>
+                        </div>
+
+                        <div class="d-flex gap-2 mt-2">
+                            <button type="button"
+                                    class="btn btn-sm btn-success"
+                                    onclick="saveStorage({{ $workorder->id }})">
+                                Save
+                            </button>
+                            <button type="button"
+                                    class="btn btn-sm btn-outline-secondary"
+                                    onclick="cancelStorage({{ $workorder->id }})">
+                                Cancel
+                            </button>
+                        </div>
+
+                        <div class="small text-danger mt-2 d-none" id="storageErr_{{ $workorder->id }}"></div>
+                    </form>
+                </div>
+
+                <div class="text-end">
+                    <button type="button"
+                            class="btn btn-sm btn-outline-info"
+                            id="storageEditBtn_{{ $workorder->id }}"
+                            onclick="toggleStorageEdit({{ $workorder->id }}, true)">
+                        <i class="bi bi-pencil"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+
+
+
+        {{-- Таблица с группами фото + общая камера --}}
         <div class="table-wrapper" style="flex-grow: 1; min-height: 0;">
 
             <div class="table-body-scrollable">
@@ -586,5 +648,81 @@
                 }
             });
         });
+    </script>
+
+    <script>
+        // URL-шаблон (лучше так, чем собирать руками)
+        const STORAGE_UPDATE_URL = @json(route('workorders.storage.update', ['workorder' => '__ID__']));
+
+        function toggleStorageEdit(id, on) {
+            const form = document.getElementById('storageForm_' + id);
+            const btn  = document.getElementById('storageEditBtn_' + id);
+            const err  = document.getElementById('storageErr_' + id);
+
+            if (err) { err.classList.add('d-none'); err.textContent = ''; }
+
+            if (!form) return;
+            form.classList.toggle('d-none', !on);
+            if (btn) btn.classList.toggle('d-none', on);
+        }
+
+        function cancelStorage(id) {
+            toggleStorageEdit(id, false);
+        }
+
+        async function saveStorage(id) {
+            const form = document.getElementById('storageForm_' + id);
+            const err  = document.getElementById('storageErr_' + id);
+            const text = document.getElementById('storageText_' + id);
+
+            if (!form) return;
+
+            if (err) { err.classList.add('d-none'); err.textContent = ''; }
+
+            const fd = new FormData(form);
+
+            // отправляем JSON, чтобы Laravel валидировал как обычно
+            const payload = {
+                storage_rack:   fd.get('storage_rack') ? Number(fd.get('storage_rack')) : null,
+                storage_level:  fd.get('storage_level') ? Number(fd.get('storage_level')) : null,
+                storage_column: fd.get('storage_column') ? Number(fd.get('storage_column')) : null,
+            };
+
+            const url = STORAGE_UPDATE_URL.replace('__ID__', id);
+
+            try {
+                const r = await fetch(url, {
+                    method: 'PATCH',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Accept': 'application/json',
+                        'X-CSRF-TOKEN': @json(csrf_token()),
+                        'X-Requested-With': 'XMLHttpRequest',
+                    },
+                    body: JSON.stringify(payload),
+                });
+
+                const data = await r.json().catch(() => ({}));
+
+                if (!r.ok) {
+                    const msg = data.message || 'Error saving storage';
+                    if (err) { err.textContent = msg; err.classList.remove('d-none'); }
+                    return;
+                }
+
+                // ожидаем, что сервер вернёт storage_location строкой
+                if (text) text.textContent = data.storage_location ?? '—';
+
+                toggleStorageEdit(id, false);
+
+                // если у тебя есть showNotification() — можно
+                if (typeof showNotification === 'function') {
+                    showNotification('Storage updated', 'success');
+                }
+
+            } catch (e) {
+                if (err) { err.textContent = e.message || 'Network error'; err.classList.remove('d-none'); }
+            }
+        }
     </script>
 @endsection

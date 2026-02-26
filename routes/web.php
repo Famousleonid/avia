@@ -335,7 +335,7 @@ Route::group(['middleware' => ['auth']], function () {
 
     Route::get('/admin/activity', [ActivityLogController::class, 'index'])->name('admin.activity.index');
     Route::post('/reports/table/pdf', [ReportController::class, 'tablePdf'])->name('reports.table.pdf');
-
+    Route::patch('/workorders/{workorder}/storage', [WorkorderController::class, 'updateStorage'])->name('workorders.storage.update');
 
 });
 

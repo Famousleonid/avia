@@ -136,6 +136,9 @@ class MobileController extends Controller
             'disassembly_upon_arrival'=> ['nullable'],
             'nameplate_missing'      => ['nullable'],
             'extra_parts'            => ['nullable'],
+            'storage_rack'   => ['nullable','integer','min:0','max:999'],
+            'storage_level'  => ['nullable','integer','min:0','max:999'],
+            'storage_column' => ['nullable','integer','min:0','max:999'],
         ]);
 
         // чекбоксы → bool

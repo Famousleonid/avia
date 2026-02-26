@@ -243,7 +243,7 @@
                     }
 
                     // 2) свои / все
-                    if (visible && !showAll && !isOwn) {
+                    if (visible && !onlyDraft && !showAll && !isOwn) {
                         visible = false;
                     }
 
