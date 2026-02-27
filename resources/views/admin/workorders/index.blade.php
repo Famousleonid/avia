@@ -380,23 +380,23 @@
                         <th class="text-center text-primary sortable col-number">
                             Number <i class="bi bi-chevron-expand ms-1"></i>
                         </th>
-                        <th class="text-center text-primary col-approve">Approve</th>
+                        <th class="text-center text-primary col-approve no-print">Approve</th>
                         @hasanyrole('Admin|Manager')
-                        <th class="text-center text-primary col-stages">Stages</th>
+                        <th class="text-center text-primary col-stages no-print">Stages</th>
                         @endhasanyrole
                         <th class="text-center text-primary">Component</th>
                         <th class="text-center text-primary">Description</th>
                         <th class="text-center text-primary">Serial number</th>
-                        <th class="text-center text-primary">Manual</th>
+                        <th class="text-center text-primary no-print">Manual</th>
                         <th class="text-center text-primary sortable">Customer <i class="bi bi-chevron-expand ms-1"></i></th>
                         <th class="text-center text-primary sortable">Instruction <i class="bi bi-chevron-expand ms-1"></i></th>
                         <th class="text-center text-primary col-date">Open Date</th>
                         <th class="text-center text-primary col-date">Customer PO</th>
-                        <th class="text-center text-primary col-edit">Edit</th>
-                        <th class="text-center text-primary sortable">Technik <i class="bi bi-chevron-expand ms-1"></i></th>
+                        <th class="text-center text-primary col-edit no-print">Edit</th>
+                        <th class="text-center text-primary sortable no-print">Technik <i class="bi bi-chevron-expand ms-1"></i></th>
 
                         @role('Admin')
-                        <th class="text-center text-primary col-delete">Delete</th>
+                        <th class="text-center text-primary col-delete no-print">Delete</th>
                         @endrole
                     </tr>
                     </thead>
@@ -431,7 +431,7 @@
                                 @endif
                             </td>
 
-                            <td class="text-center">
+                            <td class="text-center no-print">
                                 @hasanyrole('Admin|Manager')
                                 <a href="#"
                                    class="approve-btn"
@@ -457,7 +457,7 @@
                                     @endhasanyrole
                             </td>
                             @hasanyrole('Admin|Manager')
-                            <td class="text-center">
+                            <td class="text-center no-print">
                                 @php
                                     $byGt = $workorder->generalTaskStatuses->keyBy('general_task_id');
                                     $mainsByTask = $workorder->main
@@ -507,7 +507,7 @@
                                 @endif
                             </td>
 
-                            <td class="text-center">
+                            <td class="text-center no-print">
                                 {{ $workorder->unit->manuals->number }}&nbsp
                                 <span class="text-white-50">({{ $workorder->unit->manuals->lib }})</span>
                             </td>
@@ -537,18 +537,18 @@
                                 {{ $workorder->customer_po }}
                             </td>
 
-                            <td class="text-center">
+                            <td class="text-center no-print">
                                 <a href="{{ route('workorders.edit', $workorder->id) }}">
                                     <img src="{{ asset('img/set.png') }}" width="30" alt="Edit">
                                 </a>
                             </td>
 
-                            <td class="text-center td-technik">
+                            <td class="text-center td-technik no-print">
                                 {{ $workorder->user->name }}
                             </td>
 
                             @role('Admin')
-                            <td class="text-center">
+                            <td class="text-center no-print">
                                 <form id="deleteForm_{{ $workorder->id }}"
                                       action="{{ route('workorders.destroy', $workorder->id) }}"
                                       method="POST" style="display:inline;">
@@ -1020,13 +1020,20 @@
                 .join('');
 
             const style = `
-        <style>
-            body { font-family: Arial, sans-serif; padding: 16px; }
-            table { width: 100%; border-collapse: collapse; }
-            th, td { border: 1px solid #000; padding: 6px; }
-            .table { width:100%; }
-        </style>
-    `;
+<style>
+  body { font-family: Arial, sans-serif; padding: 16px; }
+  table { width: 100%; border-collapse: collapse; }
+  th, td { border: 1px solid #000; padding: 6px; font-size: 12px; }
+
+  .no-print, .no-print * { display: none !important; }
+
+  /* убрать стрелки сортировки */
+  th.sortable i,
+  th.sortable .bi {
+      display: none !important;
+  }
+</style>
+`;
 
             const win = window.open('', '', 'height=800,width=1100');
             win.document.open();
