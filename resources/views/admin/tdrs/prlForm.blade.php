@@ -314,17 +314,20 @@
         .trainer-init-1 {
             width: 99px;
         }
-        .fs-7 {
+        .fs-9 {
             font-size: 0.9rem; /* или любое другое подходящее значение */
         }
         .fs-75 {
-            font-size: 0.8rem; /* или любое другое подходящее значение */
+            font-size: 0.75rem; /* или любое другое подходящее значение */
         }
         .fs-8 {
-            font-size: 0.7rem; /* или любое другое подходящее значение */
+            font-size: 0.8rem; /* или любое другое подходящее значение */
         }
-        .fs-9 {
+        .fs-4 {
             font-size: 0.4rem; /* или любое другое подходящее значение */
+        }
+        .fs-11 {
+            font-size: 1.1rem; /* или любое другое подходящее значение */
         }
 
         .details-row {
@@ -347,13 +350,13 @@
 
         /* Единая сетка PRL-таблицы по ширине колонок (в процентах) */
         .prl-col-fig   { flex: 0 0 5%;  max-width: 5%; }
-        .prl-col-item  { flex: 0 0 5%;  max-width: 5%; }
+        .prl-col-item  { flex: 0 0 7%;  max-width: 7%; }
         .prl-col-desc  { flex: 0 0 25%; max-width: 25%; }
         .prl-col-part  { flex: 0 0 35%; max-width: 35%; }
-        .prl-col-qty   { flex: 0 0 5%; max-width: 5%; }
-        .prl-col-code  { flex: 0 0 5%; max-width: 5%; }
-        .prl-col-po    { flex: 0 0 10%; max-width: 10%; }
-        .prl-col-notes { flex: 0 0 10%; max-width: 10%; }
+        .prl-col-qty   { flex: 0 0 6%; max-width: 6%; }
+        .prl-col-code  { flex: 0 0 6%; max-width: 6%; }
+        .prl-col-po    { flex: 0 0 10%; max-width: 8%; }
+        .prl-col-notes { flex: 0 0 10%; max-width: 8%; }
 
         /* Минимальная высота для строк PRL (в т.ч. пустых) — настраивается в Print Settings */
         .data-row-prl {
@@ -382,24 +385,24 @@
             <div class="row">
                 <div class="col-4">
                     <img src="{{ asset('img/icons/AT_logo-rb.svg') }}" alt="Logo"
-                         style="width: 120px; margin: 6px 10px 0;">
+                         style="width: 150px; margin: 6px 10px 0;">
                 </div>
                 <div class="col-8">
-                    <h5 class="p-2 mt-3 text-black text-"><strong>PART REPLACEMENT LIST</strong></h5>
+                    <h3 class=" mt-3 text-black text-"><strong>PARTS REPLACEMENT LIST</strong></h3>
                 </div>
             </div>
-            <div class="row">
-                <div class="col-1 text-end pe-2"><h6><strong>P/N:</strong> </h6></div>
-                <div class="col-4 ">
-                    <div class="border-b">
+            <div class="row " >
+                <div class="col-1 text-end align-content-end pe-2 mb-2" ><h6><strong>P/N:</strong> </h6></div>
+                <div class="col-4 align-content-end">
+                    <div class="border-b mb-2 pe-2 ">
                         <h6 class=""><strong> {{$current_wo->unit->part_number}}</strong></h6>
                     </div>
                 </div>
-                <div class="col-4 ">
-                    <div class="row ">
-                        <div class="col-10 border-b">
+                <div class="col-3 align-content-end" >
+                    <div class="row mb-2">
+                        <div class="col-10 border-b ">
                             <div class="d-flex ">
-                                <h6 class=" "><strong>MFR: </strong></h6>
+                                <h6 class="pe-2 "><strong>MFR: </strong></h6>
                                 @foreach($manuals as $manual)
                                     @if($manual->id == $current_wo->unit->manual_id)
                                         <h6 class=" ms-2"><strong> {{$manual->builder->name}}</strong></h6>
@@ -407,18 +410,19 @@
                                 @endforeach
                             </div>
                         </div>
-                        <div class="col-2 border-b"> </div>
+                        <div class="col-2 "> </div>
                     </div>
                 </div>
-                <div class="col-3 ">
-                    <h5 class=" border-all text-center  " style="height: 36px;align-content: center">
-                        <strong>{{__('WO No:     W')}}{{$current_wo->number}}</strong>
+                <div class="col-4 ps-4 align-content-end ">
+                    <h5 class=" border-all justify-content-center fs-11 d-flex pt-3" style="height: 50px;">
+                        <strong class="pe-5">{{__('WO No:')}}</strong>
+                        <strong>{{__(('W'))}}{{$current_wo->number}}</strong>
                     </h5>
                 </div>
             </div>
-            <div class="row mt-1">
-                <div class="col-1"><h6 class="ms-3 me-3"><strong>DESC: </strong></h6></div>
-                <div class="col-4  ">
+            <div class="row mt-3" >
+                <div class="col-1 text-end" style="height: 42px">  <h6 class=""><strong>DESC: </strong></h6></div>
+                <div class="col-4 ps-2 ">
                             <div class="  border-b">
                                 @foreach($manuals as $manual)
                                     @if($manual->id == $current_wo->unit->manual_id)
@@ -455,7 +459,7 @@
             </div>
 
 
-            <div class="row mt-2 ms-3" style="width: 100%">
+            <div class="row  ms-3 " style="width: 100%">
                 <div class="col-1 prl-col-fig border-l-t-b text-center align-content-center">
                             <h6 style="margin-top: 5px; font-size: 0.75rem;">FIG No.</h6>
                         </div>
@@ -638,20 +642,20 @@
             </div>
 
         <!-- Блок с печатями (отображается на последней странице через JavaScript) -->
-        <div class="stamps-block mt-3" style="display: none; ">
+        <div class="stamps-block mt-2" style="display: none; ">
             <div class="row data-row-prl ms-3 " style="width: 100%">
                 <div class="prl-col-fig "></div>
                 <div class="prl-col-item "></div>
                 <div class="prl-col-desc "></div>
                 <div class="prl-col-part "></div>
                 <div class="prl-col-qty border-l-t-b text-center align-content-center d-flex justify-content-center
-                align-items-center" style="height: 40px">
+                align-items-center" style="height: 45px">
                         <img src="{{ asset('img/icons/prod_st.png') }}" alt="stamp"
                          style="max-height: 40px; width: 34px">
                     </div>
                 <div class="prl-col-code border-all text-center align-content-center d-flex justify-content-center align-items-center">
                         <img src="{{ asset('img/icons/qual_st.png') }}" alt="stamp"
-                         style="max-height: 40px; width: 34px;padding-bottom: 1">
+                         style="max-height: 40px; width: 34px;">
                     </div>
                 <div class="prl-col-po "></div>
                 <div class="prl-col-notes "></div>

@@ -298,12 +298,7 @@
                                     Log Card
                                 </label>
                             </div>
-                            <div class="form-check ms-3">
-                                <input class="form-check-input" type="checkbox"  id="repair" name="repair">
-                                <label class="form-check-label" for="repair">
-                                    Repair
-                                </label>
-                            </div>
+
                             <div class="form-check ms-3">
                                 <input class="form-check-input" type="checkbox"  id="is_bush" name="is_bush">
                                 <label class="form-check-label" for="is_bush">
