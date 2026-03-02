@@ -176,9 +176,13 @@
     </div>
 
     @php
-        $earliestTrainingDate = $training->manual->trainings()->where('form_type', 112)->min('date_training');
+        $earliestTrainingDate = $training->manual->trainings()
+            ->where('form_type', 112)
+            ->where('user_id', $training->user_id)
+            ->min('date_training');
         $previousTrainingDate = $training->manual->trainings()
             ->where('form_type', 112)
+            ->where('user_id', $training->user_id)
             ->where('date_training', '<', $training->date_training)
             ->where('id', '!=', $training->id)
             ->max('date_training');
@@ -209,7 +213,9 @@
             <h6>2. Testing and Fault Isolation;</h6>
         </div>
         <div class="col-2 border-t-b pt-3 text-center hrs-topic-1">
-            <h5>{{ $training->form_type == 112 && ($training->date_training == $earliestTrainingDate || ($previousTrainingDate && \Carbon\Carbon::parse($training->date_training)->diffInDays(\Carbon\Carbon::parse($previousTrainingDate)) >= 365)) ? $training->manual->training_hours : 2 }}</h5>
+            <h5>{{ $training->form_type == 112 && ($training->date_training  == $earliestTrainingDate || ($previousTrainingDate
+             && \Carbon\Carbon::parse($training->date_training)->diffInDays(\Carbon\Carbon::parse($previousTrainingDate)) >=
+             365))  ? $training->manual->training_hours : 2 }}</h5>
         </div>
         <div class="col-1 border-all pt-3 text-center trainer-init">
             <h5>{{ __('V.N.') }}</h5>
