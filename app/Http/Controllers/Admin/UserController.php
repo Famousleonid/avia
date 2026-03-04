@@ -47,6 +47,7 @@ class UserController extends Controller
             'name' => ['string', 'max:100'],
             'email' => ['required', 'string', 'email', 'max:155', 'unique:users'],
             'password' => ['required', 'string', 'min:3'],
+            'birthday' => ['nullable', 'date', 'before:today'],
         ]);
 
         $data = $request->all();
@@ -108,10 +109,11 @@ class UserController extends Controller
 
         // базовые правила (email добавим отдельно для Admin)
         $rules = [
-            'name'    => 'required|string|max:255',
-            'phone'   => 'nullable|string|max:50',
-            'stamp'   => 'required|string|max:255',
-            'team_id' => 'required|integer|exists:teams,id',
+            'name'      => ['required', 'string', 'max:255'],
+            'phone'     => ['nullable', 'string', 'max:50'],
+            'stamp'     => ['required', 'string', 'max:255'],
+            'team_id'   => ['required', 'integer', 'exists:teams,id'],
+            'birthday'  => ['nullable', 'date', 'before:today'],
         ];
 
         // email менять может только Admin

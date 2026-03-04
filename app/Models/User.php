@@ -19,8 +19,8 @@ class User extends Authenticatable implements MustVerifyEmail, HasMedia
 {
     use HasFactory, Notifiable, InteractsWithMedia, HasMediaHelpers, LogsActivity, softDeletes;
 
-    protected $fillable = ['name', 'email', 'password', 'email_verified_at', 'is_admin', 'role_id', 'phone', 'stamp', 'team_id'];
-    protected $casts = ['email_verified_at' => 'datetime', 'notification_prefs' => 'array'];
+    protected $fillable = ['name', 'email', 'password', 'email_verified_at', 'is_admin', 'role_id', 'phone', 'stamp', 'team_id','birthday'];
+    protected $casts = ['email_verified_at' => 'datetime', 'notification_prefs' => 'array', 'birthday' => 'date'];
     protected $hidden = ['password', 'remember_token'];
     protected static $logAttributes = ['name', 'password', 'phone', 'stamp'];
     protected $dates = ['deleted_at'];

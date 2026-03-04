@@ -1,6 +1,7 @@
 @extends('admin.master')
 
 @section('style')
+
     <style>
         .card {
             display: flex;
@@ -696,7 +697,7 @@
                     const matchesUser = onlyMy ? String(rowTechId) === String(currentUserId) : true;
                     const matchesStatus = onlyActive ? rowStatus === 'active' : true;
                     const matchesApproved = onlyApproved ? rowApproved : true;
-                    const matchesDraft = onlyDraft ? rowDraft : true;
+                    const matchesDraft = onlyDraft ? rowDraft : !rowDraft;
                     const matchesCustomer = selectedCustomer ? String(rowCustomerId) === String(selectedCustomer) : true;
                     const matchesTechnik = selectedTechnik ? String(rowTechId) === String(selectedTechnik) : true;
 
@@ -885,7 +886,7 @@
                 return data;
             }
 
-// показать поповер рядом с кнопкой (по координатам клика)
+            // показать поповер рядом с кнопкой (по координатам клика)
             document.querySelectorAll('.approve-btn').forEach(btn => {
                 btn.addEventListener('click', (e) => {
                     e.preventDefault();

@@ -7,7 +7,7 @@
     .sidebar.sidebar-main,
     .sidebar-main{
         position: relative;
-        z-index: 3000;
+        z-index: 1010;
     }
 
     .sidebar {

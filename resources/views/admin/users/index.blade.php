@@ -144,6 +144,7 @@
                         <th class="text-primary bg-gradient text-center">{{__('Avatar') }}</th>
                         <th class="text-primary bg-gradient text-center">{{__('Role') }}</th>
                         <th class="text-primary bg-gradient text-center">{{__('Stamp') }}</th>
+                        <th class="text-primary bg-gradient text-center">{{__('Birthday')}}</th>
                         <th class="text-primary bg-gradient text-center">{{__('Create Date')}}</th>
                         <th class="text-primary bg-gradient text-center">{{__('Action') }}</th>
 
@@ -162,10 +163,11 @@
                                          width="40" height="40" alt="Image"/>
                                 </a>
                             </td>
-                            <td class="text-center"
-                                style="color: {{ $user->role? '#ffffff' : '#808080' }};">{{ $user->role->name ?? 'Unknown role' }}</td>
-                            <td class="text-center"
-                                style="color: {{ $user->role? '#ffffff' : '#808080' }};">{{ $user->stamp }}</td>
+                            <td class="text-center" style="color: {{ $user->role? '#ffffff' : '#808080' }};">{{ $user->role->name ?? 'Unknown role' }}</td>
+                            <td class="text-center" style="color: {{ $user->role? '#ffffff' : '#808080' }};">{{ $user->stamp }}</td>
+                            <td class="text-center"><span
+                                    style="display: none">{{$user->Birthday}}</span>{{ $user->birthday?->format('d.M.Y') }}
+                            </td>
                             <td class="text-center"><span
                                     style="display: none">{{$user->created_at}}</span>{{$user->created_at->format('d.m.Y')}}
                             </td>

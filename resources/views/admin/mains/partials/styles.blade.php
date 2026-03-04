@@ -478,7 +478,11 @@
         resize: vertical;
     }
 
-    #photoModal {
-        z-index: 8000 !important;
-    }
+    /*#photoModal {*/
+    /*    z-index: 2000 !important;*/
+    /*}*/
+
+
+
+
 </style>
