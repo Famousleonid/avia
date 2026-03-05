@@ -36,21 +36,23 @@ class DirectoryController extends Controller
 
     private function normalizedFields(array $dir): array
     {
-        // Приводим к единому формату:
-        // 'name' => ['label'=>'Name','rules'=>[...] ]
-        // 'code' => 'Code'  -> станет ['label'=>'Code','rules'=>['nullable']]
         $out = [];
 
         foreach (($dir['fields'] ?? []) as $field => $meta) {
+
             if (is_array($meta)) {
                 $out[$field] = [
-                    'label' => $meta['label'] ?? ucfirst($field),
-                    'rules' => $meta['rules'] ?? ['nullable'],
+                    'label'       => $meta['label'] ?? ucfirst($field),
+                    'rules'       => $meta['rules'] ?? ['nullable'],
+                    'type'        => $meta['type'] ?? 'text',       // 👈 NEW
+                    'options'     => $meta['options'] ?? null,      // 👈 NEW (может быть closure)
+                    'placeholder' => $meta['placeholder'] ?? null,  // 👈 optional
                 ];
             } else {
                 $out[$field] = [
                     'label' => (string)$meta,
                     'rules' => ['nullable'],
+                    'type'  => 'text',
                 ];
             }
         }
@@ -122,17 +124,28 @@ class DirectoryController extends Controller
 
     private function cfgForBlade(string $slug, array $dir, array $normalizedFields): array
     {
-        // твой blade ожидает fields как map: field => label
-        $fields = [];
+        $fields = [];      // field => label (для таблицы/хедера)
+        $fieldsMeta = [];  // field => meta (для формы)
+
         foreach ($normalizedFields as $field => $meta) {
             $fields[$field] = $meta['label'] ?? ucfirst($field);
+
+            // подготовим options заранее, чтобы blade был тупой и простой
+            $prepared = $meta;
+
+            if (($meta['type'] ?? 'text') === 'select') {
+                $prepared['options'] = $this->resolveFieldOptions($meta);
+            }
+
+            $fieldsMeta[$field] = $prepared;
         }
 
         return [
-            'title'      => $dir['title'] ?? ucfirst($slug),
-            'baseUrl'    => url("/admin/{$slug}"),
-            'firstField' => array_key_first($fields) ?: 'name',
-            'fields'     => $fields,
+            'title'       => $dir['title'] ?? ucfirst($slug),
+            'baseUrl'     => url("/admin/{$slug}"),
+            'firstField'  => array_key_first($fields) ?: 'name',
+            'fields'      => $fields,
+            'fieldsMeta'  => $fieldsMeta, // 👈 NEW
         ];
     }
 
@@ -246,5 +259,23 @@ class DirectoryController extends Controller
         $item->delete();
 
         return redirect()->route("$slug.index")->with('success', 'Deleted');
+    }
+
+    private function resolveFieldOptions(array $meta): array
+    {
+        $opts = $meta['options'] ?? [];
+
+        // options может быть closure
+        if ($opts instanceof \Closure) {
+            $opts = $opts();
+        }
+
+        // если вернулся Collection
+        if ($opts instanceof \Illuminate\Support\Collection) {
+            $opts = $opts->toArray();
+        }
+
+        // гарантируем массив
+        return is_array($opts) ? $opts : [];
     }
 }

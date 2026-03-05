@@ -12,19 +12,18 @@ class TdrProcess extends Model
 {
     use HasFactory, LogsActivity;
 
-    // Поля, которые можно массово назначать
     protected $fillable = [
         'tdrs_id',
         'process_names_id',
         'plus_process', // Дополнительные NDT process_names_id через запятую (например, "2,4")
-        'processes', // JSON-поле для хранения массива процессов
+        'processes',
         'description',
         'notes',
         'repair_order',
         'sort_order', // Поле для сортировки
         'date_start',
         'date_finish',
-        'ec',// Boolean поле для EC
+        'ec',
     ];
     protected $casts = [
         'processes'   => 'array',

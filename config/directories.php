@@ -94,11 +94,28 @@ return [
             ],
             'process_sheet_name' => [
                 'label' => 'Process sheet name',
-                'rules' => ['required','string','max:255'], // или nullable, см. ниже
+                'rules' => ['required','string','max:255'],
             ],
             'form_number' => [
                 'label' => 'Form number',
-                'rules' => ['nullable','string','max:255'], // или required/int
+                'rules' => ['nullable','string','max:255'],
+            ],
+
+            'std_days' => [
+                'label' => 'Std days',
+                'rules' => ['nullable','integer','min:0','max:3650'],
+                'type'  => 'number',
+            ],
+
+            'notify_user_id' => [
+                'label' => 'Notify user',
+                'rules' => ['nullable','integer','exists:users,id'],
+                'type'  => 'select',
+                'placeholder' => '— Select user —',
+                'options' => fn () => \App\Models\User::query()
+                    ->orderBy('name')
+                    ->pluck('name','id')
+                    ->toArray(),
             ],
         ],
     ],

@@ -81,8 +81,19 @@
                                     @endforeach
                                 >
                                     @foreach($cfg['fields'] as $field => $label)
-                                        <td title="{{ $item->{$field} ?? '' }}" class=" px-2 ">
-                                            {{ $item->{$field} ?? '' }}
+                                        @php
+                                            $meta = $cfg['fieldsMeta'][$field] ?? [];
+                                            $val = $item->{$field} ?? '';
+                                            $display = $val;
+
+                                            if (($meta['type'] ?? 'text') === 'select') {
+                                                $opts = $meta['options'] ?? [];
+                                                $display = $opts[$val] ?? $val;
+                                            }
+                                        @endphp
+
+                                        <td title="{{ $display }}" class="px-2">
+                                            {{ $display }}
                                         </td>
                                     @endforeach
 
@@ -144,13 +155,33 @@
                         @csrf
 
                         @foreach($cfg['fields'] as $field => $label)
+                            @php
+                                $meta = $cfg['fieldsMeta'][$field] ?? [];
+                                $rules = $meta['rules'] ?? [];
+                                $required = in_array('required', $rules, true);
+                                $type = $meta['type'] ?? 'text';
+                            @endphp
+
                             <div class="mb-3">
                                 <label class="form-label" for="dirCreate_{{ $field }}">{{ __($label) }}</label>
-                                <input type="text"
-                                       id="dirCreate_{{ $field }}"
-                                       name="{{ $field }}"
-                                       class="form-control"
-                                       required>
+
+                                @if($type === 'select')
+                                    <select id="dirCreate_{{ $field }}" name="{{ $field }}" class="form-select" @if($required) required @endif>
+                                        <option value="">{{ $meta['placeholder'] ?? '— Select —' }}</option>
+                                        @foreach(($meta['options'] ?? []) as $val => $text)
+                                            <option value="{{ $val }}" @selected(old($field) == $val)>{{ $text }}</option>
+                                        @endforeach
+                                    </select>
+                                @else
+                                    <input
+                                        type="{{ $type === 'number' ? 'number' : 'text' }}"
+                                        id="dirCreate_{{ $field }}"
+                                        name="{{ $field }}"
+                                        class="form-control"
+                                        value="{{ old($field) }}"
+                                        @if($required) required @endif
+                                    >
+                                @endif
                             </div>
                         @endforeach
 
@@ -184,13 +215,32 @@
                         <input type="hidden" id="dirEditId" name="id">
 
                         @foreach($cfg['fields'] as $field => $label)
+                            @php
+                                $meta = $cfg['fieldsMeta'][$field] ?? [];
+                                $rules = $meta['rules'] ?? [];
+                                $required = in_array('required', $rules, true);
+                                $type = $meta['type'] ?? 'text';
+                            @endphp
+
                             <div class="mb-3">
                                 <label class="form-label" for="dirEdit_{{ $field }}">{{ __($label) }}</label>
-                                <input type="text"
-                                       id="dirEdit_{{ $field }}"
-                                       name="{{ $field }}"
-                                       class="form-control"
-                                       required>
+
+                                @if($type === 'select')
+                                    <select id="dirEdit_{{ $field }}" name="{{ $field }}" class="form-select" @if($required) required @endif>
+                                        <option value="">{{ $meta['placeholder'] ?? '— Select —' }}</option>
+                                        @foreach(($meta['options'] ?? []) as $val => $text)
+                                            <option value="{{ $val }}">{{ $text }}</option>
+                                        @endforeach
+                                    </select>
+                                @else
+                                    <input
+                                        type="{{ $type === 'number' ? 'number' : 'text' }}"
+                                        id="dirEdit_{{ $field }}"
+                                        name="{{ $field }}"
+                                        class="form-control"
+                                        @if($required) required @endif
+                                    >
+                                @endif
                             </div>
                         @endforeach
 
@@ -327,7 +377,12 @@
                 // fill inputs from data-*
                 for (const field of Object.keys(DIR.fields || {})) {
                     const el = document.getElementById('dirEdit_' + field);
-                    if (el) el.value = tr.dataset[field] || '';
+                    if (!el) continue;
+
+                    const v = tr.dataset[field] || '';
+
+                    // select / input — одинаково через value
+                    el.value = v;
                 }
 
                 // resource update: PUT /base/{id}

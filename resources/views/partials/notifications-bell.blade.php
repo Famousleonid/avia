@@ -119,6 +119,12 @@
         cursor: pointer;
     }
 
+    .notif-row { border-left: 4px solid transparent; }
+    .notif-row.sev-info    { border-left-color: #0dcaf0; }
+    .notif-row.sev-success { border-left-color: #198754; }
+    .notif-row.sev-warning { border-left-color: #ffc107; }
+    .notif-row.sev-danger  { border-left-color: #dc3545; }
+
 </style>
 
 <div class="dropdown sidebar-bell">
@@ -142,7 +148,7 @@
 
     <div class="dropdown-menu dropdown-menu-end p-0 shadow notif-menu"
          aria-labelledby="{{ $notifId }}"
-         style="min-width: 360px; max-width: 420px;">
+         style="min-width: 550px; max-width: 700px;">
 
         <div class="d-flex align-items-center justify-content-between px-3 py-2 border-bottom">
             <div class="fw-semibold">Notifications</div>
@@ -156,7 +162,8 @@
                 </button>
 
                 <button class="btn btn-sm btn-outline-secondary" id="notifReadAllBtn" type="button">
-                    Read all
+                    Read all &nbsp;
+
                 </button>
             </div>
         </div>
@@ -306,6 +313,94 @@
             setBadge(data.count || 0);
         }
 
+        function buildMessage(n) {
+
+            const type = String(n?.type ?? '');
+            const event = String(n?.event ?? '');
+            const ui = n?.ui ?? {};
+
+            // helpers
+            const h = (v) => escapeHtml(v ?? '');
+            const has = (v) => v !== null && v !== undefined && String(v).trim() !== '';
+
+            // ---------- 1) WORKORDER ----------
+            if (type === 'workorder') {
+                const woNoRaw = ui?.workorder?.no ?? n?.payload?.workorder_no ?? n?.payload?.workorder_number ?? '';
+                const woNo = has(woNoRaw) ? `#${h(woNoRaw)}` : '';
+                const actor = h(ui?.actor?.name ?? n?.by_user_name ?? n?.from_name ?? '');
+
+                if (event === 'approved') {
+                    return `
+                <div class="d-flex align-items-center gap-2 flex-wrap">
+                    <span class="badge text-bg-success">APPROVED</span>
+                    <span class="text-warning fw-semibold">WO ${woNo}</span>
+                </div>
+                ${actor ? `<div class="text-muted small mt-1">by ${actor}</div>` : ``}
+            `;
+                }
+
+                const label = h(String(event || 'update').toUpperCase());
+                const text = h(n?.text ?? '');
+
+                return `
+            <div class="d-flex align-items-center gap-2 flex-wrap">
+                <span class="badge text-bg-secondary">${label}</span>
+                <span class="text-warning fw-semibold">WO ${woNo}</span>
+            </div>
+            ${text ? `<div class="small mt-1">${text}</div>` : ``}
+        `;
+            }
+
+            // ---------- 2) PROCESS (структурный вариант) ----------
+            if (type === 'process' && event === 'overdue') {
+
+                const woNoRaw = ui?.workorder?.no ?? '';
+                const woNo = has(woNoRaw) ? `#${h(woNoRaw)}` : '';
+                const pName = h(ui?.process?.name ?? '');
+                const start = h(ui?.dates?.start ?? ui?.start ?? '');
+                const std = h(ui?.std_days ?? '');
+                const od = h(ui?.overdue_days ?? '');
+
+                return `
+            <div class="d-flex align-items-center gap-2 flex-wrap">
+                <span class="badge text-bg-danger">OVERDUE</span>
+                ${woNo ? `<span class="text-warning fw-semibold">WO ${woNo}</span>` : ``}
+            </div>
+
+            ${pName ? `<div class="small mt-1">${pName}</div>` : ``}
+
+            <div class="text-muted small mt-1">
+                ${start ? `Start: ${start}` : ``}
+                ${(start && (std || od)) ? `&nbsp;•&nbsp;` : ``}
+                ${std ? `Std: ${std}d` : ``}
+                ${(std && od) ? `&nbsp;•&nbsp;` : ``}
+                ${od ? `Overdue: ${od}d` : ``}
+            </div>
+        `;
+            }
+
+            // ---------- 3) MESSAGE (то что у тебя сейчас приходит plain-text) ----------
+            if (type === 'message') {
+                const text = String(n?.text ?? '');
+
+                // переносы
+                const safe = h(text).replace(/\n/g, '<br>');
+
+                // 1) НЕ добавляем "WO" повторно: красим то, что нашли целиком
+                // 2) Убираем text-light, оставляем только small (цвета внутри span)
+                const decorated = safe
+                    .replace(/\bWO\s*#?\s*\d+\b/gi, (m) => `<span class="text-warning fw-semibold">${h(m).replace(/\s+/g,' ').trim()}</span>`)
+                    .replace(/\boverdue\b/gi, `<span class="text-danger fw-semibold">Overdue</span>`);
+
+                return `<div class="small">${decorated}</div>`;
+            }
+
+            // ---------- 4) DEFAULT FALLBACK ----------
+            const text = String(n?.text ?? '');
+            const safe = h(text).replace(/\n/g, '<br>');
+            return safe ? `<div class="small">${safe}</div>` : `<div class="text-muted small">—</div>`;
+        }
+
         function renderItems(items) {
             if (!items || items.length === 0) {
                 list.innerHTML = `<div class="p-3 text-muted small">No unread notifications</div>`;
@@ -316,7 +411,7 @@
                 const id   = escapeHtml(n.id);
                 const from = n.from_name ? `From: ${escapeHtml(n.from_name)}` : '';
                 const time = escapeHtml(n.created_at_human);
-                const msg  = escapeHtml(n.text);
+                const msg  = buildMessage(n);
                 const url  = n.url ? escapeHtml(n.url) : '';
 
                 return `
@@ -329,7 +424,7 @@
         <div class="text-warning">${from}</div>
         <div class="text-muted">${time}</div>
       </div>
-      ${msg ? `<div class="text-light small mt-1">${msg}</div>` : ``}
+      ${msg ? `<div class="small mt-1">${msg}</div>` : ``}
     </div>
     <div class="d-flex flex-column gap-1">
       ${url ? `<a class="btn btn-sm btn-outline-primary" href="${url}">Open</a>` : ``}

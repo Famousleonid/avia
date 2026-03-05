@@ -53,11 +53,15 @@ class NotificationController extends Controller
 
                 return [
                     'id' => $n->id,
-                    'from_name' => $d['from_name'] ?? null,
-                    'from_user_id' => $d['from_user_id'] ?? null,
-                    'text' => $d['text'] ?? '',
-                    'url' => $d['url'] ?? null,
-                    'created_at_human' => optional($n->created_at)->diffForHumans(),
+                    'type' => $n->data['type'] ?? null,
+                    'event' => $n->data['event'] ?? null,
+                    'severity' => $n->data['severity'] ?? 'info',
+                    'title' => $n->data['title'] ?? null,
+                    'ui' => $n->data['ui'] ?? [],
+                    'text' => $n->data['text'] ?? '',
+                    'url' => $n->data['url'] ?? null,
+                    'from_name' => $n->data['by_user_name'] ?? null,
+                    'created_at_human' => $n->created_at->diffForHumans(),
                 ];
             });
 
