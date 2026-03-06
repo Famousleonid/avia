@@ -3,8 +3,10 @@
 namespace App\Services\Events;
 
 use App\Models\TdrProcess;
+use App\Models\User;
 use Carbon\Carbon;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\Log;
 
 class TdrProcessOverdueStartEvent implements EventDefinition
 {
@@ -32,10 +34,37 @@ class TdrProcessOverdueStartEvent implements EventDefinition
             ->values();
     }
 
-    public function recipient($subject): ?\App\Models\User
+    public function recipients($subject): array
     {
-        /** @var TdrProcess $subject */
-        return $subject->processName?->notifyUser;
+
+        $users = collect();
+        $processName = $subject->processName;
+
+        // пользователь из TdrProcess
+        if (!empty($subject->user_id)) {
+            $user = User::find($subject->user_id);
+            if ($user) {
+                $users->push($user);
+            }
+        }
+
+        if ($processName?->notifyUser) {
+            $users->push($processName->notifyUser);
+        }
+
+//        $managers = User::query()
+//            ->whereHas('roles', function ($q) {
+//                $q->where('name', 'Manager');
+//            })
+//            ->get();
+       // $users = $users->merge($managers);
+
+
+        return $users
+            ->filter()
+            ->unique('id')
+            ->values()
+            ->all();
     }
 
     public function message($subject): array
@@ -44,7 +73,7 @@ class TdrProcessOverdueStartEvent implements EventDefinition
 
         $pName = $subject->processName?->name ?? 'Process';
         $std   = (int) ($subject->processName?->std_days ?? 0);
-        $start = $subject->date_start?->format('Y-m-d');
+        $start = $subject->date_start?->format('j.M.y');
 
         $wo = $subject->tdr?->workorder;
         $woNo = $wo?->number ? ('WO ' . $wo->number) : 'WO ?';
@@ -93,21 +122,18 @@ class TdrProcessOverdueStartEvent implements EventDefinition
     {
         $std = (int)($subject->processName?->std_days ?? 0);
 
-        // если норматив не задан — не проверяем
-        if ($std <= 0) {
-            return false;
-        }
+        if ($std <= 0) return false;
+        if (!$subject->date_start) return false;
+        if ($subject->date_finish) return false;
 
-        // если нет даты старта
-        if (!$subject->date_start) {
-            return false;
-        }
+        $deadline = \Carbon\Carbon::parse($subject->date_start)
+            ->addDays($std)
+            ->startOfDay();
+        return now()->greaterThanOrEqualTo($deadline);
+    }
 
-        // если уже завершено
-        if ($subject->date_finish) {
-            return false;
-        }
-
+    public function oncePerDay(): bool
+    {
         return true;
     }
 }
