@@ -42,7 +42,8 @@
     }
 
     .sidebar-bell .dropdown-menu {
-        z-index: 999999 !important;
+
+        z-index: 2147483647 !important;
     }
 
     .notif-badge {
@@ -484,6 +485,8 @@
         }
 
         const dropdownEl = document.getElementById('{{ $notifId }}');
+
+
 
         // ✅ settings: закрыть dropdown -> после hidden открыть modal
         const settingsBtn = document.getElementById('notifSettingsBtn');

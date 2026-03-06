@@ -12,7 +12,7 @@ interface EventDefinition
     public function dueSubjects(): Collection;
 
     /** Кому слать (может быть null) */
-    public function recipient($subject): ?\App\Models\User;
+    public function recipients($subject): array;
 
     /** Текст/данные уведомления */
     public function message($subject): array;

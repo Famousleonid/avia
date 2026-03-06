@@ -24,6 +24,7 @@ class TdrProcess extends Model
         'date_start',
         'date_finish',
         'ec',
+        'user_id',
     ];
     protected $casts = [
         'processes'   => 'array',

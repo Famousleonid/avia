@@ -5,6 +5,7 @@ namespace App\Console\Commands;
 use Illuminate\Console\Command;
 use App\Services\Events\EventRunner;
 use App\Services\Events\TdrProcessOverdueStartEvent;
+use Illuminate\Support\Facades\Log;
 
 class RunTimedEvents extends Command
 {
@@ -16,8 +17,10 @@ class RunTimedEvents extends Command
         $runner->run([
             new TdrProcessOverdueStartEvent(),
             // потом добавишь новые события сюда
-        ]);
 
+
+        ]);
+       // Log::channel('avia')->info('RunTimedEvents started');
         return self::SUCCESS;
     }
 }

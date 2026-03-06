@@ -4,6 +4,7 @@ namespace App\Services\Events;
 
 use App\Models\EventLog;
 use App\Notifications\NewMessageNotification;
+use Illuminate\Support\Facades\Log;
 
 class EventRunner
 {
@@ -12,100 +13,78 @@ class EventRunner
     {
         foreach ($events as $event) {
 
-            // 1) subjects (что нужно проверить)
             $subjects = $event->dueSubjects();
-            if (empty($subjects)) {
-                continue;
-            }
 
             foreach ($subjects as $subject) {
 
-                // 2) optional per-subject gate (std_days, date_finish, etc.)
-                if (method_exists($event, 'shouldRun')) {
-                    try {
-                        if (!$event->shouldRun($subject)) {
-                            continue;
-                        }
-                    } catch (\Throwable $e) {
-                        // если shouldRun упал — лучше пропустить, чем завалить весь runner
-                        continue;
-                    }
-                }
-
-                // 3) кому слать
-                $recipient = $event->recipient($subject);
-                if (!$recipient) {
+                if (method_exists($event, 'shouldRun') && !$event->shouldRun($subject)) {
                     continue;
                 }
 
-                // 4) лог по событию+субъекту+получателю
-                $log = EventLog::query()->firstOrNew([
-                    'event_key'         => $event->key(),
-                    'subject_type'      => get_class($subject),
-                    'subject_id'        => $subject->getKey(),
-                    'recipient_user_id' => $recipient->id,
-                ]);
+                $recipients = $event->recipients($subject) ?? [];
 
-                // 5) антидубликат + периодичность
-                $repeatMin = (int)($event->repeatEveryMinutes() ?? 0);
-
-                if ($log->exists && $log->last_sent_at) {
-
-                    // 0 = один раз и всё
-                    if ($repeatMin === 0) {
-                        continue;
-                    }
-
-                    // ещё рано повторять
-                    $next = $log->last_sent_at->copy()->addMinutes($repeatMin);
-                    if ($next->isFuture()) {
-                        continue;
-                    }
+                if (empty($recipients)) {
+                    continue;
                 }
 
-                // 6) сформировать сообщение
                 $msg = $event->message($subject);
 
-                // message может вернуть null/false → не отправляем
                 if (!$msg || !is_array($msg)) {
                     continue;
                 }
 
-                // 7) нормализуем обязательные ключи (чтобы не ловить undefined)
-                $fromUserId = (int)($msg['fromUserId'] ?? $msg['from_user_id'] ?? 0);
-                $fromName   = (string)($msg['fromName'] ?? $msg['from_name'] ?? 'System');
-                $text       = (string)($msg['text'] ?? '');
-                $url        = $msg['url'] ?? null;
+                foreach ($recipients as $recipient) {
+                    if (!$recipient) {
+                        continue;
+                    }
 
-                // если нет текста и нет ui — нечего слать
-                $ui = $msg['ui'] ?? [];
-                if ($text === '' && (empty($ui) || !is_array($ui))) {
-                    continue;
+                    $log = EventLog::query()->firstOrNew([
+                        'event_key'         => $event->key(),
+                        'subject_type'      => get_class($subject),
+                        'subject_id'        => $subject->getKey(),
+                        'recipient_user_id' => $recipient->id,
+                    ]);
+
+                    if ($log->exists && $log->last_sent_at) {
+                        if (method_exists($event, 'oncePerDay') && $event->oncePerDay()) {
+                            if ($log->last_sent_at->isToday()) {
+                                continue;
+                            }
+                        } else {
+                            $repeatMin = (int)($event->repeatEveryMinutes() ?? 0);
+
+                            if ($repeatMin === 0) {
+                                continue;
+                            }
+
+                            if ($log->last_sent_at->copy()->addMinutes($repeatMin)->isFuture()) {
+                                continue;
+                            }
+                        }
+                    }
+
+                    $recipient->notify(new NewMessageNotification(
+                        fromUserId: (int)($msg['fromUserId'] ?? $msg['from_user_id'] ?? 0),
+                        fromName: (string)($msg['fromName'] ?? $msg['from_name'] ?? 'System'),
+                        text: (string)($msg['text'] ?? ''),
+                        url: $msg['url'] ?? null,
+
+                        type: $msg['type'] ?? null,
+                        event: $msg['event'] ?? null,
+                        ui: $msg['ui'] ?? [],
+                        severity: $msg['severity'] ?? null,
+                        title: $msg['title'] ?? null,
+                        payload: $msg['payload'] ?? [],
+                    ));
+
+                    $now = now();
+                    if (!$log->first_sent_at) {
+                        $log->first_sent_at = $now;
+                    }
+                    $log->last_sent_at = $now;
+                    $log->sent_count = (int)($log->sent_count ?? 0) + 1;
+                    $log->save();
                 }
-
-                // 8) отправка
-                $recipient->notify(new NewMessageNotification(
-                    fromUserId: $fromUserId,
-                    fromName: $fromName,
-                    text: $text,
-                    url: $url,
-
-                    type: $msg['type'] ?? null,
-                    event: $msg['event'] ?? null,
-                    ui: is_array($ui) ? $ui : [],
-                    severity: $msg['severity'] ?? null,
-                    title: $msg['title'] ?? null,
-                    payload: is_array($msg['payload'] ?? null) ? ($msg['payload'] ?? []) : [],
-                ));
-
-                // 9) записать лог
-                $now = now();
-                if (!$log->first_sent_at) {
-                    $log->first_sent_at = $now;
-                }
-                $log->last_sent_at = $now;
-                $log->sent_count = (int)($log->sent_count ?? 0) + 1;
-                $log->save();
             }
         }
     }
