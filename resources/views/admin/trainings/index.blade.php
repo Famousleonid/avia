@@ -104,7 +104,7 @@
                     <tr>
                         <th data-priority="1" data-visible="true" class="text-center align-middle">{{ __('Component Description')
                         }}</th>
-                        <th data-priority="2" data-visible="true" class="text-center align-middle">{{ __('Component PN') }}</th>
+                        <th data-priority="2" data-visible="true" id="sortComponentPn" class="text-center align-middle sortable-th" style="cursor: pointer; user-select: none;" title="{{ __('Sort by Component PN') }}">{{ __('Component PN') }} <i class="bi bi-arrow-down-up text-muted small ms-1"></i></th>
                         <th data-priority="3" data-visible="true"
                             class="text-center align-middle">{{ __('First Training Date')}}</th>
                         <th data-priority="4" data-visible="true"
@@ -495,6 +495,31 @@
                     });
             };
         }
+
+        // Сортировка по столбцу Component PN
+        document.addEventListener('DOMContentLoaded', function () {
+            const sortTh = document.getElementById('sortComponentPn');
+            const table = document.getElementById('trainingsTable');
+            if (sortTh && table) {
+                let sortOrder = 1; // 1 = asc, -1 = desc
+                sortTh.addEventListener('click', function () {
+                    const tbody = table.querySelector('tbody');
+                    const rows = Array.from(tbody.querySelectorAll('tr'));
+                    const componentPnIndex = 1; // индекс столбца Component PN
+                    rows.sort(function (a, b) {
+                        const aVal = (a.cells[componentPnIndex]?.textContent || '').trim();
+                        const bVal = (b.cells[componentPnIndex]?.textContent || '').trim();
+                        const cmp = aVal.localeCompare(bVal, undefined, { numeric: true });
+                        return sortOrder * cmp;
+                    });
+                    sortOrder *= -1;
+                    rows.forEach(function (row) { tbody.appendChild(row); });
+                    // Обновляем иконку
+                    const icon = sortTh.querySelector('i');
+                    if (icon) icon.className = (sortOrder > 0 ? 'bi bi-arrow-down' : 'bi bi-arrow-up') + ' text-muted small ms-1';
+                });
+            }
+        });
 
         // Обработчик для кнопки Update
         document.addEventListener('DOMContentLoaded', function () {
