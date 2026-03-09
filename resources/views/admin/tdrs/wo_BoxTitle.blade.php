@@ -234,7 +234,7 @@
     </button>
 </div>
 
-<div class="container " style="margin-top: 140px">
+<div class="container " style="margin-top: 40px">
     @for ($i = 0; $i < 2; $i++)
 <div class="" style="margin-top: 80px">
     <div class="row " style="width: 600px; ">
@@ -285,13 +285,13 @@
 
 </div>
     <div class="" style="margin-top: 80px">
-        @if($i<1)
+
             <div class="d-flex">
                 @for ($l = 0; $l < 70; $l++)
                <h3>-</h3>
                 @endfor
             </div>
-        @endif
+
     </div>
     @endfor
 </div>
