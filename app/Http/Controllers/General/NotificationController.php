@@ -44,30 +44,45 @@ class NotificationController extends Controller
     {
         $user = $request->user();
 
-        $items = $user->unreadNotifications()
+        $perPage = (int) $request->get('per_page', 10);
+        $perPage = max(1, min($perPage, 50));
+
+        $page = (int) $request->get('page', 1);
+        $page = max(1, $page);
+
+        $paginator = $user->unreadNotifications()
             ->latest()
-            ->limit(10)
-            ->get()
-            ->map(function ($n) {
-                $d = is_array($n->data) ? $n->data : (json_decode($n->data, true) ?: []);
+            ->paginate($perPage, ['*'], 'page', $page);
 
-                return [
-                    'id' => $n->id,
-                    'type' => $n->data['type'] ?? null,
-                    'event' => $n->data['event'] ?? null,
-                    'severity' => $n->data['severity'] ?? 'info',
-                    'title' => $n->data['title'] ?? null,
-                    'ui' => $n->data['ui'] ?? [],
-                    'text' => $n->data['text'] ?? '',
-                    'url' => $n->data['url'] ?? null,
-                    'from_name' => $n->data['by_user_name'] ?? null,
-                    'created_at_human' => $n->created_at->diffForHumans(),
-                ];
-            });
+        $items = $paginator->getCollection()->map(function ($n) {
+            $d = is_array($n->data) ? $n->data : (json_decode($n->data, true) ?: []);
 
-        return response()->json(['items' => $items]);
+            return [
+                'id' => $n->id,
+                'type' => $d['type'] ?? null,
+                'event' => $d['event'] ?? null,
+                'severity' => $d['severity'] ?? 'info',
+                'title' => $d['title'] ?? null,
+                'ui' => $d['ui'] ?? [],
+                'text' => $d['text'] ?? '',
+                'url' => $d['url'] ?? null,
+                'from_name' => $d['by_user_name'] ?? null,
+                'created_at_human' => optional($n->created_at)->diffForHumans(),
+            ];
+        })->values();
+
+        return response()->json([
+            'items' => $items,
+            'pagination' => [
+                'current_page' => $paginator->currentPage(),
+                'last_page'    => $paginator->lastPage(),
+                'per_page'     => $paginator->perPage(),
+                'total'        => $paginator->total(),
+                'has_more'     => $paginator->hasMorePages(),
+                'next_page'    => $paginator->hasMorePages() ? $paginator->currentPage() + 1 : null,
+            ],
+        ]);
     }
-
 
     public function markRead(Request $request, string $id)
     {
@@ -152,6 +167,18 @@ class NotificationController extends Controller
         return response()->json([
             'ok' => true,
             'prefs' => $user->notification_prefs,
+        ]);
+    }
+
+    // delete ALL notifications
+    public function deleteAll(Request $request)
+    {
+        $request->user()
+            ->notifications()
+            ->delete();
+
+        return response()->json([
+            'ok' => true
         ]);
     }
 

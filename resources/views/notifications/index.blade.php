@@ -44,6 +44,10 @@
                 <button class="btn btn-sm btn-outline-secondary" type="button" id="btnReadAll">
                     Read all
                 </button>
+
+                <button class="btn btn-sm btn-outline-danger" type="button" id="btnDeleteAll">
+                    Delete all ({{ $notifications->total() }})
+                </button>
             </div>
         </div>
 
@@ -189,6 +193,33 @@
                 wrap.querySelectorAll('.notif-item').forEach(item => item.classList.remove('notif-unread'));
                 wrap.querySelectorAll('.js-read').forEach(btn => btn.remove());
             });
+
+            // Delete all
+            document.getElementById('btnDeleteAll')?.addEventListener('click', async () => {
+                if (!confirm('Delete ALL notifications?')) return;
+
+                const r = await fetch(`{{ route('notifications.deleteAll') }}`, {
+                    method: 'DELETE',
+                    headers: {
+                        'Accept': 'application/json',
+                        'X-CSRF-TOKEN': csrf
+                    },
+                    spinner: false
+                });
+
+                if (!r.ok) {
+                    console.error('Delete all failed', r.status);
+                    return;
+                }
+
+                wrap.innerHTML = `<div class="p-3 text-muted small">No notifications</div>`;
+            });
+
+
+
         })();
     </script>
+
+
+
 @endsection

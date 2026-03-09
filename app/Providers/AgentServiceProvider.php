@@ -2,6 +2,7 @@
 
 namespace App\Providers;
 
+use Illuminate\Pagination\Paginator;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\View;
 use Illuminate\Support\ServiceProvider;
@@ -19,6 +20,7 @@ class AgentServiceProvider extends ServiceProvider
         $agent = new Agent();
         View::share('agent', $agent);
         Carbon::setLocale('en');
+        Paginator::useBootstrapFive();
 
     }
 }

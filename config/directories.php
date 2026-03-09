@@ -83,6 +83,7 @@ return [
     ],
 
     'process_names' => [
+        'key' => 'process_names',
         'title' => 'Process Names',
         'model' => \App\Models\ProcessName::class,
         'order' => ['id' => 'desc'],
@@ -112,10 +113,12 @@ return [
                 'rules' => ['nullable','integer','exists:users,id'],
                 'type'  => 'select',
                 'placeholder' => '— Select user —',
-                'options' => fn () => \App\Models\User::query()
-                    ->orderBy('name')
-                    ->pluck('name','id')
-                    ->toArray(),
+                'options_source' => 'users',
+            ],
+
+            'print_form' => [
+                'label' => 'Print form',
+                'type' => 'boolean',
             ],
         ],
     ],
@@ -171,5 +174,7 @@ return [
         'search' => ['name'],
         'order'  => ['name' => 'asc'],
     ],
+
+
 
 ];

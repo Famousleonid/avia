@@ -9,7 +9,7 @@ class ProcessName extends Model
 {
     use HasFactory;
     protected $fillable = [
-        'name','process_sheet_name','form_number','std_days', 'notify_user_id',
+        'name','process_sheet_name','form_number','std_days', 'notify_user_id','print_form',
     ];
     public $timestamps = false;
     public function processes()

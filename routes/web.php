@@ -332,6 +332,9 @@ Route::group(['middleware' => ['auth']], function () {
     Route::delete('/notifications/{id}', [NotificationController::class, 'destroy'])->name('notifications.destroy');
     Route::get('/notifications/settings', [NotificationController::class, 'show'])->name('notifications.settings.show');
     Route::post('/notifications/settings', [NotificationController::class, 'save'])->name('notifications.settings.save');
+    Route::delete('/notifications', [NotificationController::class, 'deleteAll'])->name('notifications.deleteAll');
+
+
 
     Route::get('/admin/activity', [ActivityLogController::class, 'index'])->name('admin.activity.index');
     Route::post('/reports/table/pdf', [ReportController::class, 'tablePdf'])->name('reports.table.pdf');
@@ -352,6 +355,8 @@ Route::middleware(['auth'])->prefix('admin/messages')->group(function () {
 Route::middleware(['auth'])
     ->prefix('admin')
     ->group(function () {
+
+        Route::patch('{directory}/toggle/{id}/{field}', [DirectoryController::class, 'toggle'])->name('directories.toggle');
 
         foreach (array_keys(config('directories')) as $slug) {
 
