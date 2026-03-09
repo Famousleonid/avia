@@ -157,6 +157,8 @@ Route::group(['middleware' => ['auth']], function () {
         Route::get('tdrs/logCardForm/{id}', [TdrController::class, 'logCardForm'])->name('tdrs.logCardForm');
         Route::get('log_card/logCardForm/{id}', [LogCardController::class, 'logCardForm'])->name('log_card.logCardForm');
         Route::get('tdrs/woProcessForm/{id}', [TdrController::class, 'wo_Process_Form'])->name('tdrs.woProcessForm');
+        Route::get('tdrs/woBoxTitle/{id}', [TdrController::class, 'wo_BoxTitle'])->name('tdrs.wo_BoxTitle');
+
         Route::get('/tdrs/inspection/unit/{workorder_id}', [TdrController::class, 'inspectionUnit'])->name('tdrs.inspection.unit');
         Route::get('/tdrs/inspection/component/{workorder_id}', [TdrController::class, 'inspectionComponent'])->name('tdrs.inspection.component');
         Route::get('tdrs/{workorder_id}/ndt-std', [TdrController::class, 'ndtStd'])->name('tdrs.ndtStd');

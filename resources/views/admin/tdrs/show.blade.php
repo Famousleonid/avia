@@ -681,6 +681,12 @@
                                 target="_blank"
                                 color="outline-info"
                             />
+                            <x-paper-button
+                                text="WO Box Title"
+                                href="{{ route('tdrs.wo_BoxTitle', ['id'=> $current_wo->id]) }}"
+                                target="_blank"
+                                color="outline-info"
+                            />
                         </div>
 
 

@@ -23,6 +23,7 @@ use App\Models\Training;
 use App\Models\Transfer;
 use App\Models\Vendor;
 use App\Models\WoBushing;
+use http\Client\Curl\User;
 use Illuminate\Support\Facades\Cache;
 use App\Models\Unit;
 //use App\Models\Wo_Code;
@@ -3367,8 +3368,27 @@ class TdrController extends Controller
     public function wo_Process_Form($id)
     {
         $current_wo = Workorder::findOrFail($id);
+
         return view('admin.tdrs.wo_ProcessForm', compact('current_wo'));
     }
+    public function wo_BoxTitle($id)
+    {
+        $current_wo = Workorder::findOrFail($id);
+
+
+//        $unit_wo = Unit::where('id', $current_wo->unit_id)->get();
+//        $unit_pn = $unit_wo->part_number;
+        $units = Unit::all();
+        $customers = Customer::all();
+        $users = \App\Models\User::all();
+
+
+        return view('admin.tdrs.wo_BoxTitle', compact('current_wo', 'units', 'customers', 'users'));
+    }
+
+
+
+
     /**
      * Remove the specified resource from storage.
      *
