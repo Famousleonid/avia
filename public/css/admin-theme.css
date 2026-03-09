@@ -140,61 +140,241 @@ html[data-bs-theme="light"]{
     display: flex;
     align-items: center;
 }
+/*  ------------  Паттерн разметки -----
 
+          <div class="dir-table-wrap me-3 p-2 pt-0">
+              <table class="table table-sm table-hover table-bordered align-middle dir-table dir-table--ellipsis">
+                  <thead>
+                      <tr>
+                          <th>Name</th>
+                          <th>Code</th>
+                          <th class="col-text">Description</th>
+                          <th class="col-fit text-center">Action</th>
+                      </tr>
+                  </thead>
+                  <tbody>
+                      <tr>
+                          <td>Item</td>
+                          <td>123</td>
+                          <td class="col-text">Long description...</td>
+                          <td class="col-fit text-center">
+                              <button class="btn btn-outline-primary btn-sm">Edit</button>
+                          </td>
+                      </tr>
+                  </tbody>
+             </table>
+          </div>
 
+*/
 
 /* =========================================================
-   TABLE (UNIVERSAL)
+   TABLE WRAPPER
    ========================================================= */
-.dir-table{
+
+.dir-table-wrap {
+    flex: 1 1 auto;
+    overflow-y: auto;
+    overflow-x: auto;
+    content-visibility: auto;
+    contain-intrinsic-size: 800px;
+}
+
+/* =========================================================
+   UNIVERSAL DIR TABLE
+   Базовый стиль для всех таблиц справочников / списков
+   ========================================================= */
+
+.dir-table {
+    width: 100%;
+    /*table-layout: fixed;*/
+    border-collapse: separate;
+    border-spacing: 0;
     background: var(--dir-table-bg) !important;
     color: var(--dir-text) !important;
     border-color: var(--dir-border-2) !important;
 }
 
+/* рамка таблицы */
+.dir-table{
+    border: 1px solid var(--dir-border-2);
+}
+
+/* рамки ячеек */
 .dir-table th,
 .dir-table td{
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
+    border: 1px solid var(--dir-border-2) !important;
+}
+
+
+/* все ячейки */
+.dir-table th,
+.dir-table td {
+    padding-left: 10px;
+    padding-right: 10px;
     vertical-align: middle;
     border-color: var(--dir-border-2) !important;
 }
 
-.dir-table tbody td{
+/* body */
+.dir-table tbody td {
     background: var(--dir-table-bg) !important;
     color: var(--dir-text) !important;
 }
 
-/* sticky header */
-.dir-table thead{
-    position: sticky;
-    top: 0;
-    z-index: 12;
+/* header */
+.dir-table thead {
+    position: static !important;
 }
 
-.dir-table thead th{
+.dir-table thead th {
     position: sticky;
-    top: -1px;
+    top: 0;
     z-index: 13;
     background: var(--dir-thead-bg) !important;
     color: var(--dir-muted) !important;
     background-clip: padding-box;
-    box-shadow: 0 6px 10px rgba(0,0,0,.35);
+    box-shadow: 0 4px 8px rgba(0,0,0,.22);
 }
 
-/* light — мягче */
-html[data-bs-theme="light"] .dir-table thead th{
-    box-shadow: 0 4px 8px rgba(0,0,0,.12);
+/* hover */
+.dir-table.table-hover tbody tr:hover td,
+.dir-table.table-hover tbody tr:hover th {
+    background: var(--dir-row-hover, rgba(255,255,255,.04)) !important;
 }
 
-/* hover / active */
-.dir-table tbody tr:hover td{
-    background: var(--dir-row-hover) !important;
+/* стандартное поведение текста:
+   по умолчанию одна строка + ellipsis */
+.dir-table--ellipsis th,
+.dir-table--ellipsis td {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
+
+/* если нужен перенос текста по всей таблице */
+.dir-table--wrap th,
+.dir-table--wrap td {
+    white-space: normal;
+    overflow: visible;
+    text-overflow: clip;
+    word-break: break-word;
+}
+
+/* только для body перенос, header оставить компактным */
+.dir-table--wrap-body tbody td {
+    white-space: normal;
+    overflow: visible;
+    text-overflow: clip;
+    word-break: break-word;
+}
+
+/* компактные служебные колонки: action, icon, checkbox */
+.dir-table .col-fit {
+    width: 1%;
+    white-space: nowrap !important;
+}
+
+/* центрирование служебных колонок */
+.dir-table .col-center {
+    text-align: center;
+}
+
+/* колонка с длинным текстом */
+.dir-table .col-text {
+    white-space: normal !important;
+    overflow: visible !important;
+    text-overflow: clip !important;
+    word-break: break-word;
+}
+
+/* если таблица с картинками */
+.dir-table img {
+    max-width: 100%;
+    height: auto;
+    display: inline-block;
+}
+
+/* кнопки внутри ячеек не ломают строку */
+.dir-table .btn,
+.dir-table .badge,
+.dir-table .form-select,
+.dir-table .form-control {
+    max-width: 100%;
+}
+
+/* чтобы sticky-header выглядел чище */
+.dir-table thead th:first-child {
+    border-left-color: var(--dir-border-2) !important;
+}
+
+.dir-table thead th:last-child {
+    border-right-color: var(--dir-border-2) !important;
+}
+
+
+.col-icon img{
+    width: 100%;
+    height: auto;
+    object-fit: contain;
+}
+
+.col-icon{
+    width: 70px;
+    text-align: center;
+}
+
+/* =========================================================
+   DIR TABLE – IDE STYLE HOVER
+   ========================================================= */
+
+.dir-table{
+    --dir-row-hover: rgba(255,255,255,.05);
+    --dir-row-active: rgba(13,110,253,.15);
+    --dir-row-border: rgba(13,110,253,.55);
+
+    --bs-table-bg: var(--dir-table-bg);
+    --bs-table-color: var(--dir-text);
+    --bs-table-border-color: var(--dir-border-2);
+
+    --bs-table-hover-bg: transparent;
+}
+
+/* мягкая подсветка строки */
+.dir-table.table-hover tbody tr:hover td{
+    background: var(--dir-row-hover);
+}
+
+/* плавная анимация */
+.dir-table tbody tr td{
+    transition: background .15s ease, box-shadow .15s ease;
+}
+
+/* IDE-style линия слева */
+.dir-table tbody tr{
+    position: relative;
+}
+
+.dir-table tbody tr:hover{
+    box-shadow: inset 3px 0 0 var(--dir-row-border);
+}
+
+/* выбранная строка */
 .dir-table tbody tr.is-active td{
     background: var(--dir-row-active) !important;
 }
+
+.dir-table tbody tr.is-active{
+    box-shadow: inset 3px 0 0 var(--dir-row-border);
+}
+
+/* фокус внутри строки (select / input / button) */
+.dir-table tbody tr:focus-within td{
+    background: var(--dir-row-active);
+}
+
+
+
+
 
 /* =========================================================
    INPUTS

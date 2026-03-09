@@ -464,7 +464,7 @@
                                     </div>
                                     <div class="table-wrapper">
                                         <table
-                                            class="display table table-cm table-hover table-striped align-middle table-bordered">
+                                            class="display table table-cm table-hover table-striped align-middle table-bordered dir-table">
                                             <thead class="bg-gradient">
                                             <tr>
                                                 <th class="text-primary bg-gradient">{{__('IPL')}}<i class="ms-1"></i>
@@ -524,7 +524,7 @@
                                     </div>
                                     <div class="table-wrapper">
                                         <table
-                                            class="display table table-cm table-hover table-striped align-middle table-bordered">
+                                            class="table table-cm table-hover align-middle table-bordered dir-table">
                                             <thead class="">
                                             <tr>
                                                 <th class="text-primary text-center">{{__('Teardown Inspection')}}</th>
@@ -586,7 +586,7 @@
                                     @if(count($ordersPartsNew))
                                         <div class="table-wrapper order-modal-table-wrapper">
                                             <table
-                                                class="display table table-cm table-hover table-striped align-middle table-bordered order-modal-table">
+                                                class="table table-cm table-hover table-striped align-middle table-bordered order-modal-table ">
                                                 <thead class="bg-gradient">
                                                 <tr>
                                                     <th class="text-primary  bg-gradient "
@@ -815,8 +815,7 @@
 
                 <div class="me-3" style="width: 450px; max-height: 70vh; overflow-y: auto;">
                     <div class="table-wrapper me-3 p-2">
-                        <table id="tdr_inspect_Table" class="display table table-sm
-                                        table-hover table-striped align-middle table-bordered bg-gradient">
+                        <table id="tdr_inspect_Table" class="table table-sm table-hover  align-middle table-bordered dir-table">
                             <thead>
                             <tr>
                                 <th class=" text-primary text-center  " style="width: 300px;">
@@ -825,7 +824,8 @@
                                     </a>
                                 </th>
                                 <th class=" text-primary text-center " style="width: 50px;">
-                                </th>
+                                    ---
+                                </th>`
                             </tr>
                             </thead>
                             <tbody>
@@ -835,9 +835,9 @@
                                     <td class="text-center fs-8">
                                         {{ $missingCondition->name }}
                                     </td>
-                                    <td class="text-center img-icon">
+                                    <td class="text-center img-icon ">
                                         <img src="{{ asset('img/missing.gif')}}" alt="missing"
-                                             style="width: 50px;" class="" data-bs-toggle="modal"
+                                             style="width: 55px;" class="" data-bs-toggle="modal"
                                              data-bs-target="#missingModal{{$current_wo->number}}"
                                         >
                                     </td>
@@ -918,7 +918,7 @@
                                         <span class="position-relative d-inline-block mt-2">
                                             Ordered Parts
                                             <sup class="badge bg-primary rounded-pill position-absolute" style="top: -0.5em;
-                                            right: -0.3; font-size: 0.65em;">{{ $orderedPartsCount ?? 0 }}</sup>
+                                            right: -0.3em; font-size: 0.65em;">{{ $orderedPartsCount ?? 0 }}</sup>
                                         </span>
                                     </td>
                                     <td class="p-0 text-center img-icon">
@@ -939,10 +939,10 @@
                 <div class="me-3" >
                     <div class="table-wrapper me-3 p-2" style=" max-height: 60vh; overflow-y: auto;">
                         <table id="tdr_process_Table"
-                               class="display table table-sm table-hover table-striped align-middle table-bordered">
+                               class="table table-sm table-hover align-middle dir-table small">
                             <thead class="bg-gradient">
                             <tr>
-                                <th class="text-center text-primary sortable"style="width: 60px">{{__('IPL')}} </th>
+                                <th class="text-center text-primary sortable"style="width: 9%">{{__('IPL')}} </th>
                                 <th class=" text-center  text-primary sortable"style="width: 200px">{{__('Description')}} </th>
                                 <th class=" text-center text-primary sortable "style="width: 120px">{{__('P/N')}} </th>
                                 <th class=" text-center   text-primary sortable"style="width: 120px">{{__('S/N')}}</th>
@@ -961,7 +961,7 @@
                             @foreach($tdrs as $tdr)
                                 @if($tdr->use_tdr == true and $tdr->use_process_forms == true)
                                     <tr>
-                                        <td class="text-center"> <!-- IPL Number -->
+                                        <td class="text-center "> <!-- IPL Number -->
                                             {{ $tdr->component->ipl_num ?? '' }}
                                         </td>
                                         <td class="text-center"><!--  Part Description -->

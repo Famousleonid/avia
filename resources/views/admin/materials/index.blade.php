@@ -8,6 +8,8 @@
             height: calc(100vh - 120px);
             overflow-y: auto;
             overflow-x: hidden;
+            content-visibility: auto;
+            contain-intrinsic-size: 800px;
         }
 
         .table th, .table td {
@@ -366,45 +368,96 @@
             });
 
             // -------------------------------
-            // Search: обычный (1+ символ), debounce
-            // -------------------------------
+// Fast search index
+// -------------------------------
             let rowCache = [];
+            let filterRaf = null;
+
+            function normalizeText(str) {
+                return (str || '')
+                    .toString()
+                    .toLowerCase()
+                    .replace(/\s+/g, ' ')
+                    .trim();
+            }
+
+            function getRowSearchText(tr) {
+                const tds = tr.querySelectorAll('td');
+
+                // индексируем только полезные колонки:
+                // 1 = code
+                // 2 = material
+                // 3 = specification
+                // 4 = description
+                const code = tds[0]?.textContent || '';
+                const material = tds[1]?.textContent || '';
+                const specification = tds[2]?.textContent || '';
+                const description = tds[3]?.querySelector('.cell-text')?.textContent || tds[3]?.textContent || '';
+
+                return normalizeText(`${code} ${material} ${specification} ${description}`);
+            }
 
             function buildCache() {
                 rowCache = Array.from(tbody.querySelectorAll('tr')).map(tr => ({
                     tr,
-                    text: tr.innerText.toLowerCase()
+                    text: getRowSearchText(tr)
                 }));
             }
 
             function updateCacheForRow(tr) {
                 const item = rowCache.find(x => x.tr === tr);
-                if (item) item.text = tr.innerText.toLowerCase();
+                if (item) {
+                    item.text = getRowSearchText(tr);
+                }
+            }
+
+            function tokenizeQuery(raw) {
+                return normalizeText(raw).split(' ').filter(Boolean);
+            }
+
+            function rowMatchesAllTokens(rowText, tokens) {
+                for (let i = 0; i < tokens.length; i++) {
+                    if (!rowText.includes(tokens[i])) return false;
+                }
+                return true;
             }
 
             function applyFilter(raw) {
-                const q = (raw || '').trim().toLowerCase();
+                const tokens = tokenizeQuery(raw);
 
-                if (!q) {
-                    rowCache.forEach(r => r.tr.style.display = '');
+                if (filterRaf) {
+                    cancelAnimationFrame(filterRaf);
+                    filterRaf = null;
+                }
+
+                if (!tokens.length) {
+                    for (let i = 0; i < rowCache.length; i++) {
+                        rowCache[i].tr.hidden = false;
+                    }
                     spinOff();
                     return;
                 }
 
                 spinOn();
-                requestAnimationFrame(() => {
-                    rowCache.forEach(r => {
-                        r.tr.style.display = r.text.includes(q) ? '' : 'none';
-                    });
+
+                filterRaf = requestAnimationFrame(() => {
+                    for (let i = 0; i < rowCache.length; i++) {
+                        const row = rowCache[i];
+                        row.tr.hidden = !rowMatchesAllTokens(row.text, tokens);
+                    }
+
+                    filterRaf = null;
                     spinOff();
                 });
             }
 
-            const debouncedFilter = debounce(applyFilter, 200);
+            const debouncedFilter = debounce(applyFilter, 80);
 
             buildCache();
 
-            searchInput.addEventListener('input', (e) => debouncedFilter(e.target.value));
+            searchInput.addEventListener('input', (e) => {
+                debouncedFilter(e.target.value);
+            });
 
             clearBtn.addEventListener('click', () => {
                 searchInput.value = '';
@@ -418,7 +471,6 @@
                     applyFilter('');
                 }
             });
-
             // -------------------------------
             // Inline edit on double click (Description)
             // -------------------------------
