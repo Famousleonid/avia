@@ -56,7 +56,6 @@ function initTdrProcesses() {
     // Инициализируем обработчик групповых форм
     GroupProcessFormsHandler.init();
 
-    console.log('TDR Processes page initialized successfully');
 }
 
 // Инициализация при загрузке DOM
