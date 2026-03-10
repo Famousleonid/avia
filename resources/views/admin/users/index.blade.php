@@ -93,7 +93,7 @@
 
     </style>
 
-    <div class="card dir-page mt-1 pt-2 " >
+    <div class="card dir-page mt-1 pt-0 " >
         @role('Admin')
         <div class="card-header my-1">
             <div class="d-flex align-items-center gap-3 flex-wrap">

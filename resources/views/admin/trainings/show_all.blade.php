@@ -94,7 +94,7 @@
             <div class="card-header">
                 <div class="d-flex justify-content-between align-items-center">
                     <div>
-                        <h3>PART NUMBER APPROVED PERSONNEL</h3>
+                        <h5>PART NUMBER APPROVED PERSONNEL</h5>
                     </div>
                     <div>
                         <a href="#" class="btn btn-primary">
@@ -105,7 +105,7 @@
             </div>
 
             @if(config('app.debug') && isset($manuals) && isset($users))
-                <div class="card-body border-bottom">
+                <div class="card-body border-bottom p-1">
                     <small class="text-muted">
                         Manuals: {{ $manuals->count() }}, Users: {{ $users->count() }}
                     </small>
@@ -133,8 +133,8 @@
                         <table class="table table-bordered table-striped table-hover">
                             <thead>
                                 <tr>
-                                    <th class="text-center align-middle">Unit Description</th>
-                                    <th class="text-center align-middle">PART NUMBER APPROVED</th>
+                                    <th class="text-center align-middle text-info">Unit Description</th>
+                                    <th class="text-center align-middle text-info">PART NUMBER APPROVED</th>
                                     @foreach($users as $user)
                                         <th class="text-center align-middle user-column">{{ $user->name ?? 'N/A' }}</th>
                                     @endforeach

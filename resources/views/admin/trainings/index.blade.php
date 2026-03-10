@@ -4,8 +4,6 @@
 
 @section('content')
     <style>
-
-
         @media (max-width: 1100px) {
             .table th:nth-child(5), .table td:nth-child(5) {
                 display: none;
@@ -28,7 +26,7 @@
                 display: none;
             }
 
-            /* ВАЖНО: 6-й столбец (Actions) НЕ скрываем */
+            /* 6-й столбец (Actions) не скрываем */
         }
 
         .actions-cell {
@@ -44,15 +42,47 @@
             display: inline-block;
         }
 
-        /* На очень узких экранах ещё ужмёмся */
         @media (max-width: 576px) {
             .actions-cell .btn {
                 padding: .2rem .4rem;
                 font-size: .85rem;
             }
         }
-    </style>
 
+        .training-modal-link,
+        .training-modal-link:visited,
+        .training-modal-link:hover,
+        .training-modal-link:focus,
+        .training-modal-link:active {
+            color: inherit !important;
+            text-decoration: none !important;
+            background: transparent !important;
+            box-shadow: none !important;
+            outline: none !important;
+        }
+
+        #trainingsTable.table-hover tbody tr:hover > td,
+        #trainingsTable.table-hover tbody tr:hover > th {
+            background-color: inherit !important;
+            color: inherit !important;
+        }
+
+        #trainingsTable tbody td:first-child,
+        #trainingsTable tbody td:first-child:hover,
+        #trainingsTable tbody td:first-child:focus,
+        #trainingsTable tbody td:first-child:active {
+            background-color: transparent !important;
+        }
+
+        #trainingsTable tbody td:first-child .btn,
+        #trainingsTable tbody td:first-child .btn:hover,
+        #trainingsTable tbody td:first-child .btn:focus,
+        #trainingsTable tbody td:first-child .btn:active {
+            background-color: transparent !important;
+            color: inherit !important;
+            box-shadow: none !important;
+        }
+    </style>
 
     <div class="container ">
         <div class="card shadow">
@@ -60,11 +90,14 @@
                 <div class="d-flex justify-content-between flex-wrap align-items-center gap-2">
                     <div class="d-flex align-items-center gap-3 flex-wrap">
                         <h3 class="mb-0">{{ __('Trainings') }}</h3>
+
                         @roles("Admin|Manager")
                         @if($canViewAllUsers && $users->isNotEmpty())
                             <div class="d-flex align-items-center gap-2">
                                 <label class="form-label mb-0 small text-muted">{{ __('User') }}:</label>
-                                <select class="form-select form-select-sm" id="userSelectDropdown" style="min-width: 180px;"
+                                <select class="form-select form-select-sm"
+                                        id="userSelectDropdown"
+                                        style="min-width: 180px;"
                                         onchange="window.location.href='{{ route('trainings.index') }}?user_id=' + this.value">
                                     @foreach($users as $u)
                                         <option value="{{ $u->id }}" {{ $selectedUserId == $u->id ? 'selected' : '' }}>
@@ -76,67 +109,84 @@
                         @endif
                         @endroles
                     </div>
+
                     <div class="form-check form-switch pt-1">
-                        <input class="form-check-input" type="checkbox"
-                               id="trainingNotUpdated">
-                        <label class="form-check-label"
-                               for="trainingNotUpdated">Not updated
-                            trainings</label>
+                        <input class="form-check-input" type="checkbox" id="trainingNotUpdated">
+                        <label class="form-check-label" for="trainingNotUpdated">
+                            Not updated trainings
+                        </label>
                     </div>
-{{--                    @admin--}}
-{{--                    <div>--}}
-{{--                        <a href="{{route('trainings.showAll')}}"  class="btn btn-primary align-middle">{{__('Training All')}}</a>--}}
-{{--                    </div>--}}
-{{--                    @endadmin--}}
+
                     <div class="align-middle">
                         <a href="{{ route('trainings.create') }}{{ $canViewAllUsers && $selectedUserId != auth()->id() ? '?user_id=' . $selectedUserId : '' }}"
                            class="btn btn-primary align-middle">
-                            {{ __('Add Unit') }}</a>
+                            {{ __('Add Unit') }}
+                        </a>
                     </div>
                 </div>
             </div>
 
             <div class="card-body">
-                <table id="trainingsTable" data-toggle="table"
-                       data-search="true" data-pagination="false"
-                       data-page-size="5" class="table table-bordered">
+                <table id="trainingsTable"
+                       data-toggle="table"
+                       data-search="true"
+                       data-pagination="false"
+                       data-page-size="5"
+                       class="table table-bordered table-hover dir-table">
                     <thead>
                     <tr>
-                        <th data-priority="1" data-visible="true" class="text-center align-middle">{{ __('Component Description')
-                        }}</th>
-                        <th data-priority="2" data-visible="true" id="sortComponentPn" class="text-center align-middle sortable-th" style="cursor: pointer; user-select: none;" title="{{ __('Sort by Component PN') }}">{{ __('Component PN') }} <i class="bi bi-arrow-down-up text-muted small ms-1"></i></th>
-                        <th data-priority="3" data-visible="true"
-                            class="text-center align-middle">{{ __('First Training Date')}}</th>
-                        <th data-priority="4" data-visible="true"
-                            class="text-center align-middle">{{ __('Last Training Date') }}</th>
-                        <th data-priority="5" data-visible="true" class="text-center align-middle">{{ __('Form 132') }}</th>
-                        <th data-priority="6" data-visible="true" class="text-center align-middle">{{ __('Actions') }}</th>
+                        <th data-priority="1" data-visible="true" class="text-center align-middle">
+                            {{ __('Component Description') }}
+                        </th>
+                        <th data-priority="2"
+                            data-visible="true"
+                            id="sortComponentPn"
+                            class="text-center align-middle sortable-th"
+                            style="cursor: pointer; user-select: none;"
+                            title="{{ __('Sort by Component PN') }}">
+                            {{ __('Component PN') }}
+                            <i class="bi bi-arrow-down-up text-muted small ms-1"></i>
+                        </th>
+                        <th data-priority="3" data-visible="true" class="text-center align-middle">
+                            {{ __('First Training Date') }}
+                        </th>
+                        <th data-priority="4" data-visible="true" class="text-center align-middle">
+                            {{ __('Last Training Date') }}
+                        </th>
+                        <th data-priority="5" data-visible="true" class="text-center align-middle">
+                            {{ __('Form 132') }}
+                        </th>
+                        <th data-priority="6" data-visible="true" class="text-center align-middle">
+                            {{ __('Actions') }}
+                        </th>
                     </tr>
                     </thead>
+
                     <tbody>
                     @foreach($formattedTrainingLists as $trainingList)
                         <tr>
                             <td class="text-center">
-                                <a href="" data-bs-toggle="modal"
-                                   data-bs-target="#cmmModal{{$trainingList['first_training']->manual->id }}">
+                                <button type="button"
+                                        class="btn btn-link p-0 m-0 align-baseline text-decoration-none training-modal-link"
+                                        data-bs-toggle="modal"
+                                        data-bs-target="#cmmModal{{ $trainingList['first_training']->manual->id }}">
                                     {{ $trainingList['first_training']->manual->title ?? 'N/A' }}
-                                </a>
+                                </button>
                             </td>
 
-                            <td class="text-center">{{
-                                $trainingList['first_training']->manual->unit_name_training ?? 'N/A' }}</td>
+                            <td class="text-center">
+                                {{ $trainingList['first_training']->manual->unit_name_training ?? 'N/A' }}
+                            </td>
 
                             <td class="text-center">
-                                {{ isset($trainingList['first_training']) ? Carbon::parse
-                                ($trainingList['first_training']->date_training)->format('M-d-Y') : 'N/A' }}
+                                {{ isset($trainingList['first_training']) ? Carbon::parse($trainingList['first_training']->date_training)->format('M-d-Y') : 'N/A' }}
                             </td>
 
                             <td class="text-center"
                                 @if(isset($trainingList['last_training']) && Carbon::parse($trainingList['last_training']->date_training)->diffInDays(Carbon::now()) > 340)
                                     style="color: red"
                                 @endif>
-                                {{ isset($trainingList['last_training']) ? Carbon::parse
-                                ($trainingList['last_training']->date_training)->format('M-d-Y') : 'N/A' }}
+                                {{ isset($trainingList['last_training']) ? Carbon::parse($trainingList['last_training']->date_training)->format('M-d-Y') : 'N/A' }}
                             </td>
 
                             <td class="text-center">
@@ -148,23 +198,16 @@
                             </td>
 
                             <td class="text-center">
-                                <div
-                                    class="actions-cell d-inline-flex align-items-center justify-content-center gap-2 flex-nowrap">
-
-{{--                                    <span data-tippy-content="{{ (isset($trainingList['last_training']) && Carbon::parse($trainingList['last_training']->date_training)->diffInDays(Carbon::now()) < 340) ? __('Training is up to date (less than 340 days)') : __('Update') }}">--}}
-                                    <span data-tippy-content="{{__('Update') }}">
-                                        <button
-                                            class="btn btn-success btn-sm d-inline-flex align-items-center gap-1 update-training-btn"
-                                            data-manuals-id="{{ $trainingList['first_training']->manuals_id }}"
-                                            data-date-training="{{ $trainingList['last_training']->date_training ?? $trainingList['first_training']->date_training }}"
-                                            data-manuals-title="{{ $trainingList['first_training']->manual->title ?? 'N/A' }}"
-
-                                            @if(isset($trainingList['last_training']) && Carbon::parse($trainingList['last_training']->date_training)->diffInDays(Carbon::now()) < 340)
-                                                disabled
-                                            @endif>
-
+                                <div class="actions-cell d-inline-flex align-items-center justify-content-center gap-2 flex-nowrap">
+                                    <span data-tippy-content="{{ __('Update') }}">
+                                        <button class="btn btn-success btn-sm d-inline-flex align-items-center gap-1 update-training-btn"
+                                                data-manuals-id="{{ $trainingList['first_training']->manuals_id }}"
+                                                data-date-training="{{ $trainingList['last_training']->date_training ?? $trainingList['first_training']->date_training }}"
+                                                data-manuals-title="{{ $trainingList['first_training']->manual->title ?? 'N/A' }}"
+                                                @if(isset($trainingList['last_training']) && Carbon::parse($trainingList['last_training']->date_training)->diffInDays(Carbon::now()) < 340)
+                                                    disabled
+                                                @endif>
                                             <i class="bi bi-check-circle"></i>
-{{--                                        <span class="d-none d-sm-inline">{{ __('Update') }}</span>--}}
                                         </button>
                                     </span>
 
@@ -175,6 +218,7 @@
                                             data-tippy-placement="top">
                                         <i class="bi bi-journal-text"></i>
                                     </button>
+
                                     <button class="btn btn-warning btn-sm d-inline-flex align-items-center gap-1"
                                             data-bs-toggle="modal"
                                             data-bs-target="#editTrainingModal{{ $trainingList['first_training']->manuals_id }}"
@@ -182,209 +226,19 @@
                                             data-tippy-placement="top">
                                         <i class="bi bi-pencil"></i>
                                     </button>
+
                                     @roles("Admin|Manager")
-                                    <button
-                                        class="btn btn-danger btn-sm d-inline-flex align-items-center gap-1 delete-training-btn"
-                                        data-user-id="{{ $selectedUserId }}"
-                                        data-manual-id="{{ $trainingList['first_training']->manuals_id }}"
-                                        data-title="{{ $trainingList['first_training']->manual->title ?? 'N/A' }}"
-                                        data-tippy-content="{{ __('Delete Training') }}"
-                                        data-tippy-placement="top">
+                                    <button class="btn btn-danger btn-sm d-inline-flex align-items-center gap-1 delete-training-btn"
+                                            data-user-id="{{ $selectedUserId }}"
+                                            data-manual-id="{{ $trainingList['first_training']->manuals_id }}"
+                                            data-title="{{ $trainingList['first_training']->manual->title ?? 'N/A' }}"
+                                            data-tippy-content="{{ __('Delete Training') }}"
+                                            data-tippy-placement="top">
                                         <i class="bi bi-trash"></i>
                                     </button>
                                     @endroles
                                 </div>
                             </td>
-                            <!-- Модальное окно -->
-                            <div class="modal fade" id="trainingModal{{ $trainingList['first_training']->manuals_id }}"
-                                 tabindex="-1"
-                                 aria-labelledby="trainingModalLabel" aria-hidden="true">
-                                <div class="modal-dialog">
-                                    <div class="modal-content">
-                                        <div class="modal-header justify-content-between">
-                                            <h5 class="modal-title" id="trainingModalLabel">
-                                                Training for {{ $trainingList['first_training']->manual->title }}
-                                                <br> PN {{ $trainingList['first_training']->manual->unit_name_training}}
-                                            </h5>
-                                            <button type="button" class="btn-close" data-bs-dismiss="modal"
-                                                    aria-label="Закрыть"></button>
-                                        </div>
-                                        <div class="modal-body">
-                                            @foreach($trainingList['trainings'] as $training)
-                                                <div class="form-group">
-                                                    <div class="row d-flex">
-
-
-                                                        <div class="col">
-                                                            <label>{{ Carbon::parse($training->date_training)->format('M.d.Y') }}
-                                                                (Form: {{ $training->form_type }} )
-                                                            </label>
-                                                        </div>
-                                                        <div class="col">
-                                                            @if($training->form_type == '112')
-                                                                <a href="{{ route('trainings.form112', ['id'=> $training->id, 'showImage' => 'false']) }}"
-                                                                   class="btn btn-success mb-1 formLink " target="_blank"
-                                                                   id="formLink{{ $trainingList['first_training']->manuals_id }}">
-                                                                    View/Print Form 112
-                                                                </a>
-                                                            @elseif($training->form_type == '132')
-                                                                <a href="{{ route('trainings.form132', ['id' => $training->id, 'showImage' => 'false']) }}"
-                                                                   class="btn  btn-info mb-1 formLink " target="_blank"
-                                                                   id="formLink{{ $trainingList['first_training']->manuals_id }}">
-                                                                    View/Print Form 132
-                                                                </a>
-                                                            @endif
-                                                        </div>
-                                                    </div>
-                                                </div>
-                                            @endforeach
-                                        </div>
-                                        <div class="modal-footer">
-{{--                                            @if(Auth::user()->role !== null && Auth::user()->role->name !== 'Technician')--}}
-                                            @roles("Admin|Team Leader|Manager|Shop Certifying Authority (SCA)")
-                                                <div class="form-check ">
-                                                    <input type="checkbox" class="form-check-input"
-                                                           id="showImage{{ $trainingList['first_training']->manuals_id }}">
-                                                    <label
-                                                        class="form-check-label"
-                                                        for="showImage{{ $trainingList['first_training']->manuals_id }}">
-                                                        {{__('Sign In')}}
-                                                    </label>
-                                                </div>
-{{--                                            @endif--}}
-                                            @endroles
-                                            <button type="button" class="btn btn-secondary ms-5" data-bs-dismiss="modal">
-                                                Close
-                                            </button>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-
-                            <!-- Модальное окно Edit: редактирование дат тренировок -->
-                            <div class="modal fade" id="editTrainingModal{{ $trainingList['first_training']->manuals_id }}" tabindex="-1"
-                                 aria-labelledby="editTrainingModalLabel{{ $trainingList['first_training']->manuals_id }}" aria-hidden="true">
-                                <div class="modal-dialog">
-                                    <div class="modal-content">
-                                        <div class="modal-header">
-                                            <h5 class="modal-title" id="editTrainingModalLabel{{ $trainingList['first_training']->manuals_id }}">
-                                                {{ __('Edit training dates') }} — {{ $trainingList['first_training']->manual->title ?? 'N/A' }}
-                                            </h5>
-                                            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-                                        </div>
-                                        <div class="modal-body">
-                                            @foreach($trainingList['trainings'] as $training)
-                                                <div class="row mb-2 align-items-center edit-training-row"
-                                                     data-training-id="{{ $training->id }}"
-                                                     data-original-date="{{ \Carbon\Carbon::parse($training->date_training)->format('Y-m-d') }}">
-                                                    <div class="col-auto">
-                                                        <span class="text-muted">{{ __('Form') }} {{ $training->form_type }}</span>
-                                                    </div>
-                                                    <div class="col">
-                                                        <input type="date" class="form-control form-control-sm edit-training-date-input"
-                                                               value="{{ \Carbon\Carbon::parse($training->date_training)->format('Y-m-d') }}">
-                                                    </div>
-                                                    <div class="col-auto">
-                                                        @if($training->form_type == '112')
-                                                            <button type="button"
-                                                                    class="btn btn-outline-danger btn-sm delete-training-date-btn"
-                                                                    data-training-id="{{ $training->id }}">
-                                                                <i class="bi bi-trash"></i>
-                                                            </button>
-                                                        @endif
-                                                    </div>
-                                                </div>
-                                            @endforeach
-                                            <hr class="my-3">
-                                            <div class="row mb-2 align-items-center add-training-row" data-manuals-id="{{ $trainingList['first_training']->manuals_id }}">
-                                                <div class="col-auto">
-                                                    <span class="text-muted">{{ __('Add training') }}</span>
-                                                </div>
-                                                <div class="col">
-                                                    <input type="date" class="form-control form-control-sm add-training-date-input" placeholder="">
-                                                </div>
-                                                <div class="col-auto">
-                                                    <button type="button" class="btn btn-outline-success btn-sm add-training-in-edit-btn">
-                                                        <i class="bi bi-plus-lg"></i> {{ __('Add') }}
-                                                    </button>
-                                                </div>
-                                            </div>
-                                        </div>
-                                        <div class="modal-footer">
-                                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">{{ __('Cancel') }}</button>
-                                            <button type="button" class="btn btn-primary edit-training-save-btn"
-                                                    data-modal-id="editTrainingModal{{ $trainingList['first_training']->manuals_id }}">
-                                                {{ __('Save') }}
-                                            </button>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-
-                            {{--    <!-- Модальное окно для просмотра деталей CMM -->--}}
-
-                            <div class="modal fade" id="cmmModal{{$trainingList['first_training']->manual->id }}"
-                                 tabindex="-1" role="dialog"
-                                 aria-labelledby="cmmModalLabel{{$trainingList['first_training']->manual->id }}"
-                                 aria-hidden="true">
-                                <div class="modal-dialog modal-dialog-centered" role="document">
-                                    <div class="modal-content">
-                                        <div class="modal-header bg-gradient">
-                                            <div>
-                                                <h5 class="modal-title"
-                                                    id="imageModalLabel{{ $trainingList['first_training']->manual->id }}">
-                                                    {{ $trainingList['first_training']->manual->title }}{{__(': ')}}
-                                                </h5>
-                                                <h6>{{$trainingList['first_training']->manual->unit_name_training }}</h6>
-                                            </div>
-                                            <button type="button" class="btn-close pb-2" data-bs-dismiss="modal"
-                                                    aria-label="Close"></button>
-                                        </div>
-
-                                        <div class="modal-body bg-white">
-                                            <div class="d-flex bg-white">
-                                                <div class="me-2">
-                                                    @if($trainingList['first_training']->manual->getFirstMediaBigUrl('manuals'))
-                                                        <img
-                                                            src="{{$trainingList['first_training']->manual->getFirstMediaBigUrl('manuals') }}"
-                                                            style="width: 200px;"
-                                                            alt="{{ $trainingList['first_training']->manual->title }}">
-                                                    @else
-                                                        <p>No image available</p>
-                                                    @endif
-
-                                                </div>
-                                                <div class="bg-white text-black">
-                                                    <p>
-                                                        <strong>{{ __('CMM:') }}</strong> {{ $trainingList['first_training']->manual->number }}
-                                                    </p>
-                                                    <p><strong>{{ __('Description:') }}</strong>
-                                                        {{ $trainingList['first_training']->manual->title }}</p>
-                                                    <p>
-                                                        <strong>{{ __('Revision Date:')}}</strong> {{ $trainingList['first_training']->manual->revision_date }}
-                                                    </p>
-                                                    <p><strong>{{ __('AirCraft Type:')}}</strong>
-                                                        {{ $planes[$trainingList['first_training']->manual->planes_id] ?? 'N/A' }}
-                                                    </p>
-                                                    <p>
-                                                        <strong>{{ __('MFR:') }}</strong> {{$builders[$trainingList['first_training']->manual->builders_id] ?? 'N/A' }}
-                                                    </p>
-                                                    <p>
-                                                        <strong>{{ __('Scope:') }}</strong> {{$scopes[$trainingList['first_training']->manual->scopes_id] ?? 'N/A' }}
-                                                    </p>
-                                                    <p>
-                                                        <strong>{{ __('Library:') }}</strong> {{$trainingList['first_training']->manual->lib }}
-                                                    </p>
-                                                </div>
-
-                                            </div>
-
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-
-
                         </tr>
                     @endforeach
                     </tbody>
@@ -392,7 +246,236 @@
             </div>
         </div>
     </div>
-    <!-- Modal для подтверждения удаления -->
+
+    {{-- Все модалки вынесены из <tr> / <table> --}}
+    @foreach($formattedTrainingLists as $trainingList)
+
+        <!-- Modal: Training history -->
+        <div class="modal fade"
+             id="trainingModal{{ $trainingList['first_training']->manuals_id }}"
+             tabindex="-1"
+             aria-labelledby="trainingModalLabel{{ $trainingList['first_training']->manuals_id }}"
+             aria-hidden="true">
+            <div class="modal-dialog">
+                <div class="modal-content">
+                    <div class="modal-header justify-content-between">
+                        <h5 class="modal-title"
+                            id="trainingModalLabel{{ $trainingList['first_training']->manuals_id }}">
+                            Training for {{ $trainingList['first_training']->manual->title }}
+                            <br>
+                            PN {{ $trainingList['first_training']->manual->unit_name_training }}
+                        </h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Закрыть"></button>
+                    </div>
+
+                    <div class="modal-body">
+                        @foreach($trainingList['trainings'] as $training)
+                            <div class="form-group">
+                                <div class="row d-flex">
+                                    <div class="col">
+                                        <label>
+                                            {{ Carbon::parse($training->date_training)->format('M.d.Y') }}
+                                            (Form: {{ $training->form_type }})
+                                        </label>
+                                    </div>
+
+                                    <div class="col">
+                                        @if($training->form_type == '112')
+                                            <a href="{{ route('trainings.form112', ['id'=> $training->id, 'showImage' => 'false']) }}"
+                                               class="btn btn-success mb-1 formLink"
+                                               target="_blank"
+                                               id="formLink{{ $trainingList['first_training']->manuals_id }}_{{ $training->id }}">
+                                                View/Print Form 112
+                                            </a>
+                                        @elseif($training->form_type == '132')
+                                            <a href="{{ route('trainings.form132', ['id' => $training->id, 'showImage' => 'false']) }}"
+                                               class="btn btn-info mb-1 formLink"
+                                               target="_blank"
+                                               id="formLink{{ $trainingList['first_training']->manuals_id }}_{{ $training->id }}">
+                                                View/Print Form 132
+                                            </a>
+                                        @endif
+                                    </div>
+                                </div>
+                            </div>
+                        @endforeach
+                    </div>
+
+                    <div class="modal-footer">
+                        @roles("Admin|Team Leader|Manager|Shop Certifying Authority (SCA)")
+                        <div class="form-check">
+                            <input type="checkbox"
+                                   class="form-check-input sign-in-toggle"
+                                   id="showImage{{ $trainingList['first_training']->manuals_id }}"
+                                   data-manuals-id="{{ $trainingList['first_training']->manuals_id }}">
+                            <label class="form-check-label"
+                                   for="showImage{{ $trainingList['first_training']->manuals_id }}">
+                                {{ __('Sign In') }}
+                            </label>
+                        </div>
+                        @endroles
+
+                        <button type="button" class="btn btn-secondary ms-5" data-bs-dismiss="modal">
+                            Close
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Modal: Edit training dates -->
+        <div class="modal fade"
+             id="editTrainingModal{{ $trainingList['first_training']->manuals_id }}"
+             tabindex="-1"
+             aria-labelledby="editTrainingModalLabel{{ $trainingList['first_training']->manuals_id }}"
+             aria-hidden="true">
+            <div class="modal-dialog">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title"
+                            id="editTrainingModalLabel{{ $trainingList['first_training']->manuals_id }}">
+                            {{ __('Edit training dates') }} — {{ $trainingList['first_training']->manual->title ?? 'N/A' }}
+                        </h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+
+                    <div class="modal-body">
+                        @foreach($trainingList['trainings'] as $training)
+                            <div class="row mb-2 align-items-center edit-training-row"
+                                 data-training-id="{{ $training->id }}"
+                                 data-original-date="{{ \Carbon\Carbon::parse($training->date_training)->format('Y-m-d') }}">
+                                <div class="col-auto">
+                                    <span class="text-muted">{{ __('Form') }} {{ $training->form_type }}</span>
+                                </div>
+
+                                <div class="col">
+                                    <input type="date"
+                                           class="form-control form-control-sm edit-training-date-input"
+                                           value="{{ \Carbon\Carbon::parse($training->date_training)->format('Y-m-d') }}">
+                                </div>
+
+                                <div class="col-auto">
+                                    @if($training->form_type == '112')
+                                        <button type="button"
+                                                class="btn btn-outline-danger btn-sm delete-training-date-btn"
+                                                data-training-id="{{ $training->id }}">
+                                            <i class="bi bi-trash"></i>
+                                        </button>
+                                    @endif
+                                </div>
+                            </div>
+                        @endforeach
+
+                        <hr class="my-3">
+
+                        <div class="row mb-2 align-items-center add-training-row"
+                             data-manuals-id="{{ $trainingList['first_training']->manuals_id }}">
+                            <div class="col-auto">
+                                <span class="text-muted">{{ __('Add training') }}</span>
+                            </div>
+
+                            <div class="col">
+                                <input type="date"
+                                       class="form-control form-control-sm add-training-date-input"
+                                       placeholder="">
+                            </div>
+
+                            <div class="col-auto">
+                                <button type="button" class="btn btn-outline-success btn-sm add-training-in-edit-btn">
+                                    <i class="bi bi-plus-lg"></i> {{ __('Add') }}
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                            {{ __('Cancel') }}
+                        </button>
+                        <button type="button"
+                                class="btn btn-primary edit-training-save-btn"
+                                data-modal-id="editTrainingModal{{ $trainingList['first_training']->manuals_id }}">
+                            {{ __('Save') }}
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Modal: CMM details -->
+        <div class="modal fade"
+             id="cmmModal{{ $trainingList['first_training']->manual->id }}"
+             tabindex="-1"
+             role="dialog"
+             aria-labelledby="cmmModalLabel{{ $trainingList['first_training']->manual->id }}"
+             aria-hidden="true">
+            <div class="modal-dialog modal-dialog-centered" role="document">
+                <div class="modal-content">
+                    <div class="modal-header bg-gradient">
+                        <div>
+                            <h5 class="modal-title"
+                                id="cmmModalLabel{{ $trainingList['first_training']->manual->id }}">
+                                {{ $trainingList['first_training']->manual->title }}{{ __(':') }}
+                            </h5>
+                            <h6>{{ $trainingList['first_training']->manual->unit_name_training }}</h6>
+                        </div>
+                        <button type="button"
+                                class="btn-close pb-2"
+                                data-bs-dismiss="modal"
+                                aria-label="Close"></button>
+                    </div>
+
+                    <div class="modal-body bg-white">
+                        <div class="d-flex bg-white">
+                            <div class="me-2">
+                                @if($trainingList['first_training']->manual->getFirstMediaBigUrl('manuals'))
+                                    <img src="{{ $trainingList['first_training']->manual->getFirstMediaBigUrl('manuals') }}"
+                                         style="width: 200px;"
+                                         alt="{{ $trainingList['first_training']->manual->title }}">
+                                @else
+                                    <p>No image available</p>
+                                @endif
+                            </div>
+
+                            <div class="bg-white text-black">
+                                <p>
+                                    <strong>{{ __('CMM:') }}</strong>
+                                    {{ $trainingList['first_training']->manual->number }}
+                                </p>
+                                <p>
+                                    <strong>{{ __('Description:') }}</strong>
+                                    {{ $trainingList['first_training']->manual->title }}
+                                </p>
+                                <p>
+                                    <strong>{{ __('Revision Date:') }}</strong>
+                                    {{ $trainingList['first_training']->manual->revision_date }}
+                                </p>
+                                <p>
+                                    <strong>{{ __('AirCraft Type:') }}</strong>
+                                    {{ $planes[$trainingList['first_training']->manual->planes_id] ?? 'N/A' }}
+                                </p>
+                                <p>
+                                    <strong>{{ __('MFR:') }}</strong>
+                                    {{ $builders[$trainingList['first_training']->manual->builders_id] ?? 'N/A' }}
+                                </p>
+                                <p>
+                                    <strong>{{ __('Scope:') }}</strong>
+                                    {{ $scopes[$trainingList['first_training']->manual->scopes_id] ?? 'N/A' }}
+                                </p>
+                                <p>
+                                    <strong>{{ __('Library:') }}</strong>
+                                    {{ $trainingList['first_training']->manual->lib }}
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+    @endforeach
+
+    <!-- Modal: Confirm delete -->
     <div class="modal fade" id="confirmDeleteModal" tabindex="-1" aria-hidden="true">
         <div class="modal-dialog">
             <div class="modal-content">
@@ -400,10 +483,15 @@
                     <h5 class="modal-title">Confirm Delete</h5>
                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
+
                 <div class="modal-body">
-                    <p>Are you sure you want to delete ALL training records for <span id="manualTitle"></span>?</p>
+                    <p>
+                        Are you sure you want to delete ALL training records for
+                        <span id="manualTitle"></span>?
+                    </p>
                     <p class="text-danger">This action cannot be undone!</p>
                 </div>
+
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
                     <button type="button" class="btn btn-danger" id="confirmDeleteBtn">Delete All</button>
@@ -412,7 +500,7 @@
         </div>
     </div>
 
-    <!-- Modal: Update — одна дата нового тренинга -->
+    <!-- Modal: Update training -->
     <div class="modal fade" id="updateTrainingModal" tabindex="-1" aria-labelledby="updateTrainingModalLabel" aria-hidden="true">
         <div class="modal-dialog">
             <div class="modal-content">
@@ -420,36 +508,50 @@
                     <h5 class="modal-title" id="updateTrainingModalLabel">{{ __('Update training') }}</h5>
                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
+
                 <div class="modal-body">
                     <p class="text-muted small mb-2" id="updateTrainingModalSubtitle"></p>
                     <label class="form-label">{{ __('Training date') }}</label>
                     <input type="date" id="updateTrainingDateInput" class="form-control">
                 </div>
+
                 <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">{{ __('Cancel') }}</button>
-                    <button type="button" class="btn btn-primary" id="updateTrainingConfirmBtn">{{ __('Add training') }}</button>
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                        {{ __('Cancel') }}
+                    </button>
+                    <button type="button" class="btn btn-primary" id="updateTrainingConfirmBtn">
+                        {{ __('Add training') }}
+                    </button>
                 </div>
             </div>
         </div>
     </div>
+
     <script>
         const selectedUserId = {{ $selectedUserId }};
         const authUserId = {{ auth()->id() }};
         const canEditOtherUser = {{ $canViewAllUsers ? 'true' : 'false' }};
 
         function handleUpdateTraining(manualsId, dateTraining, manualsTitle) {
-            document.getElementById('updateTrainingModalLabel').textContent = '{{ __("Update training") }}: ' + manualsTitle;
+            document.getElementById('updateTrainingModalLabel').textContent =
+                '{{ __("Update training") }}: ' + manualsTitle;
+
             document.getElementById('updateTrainingModalSubtitle').textContent = '';
 
             const inputEl = document.getElementById('updateTrainingDateInput');
             const today = new Date();
-            inputEl.value = today.getFullYear() + '-' + String(today.getMonth() + 1).padStart(2, '0') + '-' + String(today.getDate()).padStart(2, '0');
+
+            inputEl.value =
+                today.getFullYear() + '-' +
+                String(today.getMonth() + 1).padStart(2, '0') + '-' +
+                String(today.getDate()).padStart(2, '0');
 
             const modal = new bootstrap.Modal(document.getElementById('updateTrainingModal'));
             modal.show();
 
             document.getElementById('updateTrainingConfirmBtn').onclick = function () {
                 const dateYmd = inputEl.value;
+
                 if (!dateYmd) {
                     showNotification('{{ __("Please select a date.") }}', 'warning');
                     return;
@@ -460,6 +562,7 @@
                     date_training: [dateYmd],
                     form_type: ['112']
                 };
+
                 if (canEditOtherUser && selectedUserId !== authUserId) {
                     trainingData.user_id = selectedUserId;
                 }
@@ -476,12 +579,15 @@
                     .then(data => {
                         if (data.success) {
                             let message = '{{ __("Training added.") }}';
+
                             if (data.created !== undefined && data.created > 0) {
                                 message = '{{ __("Created") }}: ' + data.created;
                             }
+
                             if (data.skipped > 0) {
                                 message += ' ({{ __("already exists") }})';
                             }
+
                             showNotification(message, 'success');
                             modal.hide();
                             location.reload();
@@ -496,47 +602,63 @@
             };
         }
 
-        // Сортировка по столбцу Component PN
+        function getWeekNumber(d) {
+            const oneJan = new Date(d.getFullYear(), 0, 1);
+            const numberOfDays = Math.floor((d - oneJan) / (24 * 60 * 60 * 1000));
+            return Math.ceil((numberOfDays + oneJan.getDay() + 1) / 7);
+        }
+
+        function getDateFromWeekAndYear(week, year) {
+            const firstJan = new Date(year, 0, 1);
+            const days = (week - 1) * 7 - firstJan.getDay() + 1;
+            return new Date(year, 0, 1 + days);
+        }
+
         document.addEventListener('DOMContentLoaded', function () {
+            // Сортировка по Component PN
             const sortTh = document.getElementById('sortComponentPn');
             const table = document.getElementById('trainingsTable');
+
             if (sortTh && table) {
-                let sortOrder = 1; // 1 = asc, -1 = desc
+                let sortOrder = 1;
+
                 sortTh.addEventListener('click', function () {
                     const tbody = table.querySelector('tbody');
                     const rows = Array.from(tbody.querySelectorAll('tr'));
-                    const componentPnIndex = 1; // индекс столбца Component PN
+                    const componentPnIndex = 1;
+
                     rows.sort(function (a, b) {
                         const aVal = (a.cells[componentPnIndex]?.textContent || '').trim();
                         const bVal = (b.cells[componentPnIndex]?.textContent || '').trim();
                         const cmp = aVal.localeCompare(bVal, undefined, { numeric: true });
                         return sortOrder * cmp;
                     });
+
                     sortOrder *= -1;
-                    rows.forEach(function (row) { tbody.appendChild(row); });
-                    // Обновляем иконку
+                    rows.forEach(function (row) {
+                        tbody.appendChild(row);
+                    });
+
                     const icon = sortTh.querySelector('i');
-                    if (icon) icon.className = (sortOrder > 0 ? 'bi bi-arrow-down' : 'bi bi-arrow-up') + ' text-muted small ms-1';
+                    if (icon) {
+                        icon.className = (sortOrder > 0 ? 'bi bi-arrow-down' : 'bi bi-arrow-up') + ' text-muted small ms-1';
+                    }
                 });
             }
-        });
 
-        // Обработчик для кнопки Update
-        document.addEventListener('DOMContentLoaded', function () {
+            // Обработчик Update
             document.querySelectorAll('.update-training-btn').forEach(btn => {
                 btn.addEventListener('click', function () {
                     if (this.disabled) return;
+
                     const manualsId = this.getAttribute('data-manuals-id');
                     const dateTraining = this.getAttribute('data-date-training');
                     const manualsTitle = this.getAttribute('data-manuals-title');
+
                     handleUpdateTraining(manualsId, dateTraining, manualsTitle);
                 });
             });
-        });
 
-
-        // Edit training dates: Save — PATCH изменённых дат
-        document.addEventListener('DOMContentLoaded', function () {
             const baseUrl = '{{ url("trainings") }}';
             const csrfToken = '{{ csrf_token() }}';
 
@@ -549,11 +671,14 @@
 
                     const rows = modalEl.querySelectorAll('.edit-training-row');
                     const updates = [];
+
                     rows.forEach(function (row) {
                         const trainingId = row.getAttribute('data-training-id');
                         const originalDate = row.getAttribute('data-original-date');
                         const input = row.querySelector('.edit-training-date-input');
+
                         if (!input || !trainingId) return;
+
                         const newDate = input.value.trim();
                         if (newDate && newDate !== originalDate) {
                             updates.push({ id: trainingId, date_training: newDate });
@@ -561,7 +686,7 @@
                     });
 
                     if (updates.length === 0) {
-                        bootstrap.Modal.getInstance(modalEl).hide();
+                        bootstrap.Modal.getInstance(modalEl)?.hide();
                         return;
                     }
 
@@ -578,14 +703,21 @@
                             },
                             body: JSON.stringify({ date_training: u.date_training })
                         })
-                            .then(function (r) { return r.json().then(function (data) { return { ok: r.ok, data: data }; }); })
+                            .then(function (r) {
+                                return r.json().then(function (data) {
+                                    return { ok: r.ok, data: data };
+                                });
+                            })
                             .then(function (result) {
                                 done++;
+
                                 if (!result.ok) {
                                     errors.push(result.data.message || 'ID ' + u.id);
                                 }
+
                                 if (done === updates.length) {
-                                    bootstrap.Modal.getInstance(modalEl).hide();
+                                    bootstrap.Modal.getInstance(modalEl)?.hide();
+
                                     if (errors.length > 0) {
                                         showNotification('{{ __("Error") }}: ' + errors.join(', '), 'error');
                                     } else {
@@ -597,8 +729,9 @@
                             .catch(function (err) {
                                 done++;
                                 errors.push(err.message);
+
                                 if (done === updates.length) {
-                                    bootstrap.Modal.getInstance(modalEl).hide();
+                                    bootstrap.Modal.getInstance(modalEl)?.hide();
                                     showNotification('{{ __("Error") }}: ' + errors.join(', '), 'error');
                                 }
                             });
@@ -606,16 +739,18 @@
                 });
             });
 
-            // Добавление тренинга в модальном окне Edit
+            // Добавление тренинга в Edit modal
             document.querySelectorAll('.add-training-in-edit-btn').forEach(function (btn) {
                 btn.addEventListener('click', function () {
                     const row = this.closest('.add-training-row');
                     if (!row) return;
+
                     const manualsId = row.getAttribute('data-manuals-id');
                     const input = row.querySelector('.add-training-date-input');
                     if (!input || !manualsId) return;
 
                     const dateYmd = input.value.trim();
+
                     if (!dateYmd) {
                         showNotification('{{ __("Please select a date.") }}', 'warning');
                         return;
@@ -626,6 +761,7 @@
                         date_training: [dateYmd],
                         form_type: ['112']
                     };
+
                     if (canEditOtherUser && selectedUserId !== authUserId) {
                         trainingData.user_id = selectedUserId;
                     }
@@ -639,7 +775,11 @@
                         },
                         body: JSON.stringify(trainingData)
                     })
-                        .then(function (r) { return r.json().then(function (data) { return { ok: r.ok, data: data }; }); })
+                        .then(function (r) {
+                            return r.json().then(function (data) {
+                                return { ok: r.ok, data: data };
+                            });
+                        })
                         .then(function (result) {
                             if (result.ok && result.data.success) {
                                 showNotification(result.data.message || '{{ __("Training added.") }}', 'success');
@@ -654,7 +794,7 @@
                 });
             });
 
-            // Удаление отдельной даты тренинга (форма 112)
+            // Удаление отдельной даты тренинга
             document.querySelectorAll('.delete-training-date-btn').forEach(function (btn) {
                 btn.addEventListener('click', function () {
                     const trainingId = this.getAttribute('data-training-id');
@@ -671,12 +811,17 @@
                             'Accept': 'application/json'
                         }
                     })
-                        .then(function (r) { return r.json().then(function (data) { return { ok: r.ok, data: data }; }); })
+                        .then(function (r) {
+                            return r.json().then(function (data) {
+                                return { ok: r.ok, data: data };
+                            });
+                        })
                         .then(function (result) {
                             if (!result.ok) {
                                 showNotification('{{ __("Error") }}: ' + (result.data.message || ''), 'error');
                                 return;
                             }
+
                             showNotification(result.data.message || '{{ __("Training date deleted.") }}', 'success');
                             location.reload();
                         })
@@ -685,117 +830,106 @@
                         });
                 });
             });
-        });
 
-        function getWeekNumber(d) {
-            const oneJan = new Date(d.getFullYear(), 0, 1);
-            const numberOfDays = Math.floor((d - oneJan) / (24 * 60 * 60 * 1000));
-            return Math.ceil((numberOfDays + oneJan.getDay() + 1) / 7);
-        }
+            // Переключение showImage только для конкретной модалки/manuals_id
+            document.querySelectorAll('.sign-in-toggle').forEach(function (checkbox) {
+                checkbox.addEventListener('change', function () {
+                    const showImage = this.checked ? 'true' : 'false';
+                    const manualsId = this.getAttribute('data-manuals-id');
 
-        function getDateFromWeekAndYear(week, year) {
-            const firstJan = new Date(year, 0, 1);
-            const days = (week - 1) * 7 - firstJan.getDay() + 1;
-            return new Date(year, 0, 1 + days);
-        }
+                    const modal = document.getElementById('trainingModal' + manualsId);
+                    if (!modal) return;
 
+                    const formLinks = modal.querySelectorAll('.formLink');
 
-        document.querySelectorAll('.form-check-input').forEach(checkbox => {
-            checkbox.addEventListener('change', function () {
-                const showImage = this.checked ? 'true' : 'false';  // Получаем значение параметра showImage
-                // const manualsId = this.id.replace('showImage', ''); // Получаем manuals_id из id чекбокса
-                const formLinks = document.querySelectorAll(`.formLink`); // Находим все ссылки на формы
-
-                formLinks.forEach(link => {
-                    let url = new URL(link.href); // Получаем текущий URL
-                    url.searchParams.set('showImage', showImage); // Устанавливаем значение showImage в URL
-                    link.href = url.toString(); // Обновляем href ссылки
-                    console.log('Updated URL: ', link.href); // Выводим в консоль обновленный URL
+                    formLinks.forEach(function (link) {
+                        let url = new URL(link.href);
+                        url.searchParams.set('showImage', showImage);
+                        link.href = url.toString();
+                    });
                 });
             });
-        });
 
-
-        document.addEventListener('DOMContentLoaded', function () {
+            // Фильтр просроченных
             const trainingNotUpdatedCheckbox = document.getElementById('trainingNotUpdated');
             const trainingsTableBody = document.querySelector('#trainingsTable tbody');
 
-            trainingNotUpdatedCheckbox.addEventListener('change', function () {
-                const isChecked = this.checked;
+            if (trainingNotUpdatedCheckbox && trainingsTableBody) {
+                trainingNotUpdatedCheckbox.addEventListener('change', function () {
+                    const isChecked = this.checked;
 
-                // Проходим по каждой строке таблицы и проверяем условие
-                Array.from(trainingsTableBody.rows).forEach(row => {
-                    const lastTrainingDateCell = row.cells[3]; // ячейка с датой последней тренировки (теперь 4-я колонка, индекс 3)
+                    Array.from(trainingsTableBody.rows).forEach(function (row) {
+                        const lastTrainingDateCell = row.cells[3];
+                        if (!lastTrainingDateCell) return;
 
-                    if (isChecked) {
-                        // Показываем строки, где дата последней тренировки больше 340 дней от текущей даты
-                        const lastTrainingDate = new Date(lastTrainingDateCell.textContent.trim());
-                        const daysDiff = Math.floor((new Date() - lastTrainingDate) / (1000 * 60 * 60 * 24));
-                        if (daysDiff <= 340) {
-                            row.style.display = 'none';
+                        if (isChecked) {
+                            const lastTrainingDate = new Date(lastTrainingDateCell.textContent.trim());
+                            const daysDiff = Math.floor((new Date() - lastTrainingDate) / (1000 * 60 * 60 * 24));
+
+                            if (daysDiff <= 340) {
+                                row.style.display = 'none';
+                            } else {
+                                row.style.display = '';
+                            }
                         } else {
                             row.style.display = '';
                         }
-                    } else {
-                        // Показываем все строки, если переключатель не активен
-                        row.style.display = '';
-                    }
+                    });
                 });
-            });
-        });
+            }
 
-        // Обработка удаления тренировок
-        document.addEventListener('DOMContentLoaded', function () {
-            let currentUserId, currentManualId;
+            // Удаление всех training records
+            let currentUserId = null;
+            let currentManualId = null;
 
-            // Обработчик клика по кнопке удаления
             document.querySelectorAll('.delete-training-btn').forEach(btn => {
                 btn.addEventListener('click', function () {
                     currentUserId = this.getAttribute('data-user-id');
                     currentManualId = this.getAttribute('data-manual-id');
-                    const manualTitle = this.getAttribute('data-title');
 
+                    const manualTitle = this.getAttribute('data-title');
                     document.getElementById('manualTitle').textContent = manualTitle;
+
                     const modal = new bootstrap.Modal(document.getElementById('confirmDeleteModal'));
                     modal.show();
                 });
             });
 
-            // Обработчик подтверждения удаления
-            document.getElementById('confirmDeleteBtn').addEventListener('click', function () {
-                if (!currentUserId || !currentManualId) return;
+            const confirmDeleteBtn = document.getElementById('confirmDeleteBtn');
+            if (confirmDeleteBtn) {
+                confirmDeleteBtn.addEventListener('click', function () {
+                    if (!currentUserId || !currentManualId) return;
 
-                fetch('{{ route("trainings.deleteAll") }}', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'X-CSRF-TOKEN': '{{ csrf_token() }}',
-                        'Accept': 'application/json'
-                    },
-                    body: JSON.stringify({
-                        user_id: currentUserId,
-                        manual_id: currentManualId
+                    fetch('{{ route("trainings.deleteAll") }}', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-CSRF-TOKEN': '{{ csrf_token() }}',
+                            'Accept': 'application/json'
+                        },
+                        body: JSON.stringify({
+                            user_id: currentUserId,
+                            manual_id: currentManualId
+                        })
                     })
-                })
-                    .then(response => response.json())
-                    .then(data => {
-                        if (data.success) {
-                            showNotification('All training records deleted successfully!', 'success');
-                            location.reload();
-                        } else {
-                            showNotification('Error deleting records: ' + (data.message || 'Unknown error'), 'error');
-                        }
-                    })
-                    .catch(error => {
-                        console.error('Error:', error);
-                        showNotification('An error occurred while deleting records', 'error');
-                    })
-                    .finally(() => {
-                        bootstrap.Modal.getInstance(document.getElementById('confirmDeleteModal')).hide();
-                    });
-            });
+                        .then(response => response.json())
+                        .then(data => {
+                            if (data.success) {
+                                showNotification('All training records deleted successfully!', 'success');
+                                location.reload();
+                            } else {
+                                showNotification('Error deleting records: ' + (data.message || 'Unknown error'), 'error');
+                            }
+                        })
+                        .catch(error => {
+                            console.error('Error:', error);
+                            showNotification('An error occurred while deleting records', 'error');
+                        })
+                        .finally(() => {
+                            bootstrap.Modal.getInstance(document.getElementById('confirmDeleteModal'))?.hide();
+                        });
+                });
+            }
         });
-
     </script>
-
 @endsection

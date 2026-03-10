@@ -42,10 +42,8 @@ class Component extends Model implements  hasMedia
     public function registerAllMediaConversions(): void
     {
         $this->addMediaConversion('thumb')
-            ->width(100)
-            ->height(100)
+            ->fit('crop', 100, 100)
             ->nonOptimized();
-
     }
 
 }

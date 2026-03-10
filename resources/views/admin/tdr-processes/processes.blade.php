@@ -1,36 +1,21 @@
 @extends('admin.master')
 
 @section('content')
+
     <style>
-        .container {
-            /*max-width: 1200px;*/
-        }
 
-        /* Ограничение высоты card-body */
         .card-body {
-            height: 75vh;
+            height: 77vh;
             overflow-y: auto;
+            padding: 0;
         }
 
-        /* Ограничение высоты таблицы и фиксация шапки */
         .table-wrapper {
-            max-height: 70vh;
+            max-height: 77vh;
             overflow-y: auto;
             overflow-x: auto;
         }
 
-        .table-wrapper table thead th {
-            position: sticky;
-            top: 0;
-            z-index: 1020;
-            background-color: var(--bs-body-bg, #fff);
-        }
-
-        html[data-bs-theme="dark"] .table-wrapper table thead th {
-            background-color: var(--bs-body-bg, #212529);
-        }
-
-        /* Стили для Select2 (темная и светлая темы) */
         html[data-bs-theme="dark"] .select2-selection--single {
             background-color: #121212 !important;
             color: gray !important;
@@ -80,9 +65,14 @@
             z-index: 1;
         }
 
-        /* Стили для дропдауна vendors */
         .vendor-select {
             font-size: 0.875rem;
+            transition: all 0.3s ease;
+        }
+
+        .vendor-select:focus {
+            border-color: #0d6efd;
+            box-shadow: 0 0 0 0.2rem rgba(13, 110, 253, 0.25);
         }
 
         .d-flex.gap-2 {
@@ -90,30 +80,65 @@
             align-items: center;
         }
 
-        /* Стили для drag & drop */
-        .sortable-table tbody tr {
-            cursor: move;
-            transition: all 0.3s ease;
+        /* =========================
+           TABLE / DRAG & DROP
+           ========================= */
+
+        .sortable-table {
+            border-collapse: separate;
+            border-spacing: 0;
         }
 
-        .sortable-table tbody tr:hover {
-            background-color: #f8f9fa;
+        .sortable-table tbody tr {
+            cursor: move;
+        }
+
+        .sortable-table tbody td {
+            transition: background-color .12s ease;
+            background-clip: padding-box;
+        }
+
+        /* обычный hover */
+        .sortable-table.table-hover tbody tr:hover > td,
+        .sortable-table tbody tr:hover > td {
+            background-color: rgba(13, 110, 253, 0.06);
+        }
+
+        /* ничего синего не показываем, пока реально не начался drag */
+        .sortable-table tbody tr.drag-over > td,
+        .sortable-table tbody tr.drag-over-bottom > td {
+            box-shadow: none !important;
         }
 
         .sortable-table tbody tr.dragging {
-            opacity: 0.5;
-            transform: rotate(5deg);
-            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+            opacity: 0.55;
         }
 
-        .sortable-table tbody tr.drag-over {
-            border-top: 3px solid #007bff;
-            background-color: #e3f2fd;
+        /* только при реальном drag */
+        .sortable-table.is-sorting tbody tr.drag-over > td,
+        .sortable-table.is-sorting tbody tr.drag-over-bottom > td {
+            background-color: rgba(13, 110, 253, 0.10) !important;
         }
 
-        .sortable-table tbody tr.drag-over-bottom {
-            border-bottom: 3px solid #007bff;
-            background-color: #e3f2fd;
+        .sortable-table.is-sorting tbody tr.drag-over > td {
+            box-shadow: inset 0 3px 0 #007bff !important;
+        }
+
+        .sortable-table.is-sorting tbody tr.drag-over-bottom > td {
+            box-shadow: inset 0 -3px 0 #007bff !important;
+        }
+
+        /* neutralize SortableJS helper classes */
+        .sortable-table tbody tr.sortable-ghost > td {
+            opacity: 0.35;
+        }
+
+        .sortable-table tbody tr.sortable-chosen > td {
+            background-color: rgba(13, 110, 253, 0.08);
+        }
+
+        .sortable-table tbody tr.sortable-drag > td {
+            background-color: rgba(13, 110, 253, 0.08);
         }
 
         .parent {
@@ -123,7 +148,6 @@
             gap: 8px;
         }
 
-        /* Стили для модального окна Group Process Forms */
         .group-form-link {
             text-decoration: none;
             transition: all 0.3s ease;
@@ -134,16 +158,6 @@
             box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
         }
 
-        .vendor-select {
-            transition: all 0.3s ease;
-        }
-
-        .vendor-select:focus {
-            border-color: #0d6efd;
-            box-shadow: 0 0 0 0.2rem rgba(13, 110, 253, 0.25);
-        }
-
-        /* Стили для модального окна Group Process Forms */
         #groupFormsModal .table {
             margin-bottom: 0;
         }
@@ -192,33 +206,28 @@
             color: inherit;
         }
 
-        /* Оптимизированные стили для печати */
         @media print {
-            /* Фиксированный размер страницы Letter (8.5 x 11 дюймов = 215.9 x 279.4 мм) */
             @page {
                 size: letter portrait;
-                margin: 0.5cm 0.5cm 0.5cm 0.5cm; /* Фиксированные поля для всех браузеров */
+                margin: 0.5cm 0.5cm 0.5cm 0.5cm;
                 padding: 0;
             }
 
-            /* Сброс всех отступов и полей для консистентности */
             * {
                 -webkit-print-color-adjust: exact !important;
                 color-adjust: exact !important;
                 print-color-adjust: exact !important;
             }
 
-            /* Фиксированные размеры для body и html */
             html, body {
                 width: 100% !important;
                 height: 100% !important;
                 margin: 0 !important;
                 padding: 0 !important;
-                font-size: 12pt !important; /* Фиксированный размер шрифта */
+                font-size: 12pt !important;
                 line-height: 1.2 !important;
             }
 
-            /* Контейнер с фиксированной шириной */
             .container {
                 width: 100% !important;
                 max-width: 100% !important;
@@ -226,7 +235,6 @@
                 padding: 0 !important;
             }
 
-            /* Скрываем элементы, которые не нужны при печати */
             .btn,
             .modal,
             .card-header,
@@ -240,7 +248,6 @@
                 display: none !important;
             }
 
-            /* Стили для таблицы при печати */
             .table {
                 width: 100% !important;
                 border-collapse: collapse !important;
@@ -266,6 +273,7 @@
                 padding: 4pt !important;
                 border: 1pt solid #000 !important;
                 vertical-align: top !important;
+                box-shadow: none !important;
             }
 
             .table th {
@@ -274,7 +282,6 @@
                 text-align: center !important;
             }
 
-            /* Фиксированные размеры для карточек */
             .card {
                 border: none !important;
                 box-shadow: none !important;
@@ -286,12 +293,10 @@
                 padding: 0 !important;
             }
 
-            /* Убираем градиенты и тени при печати */
             .bg-gradient {
                 background: #fff !important;
             }
 
-            /* Фиксированные размеры шрифтов */
             h1, h2, h3, h4, h5, h6 {
                 font-size: 14pt !important;
                 margin: 5pt 0 !important;
@@ -302,7 +307,6 @@
                 margin: 3pt 0 !important;
             }
 
-            /* Стили для селектов - показываем только выбранное значение */
             .vendor-select,
             .form-select {
                 border: none !important;
@@ -311,35 +315,24 @@
                 font-size: 10pt !important;
             }
 
-            /* Убираем разрывы страниц внутри важных элементов */
             .table-wrapper {
                 page-break-inside: avoid !important;
             }
 
-            /* Фиксированная ширина колонок */
-            .table th[style*="width"],
-            .table td[style*="width"] {
-                /* Сохраняем указанные ширины, но конвертируем в pt */
-            }
-
-            /* Убираем скролл и overflow */
             .table-responsive,
             .table-wrapper {
                 overflow: visible !important;
                 max-height: none !important;
             }
 
-            /* Стили для текста */
             .text-primary {
                 color: #000 !important;
             }
 
-            /* Убираем интерактивные элементы */
             a[href]:after {
                 content: "" !important;
             }
 
-            /* Фиксированные размеры для модальных окон (если они должны печататься) */
             .modal-content {
                 box-shadow: none !important;
                 border: none !important;
@@ -354,107 +347,116 @@
 
     <div class="container p-1 mt-0">
         <div class="card bg-gradient">
-            <div class="card-header p-1">
-                <div class="d-flex justify-content-between">
-                    <h5>{{ __('Part Processes') }}</h5>
-                    <h5 class="text-primary me-5">{{__('Work Order: ')}} {{$current_tdr->workorder->number}}</h5>
-                </div>
-                <div class="d-flex justify-content-between ">
-                    <div>
-                        ITEM: {{ $current_tdr->component->name }}
-                        <p>
-                            PN: {{ $current_tdr->component->part_number }}
-                            SN: {{ $current_tdr->serial_number }}</p>
-                    </div>
-                    <a href="{{ route('tdrs.processes', ['workorder_id'=>$current_tdr->workorder->id]) }}"
-                       class="btn btn-outline-secondary" style="width: 120px;height: 50px; line-height: 1.2rem;align-content:
-                       center">{{ __('All
-                               Parts Processes')}} </a>
 
-                    <div class="d-flex " style="width: 250px">
+            <div class="card-header py-1">
+
+                {{-- ROW 1 --}}
+                <div class="d-flex align-items-center justify-content-between mb-2">
+
+                    <h5 class="mb-0">
+                        {{ __('Part Processes') }}
+                    </h5>
+
+                    <h5 class="mb-0 ">
+                        {{ __('Work Order: ') }} {{ $current_tdr->workorder->number }}
+                    </h5>
+
+                </div>
+
+                {{-- ROW 2 --}}
+                <div class="d-flex align-items-center justify-content-between flex-wrap gap-2">
+
+                    {{-- Part info --}}
+                    <div class="small">
+                        <div>
+                            <strong>ITEM:</strong> {{ $current_tdr->component->name }}
+                        </div>
+
+                        <div class="text-muted">
+                            PN: {{ $current_tdr->component->part_number }}
+                            &nbsp;&nbsp;
+                            SN: {{ $current_tdr->serial_number }}
+                        </div>
+                    </div>
+
+
+                    {{-- Center actions --}}
+                    <div class="d-flex align-items-center gap-2 flex-wrap">
+
+                        <a href="{{ route('tdrs.processes', ['workorder_id'=>$current_tdr->workorder->id]) }}"
+                           class="btn btn-outline-secondary btn-sm">
+                            {{ __('All Parts Processes') }}
+                        </a>
+
                         @if(isset($processGroups) && count($processGroups) > 0)
-                            <div class="me-2">
-                                <x-paper-button-multy
-                                    text="Group Process Forms"
-                                    color="outline-primary"
-                                    size="landscape"
-                                    width="80"
-                                    ariaLabel="Group Process Forms"
-                                    data-bs-toggle="modal"
-                                    data-bs-target="#groupFormsModal"
-                                />
-                            </div>
-                            <div class="me-2">
-                                {{--                                <button type="button"--}}
-                                {{--                                        class="btn btn-outline-primary"--}}
-                                {{--                                        style="height: 40px; width: 100px;"--}}
-                                {{--                                        data-bs-toggle="modal"--}}
-                                {{--                                        data-bs-target="#packageModal">--}}
-                                {{--                                    Package--}}
-                                {{--                                </button>--}}
-                                <x-paper-button-multy
-                                    text="Package"
-                                    color="outline-primary"
-                                    size="landscape"
-                                    width="80"
-                                    ariaLabel="Group Process Forms"
-                                    data-bs-toggle="modal"
-                                    data-bs-target="#packageModal"
-                                />
-                            </div>
+
+                            <x-paper-button-multy
+                                class="position-relative"
+                                style="top:-5px"
+                                text="Group Forms"
+                                color="outline-primary"
+                                size="landscape"
+                                width="90"
+                                data-bs-toggle="modal"
+                                data-bs-target="#groupFormsModal"
+                            />
+
+                            <x-paper-button-multy
+                                class="position-relative"
+                                style="top:-5px"
+                                text="Package"
+                                color="outline-primary"
+                                size="landscape"
+                                width="90"
+                                data-bs-toggle="modal"
+                                data-bs-target="#packageModal"
+                            />
+
                         @endif
 
-                        {{--                            <a href="{{ route('tdr-processes.traveler', ['tdrId' => $current_tdr->id]) }}"--}}
-                        {{--                               class="btn btn-outline-info  ms-2" style="height: 50px">--}}
-                        {{--                                <i class="fas fa-file-alt"></i> Traveler--}}
-                        {{--                            </a>--}}
                         <x-paper-button
+                            class="position-relative"
+                            style="top:-3px"
                             text="Traveler"
                             color="outline-primary"
                             size="landscape"
-                            width="80"
+                            width="90"
                             href="{{ route('tdr-processes.traveler', ['tdrId' => $current_tdr->id]) }}"
                         />
-                    </div>
-
-
-                    <div class="d-flex parent">
-                        <div class="ms-5">
-
-
-                            <a href="{{ route('tdr-processes.createProcesses', ['tdrId' => $current_tdr->id]) }}"
-                               class="btn btn-outline-success  me-2">
-                                <i class="fas fa-plus"></i> Add Process
-                            </a>
-                            <button type="button" class="btn btn-outline-primary " data-bs-toggle="modal"
-                                    data-bs-target="#addVendorModal">
-                                <i class="fas fa-plus"></i> Add Vendor
-                            </button>
-                        </div>
 
                     </div>
 
 
-                    <div class="me-4">
-                        {{--                        <button type="button"--}}
-                        {{--                                class="btn btn-outline-secondary btn-sm"--}}
-                        {{--                                onclick="window.history.back();">--}}
-                        {{--                            <i class="bi bi-arrow-left"></i> {{ __('Back o tdr') }}--}}
-                        {{--                        </button>--}}
+                    {{-- Right actions --}}
+                    <div class="d-flex align-items-center gap-2">
+
+                        <a href="{{ route('tdr-processes.createProcesses', ['tdrId' => $current_tdr->id]) }}"
+                           class="btn btn-outline-success btn-sm">
+                            <i class="fas fa-plus"></i> Add Process
+                        </a>
+
+                        <button type="button"
+                                class="btn btn-outline-primary btn-sm"
+                                data-bs-toggle="modal"
+                                data-bs-target="#addVendorModal">
+                            <i class="fas fa-plus"></i> Add Vendor
+                        </button>
+
                         <a href="{{ route('tdrs.show', ['id'=>$current_wo ? $current_wo->id : '']) }}"
-                           class="btn btn-outline-secondary " style="height:50px; width: 110px;line-height: 1.2rem;
-                           align-content: center">
-                            {{ __('Back to TDR') }} </a>
+                           class="btn btn-outline-secondary btn-sm">
+                            {{ __('Back to TDR') }}
+                        </a>
+
                     </div>
 
                 </div>
+
             </div>
 
-
-            <div class="card-body">
+            <div class="card-body ">
                 <div class="me-0">
                     <div class="table-wrapper me-1">
-                        <table class="table table-sm table-hover align-middle sortable-table dir-table">
+                        <table class="table table-sm  table-hover align-middle sortable-table dir-table" style="font-size: 0.85rem;">
                             <thead>
                             <tr>
                                 <th class="text-primary text-center">Process Name</th>

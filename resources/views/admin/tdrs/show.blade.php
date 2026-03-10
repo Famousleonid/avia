@@ -815,7 +815,7 @@
 
                 <div class="me-3" style="width: 450px; max-height: 70vh; overflow-y: auto;">
                     <div class="table-wrapper me-3 p-2">
-                        <table id="tdr_inspect_Table" class="table table-sm table-hover  align-middle table-bordered dir-table">
+                        <table id="tdr_inspect_Table" class="table table-sm table-hover  align-middle table-bordered dir-table shadow-lg">
                             <thead>
                             <tr>
                                 <th class=" text-primary text-center  " style="width: 300px;">
@@ -825,7 +825,7 @@
                                 </th>
                                 <th class=" text-primary text-center " style="width: 50px;">
                                     ---
-                                </th>`
+                                </th>
                             </tr>
                             </thead>
                             <tbody>
@@ -835,11 +835,12 @@
                                     <td class="text-center fs-8">
                                         {{ $missingCondition->name }}
                                     </td>
-                                    <td class="text-center img-icon ">
-                                        <img src="{{ asset('img/missing.gif')}}" alt="missing"
-                                             style="width: 55px;" class="" data-bs-toggle="modal"
-                                             data-bs-target="#missingModal{{$current_wo->number}}"
-                                        >
+                                    <td class="text-center img-icon p-0">
+                                        <img src="{{ asset('img/missing.gif') }}"
+                                             alt="missing"
+                                             class="w-100 d-block"
+                                             data-bs-toggle="modal"
+                                             data-bs-target="#missingModal{{$current_wo->number}}">
                                     </td>
 
                                 </tr>
@@ -917,8 +918,8 @@
                                     <td class="text-center ">
                                         <span class="position-relative d-inline-block mt-2">
                                             Ordered Parts
-                                            <sup class="badge bg-primary rounded-pill position-absolute" style="top: -0.5em;
-                                            right: -0.3em; font-size: 0.65em;">{{ $orderedPartsCount ?? 0 }}</sup>
+                                            <sup class="badge bg-primary rounded-pill position-absolute" style="top: 0.1em;
+                                            right: -3.0em; font-size: 0.65em;">{{ $orderedPartsCount ?? 0 }}</sup>
                                         </span>
                                     </td>
                                     <td class="p-0 text-center img-icon">
@@ -939,16 +940,16 @@
                 <div class="me-3" >
                     <div class="table-wrapper me-3 p-2" style=" max-height: 60vh; overflow-y: auto;">
                         <table id="tdr_process_Table"
-                               class="table table-sm table-hover align-middle dir-table small">
+                               class="table table-sm table-hover align-middle dir-table small shadow-lg">
                             <thead class="bg-gradient">
                             <tr>
                                 <th class="text-center text-primary sortable"style="width: 9%">{{__('IPL')}} </th>
                                 <th class=" text-center  text-primary sortable"style="width: 200px">{{__('Description')}} </th>
-                                <th class=" text-center text-primary sortable "style="width: 120px">{{__('P/N')}} </th>
+                                <th class=" text-center text-primary sortable "style="width: 15%">{{__('P/N')}} </th>
                                 <th class=" text-center   text-primary sortable"style="width: 120px">{{__('S/N')}}</th>
-                                <th class=" text-center  text-primary " style="width: 200px">{{__('Necessary')}}</th>
-                                <th class=" text-center  text-primary " style="width: 150px">{{__('Code')}}</th>
-                                <th class=" text-center  text-primary " style="width: 60px">{{__('EC')}}</th>
+                                <th class=" text-center  text-primary " style="width: 12%">{{__('Necessary')}}</th>
+                                <th class=" text-center  text-primary " style="width: 12%">{{__('Code')}}</th>
+                                <th class=" text-center  text-primary " style="width: 5%">{{__('EC')}}</th>
                                 <th class=" text-primary text-center" style="width: 150px;"> {{__('Action')}}
                                     <a href="{{ route('tdrs.inspection.component', ['workorder_id' => $current_wo->id])}}"
                                        class="btn btn-outline-info btn-sm ms-3" style="height: 32px">

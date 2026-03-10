@@ -227,6 +227,19 @@
         th.sortable i { transition: transform .15s ease, opacity .15s ease; opacity: .6; }
         #manualFilter + .select2 { width: 460px !important; }
 
+        .component-avatar{
+            width:40px;
+            height:40px;
+            min-width:40px;
+            min-height:40px;
+            max-width:40px;
+            max-height:40px;
+            border-radius:50%;
+            object-fit:cover;
+            display:block;
+            margin:auto;
+        }
+
     </style>
 
 @endsection
@@ -300,10 +313,14 @@
                                 <td class="text-center">{{$component->ipl_num}}</td>
                                 <td class="text-center">{{$component->part_number}}</td>
                                 <td class="text-center">{{$component->name}}</td>
-                                <td class="text-center" style="width: 120px;">
+                                <td class="text-center" style="width:120px;">
                                     @if($component->getMedia('components')->isNotEmpty())
                                         <a href="{{ $component->getFirstMediaBigUrl('components') }}" data-fancybox="gallery">
-                                            <img class="rounded-circle" src="{{ $component->getFirstMediaThumbnailUrl('components') }}" width="40" height="40" alt="IMG"/>
+                                            <img
+                                                src="{{ $component->getFirstMediaThumbnailUrl('components') }}"
+                                                class="component-avatar"
+                                                alt="IMG"
+                                            >
                                         </a>
                                     @else
                                         <span class="text-muted small">—</span>

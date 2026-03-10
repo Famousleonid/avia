@@ -5,17 +5,17 @@
    ========================================================= */
 
 /* ---------- Global base background (no seams) ---------- */
-html, body,
+html,
+body,
 .container-fluid,
-.page-layout{
+.page-layout {
     background-color: #232525 !important;
 }
 
-
 /* =========================================================
-   THEME TOKENS Dark
+   THEME TOKENS — DARK
    ========================================================= */
-:root{
+:root {
     --dir-bg: #232525;
 
     --dir-radius-lg: .75rem;
@@ -25,7 +25,7 @@ html, body,
     --dir-border-2: rgba(255,255,255,.12);
 
     --dir-topbar-bg: linear-gradient(180deg, rgba(33,37,41,.92), rgba(52,58,64,.80));
-    --dir-panel-bg:  linear-gradient(180deg, rgba(33,37,41,.92), rgba(52,58,64,.72));
+    --dir-panel-bg: linear-gradient(180deg, rgba(33,37,41,.92), rgba(52,58,64,.72));
 
     --dir-table-bg: rgba(33,37,41,.98);
     --dir-thead-bg: #343A40;
@@ -40,8 +40,15 @@ html, body,
     --dir-input-text: rgba(248,249,250,.95);
     --dir-input-ph: rgba(248,249,250,.45);
 
-    --dir-row-hover: rgba(13,110,253,.10);
-    --dir-row-active: rgba(13,110,253,.18);
+    /* hover/active row */
+    --dir-row-hover: rgba(255,255,255,.04);
+    --dir-row-active: rgba(13,110,253,.10);
+
+    /* legacy border/accent token */
+    --dir-row-border: rgba(13,110,253,.55);
+
+    /* dedicated left indicator */
+    --dir-row-indicator: rgba(13,110,253,.75);
 
     --dir-acc-item-bg: rgba(33,37,41,.92);
     --dir-acc-item-bg2: rgba(52,58,64,.82);
@@ -56,20 +63,19 @@ html, body,
     --dir-acc-border2: var(--dir-border-2);
 
     --dir-acc-shadow: 0 6px 10px rgba(0,0,0,.30);
-
-
 }
 
-/* ---------- LIGHT (серый, без белого) ---------- */
-html[data-bs-theme="light"]{
-
+/* =========================================================
+   THEME TOKENS — LIGHT
+   ========================================================= */
+html[data-bs-theme="light"] {
     --dir-bg: #C8C8C8;
 
     --dir-border: rgba(0,0,0,.10);
     --dir-border-2: rgba(0,0,0,.12);
 
     --dir-topbar-bg: linear-gradient(180deg, rgba(233,236,239,.92), rgba(222,226,230,.88));
-    --dir-panel-bg:  linear-gradient(180deg, rgba(233,236,239,.92), rgba(222,226,230,.85));
+    --dir-panel-bg: linear-gradient(180deg, rgba(233,236,239,.92), rgba(222,226,230,.85));
 
     --dir-table-bg: rgba(233,236,239,.98);
     --dir-thead-bg: rgba(215,219,223,.98);
@@ -84,8 +90,15 @@ html[data-bs-theme="light"]{
     --dir-input-text: rgba(33,37,41,.95);
     --dir-input-ph: rgba(33,37,41,.45);
 
-    --dir-row-hover: rgba(13,110,253,.08);
-    --dir-row-active: rgba(13,110,253,.14);
+    /* hover/active row */
+    --dir-row-hover: rgba(0,0,0,.02);
+    --dir-row-active: rgba(13,110,253,.10);
+
+    /* legacy border/accent token */
+    --dir-row-border: rgba(13,110,253,.45);
+
+    /* dedicated left indicator */
+    --dir-row-indicator: rgba(13,110,253,.60);
 
     --dir-acc-item-bg: rgba(233,236,239,.95);
     --dir-acc-item-bg2: rgba(222,226,230,.90);
@@ -97,13 +110,12 @@ html[data-bs-theme="light"]{
     --dir-acc-hover-bg: rgba(13,110,253,.08);
 
     --dir-acc-shadow: 0 4px 8px rgba(0,0,0,.12);
-
 }
 
 /* =========================================================
    PAGE LAYOUT
    ========================================================= */
-.dir-page{
+.dir-page {
     height: 100%;
     display: flex;
     flex-direction: column;
@@ -113,64 +125,37 @@ html[data-bs-theme="light"]{
 /* =========================================================
    TOPBAR
    ========================================================= */
-.dir-topbar{
+.dir-topbar {
     border: 1px solid var(--dir-border);
     border-radius: var(--dir-radius-lg);
     background: var(--dir-topbar-bg);
-    /*padding: .5rem .75rem;*/
 }
 
 /* =========================================================
    PANEL (single scroll container)
    ========================================================= */
-.dir-panel{
+.dir-panel {
     border: 1px solid var(--dir-border);
     border-radius: var(--dir-radius-lg);
     background: var(--dir-panel-bg);
-    height: calc(100dvh - 140px); /* <-- как у тебя работало */
+    height: calc(100dvh - 140px);
     overflow-y: auto;
     overflow-x: hidden;
     background-clip: padding-box;
     display: flex;
     flex-direction: column;
 }
+
 .dir-header {
-    padding: .35rem .75rem;      /* меньше вертикальных отступов */
-    min-height: 44px;            /* компактно и ровно */
+    padding: .35rem .75rem;
+    min-height: 44px;
     display: flex;
     align-items: center;
 }
-/*  ------------  Паттерн разметки -----
-
-          <div class="dir-table-wrap me-3 p-2 pt-0">
-              <table class="table table-sm table-hover table-bordered align-middle dir-table dir-table--ellipsis">
-                  <thead>
-                      <tr>
-                          <th>Name</th>
-                          <th>Code</th>
-                          <th class="col-text">Description</th>
-                          <th class="col-fit text-center">Action</th>
-                      </tr>
-                  </thead>
-                  <tbody>
-                      <tr>
-                          <td>Item</td>
-                          <td>123</td>
-                          <td class="col-text">Long description...</td>
-                          <td class="col-fit text-center">
-                              <button class="btn btn-outline-primary btn-sm">Edit</button>
-                          </td>
-                      </tr>
-                  </tbody>
-             </table>
-          </div>
-
-*/
 
 /* =========================================================
    TABLE WRAPPER
    ========================================================= */
-
 .dir-table-wrap {
     flex: 1 1 auto;
     overflow-y: auto;
@@ -181,47 +166,47 @@ html[data-bs-theme="light"]{
 
 /* =========================================================
    UNIVERSAL DIR TABLE
-   Базовый стиль для всех таблиц справочников / списков
+   Паттерн:
+   <div class="dir-table-wrap">
+       <table class="table table-sm table-hover align-middle dir-table dir-table--ellipsis">
    ========================================================= */
-
 .dir-table {
     width: 100%;
-    /*table-layout: fixed;*/
     border-collapse: separate;
     border-spacing: 0;
+    border: 1px solid var(--dir-border-2);
+
     background: var(--dir-table-bg) !important;
     color: var(--dir-text) !important;
     border-color: var(--dir-border-2) !important;
+
+    --bs-table-bg: var(--dir-table-bg);
+    --bs-table-color: var(--dir-text);
+    --bs-table-border-color: var(--dir-border-2);
+    --bs-table-hover-bg: transparent;
+    --bs-table-hover-color: var(--dir-text);
+    --bs-table-active-bg: transparent;
+    --bs-table-active-color: var(--dir-text);
+    --bs-table-striped-bg: transparent;
+    --bs-table-striped-color: var(--dir-text);
 }
 
-/* рамка таблицы */
-.dir-table{
-    border: 1px solid var(--dir-border-2);
-}
-
-/* рамки ячеек */
-.dir-table th,
-.dir-table td{
-    border: 1px solid var(--dir-border-2) !important;
-}
-
-
-/* все ячейки */
 .dir-table th,
 .dir-table td {
     padding-left: 10px;
     padding-right: 10px;
     vertical-align: middle;
+    border: 1px solid var(--dir-border-2) !important;
     border-color: var(--dir-border-2) !important;
 }
 
-/* body */
-.dir-table tbody td {
+.dir-table tbody > tr > td,
+.dir-table tbody > tr > th {
     background: var(--dir-table-bg) !important;
     color: var(--dir-text) !important;
 }
 
-/* header */
+/* ---------- Sticky header ---------- */
 .dir-table thead {
     position: static !important;
 }
@@ -236,73 +221,6 @@ html[data-bs-theme="light"]{
     box-shadow: 0 4px 8px rgba(0,0,0,.22);
 }
 
-/* hover */
-.dir-table.table-hover tbody tr:hover td,
-.dir-table.table-hover tbody tr:hover th {
-    background: var(--dir-row-hover, rgba(255,255,255,.04)) !important;
-}
-
-/* стандартное поведение текста:
-   по умолчанию одна строка + ellipsis */
-.dir-table--ellipsis th,
-.dir-table--ellipsis td {
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-}
-
-/* если нужен перенос текста по всей таблице */
-.dir-table--wrap th,
-.dir-table--wrap td {
-    white-space: normal;
-    overflow: visible;
-    text-overflow: clip;
-    word-break: break-word;
-}
-
-/* только для body перенос, header оставить компактным */
-.dir-table--wrap-body tbody td {
-    white-space: normal;
-    overflow: visible;
-    text-overflow: clip;
-    word-break: break-word;
-}
-
-/* компактные служебные колонки: action, icon, checkbox */
-.dir-table .col-fit {
-    width: 1%;
-    white-space: nowrap !important;
-}
-
-/* центрирование служебных колонок */
-.dir-table .col-center {
-    text-align: center;
-}
-
-/* колонка с длинным текстом */
-.dir-table .col-text {
-    white-space: normal !important;
-    overflow: visible !important;
-    text-overflow: clip !important;
-    word-break: break-word;
-}
-
-/* если таблица с картинками */
-.dir-table img {
-    max-width: 100%;
-    height: auto;
-    display: inline-block;
-}
-
-/* кнопки внутри ячеек не ломают строку */
-.dir-table .btn,
-.dir-table .badge,
-.dir-table .form-select,
-.dir-table .form-control {
-    max-width: 100%;
-}
-
-/* чтобы sticky-header выглядел чище */
 .dir-table thead th:first-child {
     border-left-color: var(--dir-border-2) !important;
 }
@@ -311,90 +229,167 @@ html[data-bs-theme="light"]{
     border-right-color: var(--dir-border-2) !important;
 }
 
+/* ---------- Text behavior modifiers ---------- */
+.dir-table--ellipsis th,
+.dir-table--ellipsis td {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
 
-.col-icon img{
+.dir-table--wrap th,
+.dir-table--wrap td {
+    white-space: normal;
+    overflow: visible;
+    text-overflow: clip;
+    word-break: break-word;
+}
+
+.dir-table--wrap-body tbody td {
+    white-space: normal;
+    overflow: visible;
+    text-overflow: clip;
+    word-break: break-word;
+}
+
+/* ---------- Column helpers ---------- */
+.dir-table .col-fit {
+    width: 1%;
+    white-space: nowrap !important;
+}
+
+.dir-table .col-center {
+    text-align: center;
+}
+
+.dir-table .col-text {
+    white-space: normal !important;
+    overflow: visible !important;
+    text-overflow: clip !important;
+    word-break: break-word;
+}
+
+.col-icon {
+    width: 70px;
+    text-align: center;
+}
+
+.col-icon img {
     width: 100%;
     height: auto;
     object-fit: contain;
 }
 
-.col-icon{
-    width: 70px;
-    text-align: center;
+/* ---------- Media / controls inside cells ---------- */
+.dir-table img {
+    max-width: 100%;
+    height: auto;
+    display: inline-block;
+}
+
+.dir-table .btn,
+.dir-table .badge,
+.dir-table .form-select,
+.dir-table .form-control {
+    max-width: 100%;
 }
 
 /* =========================================================
    DIR TABLE – IDE STYLE HOVER
    ========================================================= */
-
-.dir-table{
-    --dir-row-hover: rgba(255,255,255,.05);
-    --dir-row-active: rgba(13,110,253,.15);
-    --dir-row-border: rgba(13,110,253,.55);
-
-    --bs-table-bg: var(--dir-table-bg);
-    --bs-table-color: var(--dir-text);
-    --bs-table-border-color: var(--dir-border-2);
-
-    --bs-table-hover-bg: transparent;
+.dir-table tbody td,
+.dir-table tbody th {
+    transition: background-color .15s ease, color .15s ease, box-shadow .15s ease;
 }
 
-/* мягкая подсветка строки */
-.dir-table.table-hover tbody tr:hover td{
-    background: var(--dir-row-hover);
-}
-
-/* плавная анимация */
-.dir-table tbody tr td{
-    transition: background .15s ease, box-shadow .15s ease;
-}
-
-/* IDE-style линия слева */
-.dir-table tbody tr{
+.dir-table th,
+.dir-table td {
     position: relative;
 }
 
-.dir-table tbody tr:hover{
-    box-shadow: inset 3px 0 0 var(--dir-row-border);
+/* hover row */
+.dir-table.table-hover > tbody > tr:hover > td,
+.dir-table.table-hover > tbody > tr:hover > th {
+    background-color: var(--dir-row-hover) !important;
+    color: var(--dir-text) !important;
 }
 
-/* выбранная строка */
-.dir-table tbody tr.is-active td{
-    background: var(--dir-row-active) !important;
+/* active / selected row */
+.dir-table > tbody > tr.is-active > td,
+.dir-table > tbody > tr.is-active > th {
+    background-color: var(--dir-row-active) !important;
+    color: var(--dir-text) !important;
 }
 
-.dir-table tbody tr.is-active{
-    box-shadow: inset 3px 0 0 var(--dir-row-border);
+/* focus inside row (select/input/button) */
+.dir-table > tbody > tr:focus-within > td,
+.dir-table > tbody > tr:focus-within > th {
+    background-color: var(--dir-row-active) !important;
+    color: var(--dir-text) !important;
 }
 
-/* фокус внутри строки (select / input / button) */
-.dir-table tbody tr:focus-within td{
-    background: var(--dir-row-active);
+
+
+/* left indicator only */
+.dir-table tbody > tr > td:first-child,
+.dir-table tbody > tr > th:first-child {
+    position: relative;
+}
+
+.dir-table tbody > tr > td:first-child::before,
+.dir-table tbody > tr > th:first-child::before {
+    content: "";
+    position: absolute;
+    left: 0;
+    top: -1px;
+    bottom: -1px;
+    width: 3px;
+    background: transparent;
+    pointer-events: none;
+    z-index: 1;
+    transition: background-color .15s ease;
+}
+
+.dir-table.table-hover > tbody > tr:hover > td:first-child::before,
+.dir-table.table-hover > tbody > tr:hover > th:first-child::before {
+    background: var(--dir-row-indicator);
+}
+
+.dir-table > tbody > tr.is-active > td:first-child::before,
+.dir-table > tbody > tr.is-active > th:first-child::before,
+.dir-table > tbody > tr:focus-within > td:first-child::before,
+.dir-table > tbody > tr:focus-within > th:first-child::before {
+    background: var(--dir-row-indicator);
 }
 
 
 
-
+/* table-striped в тёмной теме — приглушаем */
+html[data-bs-theme="dark"] .dir-table.table-striped > tbody > tr:nth-of-type(odd) > * {
+    background-color: rgba(255,255,255,.03) !important;
+}
 
 /* =========================================================
    INPUTS
    ========================================================= */
-.dir-input.form-control{
+.dir-input.form-control {
     background: var(--dir-input-bg);
     border-color: var(--dir-input-border);
     color: var(--dir-input-text);
 }
-.dir-input.form-control::placeholder{
+
+.dir-input.form-control::placeholder {
     color: var(--dir-input-ph);
 }
-.dir-input.form-control:focus{
+
+.dir-input.form-control:focus {
     box-shadow: 0 0 0 .2rem rgba(13,110,253,.18);
 }
 
 /* =========================================================
    ICON BUTTONS
    ========================================================= */
-.dir-btn-icon{
+.dir-btn-icon {
     width: 30px;
     height: 30px;
     padding: 0;
@@ -406,26 +401,25 @@ html[data-bs-theme="light"]{
 /* =========================================================
    MODALS
    ========================================================= */
-.dir-modal{
+.dir-modal {
     background: var(--dir-modal-bg) !important;
     color: var(--dir-text);
     border: 1px solid var(--dir-border);
     border-radius: .9rem;
 }
 
-.dir-modal .modal-header{
+.dir-modal .modal-header {
     background: rgba(0,0,0,.10);
     border-bottom: 1px solid var(--dir-border);
 }
 
-.dir-modal .form-control{
+.dir-modal .form-control {
     background: var(--dir-input-bg);
     color: var(--dir-input-text);
     border-color: var(--dir-input-border);
 }
 
-/* close btn in dark */
-html[data-bs-theme="dark"] .dir-modal .btn-close{
+html[data-bs-theme="dark"] .dir-modal .btn-close {
     filter: invert(1) grayscale(1);
     opacity: .85;
 }
@@ -433,7 +427,7 @@ html[data-bs-theme="dark"] .dir-modal .btn-close{
 /* =========================================================
    EMPTY / NO RESULTS
    ========================================================= */
-.dir-empty{
+.dir-empty {
     border: 1px dashed var(--dir-border-2);
     border-radius: var(--dir-radius-md);
     padding: 2rem;
@@ -444,12 +438,18 @@ html[data-bs-theme="dark"] .dir-modal .btn-close{
 /* =========================================================
    SMALL HELPERS
    ========================================================= */
-.dir-muted{ color: var(--dir-muted); }
-.dir-text{ color: var(--dir-text); }
+.dir-muted {
+    color: var(--dir-muted);
+}
 
+.dir-text {
+    color: var(--dir-text);
+}
 
-/*  Accordion */
-.accordion{
+/* =========================================================
+   ACCORDION
+   ========================================================= */
+.accordion {
     --bs-accordion-bg: transparent;
     --bs-accordion-border-color: transparent;
     --bs-accordion-border-radius: var(--dir-radius-lg);
@@ -460,7 +460,7 @@ html[data-bs-theme="dark"] .dir-modal .btn-close{
 }
 
 /* Item */
-.accordion-item{
+.accordion-item {
     background: linear-gradient(180deg, var(--dir-acc-item-bg), var(--dir-acc-item-bg2));
     border: 1px solid var(--dir-acc-border);
     border-radius: var(--dir-radius-md);
@@ -469,7 +469,7 @@ html[data-bs-theme="dark"] .dir-modal .btn-close{
 }
 
 /* Header button */
-.accordion-button{
+.accordion-button {
     background: linear-gradient(180deg, var(--dir-acc-btn-bg), var(--dir-acc-btn-bg2));
     color: var(--dir-text);
     padding: .45rem .75rem;
@@ -478,92 +478,85 @@ html[data-bs-theme="dark"] .dir-modal .btn-close{
 }
 
 /* Hover */
-.accordion-button:hover{
+.accordion-button:hover {
     background: linear-gradient(180deg, var(--dir-acc-btn-bg), var(--dir-acc-hover-bg));
 }
 
-/* Collapsed state (чуть спокойнее) */
-.accordion-button.collapsed{
+/* Collapsed */
+.accordion-button.collapsed {
     color: var(--dir-text);
     box-shadow: none;
 }
 
-/* Expanded state (подсветка как active row) */
-.accordion-button:not(.collapsed){
+/* Expanded */
+.accordion-button:not(.collapsed) {
     background: linear-gradient(180deg, var(--dir-acc-open-bg), var(--dir-acc-btn-bg2));
     box-shadow: var(--dir-acc-shadow);
 }
 
-/* Стрелка */
-.accordion-button::after{
+/* Arrow */
+.accordion-button::after {
     filter: none;
     opacity: .85;
 }
-html[data-bs-theme="dark"] .accordion-button::after{
+
+html[data-bs-theme="dark"] .accordion-button::after {
     filter: invert(1) grayscale(1);
     opacity: .75;
 }
 
 /* Body */
-.accordion-body{
+.accordion-body {
     background: rgba(0,0,0,.08);
     border-top: 1px solid var(--dir-acc-border2);
     color: var(--dir-text);
 }
 
-/* Чуть уплотняем текст/счетчик */
-.accordion-button .group-counter{
+.accordion-button .group-counter {
     color: var(--dir-muted) !important;
 }
 
-/* Внутренние таблицы в аккордеоне — в стиле dirTable */
-.accordion-body table{
+/* tables inside accordion */
+.accordion-body table {
     background: var(--dir-table-bg) !important;
     color: var(--dir-text) !important;
 }
 
 .accordion-body table td,
-.accordion-body table th{
+.accordion-body table th {
     border-color: var(--dir-border-2) !important;
 }
 
-/* table-striped в темной теме часто дает белесость — приглушаем */
-html[data-bs-theme="dark"] .accordion-body .table-striped > tbody > tr:nth-of-type(odd) > *{
+html[data-bs-theme="dark"] .accordion-body .table-striped > tbody > tr:nth-of-type(odd) > * {
     background-color: rgba(255,255,255,.03) !important;
 }
 
-/* Hover строк в таблице */
-.accordion-body .table-hover > tbody > tr:hover > *{
+.accordion-body .table-hover > tbody > tr:hover > * {
     background-color: var(--dir-row-hover) !important;
 }
 
-/* Кнопки в action ячейке — чуть компактнее */
-.accordion-body .btn.btn-sm{
+.accordion-body .btn.btn-sm {
     padding: .2rem .45rem;
 }
 
-/* ------------------ Select2 css ------------------------------ */
-
-html[data-bs-theme="dark"] .select2-container--bootstrap-5 .select2-dropdown .select2-search__field{
+/* =========================================================
+   SELECT2
+   ========================================================= */
+html[data-bs-theme="dark"] .select2-container--bootstrap-5 .select2-dropdown .select2-search__field {
     background-color: #212529 !important;
     color: #f8f9fa !important;
-
-    /* Chrome/Safari иногда игнорят color и берут text-fill */
     -webkit-text-fill-color: #f8f9fa !important;
-
     caret-color: #f8f9fa !important;
     border: 1px solid #495057 !important;
     border-radius: 8px !important;
     outline: none !important;
 }
 
-html[data-bs-theme="dark"] .select2-container--bootstrap-5 .select2-dropdown .select2-search__field::placeholder{
+html[data-bs-theme="dark"] .select2-container--bootstrap-5 .select2-dropdown .select2-search__field::placeholder {
     color: #adb5bd !important;
     -webkit-text-fill-color: #adb5bd !important;
 }
 
-/* "No results found" / результаты тоже чтобы читались */
-html[data-bs-theme="dark"] .select2-container--bootstrap-5 .select2-results__message{
+html[data-bs-theme="dark"] .select2-container--bootstrap-5 .select2-results__message {
     color: #adb5bd !important;
 }
-/* ============================================================================ */

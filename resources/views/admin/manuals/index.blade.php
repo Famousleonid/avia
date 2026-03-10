@@ -107,6 +107,33 @@
         }
         .clearable-input .form-control { padding-right: 2rem; }
 
+        .cmm-thumb-link{
+            display: inline-block;
+        }
+
+        .cmm-thumb-wrap{
+            width: 40px;
+            height: 40px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 50%;
+            overflow: hidden;
+            flex: 0 0 40px;
+        }
+
+        .cmm-thumb-img{
+            width: 40px !important;
+            height: 40px !important;
+            min-width: 40px !important;
+            min-height: 40px !important;
+            max-width: 40px !important;
+            max-height: 40px !important;
+            object-fit: cover !important;
+            border-radius: 50% !important;
+            display: block;
+        }
+
     </style>
 
     <div class="card dir-page">
@@ -139,7 +166,7 @@
 
         @if(count($cmms))
 
-            <div class="table-wrapper me-3 p-2 pt-0">
+            <div class="table-wrapper me-3 p-0">
 
                 <table id="cmmTable" class="table table-sm table-hover align-middle table-bordered js-table-hidden dir-table">
                     <thead class="bg-gradient">
@@ -165,8 +192,14 @@
                             <td title="{{$cmm->title}}">{{$cmm->title}}</td>
                             <td title="{{$cmm->unit_name}}">{{$cmm->unit_name}}</td>
                             <td class="text-center">
-                                <a href="{{ $cmm->getFirstMediaBigUrl('manuals') }}" data-fancybox="gallery">
-                                    <img class="rounded-circle" src="{{ $cmm->getFirstMediaThumbnailUrl('manuals') }}" width="40" height="40" alt="Image"/>
+                                <a href="{{ $cmm->getFirstMediaBigUrl('manuals') }}" data-fancybox="gallery" class="cmm-thumb-link">
+        <span class="cmm-thumb-wrap">
+            <img
+                src="{{ $cmm->getFirstMediaThumbnailUrl('manuals') }}"
+                class="cmm-thumb-img"
+                alt="Image"
+            >
+        </span>
                                 </a>
                             </td>
                             <td class="text-center">{{$cmm->revision_date}}</td>
