@@ -247,7 +247,7 @@
         <div class="col border-l-b  pt-2"> <h4 class="text-bold ps-2"> P/N:</h4> </div>
         <div class="col border-l-b-r  pt-2">
             @foreach($units as $unit)
-              @if($unit->id === $current_wo->unit_id)
+              @if($unit->id == $current_wo->unit_id)
                  <h4 class="text-bold ps-2">   {{$unit->part_number}}</h4>
              @endif
             @endforeach
@@ -258,7 +258,7 @@
         <div class="col border-l-b  pt-2"> <h4 class="text-bold ps-2"> Customer:</h4> </div>
         <div class="col border-l-b-r pt-2">
             @foreach($customers as $customer)
-                @if($customer->id === $current_wo->customer_id)
+                @if($customer->id == $current_wo->customer_id)
                     <h4 class="text-bold ps-2 ">   {{$customer->name}}</h4>
                 @endif
             @endforeach
@@ -276,7 +276,7 @@
         <div class="col border-l-b  pt-2"  > <h4 class="text-bold ps-2"> TECH NAME:</h4> </div>
         <div class="col border-l-b-r pt-2" >
             @foreach($users as $user)
-                @if($user->id === $current_wo->user_id)
+                @if($user->id == $current_wo->user_id)
                     <h4 class="text-bold ps-2 ">   {{$user->name}}</h4>
                 @endif
             @endforeach
