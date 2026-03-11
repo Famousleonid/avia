@@ -112,7 +112,7 @@ class MobileController extends Controller
     {
 
         $draftNumber = Workorder::nextDraftNumber();
-        $units = Unit::query()->orderBy('part_number')->get(['id','part_number','name']);
+        $units = Unit::query()->with('manual')->orderBy('part_number')->get();
         $customers = Customer::query()->orderBy('name')->get(['id','name']);
         $manuals = Manual::query()->orderBy('title')->get(['id','number']);
 

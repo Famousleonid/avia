@@ -12,6 +12,8 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
+use Illuminate\Database\QueryException;
 use Throwable;
 
 
@@ -82,6 +84,8 @@ class UnitController extends Controller
                     'eff_code'    => 'nullable|string|max:255',
                     'name'        => 'nullable|string|max:255',
                     'description' => 'nullable|string|max:255',
+                ], [
+                    'part_number.unique' => 'Part number already exists in this CMM.',
                 ]);
 
                 $unit = Unit::create([
@@ -95,11 +99,12 @@ class UnitController extends Controller
 
                 // Отдаём то, что ожидает фронт при добавлении опции в селект
                 return response()->json([
-                    'id'           => $unit->id,
-                    'part_number'  => $unit->part_number,
-                    'name'         => $unit->name,
-                    'description'  => $unit->description,
-                    'manual_title' => optional($unit->manual)->title,
+                    'id'            => $unit->id,
+                    'part_number'   => $unit->part_number,
+                    'name'          => $unit->name,
+                    'description'   => $unit->description,
+                    'manual_title'  => optional($unit->manual)->title,
+                    'manual_number' => optional($unit->manual)->number,
                 ], 201);
             }
 
@@ -131,6 +136,16 @@ class UnitController extends Controller
                 'units'   => $createdUnits,
             ], 201);
 
+        } catch (ValidationException $e) {
+            throw $e;
+        } catch (QueryException $e) {
+            if (($e->errorInfo[1] ?? 0) == 1062) {
+                return response()->json([
+                    'error'   => 'Part number already exists in another manual (database constraint).',
+                    'errors'  => ['part_number' => ['Part number already exists in another manual.']],
+                ], 422);
+            }
+            return response()->json(['error' => 'Server error'], 500);
         } catch (Throwable $e) {
             return response()->json(['error' => 'Server error'], 500);
         }
@@ -260,9 +275,18 @@ class UnitController extends Controller
     public function updateSingle(Unit $unit, Request $request)
     {
         $data = $request->validate([
-            'part_number' => 'required|string|max:255',
+            'part_number' => [
+                'required',
+                'string',
+                'max:255',
+                Rule::unique('units', 'part_number')
+                    ->where(fn($q) => $q->where('manual_id', $unit->manual_id))
+                    ->ignore($unit->id),
+            ],
             'eff_code'    => 'nullable|string|max:255',
             'verified'    => 'required|boolean',
+        ], [
+            'part_number.unique' => 'Part number already exists in this CMM (manual).',
         ]);
 
         $unit->update($data);

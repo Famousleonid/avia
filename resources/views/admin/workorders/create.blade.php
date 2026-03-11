@@ -136,7 +136,7 @@
                                                     <option
                                                         value="{{$unit->id}}"
                                                         data-name="{{ $unit->name }}">
-                                                        {{$unit->part_number}}
+                                                        {{ $unit->part_number }}@if($unit->manual) ({{ $unit->manual->number }})@endif
                                                     </option>
                                                 @endforeach
                                             </select>
@@ -506,16 +506,21 @@
                     },
                     body: JSON.stringify(requestBody)
                 })
-                    .then(res => {
-                        console.log(res);
+                    .then(async res => {
                         hideLoadingSpinner();
-                        if (!res.ok) throw new Error("Failed to create unit");
-
-                        return res.json();
+                        const data = await res.json();
+                        if (!res.ok) {
+                            const msg = data?.errors?.part_number?.[0] || data?.error || data?.message || 'Failed to create unit';
+                            throw new Error(msg);
+                        }
+                        return data;
                     })
                     .then(data => {
-                        // Добавить новую опцию в селект
-                        const option = new Option(data.part_number, data.id, true, true);
+                        // Добавить новую опцию в селект (PN + manual для различения одинаковых PN в разных manuals)
+                        const label = data.manual_number
+                            ? `${data.part_number} (${data.manual_number})`
+                            : data.part_number;
+                        const option = new Option(label, data.id, true, true);
                         option.setAttribute('data-name', data.name || '');
                         $('#unit_id').append(option).trigger('change');
 

@@ -1020,8 +1020,13 @@
                             verified: verified,
                         })
                     })
-                        .then(response => response.json())
-                        .then(data => {
+                        .then(async response => {
+                            const data = await response.json();
+                            if (!response.ok) {
+                                const msg = data?.errors?.part_number?.[0] || data?.message || 'Ошибка при обновлении компонента';
+                                showNotification(msg, 'error');
+                                return;
+                            }
                             if (data && data.success) {
                                 const editUnitModalEl = document.getElementById('editUnitModal');
                                 const modalInstance = bootstrap.Modal.getInstance(editUnitModalEl);

@@ -138,9 +138,9 @@
                                                 </a>
                                             </label>
                                             <select name="unit_id" id="unit_id" class="form-control">
-                                                <option selected value="{{ old('unit_id', $current_wo->unit_id) }}" data-name="{{ old('unit_name', $current_wo->unit->name) }}">{{ old('part_number', $current_wo->unit->part_number) }}</option>
+                                                <option selected value="{{ old('unit_id', $current_wo->unit_id) }}" data-name="{{ old('unit_name', $current_wo->unit->name) }}">{{ old('part_number', $current_wo->unit->part_number) }}@if($current_wo->unit->manual) ({{ $current_wo->unit->manual->number }})@endif</option>
                                                 @foreach ($units as $unit)
-                                                    <option value="{{$unit->id}}" data-name="{{ $unit->name }}">{{$unit->part_number}}</option>
+                                                    <option value="{{$unit->id}}" data-name="{{ $unit->name }}">{{ $unit->part_number }}@if($unit->manual) ({{ $unit->manual->number }})@endif</option>
                                                 @endforeach
                                             </select>
                                         </div>
@@ -433,14 +433,21 @@
                     },
                     body: JSON.stringify(requestBody)
                 })
-                    .then(res => {
+                    .then(async res => {
                         hideLoadingSpinner();
-                        if (!res.ok) throw new Error("Failed to create unit");
-                        return res.json();
+                        const data = await res.json();
+                        if (!res.ok) {
+                            const msg = data?.errors?.part_number?.[0] || data?.error || data?.message || 'Failed to create unit';
+                            throw new Error(msg);
+                        }
+                        return data;
                     })
                     .then(data => {
-                        // Добавить новую опцию в селект
-                        const option = new Option(data.part_number, data.id, true, true);
+                        // Добавить новую опцию в селект (PN + manual для различения одинаковых PN в разных manuals)
+                        const label = data.manual_number
+                            ? `${data.part_number} (${data.manual_number})`
+                            : data.part_number;
+                        const option = new Option(label, data.id, true, true);
                         option.setAttribute('data-name', data.name || '');
                         $('#unit_id').append(option).trigger('change');
 
@@ -473,6 +480,8 @@
             const WAS_DRAFT = {{ $wasDraft ? 'true' : 'false' }};
             const ORIGINAL_NUMBER = numberInput.value;
             const CURRENT_WO_ID = {{ (int)$current_wo->id }};
+            const INITIAL_UNIT_ID = {{ (int)($current_wo->unit_id ?? 0) }};
+            const HAS_TDRS = {{ ($hasTdrs ?? false) ? 'true' : 'false' }};
 
             function shouldAllowEditNumber() {
                 const selectedInstructionId = parseInt(instructionSelect.value || '0', 10);
@@ -535,6 +544,17 @@
             });
 
             document.getElementById('createForm').addEventListener('submit', async (e) => {
+                // Предупреждение при смене unit, если есть TDR
+                const newUnitId = parseInt(document.getElementById('unit_id').value || '0', 10);
+                if (HAS_TDRS && newUnitId !== INITIAL_UNIT_ID) {
+                    const msg = 'Workorder has TDR records. Changing Unit (and thus Manual) may cause data inconsistency. Components in TDR may not match the new Manual. Continue?';
+                    if (!confirm(msg)) {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        return;
+                    }
+                }
+
                 const ok = await checkNumberUnique();
                 if (!ok) {
                     e.preventDefault();

@@ -375,13 +375,13 @@ class WorkorderController extends Controller
         $instructions = $instructionsQuery->get();
         $current_wo = $workorder;
         $customers = Customer::all();
-        $units = Unit::all();
+        $units = Unit::with('manual')->get();
         $manuals = Manual::all();
         $users = User::all();
         $open_at = Carbon::parse($current_wo->open_at)->format('Y-m-d');
+        $hasTdrs = $workorder->tdrs()->exists();
 
-
-        return view('admin.workorders.edit', compact('users', 'customers', 'units', 'instructions', 'current_wo', 'manuals', 'open_at','draftInstructionId','wasDraft'));
+        return view('admin.workorders.edit', compact('users', 'customers', 'units', 'instructions', 'current_wo', 'manuals', 'open_at','draftInstructionId','wasDraft','hasTdrs'));
 
     }
 
@@ -476,7 +476,16 @@ class WorkorderController extends Controller
             $request->merge(['is_draft' => 0]);
         }
 
+        $oldUnitId = $workorder->unit_id;
         $workorder->update($request->all());
+
+        // При смене unit — обновить NdtCadCsv компонентами из нового manual
+        if ((int)$request->unit_id !== (int)$oldUnitId) {
+            $ndtCadCsv = $workorder->ndtCadCsv;
+            if ($ndtCadCsv) {
+                \App\Models\NdtCadCsv::loadComponentsFromManual($workorder->id, $ndtCadCsv);
+            }
+        }
 
         // Если description заполнено и unit->name пустое, обновляем unit->name
         if (!empty($request->description)) {
