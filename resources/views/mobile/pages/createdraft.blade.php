@@ -94,7 +94,7 @@
                             <option value="" selected disabled>— Select Unit —</option>
                             @foreach($units as $u)
                                 <option value="{{ $u->id }}" data-name="{{ $u->name ?? '' }}">
-                                    {{ $u->part_number }}
+                                    {{ $u->part_number }}@if($u->manual) ({{ $u->manual->number }})@endif
                                 </option>
                             @endforeach
                         </select>
@@ -325,15 +325,17 @@
                         })
                     });
 
+                    const data = await res.json();
                     if (!res.ok) {
-                        const txt = await res.text();
-                        throw new Error(txt || 'Failed to create unit');
+                        const msg = data?.errors?.part_number?.[0] || data?.error || data?.message || 'Failed to create unit';
+                        throw new Error(msg);
                     }
 
-                    const data = await res.json();
-
-                    // add new option to Unit select & select it
-                    const option = new Option(data.part_number, data.id, true, true);
+                    // add new option to Unit select & select it (PN + manual для различения одинаковых PN в разных manuals)
+                    const label = data.manual_number
+                        ? `${data.part_number} (${data.manual_number})`
+                        : data.part_number;
+                    const option = new Option(label, data.id, true, true);
                     option.setAttribute('data-name', data.name || '');
 
                     if (hasSelect2) {
