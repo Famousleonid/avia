@@ -15,8 +15,9 @@
 
         /* Ширина таблицы во вкладке Components */
         #nav-components .table {
-            width: 100%;
+            width: 50%;
         }
+
         /* Колонки Components: # | Components PN | EFF Code | Action */
         #nav-components .table th:nth-child(1),
         #nav-components .table td:nth-child(1) { width: 50px; }
@@ -26,6 +27,12 @@
         #nav-components .table td:nth-child(3) { width: 80px; }
         #nav-components .table th:nth-child(4),
         #nav-components .table td:nth-child(4) { width: 100px; }
+
+        .component-table-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
 
         /* Ширина таблицы во вкладке Parts */
         #nav-parts .table {
@@ -167,7 +174,14 @@
             outline: none;
             box-shadow: none;
         }
+        #editUnitModal .modal-dialog {
+            max-height: 90vh;
+        }
 
+        #editUnitModal .modal-body {
+            max-height: 60vh;
+            overflow-y: auto;
+        }
     </style>
     <div class="card shadow">
         <div class="card-header m-2 ">
@@ -222,11 +236,16 @@
                     </div>
                     <div class="ms-3 d-flex align-items-center gap-2" id="nav-tab-actions">
                         <button type="button"
-                                class="btn btn-outline-primary btn-sm"
+                                class="btn btn-outline-primary btn-sm btn-update-components"
                                 data-tab-target="#nav-components"
+                                data-id="{{ $units->first()?->id ?? '' }}"
+                                data-manuals-id="{{ $cmm->id }}"
+                                data-manual="{{ $cmm->title }}"
+                                data-manual-number="{{ $cmm->number }}"
+                                data-manual-image="{{ $cmm->getFirstMediaBigUrl('manuals') ?: asset('img/no-image.png') }}"
                                 data-bs-toggle="modal"
-                                data-bs-target="#addUnitModal">
-                            {{ __('Add Component') }}
+                                data-bs-target="#editUnitModal">
+                            {{ __('Update Components') }}
                         </button>
                         <div class="d-none" data-tab-target="#nav-parts">
                             <input type="text" style="width: 260px"
@@ -270,10 +289,9 @@
                                 <th class="text-center bg-gradient" scope="col">#</th>
                                 <th class="text-center bg-gradient" scope="col">Components PN</th>
                                 <th class="text-center bg-gradient" scope="col">EFF Code</th>
-                                <th class="text-center bg-gradient" scope="col">Action</th>
                             </tr>
                             </thead>
-                            <tbody class="text-center ">
+                            <tbody class="text-center" id="components-table-body">
                             @php
                             $i=1
                             @endphp
@@ -285,29 +303,6 @@
                                     {{$u->part_number}}
                                 </td>
                                 <td class="align-content-center"> {{$u->eff_code}}</td>
-                                <td class="align-content-center">
-                                    <button type="button"
-                                            class="btn btn-outline-primary btn-sm btn-edit-unit"
-                                            data-unit-id="{{ $u->id }}"
-                                            data-unit-part-number="{{ $u->part_number }}"
-                                            data-unit-eff-code="{{ $u->eff_code }}"
-                                            data-unit-verified="{{ $u->verified ? 1 : 0 }}"
-                                            data-bs-toggle="modal"
-                                            data-bs-target="#editUnitModal">
-                                        <i class="bi bi-pencil-square"></i>
-                                    </button>
-                                    <form action="{{ route('units.destroySingle', $u->id) }}"
-                                          method="POST"
-                                          style="display:inline-block;">
-                                        @csrf
-                                        @method('DELETE')
-                                        <button type="submit"
-                                                class="btn btn-outline-danger btn-sm"
-                                                onclick="return confirm('Вы уверены, что хотите удалить этот компонент?');">
-                                            <i class="bi bi-trash"></i>
-                                        </button>
-                                    </form>
-                                </td>
                             </tr>
                             @endforeach
                             </tbody>
@@ -480,6 +475,37 @@
 
         </div>
 
+    </div>
+
+    {{-- Модальное окно Edit Unit (Update Components) — CMM image, part numbers list, Add PN, Update --}}
+    <div class="modal fade" id="editUnitModal" tabindex="-1" role="dialog" aria-labelledby="editUnitModalLabel" aria-hidden="true">
+        <div class="modal-dialog" role="document">
+            <div class="modal-content">
+                <div class="modal-header ">
+                    <div class="d-flex ">
+                        <div class="ms-4 me-4">
+                            <img id="cmmImage" src="" alt="Image CMM" style="width: 100px;">
+                        </div>
+                        <div class="ms-4">
+                            <h6 class="modal-title" id="editUnitModalLabel"></h6>
+                            <p id="editUnitModalNumber"></p>
+                            <button type="button" class="btn btn-outline-primary" id="addUnitButton">{{ __('Add PN') }}</button>
+                        </div>
+                    </div>
+
+
+                </div>
+                <div class="modal-body ">
+                    <div class="ms-4">
+                            <div id="partNumbersList"></div>
+                    </div>
+                </div>
+                <div class="modal-footer justify-content-between">
+                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">{{ __('Cancel') }}</button>
+                    <button type="button" class="btn btn-outline-primary" id="updateUnitButton">{{ __('Update') }}</button>
+                </div>
+            </div>
+        </div>
     </div>
 
     {{-- Модальное окно редактирования Part (Component) — все поля как в Add Parts --}}
@@ -927,118 +953,161 @@
                 });
             });
 
-            // Создание Unit (Component) через модальное окно + AJAX
-            const modalAddUnitBtn = document.getElementById('modal-btn-add-unit');
-            const modalPartInput  = document.getElementById('modal-unit-part-number');
-            const modalEffInput   = document.getElementById('modal-unit-eff-code');
+            // ---- Edit Unit / Update Components modal (bulk edit: load units, populate partNumbersList, Add PN, Update) ----
+            var editUnitModal = document.getElementById('editUnitModal');
+            document.addEventListener('click', function (event) {
+                const button = event.target.closest('.btn-update-components');
+                if (!button) return;
 
-            if (modalAddUnitBtn && modalPartInput) {
-                modalAddUnitBtn.addEventListener('click', function () {
-                    const partNumber = modalPartInput.value.trim();
-                    const effCode    = modalEffInput ? modalEffInput.value.trim() : null;
-                    const manualId   = this.getAttribute('data-manual-id');
+                const manualId     = button.getAttribute('data-manuals-id');
+                const manualTitle  = button.getAttribute('data-manual');
+                const manualImage  = button.getAttribute('data-manual-image');
+                const manualNumber = button.getAttribute('data-manual-number');
 
-                    if (!partNumber) {
-                        showNotification('Введите Component PN', 'warning');
-                        return;
-                    }
+                const editModal = document.getElementById('editUnitModal');
+                if (!editModal || !manualId) return;
 
-                    fetch('{{ route('units.store') }}', {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json',
-                            'X-CSRF-TOKEN': '{{ csrf_token() }}',
-                            'X-Requested-With': 'XMLHttpRequest',
-                        },
-                        body: JSON.stringify({
-                            manual_id: manualId,
-                            part_number: partNumber,
-                            eff_code: effCode || null,
-                        })
+                editModal.setAttribute('data-manual-id', manualId);
+                document.getElementById('editUnitModalLabel').innerText  = manualTitle || '{{ __("Edit Unit") }}';
+                document.getElementById('editUnitModalNumber').innerText = manualNumber ? 'CMM: ' + manualNumber : '';
+                document.getElementById('cmmImage').src                  = manualImage || '';
+
+                const partNumbersList = document.getElementById('partNumbersList');
+                partNumbersList.innerHTML = '';
+
+                const unitsUrl = '{{ route("units.show", $cmm->id) }}';
+
+                fetch(unitsUrl, { headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' } })
+                    .then(function (r) { return r.json(); })
+                    .then(function (data) {
+                        if (data.units && data.units.length > 0) {
+                            data.units.forEach(function (unit) {
+                                addPartNumberRow(unit.part_number, unit.verified, unit.eff_code || '');
+                            });
+                        } else {
+                            var noUnitsItem = document.createElement('div');
+                            noUnitsItem.className = 'mb-2 text-muted';
+                            noUnitsItem.innerText = '{{ __("No part numbers found for this manual.") }}';
+                            partNumbersList.appendChild(noUnitsItem);
+                        }
                     })
-                        .then(response => response.json())
-                        .then(data => {
-                            if (data && data.id) {
-                                // Закрываем модалку и обновляем страницу, чтобы увидеть новый компонент
-                                const addUnitModalEl = document.getElementById('addUnitModal');
-                                const modalInstance = bootstrap.Modal.getInstance(addUnitModalEl);
-                                if (modalInstance) {
-                                    modalInstance.hide();
-                                }
-                                location.reload();
-                            } else {
-                                showNotification('Ошибка при создании компонента', 'error');
-                            }
-                        })
-                        .catch(() => showNotification('Server error', 'error'));
-                });
-            }
-
-            // Редактирование Unit (Component) через модальное окно + AJAX
-            const editButtons = document.querySelectorAll('.btn-edit-unit');
-            const editPartInput = document.getElementById('edit-unit-part-number');
-            const editEffInput  = document.getElementById('edit-unit-eff-code');
-            const modalUpdateBtn = document.getElementById('modal-btn-update-unit');
-            const editVerifiedCheckbox = document.getElementById('edit-unit-verified');
-
-            editButtons.forEach(function (btn) {
-                btn.addEventListener('click', function () {
-                    const unitId = this.getAttribute('data-unit-id');
-                    const partNumber = this.getAttribute('data-unit-part-number') || '';
-                    const effCode = this.getAttribute('data-unit-eff-code') || '';
-                    const verified = this.getAttribute('data-unit-verified') === '1';
-
-                    if (editPartInput) editPartInput.value = partNumber;
-                    if (editEffInput)  editEffInput.value  = effCode;
-                    if (editVerifiedCheckbox) editVerifiedCheckbox.checked = verified;
-                    if (modalUpdateBtn) modalUpdateBtn.setAttribute('data-unit-id', unitId);
-                });
+                    .catch(function (err) { console.error('Error loading units:', err); });
             });
 
-            if (modalUpdateBtn && editPartInput) {
-                modalUpdateBtn.addEventListener('click', function () {
-                    const unitId = this.getAttribute('data-unit-id');
-                    const partNumber = editPartInput.value.trim();
-                    const effCode    = editEffInput ? editEffInput.value.trim() : null;
-                    const verified   = editVerifiedCheckbox && editVerifiedCheckbox.checked ? 1 : 0;
+            document.addEventListener('click', function (e) {
+                if (e.target.id === 'addUnitButton' || e.target.closest('#addUnitButton')) {
+                    addPartNumberRow('', true, '');
+                }
+            });
 
-                    if (!partNumber) {
-                        showNotification('Введите Component PN', 'warning');
-                        return;
-                    }
+            function addPartNumberRow(partNumber, verified, effCode) {
+                var partNumbersList = document.getElementById('partNumbersList');
+                if (!partNumbersList) return;
 
-                    fetch('{{ url('/units') }}/' + unitId + '/single', {
-                        method: 'PATCH',
-                        headers: {
-                            'Content-Type': 'application/json',
-                            'X-CSRF-TOKEN': '{{ csrf_token() }}',
-                            'X-Requested-With': 'XMLHttpRequest',
-                        },
-                        body: JSON.stringify({
-                            part_number: partNumber,
-                            eff_code: effCode || null,
-                            verified: verified,
-                        })
+                var noUnitsMsg = partNumbersList.querySelector('.text-muted');
+                if (noUnitsMsg) noUnitsMsg.remove();
+
+                var listItem = document.createElement('div');
+                listItem.className = 'mb-2 d-flex align-items-center';
+
+                var checkbox = document.createElement('input');
+                checkbox.type = 'checkbox';
+                checkbox.className = 'form-check-input me-2';
+                checkbox.checked = !!verified;
+
+                var pnInput = document.createElement('input');
+                pnInput.type = 'text';
+                pnInput.className = 'form-control me-2';
+                pnInput.style.width = '150px';
+                pnInput.value = partNumber || '';
+                pnInput.placeholder = 'Part Number';
+
+                var effCodeInput = document.createElement('input');
+                effCodeInput.type = 'text';
+                effCodeInput.className = 'form-control me-2';
+                effCodeInput.style.width = '120px';
+                effCodeInput.value = effCode || '';
+                effCodeInput.placeholder = 'EFF Code';
+
+                var deleteButton = document.createElement('button');
+                deleteButton.className = 'btn btn-danger btn-sm ms-1';
+                deleteButton.innerText = 'Del';
+                deleteButton.onclick = function () { listItem.remove(); };
+
+                listItem.appendChild(checkbox);
+                listItem.appendChild(pnInput);
+                listItem.appendChild(effCodeInput);
+                listItem.appendChild(deleteButton);
+                partNumbersList.appendChild(listItem);
+            }
+
+            var updateUnitBtn = document.getElementById('updateUnitButton');
+            if (updateUnitBtn) {
+                updateUnitBtn.addEventListener('click', function () {
+                var manualId = editUnitModal.getAttribute('data-manual-id');
+                var listItems = document.querySelectorAll('#partNumbersList .d-flex.align-items-center');
+                var partNumbers = Array.from(listItems).map(function (listItem) {
+                    var inputs = listItem.querySelectorAll('.form-control');
+                    var checkbox = listItem.querySelector('.form-check-input');
+                    return {
+                        part_number: inputs[0] ? inputs[0].value : '',
+                        eff_code: inputs[1] ? inputs[1].value : '',
+                        verified: !!(checkbox && checkbox.checked)
+                    };
+                });
+
+                if (!manualId) { showNotification('{{ __("Error: Manual ID not found") }}', 'error'); return; }
+                if (partNumbers.length === 0) { showNotification('{{ __("Error: No part numbers to update") }}', 'error'); return; }
+                var invalidItems = partNumbers.filter(function (item) { return !item.part_number.trim(); });
+                if (invalidItems.length > 0) { showNotification('{{ __("Error: All part numbers must be filled") }}', 'error'); return; }
+
+                var updateUrl = '{{ route("units.update", ":id") }}'.replace(':id', manualId);
+
+                fetch(updateUrl, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRF-TOKEN': '{{ csrf_token() }}',
+                        'X-Requested-With': 'XMLHttpRequest'
+                    },
+                    body: JSON.stringify({ part_numbers: partNumbers })
+                })
+                    .then(function (r) {
+                        if (!r.ok) throw new Error('HTTP ' + r.status);
+                        return r.json();
                     })
-                        .then(async response => {
-                            const data = await response.json();
-                            if (!response.ok) {
-                                const msg = data?.errors?.part_number?.[0] || data?.message || 'Ошибка при обновлении компонента';
-                                showNotification(msg, 'error');
-                                return;
-                            }
-                            if (data && data.success) {
-                                const editUnitModalEl = document.getElementById('editUnitModal');
-                                const modalInstance = bootstrap.Modal.getInstance(editUnitModalEl);
-                                if (modalInstance) {
-                                    modalInstance.hide();
-                                }
-                                location.reload();
-                            } else {
-                                showNotification('Ошибка при обновлении компонента', 'error');
-                            }
-                        })
-                        .catch(() => showNotification('Server error', 'error'));
+                    .then(function (data) {
+                        if (data.success) {
+                            showNotification('{{ __("Units updated successfully") }}', 'success');
+                            var modalInstance = bootstrap.Modal.getInstance(editUnitModal);
+                            if (modalInstance) modalInstance.hide();
+                            // Обновляем только таблицу Components без перезагрузки
+                            var unitsUrl = '{{ route("units.show", $cmm->id) }}';
+                            fetch(unitsUrl, { headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' } })
+                                .then(function (r) { return r.json(); })
+                                .then(function (resp) {
+                                    var tbody = document.getElementById('components-table-body');
+                                    if (!tbody) return;
+                                    tbody.innerHTML = '';
+                                    if (resp.units && resp.units.length > 0) {
+                                        resp.units.forEach(function (unit, idx) {
+                                            var tr = document.createElement('tr');
+                                            tr.innerHTML = '<td class="align-content-center">' + (idx + 1) + '</td>' +
+                                                '<td class="align-content-center' + (unit.verified ? '' : ' text-danger fw-bold') + '">' + (unit.part_number || '') + '</td>' +
+                                                '<td class="align-content-center">' + (unit.eff_code || '') + '</td>';
+                                            tbody.appendChild(tr);
+                                        });
+                                    }
+                                })
+                                .catch(function (err) { console.error('Error refreshing components:', err); });
+                        } else {
+                            showNotification('Error: ' + (data.error || '{{ __("Unknown error") }}'), 'error');
+                        }
+                    })
+                    .catch(function (err) {
+                        console.error(err);
+                        showNotification('{{ __("Error updating units") }}: ' + err.message, 'error');
+                    });
                 });
             }
 

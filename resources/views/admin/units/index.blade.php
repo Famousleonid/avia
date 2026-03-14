@@ -17,6 +17,7 @@
             padding-left: 10px;
         }
 
+
         .table th:nth-child(1), .table td:nth-child(1) {
             min-width: 80px;
             max-width: 90px;
@@ -98,8 +99,8 @@
                 {{ __('No units available.') }}
             </div>
         @else
-            <div class="table-wrapper dir-panel me-3 p-2 pt-0 mb-1">
-                <table id="unitTable" class="table table-sm table-hover align-middle table-bordered dir-table">
+            <div class="table-wrapper dir-panel me-3 p-2 pt-0 mb-1" >
+                <table id="unitTable" class="table table-sm table-hover align-middle table-bordered dir-table" >
                     <thead class="bg-gradient">
                     <tr>
                         <th class="text-primary sortable bg-gradient text-center">
