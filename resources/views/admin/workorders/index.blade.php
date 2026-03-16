@@ -104,7 +104,7 @@
             top: 0;
             vertical-align: middle;
             border-top: 1px;
-            z-index: 1009;
+            /*z-index: 1009;*/
         }
 
         .table th.sortable {

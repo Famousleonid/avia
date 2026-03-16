@@ -65,12 +65,12 @@
     </style>
 
     <div class="container mt-3">
-        <div class="card bg-gradient">
-            <div class="card-header">
-                <h4 class="text-primary">{{__('Add Part Inspection')}}</h4>
-                <h4 class="text-primary"> {{__('Work Order')}} {{$current_wo->number}}</h4>
+        <div class="card bg-gradient shadow-lg">
+            <div class="card-header row">
+                <h5 class="text-info col">{{__('Add Part Inspection')}}</h5>
+                <h5 class="text-info col"> {{__('Work Order')}} <span class="text-white">{{$current_wo->number}}</span></h5>
             </div>
-            <div class="card-body">
+            <div class="card-body" style="background-color: #232525">
                 <form id="createForm" class="createForm" role="form" method="POST"
                       action="{{route('tdrs.store')}}" enctype="multipart/form-data">
                     @csrf
@@ -727,7 +727,6 @@
         // Функция для загрузки компонентов по manual_id
         function loadComponentsByManual(manualId) {
             const ajaxUrl = '{{ route("api.get-components-by-manual") }}';
-            console.log('Loading components for manual_id:', manualId);
 
             $.ajax({
                 url: ajaxUrl,

@@ -65,9 +65,9 @@
     <div class="container mt-3">
         <div class="card bg-gradient">
             <div class="card-header">
-                <h4 class="text-primary">{{__('Add Inspection')}}</h4>
-                <h4 class="text-primary"> {{__('Work Order')}}
-                    {{$current_wo->number}}</h4>
+                <h5 class="text-info">{{__('Add Inspection')}}</h5>
+                <h5 class="text-info"> {{__('Work Order')}}
+                    {{$current_wo->number}}</h5>
             </div>
             <div class="card-body" id="create_div_inputs">
                 <form id="createForm" class="createForm" role="form" method="POST" action="{{route('tdrs.store')}}"

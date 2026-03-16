@@ -217,16 +217,16 @@ function showNotification(message, type = 'info', duration = 4000) {
         notificationContainer = document.createElement('div');
         notificationContainer.id = 'notification-container';
         notificationContainer.style.cssText = `
-            position: fixed;
-            top: 20px;
-            right: 20px;
-            z-index: 10000;
-            display: flex;
-            flex-direction: column;
-            gap: 10px;
-            max-width: 400px;
-            pointer-events: none;
-        `;
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+    z-index: 10000;
+    display: flex;
+    flex-direction: column-reverse;
+    gap: 10px;
+    max-width: 400px;
+    pointer-events: none;
+`;
         document.body.appendChild(notificationContainer);
     }
 

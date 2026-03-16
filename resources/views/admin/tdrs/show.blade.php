@@ -1505,7 +1505,7 @@
                         <div class="card bg-dark border-secondary">
                             <div class="card-body d-flex">
                                 <h6 class="text-primary mb-3 me-4">Upload PDF Files</h6>
-                                <form id="pdfUploadForm" enctype="multipart/form-data">
+                                <form id="pdfUploadForm" enctype="multipart/form-data" data-no-spinner>
                                     <div class="ms-3">
                                         <div class="d-flex">
                                             <label for="pdfDocumentName" class="form-label  me-2">

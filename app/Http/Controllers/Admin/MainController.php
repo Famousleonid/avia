@@ -26,39 +26,38 @@ class MainController extends Controller
 
     public function store(Request $request)
     {
-
         $data = $request->validate([
             'workorder_id' => ['required', 'exists:workorders,id'],
-            'task_id' => ['required', 'exists:tasks,id'],
-            'date_start' => ['nullable', 'date'],
-            'date_finish' => ['nullable', 'date'],
-            'ignore_row' => ['nullable', 'boolean'],
+            'task_id'      => ['required', 'exists:tasks,id'],
+            'date_start'   => ['nullable', 'date'],
+            'date_finish'  => ['nullable', 'date'],
+            'ignore_row'   => ['nullable', 'boolean'],
         ]);
 
         $task = Task::with('generalTask')->findOrFail($data['task_id']);
-        $hasStart = (bool)$task->task_has_start_date;
+
         $ignoreRow = $request->boolean('ignore_row');
-        $hasStart = $request->has('date_start');
+        $hasStart  = $request->has('date_start');
         $hasFinish = $request->has('date_finish');
 
-        [$dateStart, $dateFinish] = (function () use ($data, $task, $ignoreRow, $hasStart, $hasFinish) {
-            $resolved = Main::validateAndResolveDates($data, $task, null, $ignoreRow, $hasStart, $hasFinish);
-            return [$resolved['date_start'], $resolved['date_finish']];
-        })();
-
+        $resolved = Main::validateAndResolveDates(
+            $data,
+            $task,
+            null,
+            $ignoreRow,
+            $hasStart,
+            $hasFinish
+        );
 
         $main = new Main();
-        $main->workorder_id = $data['workorder_id'];
-        $main->task_id = $task->id;
-        $main->general_task_id = $task->general_task_id;
-        $main->user_id = auth()->id();
-
-        $main->date_start = $dateStart;
-        $main->date_finish = $dateFinish;
-        $main->ignore_row = $ignoreRow;
-
+        $main->workorder_id     = $data['workorder_id'];
+        $main->task_id          = $task->id;
+        $main->general_task_id  = $task->general_task_id;
+        $main->user_id          = auth()->id();
+        $main->date_start       = $resolved['date_start'];
+        $main->date_finish      = $resolved['date_finish'];
+        $main->ignore_row       = $ignoreRow;
         $main->save();
-
 
         $wo = $main->workorder ?: Workorder::find($main->workorder_id);
 
@@ -67,6 +66,16 @@ class MainController extends Controller
             $wo->syncDoneByCompletedTask();
         }
 
+        if ($request->ajax() || $request->expectsJson()) {
+            return response()->json([
+                'success' => true,
+                'message' => 'Record created.',
+                'main_id' => $main->id,
+                'date_start' => optional($main->date_start)?->format('Y-m-d'),
+                'date_finish' => optional($main->date_finish)?->format('Y-m-d'),
+                'ignore_row' => (bool) $main->ignore_row,
+            ]);
+        }
 
         return back()->with('success', 'Record created.');
     }
@@ -356,21 +365,29 @@ class MainController extends Controller
 
     public function update(Request $request, Main $main)
     {
-
-        $oldIgnore = (int)$main->ignore_row;
+        $oldIgnore = (int) $main->ignore_row;
 
         $main->loadMissing(['task.generalTask']);
         $task = $main->task;
 
         $data = $request->validate([
-            'date_start' => ['nullable', 'date'],
+            'date_start'  => ['nullable', 'date'],
             'date_finish' => ['nullable', 'date'],
-            'ignore_row' => ['nullable', 'boolean'],
+            'ignore_row'  => ['nullable', 'boolean'],
         ]);
 
         $taskName = $main->task?->name;
 
         if ($taskName === 'Approved') {
+            if ($request->ajax() || $request->expectsJson()) {
+                return response()->json([
+                    'message' => 'This task is locked and cannot be edited.',
+                    'errors' => [
+                        'date_finish' => ['This task is locked and cannot be edited.'],
+                    ],
+                ], 422);
+            }
+
             return back()->withErrors([
                 'date_finish' => 'This task is locked and cannot be edited.',
             ]);
@@ -379,26 +396,43 @@ class MainController extends Controller
         $isRestrictedFinish = in_array($taskName, ['Approved', 'Completed'], true);
 
         $ignoreRow = $request->boolean('ignore_row');
-        $hasStart = $request->has('date_start');
+        $hasStart  = $request->has('date_start');
         $hasFinish = $request->has('date_finish');
 
         if ($isRestrictedFinish && !auth()->user()->hasAnyRole('Admin|Manager')) {
             unset($data['date_finish']);
-            $hasFinish = false; // важно: поле "как будто не приходило"
+            $hasFinish = false;
         }
 
+        if (!$hasStart && !$hasFinish && $oldIgnore === (int) $ignoreRow) {
+            if ($request->ajax() || $request->expectsJson()) {
+                return response()->json([
+                    'success' => true,
+                    'message' => 'No changes.',
+                ]);
+            }
 
-        if (!$hasStart && !$hasFinish && $oldIgnore === (int)$ignoreRow) {
             return back();
         }
 
-        $resolved = Main::validateAndResolveDates($data, $task, $main, $ignoreRow, $hasStart, $hasFinish);
+        $resolved = Main::validateAndResolveDates(
+            $data,
+            $task,
+            $main,
+            $ignoreRow,
+            $hasStart,
+            $hasFinish
+        );
 
-        if ($hasStart) $main->date_start = $resolved['date_start'];
-        if ($hasFinish) $main->date_finish = $resolved['date_finish'];
+        if ($hasStart) {
+            $main->date_start = $resolved['date_start'];
+        }
 
-        // user_id логика — как у тебя
-        $afterStart = $main->date_start;
+        if ($hasFinish) {
+            $main->date_finish = $resolved['date_finish'];
+        }
+
+        $afterStart  = $main->date_start;
         $afterFinish = $main->date_finish;
 
         $main->user_id = (empty($afterStart) && empty($afterFinish)) ? null : auth()->id();
@@ -409,10 +443,21 @@ class MainController extends Controller
         $wo = $main->workorder ?: Workorder::find($main->workorder_id);
 
         if ($wo) {
-            $wo->recalcGeneralTaskStatuses($main->general_task_id); // пересчёт только одного этапа
-            $wo->syncDoneByCompletedTask();                         // DONE строго по Completed
+            $wo->recalcGeneralTaskStatuses($main->general_task_id);
+            $wo->syncDoneByCompletedTask();
         }
 
+        if ($request->ajax() || $request->expectsJson()) {
+            return response()->json([
+                'success' => true,
+                'message' => 'Record updated.',
+                'main_id' => $main->id,
+                'date_start' => optional($main->date_start)?->format('Y-m-d'),
+                'date_finish' => optional($main->date_finish)?->format('Y-m-d'),
+                'ignore_row' => (bool) $main->ignore_row,
+                'user_name' => $main->user?->name ?? '',
+            ]);
+        }
 
         return back()->with('success', 'Record updated.');
     }

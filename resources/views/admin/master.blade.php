@@ -243,6 +243,8 @@
 
 @yield('scripts')
 
+@include('partials.notifications-settings-modal')
+
 <script>
     // Подавляем ошибки MetaMask и другие некритичные ошибки
     window.addEventListener('error', function (e) {
