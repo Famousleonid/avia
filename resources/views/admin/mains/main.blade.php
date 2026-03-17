@@ -275,14 +275,14 @@
                 <div class="bottom-row d-flex align-items-stretch">
 
                     {{-- Left panel --}}
-                    <div class="bottom-col left gradient-pane border-info">
+                    <div class="bottom-col left gradient-pane border-info p-1">
                         <div class="left-pane d-flex flex-column gap-2 h-100">
 
                             {{-- GeneralTask buttons --}}
                             <div class="d-flex gap-2">
                                 @foreach($general_tasks as $i => $gt)
                                     <button type="button"
-                                            class="btn flex-fill js-gt-btn {{ ($gtAllFinished[$gt->id] ?? false) ? 'btn-outline-success' : 'btn-outline-danger' }}"
+                                            class="btn btn-sm flex-fill js-gt-btn {{ ($gtAllFinished[$gt->id] ?? false) ? 'btn-outline-success' : 'btn-outline-danger' }}"
                                             data-gt-id="{{ $gt->id }}">
                                         {{ $gt->name }}
                                     </button>
@@ -569,7 +569,7 @@
                     </div>
 
                     {{-- Right panel: Components / Processes --}}
-                    <div class="bottom-col right border-info gradient-pane">
+                    <div class="bottom-col right border-info gradient-pane p-1">
 
                         <div class="d-flex align-items-center justify-content-between mb-2">
                             <div class="d-flex align-items-center gap-2">
@@ -601,13 +601,12 @@
                         @else
                             <div class="list-group list-group-flush" style="overflow:auto;">
                                 @foreach($components as $cmp)
-                                    <div class="list-group-item bg-transparent text-light border-secondary">
+                                    <div class="list-group-item bg-transparent text-light border-secondary p-0">
                                         @forelse($cmp->tdrs as $tdr)
                                             @php $prs = $tdr->tdrProcesses; @endphp
                                             @if($prs->isNotEmpty())
                                                 <div class="mt-2 ps-2">
-                                                    <table
-                                                        class="table table-sm table-dark table-bordered mb-2 align-middle">
+                                                    <table class="table table-sm table-dark table-bordered table-hover mb-2 align-middle">
                                                         <thead>
                                                         <tr>
                                                             <th style="width:10%; text-align:center"

@@ -53,13 +53,13 @@
         }
 
         .col-edit {
-            width: 60px;
+            width: 50px;
             font-size: 0.8rem;
             font-weight: normal;
         }
 
         .col-delete {
-            width: 60px;
+            width: 50px;
             font-size: 0.8rem;
             font-weight: normal;
         }
@@ -375,7 +375,7 @@
         @if(count($workorders))
 
             <div class="table-wrapper p-2 pt-0 " id="printArea">
-                <table id="show-workorder" class="table table-sm table-bordered  table-hover w-100 table-panel">
+                <table id="show-workorder" class="table table-sm table-bordered  table-hover w-100 table-panel" style="font-size: 14px;">
                     <thead class="bg-gradient">
                     <tr>
                         <th class="text-center text-primary sortable col-number">
@@ -397,7 +397,7 @@
                         <th class="text-center text-primary sortable no-print">Technik <i class="bi bi-chevron-expand ms-1"></i></th>
 
                         @role('Admin')
-                        <th class="text-center text-primary col-delete no-print">Delete</th>
+                        <th class="text-center text-primary col-delete no-print">Del</th>
                         @endrole
                     </tr>
                     </thead>
@@ -540,7 +540,7 @@
 
                             <td class="text-center no-print">
                                 <a href="{{ route('workorders.edit', $workorder->id) }}">
-                                    <img src="{{ asset('img/set.png') }}" width="30" alt="Edit">
+                                    <img src="{{ asset('img/set.png') }}" width="25" alt="Edit">
                                 </a>
                             </td>
 

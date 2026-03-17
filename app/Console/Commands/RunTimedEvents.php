@@ -5,6 +5,8 @@ namespace App\Console\Commands;
 use Illuminate\Console\Command;
 use App\Services\Events\EventRunner;
 use App\Services\Events\TdrProcessOverdueStartEvent;
+use App\Services\Events\BirthdayAdminEvent;
+use App\Services\Events\BirthdaySelfEvent;
 use Illuminate\Support\Facades\Log;
 
 class RunTimedEvents extends Command
@@ -16,6 +18,8 @@ class RunTimedEvents extends Command
     {
         $runner->run([
             new TdrProcessOverdueStartEvent(),
+            new BirthdaySelfEvent(),
+            new BirthdayAdminEvent(),
             // потом добавишь новые события сюда
 
 
