@@ -138,8 +138,7 @@
                             </div>
                             <!-- Necessaries -->
                             <div class=" form-group m-2" id="necessary" style="display: none">
-                                <div class="d-flex align-items-center">
-
+                                <div class="d-flex align-items-center" id="necessary_select_group">
                                     <div>
                                         <label for="necessaries_id" class="form-label pe-2">Necessary to Do</label>
                                         <select name="necessaries_id" id="necessaries_id" class="form-control"
@@ -165,11 +164,12 @@
                                         </select>
                                     </div>
                                 </div>
-                                <div class="m-2">
-                                    <label class="" for="description">{{ __('Description ')}}</label>
-                                    <input id='description' type="text"
-                                           class="form-control " name="description" >
-                                </div>
+                            </div>
+                            <!-- Description (отдельно для Manufacture и других кодов) -->
+                            <div class="form-group m-2" id="description_group" style="display: none">
+                                <label class="" for="description">{{ __('Description ')}}</label>
+                                <input id='description' type="text"
+                                       class="form-control " name="description" >
                             </div>
                             <!-- QTY -->
                             <div class="form-group m-2" id="qty" style="display: none">
@@ -521,6 +521,7 @@
             // Функция скрытия всех дополнительных групп
             function hideAllGroups() {
                 $('#necessary').hide();
+                $('#description_group').hide();
                 $('#qty').hide();
                 $('#sns-group').hide();
                 $('#conditions').hide(); // Условия всегда скрыты
@@ -529,9 +530,10 @@
             // Основная функция обновления видимости полей
             function updateFieldVisibility() {
                 const selectedCode = $('#codes_id').find('option:selected');
-                const codeName = selectedCode.data('title');
+                const codeName = (selectedCode.attr('data-title') || '').toString().trim();
+                const codeNameLower = codeName.toLowerCase();
                 const selectedNecessary = $('#necessaries_id').find('option:selected');
-                const necessaryName = selectedNecessary.data('title');
+                const necessaryName = (selectedNecessary.attr('data-title') || '').toString().trim();
                 const selectedComponent = $('#i_component_id').find('option:selected');
                 const hasAssy = selectedComponent.data('has_assy') === true;
 
@@ -541,14 +543,25 @@
                     return;
                 }
 
-                // 1. Поле количества (qty)
-                $('#qty').toggle(codeName === "Missing" || necessaryName === "Order New");
+                const isManufacture = codeNameLower === 'manufacture';
+                const showNecessary = codeName && codeNameLower !== 'missing' && !isManufacture;
 
-                // 2. Группа необходимых действий (necessary)
-                $('#necessary').toggle(codeName && codeName !== "Missing");
+                // 1. Manufacture: скрыть #necessary, показать #description_group и #qty
+                if (isManufacture) {
+                    $('#necessary').hide();
+                    $('#description_group').show();
+                    $('#qty').show();
+                } else {
+                    // 2. Поле количества (qty) — Missing или Order New
+                    $('#qty').toggle(codeNameLower === 'missing' || (necessaryName || '').toLowerCase() === 'order new');
 
-                // 3. Группа серийных номеров (sns-group)
-                if (codeName && codeName !== "Missing" && necessaryName && necessaryName !== "Order New") {
+                    // 3. Группа необходимых действий (necessary) — для Repair/Order New
+                    $('#necessary').toggle(showNecessary);
+                    $('#description_group').toggle(showNecessary);
+                }
+
+                // 5. Группа серийных номеров (sns-group)
+                if (codeName && !isManufacture && codeNameLower !== 'missing' && necessaryName && (necessaryName || '').toLowerCase() !== 'order new') {
                     $('#sns-group').show();
 
                     if (hasAssy) {
@@ -563,7 +576,7 @@
                 }
 
                 // Показать/скрыть select для заказа компонента
-                if (necessaryName === 'Order New') {
+                if ((necessaryName || '').toLowerCase() === 'order new') {
                     $('#order_component_group').show();
                     // По умолчанию выбрать текущий компонент
                     const currentComponentId = $('#i_component_id').val();
@@ -686,7 +699,11 @@
             // Всегда сохраняем component_id из начального select'а
             setHiddenInput('component_id', $('#i_component_id').val());
 
-            if (codeName === 'missing') {
+            if (codeName === 'manufacture') {
+                // Manufacture: создаём 2 записи на бэкенде, очищаем necessaries/order_component
+                $('#necessaries_id').val('');
+                $('#order_component_id').val('');
+            } else if (codeName === 'missing') {
                 setHiddenInput('use_tdr', '0');
                 setHiddenInput('use_process_forms', '0');
                 setHiddenInput('necessaries_id', '2');

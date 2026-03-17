@@ -345,6 +345,14 @@ class TdrProcessController extends Controller
                 $data['ec'] === 'true'
             ) : false;
 
+            // Правило: если в запросе только один процесс и это EC — ставим ec = 1
+            if (count($processesData) === 1) {
+                $ecProcessName = ProcessName::where('name', 'EC')->first();
+                if ($ecProcessName && (int)$data['process_names_id'] === (int)$ecProcessName->id) {
+                    $ecValue = true;
+                }
+            }
+
             // Логируем для отладки
             Log::info('Processing process data', [
                 'process_names_id' => $data['process_names_id'],
@@ -858,8 +866,10 @@ class TdrProcessController extends Controller
             unset($group['processes_qty']); // Удаляем техническое поле
         }
 
+        $ecEligibleProcessNameIds = $this->getEcEligibleProcessNameIds();
+
         return view('admin.tdr-processes.processes',compact('current_tdr',
-            'current_wo','tdrProcesses','proces','vendors','processGroups','totalQty'
+            'current_wo','tdrProcesses','proces','vendors','processGroups','totalQty','ecEligibleProcessNameIds'
         ));
     }
 
@@ -976,6 +986,15 @@ class TdrProcessController extends Controller
         $ecValue = false;
         if ($isNewEcEligible) {
             $ecValue = $processData['ec'] ?? false;
+        }
+
+        // Правило: если процесс EC и он единственный для tdrs_id — ставим ec = 1
+        $ecProcessNameId = $this->getEcProcessNameId();
+        if ($ecProcessNameId && (int)$newProcessNamesId === (int)$ecProcessNameId) {
+            $processCount = TdrProcess::where('tdrs_id', $validated['tdrs_id'])->count();
+            if ($processCount === 1) {
+                $ecValue = true;
+            }
         }
 
         // Обрабатываем plus_process: если это NDT процесс, сохраняем дополнительные NDT process_names_id

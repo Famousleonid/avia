@@ -301,8 +301,78 @@ class TdrController extends Controller
         // Загружаем необходимые сущности один раз
         $workorder = Workorder::findOrFail($validated['workorder_id']);
         $code = Code::where('name', 'Missing')->first();
+        $manufactureCode = Code::where('name', 'Manufacture')->first();
         $necessary = Necessary::where('name', 'Order New')->first();
         $repairNecessary = Necessary::where('name', 'Repair')->first();
+
+        // Manufacture: создаём 2 записи (Order New + Repair)
+        if ($manufactureCode && $validated['codes_id'] == $manufactureCode->id) {
+            if (empty($validated['component_id'])) {
+                return redirect()->back()
+                    ->withInput()
+                    ->withErrors(['component_id' => __('Component ID is required when code is Manufacture')]);
+            }
+
+            $manufactureCondition = Condition::where('name', 'Manufacture')->where('unit', false)->first();
+            if (!$manufactureCondition) {
+                return redirect()->back()
+                    ->withInput()
+                    ->withErrors(['codes_id' => __('Condition "Manufacture" not found in database. Please add it to the conditions table.')]);
+            }
+
+            try {
+                $description = $validated['description'] ?? null;
+                $qty = (int)($validated['qty'] ?? 1);
+
+                // Record 1: Order New — conditions_id=null, order_component_id=component_id, use_tdr=1, use_process_forms=0
+                Tdr::create([
+                    'workorder_id' => $validated['workorder_id'],
+                    'component_id' => $validated['component_id'],
+                    'serial_number' => $validated['serial_number'] ?? 'NSN',
+                    'assy_serial_number' => $validated['assy_serial_number'] ?? ' ',
+                    'codes_id' => $manufactureCode->id,
+                    'conditions_id' => null,
+                    'necessaries_id' => $necessary->id,
+                    'description' => $description,
+                    'qty' => $qty,
+                    'use_tdr' => true,
+                    'use_process_forms' => false,
+                    'order_component_id' => $validated['component_id'],
+                ]);
+
+                // Record 2: Repair — conditions_id=Manufacture, use_tdr=1, use_process_forms=1
+                Tdr::create([
+                    'workorder_id' => $validated['workorder_id'],
+                    'component_id' => $validated['component_id'],
+                    'serial_number' => 'NSN',
+                    'assy_serial_number' => ' ',
+                    'codes_id' => $manufactureCode->id,
+                    'conditions_id' => $manufactureCondition->id,
+                    'necessaries_id' => $repairNecessary->id,
+                    'description' => $description,
+                    'qty' => $qty,
+                    'use_tdr' => true,
+                    'use_process_forms' => true,
+                    'order_component_id' => null,
+                ]);
+
+                $orderNewCount = Tdr::where('workorder_id', $workorder->id)
+                    ->where('necessaries_id', $necessary->id)
+                    ->count();
+                if ($orderNewCount == 1 || $workorder->new_parts === false || $workorder->new_parts == 0) {
+                    $workorder->new_parts = true;
+                    $workorder->save();
+                }
+
+                return redirect()
+                    ->route('tdrs.show', ['id' => $workorder->id])
+                    ->with('success', __('TDR records created successfully'));
+            } catch (\Exception $e) {
+                return redirect()->back()
+                    ->withInput()
+                    ->withErrors(['error' => __('Failed to create TDR records')]);
+            }
+        }
 
         // Валидация: Missing требует обязательный component_id
         if ($code && $validated['codes_id'] == $code->id) {
@@ -326,8 +396,9 @@ class TdrController extends Controller
             }
         }
 
-        // Валидация: для других codes (не Missing) necessaries_id обязателен и должен быть Repair или Order New
-        if ($code && $validated['codes_id'] && $validated['codes_id'] != $code->id) {
+        // Валидация: для других codes (не Missing, не Manufacture) necessaries_id обязателен и должен быть Repair или Order New
+        $isManufacture = $manufactureCode && $validated['codes_id'] == $manufactureCode->id;
+        if ($code && $validated['codes_id'] && $validated['codes_id'] != $code->id && !$isManufacture) {
             if (empty($validated['necessaries_id'])) {
                 return redirect()->back()
                     ->withInput()

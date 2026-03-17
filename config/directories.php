@@ -52,6 +52,7 @@ return [
         'order'  => ['name' => 'asc'],
     ],
 
+
     'codes' => [
         'title'  => 'Codes',
         'model'  => App\Models\Code::class,
@@ -62,7 +63,7 @@ return [
             ],
             'code' => [
                 'label' => 'Code',
-                'rules' => ['required', 'string', 'max:100', 'unique:codes,code'],
+                'rules' => ['nullable', 'string', 'max:100', 'unique:codes,code'],
             ],
         ],
         'search' => ['name', 'code'],
