@@ -2891,21 +2891,43 @@ class TdrController extends Controller
         // Извлекаем компоненты, связанные с manual_id
         $components = Component::where('manual_id', $manual_id)->get();
 
+        // EC показываем в форме, если: EC единственный ИЛИ (EC не единственный и нет Machining(EC)/RIL)
+        $ecProcessNameId = ProcessName::where('name', 'EC')->value('id');
+        $ecEligibleIds = collect();
+        if ($ecProcessNameId) {
+            $machining = ProcessName::whereIn('name', ['Machining (EC)', 'Machining', 'Machining (Blend)'])->first();
+            $ril = ProcessName::where('name', 'RIL')->first();
+            if ($machining) $ecEligibleIds->push($machining->id);
+            if ($ril) $ecEligibleIds->push($ril->id);
+        }
+        $showEcInForm = false;
+        $tdrsForEcCheck = Tdr::where('workorder_id', $current_wo->id)
+            ->where('use_process_forms', true)
+            ->with('tdrProcesses')
+            ->get();
+        foreach ($tdrsForEcCheck as $tdr) {
+            $procs = $tdr->tdrProcesses;
+            $hasEc = $procs->contains(fn($p) => (int)$p->process_names_id === (int)$ecProcessNameId);
+            $hasMachiningOrRil = $procs->contains(fn($p) => $ecEligibleIds->contains((int)$p->process_names_id));
+            if ($hasEc && ($procs->count() === 1 || !$hasMachiningOrRil)) {
+                $showEcInForm = true;
+                break;
+            }
+        }
+
         // Получаем все уникальные process_names_id из TdrProcess для данного workorder
         $processNameIds = TdrProcess::whereHas('tdr', function ($query) use ($current_wo) {
             $query->where('workorder_id', $current_wo->id)
                   ->where('use_process_forms', true);
         })->distinct()->pluck('process_names_id');
 
-        // Получаем ProcessName по этим ID с фильтрами, ограничиваем до 20 элементов
-        $processNames = ProcessName::whereIn('id', $processNameIds)
-            ->where(function ($query) {
-                $query->where('name', 'NOT LIKE', '%NDT%')
-//                ->where('name', 'NOT LIKE', '%Paint%');
-                ->where('name', '!=', 'EC');
-            })
-            ->limit(20)
-            ->get();
+        // Получаем ProcessName по этим ID с фильтрами. EC включаем только если showEcInForm
+        $processNamesQuery = ProcessName::whereIn('id', $processNameIds)
+            ->where('name', 'NOT LIKE', '%NDT%');
+        if (!$showEcInForm) {
+            $processNamesQuery->where('name', '!=', 'EC');
+        }
+        $processNames = $processNamesQuery->limit(20)->get();
 
         // Дополняем коллекцию до 10 элементов пустыми объектами, если элементов меньше
         $emptyProcess = new \stdClass();
@@ -2938,24 +2960,37 @@ class TdrController extends Controller
             // Получаем связанные процессы (processName уже загружен)
             $groupedProcesses = $tdr->tdrProcesses;
 
-            // Счётчик для number_line (не учитывает процессы с именем 'EC')
+            // Для данного TDR: показывать EC в форме? (единственный или нет Machining/RIL)
+            $procs = $groupedProcesses;
+            $hasEc = $procs->contains(fn($p) => (int)$p->process_names_id === (int)$ecProcessNameId);
+            $hasMachiningOrRil = $procs->contains(fn($p) => $ecEligibleIds->contains((int)$p->process_names_id));
+            $showEcForThisTdr = $hasEc && ($procs->count() === 1 || !$hasMachiningOrRil);
+
+            // Счётчик для number_line
             $lineNumber = 0;
 
             // Обрабатываем каждый процесс
-            $groupedProcesses->each(function ($process) use (&$result, &$lineNumber, $tdr, $ecProcessIds) {
-                // Проверяем, является ли процесс процессом с именем 'EC'
+            $groupedProcesses->each(function ($process) use (&$result, &$lineNumber, $tdr, $ecProcessIds, $showEcForThisTdr) {
                 $isEcProcess = $ecProcessIds->contains($process->process_names_id);
 
-                // Увеличиваем счётчик только для процессов, не являющихся 'EC'
-                if (!$isEcProcess) {
+                // EC: number_line только если показываем EC для этого TDR
+                if ($isEcProcess) {
+                    if ($showEcForThisTdr) {
+                        $lineNumber++;
+                        $numberLine = $lineNumber;
+                    } else {
+                        $numberLine = null;
+                    }
+                } else {
                     $lineNumber++;
+                    $numberLine = $lineNumber;
                 }
 
                 $result->push([
                     'tdrs_id' => $tdr->id,
                     'process_name_id' => $process->process_names_id,
-                    'number_line' => $isEcProcess ? null : $lineNumber, // null для EC процессов, иначе номер строки
-                    'ec' => $process->ec, // Добавляем поле EC
+                    'number_line' => $numberLine,
+                    'ec' => $process->ec,
                 ]);
             });
         }
