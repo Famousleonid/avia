@@ -74,15 +74,6 @@
             opacity: 1;
         }
 
-        /*.lock-icon {*/
-        /*    position: absolute;*/
-        /*    right: .55rem;*/
-        /*    top: 50%;*/
-        /*    transform: translateY(-50%);*/
-        /*    pointer-events: none; !* чтобы не мешал клику в input *!*/
-        /*    z-index: 3;*/
-        /*}*/
-
         .finish-input.fp-locked {
             background-image: none !important;
             padding-right: 2rem !important;
@@ -350,8 +341,10 @@
 
                                                             <form method="POST"
                                                                   action="{{ $action }}"
-                                                                  class="js-auto-submit js-row-form"
-                                                                  data-gt-id="{{ $gt->id }}">
+                                                                  class="js-row-form js-main-inline-ajax"
+                                                                  data-gt-id="{{ $gt->id }}"
+                                                                  data-no-spinner
+                                                                  data-success="Ignore state saved">
                                                                 @csrf
                                                                 @if($main)
                                                                     @method('PATCH')
@@ -405,7 +398,9 @@
                                                                 @if($task->task_has_start_date)
                                                                     <form method="POST"
                                                                           action="{{ $action }}"
-                                                                          class="js-auto-submit">
+                                                                          data-no-spinner
+                                                                          class="js-main-inline-ajax"
+                                                                          data-success="Start date saved">
                                                                         @csrf
                                                                         @if($main)
                                                                             @method('PATCH')
@@ -448,7 +443,9 @@
                                                             <div class="position-relative d-inline-block w-100">
                                                                 <form method="POST"
                                                                       action="{{ $action }}"
-                                                                      class="js-auto-submit"
+                                                                      data-no-spinner
+                                                                      class="js-main-inline-ajax"
+                                                                      data-success="Finish date saved"
                                                                       @if($task->id === 10) data-tippy-content="Edit in the Workrorder section"@endif
                                                                 >
                                                                     @csrf
@@ -963,6 +960,183 @@
                 localStorage.setItem(STORAGE_KEY, state ? '1' : '0');
                 applyFilter(state);
             });
+        });
+    </script>
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const csrf = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
+
+            async function submitMainInlineForm(form) {
+                if (!form || form.dataset.sending === '1') return;
+
+                form.dataset.sending = '1';
+
+                try {
+                    const formData = new FormData(form);
+
+                    const response = await fetch(form.action, {
+                        method: 'POST',
+                        headers: {
+                            'X-CSRF-TOKEN': csrf || '',
+                            'X-Requested-With': 'XMLHttpRequest',
+                            'Accept': 'application/json'
+                        },
+                        body: formData
+                    });
+
+                    let data = null;
+                    const contentType = response.headers.get('content-type') || '';
+                    if (contentType.includes('application/json')) {
+                        data = await response.json();
+                    }
+
+                    if (!response.ok) {
+                        let errorMessage = 'Save error';
+
+                        if (data?.message) {
+                            errorMessage = data.message;
+                        } else if (data?.errors) {
+                            const firstKey = Object.keys(data.errors)[0];
+                            if (firstKey && data.errors[firstKey]?.[0]) {
+                                errorMessage = data.errors[firstKey][0];
+                            }
+                        }
+
+                        throw new Error(errorMessage);
+                    }
+
+                    refreshFinishInputState(form, data);
+
+                    form.querySelectorAll('input[type="text"], textarea').forEach(input => {
+                        input.setAttribute('data-original', input.value ?? '');
+                    });
+
+                    const successText = form.getAttribute('data-success') || data?.message || 'Saved';
+
+                    if (typeof showNotification === 'function') {
+                        showNotification(successText, 'success', 2500);
+
+                    }
+
+                } catch (error) {
+                    if (typeof showNotification === 'function') {
+                        showNotification(error.message || 'Save error', 'error', 4000);
+                    }
+                    console.error(error);
+                } finally {
+                    delete form.dataset.sending;
+                }
+            }
+
+            function refreshFinishInputState(form, responseData = null) {
+                if (!form) return;
+
+                form.querySelectorAll('input.finish-input').forEach(input => {
+                    let value = input.value ?? '';
+
+                    if (responseData) {
+                        if (input.name === 'date_start' && typeof responseData.date_start !== 'undefined') {
+                            value = responseData.date_start ?? '';
+                            input.value = value;
+                        }
+
+                        if (input.name === 'date_finish' && typeof responseData.date_finish !== 'undefined') {
+                            value = responseData.date_finish ?? '';
+                            input.value = value;
+                        }
+                    }
+
+                    input.classList.toggle('has-finish', String(value).trim() !== '');
+                });
+            }
+
+            // submit
+            document.addEventListener('submit', (e) => {
+                const form = e.target;
+                if (!form?.classList?.contains('js-main-inline-ajax')) return;
+
+                e.preventDefault();
+                submitMainInlineForm(form);
+            }, true);
+
+            // change для дат
+            document.addEventListener('change', (e) => {
+                const input = e.target;
+                if (!input?.closest) return;
+
+                if (
+                    input.matches('input[name="date_start"]') ||
+                    input.matches('input[name="date_finish"]')
+                ) {
+                    const form = input.closest('form.js-main-inline-ajax');
+                    if (!form) return;
+
+                    const original = input.getAttribute('data-original') ?? '';
+                    const current = input.value ?? '';
+
+                    if (original === current) return;
+
+                    e.preventDefault();
+                    submitMainInlineForm(form);
+                }
+            }, true);
+
+            // blur для дат
+            document.addEventListener('blur', (e) => {
+                const input = e.target;
+                if (!input?.closest) return;
+
+                if (
+                    input.matches('input[name="date_start"]') ||
+                    input.matches('input[name="date_finish"]')
+                ) {
+                    const form = input.closest('form.js-main-inline-ajax');
+                    if (!form) return;
+
+                    const original = input.getAttribute('data-original') ?? '';
+                    const current = input.value ?? '';
+
+                    if (original === current) return;
+
+                    submitMainInlineForm(form);
+                }
+            }, true);
+
+            // Enter для дат
+            document.addEventListener('keydown', (e) => {
+                const input = e.target;
+                if (!input?.closest) return;
+
+                if (
+                    e.key === 'Enter' &&
+                    (
+                        input.matches('input[name="date_start"]') ||
+                        input.matches('input[name="date_finish"]')
+                    )
+                ) {
+                    const form = input.closest('form.js-main-inline-ajax');
+                    if (!form) return;
+
+                    e.preventDefault();
+                    submitMainInlineForm(form);
+                }
+            }, true);
+
+            // ignore_row
+            document.addEventListener('change', (e) => {
+                const checkbox = e.target;
+                if (!checkbox?.classList?.contains('js-ignore-row')) return;
+
+                const form = checkbox.closest('form.js-main-inline-ajax');
+                if (!form) return;
+
+                const hidden = form.querySelector('.js-ignore-hidden');
+                if (hidden) {
+                    hidden.value = checkbox.checked ? '1' : '0';
+                }
+
+                submitMainInlineForm(form);
+            }, true);
         });
     </script>
 

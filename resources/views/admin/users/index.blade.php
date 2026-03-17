@@ -40,7 +40,7 @@
             top: 0;
             vertical-align: middle;
             border-top: 1px;
-            z-index: 1020;
+            /*z-index: 1020;*/
         }
 
         @media (max-width: 1200px) {

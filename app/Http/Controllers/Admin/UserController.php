@@ -99,56 +99,79 @@ class UserController extends Controller
         $auth = auth()->user();
         $user = User::findOrFail($id);
 
-        // доступ: Admin -> всех, остальные -> только себя
+        // Доступ: Admin может редактировать всех, остальные — только себя
         if (! $auth->roleIs('Admin') && $auth->id !== $user->id) {
             abort(403, 'You do not have permission to edit this user.');
         }
 
-        // нормализуем phone (лучше сделать $phone отдельно)
+        // Нормализация phone
         $phone = $this->removeSpace($request->input('phone'));
 
-        // базовые правила (email добавим отдельно для Admin)
+        // Базовые правила
         $rules = [
-            'name'      => ['required', 'string', 'max:255'],
-            'phone'     => ['nullable', 'string', 'max:50'],
-            'stamp'     => ['required', 'string', 'max:255'],
-            'team_id'   => ['required', 'integer', 'exists:teams,id'],
-            'birthday'  => ['nullable', 'date', 'before:today'],
+            'name'                  => ['required', 'string', 'max:255'],
+            'phone'                 => ['nullable', 'string', 'max:50'],
+            'stamp'                 => ['required', 'string', 'max:255'],
+            'team_id'               => ['required', 'integer', 'exists:teams,id'],
+            'birthday'              => ['nullable', 'date', 'before:today'],
+            'password'              => ['nullable', 'string', 'confirmed'],
+            'password_confirmation' => ['nullable', 'string'],
         ];
 
-        // email менять может только Admin
+        // Email менять может только Admin
         if ($auth->roleIs('Admin')) {
-            $rules['email'] = 'required|email|max:255|unique:users,email,' . $user->id;
+            $rules['email'] = ['required', 'email', 'max:255', 'unique:users,email,' . $user->id];
         }
 
         $validated = $request->validate($rules);
+
+        // phone после нормализации
         $validated['phone'] = $phone;
 
-        // is_admin может менять только Admin (и то если поле есть в форме)
+        // Если не Admin — не даём подменить email даже вручную
+        if (! $auth->roleIs('Admin')) {
+            unset($validated['email']);
+        }
+
+        // is_admin может менять только Admin
         if ($auth->roleIs('Admin')) {
             $validated['is_admin'] = $request->has('is_admin') ? 1 : 0;
         }
 
-        // upload avatar
+        // Пароль обновляем только если он введён
+        if (! empty($validated['password'])) {
+            $validated['password'] = Hash::make($validated['password']);
+        } else {
+            unset($validated['password']);
+        }
+
+        // confirmation в БД не пишем
+        unset($validated['password_confirmation']);
+
+        // Upload avatar
         if ($request->hasFile('img')) {
             if ($user->getMedia('avatar')->isNotEmpty()) {
                 $user->getMedia('avatar')->first()->delete();
             }
+
             $user->addMedia($request->file('img'))->toMediaCollection('avatar');
         }
 
-        // upload sign
+        // Upload sign
         if ($request->hasFile('sign')) {
             if ($user->getMedia('sign')->isNotEmpty()) {
                 $user->getMedia('sign')->first()->delete();
             }
+
             $user->addMedia($request->file('sign'))->toMediaCollection('sign');
         }
 
-        // обновляем только разрешённые поля
+        // Обновляем только разрешённые поля
         $user->update($validated);
 
-        return redirect()->route('users.index')->with('success', 'Changes saved');
+        return redirect()
+            ->route('users.index')
+            ->with('success', 'Changes saved');
     }
 
 

@@ -153,6 +153,26 @@
                             </div>
                         </div>
                     </div>
+
+
+                    {{-- Password --}}
+                    <div class="row g-3 mt-0">
+                        <div class="col-12 col-md-6">
+                            <label class="form-label">Password</label>
+                            <input type="password"
+                                   name="password"
+                                   class="form-control"
+                                   placeholder="Leave empty to keep current password">
+                        </div>
+
+                        <div class="col-12 col-md-6">
+                            <label class="form-label">Confirm Password</label>
+                            <input type="password"
+                                   name="password_confirmation"
+                                   class="form-control">
+                        </div>
+                    </div>
+
                     @endrole
 
                     {{-- Avatar / Sign --}}
