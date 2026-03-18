@@ -85,12 +85,13 @@
             <div class="row" style="height: 90vh">
                 {{-- Левая часть: предпросмотр --}}
                 <div class="col-6">
-                    <div class="m-3 border preview-papyrus rounded" style="height: 82vh">
+                    <div class="m-3 border preview-papyrus rounded" style="height: 80vh">
                         <div class="m-2">
-                            <h5 class="text-center">{{__('Repair and Modification Record WO')}}{{$current_wo->number}}</h5>
+                            <h4 class="text-center">{{__('Repair and Modification Record WO')}}{{$current_wo->number}}</h4>
                             <div class="p-2">
                                 <h6>{{__('Technical Notes')}}</h6>
-                                <div id="previewTechnicalNotes" class="border rounded p-2" style="min-height: 80px; white-space: pre-line;"></div>
+                                <div id="previewTechnicalNotes" class="border rounded p-2" style="min-height: 50px;
+                                white-space: pre-line;"></div>
                             </div>
                             <div class="table mt-3 table-scroll-rm-records">
                                 <table class="table table-striped text-center align-items-center">
@@ -112,7 +113,7 @@
 
                 {{-- Правая часть: редактирование --}}
                 <div class="col-6">
-                    <div class="m-3 border" style="height: 82vh">
+                    <div class="m-3 border" style="height: 80vh">
                         @if(session('success'))
                             <div class="alert alert-success alert-dismissible fade show" role="alert">
                                 {{ session('success') }}
