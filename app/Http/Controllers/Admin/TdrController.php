@@ -2892,14 +2892,9 @@ class TdrController extends Controller
         $components = Component::where('manual_id', $manual_id)->get();
 
         // EC показываем в форме, если: EC единственный ИЛИ (EC не единственный и нет Machining(EC)/RIL)
+        // EC НЕ показываем, когда есть Machining(EC)+EC или RIL+EC (companion-строка)
         $ecProcessNameId = ProcessName::where('name', 'EC')->value('id');
-        $ecEligibleIds = collect();
-        if ($ecProcessNameId) {
-            $machining = ProcessName::whereIn('name', ['Machining (EC)', 'Machining', 'Machining (Blend)'])->first();
-            $ril = ProcessName::where('name', 'RIL')->first();
-            if ($machining) $ecEligibleIds->push($machining->id);
-            if ($ril) $ecEligibleIds->push($ril->id);
-        }
+        $ecEligibleIds = ProcessName::whereIn('name', ['Machining (EC)', 'Machining', 'Machining (Blend)', 'RIL'])->pluck('id');
         $showEcInForm = false;
         $tdrsForEcCheck = Tdr::where('workorder_id', $current_wo->id)
             ->where('use_process_forms', true)
