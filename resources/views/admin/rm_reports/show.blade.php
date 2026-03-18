@@ -28,6 +28,12 @@
         .table-scroll-rm-records table,
         .table-scroll-technical-notes table { margin-bottom: 0; }
         .table-scroll-technical-notes table { border-collapse: separate; border-spacing: 0; }
+        /* Компактные строки для Technical Notes */
+        .table-scroll-technical-notes tbody tr td {
+            padding: 0.25rem 0.5rem;
+            line-height: 1.2;
+            vertical-align: middle;
+        }
 
         .preview-papyrus {
             color: #000;
@@ -67,10 +73,10 @@
                         target="_blank"
                     />
 
-                    <button type="button" class="btn btn-outline-info btn-sm" style="height: 60px; width: 140px"
-                            data-bs-toggle="modal" data-bs-target="#addRmRecordModal">
-                        {{ __('ADD Repair OR Modification') }}
-                    </button>
+{{--                    <button type="button" class="btn btn-outline-info btn-sm" style="height: 60px; width: 140px"--}}
+{{--                            data-bs-toggle="modal" data-bs-target="#addRmRecordModal">--}}
+{{--                        {{ __('ADD Repair OR Modification') }}--}}
+{{--                    </button>--}}
 
                     <a href="{{ route('tdrs.show', ['id'=>$current_wo->id]) }}"
                        class="btn btn-outline-secondary  " style="height: 60px; width: 120px; align-content: center; font-size:
@@ -94,10 +100,10 @@
                                 white-space: pre-line;"></div>
                             </div>
                             <div class="table mt-3 table-scroll-rm-records">
-                                <table class="table table-striped text-center align-items-center">
+                                <table class="table table-striped text-center align-items-center" style="font-size: 12px">
                                     <thead>
                                     <tr>
-                                        <th class="border align-middle">{{ __('Item') }}</th>
+                                        <th class="border align-middle" >{{ __('Item') }}</th>
                                         <th class="border align-middle">{{ __('Part Description') }}</th>
                                         <th class="border align-middle">{{ __('Modification or Repair #') }}</th>
                                         <th class="border align-middle">{{ __('Description Of Modification or Repair') }}</th>
@@ -113,77 +119,9 @@
 
                 {{-- Правая часть: редактирование --}}
                 <div class="col-6">
+
                     <div class="m-3 border" style="height: 80vh">
-                        @if(session('success'))
-                            <div class="alert alert-success alert-dismissible fade show" role="alert">
-                                {{ session('success') }}
-                                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-                            </div>
-                        @endif
-                        @if(session('error'))
-                            <div class="alert alert-danger alert-dismissible fade show" role="alert">
-                                {{ session('error') }}
-                                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-                            </div>
-                        @endif
-
-                        @php
-                            $savedData = $current_wo->rm_report ? json_decode($current_wo->rm_report, true) : null;
-                            $savedRecordIds = $savedData['rm_records'] ?? [];
-                            $savedRecordIds = collect($savedRecordIds)->pluck('id')->toArray();
-                        @endphp
-
-                        <div id="rmRecordsList">
-                            @if($rm_reports->count() > 0)
-                                <div class="table-responsive table-scroll-rm-records mt-3">
-                                    <table class="table table-striped text-center align-items-center">
-                                        <thead>
-                                        <tr>
-                                            <th>{{ __('Part Description') }}</th>
-                                            <th>{{ __('Modification or Repair #') }}</th>
-                                            <th>{{ __('Description') }}</th>
-                                            <th>{{ __('Identification Method') }}</th>
-                                            <th>{{ __('Select Record') }}</th>
-                                            <th>{{ __('Actions') }}</th>
-                                        </tr>
-                                        </thead>
-                                        <tbody id="rmRecordsTableBody">
-                                        @foreach($rm_reports as $report)
-                                            <tr data-record-id="{{ $report->id }}">
-                                                <td>{{ $report->part_description }}</td>
-                                                <td>{{ $report->mod_repair }}</td>
-                                                <td>{{ $report->description }}</td>
-                                                <td>{{ $report->ident_method }}</td>
-                                                <td>
-                                                    <div class="form-check">
-                                                        <input class="form-check-input record-checkbox" type="checkbox"
-                                                               id="record_{{ $report->id }}"
-                                                               value="{{ $report->id }}"
-                                                               {{ in_array($report->id, $savedRecordIds) ? 'checked' : '' }}>
-                                                        <label class="form-check-label" for="record_{{ $report->id }}">Select</label>
-                                                    </div>
-                                                </td>
-                                                <td>
-                                                    <button class="btn btn-sm btn-outline-primary me-1" onclick="editRecord({{ $report->id }})" data-bs-toggle="modal" data-bs-target="#editRmRecordModal">
-                                                        <i class="fas fa-edit"></i>
-                                                    </button>
-                                                    <button class="btn btn-sm btn-outline-danger" onclick="deleteRecord({{ $report->id }})">
-                                                        <i class="fas fa-trash"></i>
-                                                    </button>
-                                                </td>
-                                            </tr>
-                                        @endforeach
-                                        </tbody>
-                                    </table>
-                                </div>
-                            @else
-                                <div class="alert alert-info mt-3">
-                                    {{ __('No R&M records found for this work order.') }}
-                                    {{ __('Use "Add Repair OR Modification" to create the first record.') }}
-                                </div>
-                            @endif
-                        </div>
-
+                        {{-- Правая часть: Technical Notes --}}
                         <div class="card mt-3">
                             <div class="card-header d-flex justify-content-between align-items-center">
                                 <h5 class="text-primary mb-0">{{ __('Technical Notes') }}</h5>
@@ -199,6 +137,95 @@
                                 </div>
                             </div>
                         </div>
+
+                        {{-- Правая часть: Repair and Modification Table --}}
+                        <div>
+                            <div class="card mt-3">
+                            <div class="card-header d-flex justify-content-between align-items-center">
+                                <h5 class="text-primary mb-0">{{ __('Repair and Modification') }}</h5>
+                                <button type="button" class="btn btn-outline-info btn-sm"
+                                        data-bs-toggle="modal" data-bs-target="#addRmRecordModal">
+                                    {{ __('ADD')}}
+                                </button>
+{{--                                <button type="button" class="btn btn-outline-primary btn-sm" data-bs-toggle="modal" data-bs-target="#technicalNoteModal">--}}
+{{--                                    {{ __('Add') }}--}}
+{{--                                </button>--}}
+                            </div>
+
+                            @if(session('success'))
+                                <div class="alert alert-success alert-dismissible fade show" role="alert">
+                                    {{ session('success') }}
+                                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                                </div>
+                            @endif
+                            @if(session('error'))
+                                <div class="alert alert-danger alert-dismissible fade show" role="alert">
+                                    {{ session('error') }}
+                                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                                </div>
+                            @endif
+
+                            @php
+                                $savedData = $current_wo->rm_report ? json_decode($current_wo->rm_report, true) : null;
+                                $savedRecordIds = $savedData['rm_records'] ?? [];
+                                $savedRecordIds = collect($savedRecordIds)->pluck('id')->toArray();
+                            @endphp
+
+                            <div id="rmRecordsList">
+                                @if($rm_reports->count() > 0)
+                                    <div class="table-responsive table-scroll-rm-records mt-3" style="font-size: 12px">
+                                        <table class="table table-striped text-center align-items-center">
+                                            <thead>
+                                            <tr>
+                                                <th class="border align-middle" style="width: 10%">{{ __('Part Description') }}</th>
+                                                <th class="border align-middle" style="width: 15%">{{ __('Modification or
+                                                Repair #') }}</th>
+                                                <th class="border align-middle" style="width: 45%">{{ __('Description') }}</th>
+                                                <th class="border align-middle" style="width: 10%">{{ __('Identification Method') }}</th>
+                                                <th class="border align-middle" style="width: 10%">{{ __('Select Record') }}</th>
+                                                <th class="border align-middle" style="width: 10%">{{ __('Actions') }}</th>
+                                            </tr>
+                                            </thead>
+                                            <tbody id="rmRecordsTableBody">
+                                            @foreach($rm_reports as $report)
+                                                <tr data-record-id="{{ $report->id }}">
+                                                    <td class="border align-middle">{{ $report->part_description }}</td>
+                                                    <td class="border align-middle">{{ $report->mod_repair }}</td>
+                                                    <td class="border align-middle">{{ $report->description }}</td>
+                                                    <td class="border align-middle">{{ $report->ident_method }}</td>
+                                                    <td class="border align-middle">
+                                                        <div class="form-check">
+                                                            <input class="form-check-input record-checkbox" type="checkbox"
+                                                                   id="record_{{ $report->id }}"
+                                                                   value="{{ $report->id }}"
+                                                                {{ in_array($report->id, $savedRecordIds) ? 'checked' : '' }}>
+                                                            <label class="form-check-label" for="record_{{ $report->id }}">Select</label>
+                                                        </div>
+                                                    </td>
+                                                    <td class="border align-middle">
+                                                        <button class="btn btn-sm btn-outline-primary me-1" onclick="editRecord({{ $report->id }})" data-bs-toggle="modal" data-bs-target="#editRmRecordModal">
+                                                            <i class="fas fa-edit"></i>
+                                                        </button>
+                                                        <button class="btn btn-sm btn-outline-danger" onclick="deleteRecord({{ $report->id }})">
+                                                            <i class="fas fa-trash"></i>
+                                                        </button>
+                                                    </td>
+                                                </tr>
+                                            @endforeach
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                @else
+                                    <div class="alert alert-info mt-3">
+                                        {{ __('No R&M records found for this work order.') }}
+                                        {{ __('Use "Add Repair OR Modification" to create the first record.') }}
+                                    </div>
+                                @endif
+                            </div>
+                        </div>
+                        </div>
+
+
                     </div>
                 </div>
             </div>
@@ -426,10 +453,11 @@
         }
         technicalNotes.forEach((note, index) => {
             const row = $(`
-                <tr>
-                    <td class="align-middle">${escapeHtml(note)}</td>
+                <tr >
+                    <td class="align-middle " >${escapeHtml(note)}</td>
                     <td class="text-end" style="width: 120px;">
-                        <button type="button" class="btn btn-sm btn-outline-primary me-1" onclick="editTechnicalNote(${index})">
+                        <button type="button" class="btn btn-sm btn-outline-primary  me-1" onclick="editTechnicalNote
+                        (${index})">
                             <i class="fas fa-edit"></i>
                         </button>
                         <button type="button" class="btn btn-sm btn-outline-danger" onclick="deleteTechnicalNote(${index})">
