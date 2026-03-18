@@ -43,8 +43,41 @@
             border-spacing: 0;
         }
 
+        /* Папирусный фон для левой панели предпросмотра */
+        .preview-papyrus {
+            color: #000;
+            background-color: #f4e4bc;
+            background-image:
+                linear-gradient(rgba(139, 119, 101, 0.06) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(139, 119, 101, 0.06) 1px, transparent 1px),
+                linear-gradient(180deg, #faf0dc 0%, #f0e0c0 50%, #e8d5b0 100%);
+            background-size: 22px 22px, 22px 22px, 100% 100%;
+        }
+        .preview-papyrus h5,
+        .preview-papyrus h6,
+        .preview-papyrus td,
+        .preview-papyrus #previewTechnicalNotes {
+            color: #000 !important;
+        }
+        /* Папирусный фон для таблицы в preview */
+        .preview-papyrus .table,
+        .preview-papyrus .table thead th,
+        .preview-papyrus .table tbody,
+        .preview-papyrus .table tbody tr,
+        .preview-papyrus .table tbody td {
+            background-color: transparent !important;
+        }
+        .preview-papyrus .table thead th {
+            background-color: #f0e0c0 !important;
+            color: #000 !important;
+        }
+        .preview-papyrus .table tbody tr:nth-of-type(odd) td,
+        .preview-papyrus .table tbody tr:nth-of-type(even) td {
+            background-color: transparent !important;
+        }
+
     </style>
-    <div class="container mt-3">
+    <div class=" mt-3">
         <div class="card bg-gradient">
             <div class="card-header justify-content-between d-flex ">
                 <div>
@@ -65,128 +98,173 @@
                 </div>
             </div>
         </div>
+
         <div class="card-body">
-            @if(session('success'))
-                <div class="alert alert-success alert-dismissible fade show" role="alert">
-                    {{ session('success') }}
-                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-                </div>
-            @endif
 
-            @if(session('error'))
-                <div class="alert alert-danger alert-dismissible fade show" role="alert">
-                    {{ session('error') }}
-                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-                </div>
-            @endif
+            <div class="row" style="height: 90vh">
+                <div class="col-6">
+                    <div class="m-3 border preview-papyrus rounded" style="height: 82vh">
+                        <div class="m-2">
+                            <h5 class="text-center">{{__('Repair and Modification Record WO')}}{{$current_wo->number}}</h5>
 
-            @php
-                // Получаем сохраненные данные из текущего workorder
-                $savedData = $current_wo->rm_report ? json_decode($current_wo->rm_report, true) : null;
-            @endphp
-
-            <form id="editForm" class="editForm" role="form" method="POST" action="#"
-                  enctype="multipart/form-data">
-                @csrf
-                @method('PUT')
-                <input type="hidden" name="workorder_id" value="{{ $current_wo->id }}">
-            </form>
-
-                <!-- Здесь будет отображаться список созданных записей -->
-                <div id="rmRecordsList">
-                    @if($rm_reports->count() > 0)
-                        <!-- Кнопки для массовых операций -->
-                        <div class="row mt-3 mb-2">
-                            <div class="col-md-6">
-                                <button type="button" class="btn btn-outline-primary btn-sm" onclick="selectAllRecords()">
-                                    <i class="fas fa-check-square"></i> {{ __('Select All') }}
-                                </button>
-                                <button type="button" class="btn btn-outline-secondary btn-sm" onclick="deselectAllRecords()">
-                                    <i class="fas fa-square"></i> {{ __('Deselect All') }}
-                                </button>
+                            <div class="p-2">
+                                <h6> {{__('Technical Notes')}}</h6>
+                                <div id="previewTechnicalNotes" class="border rounded p-2" style="min-height: 80px; white-space: pre-line;"></div>
                             </div>
-                            <div class="col-md-6 text-end">
-                                <!-- Кнопка перенесена перед Technical Notes -->
-                            </div>
-                        </div>
 
-                        <div class="table-responsive table-scroll-rm-records mt-1">
-                            <table class="table table-striped text-center align-items-center">
-                                <thead>
-                                <tr>
-                                    <th>{{ __('Part Description') }}</th>
-                                    <th>{{ __('Modification or Repair #') }}</th>
-                                    <th>{{ __('Description') }}</th>
-                                    <th>{{ __('Identification Method') }}</th>
-                                    <th>{{ __('Select Record') }}</th>
-                                    <th>{{ __('Actions') }}</th>
-                                </tr>
-                                </thead>
-                                <tbody>
-                                @php
-                                    $savedRecords = $savedData['rm_records'] ?? [];
-                                    $savedRecordIds = collect($savedRecords)->pluck('id')->toArray();
-                                @endphp
-                                @foreach($rm_reports as $report)
+                            <div class="table mt-3 table-scroll-rm-records">
+                                <table class="table table-striped text-center align-items-center">
+                                    <thead>
                                     <tr>
-                                        <td>{{ $report->part_description }}</td>
-                                        <td>{{ $report->mod_repair }}</td>
-                                        <td>{{ $report->description }}</td>
-                                        <td>{{ $report->ident_method }}</td>
-                                        <td>
-                                            <div class="form-check">
-                                                <input class="form-check-input record-checkbox" type="checkbox"
-                                                       id="record_{{ $report->id }}"
-                                                       value="{{ $report->id }}"
-                                                       name="selected_records[]"
-                                                    {{ in_array($report->id, $savedRecordIds) ? 'checked' : '' }}>
-                                                <label class="form-check-label" for="record_{{ $report->id }}">
-                                                    Select
-                                                </label>
-                                            </div>
-                                        </td>
-                                        <td>
-                                            <button class="btn btn-sm btn-outline-primary me-1" onclick="editRecord({{ $report->id }})" data-bs-toggle="modal" data-bs-target="#editRmRecordModal">
-                                                <i class="fas fa-edit"></i>
-                                            </button>
-                                            <button class="btn btn-sm btn-outline-danger" onclick="deleteRecord({{ $report->id }})">
-                                                <i class="fas fa-trash"></i>
-                                            </button>
-                                        </td>
+                                        <th class="border align-middle">{{ __('Item') }} </th>
+                                        <th class="border align-middle">{{ __('Part Description') }}</th>
+                                        <th class="border align-middle">{{ __('Modification or Repair #') }}</th>
+                                        <th class="border align-middle">{{ __('Description Of Modification or Repair') }}</th>
+                                        <th class="border align-middle">{{ __('Identification Method') }}</th>
                                     </tr>
-                                @endforeach
-                                </tbody>
-                            </table>
+                                    </thead>
+                                    <tbody id="previewRecordsTableBody">
+                                    </tbody>
+                                </table>
+                            </div>
                         </div>
-                    @else
-                        <div class="alert alert-info mt-3">
-                            {{ __('No R&M records found for this work order.') }}
-                        </div>
-                    @endif
-                </div>
-
-
-            <!-- Technical Notes (dynamic, через модальное окно) -->
-            <div class="card mt-3">
-                <div class="card-header d-flex justify-content-between align-items-center">
-                    <h5 class="text-primary mb-0">{{ __('Technical Notes') }}</h5>
-                    <button type="button"
-                            class="btn btn-outline-primary btn-sm"
-                            data-bs-toggle="modal"
-                            data-bs-target="#technicalNoteModal">
-                        {{ __('Add Notes') }}
-                    </button>
-                </div>
-                <div class="card-body">
-                    <div class="table-responsive table-scroll-technical-notes">
-                        <table class="table table-bordered">
-                            <tbody id="technicalNotesTableBody">
-                                <!-- Строки заметок будут добавляться через JS -->
-                            </tbody>
-                        </table>
                     </div>
                 </div>
+
+
+                <div class="col-6  ">
+                    <div class="m-3 border">
+                        <div class="m-2" style="height: 80vh">
+                            @if(session('success'))
+                                <div class="alert alert-success alert-dismissible fade show" role="alert">
+                                    {{ session('success') }}
+                                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                                </div>
+                            @endif
+
+                            @if(session('error'))
+                                <div class="alert alert-danger alert-dismissible fade show" role="alert">
+                                    {{ session('error') }}
+                                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                                </div>
+                            @endif
+
+                            @php
+                                // Получаем сохраненные данные из текущего workorder
+                                $savedData = $current_wo->rm_report ? json_decode($current_wo->rm_report, true) : null;
+                            @endphp
+
+                            <form id="editForm" class="editForm" role="form" method="POST" action="#"
+                                  enctype="multipart/form-data">
+                                @csrf
+                                @method('PUT')
+                                <input type="hidden" name="workorder_id" value="{{ $current_wo->id }}">
+                            </form>
+
+                            <!-- Здесь будет отображаться список созданных записей -->
+                            <div id="rmRecordsList">
+                                @if($rm_reports->count() > 0)
+                                    <!-- Кнопки для массовых операций -->
+                                    <div class="row mt-3 mb-2">
+                                        <div class="col-md-6">
+                                            <button type="button" class="btn btn-outline-primary btn-sm" onclick="selectAllRecords()">
+                                                <i class="fas fa-check-square"></i> {{ __('Select All') }}
+                                            </button>
+                                            <button type="button" class="btn btn-outline-secondary btn-sm" onclick="deselectAllRecords()">
+                                                <i class="fas fa-square"></i> {{ __('Deselect All') }}
+                                            </button>
+                                        </div>
+                                        <div class="col-md-6 text-end">
+                                            <!-- Кнопка перенесена перед Technical Notes -->
+                                        </div>
+                                    </div>
+
+                                    <div class="table-responsive table-scroll-rm-records mt-1">
+                                        <table class="table table-striped text-center align-items-center">
+                                            <thead>
+                                            <tr>
+                                                <th>{{ __('Part Description') }}</th>
+                                                <th>{{ __('Modification or Repair #') }}</th>
+                                                <th>{{ __('Description') }}</th>
+                                                <th>{{ __('Identification Method') }}</th>
+                                                <th>{{ __('Select Record') }}</th>
+                                                <th>{{ __('Actions') }}</th>
+                                            </tr>
+                                            </thead>
+                                            <tbody>
+                                            @php
+                                                $savedRecords = $savedData['rm_records'] ?? [];
+                                                $savedRecordIds = collect($savedRecords)->pluck('id')->toArray();
+                                            @endphp
+                                            @foreach($rm_reports as $report)
+                                                <tr>
+                                                    <td>{{ $report->part_description }}</td>
+                                                    <td>{{ $report->mod_repair }}</td>
+                                                    <td>{{ $report->description }}</td>
+                                                    <td>{{ $report->ident_method }}</td>
+                                                    <td>
+                                                        <div class="form-check">
+                                                            <input class="form-check-input record-checkbox" type="checkbox"
+                                                                   id="record_{{ $report->id }}"
+                                                                   value="{{ $report->id }}"
+                                                                   name="selected_records[]"
+                                                                {{ in_array($report->id, $savedRecordIds) ? 'checked' : '' }}>
+                                                            <label class="form-check-label" for="record_{{ $report->id }}">
+                                                                Select
+                                                            </label>
+                                                        </div>
+                                                    </td>
+                                                    <td>
+                                                        <button class="btn btn-sm btn-outline-primary me-1" onclick="editRecord({{ $report->id }})" data-bs-toggle="modal" data-bs-target="#editRmRecordModal">
+                                                            <i class="fas fa-edit"></i>
+                                                        </button>
+                                                        <button class="btn btn-sm btn-outline-danger" onclick="deleteRecord({{ $report->id }})">
+                                                            <i class="fas fa-trash"></i>
+                                                        </button>
+                                                    </td>
+                                                </tr>
+                                            @endforeach
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                @else
+                                    <div class="alert alert-info mt-3">
+                                        {{ __('No R&M records found for this work order.') }}
+                                    </div>
+                                @endif
+                            </div>
+
+
+                            <!-- Technical Notes (dynamic, через модальное окно) -->
+                            <div class="card mt-3">
+                                <div class="card-header d-flex justify-content-between align-items-center">
+                                    <h5 class="text-primary mb-0">{{ __('Technical Notes') }}</h5>
+                                    <button type="button"
+                                            class="btn btn-outline-primary btn-sm"
+                                            data-bs-toggle="modal"
+                                            data-bs-target="#technicalNoteModal">
+                                        {{ __('Add Notes') }}
+                                    </button>
+                                </div>
+                                <div class="card-body">
+                                    <div class="table-responsive table-scroll-technical-notes">
+                                        <table class="table table-bordered">
+                                            <tbody id="technicalNotesTableBody">
+                                            <!-- Строки заметок будут добавляться через JS -->
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+
+                    </div>
+
+
+                </div>
             </div>
+
 
 
         </div>
@@ -332,6 +410,7 @@
             </div>
         </div>
 
+
         <script>
         // Хранилище технических заметок (динамический массив)
         let technicalNotes = [];
@@ -359,7 +438,46 @@
             @endphp
             technicalNotes = @json($initialNotes);
             renderTechnicalNotesTable();
+            updatePreview();
+
+            // Обновление preview при изменении чекбоксов
+            $(document).on('change', '.record-checkbox', updatePreview);
         });
+
+        // Обновление левой панели предпросмотра
+        function updatePreview() {
+            // Technical Notes — каждая заметка с новой строки
+            const notesEl = document.getElementById('previewTechnicalNotes');
+            if (notesEl) {
+                notesEl.textContent = technicalNotes.join('\n');
+            }
+
+            // Таблица выбранных R&M записей
+            const tbody = document.getElementById('previewRecordsTableBody');
+            if (!tbody) return;
+
+            tbody.innerHTML = '';
+            let itemNum = 1;
+            $('.record-checkbox:checked').each(function() {
+                const row = $(this).closest('tr');
+                const cells = row.find('td');
+                const partDesc = escapeHtml($(cells[0]).text().trim());
+                const modRepair = escapeHtml($(cells[1]).text().trim());
+                const desc = escapeHtml($(cells[2]).text().trim());
+                const identMethod = escapeHtml($(cells[3]).text().trim());
+
+                const tr = document.createElement('tr');
+                tr.innerHTML = '<td class="border">' + itemNum + '</td><td class="border">' + partDesc + '</td><td class="border">' + modRepair + '</td><td class="border">' + desc + '</td><td class="border">' + identMethod + '</td>';
+                tbody.appendChild(tr);
+                itemNum++;
+            });
+        }
+
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
 
         // Рендер таблицы технических заметок
         function renderTechnicalNotesTable() {
@@ -367,6 +485,7 @@
             tbody.empty();
 
             if (technicalNotes.length === 0) {
+                updatePreview();
                 return;
             }
 
@@ -386,6 +505,7 @@
                 `);
                 tbody.append(row);
             });
+            updatePreview();
         }
 
         // Открыть модал для редактирования заметки
@@ -432,11 +552,13 @@
                 // Функция для выбора всех записей
         function selectAllRecords() {
             $('.record-checkbox').prop('checked', true);
+            updatePreview();
         }
 
         // Функция для снятия выбора со всех записей
         function deselectAllRecords() {
             $('.record-checkbox').prop('checked', false);
+            updatePreview();
         }
 
         // Функция для сохранения выбранных записей и технических заметок

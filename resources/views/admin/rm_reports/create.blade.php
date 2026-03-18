@@ -43,9 +43,41 @@
             border-spacing: 0;
         }
 
+        /* Папирусный фон для левой панели предпросмотра */
+        .preview-papyrus {
+            color: #000;
+            background-color: #f4e4bc;
+            background-image:
+                linear-gradient(rgba(139, 119, 101, 0.06) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(139, 119, 101, 0.06) 1px, transparent 1px),
+                linear-gradient(180deg, #faf0dc 0%, #f0e0c0 50%, #e8d5b0 100%);
+            background-size: 22px 22px, 22px 22px, 100% 100%;
+        }
+        .preview-papyrus h5,
+        .preview-papyrus h6,
+        .preview-papyrus td,
+        .preview-papyrus #previewTechnicalNotes {
+            color: #000 !important;
+        }
+        .preview-papyrus .table,
+        .preview-papyrus .table thead th,
+        .preview-papyrus .table tbody,
+        .preview-papyrus .table tbody tr,
+        .preview-papyrus .table tbody td {
+            background-color: transparent !important;
+        }
+        .preview-papyrus .table thead th {
+            background-color: #f0e0c0 !important;
+            color: #000 !important;
+        }
+        .preview-papyrus .table tbody tr:nth-of-type(odd) td,
+        .preview-papyrus .table tbody tr:nth-of-type(even) td {
+            background-color: transparent !important;
+        }
+
     </style>
-    <div class="container mt-3">
-        <div class="card bg-gradient">
+    <div class=" mt-3">
+        <div class=" card bg-gradient">
             <div class="card-header justify-content-between d-flex align-items-center">
                 <div>
                     <h4 class="text-primary mb-0">{{__('WO')}} {{$current_wo->number}} </h4>
@@ -71,29 +103,59 @@
             </div>
         </div>
         <div class="card-body">
-            @if(session('success'))
-                <div class="alert alert-success alert-dismissible fade show" role="alert">
-                    {{ session('success') }}
-                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+            <div class="row" style="height: 90vh">
+                {{-- Левая часть: предпросмотр --}}
+                <div class="col-6">
+                    <div class="m-3 border preview-papyrus rounded" style="height: 82vh">
+                        <div class="m-2">
+                            <h5 class="text-center">{{__('Repair and Modification Record WO')}}{{$current_wo->number}}</h5>
+                            <div class="p-2">
+                                <h6>{{__('Technical Notes')}}</h6>
+                                <div id="previewTechnicalNotes" class="border rounded p-2" style="min-height: 80px; white-space: pre-line;"></div>
+                            </div>
+                            <div class="table mt-3 table-scroll-rm-records">
+                                <table class="table table-striped text-center align-items-center">
+                                    <thead>
+                                    <tr>
+                                        <th class="border align-middle">{{ __('Item') }}</th>
+                                        <th class="border align-middle">{{ __('Part Description') }}</th>
+                                        <th class="border align-middle">{{ __('Modification or Repair #') }}</th>
+                                        <th class="border align-middle">{{ __('Description Of Modification or Repair') }}</th>
+                                        <th class="border align-middle">{{ __('Identification Method') }}</th>
+                                    </tr>
+                                    </thead>
+                                    <tbody id="previewRecordsTableBody"></tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
                 </div>
-            @endif
 
-            @if(session('error'))
-                <div class="alert alert-danger alert-dismissible fade show" role="alert">
-                    {{ session('error') }}
-                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-                </div>
-            @endif
+                {{-- Правая часть: создание --}}
+                <div class="col-6">
+                    <div class="m-3 border" style="height: 82vh">
+                        @if(session('success'))
+                            <div class="alert alert-success alert-dismissible fade show" role="alert">
+                                {{ session('success') }}
+                                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                            </div>
+                        @endif
 
-            <form id="createForm" class="createForm" role="form" method="POST" action="#"
-                  enctype="multipart/form-data">
-                @csrf
-                <input type="hidden" name="workorder_id" value="{{ $current_wo->id }}">
-            </form>
+                        @if(session('error'))
+                            <div class="alert alert-danger alert-dismissible fade show" role="alert">
+                                {{ session('error') }}
+                                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                            </div>
+                        @endif
 
-                <!-- Здесь будет отображаться список созданных записей -->
-                <div id="rmRecordsList">
-                    @if($rm_reports->count() > 0)
+                        <form id="createForm" class="createForm" role="form" method="POST" action="#"
+                              enctype="multipart/form-data">
+                            @csrf
+                            <input type="hidden" name="workorder_id" value="{{ $current_wo->id }}">
+                        </form>
+
+                        <div id="rmRecordsList">
+                            @if($rm_reports->count() > 0)
                         {{-- Отображение текущих сохраненных записей - скрыто --}}
                         {{-- @if($current_wo->rm_report)
                             @php
@@ -201,29 +263,29 @@
                 </div>
 
 
-            <!-- Technical Notes (dynamic, через модальное окно) -->
-            <div class="card mt-3">
-                <div class="card-header d-flex justify-content-between align-items-center">
-                    <h5 class="text-primary mb-0">{{ __('Technical Notes') }}</h5>
-                    <button type="button"
-                            class="btn btn-outline-primary btn-sm"
-                            data-bs-toggle="modal"
-                            data-bs-target="#technicalNoteModal">
-                        {{ __('Add Notes') }}
-                    </button>
-                </div>
-                <div class="card-body">
-                    <div class="table-responsive table-scroll-technical-notes">
-                        <table class="table table-bordered">
-                            <tbody id="technicalNotesTableBody">
-                                <!-- Строки заметок будут добавляться через JS -->
-                            </tbody>
-                        </table>
+                        <!-- Technical Notes (dynamic, через модальное окно) -->
+                        <div class="card mt-3">
+                            <div class="card-header d-flex justify-content-between align-items-center">
+                                <h5 class="text-primary mb-0">{{ __('Technical Notes') }}</h5>
+                                <button type="button"
+                                        class="btn btn-outline-primary btn-sm"
+                                        data-bs-toggle="modal"
+                                        data-bs-target="#technicalNoteModal">
+                                    {{ __('Add Notes') }}
+                                </button>
+                            </div>
+                            <div class="card-body">
+                                <div class="table-responsive table-scroll-technical-notes">
+                                    <table class="table table-bordered">
+                                        <tbody id="technicalNotesTableBody">
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
-
-
         </div>
 
 
@@ -373,34 +435,52 @@
 
         // Инициализация после загрузки DOM
         document.addEventListener('DOMContentLoaded', function() {
-            // Обработка отправки формы - обычная отправка без AJAX
             const addForm = document.getElementById('addRmRecordForm');
             if (addForm) {
-                addForm.addEventListener('submit', function() {
-                    // стандартная отправка
-                });
+                addForm.addEventListener('submit', function() {});
             }
-
             const editForm = document.getElementById('editRmRecordForm');
             if (editForm) {
-                editForm.addEventListener('submit', function() {
-                    // стандартная отправка
-                });
+                editForm.addEventListener('submit', function() {});
             }
+            updatePreview();
+            $(document).on('change', '.record-checkbox', updatePreview);
         });
 
-        // Функция для выбора всех записей
-        function selectAllRecords() {
-            document.querySelectorAll('.record-checkbox').forEach(function(cb) {
-                cb.checked = true;
+        function updatePreview() {
+            const notesEl = document.getElementById('previewTechnicalNotes');
+            if (notesEl) notesEl.textContent = technicalNotes.join('\n');
+
+            const tbody = document.getElementById('previewRecordsTableBody');
+            if (!tbody) return;
+            tbody.innerHTML = '';
+            let itemNum = 1;
+            $('.record-checkbox:checked').each(function() {
+                const row = $(this).closest('tr');
+                const cells = row.find('td');
+                const partDesc = escapeHtml($(cells[0]).text().trim());
+                const modRepair = escapeHtml($(cells[1]).text().trim());
+                const desc = escapeHtml($(cells[2]).text().trim());
+                const identMethod = escapeHtml($(cells[3]).text().trim());
+                const tr = document.createElement('tr');
+                tr.innerHTML = '<td class="border">' + itemNum + '</td><td class="border">' + partDesc + '</td><td class="border">' + modRepair + '</td><td class="border">' + desc + '</td><td class="border">' + identMethod + '</td>';
+                tbody.appendChild(tr);
+                itemNum++;
             });
         }
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
 
-        // Функция для снятия выбора со всех записей
+        function selectAllRecords() {
+            $('.record-checkbox').prop('checked', true);
+            updatePreview();
+        }
         function deselectAllRecords() {
-            document.querySelectorAll('.record-checkbox').forEach(function(cb) {
-                cb.checked = false;
-            });
+            $('.record-checkbox').prop('checked', false);
+            updatePreview();
         }
 
         // Рендер таблицы технических заметок
@@ -411,6 +491,7 @@
             tbody.innerHTML = '';
 
             if (technicalNotes.length === 0) {
+                updatePreview();
                 return;
             }
 
@@ -445,6 +526,7 @@
 
                 tbody.appendChild(tr);
             });
+            updatePreview();
         }
 
         // Открыть модал для редактирования заметки

@@ -306,8 +306,9 @@ Route::group(['middleware' => ['auth']], function () {
     Route::get('/{workorder}/ndt-cad-csv/stress-processes', [NdtCadCsvController::class, 'getStressProcesses'])->name('ndt-cad-csv.stress-processes');
     Route::get('/{workorder}/ndt-cad-csv/paint-processes', [NdtCadCsvController::class, 'getPaintProcesses'])->name('ndt-cad-csv.paint-processes');
 
-    Route::get('/rm_reports/create/{id}',[RmReportController::class,'create'])->name('rm_reports.create');
-    Route::resource('/rm_reports', RmReportController::class)->except('create');
+    Route::get('/rm_reports/create/{id}', fn($id) => redirect()->route('rm_reports.show', $id))->name('rm_reports.create');
+    Route::resource('/rm_reports', RmReportController::class)->except('create', 'edit');
+    Route::get('/rm_reports/{id}/edit', fn($id) => redirect()->route('rm_reports.show', $id))->name('rm_reports.edit');
     Route::delete('/rm_reports/multiple', [RmReportController::class, 'destroyMultiple'])->name('rm_reports.destroy.multiple');
     Route::post('/rm_reports/save-to-workorder', [RmReportController::class, 'saveToWorkorder'])->name('rm_reports.save.to.workorder');
     Route::get('rm_reports/rmRecordForm/{id}',[RmReportController::class,'rmRecordForm'])->name('rm_reports.rmRecordForm');

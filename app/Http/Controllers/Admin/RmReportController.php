@@ -66,20 +66,26 @@ class RmReportController extends Controller
             'manual_id' => $workorder->unit->manual_id,
             'part_description' => $validated['part_description'],
             'mod_repair' => $validated['mod_repair'],
-            'description' => $validated['mod_repair_description'], // Поле в БД называется description
+            'description' => $validated['mod_repair_description'],
             'ident_method' => $validated['ident_method'],
         ]);
 
-        // Проверяем, есть ли уже сохраненные данные в workorder
-        if ($workorder->rm_report) {
-            // Если есть данные, возвращаемся на страницу редактирования
-            return redirect()->route('rm_reports.edit', $validated['workorder_id'])
-                ->with('success', 'R&M Record created successfully');
-        } else {
-            // Если данных нет, возвращаемся на страницу создания
-            return redirect()->route('rm_reports.create', $validated['workorder_id'])
-                ->with('success', 'R&M Record created successfully');
+        if ($request->ajax() || $request->wantsJson()) {
+            return response()->json([
+                'success' => true,
+                'message' => 'R&M Record created successfully',
+                'data' => [
+                    'id' => $rmReport->id,
+                    'part_description' => $rmReport->part_description,
+                    'mod_repair' => $rmReport->mod_repair,
+                    'description' => $rmReport->description,
+                    'ident_method' => $rmReport->ident_method,
+                ]
+            ]);
         }
+
+        return redirect()->route('rm_reports.show', $validated['workorder_id'])
+            ->with('success', 'R&M Record created successfully');
     }
     public function wo_store(Request $request)
 {
@@ -278,40 +284,29 @@ public function rmRecordForm(Request $request, $id)
         if ($usedInOtherWorkorders->count() > 0) {
             $workorderNumbers = $usedInOtherWorkorders->pluck('number')->implode(', ');
             $errorMessage = "Cannot delete R&M Record. It is used in the following work orders: " . $workorderNumbers;
-            
-            if ($workorder_id) {
-                // Проверяем, есть ли уже сохраненные данные в workorder
-                $workorder = Workorder::find($workorder_id);
-                if ($workorder && $workorder->rm_report) {
-                    return redirect()->route('rm_reports.edit', $workorder_id)
-                        ->with('error', $errorMessage);
-                } else {
-                    return redirect()->route('rm_reports.create', $workorder_id)
-                        ->with('error', $errorMessage);
-                }
-            } else {
-                return redirect()->back()->with('error', $errorMessage);
+
+            if (request()->ajax() || request()->wantsJson()) {
+                return response()->json(['success' => false, 'message' => $errorMessage], 422);
             }
+            $redirectTo = $workorder_id ? route('rm_reports.show', $workorder_id) : url()->previous();
+            return redirect($redirectTo)->with('error', $errorMessage);
         }
 
         $rmReport->delete();
 
+        if (request()->ajax() || request()->wantsJson()) {
+            return response()->json([
+                'success' => true,
+                'message' => 'R&M Record deleted successfully',
+                'workorder_id' => $workorder_id
+            ]);
+        }
+
         if ($workorder_id) {
-            // Проверяем, есть ли уже сохраненные данные в workorder
-            $workorder = Workorder::find($workorder_id);
-            if ($workorder && $workorder->rm_report) {
-                // Если есть данные, возвращаемся на страницу редактирования
-                return redirect()->route('rm_reports.edit', $workorder_id)
-                    ->with('success', 'R&M Record deleted successfully');
-            } else {
-                // Если данных нет, возвращаемся на страницу создания
-                return redirect()->route('rm_reports.create', $workorder_id)
-                    ->with('success', 'R&M Record deleted successfully');
-            }
-        } else {
-            return redirect()->back()
+            return redirect()->route('rm_reports.show', $workorder_id)
                 ->with('success', 'R&M Record deleted successfully');
         }
+        return redirect()->back()->with('success', 'R&M Record deleted successfully');
     }
     
     /**
@@ -527,20 +522,25 @@ public function rmRecordForm(Request $request, $id)
         $rmReport->update([
             'part_description' => $validated['part_description'],
             'mod_repair' => $validated['mod_repair'],
-            'description' => $validated['mod_repair_description'], // Поле в БД называется description
+            'description' => $validated['mod_repair_description'],
             'ident_method' => $validated['ident_method'],
         ]);
 
-        // Проверяем, есть ли уже сохраненные данные в workorder
-        $workorder = Workorder::findOrFail($validated['workorder_id']);
-        if ($workorder->rm_report) {
-            // Если есть данные, возвращаемся на страницу редактирования
-            return redirect()->route('rm_reports.edit', $validated['workorder_id'])
-                ->with('success', 'R&M Record updated successfully');
-        } else {
-            // Если данных нет, возвращаемся на страницу создания
-            return redirect()->route('rm_reports.create', $validated['workorder_id'])
-                ->with('success', 'R&M Record updated successfully');
+        if ($request->ajax() || $request->wantsJson()) {
+            return response()->json([
+                'success' => true,
+                'message' => 'R&M Record updated successfully',
+                'data' => [
+                    'id' => $rmReport->id,
+                    'part_description' => $rmReport->part_description,
+                    'mod_repair' => $rmReport->mod_repair,
+                    'description' => $rmReport->description,
+                    'ident_method' => $rmReport->ident_method,
+                ]
+            ]);
         }
+
+        return redirect()->route('rm_reports.show', $validated['workorder_id'])
+            ->with('success', 'R&M Record updated successfully');
     }
 }

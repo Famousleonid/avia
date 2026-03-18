@@ -576,12 +576,6 @@
     </div>
 
 
-
-
-
-
-
-
     <footer >
         <div class="row" style="width: 100%; padding: 10px 10px;">
             <div class="col-6 text-start">
