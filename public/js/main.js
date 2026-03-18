@@ -639,10 +639,8 @@ window.hapticTap = function (pattern = 10) {
 
                         // обновить data-original, чтобы не считалось "изменённым"
                         input.dataset.original = '';
-
                     }, 2000);
                 });
-
                 return;
             }
 
@@ -655,6 +653,10 @@ window.hapticTap = function (pattern = 10) {
                 applyNotesSavedState(form, data);
             } else {
                 applySavedState(form, data);
+            }
+
+            if (!form.querySelector('textarea[name="notes"]') && typeof window.showNotification === 'function') {
+                window.showNotification(data?.message || 'Saved', 'success', 2000);
             }
 
         } catch (e) {

@@ -45,12 +45,12 @@
     }
     /* Белая рамка на active */
     .js-gt-btn.btn-outline-danger.active  {
-        border-width: 3px !important;
+        border-width: 1px !important;
         border-color: #fff !important;
         box-shadow: 0 0 8px 3px rgba(255,255,255,0.6) !important;
     }
     .js-gt-btn.btn-outline-success.active  {
-        border-width: 3px !important;
+        border-width: 1px !important;
         border-color: #fff !important;
         box-shadow: 0 0 8px 3px rgba(255,255,255,0.6) !important;
     }
@@ -67,7 +67,7 @@
         border-width: 2px !important;
     }
 
-    /*.flatpickr-input.form-control.form-control-sm.w-100.fp-alt {*/
+    /*.flatpickr-input.fp-alt {*/
     /*    width: 115px !important;     !* фиксируем ширину *!*/
     /*    min-width: 115px !important;*/
     /*    max-width: 115px !important;*/
@@ -232,18 +232,18 @@
     .finish-input {
         background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='%236c757d' viewBox='0 0 16 16'%3E%3Cpath d='M3 0a1 1 0 0 0-1 1v1H1.5A1.5 1.5 0 0 0 0 3.5v11A1.5 1.5 0 0 0 1.5 16h13a1.5 1.5 0 0 0 1.5-1.5v-11A1.5 1.5 0 0 0 14.5 2H14V1a1 1 0 0 0-2 0v1H4V1a1 1 0 0 0-1-1zM1 5h14v9.5a.5.5 0 0 1-.5.5h-13a.5.5 0 0 1-.5-.5V5z'/%3E%3C/svg%3E");
         background-repeat: no-repeat;
-        background-position: right .5rem center;
+        background-position: right .2rem center;
         background-size: 1rem 1rem;
         padding-right: 3.5rem;
     }
 
     .finish-input.has-finish {
         background-color: rgba(25, 135, 84, .1);
-        background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='%236c757d' viewBox='0 0 16 16'%3E%3Cpath d='M3 0a1 1 0 0 0-1 1v1H1.5A1.5 1.5 0 0 0 0 3.5v11A1.5 1.5 0 0 0 1.5 16h13a1.5 1.5 0 0 0 1.5-1.5v-11A1.5 1.5 0 0 0 14.5 2H14V1a1 1 0 0 0-2 0v1H4V1a1 1 0 0 0-1-1zM1 5h14v9.5a.5.5 0 0 1-.5.5h-13a.5.5 0 0 1-.5-.5V5z'/%3E%3C/svg%3E"),
-        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='%23198754' viewBox='0 0 16 16'%3E%3Cpath d='M13.485 1.929a.75.75 0 010 1.06L6.818 9.657a.75.75 0 01-1.06 0L2.515 6.414a.75.75 0 111.06-1.06L6 7.778l6.425-6.425a.75.75 0 011.06 0z'/%3E%3C/svg%3E");
-        background-repeat: no-repeat, no-repeat;
-        background-position: right .5rem center, right .5rem center;
-        background-size: 1rem 1rem, 1rem 1rem;
+        background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='%23198754' viewBox='0 0 16 16'%3E%3Cpath d='M13.485 1.929a.75.75 0 010 1.06L6.818 9.657a.75.75 0 01-1.06 0L2.515 6.414a.75.75 0 111.06-1.06L6 7.778l6.425-6.425a.75.75 0 011.06 0z'/%3E%3C/svg%3E");
+        background-repeat: no-repeat;
+        background-position: right 0.7rem, 60%;
+        background-size: 1rem 1rem;
+        padding-right: 3.5rem;
     }
 
     #taskTabContent {
@@ -482,7 +482,13 @@
     /*    z-index: 2000 !important;*/
     /*}*/
 
-
+    /* одинаковая ширина дат справа (и при желании слева) */
+    .tasks-table input[data-fp],
+    .bottom-col.right input[data-fp] {
+        width: 115px !important;
+        min-width: 115px !important;
+        max-width: 115px !important;
+    }
 
 
 </style>
