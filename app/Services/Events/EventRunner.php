@@ -38,6 +38,10 @@ class EventRunner
                         continue;
                     }
 
+                    if (!$this->canReceiveEventNotification($recipient, $msg)) {
+                        continue;
+                    }
+
                     $log = EventLog::query()->firstOrNew([
                         'event_key'         => $event->key(),
                         'subject_type'      => get_class($subject),
@@ -87,5 +91,45 @@ class EventRunner
                 }
             }
         }
+    }
+
+    protected function canReceiveEventNotification($recipient, array $msg): bool
+    {
+        // recipient is usually App\Models\User (Notifiable)
+        $prefs = $recipient->notification_prefs ?? [];
+
+        if (!empty($prefs['mute_all'])) {
+            return false;
+        }
+
+        $mutedWorkorders = $prefs['muted_workorders'] ?? [];
+        $mutedWorkorders = array_map('intval', is_array($mutedWorkorders) ? $mutedWorkorders : []);
+
+        if (empty($mutedWorkorders)) {
+            return true;
+        }
+
+        // UI сохраняет muted_workorders как номера WO (workorders.number).
+        // Для совместимости проверяем и id и number.
+        $woId = null;
+        $woNo = null;
+
+        if (isset($msg['ui']['workorder']['id'])) {
+            $woId = (int) $msg['ui']['workorder']['id'];
+        }
+        if (isset($msg['ui']['workorder']['no'])) {
+            $woNo = (int) $msg['ui']['workorder']['no'];
+        }
+        if (is_null($woId) && isset($msg['payload']['workorder_id'])) {
+            $woId = (int) $msg['payload']['workorder_id'];
+        }
+        if (is_null($woNo) && isset($msg['payload']['workorder_no'])) {
+            $woNo = (int) $msg['payload']['workorder_no'];
+        }
+
+        if ($woNo && in_array($woNo, $mutedWorkorders, true)) return false;
+        if ($woId && in_array($woId, $mutedWorkorders, true)) return false;
+
+        return true;
     }
 }

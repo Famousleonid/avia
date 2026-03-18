@@ -42,13 +42,19 @@
         }
 
         .col-number {
-            width: 100px;
-            font-size: 0.9rem;
+            width: 90px;
+            font-size: 0.8rem;
         }
 
         .col-approve {
-            width: 60px;
-            font-size: 0.7rem;
+            width: 50px;
+            font-size: 0.55rem;
+            font-weight: normal;
+        }
+
+        .col-SN {
+            width: 100px;
+            font-size: 0.8rem;
             font-weight: normal;
         }
 
@@ -65,11 +71,15 @@
         }
 
         .col-date {
-            width: 100px;
+            width: 90px;
             font-size: 0.8rem;
             font-weight: normal;
         }
-
+        .col-PO {
+            width: 90px;
+            font-size: 0.8rem;
+            font-weight: normal;
+        }
         .col-stages {
             width: 90px;
             font-size: 0.8rem;
@@ -100,7 +110,7 @@
 
         .table thead th {
             position: sticky;
-            height: 50px;
+            height: 40px;
             top: 0;
             vertical-align: middle;
             border-top: 1px;
@@ -387,12 +397,12 @@
                         @endhasanyrole
                         <th class="text-center text-primary">Component</th>
                         <th class="text-center text-primary">Description</th>
-                        <th class="text-center text-primary">Serial number</th>
+                        <th class="text-center text-primary col-SN">Serial №</th>
                         <th class="text-center text-primary no-print">Manual</th>
                         <th class="text-center text-primary sortable">Customer <i class="bi bi-chevron-expand ms-1"></i></th>
                         <th class="text-center text-primary sortable">Instruction <i class="bi bi-chevron-expand ms-1"></i></th>
                         <th class="text-center text-primary col-date">Open Date</th>
-                        <th class="text-center text-primary col-date">Customer PO</th>
+                        <th class="text-center text-primary col-PO">Customer PO</th>
                         <th class="text-center text-primary col-edit no-print">Edit</th>
                         <th class="text-center text-primary sortable no-print">Technik <i class="bi bi-chevron-expand ms-1"></i></th>
 

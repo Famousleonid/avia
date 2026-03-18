@@ -478,17 +478,4 @@
         resize: vertical;
     }
 
-    /*#photoModal {*/
-    /*    z-index: 2000 !important;*/
-    /*}*/
-
-    /* одинаковая ширина дат справа (и при желании слева) */
-    .tasks-table input[data-fp],
-    .bottom-col.right input[data-fp] {
-        width: 115px !important;
-        min-width: 115px !important;
-        max-width: 115px !important;
-    }
-
-
 </style>

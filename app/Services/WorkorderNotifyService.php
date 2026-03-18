@@ -40,7 +40,15 @@ class WorkorderNotifyService
 
         $recipients = $recipients->merge($managers)->unique('id');
 
-        $this->notifyUsers($recipients, $notification);
+        // IMPORTANT:
+        // notification_prefs.muted_workorders в UI сейчас хранит НОМЕРА WO (workorders.number),
+        // а не workorders.id. Поэтому передаём оба, чтобы фильтр работал корректно.
+        $this->notifyUsers(
+            $recipients,
+            $notification,
+            workorderId: (int) $workorder->id,
+            workorderNo: is_null($workorder->number) ? null : (int) $workorder->number
+        );
     }
 
 
@@ -64,11 +72,42 @@ class WorkorderNotifyService
     /**
      * Внутренний хелпер: разослать уведомление коллекции пользователей
      */
-    protected function notifyUsers(Collection $users, WorkorderNotification $notification): void
+    protected function notifyUsers(
+        Collection $users,
+        WorkorderNotification $notification,
+        ?int $workorderId = null,
+        ?int $workorderNo = null
+    ): void
     {
         if ($users->isEmpty()) return;
 
-        $users->each(fn(User $u) => $u->notify($notification));
+        $users
+            ->filter(fn (User $u) => $this->canReceiveWorkorderNotification($u, $workorderId, $workorderNo))
+            ->each(fn(User $u) => $u->notify($notification));
+    }
+
+    protected function canReceiveWorkorderNotification(User $user, ?int $workorderId, ?int $workorderNo): bool
+    {
+        $prefs = $user->notification_prefs ?? [];
+
+        if (!empty($prefs['mute_all'])) {
+            return false;
+        }
+
+        // UI сохраняет muted_workorders как номера WO (workorders.number).
+        // На всякий случай поддержим и вариант, если там окажутся id.
+        if ($workorderId || $workorderNo) {
+            $muted = $prefs['muted_workorders'] ?? [];
+            $muted = array_map('intval', is_array($muted) ? $muted : []);
+            if ($workorderNo && in_array((int) $workorderNo, $muted, true)) {
+                return false;
+            }
+            if ($workorderId && in_array((int) $workorderId, $muted, true)) {
+                return false;
+            }
+        }
+
+        return true;
     }
 }
 

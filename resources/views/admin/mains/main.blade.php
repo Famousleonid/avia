@@ -99,7 +99,6 @@
                                 @php
                                     $previewHref = $imgFull ?: $imgThumb; // если нет full — открываем то, что показано
                                 @endphp
-
                                 <a href="{{ $previewHref }}" data-fancybox="wo-manual" title="Manual">
                                     <img class="rounded-circle" src="{{ $imgThumb }}" width="70" height="70"
                                          alt="Manual preview">
