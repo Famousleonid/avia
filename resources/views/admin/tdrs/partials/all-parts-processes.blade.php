@@ -114,8 +114,8 @@
                                 <tbody>
                                     @foreach($processGroups as $groupKey => $group)
                                         @php
-                                            $actualProcessNameId = $groupKey;
-                                            $displayName = $group['process_name'] ? $group['process_name']->name : 'N/A';
+                                            $actualProcessNameId = ($groupKey == 'NDT_GROUP') ? ($group['process_name']->id ?? $groupKey) : $groupKey;
+                                            $displayName = ($groupKey == 'NDT_GROUP') ? 'NDT' : ($group['process_name'] ? $group['process_name']->name : 'N/A');
                                         @endphp
                                         <tr>
                                             <td class="align-middle">

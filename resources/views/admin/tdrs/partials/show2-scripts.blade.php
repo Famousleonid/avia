@@ -30,6 +30,19 @@ document.addEventListener('DOMContentLoaded', function() {
     var addProcessBtn = document.getElementById('compProcessesAddProcessBtn');
     var allPartsProcessesUrl = '{{ route("tdrs.processesPartial", ["workorder_id" => $current_wo->id]) }}';
     var allPartsBody = document.getElementById('allPartsProcessesTabBody');
+    var extraPartsProcessesUrl = '{{ route("extra_processes.partial", ["workorder_id" => $current_wo->id]) }}';
+    var extraPartsBody = document.getElementById('extraPartsProcessesTabBody');
+    var extraProcessesTabBody = document.getElementById('extraProcessesTabBody');
+    var tabExtraProcessesLi = document.getElementById('tab-extra-processes-li');
+    var tabExtraProcessesBtn = document.getElementById('tab-extra-processes');
+    var extraProcessesProcessesUrl = '{{ route("extra_processes.processesPartial", ["workorderId" => "__WO__", "componentId" => "__COMP__"]) }}';
+    var editExtraProcessUrl = '{{ route("extra_processes.edit_component", ["id" => "__ID__"]) }}';
+    var addExtraProcessUrl = '{{ route("extra_processes.create_processes", ["workorderId" => "__WO__", "componentId" => "__COMP__"]) }}';
+    var editExtraProcessProcessUrl = '{{ route("extra_processes.edit", ["extra_process" => "__ID__"]) }}';
+    var addExtraPartCreateUrl = '{{ route("extra_process.create", ["id" => "__ID__"]) }}';
+    var tabExtraPartsProcessesBtn = document.getElementById('tab-extra-parts-processes');
+    var extraGroupFormsHeaderBtn = document.getElementById('extraGroupFormsHeaderBtn');
+    var extraPartsTabActions = document.getElementById('extraPartsTabActions');
 
     function loadAllPartsProcesses() {
         if (!allPartsBody) return;
@@ -43,6 +56,190 @@ document.addEventListener('DOMContentLoaded', function() {
             .catch(function() {
                 allPartsBody.innerHTML = '<div class="alert alert-danger">{{ __("Failed to load.") }}</div>';
             });
+    }
+
+    function updateExtraPartsTabAsterisk() {
+        if (!tabExtraPartsProcessesBtn) return;
+        var wrapper = extraPartsBody && extraPartsBody.querySelector('.extra-part-processes');
+        var hasRecords = wrapper && wrapper.dataset.hasRecords === '1';
+        var baseText = tabExtraPartsProcessesBtn.dataset.baseText || '{{ __("Extra Parts Processes") }}';
+        tabExtraPartsProcessesBtn.textContent = baseText + (hasRecords ? ' *' : '');
+    }
+    function updateExtraGroupFormsButtonVisibility() {
+        if (!extraGroupFormsHeaderBtn) return;
+        var wrapper = extraPartsBody && extraPartsBody.querySelector('.extra-part-processes');
+        var count = wrapper && wrapper.dataset.extraProcessCount ? parseInt(wrapper.dataset.extraProcessCount, 10) : 0;
+        var show = count > 1;
+        if (show) extraGroupFormsHeaderBtn.classList.remove('d-none');
+        else extraGroupFormsHeaderBtn.classList.add('d-none');
+    }
+    function loadExtraPartProcesses() {
+        if (!extraPartsBody) return;
+        extraPartsBody.innerHTML = '<div class="text-center py-5"><div class="spinner-border text-primary" role="status"></div></div>';
+        fetch(extraPartsProcessesUrl, { headers: { 'X-Requested-With': 'XMLHttpRequest', 'Accept': 'text/html' }, spinner: false })
+            .then(function(r) { return r.text(); })
+            .then(function(html) {
+                extraPartsBody.innerHTML = html;
+                initExtraPartGroupForms(extraPartsBody);
+                updateExtraPartsTabAsterisk();
+                updateExtraGroupFormsButtonVisibility();
+            })
+            .catch(function() {
+                extraPartsBody.innerHTML = '<div class="alert alert-danger">{{ __("Failed to load.") }}</div>';
+            });
+    }
+
+    function initExtraPartGroupForms(container) {
+        if (!container) return;
+        var vendorSelects = container.querySelectorAll('.vendor-select');
+        var groupFormButtons = container.querySelectorAll('.group-form-button');
+        var componentCheckboxes = container.querySelectorAll('.component-checkbox');
+        function updateLinkUrl(processNameId) {
+            var link = container.querySelector('.group-form-button[data-process-name-id="' + processNameId + '"]');
+            if (!link || !link.getAttribute('href')) return;
+            var url = new URL(link.getAttribute('href'), window.location.origin);
+            var vendorSelect = container.querySelector('.vendor-select[data-process-name-id="' + processNameId + '"]');
+            if (vendorSelect && vendorSelect.value) url.searchParams.set('vendor_id', vendorSelect.value);
+            else url.searchParams.delete('vendor_id');
+            var checkedBoxes = container.querySelectorAll('.component-checkbox[data-process-name-id="' + processNameId + '"]:checked:not([disabled])');
+            if (checkedBoxes.length > 0) {
+                url.searchParams.set('component_ids', Array.from(checkedBoxes).map(function(c){ return c.value; }).join(','));
+            } else {
+                url.searchParams.delete('component_ids');
+            }
+            link.setAttribute('href', url.toString());
+        }
+        function updateQuantityBadge(processNameId) {
+            var checkedBoxes = container.querySelectorAll('.component-checkbox[data-process-name-id="' + processNameId + '"]:checked:not([disabled])');
+            var badge = container.querySelector('.process-qty-badge[data-process-name-id="' + processNameId + '"]');
+            if (badge && checkedBoxes.length > 0) {
+                var totalQty = 0;
+                checkedBoxes.forEach(function(c){ totalQty += parseInt(c.getAttribute('data-qty')) || 0; });
+                badge.textContent = totalQty + ' pcs';
+            }
+        }
+        vendorSelects.forEach(function(s){ s.addEventListener('change', function(){ updateLinkUrl(this.getAttribute('data-process-name-id')); }); });
+        componentCheckboxes.forEach(function(c){ c.addEventListener('change', function(){ updateLinkUrl(this.getAttribute('data-process-name-id')); updateQuantityBadge(this.getAttribute('data-process-name-id')); }); });
+        groupFormButtons.forEach(function(b){ b.addEventListener('click', function(){ updateLinkUrl(this.getAttribute('data-process-name-id')); }); });
+        groupFormButtons.forEach(function(b){ var pid = b.getAttribute('data-process-name-id'); if (pid) { updateLinkUrl(pid); updateQuantityBadge(pid); } });
+    }
+
+    function loadExtraProcesses(workorderId, componentId) {
+        if (!extraProcessesTabBody) return;
+        extraProcessesTabBody.innerHTML = '<div class="text-center py-5"><div class="spinner-border text-primary" role="status"></div></div>';
+        var url = extraProcessesProcessesUrl.replace('__WO__', workorderId).replace('__COMP__', componentId);
+        fetch(url, { headers: { 'X-Requested-With': 'XMLHttpRequest', 'Accept': 'text/html' }, spinner: false })
+            .then(function(r) { return r.text(); })
+            .then(function(html) {
+                extraProcessesTabBody.innerHTML = html;
+                extraProcessesTabBody.dataset.workorderId = workorderId;
+                extraProcessesTabBody.dataset.componentId = componentId;
+                bindExtraProcessesHandlers(extraProcessesTabBody);
+            })
+            .catch(function() {
+                extraProcessesTabBody.innerHTML = '<div class="alert alert-danger">{{ __("Failed to load.") }}</div>';
+            });
+    }
+
+    function bindExtraProcessesHandlers(container) {
+        if (!container) return;
+        container.querySelectorAll('.load-edit-extra-process-process').forEach(function(btn) {
+            btn.addEventListener('click', function() {
+                var extraProcessId = btn.dataset.extraProcessId;
+                var processIndex = btn.dataset.processIndex;
+                var processNameId = btn.dataset.processNameId;
+                var workorderId = btn.dataset.workorderId;
+                var componentId = btn.dataset.componentId;
+                if (!extraProcessId) return;
+                var url = editExtraProcessProcessUrl.replace('__ID__', extraProcessId);
+                if (processIndex !== undefined) url += '?process_index=' + processIndex + '&modal=1';
+                else if (processNameId !== undefined) url += '?process_name_id=' + processNameId + '&modal=1';
+                else url += '?modal=1';
+                var editModal = document.getElementById('editTdrProcessModal');
+                var iframe = document.getElementById('editTdrProcessIframe');
+                if (!editModal || !iframe) return;
+                iframe.src = url;
+                var inst = bootstrap.Modal.getOrCreateInstance(editModal);
+                inst.show();
+                editModal.addEventListener('shown.bs.modal', function setZ() { editModal.style.zIndex = '1080'; var b = document.querySelectorAll('.modal-backdrop'); if (b.length) b[b.length-1].style.zIndex = '1075'; }, { once: true });
+            });
+        });
+        container.querySelectorAll('.open-add-extra-process-modal').forEach(function(btn) {
+            btn.addEventListener('click', function(e) {
+                e.preventDefault();
+                if (btn.dataset.workorderId && btn.dataset.componentId) openAddExtraProcessModal(btn.dataset.workorderId, btn.dataset.componentId);
+            });
+        });
+        container.querySelectorAll('.delete-process-form').forEach(function(form) {
+            form.addEventListener('submit', function(e) {
+                e.preventDefault();
+                var fd = new FormData(form);
+                fetch(form.action, { method: 'POST', headers: { 'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content || '', 'Accept': 'application/json' }, body: fd })
+                    .then(function(r) { return r.json().catch(function() { return {}; }); })
+                    .then(function(data) {
+                        if (data.success) {
+                            var woId = container.dataset.workorderId || window.currentWorkorderId;
+                            var compId = container.dataset.componentId;
+                            if (woId && compId) loadExtraProcesses(woId, compId);
+                            if (extraPartsBody && extraPartsBody.dataset.loaded) loadExtraPartProcesses();
+                        } else {
+                            alert(data.message || '{{ __("Failed to delete.") }}');
+                        }
+                    })
+                    .catch(function() { alert('{{ __("Failed to delete.") }}'); });
+            });
+        });
+        var addVendorBtn = container.querySelector('#saveVendorButtonExtra');
+        var addVendorForm = container.querySelector('#addVendorFormExtra');
+        if (addVendorBtn && addVendorForm && typeof VendorHandler !== 'undefined' && ProcessesConfig.storeVendorUrl) {
+            addVendorBtn.onclick = function() {
+                var nameInput = addVendorForm.querySelector('input[name="name"]');
+                if (!nameInput || !nameInput.value.trim()) return;
+                fetch(ProcessesConfig.storeVendorUrl, { method: 'POST', headers: { 'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content || '', 'Accept': 'application/json', 'Content-Type': 'application/json' }, body: JSON.stringify({ name: nameInput.value.trim() }) })
+                    .then(function(r) { return r.json(); })
+                    .then(function(data) {
+                        if (data.id) {
+                            var m = bootstrap.Modal.getInstance(container.querySelector('#addVendorModalExtra'));
+                            if (m) m.hide();
+                            nameInput.value = '';
+                            var woId = container.dataset.workorderId; var compId = container.dataset.componentId;
+                            if (woId && compId) loadExtraProcesses(woId, compId);
+                        }
+                    });
+            };
+        }
+    }
+
+    function openEditExtraProcessModal(extraProcessId) {
+        var iframe = document.getElementById('editExtraProcessIframe');
+        var modal = document.getElementById('editExtraProcessModal');
+        if (iframe && modal && extraProcessId) {
+            iframe.src = editExtraProcessUrl.replace('__ID__', extraProcessId) + '?modal=1';
+            var inst = bootstrap.Modal.getOrCreateInstance(modal);
+            inst.show();
+            modal.addEventListener('shown.bs.modal', function setZ() { modal.style.zIndex = '1080'; var b = document.querySelectorAll('.modal-backdrop'); if (b.length) b[b.length-1].style.zIndex = '1075'; }, { once: true });
+        }
+    }
+
+    function openAddExtraProcessModal(workorderId, componentId) {
+        var iframe = document.getElementById('addExtraProcessIframe');
+        var modal = document.getElementById('addExtraProcessModal');
+        if (iframe && modal && workorderId && componentId) {
+            iframe.src = addExtraProcessUrl.replace('__WO__', workorderId).replace('__COMP__', componentId) + '?modal=1';
+            var inst = bootstrap.Modal.getOrCreateInstance(modal);
+            inst.show();
+            modal.addEventListener('shown.bs.modal', function setZ() { modal.style.zIndex = '1080'; var b = document.querySelectorAll('.modal-backdrop'); if (b.length) b[b.length-1].style.zIndex = '1075'; }, { once: true });
+        }
+    }
+    function openAddExtraPartModal(workorderId) {
+        var iframe = document.getElementById('addExtraPartIframe');
+        var modal = document.getElementById('addExtraPartModal');
+        if (iframe && modal && workorderId) {
+            iframe.src = addExtraPartCreateUrl.replace('__ID__', workorderId) + '?modal=1';
+            var inst = bootstrap.Modal.getOrCreateInstance(modal);
+            inst.show();
+            modal.addEventListener('shown.bs.modal', function setZ() { modal.style.zIndex = '1080'; var b = document.querySelectorAll('.modal-backdrop'); if (b.length) b[b.length-1].style.zIndex = '1075'; }, { once: true });
+        }
     }
 
     function initAllPartsGroupForms(container) {
@@ -203,23 +400,78 @@ document.addEventListener('DOMContentLoaded', function() {
             if (tabBtn) { var tab = new bootstrap.Tab(tabBtn); tab.show(); }
         });
     }
+    if (extraPartsBody) {
+        extraPartsBody.addEventListener('click', function(e) {
+            var editBtn = e.target.closest('.open-edit-extra-process-modal');
+            if (editBtn && editBtn.dataset.extraProcessId) {
+                e.preventDefault();
+                openEditExtraProcessModal(editBtn.dataset.extraProcessId);
+                return;
+            }
+            var addBtn = e.target.closest('.open-add-extra-process-modal');
+            if (addBtn && addBtn.dataset.workorderId && addBtn.dataset.componentId) {
+                e.preventDefault();
+                openAddExtraProcessModal(addBtn.dataset.workorderId, addBtn.dataset.componentId);
+                return;
+            }
+            var procBtn = e.target.closest('.open-extra-processes-tab');
+            if (procBtn && procBtn.dataset.workorderId && procBtn.dataset.componentId) {
+                e.preventDefault();
+                if (tabExtraProcessesLi) tabExtraProcessesLi.classList.remove('d-none');
+                loadExtraProcesses(procBtn.dataset.workorderId, procBtn.dataset.componentId);
+                if (tabExtraProcessesBtn) { var tab = new bootstrap.Tab(tabExtraProcessesBtn); tab.show(); }
+            }
+        });
+    }
+    var openAddExtraPartModalBtn = document.getElementById('openAddExtraPartModalBtn');
+    if (openAddExtraPartModalBtn) {
+        openAddExtraPartModalBtn.addEventListener('click', function() {
+            var woId = this.dataset.workorderId || window.currentWorkorderId;
+            if (woId) openAddExtraPartModal(woId);
+        });
+    }
 
     var groupProcessFormsHeaderBtn = document.getElementById('groupProcessFormsHeaderBtn');
     document.getElementById('show2TabList')?.addEventListener('shown.bs.tab', function(e) {
         var target = (e.target.getAttribute && e.target.getAttribute('data-bs-target')) || (e.target.getAttribute && e.target.getAttribute('href'));
-        if (target && String(target).indexOf('content-part-processes') !== -1) return;
+        if (target && String(target).indexOf('content-part-processes') !== -1) {
+            if (extraPartsTabActions) extraPartsTabActions.classList.add('d-none');
+            return;
+        }
         if (target && String(target).indexOf('content-all-parts-processes') !== -1) {
             if (groupProcessFormsHeaderBtn) groupProcessFormsHeaderBtn.classList.remove('d-none');
+            if (extraGroupFormsHeaderBtn) extraGroupFormsHeaderBtn.classList.add('d-none');
+            if (extraPartsTabActions) extraPartsTabActions.classList.add('d-none');
             if (allPartsBody && !allPartsBody.dataset.loaded) {
                 allPartsBody.dataset.loaded = '1';
                 loadAllPartsProcesses();
             }
+        } else if (target && String(target).indexOf('content-extra-parts-processes') !== -1) {
+            if (groupProcessFormsHeaderBtn) groupProcessFormsHeaderBtn.classList.add('d-none');
+            if (extraPartsTabActions) extraPartsTabActions.classList.remove('d-none');
+            if (extraPartsBody && !extraPartsBody.dataset.loaded) {
+                extraPartsBody.dataset.loaded = '1';
+                loadExtraPartProcesses();
+            } else {
+                updateExtraPartsTabAsterisk();
+                updateExtraGroupFormsButtonVisibility();
+            }
+        } else if (target && String(target).indexOf('content-extra-processes') !== -1) {
+            if (groupProcessFormsHeaderBtn) groupProcessFormsHeaderBtn.classList.add('d-none');
+            if (extraGroupFormsHeaderBtn) extraGroupFormsHeaderBtn.classList.add('d-none');
+            if (extraPartsTabActions) extraPartsTabActions.classList.add('d-none');
         } else {
             if (groupProcessFormsHeaderBtn) groupProcessFormsHeaderBtn.classList.add('d-none');
+            if (extraGroupFormsHeaderBtn) extraGroupFormsHeaderBtn.classList.add('d-none');
+            if (extraPartsTabActions) extraPartsTabActions.classList.add('d-none');
         }
         if (target && String(target).indexOf('content-part-processes') === -1) {
             if (tabLi) tabLi.classList.add('d-none');
             if (body) body.innerHTML = '<div class="text-center py-5 text-muted">{{ __("Click a component processes button to load.") }}</div>';
+        }
+        if (target && String(target).indexOf('content-extra-processes') === -1) {
+            if (tabExtraProcessesLi) tabExtraProcessesLi.classList.add('d-none');
+            if (extraProcessesTabBody) extraProcessesTabBody.innerHTML = '<div class="text-center py-5 text-muted">{{ __("Click Processes in Extra Part Processes table to load.") }}</div>';
         }
     });
 
@@ -248,6 +500,54 @@ document.addEventListener('DOMContentLoaded', function() {
             if (m) m.hide();
             var ifr = document.getElementById('editTdrProcessIframe');
             if (ifr) ifr.src = 'about:blank';
+        } else if (e.data && e.data.type === 'editExtraProcessSuccess') {
+            var m = bootstrap.Modal.getInstance(document.getElementById('editExtraProcessModal'));
+            if (m) m.hide();
+            var ifr = document.getElementById('editExtraProcessIframe');
+            if (ifr) ifr.src = 'about:blank';
+            if (extraPartsBody && extraPartsBody.dataset.loaded) loadExtraPartProcesses();
+        } else if (e.data && e.data.type === 'editExtraProcessCancel') {
+            var m = bootstrap.Modal.getInstance(document.getElementById('editExtraProcessModal'));
+            if (m) m.hide();
+            var ifr = document.getElementById('editExtraProcessIframe');
+            if (ifr) ifr.src = 'about:blank';
+        } else if (e.data && e.data.type === 'createExtraProcessSuccess') {
+            var m = bootstrap.Modal.getInstance(document.getElementById('addExtraProcessModal'));
+            if (m) m.hide();
+            var ifr = document.getElementById('addExtraProcessIframe');
+            if (ifr) ifr.src = 'about:blank';
+            if (extraPartsBody && extraPartsBody.dataset.loaded) loadExtraPartProcesses();
+            var woId = e.data.workorderId; var compId = e.data.componentId;
+            if (extraProcessesTabBody && woId && compId) loadExtraProcesses(woId, compId);
+        } else if (e.data && e.data.type === 'createExtraProcessCancel') {
+            var m = bootstrap.Modal.getInstance(document.getElementById('addExtraProcessModal'));
+            if (m) m.hide();
+            var ifr = document.getElementById('addExtraProcessIframe');
+            if (ifr) ifr.src = 'about:blank';
+        } else if (e.data && e.data.type === 'addExtraPartSuccess') {
+            var m = bootstrap.Modal.getInstance(document.getElementById('addExtraPartModal'));
+            if (m) m.hide();
+            var ifr = document.getElementById('addExtraPartIframe');
+            if (ifr) ifr.src = 'about:blank';
+            if (extraPartsBody && extraPartsBody.dataset.loaded) loadExtraPartProcesses();
+        } else if (e.data && e.data.type === 'addExtraPartCancel') {
+            var m = bootstrap.Modal.getInstance(document.getElementById('addExtraPartModal'));
+            if (m) m.hide();
+            var ifr = document.getElementById('addExtraPartIframe');
+            if (ifr) ifr.src = 'about:blank';
+        } else if (e.data && e.data.type === 'editExtraProcessProcessSuccess') {
+            var m = bootstrap.Modal.getInstance(document.getElementById('editTdrProcessModal'));
+            if (m) m.hide();
+            var ifr = document.getElementById('editTdrProcessIframe');
+            if (ifr) ifr.src = 'about:blank';
+            var woId = e.data.workorderId; var compId = e.data.componentId;
+            if (extraProcessesTabBody && woId && compId) loadExtraProcesses(woId, compId);
+            if (extraPartsBody && extraPartsBody.dataset.loaded) loadExtraPartProcesses();
+        } else if (e.data && e.data.type === 'editExtraProcessProcessCancel') {
+            var m = bootstrap.Modal.getInstance(document.getElementById('editTdrProcessModal'));
+            if (m) m.hide();
+            var ifr = document.getElementById('editTdrProcessIframe');
+            if (ifr) ifr.src = 'about:blank';
         }
     });
     document.getElementById('addPartProcessesModal')?.addEventListener('hidden.bs.modal', function() {
@@ -256,6 +556,14 @@ document.addEventListener('DOMContentLoaded', function() {
     });
     document.getElementById('editTdrProcessModal')?.addEventListener('hidden.bs.modal', function() {
         var ifr = document.getElementById('editTdrProcessIframe');
+        if (ifr) ifr.src = 'about:blank';
+    });
+    document.getElementById('editExtraProcessModal')?.addEventListener('hidden.bs.modal', function() {
+        var ifr = document.getElementById('editExtraProcessIframe');
+        if (ifr) ifr.src = 'about:blank';
+    });
+    document.getElementById('addExtraProcessModal')?.addEventListener('hidden.bs.modal', function() {
+        var ifr = document.getElementById('addExtraProcessIframe');
         if (ifr) ifr.src = 'about:blank';
     });
     if (editTdrModal) {

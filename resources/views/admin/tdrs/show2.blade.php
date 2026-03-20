@@ -67,8 +67,8 @@
             border: 1px solid #495057 !important;
         }
         /* Add Part Processes & Edit Part Process modals (iframe) - ensure on top */
-        #addPartProcessesModal, #editTdrProcessModal { z-index: 1080 !important; }
-        #addPartProcessesModal ~ .modal-backdrop, #editTdrProcessModal ~ .modal-backdrop { z-index: 1075 !important; }
+        #addPartProcessesModal, #editTdrProcessModal, #editExtraProcessModal, #addExtraProcessModal, #addExtraPartModal { z-index: 1080 !important; }
+        #addPartProcessesModal ~ .modal-backdrop, #editTdrProcessModal ~ .modal-backdrop, #editExtraProcessModal ~ .modal-backdrop, #addExtraProcessModal ~ .modal-backdrop, #addExtraPartModal ~ .modal-backdrop { z-index: 1075 !important; }
     </style>
 
     @php
@@ -144,6 +144,10 @@
                                                               ariaLabel="Group Process Forms" data-bs-toggle="modal" data-bs-target="#groupFormsModal" />
                                     </div>
                                 @endif
+                                    <div id="extraGroupFormsHeaderBtn" class="d-none pt-1">
+                                        <x-paper-button-multy text="Group Process Forms" color="outline-primary" size="landscape" width="100"
+                                                              ariaLabel="Group Process Forms" data-bs-toggle="modal" data-bs-target="#extraGroupFormsModal" />
+                                    </div>
 
                             </div>
                             <div class="d-flex flex-wrap gap-2 ms-2">
@@ -173,7 +177,8 @@
 
             {{-- Body: tabs (header links as tabs), TDR tab = main content --}}
             <div class="card-body">
-                <ul class="nav nav-tabs mb-3" role="tablist" id="show2TabList">
+                <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
+                <ul class="nav nav-tabs mb-0" role="tablist" id="show2TabList">
                     <li class="nav-item" role="presentation">
                         <button class="nav-link active" id="tab-tdr" data-bs-toggle="tab" data-bs-target="#content-tdr" type="button" role="tab">{{ __('TDR') }}</button>
                     </li>
@@ -181,6 +186,12 @@
                     <li class="nav-item d-none" role="presentation" id="tab-part-processes-li">
                         <button class="nav-link" id="tab-part-processes" data-bs-toggle="tab" data-bs-target="#content-part-processes" type="button" role="tab">
                             {{ __('Part Processes') }}
+                        </button>
+                    </li>
+                    {{-- Temporary Extra Processes tab (shown when user clicks Processes in Extra Part Processes table) --}}
+                    <li class="nav-item d-none" role="presentation" id="tab-extra-processes-li">
+                        <button class="nav-link" id="tab-extra-processes" data-bs-toggle="tab" data-bs-target="#content-extra-processes" type="button" role="tab">
+                            {{ __('Extra Processes') }}
                         </button>
                     </li>
                     @if(count($processParts))
@@ -191,8 +202,13 @@
                             </button>
                         </li>
                     @endif
-                    <li class="nav-item" role="presentation">
-                        <a class="nav-link" href="{{ route('extra_processes.show_all', ['id'=>$current_wo->id]) }}">{{ __('Extra Parts Processes') }}</a>
+
+                    <li class="nav-item" role="presentation" id="tab-extra-parts-processes-li">
+                        <button class="nav-link" id="tab-extra-parts-processes" data-bs-toggle="tab"
+                                data-bs-target="#content-extra-parts-processes" type="button" role="tab"
+                                data-base-text="{{ __('Extra Parts Processes') }}">
+                            {{ __('Extra Parts Processes') }}{{ ($hasExtraProcessRecords ?? false) ? ' *' : '' }}
+                        </button>
                     </li>
                     @foreach($manuals as $manual)
                         @if($manual->id == $manual_id)
@@ -224,6 +240,13 @@
                         </li>
                     @endif
                 </ul>
+                <div id="extraPartsTabActions" class="d-none d-flex gap-2 align-items-center">
+                    <button type="button" class="btn btn-outline-success btn-sm" id="openAddExtraPartModalBtn" data-workorder-id="{{ $current_wo->id }}">
+                        <i class="fas fa-plus"></i> {{ __('Add Extra Part') }}
+                    </button>
+
+                </div>
+                </div>
 
                 <div class="tab-content">
                     <div class="tab-pane fade show active" id="content-tdr" role="tabpanel">
@@ -251,10 +274,25 @@
                             </div>
                         </div>
                     </div>
+                    <div class="tab-pane fade" id="content-extra-processes" role="tabpanel">
+                        <div class="card bg-gradient h-100">
+                            <div class="card-body p-2 overflow-auto" id="extraProcessesTabBody" style="height: calc(100vh - 280px); min-height: 400px;">
+                                <div class="text-center py-5 text-muted">{{ __('Click Processes in Extra Part Processes table to load.') }}</div>
+                            </div>
+                        </div>
+                    </div>
 
                     <div class="tab-pane fade" id="content-all-parts-processes" role="tabpanel">
                         <div class="card bg-gradient h-100">
                             <div class="card-body p-2 overflow-auto" id="allPartsProcessesTabBody"
+                                 style="height: calc(100vh - 280px); min-height: 400px;">
+                                <div class="text-center py-5 text-muted">{{ __('Loading...') }}</div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="tab-pane fade" id="content-extra-parts-processes" role="tabpanel">
+                        <div class="card bg-gradient h-100">
+                            <div class="card-body p-2 overflow-auto" id="extraPartsProcessesTabBody"
                                  style="height: calc(100vh - 280px); min-height: 400px;">
                                 <div class="text-center py-5 text-muted">{{ __('Loading...') }}</div>
                             </div>

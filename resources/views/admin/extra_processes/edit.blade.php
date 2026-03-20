@@ -1,4 +1,4 @@
-@extends('admin.master')
+@extends(request()->query('modal') ? 'admin.master-embed' : 'admin.master')
 
 @section('content')
     <style>
@@ -148,9 +148,10 @@
 
     <div class="container mt-3">
         <div class="card bg-gradient">
+            @if(!request()->query('modal'))
             <div class="card-header">
                 <div class="d-flex justify-content-between">
-                    <h4 class="text-primary">{{__('Edit Extra Processes for Component')}}</h4>
+                    <h4 class="text-primary">{{ __('Edit Extra Processes for Component') }}</h4>
                     <h4 class="text-primary"> {{__('Work Order')}} {{$current_wo->number}}</h4>
                 </div>
                 <div class="d-flex justify-content-between">
@@ -168,6 +169,7 @@
                     </div>
                 </div>
             </div>
+            @endif
             <div class="card-body">
                 <form id="editProcessesForm" role="form" method="POST" action="{{route('extra_processes.update', $extra_process->id)}}" class="editProcessesForm">
                     @csrf
@@ -181,8 +183,12 @@
 
                     <div class="text-end">
                         <button type="submit" class="btn btn-outline-primary mt-3" disabled>{{ __('Update') }}</button>
-                        <a href="{{ route('extra_processes.processes', ['workorderId' => $current_wo->id, 'componentId' => $component->id]) }}"
-                           class="btn btn-outline-secondary mt-3">{{ __('Cancel') }}</a>
+                        @if(request()->query('modal'))
+                            <button type="button" class="btn btn-outline-secondary mt-3" id="editExtraProcessProcessCancelBtn">{{ __('Cancel') }}</button>
+                        @else
+                            <a href="{{ route('extra_processes.processes', ['workorderId' => $current_wo->id, 'componentId' => $component->id]) }}"
+                               class="btn btn-outline-secondary mt-3">{{ __('Cancel') }}</a>
+                        @endif
                     </div>
                 </form>
             </div>
@@ -229,6 +235,14 @@
 
     @section('scripts')
     <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const cancelBtn = document.getElementById('editExtraProcessProcessCancelBtn');
+            if (cancelBtn && window.parent !== window) {
+                cancelBtn.addEventListener('click', function() {
+                    window.parent.postMessage({ type: 'editExtraProcessProcessCancel' }, '*');
+                });
+            }
+        });
         // Получаем все NDT process_names_id для проверки
         const ndtProcessNames = @json($ndtProcessNames->pluck('id')->toArray());
         const ndtProcessNamesData = @json($ndtProcessNames->keyBy('id'));
@@ -723,10 +737,13 @@
                 return response.json();
             })
             .then(data => {
-                if (data.message) {
+                if (data.success && data.message) {
                     alert(data.message);
                 }
-                if (data.redirect) {
+                const inModal = {{ request()->query('modal') ? 'true' : 'false' }};
+                if (data.success && inModal && window.parent !== window) {
+                    window.parent.postMessage({ type: 'editExtraProcessProcessSuccess', workorderId: workorderId, componentId: componentId }, '*');
+                } else if (data.redirect) {
                     window.location.href = data.redirect;
                 }
             })

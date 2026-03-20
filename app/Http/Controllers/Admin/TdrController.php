@@ -8,6 +8,7 @@ use App\Models\Code;
 use App\Models\Component;
 use App\Models\Condition;
 use App\Models\Customer;
+use App\Models\ExtraProcess;
 use App\Models\Instruction;
 use App\Models\LogCard;
 use App\Models\Manual;
@@ -832,16 +833,24 @@ class TdrController extends Controller
                 }
 
                 $processName = $tdrProcess->processName;
-                // Используем processNameId как ключ группы для всех процессов, включая NDT
-                // Это позволяет разделять NDT-1, NDT-4 и другие типы NDT в отдельные группы
-                $groupKey = $processName->id;
+                // Группируем как в Extra Parts: все NDT в одну группу NDT_GROUP, остальные по process_name_id
+                $groupKey = ($processName->process_sheet_name == 'NDT') ? 'NDT_GROUP' : $processName->id;
 
                 if (!isset($processGroups[$groupKey])) {
-                    $processGroups[$groupKey] = [
-                        'process_name' => $processName,
-                        'components_qty' => [],
-                        'components' => []
-                    ];
+                    if ($groupKey == 'NDT_GROUP') {
+                        $ndtProcessName = ProcessName::where('process_sheet_name', 'NDT')->first();
+                        $processGroups[$groupKey] = [
+                            'process_name' => $ndtProcessName ?? $processName,
+                            'components_qty' => [],
+                            'components' => []
+                        ];
+                    } else {
+                        $processGroups[$groupKey] = [
+                            'process_name' => $processName,
+                            'components_qty' => [],
+                            'components' => []
+                        ];
+                    }
                 }
 
                 // Добавляем/обновляем количество по компоненту (для TDR обычно qty = 1, но можно использовать serial_number)
@@ -953,16 +962,24 @@ class TdrController extends Controller
                 }
 
                 $processName = $tdrProcess->processName;
-                // Используем processNameId как ключ группы для всех процессов, включая NDT
-                // Это позволяет разделять NDT-1, NDT-4 и другие типы NDT в отдельные группы
-                $groupKey = $processName->id;
+                // Группируем как в Extra Parts: все NDT в одну группу NDT_GROUP, остальные по process_name_id
+                $groupKey = ($processName->process_sheet_name == 'NDT') ? 'NDT_GROUP' : $processName->id;
 
                 if (!isset($processGroups[$groupKey])) {
-                    $processGroups[$groupKey] = [
-                        'process_name' => $processName,
-                        'components_qty' => [],
-                        'components' => []
-                    ];
+                    if ($groupKey == 'NDT_GROUP') {
+                        $ndtProcessName = ProcessName::where('process_sheet_name', 'NDT')->first();
+                        $processGroups[$groupKey] = [
+                            'process_name' => $ndtProcessName ?? $processName,
+                            'components_qty' => [],
+                            'components' => []
+                        ];
+                    } else {
+                        $processGroups[$groupKey] = [
+                            'process_name' => $processName,
+                            'components_qty' => [],
+                            'components' => []
+                        ];
+                    }
                 }
 
                 // Добавляем/обновляем количество по компоненту (для TDR обычно qty = 1, но можно использовать serial_number)
@@ -1072,8 +1089,10 @@ class TdrController extends Controller
             ->get();
 
         // Фильтруем TdrProcess по process_name_id
-        // Теперь каждый тип NDT (NDT-1, NDT-4 и т.д.) обрабатывается отдельно по его processNameId
+        // Для NDT: включаем все NDT процессы (как в Extra Parts). Для остальных: только указанный processNameId
         $filteredTdrProcesses = collect();
+        $isNdtGroup = $processName->process_sheet_name == 'NDT';
+        $ndtProcessNameIds = $isNdtGroup ? ProcessName::where('process_sheet_name', 'NDT')->pluck('id')->toArray() : [];
 
         foreach ($tdrProcesses as $tdrProcess) {
             if (!$tdrProcess->tdr || !$tdrProcess->tdr->component || !$tdrProcess->processName) {
@@ -1082,10 +1101,14 @@ class TdrController extends Controller
 
             $currentProcessName = $tdrProcess->processName;
 
-            // Обрабатываем только процессы с указанным processNameId
-            // Это работает для всех типов процессов, включая NDT-1, NDT-4 и т.д.
-            if ($currentProcessName->id == $processNameId) {
-                $filteredTdrProcesses->push($tdrProcess);
+            if ($isNdtGroup) {
+                if (in_array($currentProcessName->id, $ndtProcessNameIds)) {
+                    $filteredTdrProcesses->push($tdrProcess);
+                }
+            } else {
+                if ($currentProcessName->id == $processNameId) {
+                    $filteredTdrProcesses->push($tdrProcess);
+                }
             }
         }
 
@@ -1406,13 +1429,17 @@ class TdrController extends Controller
             ->orWhere('workorder_source', $current_wo->id)
             ->exists();
 
+        $hasExtraProcessRecords = ExtraProcess::where('workorder_id', $current_wo->id)->exists();
+        $hasExtraProcessRecordsMoreThanOne = ExtraProcess::where('workorder_id', $current_wo->id)->count() > 1;
+
         return compact(
             'current_wo', 'tdrs', 'units', 'components', 'user', 'customers',
             'manuals', 'builders', 'planes', 'instruction', 'necessary',
             'necessaries', 'unit_conditions', 'component_conditions',
             'codes', 'conditions', 'missingParts', 'ordersParts', 'inspectsUnit',
             'processParts', 'ordersPartsNew', 'trainings', 'user_wo', 'manual_id', 'log_card', 'woBushing', 'prl_parts', 'tdr_proc', 'hasTransfers',
-            'hasMissingParts', 'missingCondition', 'orderedPartsCount', 'hasOrderedParts', 'hasProcessFormTdrs'
+            'hasMissingParts', 'missingCondition', 'orderedPartsCount', 'hasOrderedParts', 'hasProcessFormTdrs',
+            'hasExtraProcessRecords', 'hasExtraProcessRecordsMoreThanOne'
         );
     }
 

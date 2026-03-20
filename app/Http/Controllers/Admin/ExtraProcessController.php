@@ -732,6 +732,86 @@ class ExtraProcessController extends Controller
     }
 
     /**
+     * Return partial HTML for Extra Part Processes tab (AJAX).
+     *
+     * @param  int  $id  Workorder ID
+     * @return Application|Factory|View
+     */
+    public function extraProcessesPartial($workorder_id)
+    {
+        $current_wo = Workorder::findOrFail($workorder_id);
+        $extra_components = ExtraProcess::where('workorder_id', $current_wo->id)
+            ->with(['component', 'workorder'])
+            ->get();
+
+        $processGroups = [];
+        foreach ($extra_components as $extra_component) {
+            if (!$extra_component->processes || !$extra_component->component) {
+                continue;
+            }
+            if (is_array($extra_component->processes) && array_keys($extra_component->processes) !== range(0, count($extra_component->processes) - 1)) {
+                foreach ($extra_component->processes as $processNameId => $processId) {
+                    $processName = ProcessName::find($processNameId);
+                    if ($processName) {
+                        $groupKey = ($processName->process_sheet_name == 'NDT') ? 'NDT_GROUP' : $processNameId;
+                        if (!isset($processGroups[$groupKey])) {
+                            if ($groupKey == 'NDT_GROUP') {
+                                $ndtProcessName = ProcessName::where('process_sheet_name', 'NDT')->first();
+                                $processGroups[$groupKey] = ['process_name' => $ndtProcessName ?? $processName, 'components_qty' => [], 'components' => []];
+                            } else {
+                                $processGroups[$groupKey] = ['process_name' => $processName, 'components_qty' => [], 'components' => []];
+                            }
+                        }
+                        $processGroups[$groupKey]['components_qty'][$extra_component->component->id] = (int)($extra_component->qty ?? 0);
+                        if (!isset($processGroups[$groupKey]['components'][$extra_component->component->id])) {
+                            $processGroups[$groupKey]['components'][$extra_component->component->id] = [
+                                'id' => $extra_component->component->id,
+                                'name' => $extra_component->component->name,
+                                'ipl_num' => $extra_component->component->ipl_num,
+                                'qty' => (int)($extra_component->qty ?? 0)
+                            ];
+                        }
+                    }
+                }
+            } else {
+                foreach ($extra_component->processes as $processItem) {
+                    $processName = ProcessName::find($processItem['process_name_id']);
+                    if ($processName) {
+                        $groupKey = ($processName->process_sheet_name == 'NDT') ? 'NDT_GROUP' : $processItem['process_name_id'];
+                        if (!isset($processGroups[$groupKey])) {
+                            if ($groupKey == 'NDT_GROUP') {
+                                $ndtProcessName = ProcessName::where('process_sheet_name', 'NDT')->first();
+                                $processGroups[$groupKey] = ['process_name' => $ndtProcessName ?? $processName, 'components_qty' => [], 'components' => []];
+                            } else {
+                                $processGroups[$groupKey] = ['process_name' => $processName, 'components_qty' => [], 'components' => []];
+                            }
+                        }
+                        $processGroups[$groupKey]['components_qty'][$extra_component->component->id] = (int)($extra_component->qty ?? 0);
+                        if (!isset($processGroups[$groupKey]['components'][$extra_component->component->id])) {
+                            $processGroups[$groupKey]['components'][$extra_component->component->id] = [
+                                'id' => $extra_component->component->id,
+                                'name' => $extra_component->component->name,
+                                'ipl_num' => $extra_component->component->ipl_num,
+                                'qty' => (int)($extra_component->qty ?? 0)
+                            ];
+                        }
+                    }
+                }
+            }
+        }
+        foreach ($processGroups as $processNameId => &$group) {
+            $group['count'] = count(array_keys($group['components_qty']));
+            $group['qty'] = array_sum($group['components_qty']);
+            $group['components'] = array_values($group['components']);
+            unset($group['components_qty']);
+        }
+
+        $vendors = Vendor::all();
+
+        return view('admin.tdrs.partials.extra-part-processes', compact('current_wo', 'extra_components', 'processGroups', 'vendors'));
+    }
+
+    /**
      * Display grouped forms for all extra processes by process name.
      *
      * @param  int  $id
@@ -1164,6 +1244,25 @@ class ExtraProcessController extends Controller
         $vendors = Vendor::all();
 
         return view('admin.extra_processes.processes', compact('current_wo', 'component', 'extra_process', 'allProcesses', 'vendors'));
+    }
+
+    /**
+     * Return processes body partial for Extra Processes tab (AJAX).
+     *
+     * @param  int  $workorderId
+     * @param  int  $componentId
+     * @return Application|Factory|View
+     */
+    public function processesPartial($workorderId, $componentId)
+    {
+        $current_wo = Workorder::findOrFail($workorderId);
+        $component = Component::findOrFail($componentId);
+        $extra_process = ExtraProcess::where('workorder_id', $workorderId)
+            ->where('component_id', $componentId)
+            ->first();
+        $vendors = Vendor::all();
+
+        return view('admin.extra_processes.partials.processes-body', compact('current_wo', 'component', 'extra_process', 'vendors'));
     }
 
     /**

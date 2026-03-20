@@ -374,6 +374,51 @@
     </div>
 </div>
 
+{{-- Edit Extra Process Modal (iframe) --}}
+<div class="modal fade" id="editExtraProcessModal" tabindex="-1" aria-labelledby="editExtraProcessModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg" style="max-width: 880px; width: 95%; height: 80vh;">
+        <div class="modal-content bg-gradient" style="height: 80vh;">
+            <div class="modal-header">
+                <h5 class="modal-title" id="editExtraProcessModalLabel">{{ __('Edit Extra Component') }}</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body p-0 overflow-hidden" style="height: calc(80vh - 60px);">
+                <iframe id="editExtraProcessIframe" src="about:blank" style="width: 100%; height: 100%; border: none;"></iframe>
+            </div>
+        </div>
+    </div>
+</div>
+
+{{-- Add Extra Part Modal (iframe) - create new extra part --}}
+<div class="modal fade" id="addExtraPartModal" tabindex="-1" aria-labelledby="addExtraPartModalLabel" aria-hidden="true">
+    <div class="modal-dialog" style="max-width: 900px; width: 95%; height: 85vh;">
+        <div class="modal-content bg-gradient" style="height: 85vh;">
+            <div class="modal-header">
+                <h5 class="modal-title" id="addExtraPartModalLabel">{{ __('Add Extra Part') }}</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body p-0 overflow-hidden" style="height: calc(85vh - 60px);">
+                <iframe id="addExtraPartIframe" src="about:blank" style="width: 100%; height: 100%; border: none;"></iframe>
+            </div>
+        </div>
+    </div>
+</div>
+
+{{-- Add Extra Process Modal (iframe) --}}
+<div class="modal fade" id="addExtraProcessModal" tabindex="-1" aria-labelledby="addExtraProcessModalLabel" aria-hidden="true">
+    <div class="modal-dialog" style="max-width: 880px; width: 95%; height: 80vh;">
+        <div class="modal-content bg-gradient" style="height: 80vh;">
+            <div class="modal-header">
+                <h5 class="modal-title" id="addExtraProcessModalLabel">{{ __('Add Extra Process') }}</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body p-0 overflow-hidden" style="height: calc(80vh - 60px);">
+                <iframe id="addExtraProcessIframe" src="about:blank" style="width: 100%; height: 100%; border: none;"></iframe>
+            </div>
+        </div>
+    </div>
+</div>
+
 {{-- Component Inspection Edit Modal (content loaded via AJAX) --}}
 <div class="modal fade" id="editTdrModal" tabindex="-1" aria-labelledby="editTdrModalLabel" aria-hidden="true">
     <div class="modal-dialog modal-lg modal-dialog-scrollable">

@@ -208,10 +208,18 @@
     </div>
 
     <div class="row ">
+        @if(Auth::user()->role?->name === 'Shop Certifying Authority (SCA)')
+            <div class="col-9 border-all pt-1 text-left topic-content-2">
+                <h6>1.  All Work Order (WO) sheets are identified with the WO number;</h6>
+                <h6>2.  All WO stamp areas applicable to all stages of work are stamped as required or crossed out as "N/A", and All stamp impressions are legible and free from defects.</h6>
+            </div>
+        @else
         <div class="col-9 border-all pt-1 text-left topic-content-2">
             <h6>1. Introduction, Description and Operation;</h6>
             <h6>2. Testing and Fault Isolation;</h6>
         </div>
+        @endif
+
         <div class="col-2 border-t-b pt-3 text-center hrs-topic-1">
             <h5>{{ $training->form_type == 112 && ($training->date_training  == $earliestTrainingDate || ($previousTrainingDate
              && \Carbon\Carbon::parse($training->date_training)->diffInDays(\Carbon\Carbon::parse($previousTrainingDate)) >=
@@ -241,11 +249,19 @@
     </div>
 
     <div class="row ">
-        <div class="col-9 border-all pt-1 text-left topic-content-2">
-            <h6>3. Disassembly; </h6>
-            <h6>4. Cleaning;</h6>
-            <h6>5. Check;</h6>
-        </div>
+        @if(Auth::user()->role?->name === 'Shop Certifying Authority (SCA)')
+            <div class="col-9 border-all pt-1 text-left topic-content-2">
+                <h6>3.WO Cover Sheet (Form # 001): All areas applicable to this stage of work are completed; </h6>
+                <h6>4. WO Process Sheet (Form # 002): All areas applicable to this stage of work are completed. </h6>
+
+            </div>
+        @else
+            <div class="col-9 border-all pt-1 text-left topic-content-2">
+                <h6>3. Disassembly; </h6>
+                <h6>4. Cleaning;</h6>
+                <h6>5. Check;</h6>
+            </div>
+        @endif
         <div class="col-2 border-t-b pt-4 text-center hrs-topic-1">
             <h5>{{ $training->form_type == 112 && ($training->date_training == $earliestTrainingDate || ($previousTrainingDate && \Carbon\Carbon::parse($training->date_training)->diffInDays(\Carbon\Carbon::parse($previousTrainingDate)) >= 365)) ? $training->manual->training_hours : 2 }}</h5>
         </div>
@@ -273,10 +289,17 @@
     </div>
 
     <div class="row ">
+        @if(Auth::user()->role?->name === 'Shop Certifying Authority (SCA)')
         <div class="col-9 border-all pt-1 text-left topic-content-2">
-            <h6>6. Fits and Clearance;</h6>
-            <h6>7. Repair;</h6>
+            <h6>5. Teardown Report (form # 003): All areas applicable to this stage of work are completed;    </h6>
+            <h6>6. In-Process Check Sheet (Form # 004): All tasks for all stages are completed and stamped as required. </h6>
         </div>
+        @else
+            <div class="col-9 border-all pt-1 text-left topic-content-2">
+                <h6>6. Fits and Clearance;</h6>
+                <h6>7. Repair;</h6>
+            </div>
+        @endif
         <div class="col-2 border-t-b pt-3 text-center hrs-topic">
             <h5>{{ $training->form_type == 112 && ($training->date_training == $earliestTrainingDate || ($previousTrainingDate && \Carbon\Carbon::parse($training->date_training)->diffInDays(\Carbon\Carbon::parse($previousTrainingDate)) >= 365)) ?
             $training->manual->training_hours
@@ -301,10 +324,17 @@
     </div>
 
     <div class="row ">
-        <div class="col-9 border-all pt-1 text-left topic-content-2">
-            <h6>8. Service Bulletins;</h6>
-            <h6>9. Assembly;</h6>
-        </div>
+        @if(Auth::user()->role?->name === 'Shop Certifying Authority (SCA)')
+            <div class="col-9 border-all pt-1 text-left topic-content-2">
+                <h6>7. Service Bulletin Log (Form # 009): is completed and stamped as required;</h6>
+                <h6>8. Replacement Parts List (Form # 028): Any parts not required are crossed out as N/A and initiated by the technician. All replaced parts are have a certificateion number</h6>
+            </div>
+        @else
+            <div class="col-9 border-all pt-1 text-left topic-content-2">
+                <h6>8. Service Bulletins;</h6>
+                <h6>9. Assembly;</h6>
+            </div>
+        @endif
         <div class="col-2 border-t-b pt-3 text-center hrs-topic">
             <h5>{{ $training->form_type == 112 && ($training->date_training == $earliestTrainingDate || ($previousTrainingDate && \Carbon\Carbon::parse($training->date_training)->diffInDays(\Carbon\Carbon::parse($previousTrainingDate)) >= 365)) ? $training->manual->training_hours : 2 }}</h5>
         </div>
@@ -327,10 +357,18 @@
     </div>
 
     <div class="row ">
-        <div class="col-9 border-all pt-1 text-left topic-content-2">
-            <h6>10. Special Tools, Fixtures and Equipment;</h6>
-            <h6>11. Final Check.</h6>
-        </div>
+        @if(Auth::user()->role?->name === 'Shop Certifying Authority (SCA)')
+            <div class="col-9 border-all pt-1 text-left topic-content-2">
+                <h6>9. Special Service Paperwork: Completed paperwork and certification for all outside services performed are filed in the work order envelop;</h6>
+                <h6>10. Acceptance Test Procedure Sheets: Completed ATP must be included in the work order package. The technician conducting the test stamped the final page of the test package after successful completion.</h6>
+                <h6>11. Visual inspection and maintenance release documentation. </h6>
+            </div>
+        @else
+            <div class="col-9 border-all pt-1 text-left topic-content-2">
+                <h6>10. Special Tools, Fixtures and Equipment;</h6>
+                <h6>11. Final Check.</h6>
+            </div>
+        @endif
         <div class="col-2 border-t-b pt-3 text-center hrs-topic">
             <h5>{{ $training->form_type == 112 && ($training->date_training == $earliestTrainingDate || ($previousTrainingDate && \Carbon\Carbon::parse($training->date_training)->diffInDays(\Carbon\Carbon::parse($previousTrainingDate)) >= 365)) ? $training->manual->training_hours : 2 }}</h5>
         </div>

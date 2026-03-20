@@ -1,4 +1,4 @@
-@extends('admin.master')
+@extends(request()->query('modal') ? 'admin.master-embed' : 'admin.master')
 
 @section('content')
     <style>
@@ -65,9 +65,10 @@
 
     <div class="container mt-3">
         <div class="card bg-gradient">
+            @if(!request()->query('modal'))
             <div class="card-header">
                 <div class="d-flex justify-content-between">
-                    <h4 class="text-primary">{{__('Add Extra Part Processes')}}</h4>
+                    <h4 class="text-primary">{{ __('Add Extra Part Processes') }}</h4>
                 </div>
                 <div class="d-flex justify-content-between align-items-center position-relative">
                     <h4 class="text-primary"> {{__('Work Order')}} {{$current_wo->number}}</h4>
@@ -83,6 +84,16 @@
                     </div>
                 </div>
             </div>
+            @else
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="text-primary mb-0">{{__('Work Order')}} {{$current_wo->number}}</h5>
+                <div class="d-flex gap-2">
+                    <button class="btn btn-outline-primary btn-sm" type="button" id="add-process">{{ __('Add Process') }}</button>
+                    <button type="submit" form="createForm" class="btn btn-outline-primary btn-sm" disabled>{{ __('Save') }}</button>
+                    <button type="button" class="btn btn-outline-secondary btn-sm" id="addExtraPartCancelBtn">{{ __('Cancel') }}</button>
+                </div>
+            </div>
+            @endif
             <div class="card-body">
                 <form id="createForm" role="form" method="POST" action="{{route('extra_processes.store')}}" class="createForm">
                     @csrf
@@ -357,6 +368,14 @@
 
 @section('scripts')
     <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            var cancelBtn = document.getElementById('addExtraPartCancelBtn');
+            if (cancelBtn && window.parent !== window) {
+                cancelBtn.addEventListener('click', function() {
+                    window.parent.postMessage({ type: 'addExtraPartCancel' }, '*');
+                });
+            }
+        });
         // Инициализация select2 для выбора компонента
         $(document).ready(function() {
             // Устанавливаем значение по умолчанию для Manual
@@ -647,7 +666,10 @@
                     if (data.message) {
                         alert(data.message);
                     }
-                    if (data.redirect) {
+                    var inModal = {{ request()->query('modal') ? 'true' : 'false' }};
+                    if (data.success && inModal && window.parent !== window) {
+                        window.parent.postMessage({ type: 'addExtraPartSuccess', workorderId: workorderId }, '*');
+                    } else if (data.redirect) {
                         window.location.href = data.redirect;
                     }
                 })
