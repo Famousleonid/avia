@@ -150,7 +150,9 @@ Route::group(['middleware' => ['auth']], function () {
 
         Route::get('tdrs/create/{id}', [TdrController::class, 'create'])->name('tdrs.create');
         Route::get('tdrs/edit/{id}', [TdrController::class, 'edit'])->name('tdrs.edit');
+        Route::get('tdrs/edit-form/{id}', [TdrController::class, 'editForm'])->name('tdrs.editForm');
         Route::get('tdrs/show/{id}', [TdrController::class, 'show'])->name('tdrs.show');
+        Route::get('tdrs/show2/{id}', [TdrController::class, 'show2'])->name('tdrs.show2');
         Route::get('tdrs/processes/{workorder_id}',[TdrController::class, 'processes'])->name('tdrs.processes');
         Route::get('tdrs/{id}/group-forms/{processNameId}', [TdrController::class, 'showGroupForms'])->name('tdrs.show_group_forms');
         Route::get('/tdrs/inspection/{workorder_id}',[TdrController::class, 'inspection'])->name('tdrs.inspection');
@@ -158,6 +160,9 @@ Route::group(['middleware' => ['auth']], function () {
         Route::get('log_card/logCardForm/{id}', [LogCardController::class, 'logCardForm'])->name('log_card.logCardForm');
         Route::get('tdrs/woProcessForm/{id}', [TdrController::class, 'wo_Process_Form'])->name('tdrs.woProcessForm');
         Route::get('tdrs/woBoxTitle/{id}', [TdrController::class, 'wo_BoxTitle'])->name('tdrs.wo_BoxTitle');
+
+    Route::get('tdrs/processes-partial/{workorder_id}', [TdrController::class, 'processesPartial'])->name('tdrs.processesPartial');
+
 
         Route::get('/tdrs/inspection/unit/{workorder_id}', [TdrController::class, 'inspectionUnit'])->name('tdrs.inspection.unit');
         Route::get('/tdrs/inspection/component/{workorder_id}', [TdrController::class, 'inspectionComponent'])->name('tdrs.inspection.component');
@@ -270,6 +275,8 @@ Route::group(['middleware' => ['auth']], function () {
 
     Route::get('/tdr/{tdrId}/create-processes', [TdrProcessController::class, 'createProcesses'])->name('tdr-processes.createProcesses');
     Route::get('/tdr/{tdrId}/processes', [TdrProcessController::class, 'processes'])->name('tdr-processes.processes');
+    Route::get('/tdr/{tdrId}/processes-body', [TdrProcessController::class, 'processesBodyPartial'])->name('tdr-processes.processesBody');
+    Route::get('tdr-processes/edit-form/{id}', [TdrProcessController::class, 'editFormPartial'])->name('tdr-processes.editForm');
     Route::get('/tdr/{tdrId}/package-forms', [TdrProcessController::class, 'packageForms'])->name('tdr-processes.packageForms');
     Route::get('/tdr/{tdrId}/traveler', [TdrProcessController::class, 'traveler'])->name('tdr-processes.traveler');
     Route::get('/get-process/{processNameId}', [TdrProcessController::class, 'getProcess'])->name('tdr-processes.get-process');

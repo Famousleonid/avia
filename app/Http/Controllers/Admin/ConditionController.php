@@ -171,7 +171,7 @@ class ConditionController extends Controller
      * @param  int  $id
      * @return \Illuminate\Http\JsonResponse
      */
-    public function destroy($id)
+    public function destroy(Request $request, $id)
     {
         $condition = Condition::findOrFail($id);
 
@@ -194,9 +194,15 @@ class ConditionController extends Controller
 
         $condition->delete();
 
-        return response()->json([
+        $workorderId = $request->query('workorder_id') ?? $request->input('workorder_id');
+        $response = [
             'success' => true,
             'message' => __('Condition deleted successfully.')
-        ]);
+        ];
+        if ($workorderId) {
+            $response['redirect'] = route('tdrs.show2', ['id' => $workorderId]);
+        }
+
+        return response()->json($response);
     }
 }

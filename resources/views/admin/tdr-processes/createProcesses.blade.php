@@ -1,5 +1,4 @@
-
-@extends('admin.master')
+@extends(request()->query('modal') ? 'admin.master-embed' : 'admin.master')
 
 @section('content')
 
@@ -161,7 +160,11 @@
                         <h4 class="pe-3 mb-3">{{ __('W') }}{{ $current_tdr->workorder->number }}</h4>
                         <div>
                             <button type="submit" form="createCPForm" class="btn btn-outline-primary">{{ __('Save') }}</button>
-                            <a href="{{ route('tdr-processes.processes', ['tdrId' => $current_tdr->id]) }}" class="btn btn-outline-secondary">{{ __('Cancel') }}</a>
+                            @if(request()->query('modal'))
+                                <button type="button" class="btn btn-outline-secondary" id="createProcessCancelBtn">{{ __('Cancel') }}</button>
+                            @else
+                                <a href="{{ route('tdr-processes.processes', ['tdrId' => $current_tdr->id]) }}" class="btn btn-outline-secondary">{{ __('Cancel') }}</a>
+                            @endif
                         </div>
                         </div>
                 </div>
@@ -295,6 +298,19 @@
     </div>
 
     <script>
+        var CREATE_PROCESS_IN_MODAL = window.location.search.indexOf('modal=1') >= 0;
+        if (CREATE_PROCESS_IN_MODAL) {
+            document.addEventListener('DOMContentLoaded', function() {
+                var cancelBtn = document.getElementById('createProcessCancelBtn');
+                if (cancelBtn) {
+                    cancelBtn.addEventListener('click', function() {
+                        if (window.parent !== window) {
+                            window.parent.postMessage({ type: 'createProcessCancel' }, '*');
+                        }
+                    });
+                }
+            });
+        }
         // Универсальная функция для получения id выбранного Process Name
         // Параметр: element - элемент select или строка process-row
         function getSelectedProcessNameId(element) {
@@ -611,8 +627,10 @@
                     if (data.message) {
                         showNotification(data.message, 'success');
                     }
-                    // Если есть URL для перенаправления, выполняем редирект
-                    if (data.redirect) {
+                    var tdrId = document.querySelector('input[name="tdrs_id"]')?.value;
+                    if (CREATE_PROCESS_IN_MODAL && window.parent !== window && tdrId) {
+                        window.parent.postMessage({ type: 'createProcessSuccess', tdrId: tdrId }, '*');
+                    } else if (data.redirect) {
                         window.location.href = data.redirect;
                     }
                 })

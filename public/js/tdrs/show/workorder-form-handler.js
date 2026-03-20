@@ -9,10 +9,7 @@ const WorkOrderFormHandler = {
      */
     init() {
         const form = document.getElementById('updateWorkOrderForm');
-        if (!form) {
-            console.warn('Work Order form not found');
-            return;
-        }
+        if (!form) return;
 
         form.addEventListener('submit', this.handleSubmit.bind(this));
     },
@@ -26,10 +23,10 @@ const WorkOrderFormHandler = {
 
         const form = event.target;
         const formData = new FormData(form);
-        
+
         // Получаем маршрут из data-атрибута формы
         const inspectionRoute = form.dataset.inspectionRoute;
-        
+
         if (!inspectionRoute) {
             console.error('Inspection route not found');
             showNotification('Inspection route missing', 'error');
@@ -40,7 +37,7 @@ const WorkOrderFormHandler = {
         if (typeof showLoadingSpinner === 'function') {
             showLoadingSpinner();
         }
-        
+
         fetch(inspectionRoute, {
             method: 'POST',
             headers: {

@@ -69,7 +69,8 @@ class TdrController extends Controller
      * Рассчитывает пагинацию компонентов с учетом manual-строк и пустых строк
      *
      * @param array $components Массив компонентов
-     * @param int $targetRows Целевое количество строк на странице (включая manual и пустые)
+     * @param int $targetRows Целевое количество строк на странице (включая
+     *     manual и пустые)
      * @return array Массив chunks, каждый chunk содержит:
      *   - 'components': массив компонентов
      *   - 'manual_rows': количество manual-строк
@@ -144,7 +145,8 @@ class TdrController extends Controller
     }
 
     /**
-     * Рассчитывает информацию о chunk: количество manual-строк, data-строк и пустых строк
+     * Рассчитывает информацию о chunk: количество manual-строк, data-строк и
+     * пустых строк
      *
      * @param array $chunk Массив компонентов в chunk
      * @param int $targetRows Целевое количество строк
@@ -364,8 +366,9 @@ class TdrController extends Controller
                     $workorder->save();
                 }
 
+                $redirectRoute = $request->input('return_to') === 'show2' ? 'tdrs.show2' : 'tdrs.show';
                 return redirect()
-                    ->route('tdrs.show', ['id' => $workorder->id])
+                    ->route($redirectRoute, ['id' => $workorder->id])
                     ->with('success', __('TDR records created successfully'));
             } catch (\Exception $e) {
                 return redirect()->back()
@@ -543,8 +546,9 @@ class TdrController extends Controller
             }
         }
 
+        $redirectRoute = $request->input('return_to') === 'show2' ? 'tdrs.show2' : 'tdrs.show';
         return redirect()
-            ->route('tdrs.show', ['id' => $workorder->id])
+            ->route($redirectRoute, ['id' => $workorder->id])
             ->with('success', 'TDR record created successfully');
     }
     public function store_old(Request $request)
@@ -774,7 +778,9 @@ class TdrController extends Controller
      * @return Application|Factory|View
      */
 
-    public function processes($id)
+
+
+    public function processesPartial($id)
     {
 
         $current_wo = Workorder::findOrFail($id);
@@ -887,6 +893,133 @@ class TdrController extends Controller
             // Преобразуем массив компонентов в обычный массив для удобства в представлении
             $group['components'] = array_values($group['components']);
             unset($group['components_qty']); // Удаляем техническое поле
+        }
+
+        return view('admin.tdrs.partials.all-parts-processes', compact('current_wo',
+            'tdrs','components',
+            'manuals','tdrProcesses','proces','vendors','processGroups','totalQty'
+        ));
+    }
+
+    public function processes(Request $request, $id)
+    {
+
+        $current_wo = Workorder::findOrFail($id);
+        $manual_id = $current_wo->unit->manual_id;
+        $necessary = Necessary::where('name', 'Order New')->first();
+
+        $manuals = Manual::all();  // или можно отфильтровать только тот, который связан с unit
+
+        // Извлекаем компоненты, которые связаны с этим manual_id
+        $components = Component::where('manual_id', $manual_id)->get();
+
+        // Ограничиваем процессы только текущим Workorder: берём id связанных TDR
+        $tdrIds = Tdr::where('workorder_id', $current_wo->id)
+            ->pluck('id');
+
+        // Загружаем только процессы для этих TDR, с сортировкой и названием процесса
+        $tdrProcesses = TdrProcess::whereIn('tdrs_id', $tdrIds)
+            ->with('processName')
+            ->orderBy('sort_order')
+            ->get();
+
+        $proces = Process::all()->keyBy('id');
+        $vendors = Vendor::all();
+
+        $tdrs = Tdr::where('workorder_id', $current_wo->id)
+            ->where('component_id', '!=',null)
+            ->when($necessary, function ($query) use ($necessary) {
+                return $query->where('necessaries_id', '!=', $necessary->id);
+            })
+            ->where('use_process_forms', true)
+            ->with('component')
+            ->get();
+
+        // Группируем процессы для создания кнопок групповых форм
+        $processGroups = [];
+        $totalQty = 0;
+
+        foreach ($tdrs as $tdr) {
+            if (!$tdr->component) {
+                continue;
+            }
+
+            // Получаем все процессы для этого TDR
+            $tdrProcessesForTdr = $tdrProcesses->where('tdrs_id', $tdr->id);
+
+            foreach ($tdrProcessesForTdr as $tdrProcess) {
+                if (!$tdrProcess->processName) {
+                    continue;
+                }
+
+                $processName = $tdrProcess->processName;
+                // Используем processNameId как ключ группы для всех процессов, включая NDT
+                // Это позволяет разделять NDT-1, NDT-4 и другие типы NDT в отдельные группы
+                $groupKey = $processName->id;
+
+                if (!isset($processGroups[$groupKey])) {
+                    $processGroups[$groupKey] = [
+                        'process_name' => $processName,
+                        'components_qty' => [],
+                        'components' => []
+                    ];
+                }
+
+                // Добавляем/обновляем количество по компоненту (для TDR обычно qty = 1, но можно использовать serial_number)
+                $qty = 1; // По умолчанию 1, можно изменить если есть поле qty в TDR
+
+                // Создаем составной ключ для группировки: ipl_num + part_number + serial_number
+                // Это позволяет различать компоненты с одинаковыми ipl_num и part_number, но разными serial_number
+                $componentKey = sprintf(
+                    '%s_%s_%s',
+                    $tdr->component->ipl_num ?? '',
+                    $tdr->component->part_number ?? '',
+                    $tdr->serial_number ?? ''
+                );
+
+                $processGroups[$groupKey]['components_qty'][$componentKey] =
+                    ($processGroups[$groupKey]['components_qty'][$componentKey] ?? 0) + $qty;
+
+                // Сохраняем информацию о компоненте
+                if (!isset($processGroups[$groupKey]['components'][$componentKey])) {
+                    $processGroups[$groupKey]['components'][$componentKey] = [
+                        'id' => $tdr->component->id,
+                        'name' => $tdr->component->name,
+                        'ipl_num' => $tdr->component->ipl_num,
+                        'part_number' => $tdr->component->part_number,
+                        'serial_number' => $tdr->serial_number,
+                        'tdr_id' => $tdr->id, // Добавляем TDR ID для точной фильтрации
+                        'qty' => $qty
+                    ];
+                } else {
+                    // Обновляем qty если компонент уже есть
+                    $processGroups[$groupKey]['components'][$componentKey]['qty'] += $qty;
+                    // Если TDR ID еще не сохранен, добавляем его
+                    if (!isset($processGroups[$groupKey]['components'][$componentKey]['tdr_ids'])) {
+                        $processGroups[$groupKey]['components'][$componentKey]['tdr_ids'] = [];
+                    }
+                    $processGroups[$groupKey]['components'][$componentKey]['tdr_ids'][] = $tdr->id;
+                }
+
+                $totalQty += $qty;
+            }
+        }
+
+        // Подсчитываем уникальные компоненты и суммы qty для каждого процесса
+        foreach ($processGroups as $processNameId => &$group) {
+            $componentsQty = $group['components_qty'];
+            $uniqueComponents = array_keys($componentsQty);
+            $group['count'] = count($uniqueComponents);
+            $group['qty'] = array_sum($componentsQty);
+            // Преобразуем массив компонентов в обычный массив для удобства в представлении
+            $group['components'] = array_values($group['components']);
+            unset($group['components_qty']); // Удаляем техническое поле
+        }
+
+        if ($request->ajax() || $request->wantsJson()) {
+            return view('admin.tdrs.partials.all-parts-processes', compact('current_wo',
+                'tdrs','components',
+                'manuals','tdrProcesses','proces','vendors','processGroups','totalQty' ));
         }
 
         return view('admin.tdrs.processes', compact('current_wo',
@@ -1118,37 +1251,50 @@ class TdrController extends Controller
 
     public function show($id)
     {
+        return view('admin.tdrs.show', $this->getShowData($id));
+    }
+
+    /**
+     * Display TDR Report - alternative layout (show2) with tabs.
+     *
+     * @param int $id Workorder ID
+     * @return Application|Factory|View
+     */
+    public function show2($id)
+    {
+        $viewData = $this->getShowData($id);
+        return view('admin.tdrs.show2', $viewData);
+    }
+
+    /**
+     * Prepare data for TDR show/show2 views.
+     *
+     * @param int $id Workorder ID
+     * @return array
+     */
+    private function getShowData($id)
+    {
         $current_wo = Workorder::with(['unit.manuals.builder', 'instruction'])->findOrFail($id);
         $units = Unit::all();
         $user = Auth::user();
-
         $user_wo = $current_wo->user_id;
         $customers = Customer::all();
-
-
-        // Получаем manual_id из связанного unit
         $manual_id = $current_wo->unit->manual_id;
 
         $form_type = 112;
         $trainings = Training::where('manuals_id', $manual_id)
-            ->where('user_id',$user_wo)
-            ->where('form_type',$form_type)
-            ->orderBy('date_training', 'desc')  // Сортирует по id по убыванию
-            ->first();  // Получает первую (самую последнюю) запись
+            ->where('user_id', $user_wo)
+            ->where('form_type', $form_type)
+            ->orderBy('date_training', 'desc')
+            ->first();
 
-        // Извлекаем все manuals для отображения
         $manuals = Manual::all();
-
         $log_card = LogCard::where('workorder_id', $current_wo->id)->first();
         $woBushing = WoBushing::where('workorder_id', $current_wo->id)->first();
-
-        // Извлекаем компоненты, которые связаны с этим manual_id
         $components = Component::where('manual_id', $manual_id)->get();
         $code = Code::where('name', 'Missing')->first();
-
         $missingCondition = Condition::where('name', 'PARTS MISSING UPON ARRIVAL AS INDICATED ON PARTS LIST')->first();
         $conditions = Condition::all();
-
         $necessary = Necessary::where('name', 'Order New')->first();
 
         $processParts = Tdr::where('workorder_id', $current_wo->id)
@@ -1161,12 +1307,10 @@ class TdrController extends Controller
             }])
             ->get();
 
-        // TDR с use_process_forms=true — источник данных для SP Form (specProcessForm/specProcessFormEmp)
         $hasProcessFormTdrs = Tdr::where('workorder_id', $current_wo->id)
             ->where('use_process_forms', true)
             ->exists();
 
-        // Проверка наличия записей с codes_id=Missing для данного workorder
         $hasMissingParts = false;
         if ($code) {
             $hasMissingParts = Tdr::where('workorder_id', $current_wo->id)
@@ -1174,16 +1318,9 @@ class TdrController extends Controller
                 ->exists();
         }
 
-        // Unit Inspections:
-        // 1. Записи с component_id=null (обычные unit inspections)
-        // 2. Записи компонентов с codes_id != Missing и necessaries_id = Order New
-        // Записи компонентов с missing НЕ включаются в $inspectsUnit - они отображаются отдельной строкой
         $inspectsUnit = Tdr::where('workorder_id', $current_wo->id)
             ->where(function($query) use ($code, $necessary) {
-                // Обычные unit inspections (component_id = null)
                 $query->whereNull('component_id');
-
-                // ИЛИ записи компонентов с codes_id != Missing и necessaries_id = Order New
                 if ($code && $necessary) {
                     $query->orWhere(function($q) use ($code, $necessary) {
                         $q->whereNotNull('component_id')
@@ -1193,36 +1330,23 @@ class TdrController extends Controller
                 }
             })
             ->with([
-                'conditions' => function($query) {
-                    $query->select('id', 'name');
-                },
-                'necessaries' => function($query) {
-                    $query->select('id', 'name');
-                },
-                'component' => function($query) {
-                    $query->select('id', 'name', 'ipl_num');
-                }
+                'conditions' => function($query) { $query->select('id', 'name'); },
+                'necessaries' => function($query) { $query->select('id', 'name'); },
+                'component' => function($query) { $query->select('id', 'name', 'ipl_num'); }
             ])
             ->get();
 
-
-        // Получаем Missing компоненты (codes_id = 7 или код "Missing")
         $missingParts = Tdr::where('workorder_id', $current_wo->id)
             ->where(function($query) use ($code) {
                 if ($code) {
                     $query->where('codes_id', $code->id);
                 } else {
-                    // Если код не найден, используем ID = 7 напрямую (стандартный ID для Missing)
                     $query->where('codes_id', 7);
                 }
             })
             ->with([
-                'component' => function($query) {
-                    $query->select('id', 'name', 'part_number', 'ipl_num', 'assy_part_number');
-                },
-                'orderComponent' => function($query) {
-                    $query->select('id', 'name', 'part_number', 'ipl_num', 'assy_part_number');
-                }
+                'component' => function($query) { $query->select('id', 'name', 'part_number', 'ipl_num', 'assy_part_number'); },
+                'orderComponent' => function($query) { $query->select('id', 'name', 'part_number', 'ipl_num', 'assy_part_number'); }
             ])
             ->get();
 
@@ -1234,7 +1358,6 @@ class TdrController extends Controller
             }])
             ->get();
 
-        // Ordered Parts: компоненты с Order New (necessaries_id=2), не Missing (codes_id!=7), для строки "Ordered Parts"
         $missingCodeId = $code ? $code->id : 7;
         $orderNewNecessaryId = $necessary ? $necessary->id : 2;
         $orderedPartsTdrs = Tdr::where('workorder_id', $current_wo->id)
@@ -1243,7 +1366,6 @@ class TdrController extends Controller
             ->where('necessaries_id', $orderNewNecessaryId)
             ->get();
         $orderedPartsCount = $orderedPartsTdrs->sum('qty');
-        $missingPartsCount = $missingParts->sum('qty');
         $hasOrderedParts = $orderedPartsCount > 0;
 
         $ordersPartsNew = Tdr::where('workorder_id', $current_wo->id)
@@ -1255,15 +1377,11 @@ class TdrController extends Controller
             }])
             ->get();
 
-        $prl_parts=Tdr::where('workorder_id', $current_wo->id)
+        $prl_parts = Tdr::where('workorder_id', $current_wo->id)
             ->where('necessaries_id', $necessary->id)
             ->with([
-                'component' => function($query) {
-                    $query->select('id', 'name', 'part_number', 'ipl_num');
-                },
-                'orderComponent' => function($query) {
-                    $query->select('id', 'name', 'part_number', 'ipl_num');
-                }
+                'component' => function($query) { $query->select('id', 'name', 'part_number', 'ipl_num'); },
+                'orderComponent' => function($query) { $query->select('id', 'name', 'part_number', 'ipl_num'); }
             ])
             ->get();
 
@@ -1277,28 +1395,25 @@ class TdrController extends Controller
 
         $tdrs = Tdr::where('workorder_id', $current_wo->id)
             ->with([
-                'component' => function($query) {
-                    $query->select('id', 'name', 'part_number', 'ipl_num');
-                },
+                'component' => function($query) { $query->select('id', 'name', 'part_number', 'ipl_num'); },
                 'conditions'
             ])
             ->get();
 
-         $tdr_proc = TdrProcess::where('ec',1)->get();
+        $tdr_proc = TdrProcess::where('ec', 1)->get();
 
-        // Transfers existence flag for current workorder
         $hasTransfers = \App\Models\Transfer::where('workorder_id', $current_wo->id)
             ->orWhere('workorder_source', $current_wo->id)
             ->exists();
 
-        return view('admin.tdrs.show', compact(
+        return compact(
             'current_wo', 'tdrs', 'units', 'components', 'user', 'customers',
             'manuals', 'builders', 'planes', 'instruction', 'necessary',
             'necessaries', 'unit_conditions', 'component_conditions',
             'codes', 'conditions', 'missingParts', 'ordersParts', 'inspectsUnit',
-            'processParts', 'ordersPartsNew','trainings','user_wo', 'manual_id','log_card','woBushing','prl_parts','tdr_proc','hasTransfers',
+            'processParts', 'ordersPartsNew', 'trainings', 'user_wo', 'manual_id', 'log_card', 'woBushing', 'prl_parts', 'tdr_proc', 'hasTransfers',
             'hasMissingParts', 'missingCondition', 'orderedPartsCount', 'hasOrderedParts', 'hasProcessFormTdrs'
-        ));
+        );
     }
 
 
@@ -1337,6 +1452,22 @@ class TdrController extends Controller
     }
 
     /**
+     * Return edit form partial for modal (AJAX).
+     *
+     * @param int $id TDR id
+     * @return \Illuminate\View\View
+     */
+    public function editForm($id)
+    {
+        $current_tdr = Tdr::with(['workorder.unit', 'component'])->findOrFail($id);
+        $codes = Code::all();
+        $necessaries = Necessary::all();
+        $manuals = Manual::all();
+
+        return view('admin.tdrs.partials.component-inspection-edit-form', compact('current_tdr', 'codes', 'necessaries', 'manuals'));
+    }
+
+    /**
      * Update the specified resource in storage.
      *
      * @param \Illuminate\Http\Request $request
@@ -1367,9 +1498,14 @@ class TdrController extends Controller
         // Обновляем запись Tdr
         $tdr->update($validated);
 
+        if ($request->wantsJson() || $request->ajax()) {
+            return response()->json(['success' => true, 'redirect' => route($request->input('return_to') === 'show2' ? 'tdrs.show2' : 'tdrs.show', ['id' => $request->workorder_id])]);
+        }
+
         // Перенаправляем на страницу просмотра с сообщением об успехе
+        $redirectRoute = $request->input('return_to') === 'show2' ? 'tdrs.show2' : 'tdrs.show';
         return redirect()
-            ->route('tdrs.show', ['id' => $request->workorder_id])
+            ->route($redirectRoute, ['id' => $request->workorder_id])
             ->with('success', 'TDR for Component updated successfully');
     }
 
@@ -3662,15 +3798,17 @@ class TdrController extends Controller
             }
         }
 
-        // Перенаправить с сообщением об успехе
-        return redirect()->route('tdrs.show', ['id' => $workorderId])
+        // Перенаправить на show2 (TDR tab)
+        $redirectRoute = request()->input('return_to') === 'show' ? 'tdrs.show' : 'tdrs.show2';
+        return redirect()->route($redirectRoute, ['id' => $workorderId])
             ->with('success', 'Запись успешно удалена.');
     }
 
 
     /**
      * Расчет сумм NDT из данных CSV для рабочего заказа
-     * Использует ту же логику, что и ndtStd: учитывает unitsAssy, excludedQty, tdrQty
+     * Использует ту же логику, что и ndtStd: учитывает unitsAssy, excludedQty,
+     * tdrQty
      *
      * @param int $workorder_id ID рабочего заказа
      * @return array{total: int, mpi: int, fpi: int} Массив с общими суммами,

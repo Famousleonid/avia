@@ -12,7 +12,11 @@
             this.config = config;
             if (!this.config || !document.getElementById('editCPForm')) return;
 
-            document.addEventListener('DOMContentLoaded', () => this.onDomReady());
+            if (document.readyState === 'loading') {
+                document.addEventListener('DOMContentLoaded', () => this.onDomReady());
+            } else {
+                this.onDomReady();
+            }
         },
 
         isNdtProcess(processNameId) {
@@ -48,11 +52,13 @@
             if (typeof $ === 'undefined' || !$.fn.select2 || !processNameSelect) return;
 
             const self = this;
+            const dropdownParent = (this.config && this.config.dropdownParent) || document.body;
             $(processNameSelect).select2({
                 theme: 'bootstrap-5',
                 width: '100%',
                 placeholder: 'Select Process Name',
                 allowClear: false,
+                dropdownParent: $(dropdownParent),
                 templateResult: (data) => (data.id ? data.text : null)
             })
                 .on('select2:select', function (e) {
@@ -89,9 +95,11 @@
             if ($(ndtPlusSelect).hasClass('select2-hidden-accessible')) return;
 
             const self = this;
+            const dropdownParent = (this.config && this.config.dropdownParent) || document.body;
             $(ndtPlusSelect).select2({
                 theme: 'bootstrap-5', width: '100%', multiple: true,
-                placeholder: 'Select Additional NDT Process(es)'
+                placeholder: 'Select Additional NDT Process(es)',
+                dropdownParent: $(dropdownParent)
             }).on('select2:select select2:unselect', function () {
                 self.updatePlusProcess();
                 self.loadNdtPlusProcesses(this);

@@ -873,6 +873,23 @@ class TdrProcessController extends Controller
         ));
     }
 
+    /**
+     * Return processes body partial for modal (AJAX).
+     */
+    public function processesBodyPartial($tdrId)
+    {
+        $current_tdr = Tdr::with(['workorder', 'component'])->findOrFail($tdrId);
+        $current_wo = $current_tdr->workorder_id ? Workorder::find($current_tdr->workorder_id) : null;
+        $tdrProcesses = TdrProcess::where('tdrs_id', $current_tdr->id)->with('processName')->orderBy('sort_order')->get();
+        $proces = Process::all();
+        $vendors = Vendor::all();
+        $ecEligibleProcessNameIds = $this->getEcEligibleProcessNameIds();
+
+        return view('admin.tdr-processes.partials.processes-body', compact(
+            'current_tdr', 'current_wo', 'tdrProcesses', 'proces', 'vendors', 'ecEligibleProcessNameIds'
+        ));
+    }
+
     public function traveler(Request $request, $tdrId)
     {
         // Находим запись Tdr по ID
@@ -942,6 +959,29 @@ class TdrProcessController extends Controller
     }
 
     /**
+     * Return edit form partial for modal (AJAX) or full page for iframe (?modal=1).
+     */
+    public function editFormPartial(Request $request, $id)
+    {
+        $current_tdr_processes = TdrProcess::findOrFail($id);
+        $current_tdr = Tdr::with(['workorder.unit', 'component'])->find($current_tdr_processes->tdrs_id);
+        $current_wo = $current_tdr->workorder;
+        $processNames = ProcessName::orderBy('name')->get();
+        $manual_id = $current_wo->unit->manual_id ?? null;
+        $processes = Process::whereHas('manuals', fn($q) => $q->where('manual_id', $manual_id))->get();
+        $ndtProcessNames = ProcessName::where('name', 'like', 'NDT-%')->get();
+        $ecEligibleProcessNameIds = $this->getEcEligibleProcessNameIds();
+
+        $vars = compact('current_tdr', 'current_wo', 'current_tdr_processes', 'processNames', 'processes', 'ndtProcessNames', 'ecEligibleProcessNameIds');
+
+        if ($request->query('modal')) {
+            return view('admin.tdr-processes.edit-form-modal', $vars);
+        }
+
+        return view('admin.tdr-processes.partials.edit-form', $vars);
+    }
+
+    /**
      * Update the specified resource in storage.
      *
      * @param  \Illuminate\Http\Request  $request
@@ -952,6 +992,15 @@ class TdrProcessController extends Controller
     {
         // Находим запись TdrProcess по ID
         $current_tdr_processes = TdrProcess::findOrFail($id);
+
+        // Нормализация: radio отправляет process как скаляр, валидация ожидает массив
+        $processes = $request->input('processes', []);
+        foreach ($processes as $i => $p) {
+            if (isset($p['process']) && !is_array($p['process'])) {
+                $processes[$i]['process'] = [(int) $p['process']];
+            }
+        }
+        $request->merge(['processes' => $processes]);
 
         // Валидация данных
         $validated = $request->validate([
@@ -1035,7 +1084,9 @@ class TdrProcessController extends Controller
             );
         }
 
-        // Редирект на страницу процессов для конкретного TDR с сообщением об успехе
+        if ($request->wantsJson() || $request->ajax()) {
+            return response()->json(['success' => true, 'tdrId' => $validated['tdrs_id']]);
+        }
         return redirect()->route('tdr-processes.processes', ['tdrId' => $validated['tdrs_id']])
             ->with('success', 'TDR for Component updated successfully');
     }
@@ -1047,7 +1098,7 @@ class TdrProcessController extends Controller
      * @param  int  $id
      * @return \Illuminate\Http\RedirectResponse
      */
-    public function destroy($tdr_process)
+    public function destroy(Request $request, $tdr_process)
     {
         // Получаем tdrId из запроса
         $tdrId = request('tdrId');
@@ -1081,29 +1132,27 @@ class TdrProcessController extends Controller
         // Декодируем JSON-поле processes
         $processData = json_decode($tdrProcess->processes, true);
 
+        $jsonResponse = fn() => $request->wantsJson() || $request->ajax()
+            ? response()->json(['success' => true])
+            : redirect()->route('tdrs.processes', ['workorder_id' => $tdr->workorder->id])->with('success', 'Process deleted successfully.');
+
         // Если processes пустой или не является массивом, удаляем всю запись
         if (!is_array($processData)) {
             $tdrProcess->delete();
-
-            // Если это был Machining, обрабатываем EC запись
+            $isMachining = in_array((int)$tdrProcess->process_names_id, $this->getEcEligibleProcessNameIds());
             if ($isMachining && $processesToRemoveFromEC) {
                 $this->handleEcProcessOnMachiningDelete($tdrId, $processesToRemoveFromEC);
             }
-
-            return redirect()->route('tdrs.processes', ['workorder_id' => $tdr->workorder->id])
-                ->with('success', 'Process deleted successfully.');
+            return $jsonResponse();
         }
 
         // Если processes содержит только одно значение, удаляем всю запись
         if (count($processData) === 1) {
             $tdrProcess->delete();
-
             if ($isEcEligible && $processesToRemoveFromEC) {
                 $this->handleEcProcessOnEcEligibleDelete($tdrId, $processesToRemoveFromEC);
             }
-
-            return redirect()->route('tdrs.processes', ['workorder_id' => $tdr->workorder->id])
-                ->with('success', 'Process deleted successfully.');
+            return $jsonResponse();
         }
 
         // Удаляем значение из массива (приводим типы к int для сравнения)
@@ -1111,17 +1160,14 @@ class TdrProcessController extends Controller
             return (int)$process !== (int)$processToRemove;
         });
 
-        // Обновляем поле processes
-        $tdrProcess->processes = json_encode(array_values($processData)); // Переиндексируем массив
+        $tdrProcess->processes = json_encode(array_values($processData));
         $tdrProcess->save();
 
         if ($isEcEligible && $processesToRemoveFromEC) {
             $this->handleEcProcessOnEcEligibleDelete($tdrId, $processesToRemoveFromEC);
         }
 
-        // Перенаправляем с сообщением об успехе
-        return redirect()->route('tdrs.processes', ['workorder_id' => $tdr->workorder->id])
-            ->with('success', 'Process removed successfully.');
+        return $jsonResponse();
     }
 
     /**
@@ -1135,6 +1181,8 @@ class TdrProcessController extends Controller
      * @param array $ecEligibleIds ID процессов с EC checkbox (Machining, RIL)
      * @param bool $ecChecked Отмечен ли чекбокс EC
      */
+
+
     private function handleEcProcessOnEcEligibleUpdate(
         $tdrId,
         $oldProcessNamesId,

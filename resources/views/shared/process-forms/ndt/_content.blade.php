@@ -118,13 +118,30 @@
     @if(isset($ndt_components))
         @foreach($ndt_components as $component)
             @php
-                $processNumbers = [substr($component->processName->name, -1)];
+                $pn = $component->processName;
+                if ($pn->name === 'Eddy Current Test') {
+                    $processNumbers = ['6'];
+                } elseif ($pn->name === 'BNI') {
+                    $processNumbers = ['5'];
+                } elseif (strpos($pn->name, 'NDT-') === 0) {
+                    $processNumbers = [substr($pn->name, 4)];
+                } else {
+                    $processNumbers = [substr($pn->name, -1)];
+                }
                 if ($component->plus_process) {
                     $plusProcessIds = explode(',', $component->plus_process);
                     foreach ($plusProcessIds as $plusProcessId) {
                         $plusProcessName = \App\Models\ProcessName::find($plusProcessId);
-                        if ($plusProcessName && strpos($plusProcessName->name, 'NDT-') === 0) {
-                            $processNumbers[] = substr($plusProcessName->name, -1);
+                        if ($plusProcessName) {
+                            if ($plusProcessName->name === 'Eddy Current Test') {
+                                $processNumbers[] = '6';
+                            } elseif ($plusProcessName->name === 'BNI') {
+                                $processNumbers[] = '5';
+                            } elseif (strpos($plusProcessName->name, 'NDT-') === 0) {
+                                $processNumbers[] = substr($plusProcessName->name, 4);
+                            } else {
+                                $processNumbers[] = substr($plusProcessName->name, -1);
+                            }
                         }
                     }
                 }
@@ -148,13 +165,21 @@
         @foreach($table_data as $data)
             @php
                 $comp = $data['component'] ?? null;
-                $processNumbers = isset($data['combined_ndt_number']) ? $data['combined_ndt_number'] : '';
-                if (empty($processNumbers) && isset($data['process_name']) && $data['process_name']) {
+                $processNumbers = isset($data['combined_ndt_number']) && $data['combined_ndt_number'] !== '' ? $data['combined_ndt_number'] : '';
+                if ($processNumbers === '' && isset($data['process_name']) && $data['process_name']) {
                     $pn = $data['process_name'];
-                    if (strpos($pn->name, 'NDT-') === 0) { $processNumbers = substr($pn->name, 4); }
-                    elseif ($pn->name === 'Eddy Current Test') { $processNumbers = '6'; }
-                    elseif ($pn->name === 'BNI') { $processNumbers = '5'; }
-                    else { $processNumbers = substr($pn->name, -1); }
+                    $pnName = is_object($pn) ? ($pn->name ?? null) : (is_array($pn) ? ($pn['name'] ?? null) : null);
+                    if ($pnName !== null) {
+                        if (strpos($pnName, 'NDT-') === 0) {
+                            $processNumbers = substr($pnName, 4);
+                        } elseif ($pnName === 'Eddy Current Test') {
+                            $processNumbers = '6';
+                        } elseif ($pnName === 'BNI') {
+                            $processNumbers = '5';
+                        } else {
+                            $processNumbers = substr($pnName, -1);
+                        }
+                    }
                 }
                 $serial = isset($data['extra_process']) ? ($data['extra_process']->serial_num ?? null) : null;
                 $qty = isset($data['extra_process']) ? ($data['extra_process']->qty ?? 1) : ($data['qty'] ?? 1);

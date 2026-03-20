@@ -166,7 +166,7 @@
                                                 @if($process->process_names_id == $currentProcessNameId)
                                                     @php $isChecked = $process->id == $firstProcessId; @endphp
                                                     <div class="form-check" data-process-name-id="{{ $process->process_names_id }}">
-                                                        <input type="radio" name="processes[0][process]" value="{{ $process->id }}" class="form-check-input" id="process_0_{{ $process->id }}"
+                                                        <input type="radio" name="processes[0][process][]" value="{{ $process->id }}" class="form-check-input" id="process_0_{{ $process->id }}"
                                                             {{ $isChecked ? 'checked' : '' }}>
                                                         <label class="form-check-label" for="process_0_{{ $process->id }}">{{ $process->process }}</label>
                                                     </div>

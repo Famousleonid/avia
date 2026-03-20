@@ -140,6 +140,7 @@
                                                 <i class="bi bi-hammer" style="font-size:20px; line-height:0;"></i>
                                             </a>
 
+
                                             {{-- Pictures --}}
                                             <a class="btn btn-outline-info btn-sm open-photo-modal"
                                                data-tippy-content="{{ __('Pictures') }}"
@@ -155,7 +156,17 @@
                                                data-url="{{ route('workorders.logs-json', $current_workorder->id) }}">
                                                 <i class="bi bi-clock-history" style="font-size:18px"></i>
                                             </a>
+                                            {{-- TDR Report 2 --}}
+                                            <a href="{{ route('tdrs.show2', $current_workorder->id) }}"
+                                               class="btn btn-outline-warning ms-2"
+                                               data-tippy-content="{{ __('TDR Report 2') }}"
+                                               onclick="showLoadingSpinner()">
+                                                <i class="bi bi-hammer" style="font-size:20px; line-height:0;"></i>
+                                            </a>
+
+
                                             @endrole
+
 
                                         </div>
 

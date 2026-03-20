@@ -112,7 +112,8 @@
                                 <a href="{{route('tdrs.processes',['workorder_id' => $current_wo->id])}}"
                                    class="btn fs-8 btn-outline-primary "
                                    style="height: 55px;width: 100px; align-content: center;line-height: 1rem"
-                                   onclick="showLoadingSpinner()">
+{{--                                   onclick="showLoadingSpinner()"--}}
+                                >
                                     {{__('All Parts Processes')}}
                                 </a>
                             </div>
@@ -158,8 +159,8 @@
                             <a href="{{route('wo_bushings.show',['wo_bushing' => $current_wo->id])}}"
                                class="btn  fs-8 btn-outline-primary ms-2"
                                style="min-height: 55px;width: 85px ; align-content: center;line-height: 1rem"
-                               onclick="showLoadingSpinner
-                                   ()">
+{{--                               onclick="showLoadingSpinner()"--}}
+                            >
                                 {{__('Bushing Processes')}}
                             </a>
                         </div>
@@ -167,8 +168,8 @@
                             <a href="{{route('rm_reports.show',['rm_report' => $current_wo->id])}}"
                                class="btn  fs-8 btn-outline-primary ms-2 "
                                style="height: 55px;width: 150px; align-content: center;line-height: 1rem"
-                               onclick="showLoadingSpinner
-                                   ()">
+{{--                               onclick="showLoadingSpinner()"--}}
+                            >
                                 {{__('Repair & Modification Record')}}
                             </a>
                         </div>
@@ -496,6 +497,7 @@
                                                               onsubmit="return confirm('Are you sure you want to delete this item?');">
                                                             @csrf
                                                             @method('DELETE')
+                                                            <input type="hidden" name="return_to" value="show">
                                                             <button type="submit"
                                                                     class="btn btn-danger btn-sm">{{__('Delete')}}</button>
                                                         </form>
@@ -557,6 +559,7 @@
                                                               onsubmit="return confirm('Are you sure you want to delete this item?');">
                                                             @csrf
                                                             @method('DELETE')
+                                                            <input type="hidden" name="return_to" value="show">
                                                             <button type="submit"
                                                                     class="btn btn-danger btn-sm">{{__('Delete')}}</button>
                                                         </form>
@@ -625,6 +628,7 @@
                                                                   onsubmit="return confirm('Are you sure you want to delete this item?');">
                                                                 @csrf
                                                                 @method('DELETE')
+                                                                <input type="hidden" name="return_to" value="show">
                                                                 <button type="submit"
                                                                         class="btn btn-danger btn-sm">{{__('Delete')}}</button>
                                                             </form>
@@ -904,6 +908,7 @@
                                                   onsubmit="return confirm('Are you sure you want to delete this item?');">
                                                 @csrf
                                                 @method('DELETE')
+                                                <input type="hidden" name="return_to" value="show">
                                                 <button type="submit" class="btn btn-outline-danger btn-sm ">
                                                     <i class="bi bi-trash"></i>
                                                 </button>
@@ -1027,6 +1032,7 @@
                                                   onsubmit="return confirm('Are you sure you want to delete this item?');">
                                                 @csrf
                                                 @method('DELETE')
+                                                <input type="hidden" name="return_to" value="show">
                                                 <button type="submit" class="btn btn-outline-danger btn-sm">
                                                     <i class="bi bi-trash"></i>
                                                 </button>
@@ -1401,33 +1407,42 @@
                     this.disabled = true;
                     this.innerHTML = '<i class="fas fa-spinner fa-spin"></i> {{ __("Deleting...") }}';
 
-                    fetch(`/admin/conditions/${conditionId}`, {
+                    const workorderId = document.querySelector('#unitInspectionForm input[name="workorder_id"]')?.value || document.querySelector('#addConditionFormFromManage input[name="workorder_id"]')?.value || {{ $current_wo->id }};
+                    const deleteUrl = workorderId ? `/admin/conditions/${conditionId}?workorder_id=${workorderId}` : `/admin/conditions/${conditionId}`;
+                    fetch(deleteUrl, {
                         method: 'DELETE',
                         headers: {
                             'X-CSRF-TOKEN': csrfToken,
                             'Accept': 'application/json'
                         }
                     })
-                        .then(response => response.json())
+                        .then(response => {
+                            if (response.redirected && response.url.includes('/show2/')) {
+                                window.top.location.href = response.url;
+                                return null;
+                            }
+                            if (response.redirected) {
+                                window.top.location.href = '{{ route("tdrs.show2", ["id" => $current_wo->id]) }}';
+                                return null;
+                            }
+                            return response.json();
+                        })
                         .then(data => {
+                            if (!data) return;
                             if (data.success) {
-                                // Remove row
-                                const row = document.querySelector(`tr[data-condition-id="${conditionId}"]`);
-                                if (row) {
-                                    row.remove();
-                                }
-
-                                // Reload page to update unit inspection modal
-                                window.location.reload();
+                                const redirectUrl = data.redirect || '{{ route("tdrs.show2", ["id" => $current_wo->id]) }}';
+                                const manageModalEl = document.getElementById('manageConditionModal');
+                                if (manageModalEl) delete manageModalEl.dataset.returnToModal;
+                                window.top.location.href = redirectUrl;
                             } else {
-                                showNotification(data.message || '{{ __("An error occurred while deleting.") }}', 'error');
+                                (typeof showNotification === 'function' ? (m) => showNotification(m, 'error') : (window.NotificationHandler?.error || alert))(data.message || '{{ __("An error occurred while deleting.") }}');
                                 this.disabled = false;
                                 this.innerHTML = '<i class="fas fa-trash"></i> {{ __("Delete") }}';
                             }
                         })
                         .catch(error => {
                             console.error('Error:', error);
-                            showNotification('{{ __("An error occurred while deleting.") }}', 'error');
+                            (typeof showNotification === 'function' ? (m) => showNotification(m, 'error') : (window.NotificationHandler?.error || alert))('{{ __("An error occurred while deleting.") }}');
                             this.disabled = false;
                             this.innerHTML = '<i class="fas fa-trash"></i> {{ __("Delete") }}';
                         });
@@ -1471,18 +1486,19 @@
                                     addModal.hide();
                                 }
 
-                                // Reload page to update both modals
-                                window.location.reload();
+                                // Redirect to show2 (TDR tab) to stay on correct view
+                                window.location.replace('{{ route("tdrs.show2", ["id" => $current_wo->id]) }}');
                             } else {
-                                showNotification(data.message || '{{ __("An error occurred while saving.") }}', 'error');
+                                (typeof showNotification === 'function' ? (m) => showNotification(m, 'error') : (window.NotificationHandler?.error || alert))(data.message || '{{ __("An error occurred while saving.") }}');
                                 submitBtn.disabled = false;
                                 submitBtn.innerHTML = '{{ __("Save Condition") }}';
                             }
                         })
                         .catch(error => {
                             console.error('Error:', error);
-                            // Even if error, reload to show updated list
-                            window.location.reload();
+                            (typeof showNotification === 'function' ? (m) => showNotification(m, 'error') : (window.NotificationHandler?.error || alert))('{{ __("An error occurred while saving.") }}');
+                            submitBtn.disabled = false;
+                            submitBtn.innerHTML = '{{ __("Save Condition") }}';
                         });
                 });
             }

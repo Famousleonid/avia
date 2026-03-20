@@ -51,6 +51,7 @@
 
                     <input type="hidden" name="workorder_id" value="{{ $current_tdr->workorder->id }}">
                     <input type="hidden" name="use_process_forms" value="{{ $current_tdr->use_process_forms }}">
+                    <input type="hidden" name="return_to" value="{{ request('return_to', '') }}">
 
                     <div class="form-group d-flex justify-content-center">
                         <div class="m-2" style="width: 250px">
@@ -99,7 +100,7 @@
                     </div>
                     <div class="text-end mt-2">
                         <button type="submit" class="btn btn-outline-primary mt-3">{{ __('Update') }}</button>
-                        <a href="{{ route('tdrs.show', ['id'=>$current_tdr->workorder->id]) }}"
+                        <a href="{{ request('return_to') === 'show2' ? route('tdrs.show2', ['id'=>$current_tdr->workorder->id]) : route('tdrs.show', ['id'=>$current_tdr->workorder->id]) }}"
                         class="btn btn-outline-secondary mt-3" >{{ __('Cancel') }}</a>
                     </div>
                 </form>
