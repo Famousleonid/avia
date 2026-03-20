@@ -39,6 +39,7 @@ use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Admin\ManualCsvController;
+use App\Http\Controllers\Admin\AiAgentController;
 
 Auth::routes(['verify' => true]);
 
@@ -353,6 +354,14 @@ Route::group(['middleware' => ['auth']], function () {
     Route::patch('/workorders/{workorder}/storage', [WorkorderController::class, 'updateStorage'])->name('workorders.storage.update');
 
 });
+
+Route::middleware(['auth'])->prefix('admin')->group(function () {
+    Route::get('/ai-agent/history', [AiAgentController::class, 'history'])->name('admin.ai.history');
+    Route::post('/ai-agent/chat', [AiAgentController::class, 'chat'])->name('admin.ai.chat');
+    Route::post('/ai-agent/reset', [AiAgentController::class, 'reset'])->name('admin.ai.reset');
+});
+
+
 
 
 Route::middleware(['auth'])->prefix('admin/messages')->group(function () {

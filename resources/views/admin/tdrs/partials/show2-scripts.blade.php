@@ -30,7 +30,8 @@ document.addEventListener('DOMContentLoaded', function() {
     var addProcessBtn = document.getElementById('compProcessesAddProcessBtn');
     var allPartsProcessesUrl = '{{ route("tdrs.processesPartial", ["workorder_id" => $current_wo->id]) }}';
     var allPartsBody = document.getElementById('allPartsProcessesTabBody');
-    var extraPartsProcessesUrl = '{{ route("extra_processes.partial", ["workorder_id" => $current_wo->id]) }}';
+    {{-- Имя extra_processes.partial: не используем route(), чтобы не падать при устаревшем route:cache; путь совпадает с routes/web.php --}}
+    var extraPartsProcessesUrl = @json(url('/extra_processes/partial/'.$current_wo->id));
     var extraPartsBody = document.getElementById('extraPartsProcessesTabBody');
     var extraProcessesTabBody = document.getElementById('extraProcessesTabBody');
     var tabExtraProcessesLi = document.getElementById('tab-extra-processes-li');

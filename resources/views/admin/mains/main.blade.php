@@ -793,6 +793,14 @@
 
 @section('scripts')
 
+    <script>
+        window.aiCurrentWorkorder = {
+            id: {{ (int)($current_workorder->id ?? 0) }},
+            number: {{ (int)($current_workorder->number ?? 0) }},
+            manual_id: {{ (int)($manual_id ?? 0) }}
+        };
+    </script>
+
     {{--  Общие --}}
     @include('admin.mains.partials.js.mains-common')
 

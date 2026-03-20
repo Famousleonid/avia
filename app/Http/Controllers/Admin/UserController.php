@@ -96,6 +96,7 @@ class UserController extends Controller
 
     public function update(Request $request, $id)
     {
+
         $auth = auth()->user();
         $user = User::findOrFail($id);
 
@@ -112,6 +113,7 @@ class UserController extends Controller
             'name'                  => ['required', 'string', 'max:255'],
             'phone'                 => ['nullable', 'string', 'max:50'],
             'stamp'                 => ['required', 'string', 'max:255'],
+            'role_id'               => ['required', 'integer', 'exists:roles,id'],
             'team_id'               => ['required', 'integer', 'exists:teams,id'],
             'birthday'              => ['nullable', 'date', 'before:today'],
             'password'              => ['nullable', 'string', 'confirmed'],
