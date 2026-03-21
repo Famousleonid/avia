@@ -28,7 +28,7 @@
     </div>
     <div class="table-wrapper" style="max-height: 55vh; overflow-y: auto; overflow-x: auto;">
         @if($extra_process && $extra_process->processes)
-            <table class="table table-sm table-hover align-middle table-bordered bg-gradient sortable-table">
+            <table class="table table-sm table-hover align-middle table-bordered bg-gradient dir-table sortable-table">
                 <thead>
                 <tr>
                     <th class="text-primary text-center">Process Name</th>

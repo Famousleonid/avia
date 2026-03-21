@@ -34,7 +34,7 @@
 
         @if($components->count())
             <div class="table-responsive p-2">
-                <table id="componentsTable" class="table table-sm table-hover table-striped align-middle table-bordered">
+                <table id="componentsTable" class="table table-sm table-hover table-striped align-middle table-bordered dir-table">
                     <thead>
                     <tr>
                         <th class="text-center sortable" data-sort="ipl-num">{{ __('IPL Number') }} <i class="bi bi-chevron-expand ms-1"></i></th>

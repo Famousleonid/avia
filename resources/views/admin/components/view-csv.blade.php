@@ -38,7 +38,7 @@
                             }
                         </style>
                         <div class="csv-table-wrapper">
-                            <table class="table table-sm table-striped table-bordered mb-0">
+                            <table class="table table-sm table-striped table-bordered mb-0 dir-table">
                                 <thead class="table-dark">
                                     <tr>
                                         @foreach($headers as $header)

@@ -456,7 +456,7 @@
             <div class="card-body">
                 <div class="me-3">
                     <div class="table-wrapper me-3">
-                        <table class="display table table-sm table-hover align-middle table-bordered bg-gradient sortable-table">
+                        <table class="display table table-sm table-hover align-middle table-bordered bg-gradient sortable-table dir-table">
                             <thead>
                             <tr>
                                 <th class="text-primary text-center">Process Name</th>
@@ -769,7 +769,7 @@
                         </div>
 
                         <div class="table-responsive">
-                            <table class="table table-hover table-bordered bg-gradient shadow">
+                            <table class="table table-hover table-bordered bg-gradient shadow dir-table">
                                 <thead>
                                     <tr>
                                         <th class="text-primary ps-2" style="width: 15%;">Process</th>
@@ -893,7 +893,7 @@
                         </div>
                     </div>
                     <div class="table-responsive">
-                        <table class="table table-hover table-bordered bg-gradient shadow" id="packageProcessesTable">
+                        <table class="table table-hover table-bordered bg-gradient shadow dir-table" id="packageProcessesTable">
                             <thead>
                                 <tr>
                                     <th class="text-primary text-center" style="width: 20%;">Process Name</th>

@@ -198,7 +198,7 @@
             <div class="card-body">
             <div class="d-flex justify-content-center">
                 <div class="table-wrapper mt-3">
-                    <table class="display table table-hover table-bordered bg-gradient shadow" style="width: 100%">
+                    <table class="display table table-hover table-bordered bg-gradient shadow dir-table" style="width: 100%">
                         <thead>
                         <tr>
                             <th class="text-primary text-center" style="width: 8%">IPL</th>
@@ -357,7 +357,7 @@
                         </div>
 
                         <div class="table-responsive">
-                            <table class="table table-hover table-bordered bg-gradient shadow">
+                            <table class="table table-hover table-bordered bg-gradient shadow dir-table">
                                 <thead>
                                     <tr>
                                         <th class="text-primary text-center" style="width: 25%;">Process</th>

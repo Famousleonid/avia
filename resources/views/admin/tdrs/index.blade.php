@@ -95,7 +95,7 @@
 
         @if(count($orders))
             <div class="table-wrapper me-3 p-2 pt-0">
-                <table id="tdrTable" class="display table table-sm table-hover table-striped align-middle table-bordered ">
+                <table id="tdrTable" class="display table table-sm table-hover table-striped align-middle table-bordered dir-table">
                     <thead class="bg-gradient">
                         <tr>
                             <th class="text-center text-primary bg-gradient ">Number</th>

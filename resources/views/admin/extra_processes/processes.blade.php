@@ -132,7 +132,8 @@
                 @if($extra_process && $extra_process->processes)
                     <div class="me-3">
                         <div class="table-wrapper me-3">
-                            <table class="display table table-sm table-hover align-middle table-bordered bg-gradient sortable-table">
+                            <table class="display table table-sm table-hover align-middle table-bordered bg-gradient dir-table
+                            sortable-table">
                                 <thead>
                                 <tr>
                                     <th class="text-primary text-center">Process Name</th>

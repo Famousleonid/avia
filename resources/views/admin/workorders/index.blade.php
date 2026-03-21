@@ -385,7 +385,7 @@
         @if(count($workorders))
 
             <div class="table-wrapper p-2 pt-0 " id="printArea">
-                <table id="show-workorder" class="table table-sm table-bordered  table-hover w-100 table-panel" style="font-size: 14px;">
+                <table id="show-workorder" class="table table-sm table-bordered table-hover w-100 table-panel dir-table" style="font-size: 14px;">
                     <thead class="bg-gradient">
                     <tr>
                         <th class="text-center text-primary sortable col-number">

@@ -31,6 +31,79 @@ class LogCardController extends Controller
         //
     }
 
+    /**
+     * Return partial HTML for Log Card tab (empty table with components log_card=1, or filled if exists).
+     *
+     * @param int $workorder_id
+     * @return \Illuminate\Contracts\View\View|\Illuminate\Http\Response
+     */
+    public function partial($workorder_id)
+    {
+        $current_wo = Workorder::findOrFail($workorder_id);
+        $manual_id = $current_wo->unit->manual_id;
+
+        $components = Component::where('manual_id', $manual_id)
+            ->where('log_card', 1)
+            ->orderBy('ipl_num', 'asc')
+            ->get();
+
+        $log_card = LogCard::where('workorder_id', $current_wo->id)->first();
+
+        $componentData = [];
+        if ($log_card && $log_card->component_data) {
+            $componentData = is_array($log_card->component_data)
+                ? $log_card->component_data
+                : json_decode($log_card->component_data, true);
+        }
+
+        $codes = Code::all();
+
+        // Build rows for table: when log_card exists use componentData; else empty rows
+        // When no record: group by base ipl_num (1-180, 1-180A, 1-180B -> base 1-180), show only last per group
+        $tableRows = [];
+        if ($log_card && !empty($componentData)) {
+            foreach ($componentData as $item) {
+                $comp = $components->firstWhere('id', $item['component_id'] ?? 0) ?: $components->firstWhere('id', (string)($item['component_id'] ?? 0));
+                $tableRows[] = [
+                    'component' => $comp,
+                    'serial_number' => $item['serial_number'] ?? '',
+                    'assy_serial_number' => $item['assy_serial_number'] ?? '',
+                    'reason' => $item['reason'] ?? '',
+                ];
+            }
+        } else {
+            // Group by base ipl_num (e.g. 1-180), take only the last component per group (e.g. 1-180B)
+            $groupedByBaseIpl = $components->groupBy(function ($component) {
+                if (preg_match('/^(\d+-\d+)/', $component->ipl_num ?? '', $matches)) {
+                    return $matches[1];
+                }
+                return $component->ipl_num;
+            });
+            $lastPerGroup = $groupedByBaseIpl->map(function ($group) {
+                return $group->sortBy('ipl_num')->last();
+            })->sortBy(function ($component) {
+                $n = $component->ipl_num ?? '';
+                if (preg_match('/^(\d+)-(\d+)/', $n, $m)) {
+                    return (int)$m[1] * 1000 + (int)$m[2];
+                }
+                return $n;
+            });
+            foreach ($lastPerGroup as $component) {
+                $units_assy = $component->units_assy ?? 1;
+                for ($i = 1; $i <= $units_assy; $i++) {
+                    $tableRows[] = [
+                        'component' => $component,
+                        'serial_number' => '',
+                        'assy_serial_number' => '',
+                        'reason' => '',
+                    ];
+                }
+            }
+        }
+
+        return view('admin.log_card.partial', compact('current_wo', 'components', 'log_card', 'tableRows', 'codes'));
+    }
+
     public function logCardForm(Request $request, $id)
     {
         // Загрузка Workorder по ID
@@ -292,10 +365,14 @@ class LogCardController extends Controller
 
 //        dd($componentData);
 
-        \App\Models\LogCard::create([
+        $logCard = \App\Models\LogCard::create([
             'workorder_id'    => $workorder_id,
             'component_data' => $componentData,
         ]);
+
+        if ($request->ajax() || $request->wantsJson()) {
+            return response()->json(['success' => true, 'message' => 'Log Card успешно создан!', 'log_card_id' => $logCard->id]);
+        }
 
         return redirect()->route('log_card.show', $workorder_id)
             ->with('success', 'Log Card успешно создан!');
@@ -539,6 +616,10 @@ class LogCardController extends Controller
         $log_card->workorder_id = $request->input('workorder_id');
         $log_card->component_data = $request->input('component_data');
         $log_card->save();
+
+        if ($request->ajax() || $request->wantsJson()) {
+            return response()->json(['success' => true, 'message' => 'Log Card успешно обновлён!']);
+        }
 
         return redirect()->route('log_card.show', $log_card->workorder_id)
             ->with('success', 'Log Card успешно обновлён!');

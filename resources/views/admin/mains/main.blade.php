@@ -316,7 +316,7 @@
                                             @endphp
 
                                             <table
-                                                class="table table-dark table-hover table-bordered mb-0 align-middle tasks-table mt-1">
+                                                class="table table-dark table-hover table-bordered mb-0 align-middle tasks-table dir-table mt-1">
                                                 <colgroup>
                                                     <col class="col-ignore">
                                                     <col class="col-tech">
@@ -616,7 +616,7 @@
                                             @php $prs = $tdr->tdrProcesses; @endphp
                                             @if($prs->isNotEmpty())
                                                 <div class="mt-2 ps-2">
-                                                    <table class="table table-sm table-dark table-bordered table-hover mb-2 align-middle">
+                                                    <table class="table table-sm table-dark table-bordered table-hover mb-2 align-middle dir-table">
                                                         <thead>
                                                         <tr>
                                                             <th style="width:10%; text-align:center"
@@ -754,7 +754,7 @@
 
                 <div class="modal-body">
                     <div class="table-responsive">
-                        <table class="table table-dark table-bordered align-middle mb-0">
+                        <table class="table table-dark table-bordered align-middle dir-table mb-0">
                             <thead>
                             <tr class="text-muted small">
                                 <th style="width: 270px;">Date</th>

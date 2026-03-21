@@ -7,7 +7,7 @@
         .fs-7 { font-size: 0.7rem; }
         .fs-75 { font-size: 0.75rem; }
         #tdr_inspect_Table thead { position: sticky; top: 0; z-index: 10; }
-        #tdr_inspect_Table thead th { background-color: #030334 !important; box-shadow: 0 2px 2px -1px rgba(0, 0, 0, 0.1); }
+        #tdr_inspect_Table thead th {  box-shadow: 0 2px 2px -1px rgba(0, 0, 0, 0.1); }
         #tdr__Table thead th { background-color: #030334 !important; box-shadow: 0 2px 2px -1px rgba(0, 0, 0, 0.1); }
         .order-modal .modal-dialog { max-height: 70vh; }
         .order-modal .modal-content { max-height: 70vh; display: flex; flex-direction: column; }
@@ -67,8 +67,8 @@
             border: 1px solid #495057 !important;
         }
         /* Add Part Processes & Edit Part Process modals (iframe) - ensure on top */
-        #addPartProcessesModal, #editTdrProcessModal, #editExtraProcessModal, #addExtraProcessModal, #addExtraPartModal { z-index: 1080 !important; }
-        #addPartProcessesModal ~ .modal-backdrop, #editTdrProcessModal ~ .modal-backdrop, #editExtraProcessModal ~ .modal-backdrop, #addExtraProcessModal ~ .modal-backdrop, #addExtraPartModal ~ .modal-backdrop { z-index: 1075 !important; }
+        #addPartProcessesModal, #editTdrProcessModal, #editExtraProcessModal, #addExtraProcessModal, #addExtraPartModal, #createLogCardModal, #editLogCardModal, #editBushingModal { z-index: 1080 !important; }
+        #addPartProcessesModal ~ .modal-backdrop, #editTdrProcessModal ~ .modal-backdrop, #editExtraProcessModal ~ .modal-backdrop, #addExtraProcessModal ~ .modal-backdrop, #addExtraPartModal ~ .modal-backdrop, #createLogCardModal ~ .modal-backdrop, #editLogCardModal ~ .modal-backdrop, #editBushingModal ~ .modal-backdrop { z-index: 1075 !important; }
     </style>
 
     @php
@@ -132,19 +132,19 @@
                                 <x-paper-button text="R&M Form" href="{{ route('rm_reports.rmRecordForm', ['id'=> $current_wo->id]) }}" target="_blank" />
 
                                 @if(count($prl_parts) > 0)
-                                    <div class="position-relative d-inline-block">
+                                    <div class="position-relative d-inline-block ">
                                         <x-paper-button text="PRL" href="{{ route('tdrs.prlForm', ['id' => $current_wo->id]) }}" target="_blank" />
                                         <span class="badge bg-success rounded-pill" style="position: absolute; top: -5px; left: 2px; min-width: 20px; height: 20px; display: flex; align-items: center; justify-content: center; font-size: 0.7rem; padding: 0 5px;">{{ count($prl_parts) }}</span>
                                     </div>
                                 @endif
                                 </div>
                                 @if(count($processParts) > 1)
-                                    <div id="groupProcessFormsHeaderBtn" class="d-none pt-1">
+                                    <div id="groupProcessFormsHeaderBtn" class="d-none pt-1 me-3">
                                         <x-paper-button-multy text="Group Process Forms" color="outline-primary" size="landscape" width="100"
                                                               ariaLabel="Group Process Forms" data-bs-toggle="modal" data-bs-target="#groupFormsModal" />
                                     </div>
                                 @endif
-                                    <div id="extraGroupFormsHeaderBtn" class="d-none pt-1">
+                                    <div id="extraGroupFormsHeaderBtn" class="d-none pt-1 me-3">
                                         <x-paper-button-multy text="Group Process Forms" color="outline-primary" size="landscape" width="100"
                                                               ariaLabel="Group Process Forms" data-bs-toggle="modal" data-bs-target="#extraGroupFormsModal" />
                                     </div>
@@ -166,9 +166,11 @@
                                 @if($log_card)
                                     <x-paper-button text="Log Card" href="{{ route('log_card.logCardForm', ['id'=> $current_wo->id]) }}" target="_blank" color="outline-primary" />
                                 @endif
-                                @if($woBushing)
-                                    <x-paper-button text="Bushing SP Form" href="{{ route('wo_bushings.specProcessForm', $woBushing->id) }}" target="_blank" color="outline-primary" />
-                                @endif
+                                <span id="bushingSpFormHeaderBtn">
+                                    @if($woBushing)
+                                        <x-paper-button text="Bushing SP Form" href="{{ route('wo_bushings.specProcessForm', $woBushing->id) }}" target="_blank" color="outline-primary" />
+                                    @endif
+                                </span>
                             </div>
                         @endif
                     </div>
@@ -195,8 +197,8 @@
                         </button>
                     </li>
                     @if(count($processParts))
-                        <li class="nav-item" role="presentation" id="tab-all-parts-processes-li">
-                            <button class="nav-link" id="tab-all-parts-processes" data-bs-toggle="tab"
+                        <li class="nav-item " role="presentation" id="tab-all-parts-processes-li">
+                            <button class="nav-link " id="tab-all-parts-processes" data-bs-toggle="tab"
                                     data-bs-target="#content-all-parts-processes" type="button" role="tab">
                                 {{ __('All Parts Processes') }}
                             </button>
@@ -210,21 +212,13 @@
                             {{ __('Extra Parts Processes') }}{{ ($hasExtraProcessRecords ?? false) ? ' *' : '' }}
                         </button>
                     </li>
-                    @foreach($manuals as $manual)
-                        @if($manual->id == $manual_id)
-                            @foreach($planes as $plane)
-                                @if($plane->id == $manual->planes_id)
-                                    @if(!str_contains($plane->type ?? '', 'ATR'))
-                                        <li class="nav-item" role="presentation">
-                                            <a class="nav-link" href="{{ route('log_card.show', ['id' => $current_wo->id]) }}">{{ __('Log Card') }}</a>
-                                        </li>
-                                    @endif
-                                @endif
-                            @endforeach
-                        @endif
-                    @endforeach
+                    @if($showLogCardTab ?? false)
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link" id="tab-log-card" data-bs-toggle="tab" data-bs-target="#content-log-card" type="button" role="tab">{{ __('Log Card') }}</button>
+                        </li>
+                    @endif
                     <li class="nav-item" role="presentation">
-                        <a class="nav-link" href="{{ route('wo_bushings.show', ['wo_bushing' => $current_wo->id]) }}">{{ __('Bushing Processes') }}</a>
+                        <button class="nav-link" id="tab-bushing" data-bs-toggle="tab" data-bs-target="#content-bushing" type="button" role="tab">{{ __('Bushing Processes') }}</button>
                     </li>
                     <li class="nav-item" role="presentation">
                         <a class="nav-link" href="{{ route('rm_reports.show', ['rm_report' => $current_wo->id]) }}">{{ __('Repair & Modification Record') }}</a>
@@ -244,7 +238,34 @@
                     <button type="button" class="btn btn-outline-success btn-sm" id="openAddExtraPartModalBtn" data-workorder-id="{{ $current_wo->id }}">
                         <i class="fas fa-plus"></i> {{ __('Add Extra Part') }}
                     </button>
+                </div>
+                @if($showLogCardTab ?? false)
+                <div id="logCardTabActions" class="d-none d-flex gap-2 align-items-center">
+                    @if($log_card)
+                        <button type="button" class="btn btn-outline-primary btn-sm open-edit-log-card-modal" data-log-card-id="{{ $log_card->id }}">
+                            <i class="fas fa-edit"></i> {{ __('Edit Log Card') }}
+                        </button>
+                    @else
+                        <button type="button" class="btn btn-success btn-sm open-create-log-card-modal" data-workorder-id="{{ $current_wo->id }}">
+                            <i class="fas fa-plus"></i> {{ __('Create Log Card') }}
+                        </button>
+                    @endif
+                </div>
+                @endif
+                <div id="bushingTabActions" class="d-none d-flex gap-2 align-items-center">
+                    @if($woBushing ?? null)
+                        <button type="button" class="btn btn-outline-primary btn-sm open-edit-bushing-modal" data-wo-bushing-id="{{ $woBushing->id }}">
+                            <i class="fas fa-edit"></i> {{ __('Update Bushings List') }}
+                        </button>
 
+                    @elseif($hasBushings ?? false)
+                        <button type="submit" form="bushings-form" class="btn btn-success btn-sm">
+                            <i class="fas fa-plus"></i> {{ __('Create Bushing List') }}
+                        </button>
+                        <button type="button" class="btn btn-secondary btn-sm bushing-clear-btn">
+                            <i class="fas fa-eraser"></i> {{ __('Clear All') }}
+                        </button>
+                    @endif
                 </div>
                 </div>
 
@@ -293,6 +314,24 @@
                     <div class="tab-pane fade" id="content-extra-parts-processes" role="tabpanel">
                         <div class="card bg-gradient h-100">
                             <div class="card-body p-2 overflow-auto" id="extraPartsProcessesTabBody"
+                                 style="height: calc(100vh - 280px); min-height: 400px;">
+                                <div class="text-center py-5 text-muted">{{ __('Loading...') }}</div>
+                            </div>
+                        </div>
+                    </div>
+                    @if($showLogCardTab ?? false)
+                    <div class="tab-pane fade" id="content-log-card" role="tabpanel">
+                        <div class="card bg-gradient h-100">
+                            <div class="card-body p-2 overflow-auto" id="logCardTabBody"
+                                 style="height: calc(100vh - 280px); min-height: 400px;">
+                                <div class="text-center py-5 text-muted">{{ __('Loading...') }}</div>
+                            </div>
+                        </div>
+                    </div>
+                    @endif
+                    <div class="tab-pane fade" id="content-bushing" role="tabpanel">
+                        <div class="card bg-gradient h-100">
+                            <div class="card-body p-2 overflow-auto" id="bushingTabBody"
                                  style="height: calc(100vh - 280px); min-height: 400px;">
                                 <div class="text-center py-5 text-muted">{{ __('Loading...') }}</div>
                             </div>

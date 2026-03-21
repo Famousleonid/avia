@@ -1314,6 +1314,7 @@ class TdrController extends Controller
         $manuals = Manual::all();
         $log_card = LogCard::where('workorder_id', $current_wo->id)->first();
         $woBushing = WoBushing::where('workorder_id', $current_wo->id)->first();
+        $hasBushings = Component::where('manual_id', $manual_id)->where('is_bush', 1)->exists();
         $components = Component::where('manual_id', $manual_id)->get();
         $code = Code::where('name', 'Missing')->first();
         $missingCondition = Condition::where('name', 'PARTS MISSING UPON ARRIVAL AS INDICATED ON PARTS LIST')->first();
@@ -1432,14 +1433,19 @@ class TdrController extends Controller
         $hasExtraProcessRecords = ExtraProcess::where('workorder_id', $current_wo->id)->exists();
         $hasExtraProcessRecordsMoreThanOne = ExtraProcess::where('workorder_id', $current_wo->id)->count() > 1;
 
+        $logCardInstructions = ['60M Iinspection', '96M Iinspection', 'Overhaul'];
+        $showLogCardTab = $current_wo->instruction
+            ? in_array($current_wo->instruction->name, $logCardInstructions, true)
+            : false;
+
         return compact(
             'current_wo', 'tdrs', 'units', 'components', 'user', 'customers',
             'manuals', 'builders', 'planes', 'instruction', 'necessary',
             'necessaries', 'unit_conditions', 'component_conditions',
             'codes', 'conditions', 'missingParts', 'ordersParts', 'inspectsUnit',
-            'processParts', 'ordersPartsNew', 'trainings', 'user_wo', 'manual_id', 'log_card', 'woBushing', 'prl_parts', 'tdr_proc', 'hasTransfers',
+            'processParts', 'ordersPartsNew', 'trainings', 'user_wo', 'manual_id', 'log_card', 'woBushing', 'hasBushings', 'prl_parts', 'tdr_proc', 'hasTransfers',
             'hasMissingParts', 'missingCondition', 'orderedPartsCount', 'hasOrderedParts', 'hasProcessFormTdrs',
-            'hasExtraProcessRecords', 'hasExtraProcessRecordsMoreThanOne'
+            'hasExtraProcessRecords', 'hasExtraProcessRecordsMoreThanOne', 'showLogCardTab'
         );
     }
 

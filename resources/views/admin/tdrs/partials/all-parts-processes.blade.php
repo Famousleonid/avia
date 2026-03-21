@@ -11,7 +11,7 @@
 
 <div class="all-parts-processes ">
     <div class="table-wrapper all-parts-table-wrapper ">
-        <table class="table table-hover align-middle table-bordered bg-gradient">
+        <table class="table table-hover align-middle dir-table table-bordered bg-gradient">
             <thead>
                 <tr>
                     <th class="text-primary text-center"  style="width: 10%">IPL</th>
@@ -103,7 +103,7 @@
                             Select a process type to generate a grouped form with all components that have the same process.
                         </p>
                         <div class="table-responsive">
-                            <table class="table table-hover table-bordered bg-gradient shadow">
+                            <table class="table table-hover table-bordered bg-gradient shadow dir-table">
                                 <thead>
                                     <tr>
                                         <th class="text-primary text-center" style="width: 25%;">Process</th>

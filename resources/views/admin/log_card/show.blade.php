@@ -137,12 +137,6 @@
 
                 <div class="ps-2 d-flex pt-1" style="width: 600px; margin-top: -5px">
                     @if($log_card)
-{{--                    <a href="{{ route('log_card.logCardForm', ['id'=> $current_wo->id]) }}"--}}
-{{--                       class="btn btn-outline-warning mb-3 formLink "--}}
-{{--                       target="_blank"--}}
-{{--                       id="#" style=" height: 60px; width: 80px">--}}
-{{--                        <i class=""> Log Card </i>--}}
-{{--                    </a>--}}
                         <x-paper-button
                             text="Log Card"
                             href="{{ route('log_card.logCardForm', ['id'=> $current_wo->id]) }}"
@@ -173,7 +167,7 @@
 
     <div class="d-flex justify-content-center mt-3">
         <div class="table-wrapper table-scroll-container me-3">
-            <table class="display table shadow table-hover align-middle table-bordered bg-gradient">
+            <table class="display table shadow table-hover align-middle table-bordered bg-gradient dir-table">
                 <thead>
                 <tr>
                     <th class="text-primary text-center">Description</th>

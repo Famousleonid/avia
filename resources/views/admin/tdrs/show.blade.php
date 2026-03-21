@@ -589,7 +589,7 @@
                                     @if(count($ordersPartsNew))
                                         <div class="table-wrapper order-modal-table-wrapper">
                                             <table
-                                                class="table table-cm table-hover table-striped align-middle table-bordered order-modal-table ">
+                                                class="table table-cm table-hover table-striped align-middle table-bordered order-modal-table dir-table">
                                                 <thead class="bg-gradient">
                                                 <tr>
                                                     <th class="text-primary  bg-gradient "
@@ -1644,7 +1644,7 @@
                         <input type="hidden" name="workorder_id" value="{{ $current_wo->id }}">
 
                         <div class="table-responsive" style="max-height: 60vh; overflow-y: auto;">
-                            <table class="table table-hover table-bordered">
+                            <table class="table table-hover table-bordered dir-table">
                                 <thead class="table-primary" style="position: sticky; top: 0; z-index: 10;">
                                 <tr>
                                     <th class="text-center" style="width: 50px;">
@@ -1747,7 +1747,7 @@
                     </div>
 
                     <div class="table-responsive" style="max-height: 60vh; overflow-y: auto;">
-                        <table class="table table-hover table-bordered">
+                        <table class="table table-hover table-bordered dir-table">
                             <thead class="table-primary" style="position: sticky; top: 0; z-index: 10;">
                             <tr>
                                 <th class="text-center">{{ __('Condition Name') }}</th>

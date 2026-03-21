@@ -100,7 +100,7 @@
                                 white-space: pre-line;"></div>
                             </div>
                             <div class="table mt-3 table-scroll-rm-records">
-                                <table class="table table-striped text-center align-items-center" style="font-size: 12px">
+                                <table class="table table-striped text-center align-items-center dir-table" style="font-size: 12px">
                                     <thead>
                                     <tr>
                                         <th class="border align-middle" >{{ __('Item') }}</th>
@@ -131,7 +131,7 @@
                             </div>
                             <div class="card-body">
                                 <div class="table-responsive table-scroll-technical-notes">
-                                    <table class="table table-bordered">
+                                    <table class="table table-bordered dir-table">
                                         <tbody id="technicalNotesTableBody"></tbody>
                                     </table>
                                 </div>
@@ -174,7 +174,7 @@
                             <div id="rmRecordsList">
                                 @if($rm_reports->count() > 0)
                                     <div class="table-responsive table-scroll-rm-records mt-3" style="font-size: 12px">
-                                        <table class="table table-striped text-center align-items-center">
+                                        <table class="table table-striped text-center align-items-center dir-table">
                                             <thead>
                                             <tr>
                                                 <th class="border align-middle" style="width: 10%">{{ __('Part Description') }}</th>
@@ -515,7 +515,7 @@
                     if ($tbody.length === 0) {
                         $('#rmRecordsList').html(`
                             <div class="table-responsive table-scroll-rm-records mt-3">
-                                <table class="table table-striped text-center align-items-center">
+                                <table class="table table-striped text-center align-items-center dir-table">
                                     <thead><tr>
                                         <th>{{ __('Part Description') }}</th>
                                         <th>{{ __('Modification or Repair #') }}</th>

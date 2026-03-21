@@ -11,7 +11,7 @@
 
 <div class="extra-part-processes" data-has-records="{{ (isset($extra_components) && count($extra_components) > 0) ? '1' : '0' }}" data-extra-process-count="{{ isset($extra_components) ? count($extra_components) : 0 }}">
     <div class="table-wrapper extra-parts-table-wrapper">
-        <table class="table table-hover align-middle table-bordered bg-gradient">
+        <table class="table table-hover align-middle table-bordered bg-gradient dir-table">
             <thead>
                 <tr>
                     <th class="text-primary text-center" style="width: 8%">IPL</th>
@@ -100,7 +100,7 @@
                     <div class="modal-body">
                         <p class="text-muted mb-3"><i class="fas fa-info-circle"></i> {{ __('Select a process type to generate a grouped form with all components that have the same process.') }}</p>
                         <div class="table-responsive">
-                            <table class="table table-hover table-bordered bg-gradient shadow">
+                            <table class="table table-hover table-bordered bg-gradient shadow dir-table">
                                 <thead>
                                     <tr>
                                         <th class="text-primary text-center" style="width: 25%;">{{ __('Process') }}</th>

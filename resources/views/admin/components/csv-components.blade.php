@@ -102,7 +102,7 @@
 
         @if(count($manuals))
             <div class="table-wrapper me-3 p-2 pt-0">
-                <table id="manualsTable" class="display table table-sm table-hover bg-gradient table-striped align-middle table-bordered">
+                <table id="manualsTable" class="display table table-sm table-hover bg-gradient table-striped align-middle table-bordered dir-table">
                     <thead class="bg-gradient">
                     <tr>
                         <th class="text-center sortable">{{__('Manual')}} <i class="bi bi-chevron-expand ms-1"></i></th>

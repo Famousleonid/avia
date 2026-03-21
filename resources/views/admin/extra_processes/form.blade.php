@@ -33,7 +33,7 @@
                             <h5 class="text-primary">{{ $process_name->name }} Process Form</h5>
                             
                             <div class="table-responsive">
-                                <table class="table table-bordered">
+                                <table class="table table-bordered dir-table">
                                     <thead>
                                         <tr>
                                             <th>Process</th>

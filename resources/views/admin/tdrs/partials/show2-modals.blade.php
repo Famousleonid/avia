@@ -52,7 +52,7 @@
             </div>
             @if(count($ordersPartsNew))
                 <div class="table-wrapper order-modal-table-wrapper">
-                    <table class="table table-cm table-hover table-striped align-middle table-bordered order-modal-table">
+                    <table class="table table-cm table-hover table-striped align-middle table-bordered order-modal-table dir-table">
                         <thead class="bg-gradient">
                         <tr>
                             <th class="text-primary bg-gradient">{{__('IPL')}}</th>
@@ -189,7 +189,7 @@
                     @csrf
                     <input type="hidden" name="workorder_id" value="{{ $current_wo->id }}">
                     <div class="table-responsive" style="max-height: 60vh; overflow-y: auto;">
-                        <table class="table table-hover table-bordered">
+                        <table class="table table-hover table-bordered dir-table">
                             <thead class="table-primary" style="position: sticky; top: 0; z-index: 10;">
                             <tr>
                                 <th class="text-center" style="width: 50px;"><input type="checkbox" id="selectAllConditions" title="{{ __('Select All') }}"></th>
@@ -259,7 +259,7 @@
                     @endadmin
                 </div>
                 <div class="table-responsive" style="max-height: 60vh; overflow-y: auto;">
-                    <table class="table table-hover table-bordered">
+                    <table class="table table-hover table-bordered dir-table">
                         <thead class="table-primary" style="position: sticky; top: 0; z-index: 10;">
                         <tr>
                             <th class="text-center">{{ __('Condition Name') }}</th>
@@ -384,6 +384,51 @@
             </div>
             <div class="modal-body p-0 overflow-hidden" style="height: calc(80vh - 60px);">
                 <iframe id="editExtraProcessIframe" src="about:blank" style="width: 100%; height: 100%; border: none;"></iframe>
+            </div>
+        </div>
+    </div>
+</div>
+
+{{-- Create Log Card Modal (iframe) --}}
+<div class="modal fade" id="createLogCardModal" tabindex="-1" aria-labelledby="createLogCardModalLabel" aria-hidden="true">
+    <div class="modal-dialog" style="max-width: 1100px; width: 95%; height: 90vh;">
+        <div class="modal-content bg-gradient" style="height: 90vh;">
+            <div class="modal-header">
+                <h5 class="modal-title" id="createLogCardModalLabel">{{ __('Create Log Card') }}</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body p-0 overflow-hidden" style="height: calc(90vh - 60px);">
+                <iframe id="createLogCardIframe" src="about:blank" style="width: 100%; height: 100%; border: none;"></iframe>
+            </div>
+        </div>
+    </div>
+</div>
+
+{{-- Edit Bushing Modal (iframe) --}}
+<div class="modal fade" id="editBushingModal" tabindex="-1" aria-labelledby="editBushingModalLabel" aria-hidden="true">
+    <div class="modal-dialog" style="max-width: 1400px; width: 95%; height: 90vh;">
+        <div class="modal-content bg-gradient" style="height: 90vh;">
+            <div class="modal-header">
+                <h5 class="modal-title" id="editBushingModalLabel">{{ __('Update Bushings List') }}</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body p-0 overflow-hidden" style="height: calc(90vh - 60px);">
+                <iframe id="editBushingIframe" src="about:blank" style="width: 100%; height: 100%; border: none;"></iframe>
+            </div>
+        </div>
+    </div>
+</div>
+
+{{-- Edit Log Card Modal (iframe) --}}
+<div class="modal fade" id="editLogCardModal" tabindex="-1" aria-labelledby="editLogCardModalLabel" aria-hidden="true">
+    <div class="modal-dialog" style="max-width: 1100px; width: 95%; height: 90vh;">
+        <div class="modal-content bg-gradient" style="height: 90vh;">
+            <div class="modal-header">
+                <h5 class="modal-title" id="editLogCardModalLabel">{{ __('Edit Log Card') }}</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body p-0 overflow-hidden" style="height: calc(90vh - 60px);">
+                <iframe id="editLogCardIframe" src="about:blank" style="width: 100%; height: 100%; border: none;"></iframe>
             </div>
         </div>
     </div>

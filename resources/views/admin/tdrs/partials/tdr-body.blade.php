@@ -5,10 +5,9 @@
             <table id="tdr_inspect_Table" class="table table-sm table-hover align-middle table-bordered dir-table shadow-lg">
                 <thead>
                 <tr>
-                    <th class="text-primary text-center" style="width: 300px;">
+                    <th class="text-primary text-center" colspan="2" style="height: 42px">
                         <a href="#" data-bs-toggle="modal" data-bs-target="#unitInspectionModal">{{__('Teardown Inspection')}}</a>
                     </th>
-                    <th class="text-primary text-center" style="width: 50px;">---</th>
                 </tr>
                 </thead>
                 <tbody>
@@ -91,8 +90,8 @@
                     <th class="text-center text-primary" style="width: 12%">{{__('Necessary')}}</th>
                     <th class="text-center text-primary" style="width: 12%">{{__('Code')}}</th>
                     <th class="text-center text-primary" style="width: 5%">{{__('EC')}}</th>
-                    <th class="text-primary text-center" style="width: 150px;">
-                        {{__('Action')}}
+                    <th class="text-primary text-center d-flex justify-content-center" style="width: 150px;">
+                        <div class="text-center">{{__('Action')}}</div>
                         <button type="button" class="btn btn-outline-info btn-sm ms-3" style="height: 32px"
                                 data-bs-toggle="modal" data-bs-target="#componentInspectionModal">{{ __('Add') }}</button>
                     </th>

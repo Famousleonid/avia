@@ -1,4 +1,4 @@
-@extends('admin.master')
+@extends(request()->query('modal') ? 'admin.master-embed' : 'admin.master')
 
 @section('content')
     <style>
@@ -68,12 +68,16 @@
             <div class="card-header d-flex justify-content-between align-items-center">
                 <h4 class="text-primary mb-0">{{__('WO')}} {{$current_wo->number}} {{__('Create Log Card')}}</h4>
                 <div>
-                    <button type="submit" class="btn btn-success">
-                        <i class="fas fa-save"></i> Create Log Card
+                    <button type="submit" class="btn btn-success" id="createLogCardSubmitBtn">
+                        <i class="fas fa-save"></i> {{ __('Create Log Card') }}
                     </button>
-                    <a href="{{ route('log_card.show', $current_wo->id) }}" class="btn btn-secondary">
-                        <i class="fas fa-arrow-left"></i> Back
-                    </a>
+                    @if(request()->query('modal'))
+                        <button type="button" class="btn btn-secondary" id="createLogCardCancelBtn">{{ __('Cancel') }}</button>
+                    @else
+                        <a href="{{ route('log_card.show', $current_wo->id) }}" class="btn btn-secondary">
+                            <i class="fas fa-arrow-left"></i> {{ __('Back') }}
+                        </a>
+                    @endif
                 </div>
             </div>
 
@@ -93,7 +97,7 @@
                 {{--                </div>--}}
 
                 <div class="table-responsive table-scroll-container">
-                    <table class="table table-bordered table-hover">
+                    <table class="table table-bordered dir-table table-hover">
                         <thead>
                         <tr>
                             <th>Description</th>
@@ -219,67 +223,86 @@
 
     <script>
         document.addEventListener('DOMContentLoaded', function() {
-            // Создаем карту индексов групп для получения базовых номеров
+            var inModal = {{ request()->query('modal') ? 'true' : 'false' }};
+            var workorderId = {{ $current_wo->id }};
+
+            var cancelBtn = document.getElementById('createLogCardCancelBtn');
+            if (cancelBtn && inModal && window.parent !== window) {
+                cancelBtn.addEventListener('click', function() {
+                    window.parent.postMessage({ type: 'createLogCardCancel' }, '*');
+                });
+            }
+
+            // Создаем карту индексов групп
             let groupMap = {};
             @foreach($groupedComponents as $groupIndex => $group)
                 groupMap[{{ $groupIndex }}] = '{{ $group['ipl_group'] }}';
             @endforeach
 
-                         document.getElementById('createForm').addEventListener('submit', function(e) {
-                 let data = [];
-                 let allGroups = new Set();
+            function buildComponentData() {
+                let data = [];
+                let allGroups = new Set();
+                document.querySelectorAll('input[type=radio][name^="selected_component["]').forEach(function(radio) {
+                    let index = radio.name.match(/selected_component\[(.*)\]/)[1];
+                    if (!index.includes('separate_')) allGroups.add(index);
+                });
+                document.querySelectorAll('input[type=radio]:checked').forEach(function(radio) {
+                    let index = radio.name.match(/selected_component\[(.*)\]/)[1];
+                    let component_id = radio.value;
+                    let serial_number = (document.querySelector('input[name="serial_numbers[' + index + ']"]') || {}).value || '';
+                    let assy_serial_number = '';
+                    let assyInput = document.querySelector('input[name="assy_serial_numbers[' + index + ']"]');
+                    if (assyInput) assy_serial_number = assyInput.value;
+                    let reasonSelect = document.querySelector('select[name="reasons[' + index + ']"]');
+                    let reason = reasonSelect ? reasonSelect.value : '';
+                    if (!index.includes('separate_')) {
+                        data.push({ component_id: component_id, ipl_group: groupMap[index], serial_number: serial_number, assy_serial_number: assy_serial_number, reason: reason });
+                    } else {
+                        data.push({ component_id: component_id, serial_number: serial_number, assy_serial_number: assy_serial_number, reason: reason });
+                    }
+                });
+                if (data.length !== allGroups.size + (document.querySelectorAll('input[type=radio][name*="separate_"]:checked').length || 0)) {
+                    return null;
+                }
+                return data;
+            }
 
-                 // Собираем все группы (кроме separate)
-                 document.querySelectorAll('input[type=radio][name^="selected_component["]').forEach(function(radio) {
-                     let index = radio.name.match(/selected_component\[(.*)\]/)[1];
-                     if (!index.includes('separate_')) {
-                         allGroups.add(index);
-                     }
-                 });
+            document.getElementById('createForm').addEventListener('submit', function(e) {
+                let data = buildComponentData();
+                if (!data) {
+                    (typeof showNotification === 'function' ? showNotification : alert)('Выберите компонент в каждой группе!', 'warning');
+                    e.preventDefault();
+                    return false;
+                }
+                document.getElementById('component_data_input').value = JSON.stringify(data);
 
-                 document.querySelectorAll('input[type=radio]:checked').forEach(function(radio) {
-                     let index = radio.name.match(/selected_component\[(.*)\]/)[1];
-                     let component_id = radio.value;
-                     let serial_number = document.querySelector('input[name="serial_numbers[' + index + ']"]').value;
-                     let assy_serial_number = '';
-                     let assyInput = document.querySelector('input[name="assy_serial_numbers[' + index + ']"]');
-                     if (assyInput) assy_serial_number = assyInput.value;
-
-                     // Получаем reason из dropdown
-                     let reasonSelect = document.querySelector('select[name="reasons[' + index + ']"]');
-                     let reason = reasonSelect ? reasonSelect.value : '';
-
-                     // Для группированных компонентов добавляем ipl_group
-                     if (!index.includes('separate_')) {
-                         let ipl_group = groupMap[index];
-                         data.push({
-                             component_id: component_id,
-                             ipl_group: ipl_group,
-                             serial_number: serial_number,
-                             assy_serial_number: assy_serial_number,
-                             reason: reason
-                         });
-                     } else {
-                         // Для отдельных компонентов без группировки
-                         data.push({
-                             component_id: component_id,
-                             serial_number: serial_number,
-                             assy_serial_number: assy_serial_number,
-                             reason: reason
-                         });
-                     }
-                 });
-
-                 // Проверяем, что выбран компонент в каждой группе (кроме separate)
-                 if (data.length !== allGroups.size + document.querySelectorAll('input[type=radio][name*="separate_"]:checked').length) {
-                     showNotification('Выберите компонент в каждой группе!', 'warning');
-                     e.preventDefault();
-                     return false;
-                 }
-
-                 let input = document.getElementById('component_data_input');
-                 input.value = JSON.stringify(data);
-             });
+                if (inModal && window.parent !== window) {
+                    e.preventDefault();
+                    var form = this;
+                    var submitBtn = document.getElementById('createLogCardSubmitBtn');
+                    if (submitBtn) { submitBtn.disabled = true; submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm"></span> ' + (submitBtn.textContent || ''); }
+                    var formData = new FormData(form);
+                    fetch(form.action, {
+                        method: 'POST',
+                        body: formData,
+                        headers: { 'X-Requested-With': 'XMLHttpRequest', 'Accept': 'application/json' }
+                    })
+                    .then(function(r) { return r.json().catch(function() { return {}; }); })
+                    .then(function(res) {
+                        if (res.success) {
+                            window.parent.postMessage({ type: 'createLogCardSuccess', workorderId: workorderId, logCardId: res.log_card_id }, '*');
+                        } else {
+                            if (submitBtn) { submitBtn.disabled = false; submitBtn.innerHTML = '<i class="fas fa-save"></i> {{ __("Create Log Card") }}'; }
+                            alert(res.message || (res.errors ? Object.values(res.errors).flat().join(', ') : 'Error'));
+                        }
+                    })
+                    .catch(function() {
+                        if (submitBtn) { submitBtn.disabled = false; submitBtn.innerHTML = '<i class="fas fa-save"></i> {{ __("Create Log Card") }}'; }
+                        alert('Error');
+                    });
+                    return false;
+                }
+            });
         });
     </script>
 @endsection

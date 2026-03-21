@@ -162,6 +162,7 @@ Route::group(['middleware' => ['auth']], function () {
         Route::get('tdrs/woBoxTitle/{id}', [TdrController::class, 'wo_BoxTitle'])->name('tdrs.wo_BoxTitle');
 
     Route::get('tdrs/processes-partial/{workorder_id}', [TdrController::class, 'processesPartial'])->name('tdrs.processesPartial');
+        Route::get('tdrs/log-card-partial/{workorder_id}', [LogCardController::class, 'partial'])->name('log_card.partial');
 
 
         Route::get('/tdrs/inspection/unit/{workorder_id}', [TdrController::class, 'inspectionUnit'])->name('tdrs.inspection.unit');
@@ -227,7 +228,12 @@ Route::group(['middleware' => ['auth']], function () {
     Route::resource('/processes', ProcessController::class);
     Route::resource('/tdr-processes',TdrProcessController::class);
     Route::resource('/manual_processes', ManualProcessController::class);
+
+
     Route::resource('/log_card', LogCardController::class);
+
+
+
     Route::resource('/customers',  CustomerController::class);
     Route::resource('/tasks',  TaskController::class);
     Route::resource('/general-tasks',  GeneralTaskController::class);
@@ -237,6 +243,7 @@ Route::group(['middleware' => ['auth']], function () {
     Route::delete('/units/{unit}/single', [UnitController::class, 'destroySingle'])->name('units.destroySingle');
     Route::patch('/units/{unit}/single', [UnitController::class, 'updateSingle'])->name('units.updateSingle');
 
+    Route::get('wo_bushings/partial/{workorder_id}', [WoBushingController::class, 'partial'])->name('wo_bushings.partial');
     Route::resource('/wo_bushings', WoBushingController::class)->except(['create']);
     Route::get('/wo_bushings/create/{id}', [WoBushingController::class, 'create'])->name('wo_bushings.create');
     Route::post('/wo_bushings/get-bushings-from-manual', [WoBushingController::class, 'getBushingsFromManual'])->name('wo_bushings.getBushingsFromManual');

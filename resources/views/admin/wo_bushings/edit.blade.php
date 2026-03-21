@@ -1,56 +1,51 @@
-@extends('admin.master')
+@extends(request()->query('modal') ? 'admin.master-embed' : 'admin.master')
 
 @section('content')
     <style>
-        .table-wrapper {
-            max-height: 70vh;
+        .container { max-width: 1200px; }
+        .container.modal-fit { max-width: 100%; }
+        .table-scroll-container {
+            max-height: 75vh;
             overflow-y: auto;
-            overflow-x: auto;
+            overflow-x: hidden;
+            position: relative;
             width: 100%;
         }
+        .table-scroll-container thead th {
+            position: sticky;
+            top: 0;
+            background-color: #031e3a;
+            z-index: 10;
+            box-shadow: 0 2px 2px -1px rgba(0, 0, 0, 0.4);
+        }
+        .table-scroll-container table { margin-bottom: 0; width: 100%; table-layout: fixed; }
 
         .table th, .table td {
-            white-space: nowrap;
             overflow: hidden;
             text-overflow: ellipsis;
-            min-width: 120px;
-            max-width: 200px;
-            padding: 8px 12px;
+            padding: 6px 8px;
             vertical-align: middle;
         }
 
-        .table th:nth-child(1), .table td:nth-child(1) {
-            min-width: 180px;
-            max-width: 250px;
-        }
-
+        .table th:nth-child(1), .table td:nth-child(1) { white-space: nowrap; }
         .table th:nth-child(2), .table td:nth-child(2) {
-            min-width: 120px;
-            max-width: 150px;
             text-align: center;
             vertical-align: top;
         }
-
-        .table th:nth-child(3), .table td:nth-child(3) {
-            min-width: 80px;
-            max-width: 100px;
-            text-align: center;
-        }
+        .table th:nth-child(3), .table td:nth-child(3) { text-align: center; }
+        .table td:nth-child(n+4) { white-space: nowrap; }
 
         .table thead th {
-            position: sticky;
             height: 60px;
-            top: -1px;
             vertical-align: middle;
-            border-top: 1px;
-            z-index: 1020;
-            background-color: #f8f9fa;
         }
 
         .form-select, .form-control {
-            font-size: 0.875rem;
-            padding: 0.375rem 0.5rem;
+            font-size: 0.8rem;
+            padding: 0.25rem 0.4rem;
+            max-width: 100%;
         }
+        .table .form-select { width: 100%; }
 
         /* Стили для длинного текста процесса */
         .process-text-long {
@@ -78,7 +73,8 @@
         }
 
         .qty-input {
-            width: 70px;
+            width: 100%;
+            max-width: 60px;
             text-align: center;
         }
 
@@ -110,7 +106,7 @@
             flex-direction: column;
             gap: 0.25rem;
             max-height: 200px;
-            overflow-y: auto;
+            overflow: auto;
             padding: 0.25rem;
         }
 
@@ -136,60 +132,61 @@
         }
     </style>
 
-    <div class="card-shadow">
-        @if($bushings->flatten()->count() > 0)
-            <form id="bushings-form" method="POST" action="{{ route('wo_bushings.update', $woBushing->id) }}">
-                @csrf
-                @method('PUT')
-        @endif
-        <div class="card-header m-1 shadow">
-            <div class="d-flex justify-content-between align-items-center">
+    <div class="container mt-3{{ request()->query('modal') ? ' modal-fit' : '' }}">
+        <div class="card bg-gradient">
+            @if($bushings->flatten()->count() > 0)
+                <form id="bushings-form" method="POST" action="{{ route('wo_bushings.update', $woBushing->id) }}">
+                    @csrf
+                    @method('PUT')
+            @endif
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h4 class="text-primary mb-0">{{__('WO')}} {{$current_wo->number}} {{__('Update Bushings List')}}</h4>
                 <div>
-                    <div class="text-center" style="width: 100px;">
-                        <h5 class="text-success-emphasis  ps-1">{{__('WO')}}
-                            <a class="text-success-emphasis " href="{{ route('mains.show', $current_wo->id) }}"
-                                {{$current_wo->number}}>{{$current_wo->number}}
-                            </a>
-                        </h5>
-                    </div>
+                    @if($bushings->flatten()->count() > 0)
+                        <button type="submit" class="btn btn-success" id="editBushingSubmitBtn">
+                            <i class="fas fa-save"></i> {{ __('Update Bushings Data') }}
+                        </button>
+                    @endif
+                    @if(request()->query('modal'))
+                        <button type="button" class="btn btn-secondary" id="editBushingCancelBtn">{{ __('Cancel') }}</button>
+                    @else
+                        <a href="{{ route('wo_bushings.show', $current_wo->id) }}" id="editBushingBackBtn" class="btn btn-secondary">
+                            <i class="fas fa-arrow-left"></i> {{ __('Back') }}
+                        </a>
+                    @endif
                 </div>
-                    <div>
-                        <h4 class="ps-xl-5 mb-0">{{__('EDIT BUSHINGS')}}</h4>
-                    </div>
+            </div>
 
-                <div>
-                    <a href="{{ route('processes.create', ['manual_id' => $current_wo->unit->manual_id, 'return_to' => route
-                    ('wo_bushings.edit', $woBushing->id)]) }}"
-                       class="btn btn-outline-primary me-2" style="height: 60px;width: 100px;line-height: 1.2rem;align-content: center">
+            @if($bushings->flatten()->count() > 0)
+            <div class="card-body">
+                <div class="d-flex flex-wrap gap-2 mb-2">
+                    <a href="{{ route('processes.create', ['manual_id' => $current_wo->unit->manual_id, 'return_to' => route('wo_bushings.edit', $woBushing->id)]) }}"
+                       class="btn btn-outline-primary btn-sm">
                         <i class="fas fa-cogs"></i> {{ __('Add Processes') }}
                     </a>
                     <a href="{{ route('components.create', ['manual_id' => $current_wo->unit->manual_id ?? null, 'redirect' => request()->fullUrl()]) }}"
-                       class="btn btn-outline-primary me-2" style="height: 60px;width: 90px;line-height: 1.2rem;align-content:
-                       center">
+                       class="btn btn-outline-primary btn-sm">
                         <i class="fas fa-plus"></i> {{ __('Add Part') }}
                     </a>
+                    <button type="button" class="btn btn-outline-secondary btn-sm" onclick="clearForm()">
+                        <i class="fas fa-eraser"></i> {{ __('Clear All') }}
+                    </button>
                 </div>
-                <div class="d-flex align-items-center">
-                    @if($bushings->flatten()->count() > 0)
-                        <button type="submit" class="btn btn-primary btn-lg me-2">
-                            <i class="fas fa-save"></i> Update Bushings Data
-                        </button>
-                        <button type="button" class="btn btn-secondary btn-lg me-2" onclick="clearForm()">
-                            <i class="fas fa-eraser"></i> Clear All
-                        </button>
-                    @endif
-                    <a href="{{ route('wo_bushings.show', $current_wo->id) }}"
-                       class="btn btn-outline-secondary me-2" style="height: 55px;width: 80px;align-content: center">
-                        {{ __('Back') }}
-                    </a>
-                </div>
-            </div>
-        </div>
 
-        @if($bushings->flatten()->count() > 0)
-            <div class="d-flex justify-content-center mt-3">
-                <div class="table-wrapper me-3">
-                        <table class="display table shadow table-hover align-middle table-bordered bg-gradient">
+                <div class="table-responsive table-scroll-container">
+                        <table class="table table-bordered dir-table table-hover align-middle">
+                            <colgroup>
+                                <col style="width: 13%;">
+                                <col style="width: 5%;">
+                                <col style="width: 4%;">
+                                <col style="width: 11%;">
+                                <col style="width: 11%;">
+                                <col style="width: 11%;">
+                                <col style="width: 11%;">
+                                <col style="width: 11%;">
+                                <col style="width: 11%;">
+                                <col style="width: 12%;">
+                            </colgroup>
                             <thead>
                                 <tr class="header-row">
                                     <th class="text-primary text-center">Bushings</th>
@@ -385,9 +382,9 @@
                         </table>
                 </div>
             </div>
-            </form>
-        @else
-            <div class="text-center mt-5">
+                </form>
+            @else
+            <div class="card-body text-center py-5">
                 <h3 class="text-muted">{{__('No Bushings available for this Work Order')}}</h3>
                 <p class="text-muted">{{__('No components with "Is Bush" marked are found for this manual.')}}</p>
                 <a href="{{ route('components.create') }}" class="btn btn-primary mt-3">
@@ -395,6 +392,7 @@
                 </a>
             </div>
         @endif
+        </div>
     </div>
 
     <script>
@@ -444,6 +442,8 @@
 
         // Валидация формы
         document.addEventListener('DOMContentLoaded', function() {
+            var inModal = {{ request()->query('modal') ? 'true' : 'false' }};
+
             // Инициализация: проверяем состояние полей при загрузке на основе выбранных чекбоксов
             const allGroups = new Set();
             document.querySelectorAll('.component-checkbox').forEach(function(checkbox) {
@@ -455,6 +455,13 @@
             allGroups.forEach(function(groupName) {
                 toggleGroupFields(groupName);
             });
+
+            var cancelBtn = document.getElementById('editBushingCancelBtn');
+            if (cancelBtn && inModal && window.parent !== window) {
+                cancelBtn.addEventListener('click', function() {
+                    window.parent.postMessage({ type: 'editBushingCancel' }, '*');
+                });
+            }
 
             const form = document.getElementById('bushings-form');
 
@@ -490,6 +497,35 @@
                 if (hasErrors) {
                     e.preventDefault();
                     alert('{{__("Please enter quantity for all groups with selected components.")}}');
+                    return false;
+                }
+
+                if (inModal && window.parent !== window) {
+                    e.preventDefault();
+                    var submitBtn = document.getElementById('editBushingSubmitBtn');
+                    var origHtml = submitBtn ? submitBtn.innerHTML : '';
+                    if (submitBtn) { submitBtn.disabled = true; submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm"></span>'; }
+                    var fd = new FormData(form);
+                    fd.append('_method', 'PUT');
+                    fetch(form.action, {
+                        method: 'POST',
+                        body: fd,
+                        headers: { 'X-Requested-With': 'XMLHttpRequest', 'Accept': 'application/json' },
+                        credentials: 'same-origin'
+                    })
+                    .then(function(r) { return r.json().catch(function() { return {}; }); })
+                    .then(function(res) {
+                        if (res.success) {
+                            window.parent.postMessage({ type: 'editBushingSuccess' }, '*');
+                        } else {
+                            if (submitBtn) { submitBtn.disabled = false; submitBtn.innerHTML = origHtml; }
+                            alert(res.message || (res.errors ? Object.values(res.errors).flat().join(', ') : '{{ __("Error") }}'));
+                        }
+                    })
+                    .catch(function() {
+                        if (submitBtn) { submitBtn.disabled = false; submitBtn.innerHTML = origHtml; }
+                        alert('{{ __("Error") }}');
+                    });
                     return false;
                 }
             });

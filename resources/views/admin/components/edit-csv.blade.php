@@ -51,7 +51,7 @@
                                 }
                             </style>
                             <div class="csv-edit-table-wrapper">
-                                <table class="table table-sm table-striped table-bordered mb-0" id="csvEditTable">
+                                <table class="table table-sm table-striped table-bordered mb-0 dir-table" id="csvEditTable">
                                     <thead class="table-dark">
                                         <tr>
                                             @foreach($headers as $headerIndex => $header)

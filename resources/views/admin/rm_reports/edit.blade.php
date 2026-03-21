@@ -113,7 +113,7 @@
                             </div>
 
                             <div class="table mt-3 table-scroll-rm-records">
-                                <table class="table table-striped text-center align-items-center">
+                                <table class="table table-striped text-center align-items-center dir-table">
                                     <thead>
                                     <tr>
                                         <th class="border align-middle">{{ __('Item') }} </th>
@@ -180,7 +180,7 @@
                                     </div>
 
                                     <div class="table-responsive table-scroll-rm-records mt-1">
-                                        <table class="table table-striped text-center align-items-center">
+                                        <table class="table table-striped text-center align-items-center dir-table">
                                             <thead>
                                             <tr>
                                                 <th>{{ __('Part Description') }}</th>
@@ -248,7 +248,7 @@
                                 </div>
                                 <div class="card-body">
                                     <div class="table-responsive table-scroll-technical-notes">
-                                        <table class="table table-bordered">
+                                        <table class="table table-bordered dir-table">
                                             <tbody id="technicalNotesTableBody">
                                             <!-- Строки заметок будут добавляться через JS -->
                                             </tbody>

@@ -154,8 +154,12 @@ class WoBushingController extends Controller
 
         // Check if WoBushing already exists for this workorder
         $existingWoBushing = WoBushing::where('workorder_id', $workorderId)->first();
+        $isAjax = $request->ajax();
 
         if ($existingWoBushing) {
+            if ($isAjax) {
+                return response()->json(['success' => false, 'message' => __('Bushings data already exists for this Work Order. Please use Edit to modify.')]);
+            }
             return redirect()->route('wo_bushings.show', $workorderId)
                 ->with('warning', 'Bushings data already exists for this Work Order. Please use Edit to modify.');
         }
@@ -180,13 +184,13 @@ class WoBushingController extends Controller
                         'bushing' => (int)$componentId,
                         'qty' => (int)($groupData['qty'] ?? 1),
                         'processes' => [
-                            'machining' => $groupData['machining'] ? (int)$groupData['machining'] : null,
-                            'stress_relief' => $groupData['stress_relief'] ? (int)$groupData['stress_relief'] : null,
+                            'machining' => !empty($groupData['machining'] ?? null) ? (int)$groupData['machining'] : null,
+                            'stress_relief' => !empty($groupData['stress_relief'] ?? null) ? (int)$groupData['stress_relief'] : null,
                             'ndt' => $ndtValues,
-                            'passivation' => $groupData['passivation'] ? (int)$groupData['passivation'] : null,
-                            'cad' => $groupData['cad'] ? (int)$groupData['cad'] : null,
-                            'anodizing' => $groupData['anodizing'] ? (int)$groupData['anodizing'] : null,
-                            'xylan' => $groupData['xylan'] ? (int)$groupData['xylan'] : null,
+                            'passivation' => !empty($groupData['passivation'] ?? null) ? (int)$groupData['passivation'] : null,
+                            'cad' => !empty($groupData['cad'] ?? null) ? (int)$groupData['cad'] : null,
+                            'anodizing' => !empty($groupData['anodizing'] ?? null) ? (int)$groupData['anodizing'] : null,
+                            'xylan' => !empty($groupData['xylan'] ?? null) ? (int)$groupData['xylan'] : null,
                         ]
                     ];
                 }
@@ -194,6 +198,9 @@ class WoBushingController extends Controller
         }
 
         if (empty($bushDataArray)) {
+            if ($isAjax ?? $request->ajax()) {
+                return response()->json(['success' => false, 'message' => __('Please select at least one component before submitting.')]);
+            }
             return redirect()->back()
                 ->with('error', 'Please select at least one component before submitting.')
                 ->withInput();
@@ -204,6 +211,9 @@ class WoBushingController extends Controller
             'bush_data' => $bushDataArray,
         ]);
 
+        if ($isAjax ?? $request->ajax()) {
+            return response()->json(['success' => true]);
+        }
         return redirect()->route('wo_bushings.show', $workorderId)
             ->with('success', 'Bushings data created successfully!');
     }
@@ -319,6 +329,89 @@ class WoBushingController extends Controller
         return view('admin.wo_bushings.show', compact(
             'current_wo',
             'bushings',
+            'machiningProcesses',
+            'stressReliefProcesses',
+            'ndtProcesses',
+            'passivationProcesses',
+            'cadProcesses',
+            'anodizingProcesses',
+            'xylanProcesses',
+            'woBushing',
+            'bushData',
+            'vendors'
+        ));
+    }
+
+    /**
+     * Return partial HTML for Bushing Processes tab (embedded in show2).
+     *
+     * @param int $workorder_id
+     * @return \Illuminate\Contracts\View\View
+     */
+    public function partial($workorder_id)
+    {
+        $current_wo = Workorder::findOrFail($workorder_id);
+        $manual_id = $current_wo->unit->manual_id;
+
+        $bushingsQuery = Component::where('manual_id', $manual_id)
+            ->where('is_bush', 1)
+            ->orderBy('bush_ipl_num', 'asc')
+            ->get();
+
+        $bushingsQuery = $bushingsQuery->sortBy(function ($item) {
+            $parts = explode('-', $item->ipl_num);
+            $numericPart = preg_replace('/[^0-9]/', '', end($parts));
+            return (int)$numericPart;
+        });
+
+        $bushings = $bushingsQuery->groupBy('bush_ipl_num');
+
+        $machiningProcesses = Process::whereHas('process_name', fn($q) => $q->where('name', 'Machining'))
+            ->whereHas('manuals', fn($q) => $q->where('manual_id', $manual_id))
+            ->with('process_name')->get();
+
+        $stressReliefProcesses = Process::whereHas('process_name', fn($q) => $q->where('name', 'Bake (Stress relief)'))
+            ->whereHas('manuals', fn($q) => $q->where('manual_id', $manual_id))
+            ->with('process_name')->get();
+
+        $ndtProcesses = Process::whereHas('process_name', fn($q) => $q->where('name', 'LIKE', 'NDT%'))
+            ->whereHas('manuals', fn($q) => $q->where('manual_id', $manual_id))
+            ->with('process_name')->get();
+
+        $passivationProcesses = Process::whereHas('process_name', fn($q) => $q->where('name', 'Passivation'))
+            ->whereHas('manuals', fn($q) => $q->where('manual_id', $manual_id))
+            ->with('process_name')->get();
+
+        $cadProcesses = Process::whereHas('process_name', fn($q) => $q->where('name', 'Cad plate'))
+            ->whereHas('manuals', fn($q) => $q->where('manual_id', $manual_id))
+            ->with('process_name')->get();
+
+        $anodizingProcesses = Process::whereHas('process_name', fn($q) => $q->where('name', 'Anodizing'))
+            ->whereHas('manuals', fn($q) => $q->where('manual_id', $manual_id))
+            ->with('process_name')->get();
+
+        $xylanProcesses = Process::whereHas('process_name', fn($q) => $q->where('name', 'Xylan coating'))
+            ->whereHas('manuals', fn($q) => $q->where('manual_id', $manual_id))
+            ->with('process_name')->get();
+
+        $woBushing = WoBushing::where('workorder_id', $current_wo->id)->first();
+        $bushData = [];
+        if ($woBushing && $woBushing->bush_data) {
+            $bushData = is_array($woBushing->bush_data)
+                ? $woBushing->bush_data
+                : json_decode($woBushing->bush_data, true);
+        }
+
+        $vendors = Vendor::all();
+        $manuals = Manual::all();
+
+        $returnTo = route('tdrs.show2', ['id' => $current_wo->id]);
+
+        return view('admin.wo_bushings.partial', compact(
+            'current_wo',
+            'bushings',
+            'returnTo',
+            'manuals',
             'machiningProcesses',
             'stressReliefProcesses',
             'ndtProcesses',
@@ -466,6 +559,9 @@ class WoBushingController extends Controller
         $groupBushingsData = $request->group_bushings ?? [];
 
         if (empty($groupBushingsData)) {
+            if ($request->ajax()) {
+                return response()->json(['success' => false, 'message' => __('Please select at least one group before submitting.')]);
+            }
             return redirect()->back()
                 ->with('error', 'Please select at least one group before submitting.')
                 ->withInput();
@@ -491,13 +587,13 @@ class WoBushingController extends Controller
                         'bushing' => (int)$componentId,
                         'qty' => (int)($groupData['qty'] ?? 1),
                         'processes' => [
-                            'machining' => $groupData['machining'] ? (int)$groupData['machining'] : null,
-                            'stress_relief' => $groupData['stress_relief'] ? (int)$groupData['stress_relief'] : null,
+                            'machining' => !empty($groupData['machining'] ?? null) ? (int)$groupData['machining'] : null,
+                            'stress_relief' => !empty($groupData['stress_relief'] ?? null) ? (int)$groupData['stress_relief'] : null,
                             'ndt' => $ndtValues,
-                            'passivation' => $groupData['passivation'] ? (int)$groupData['passivation'] : null,
-                            'cad' => $groupData['cad'] ? (int)$groupData['cad'] : null,
-                            'anodizing' => $groupData['anodizing'] ? (int)$groupData['anodizing'] : null,
-                            'xylan' => $groupData['xylan'] ? (int)$groupData['xylan'] : null,
+                            'passivation' => !empty($groupData['passivation'] ?? null) ? (int)$groupData['passivation'] : null,
+                            'cad' => !empty($groupData['cad'] ?? null) ? (int)$groupData['cad'] : null,
+                            'anodizing' => !empty($groupData['anodizing'] ?? null) ? (int)$groupData['anodizing'] : null,
+                            'xylan' => !empty($groupData['xylan'] ?? null) ? (int)$groupData['xylan'] : null,
                         ]
                     ];
                 }
@@ -505,6 +601,9 @@ class WoBushingController extends Controller
         }
 
         if (empty($bushDataArray)) {
+            if ($request->ajax()) {
+                return response()->json(['success' => false, 'message' => __('Please select at least one component in the selected groups.')]);
+            }
             return redirect()->back()
                 ->with('error', 'Please select at least one component in the selected groups.')
                 ->withInput();
@@ -515,6 +614,9 @@ class WoBushingController extends Controller
             'bush_data' => $bushDataArray
         ]);
 
+        if ($request->ajax()) {
+            return response()->json(['success' => true]);
+        }
         return redirect()->route('wo_bushings.show', $woBushing->workorder_id)
             ->with('success', 'Bushings data updated successfully!');
     }
@@ -709,22 +811,22 @@ class WoBushingController extends Controller
 
                         switch ($processName->name) {
                             case 'Machining':
-                                $processId = $processes['machining'] ?? null;
+                                $processId = data_get($processes, 'machining');
                                 break;
                             case 'Bake (Stress relief)':
-                                $processId = $processes['stress_relief'] ?? null;
+                                $processId = data_get($processes, 'stress_relief');
                                 break;
                             case 'Passivation':
-                                $processId = $processes['passivation'] ?? null;
+                                $processId = data_get($processes, 'passivation');
                                 break;
                             case 'Cad plate':
-                                $processId = $processes['cad'] ?? null;
+                                $processId = data_get($processes, 'cad');
                                 break;
                             case 'Anodizing':
-                                $processId = $processes['anodizing'] ?? null;
+                                $processId = data_get($processes, 'anodizing');
                                 break;
                             case 'Xylan coating':
-                                $processId = $processes['xylan'] ?? null;
+                                $processId = data_get($processes, 'xylan');
                                 break;
                         }
 
@@ -796,8 +898,12 @@ class WoBushingController extends Controller
                         ];
                         
                         foreach ($processOrder as $processType => $processKey) {
-                            // Проверяем, что процесс существует и не равен null
-                            if (isset($processes[$processKey]) && $processes[$processKey] !== null) {
+                            if ($processKey === 'ndt') {
+                                $ndtVal = $processes['ndt'] ?? null;
+                                if (is_array($ndtVal) && !empty($ndtVal)) {
+                                    $activeProcesses[] = $processType;
+                                }
+                            } elseif (isset($processes[$processKey]) && $processes[$processKey] !== null && $processes[$processKey] !== '') {
                                 $activeProcesses[] = $processType;
                             }
                         }

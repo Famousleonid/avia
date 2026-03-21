@@ -43,6 +43,13 @@ document.addEventListener('DOMContentLoaded', function() {
     var tabExtraPartsProcessesBtn = document.getElementById('tab-extra-parts-processes');
     var extraGroupFormsHeaderBtn = document.getElementById('extraGroupFormsHeaderBtn');
     var extraPartsTabActions = document.getElementById('extraPartsTabActions');
+    var logCardTabBody = document.getElementById('logCardTabBody');
+    var logCardPartialUrl = '{{ route("log_card.partial", ["workorder_id" => $current_wo->id]) }}';
+    var bushingTabBody = document.getElementById('bushingTabBody');
+    var bushingPartialUrl = '{{ route("wo_bushings.partial", ["workorder_id" => $current_wo->id]) }}';
+    var createLogCardUrl = '{{ route("log_card.create", ["id" => "__ID__"]) }}';
+    var editLogCardUrl = '{{ route("log_card.edit", ["id" => "__ID__"]) }}';
+    var editBushingUrl = '{{ route("wo_bushings.edit", ["wo_bushing" => "__ID__"]) }}';
 
     function loadAllPartsProcesses() {
         if (!allPartsBody) return;
@@ -86,6 +93,71 @@ document.addEventListener('DOMContentLoaded', function() {
             })
             .catch(function() {
                 extraPartsBody.innerHTML = '<div class="alert alert-danger">{{ __("Failed to load.") }}</div>';
+            });
+    }
+
+    function loadBushingPartial() {
+        if (!bushingTabBody) return;
+        bushingTabBody.innerHTML = '<div class="text-center py-5"><div class="spinner-border text-primary" role="status"></div></div>';
+        fetch(bushingPartialUrl, { headers: { 'X-Requested-With': 'XMLHttpRequest', 'Accept': 'text/html' }, credentials: 'same-origin' })
+            .then(function(r) {
+                if (!r.ok) throw new Error('HTTP ' + r.status);
+                return r.text();
+            })
+            .then(function(html) {
+                bushingTabBody.innerHTML = html;
+                bushingTabBody.dataset.loaded = '1';
+                bushingTabBody.querySelectorAll('script').forEach(function(oldScript) {
+                    var newScript = document.createElement('script');
+                    Array.from(oldScript.attributes || []).forEach(function(attr) {
+                        newScript.setAttribute(attr.name, attr.value);
+                    });
+                    newScript.textContent = oldScript.textContent;
+                    oldScript.parentNode.replaceChild(newScript, oldScript);
+                });
+                var wrap = bushingTabBody.querySelector('.bushing-partial');
+                if (wrap && bushingTabActions) {
+                    var hasWoBushing = wrap.dataset.hasWoBushing === '1';
+                    var editUrl = wrap.dataset.editUrl || '';
+                    var specFormUrl = wrap.dataset.specFormUrl || '';
+                    var woBushingId = wrap.dataset.woBushingId || '';
+                    if (hasWoBushing && editUrl) {
+                        bushingTabActions.innerHTML = '<button type="button" class="btn btn-outline-primary btn-sm open-edit-bushing-modal" data-wo-bushing-id="' + woBushingId + '"><i class="fas fa-edit"></i> {{ __("Update Bushings List") }}</button><a href="' + specFormUrl + '" target="_blank" class="btn btn-outline-primary btn-sm ms-1">Bushing SP Form</a>';
+                    } else if (wrap.dataset.hasBushings === '1') {
+                        bushingTabActions.innerHTML = '<button type="submit" form="bushings-form" class="btn btn-success btn-sm"><i class="fas fa-plus"></i> {{ __("Create Bushing Data") }}</button><button type="button" class="btn btn-secondary btn-sm bushing-clear-btn"><i class="fas fa-eraser"></i> {{ __("Clear All") }}</button>';
+                    }
+                    if (hasWoBushing && specFormUrl) {
+                        var headerBtn = document.getElementById('bushingSpFormHeaderBtn');
+                        if (headerBtn && !headerBtn.querySelector('a[href]')) {
+                            var a = document.createElement('a');
+                            a.href = specFormUrl;
+                            a.target = '_blank';
+                            a.className = 'paper-btn btn-outline-primary paper-portrait p-0';
+                            a.setAttribute('aria-label', '{{ __("Bushing SP Form") }}');
+                            a.innerHTML = '<svg viewBox="0 0 190 270" width="60" height="80" preserveAspectRatio="xMidYMid meet" xmlns="http://www.w3.org/2000/svg"><path class="paper" d="M10 10 H140 L180 50 V240 H10 Z"/><polygon class="fold" points="140,10 140,50 180,50"/><path class="line" d="M140 12 V50 H180"/><foreignObject x="20" y="60" width="140" height="140"><div xmlns="http://www.w3.org/1999/xhtml" style="font: 34px Arial,sans-serif;text-align:center;display:flex;align-items:center;justify-content:center;height:100%;width:100%;word-wrap:break-word;">Bushing SP Form</div></foreignObject></svg>';
+                            headerBtn.appendChild(a);
+                        }
+                    }
+                }
+            })
+            .catch(function(err) {
+                bushingTabBody.innerHTML = '<div class="alert alert-danger">{{ __("Failed to load.") }} (' + (err && err.message ? err.message : '') + ')</div>';
+            });
+    }
+
+    function loadLogCardPartial() {
+        if (!logCardTabBody) return;
+        logCardTabBody.innerHTML = '<div class="text-center py-5"><div class="spinner-border text-primary" role="status"></div></div>';
+        fetch(logCardPartialUrl, { headers: { 'X-Requested-With': 'XMLHttpRequest', 'Accept': 'text/html' }, credentials: 'same-origin' })
+            .then(function(r) {
+                if (!r.ok) throw new Error('HTTP ' + r.status);
+                return r.text();
+            })
+            .then(function(html) {
+                logCardTabBody.innerHTML = html;
+            })
+            .catch(function(err) {
+                logCardTabBody.innerHTML = '<div class="alert alert-danger">{{ __("Failed to load.") }} (' + (err && err.message ? err.message : '') + ')</div>';
             });
     }
 
@@ -236,6 +308,26 @@ document.addEventListener('DOMContentLoaded', function() {
         var modal = document.getElementById('addExtraPartModal');
         if (iframe && modal && workorderId) {
             iframe.src = addExtraPartCreateUrl.replace('__ID__', workorderId) + '?modal=1';
+            var inst = bootstrap.Modal.getOrCreateInstance(modal);
+            inst.show();
+            modal.addEventListener('shown.bs.modal', function setZ() { modal.style.zIndex = '1080'; var b = document.querySelectorAll('.modal-backdrop'); if (b.length) b[b.length-1].style.zIndex = '1075'; }, { once: true });
+        }
+    }
+    function openCreateLogCardModal(workorderId) {
+        var iframe = document.getElementById('createLogCardIframe');
+        var modal = document.getElementById('createLogCardModal');
+        if (iframe && modal && workorderId) {
+            iframe.src = createLogCardUrl.replace('__ID__', workorderId) + '?modal=1';
+            var inst = bootstrap.Modal.getOrCreateInstance(modal);
+            inst.show();
+            modal.addEventListener('shown.bs.modal', function setZ() { modal.style.zIndex = '1080'; var b = document.querySelectorAll('.modal-backdrop'); if (b.length) b[b.length-1].style.zIndex = '1075'; }, { once: true });
+        }
+    }
+    function openEditLogCardModal(logCardId) {
+        var iframe = document.getElementById('editLogCardIframe');
+        var modal = document.getElementById('editLogCardModal');
+        if (iframe && modal && logCardId) {
+            iframe.src = editLogCardUrl.replace('__ID__', logCardId) + '?modal=1';
             var inst = bootstrap.Modal.getOrCreateInstance(modal);
             inst.show();
             modal.addEventListener('shown.bs.modal', function setZ() { modal.style.zIndex = '1080'; var b = document.querySelectorAll('.modal-backdrop'); if (b.length) b[b.length-1].style.zIndex = '1075'; }, { once: true });
@@ -400,6 +492,118 @@ document.addEventListener('DOMContentLoaded', function() {
             if (tabBtn) { var tab = new bootstrap.Tab(tabBtn); tab.show(); }
         });
     }
+    var logCardTabActions = document.getElementById('logCardTabActions');
+    var bushingTabActions = document.getElementById('bushingTabActions');
+    if (bushingTabBody) {
+        bushingTabBody.addEventListener('click', function(e) {
+            var formBtn = e.target.closest('.form-btn');
+            if (formBtn && formBtn.getAttribute('href')) {
+                e.preventDefault();
+                var vendorSelectId = formBtn.getAttribute('data-vendor-select');
+                var vendorSelect = document.getElementById(vendorSelectId);
+                var vendorId = vendorSelect ? vendorSelect.value : '';
+                var baseUrl = formBtn.getAttribute('href');
+                var finalUrl = baseUrl + (vendorId ? (baseUrl.includes('?') ? '&' : '?') + 'vendor_id=' + vendorId : '');
+                window.open(finalUrl, '_blank');
+            }
+        });
+        bushingTabBody.addEventListener('submit', function(e) {
+            var form = e.target;
+            if (form.id !== 'bushings-form' || form.dataset.embed !== '1') return;
+            e.preventDefault();
+            var selected = form.querySelectorAll('.component-checkbox:checked');
+            if (selected.length === 0) {
+                alert('{{ __("Please select at least one component before submitting.") }}');
+                return;
+            }
+            var groups = new Set();
+            selected.forEach(function(c){ groups.add(c.getAttribute('data-group')); });
+            var hasErr = false;
+            groups.forEach(function(gn) {
+                var q = form.querySelector('input[name="group_bushings[' + gn + '][qty]"]');
+                if (!q || !q.value || parseInt(q.value, 10) <= 0) { if (q) q.style.borderColor = 'red'; hasErr = true; }
+                else if (q) q.style.borderColor = '';
+            });
+            if (hasErr) {
+                alert('{{ __("Please enter quantity for all groups with selected components.") }}');
+                return;
+            }
+            var submitBtn = document.querySelector('button[form="bushings-form"]');
+            var origHtml = submitBtn ? submitBtn.innerHTML : '';
+            if (submitBtn) { submitBtn.disabled = true; submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm"></span>'; }
+            var fd = new FormData(form);
+            var controller = new AbortController();
+            var timeoutId = setTimeout(function() { controller.abort(); }, 30000);
+            fetch(form.action, {
+                method: 'POST',
+                body: fd,
+                signal: controller.signal,
+                headers: { 'X-Requested-With': 'XMLHttpRequest', 'Accept': 'application/json' },
+                credentials: 'same-origin'
+            })
+            .then(function(r) {
+                return r.text().then(function(text) {
+                    try { return { json: JSON.parse(text), status: r.status }; } catch (e) { return { json: null, status: r.status }; }
+                });
+            })
+            .then(function(result) {
+                clearTimeout(timeoutId);
+                if (submitBtn) { submitBtn.disabled = false; submitBtn.innerHTML = origHtml; }
+                if (result.json) {
+                    if (result.json.success) {
+                        if (typeof loadBushingPartial === 'function') loadBushingPartial();
+                    } else {
+                        alert(result.json.message || (result.json.errors ? JSON.stringify(result.json.errors) : '') || '{{ __("Error creating bushings data.") }}');
+                    }
+                } else {
+                    alert('{{ __("Failed to submit.") }} (HTTP ' + result.status + ')');
+                }
+            })
+            .catch(function(err) {
+                clearTimeout(timeoutId);
+                if (submitBtn) { submitBtn.disabled = false; submitBtn.innerHTML = origHtml; }
+                alert(err.name === 'AbortError' ? '{{ __("Request timed out. Please try again.") }}' : ('{{ __("Failed to submit.") }}' + (err.message ? ': ' + err.message : '')));
+            });
+        });
+    }
+    if (bushingTabActions) {
+        bushingTabActions.addEventListener('click', function(e) {
+            var clearBtn = e.target.closest('.bushing-clear-btn');
+            if (clearBtn) {
+                e.preventDefault();
+                if (typeof window.bushingClearForm === 'function') window.bushingClearForm();
+                return;
+            }
+            var editBtn = e.target.closest('.open-edit-bushing-modal');
+            if (editBtn && editBtn.dataset.woBushingId) {
+                e.preventDefault();
+                var iframe = document.getElementById('editBushingIframe');
+                var modal = document.getElementById('editBushingModal');
+                if (iframe && modal) {
+                    iframe.src = editBushingUrl.replace('__ID__', editBtn.dataset.woBushingId) + '?modal=1';
+                    var inst = bootstrap.Modal.getOrCreateInstance(modal);
+                    inst.show();
+                    modal.addEventListener('shown.bs.modal', function setZ() { modal.style.zIndex = '1080'; var b = document.querySelectorAll('.modal-backdrop'); if (b.length) b[b.length-1].style.zIndex = '1075'; }, { once: true });
+                }
+            }
+        });
+    }
+    if (logCardTabActions) {
+        logCardTabActions.addEventListener('click', function(e) {
+            var createBtn = e.target.closest('.open-create-log-card-modal');
+            if (createBtn && createBtn.dataset.workorderId) {
+                e.preventDefault();
+                openCreateLogCardModal(createBtn.dataset.workorderId);
+                return;
+            }
+            var editBtn = e.target.closest('.open-edit-log-card-modal');
+            if (editBtn && editBtn.dataset.logCardId) {
+                e.preventDefault();
+                openEditLogCardModal(editBtn.dataset.logCardId);
+                return;
+            }
+        });
+    }
     if (extraPartsBody) {
         extraPartsBody.addEventListener('click', function(e) {
             var editBtn = e.target.closest('.open-edit-extra-process-modal');
@@ -436,12 +640,16 @@ document.addEventListener('DOMContentLoaded', function() {
         var target = (e.target.getAttribute && e.target.getAttribute('data-bs-target')) || (e.target.getAttribute && e.target.getAttribute('href'));
         if (target && String(target).indexOf('content-part-processes') !== -1) {
             if (extraPartsTabActions) extraPartsTabActions.classList.add('d-none');
+            if (logCardTabActions) logCardTabActions.classList.add('d-none');
+            if (bushingTabActions) bushingTabActions.classList.add('d-none');
             return;
         }
         if (target && String(target).indexOf('content-all-parts-processes') !== -1) {
             if (groupProcessFormsHeaderBtn) groupProcessFormsHeaderBtn.classList.remove('d-none');
             if (extraGroupFormsHeaderBtn) extraGroupFormsHeaderBtn.classList.add('d-none');
             if (extraPartsTabActions) extraPartsTabActions.classList.add('d-none');
+            if (logCardTabActions) logCardTabActions.classList.add('d-none');
+            if (bushingTabActions) bushingTabActions.classList.add('d-none');
             if (allPartsBody && !allPartsBody.dataset.loaded) {
                 allPartsBody.dataset.loaded = '1';
                 loadAllPartsProcesses();
@@ -449,6 +657,8 @@ document.addEventListener('DOMContentLoaded', function() {
         } else if (target && String(target).indexOf('content-extra-parts-processes') !== -1) {
             if (groupProcessFormsHeaderBtn) groupProcessFormsHeaderBtn.classList.add('d-none');
             if (extraPartsTabActions) extraPartsTabActions.classList.remove('d-none');
+            if (logCardTabActions) logCardTabActions.classList.add('d-none');
+            if (bushingTabActions) bushingTabActions.classList.add('d-none');
             if (extraPartsBody && !extraPartsBody.dataset.loaded) {
                 extraPartsBody.dataset.loaded = '1';
                 loadExtraPartProcesses();
@@ -456,14 +666,38 @@ document.addEventListener('DOMContentLoaded', function() {
                 updateExtraPartsTabAsterisk();
                 updateExtraGroupFormsButtonVisibility();
             }
+        } else if (target && String(target).indexOf('content-log-card') !== -1) {
+            if (groupProcessFormsHeaderBtn) groupProcessFormsHeaderBtn.classList.add('d-none');
+            if (extraGroupFormsHeaderBtn) extraGroupFormsHeaderBtn.classList.add('d-none');
+            if (extraPartsTabActions) extraPartsTabActions.classList.add('d-none');
+            if (bushingTabActions) bushingTabActions.classList.add('d-none');
+            if (logCardTabActions) logCardTabActions.classList.remove('d-none');
+            if (logCardTabBody && !logCardTabBody.dataset.loaded) {
+                logCardTabBody.dataset.loaded = '1';
+                loadLogCardPartial();
+            }
+        } else if (target && String(target).indexOf('content-bushing') !== -1) {
+            if (groupProcessFormsHeaderBtn) groupProcessFormsHeaderBtn.classList.add('d-none');
+            if (extraGroupFormsHeaderBtn) extraGroupFormsHeaderBtn.classList.add('d-none');
+            if (extraPartsTabActions) extraPartsTabActions.classList.add('d-none');
+            if (logCardTabActions) logCardTabActions.classList.add('d-none');
+            if (bushingTabActions) bushingTabActions.classList.remove('d-none');
+            if (bushingTabBody && !bushingTabBody.dataset.loaded) {
+                bushingTabBody.dataset.loaded = '1';
+                loadBushingPartial();
+            }
         } else if (target && String(target).indexOf('content-extra-processes') !== -1) {
             if (groupProcessFormsHeaderBtn) groupProcessFormsHeaderBtn.classList.add('d-none');
             if (extraGroupFormsHeaderBtn) extraGroupFormsHeaderBtn.classList.add('d-none');
             if (extraPartsTabActions) extraPartsTabActions.classList.add('d-none');
+            if (logCardTabActions) logCardTabActions.classList.add('d-none');
+            if (bushingTabActions) bushingTabActions.classList.add('d-none');
         } else {
             if (groupProcessFormsHeaderBtn) groupProcessFormsHeaderBtn.classList.add('d-none');
             if (extraGroupFormsHeaderBtn) extraGroupFormsHeaderBtn.classList.add('d-none');
             if (extraPartsTabActions) extraPartsTabActions.classList.add('d-none');
+            if (logCardTabActions) logCardTabActions.classList.add('d-none');
+            if (bushingTabActions) bushingTabActions.classList.add('d-none');
         }
         if (target && String(target).indexOf('content-part-processes') === -1) {
             if (tabLi) tabLi.classList.add('d-none');
@@ -474,7 +708,9 @@ document.addEventListener('DOMContentLoaded', function() {
             if (extraProcessesTabBody) extraProcessesTabBody.innerHTML = '<div class="text-center py-5 text-muted">{{ __("Click Processes in Extra Part Processes table to load.") }}</div>';
         }
     });
-
+    if (bushingTabBody && typeof loadBushingPartial === 'function') {
+        loadBushingPartial();
+    }
     window.addEventListener('message', function(e) {
         if (e.data && e.data.type === 'createProcessSuccess' && e.data.tdrId) {
             var m = bootstrap.Modal.getInstance(document.getElementById('addPartProcessesModal'));
@@ -548,6 +784,43 @@ document.addEventListener('DOMContentLoaded', function() {
             if (m) m.hide();
             var ifr = document.getElementById('editTdrProcessIframe');
             if (ifr) ifr.src = 'about:blank';
+        } else if (e.data && e.data.type === 'createLogCardSuccess') {
+            var m = bootstrap.Modal.getInstance(document.getElementById('createLogCardModal'));
+            if (m) m.hide();
+            var ifr = document.getElementById('createLogCardIframe');
+            if (ifr) ifr.src = 'about:blank';
+            var logCardId = e.data.logCardId;
+            if (logCardTabActions && logCardId) {
+                logCardTabActions.innerHTML = '<button type="button" class="btn btn-outline-primary btn-sm open-edit-log-card-modal" data-log-card-id="' + logCardId + '"><i class="fas fa-edit"></i> {{ __("Edit Log Card") }}</button>';
+            }
+            if (logCardTabBody) loadLogCardPartial();
+        } else if (e.data && e.data.type === 'createLogCardCancel') {
+            var m = bootstrap.Modal.getInstance(document.getElementById('createLogCardModal'));
+            if (m) m.hide();
+            var ifr = document.getElementById('createLogCardIframe');
+            if (ifr) ifr.src = 'about:blank';
+        } else if (e.data && e.data.type === 'editLogCardSuccess') {
+            var m = bootstrap.Modal.getInstance(document.getElementById('editLogCardModal'));
+            if (m) m.hide();
+            var ifr = document.getElementById('editLogCardIframe');
+            if (ifr) ifr.src = 'about:blank';
+            if (logCardTabBody) loadLogCardPartial();
+        } else if (e.data && e.data.type === 'editLogCardCancel') {
+            var m = bootstrap.Modal.getInstance(document.getElementById('editLogCardModal'));
+            if (m) m.hide();
+            var ifr = document.getElementById('editLogCardIframe');
+            if (ifr) ifr.src = 'about:blank';
+        } else if (e.data && e.data.type === 'editBushingSuccess') {
+            var m = bootstrap.Modal.getInstance(document.getElementById('editBushingModal'));
+            if (m) m.hide();
+            var ifr = document.getElementById('editBushingIframe');
+            if (ifr) ifr.src = 'about:blank';
+            if (bushingTabBody) loadBushingPartial();
+        } else if (e.data && e.data.type === 'editBushingCancel') {
+            var m = bootstrap.Modal.getInstance(document.getElementById('editBushingModal'));
+            if (m) m.hide();
+            var ifr = document.getElementById('editBushingIframe');
+            if (ifr) ifr.src = 'about:blank';
         }
     });
     document.getElementById('addPartProcessesModal')?.addEventListener('hidden.bs.modal', function() {
@@ -564,6 +837,10 @@ document.addEventListener('DOMContentLoaded', function() {
     });
     document.getElementById('addExtraProcessModal')?.addEventListener('hidden.bs.modal', function() {
         var ifr = document.getElementById('addExtraProcessIframe');
+        if (ifr) ifr.src = 'about:blank';
+    });
+    document.getElementById('editBushingModal')?.addEventListener('hidden.bs.modal', function() {
+        var ifr = document.getElementById('editBushingIframe');
         if (ifr) ifr.src = 'about:blank';
     });
     if (editTdrModal) {
