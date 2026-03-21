@@ -78,14 +78,14 @@
             <div class="card-header  m-1 shadow">
 
                 <div class="d-flex  text-center">
-                    <div class="" style="width: 100px;">
-                        <h5 class="text-success-emphasis  ps-1">{{__('WO')}}
-                            <a class="text-success-emphasis " href="{{ route('mains.show', $current_wo->id) }}"
-                                {{$current_wo->number}}>{{$current_wo->number}}
-                            </a>
-                        </h5>
-                    </div>
 
+                    <div class="me-5" style="width: 130px;">
+                        <a href="{{ route('mains.show', $current_wo->id) }}"
+                           class="btn fs-9 btn-outline-info" style="height: 55px;width: 110px; align-content: center;line-height: 1rem">
+                            <i class="bi bi-arrow-left"></i>
+                            <span >{{ __(' WO') }} </span> <span class="font-bold">{{ $current_wo->number }}</span>
+                        </a>
+                    </div>
 
                     <div class="ps-2 d-flex">
 
@@ -97,27 +97,7 @@
                                     data-number="{{ $current_wo->number }}">
                                 <i class="bi bi-file-earmark-pdf" style="font-size: 26px; "></i>
                             </button>
-                            {{-- Badge with count of uploaded PDF files --}}
-                            <span id="pdfCountBadge"
-                                  class="badge bg-warning rounded-pill position-absolute d-none"
-                                  style="top: -5px; right: -5px; min-width: 22px; height: 22px;
-                                         display: flex; align-items: center; justify-content: center;color: black;
-                                         font-size: 0.7rem; padding: 0 5px;">
-                            </span>
-                        </div>
-
-
-                        @if(count($processParts))
-                            <div class="me-2">
-                                <a href="{{route('tdrs.processes',['workorder_id' => $current_wo->id])}}"
-                                   class="btn fs-8 btn-outline-primary "
-                                   style="height: 55px;width: 100px; align-content: center;line-height: 1rem"
-{{--                                   onclick="showLoadingSpinner()"--}}
-                                >
-                                    {{__('All Parts Processes')}}
-                                </a>
                             </div>
-                        @endif
                         <div class="me-2" style="position: relative;">
                             @php
                                 $extraProcessesCount = \App\Models\ExtraProcess::where('workorder_id', $current_wo->id)
@@ -667,6 +647,7 @@
                         </div>
                     </div>
                 </div>
+
             </div>
             <! --- Header end --- ->
 
@@ -1053,7 +1034,9 @@
         </div>
         </div>
 
-    @else
+    @endif
+
+    @if(!$current_wo->unit->manuals->builder)
 
         <!-- Manual data Not COMPLETE  -->
         <div>

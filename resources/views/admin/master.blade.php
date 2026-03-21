@@ -304,5 +304,7 @@
 
 </script>
 
+@include('admin.ai_widget')
+
 </body>
 </html>

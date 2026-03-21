@@ -91,6 +91,13 @@ class MainController extends Controller
             ])
             ->findOrFail($workorder->id);
 
+        // Keep current WO context in session for AI widget fallback.
+        $request->session()->put('ai_current_workorder_context', [
+            'id' => (int)$current_workorder->id,
+            'number' => (int)$current_workorder->number,
+            'manual_id' => (int)($current_workorder->unit?->manual_id ?? 0),
+        ]);
+
         $this->syncWaitingApproveMain($current_workorder);
 
         $users = User::all();
