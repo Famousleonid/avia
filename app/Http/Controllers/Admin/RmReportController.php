@@ -93,6 +93,22 @@ class RmReportController extends Controller
 }
 
     /**
+     * Return partial HTML for Repair & Modification Record tab (embedded in show2).
+     *
+     * @param int $workorder_id
+     * @return Application|Factory|View
+     */
+    public function partial($workorder_id)
+    {
+        $current_wo = Workorder::findOrFail($workorder_id);
+        $manual_id = $current_wo->unit->manual_id;
+
+        $rm_reports = RmReport::where('manual_id', $manual_id)->get();
+
+        return view('admin.rm_reports.partial', compact('current_wo', 'rm_reports'));
+    }
+
+    /**
      * Display the specified resource.
      *
      * @param  int  $id

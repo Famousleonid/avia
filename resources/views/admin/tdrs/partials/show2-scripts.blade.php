@@ -48,6 +48,10 @@ document.addEventListener('DOMContentLoaded', function() {
     var logCardPartialUrl = '{{ route("log_card.partial", ["workorder_id" => $current_wo->id]) }}';
     var bushingTabBody = document.getElementById('bushingTabBody');
     var bushingPartialUrl = '{{ route("wo_bushings.partial", ["workorder_id" => $current_wo->id]) }}';
+    var rmReportsTabBody = document.getElementById('rmReportsTabBody');
+    var rmReportsPartialUrl = '{{ route("rm_reports.partial", ["workorder_id" => $current_wo->id]) }}';
+    var stdProcessesTabBody = document.getElementById('stdProcessesTabBody');
+    var stdProcessesPartialUrl = @json($current_wo->instruction_id == 1 ? route('ndt-cad-csv.partial', ['workorder' => $current_wo->id]) : null);
     var createLogCardUrl = '{{ route("log_card.create", ["id" => "__ID__"]) }}';
     var editLogCardUrl = '{{ route("log_card.edit", ["id" => "__ID__"]) }}';
     var editBushingUrl = '{{ route("wo_bushings.edit", ["wo_bushing" => "__ID__"]) }}';
@@ -160,6 +164,56 @@ document.addEventListener('DOMContentLoaded', function() {
             })
             .catch(function(err) {
                 logCardTabBody.innerHTML = '<div class="alert alert-danger">{{ __("Failed to load.") }} (' + (err && err.message ? err.message : '') + ')</div>';
+            });
+    }
+
+    function loadStdProcessesPartial() {
+        if (!stdProcessesTabBody || !stdProcessesPartialUrl) return;
+        stdProcessesTabBody.innerHTML = '<div class="text-center py-5"><div class="spinner-border text-primary" role="status"></div></div>';
+        fetch(stdProcessesPartialUrl, { headers: { 'X-Requested-With': 'XMLHttpRequest', 'Accept': 'text/html' }, credentials: 'same-origin' })
+            .then(function(r) {
+                if (!r.ok) throw new Error('HTTP ' + r.status);
+                return r.text();
+            })
+            .then(function(html) {
+                stdProcessesTabBody.innerHTML = html;
+                stdProcessesTabBody.dataset.loaded = '1';
+                stdProcessesTabBody.querySelectorAll('script').forEach(function(oldScript) {
+                    var newScript = document.createElement('script');
+                    Array.from(oldScript.attributes || []).forEach(function(attr) {
+                        newScript.setAttribute(attr.name, attr.value);
+                    });
+                    newScript.textContent = oldScript.textContent;
+                    oldScript.parentNode.replaceChild(newScript, oldScript);
+                });
+            })
+            .catch(function(err) {
+                stdProcessesTabBody.innerHTML = '<div class="alert alert-danger">{{ __("Failed to load.") }} (' + (err && err.message ? err.message : '') + ')</div>';
+            });
+    }
+
+    function loadRmReportsPartial() {
+        if (!rmReportsTabBody) return;
+        rmReportsTabBody.innerHTML = '<div class="text-center py-5"><div class="spinner-border text-primary" role="status"></div></div>';
+        fetch(rmReportsPartialUrl, { headers: { 'X-Requested-With': 'XMLHttpRequest', 'Accept': 'text/html' }, credentials: 'same-origin' })
+            .then(function(r) {
+                if (!r.ok) throw new Error('HTTP ' + r.status);
+                return r.text();
+            })
+            .then(function(html) {
+                rmReportsTabBody.innerHTML = html;
+                rmReportsTabBody.dataset.loaded = '1';
+                rmReportsTabBody.querySelectorAll('script').forEach(function(oldScript) {
+                    var newScript = document.createElement('script');
+                    Array.from(oldScript.attributes || []).forEach(function(attr) {
+                        newScript.setAttribute(attr.name, attr.value);
+                    });
+                    newScript.textContent = oldScript.textContent;
+                    oldScript.parentNode.replaceChild(newScript, oldScript);
+                });
+            })
+            .catch(function(err) {
+                rmReportsTabBody.innerHTML = '<div class="alert alert-danger">{{ __("Failed to load.") }} (' + (err && err.message ? err.message : '') + ')</div>';
             });
     }
 
@@ -678,6 +732,7 @@ document.addEventListener('DOMContentLoaded', function() {
             if (extraPartsTabActions) extraPartsTabActions.classList.add('d-none');
             if (logCardTabActions) logCardTabActions.classList.add('d-none');
             if (bushingTabActions) bushingTabActions.classList.add('d-none');
+            if (rmReportsTabBody) rmReportsTabBody.dataset.loaded = '';
             return;
         }
         if (target && String(target).indexOf('content-all-parts-processes') !== -1) {
@@ -721,6 +776,26 @@ document.addEventListener('DOMContentLoaded', function() {
             if (bushingTabBody && !bushingTabBody.dataset.loaded) {
                 bushingTabBody.dataset.loaded = '1';
                 loadBushingPartial();
+            }
+        } else if (target && String(target).indexOf('content-rm-reports') !== -1) {
+            if (groupProcessFormsHeaderBtn) groupProcessFormsHeaderBtn.classList.add('d-none');
+            if (extraGroupFormsHeaderBtn) extraGroupFormsHeaderBtn.classList.add('d-none');
+            if (extraPartsTabActions) extraPartsTabActions.classList.add('d-none');
+            if (logCardTabActions) logCardTabActions.classList.add('d-none');
+            if (bushingTabActions) bushingTabActions.classList.add('d-none');
+            if (rmReportsTabBody && !rmReportsTabBody.dataset.loaded) {
+                rmReportsTabBody.dataset.loaded = '1';
+                loadRmReportsPartial();
+            }
+        } else if (target && String(target).indexOf('content-std-processes') !== -1) {
+            if (groupProcessFormsHeaderBtn) groupProcessFormsHeaderBtn.classList.add('d-none');
+            if (extraGroupFormsHeaderBtn) extraGroupFormsHeaderBtn.classList.add('d-none');
+            if (extraPartsTabActions) extraPartsTabActions.classList.add('d-none');
+            if (logCardTabActions) logCardTabActions.classList.add('d-none');
+            if (bushingTabActions) bushingTabActions.classList.add('d-none');
+            if (stdProcessesTabBody && !stdProcessesTabBody.dataset.loaded) {
+                stdProcessesTabBody.dataset.loaded = '1';
+                loadStdProcessesPartial();
             }
         } else if (target && String(target).indexOf('content-extra-processes') !== -1) {
             if (groupProcessFormsHeaderBtn) groupProcessFormsHeaderBtn.classList.add('d-none');

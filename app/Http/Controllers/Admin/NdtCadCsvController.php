@@ -126,6 +126,45 @@ class NdtCadCsvController extends Controller
     }
 
     /**
+     * Partial для встраивания в show2 (без layout)
+     */
+    public function partial(Workorder $workorder): View
+    {
+        $ndtCadCsv = $workorder->ndtCadCsv;
+        $shouldAutoLoad = false;
+        if (!$ndtCadCsv) {
+            $shouldAutoLoad = true;
+        } else {
+            $ndtEmpty = empty($ndtCadCsv->ndt_components) || (is_array($ndtCadCsv->ndt_components) && count($ndtCadCsv->ndt_components) == 0);
+            $cadEmpty = empty($ndtCadCsv->cad_components) || (is_array($ndtCadCsv->cad_components) && count($ndtCadCsv->cad_components) == 0);
+            $stressEmpty = empty($ndtCadCsv->stress_components) || (is_array($ndtCadCsv->stress_components) && count($ndtCadCsv->stress_components) == 0);
+            if ($ndtEmpty && $cadEmpty && $stressEmpty) {
+                $shouldAutoLoad = true;
+            }
+        }
+        if ($shouldAutoLoad) {
+            if (!$ndtCadCsv) {
+                $ndtCadCsv = NdtCadCsv::createForWorkorder($workorder->id);
+            } else {
+                $ndtCadCsv = NdtCadCsv::loadComponentsFromManual($workorder->id, $ndtCadCsv);
+            }
+        } else {
+            $manual = $workorder->unit->manuals ?? null;
+            if ($ndtCadCsv && $manual) {
+                $stressEmpty = empty($ndtCadCsv->stress_components) || (is_array($ndtCadCsv->stress_components) && count($ndtCadCsv->stress_components) == 0);
+                if ($stressEmpty) {
+                    $stressCsv = $manual->getMedia('csv_files')->first(fn($m) => $m->getCustomProperty('process_type') === 'stress');
+                    if ($stressCsv) {
+                        $ndtCadCsv->stress_components = NdtCadCsv::loadComponentsFromCsv($stressCsv->getPath(), 'stress');
+                        $ndtCadCsv->save();
+                    }
+                }
+            }
+        }
+        return view('admin.ndt-cad-csv.partial', compact('workorder', 'ndtCadCsv'));
+    }
+
+    /**
      * Обновить NDT компоненты
      */
     public function updateNdtComponents(Request $request, Workorder $workorder): JsonResponse

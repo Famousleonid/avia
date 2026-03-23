@@ -222,11 +222,11 @@
                         <button class="nav-link" id="tab-bushing" data-bs-toggle="tab" data-bs-target="#content-bushing" type="button" role="tab">{{ __('Bushing Processes') }}</button>
                     </li>
                     <li class="nav-item" role="presentation">
-                        <a class="nav-link" href="{{ route('rm_reports.show', ['rm_report' => $current_wo->id]) }}">{{ __('Repair & Modification Record') }}</a>
+                        <button class="nav-link" id="tab-rm-reports" data-bs-toggle="tab" data-bs-target="#content-rm-reports" type="button" role="tab">{{ __('Repair & Modification') }}</button>
                     </li>
                     @if($current_wo->instruction_id == 1)
                         <li class="nav-item" role="presentation">
-                            <a class="nav-link" href="{{ route('ndt-cad-csv.index', $current_wo->id) }}">STD Processes</a>
+                            <button class="nav-link" id="tab-std-processes" data-bs-toggle="tab" data-bs-target="#content-std-processes" type="button" role="tab">STD Processes</button>
                         </li>
                     @endif
                     @if($hasTransfers)
@@ -338,6 +338,24 @@
                             </div>
                         </div>
                     </div>
+                    <div class="tab-pane fade" id="content-rm-reports" role="tabpanel">
+                        <div class="card bg-gradient h-100">
+                            <div class="card-body p-2 overflow-auto" id="rmReportsTabBody"
+                                 style="height: calc(100vh - 280px); min-height: 400px;">
+                                <div class="text-center py-5 text-muted">{{ __('Loading...') }}</div>
+                            </div>
+                        </div>
+                    </div>
+                    @if($current_wo->instruction_id == 1)
+                    <div class="tab-pane fade" id="content-std-processes" role="tabpanel">
+                        <div class="card bg-gradient h-100">
+                            <div class="card-body p-2 overflow-auto" id="stdProcessesTabBody"
+                                 style="height: calc(100vh - 280px); min-height: 400px;">
+                                <div class="text-center py-5 text-muted">{{ __('Loading...') }}</div>
+                            </div>
+                        </div>
+                    </div>
+                    @endif
                 </div>
             </div>
         </div>

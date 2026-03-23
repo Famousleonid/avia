@@ -299,6 +299,7 @@ Route::group(['middleware' => ['auth']], function () {
     Route::get('api/get-components-by-manual', [TdrController::class, 'getComponentsByManual'])->name('api.get-components-by-manual');
 
     // NDT/CAD CSV Management Routes
+    Route::get('/{workorder}/ndt-cad-csv/partial', [NdtCadCsvController::class, 'partial'])->name('ndt-cad-csv.partial');
     Route::get('/{workorder}/ndt-cad-csv', [NdtCadCsvController::class, 'index'])->name('ndt-cad-csv.index');
     Route::post('/{workorder}/ndt-cad-csv/ndt-components', [NdtCadCsvController::class, 'updateNdtComponents'])->name('.ndt-cad-csv.update-ndt');
     Route::post('/{workorder}/ndt-cad-csv/cad-components', [NdtCadCsvController::class, 'updateCadComponents'])->name('ndt-cad-csv.update-cad');
@@ -324,6 +325,7 @@ Route::group(['middleware' => ['auth']], function () {
     Route::get('/{workorder}/ndt-cad-csv/paint-processes', [NdtCadCsvController::class, 'getPaintProcesses'])->name('ndt-cad-csv.paint-processes');
 
     Route::get('/rm_reports/create/{id}', fn($id) => redirect()->route('rm_reports.show', $id))->name('rm_reports.create');
+    Route::get('/rm_reports/partial/{workorder_id}', [RmReportController::class, 'partial'])->name('rm_reports.partial');
     Route::resource('/rm_reports', RmReportController::class)->except('create', 'edit');
     Route::get('/rm_reports/{id}/edit', fn($id) => redirect()->route('rm_reports.show', $id))->name('rm_reports.edit');
     Route::delete('/rm_reports/multiple', [RmReportController::class, 'destroyMultiple'])->name('rm_reports.destroy.multiple');

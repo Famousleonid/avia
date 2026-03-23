@@ -15,12 +15,12 @@
         <table class="display table table-sm table-hover align-middle table-bordered bg-gradient sortable-table dir-table">
             <thead>
             <tr>
-                <th class="text-primary text-center">Process Name</th>
-                <th class="text-primary text-center" style="width: 350px;">Process</th>
-                <th class="text-primary text-center">Description</th>
-                <th class="text-primary text-center">Notes</th>
-                <th class="text-primary text-center">Action</th>
-                <th class="text-primary text-center">Form</th>
+                <th class="text-primary text-center" style="width: 10%">Process Name</th>
+                <th class="text-primary text-center" style="width: 35%;">Process</th>
+                <th class="text-primary text-center" style="width: 25%">Description</th>
+                <th class="text-primary text-center" style="width: 10%">Notes</th>
+                <th class="text-primary text-center" style="width: 10%">Action</th>
+                <th class="text-primary text-center" style="width: 10%">Form</th>
             </tr>
             </thead>
             <tbody id="sortable-tbody">
