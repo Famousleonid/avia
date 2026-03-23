@@ -822,8 +822,9 @@
                                     </td>
                                     <td class="text-center img-icon p-0">
                                         <img src="{{ asset('img/missing.gif') }}"
+                                             style="width: 55px;"
                                              alt="missing"
-                                             class="w-100 d-block"
+                                             class="d-block"
                                              data-bs-toggle="modal"
                                              data-bs-target="#missingModal{{$current_wo->number}}">
                                     </td>

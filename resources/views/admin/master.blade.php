@@ -304,6 +304,13 @@
 
 </script>
 
+{{-- Контекст страницы для AI: куда вести пользователя по интерфейсу --}}
+<script>
+    window.aiPageContext = @json([
+        'route' => \Illuminate\Support\Facades\Route::currentRouteName(),
+    ]);
+</script>
+
 @include('admin.ai_widget')
 
 </body>

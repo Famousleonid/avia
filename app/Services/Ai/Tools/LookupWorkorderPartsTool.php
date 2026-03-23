@@ -58,7 +58,6 @@ class LookupWorkorderPartsTool
             }
 
             $manualInfo = [
-                'workorder_id' => $workorder->id,
                 'workorder_number' => $workorder->number,
                 'manual_id' => $manualId,
                 'manual_number' => $workorder->unit?->manual?->number,
@@ -133,8 +132,8 @@ class LookupWorkorderPartsTool
             'parameters' => [
                 'type' => 'object',
                 'properties' => [
-                    'workorder_id' => ['type' => 'integer', 'description' => 'Workorder id (preferred)'],
-                    'workorder_number' => ['type' => 'string', 'description' => 'Workorder number (fallback)'],
+                    'workorder_id' => ['type' => 'integer', 'description' => 'Internal id or WO number for lookup; never mention raw id to the user — use WO number in replies'],
+                    'workorder_number' => ['type' => 'string', 'description' => 'Workorder number (preferred for user-facing context)'],
                     'manual_id' => ['type' => 'integer', 'description' => 'Manual id (if workorder is unknown)'],
                     'part_number' => ['type' => 'string', 'description' => 'Part number to find IPL'],
                     'ipl_num' => ['type' => 'string', 'description' => 'IPL number to find part'],

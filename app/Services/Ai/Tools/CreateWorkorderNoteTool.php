@@ -90,7 +90,6 @@ class CreateWorkorderNoteTool
             'ok' => true,
             'message' => "Note created for WO #{$workorder->number}.",
             'workorder' => [
-                'id' => $workorder->id,
                 'number' => $workorder->number,
             ],
         ];

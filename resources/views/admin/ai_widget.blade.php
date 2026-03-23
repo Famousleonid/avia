@@ -229,7 +229,7 @@
         </div>
 
         <div class="ai-widget-footer">
-            <form id="aiWidgetForm" class="ai-widget-form">
+            <form id="aiWidgetForm" class="ai-widget-form" data-no-spinner>
                 @csrf
                 <input
                     id="aiWidgetInput"
@@ -297,12 +297,16 @@
 
         function getCurrentContext() {
             const wo = window.aiCurrentWorkorder || null;
+            const page = window.aiPageContext && typeof window.aiPageContext === 'object'
+                ? { route: window.aiPageContext.route || null }
+                : null;
             return {
                 current_workorder: wo && wo.id ? {
                     id: Number(wo.id) || null,
                     number: Number(wo.number) || null,
                     manual_id: Number(wo.manual_id) || null
-                } : null
+                } : null,
+                page: page && page.route ? page : null
             };
         }
 
@@ -510,7 +514,10 @@
             e.preventDefault();
 
             const text = input.value.trim();
-            if (!text) return;
+            if (!text) {
+                if (typeof safeHideSpinner === 'function') safeHideSpinner();
+                return;
+            }
 
             if (!historyLoaded) {
                 await loadHistory();

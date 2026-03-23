@@ -79,10 +79,8 @@
         document.querySelectorAll('.open-photo-modal').forEach(button => {
             button.addEventListener('click', async function () {
                 const workorderId = this.dataset.id;
-                const workorderNumber = this.dataset.number;
 
                 window.currentWorkorderId = workorderId;
-                window.currentWorkorderNumber = workorderNumber;
 
                 await loadPhotoModal(workorderId);
 
@@ -277,28 +275,18 @@
 
         function bindGroupDownloadButtons() {
             document.querySelectorAll('.group-download-btn').forEach(btn => {
-                btn.addEventListener('click', async () => {
+                btn.addEventListener('click', () => {
                     const group = btn.dataset.group;
                     const workorderId = window.currentWorkorderId;
-                    const workorderNumber = window.currentWorkorderNumber || 'workorder';
 
                     if (!workorderId) return showNotification('Workorder ID missing', 'error');
                     if (!group) return;
 
                     showSpin();
                     try {
-                        const resp = await fetch(`/workorders/download/${workorderId}/group/${group}`);
-                        if (!resp.ok) throw new Error('Download group failed');
-
-                        const blob = await resp.blob();
-                        const url = window.URL.createObjectURL(blob);
-
                         const a = document.createElement('a');
-                        a.href = url;
-                        a.download = `workorder_${workorderNumber}_${group}.zip`;
+                        a.href = `/workorders/download/${workorderId}/group/${group}`;
                         a.click();
-
-                        window.URL.revokeObjectURL(url);
                     } catch (e) {
                         console.error(e);
                         showNotification('Download failed', 'error');
@@ -479,29 +467,19 @@
         // =====================================================
         getEl('saveAllPhotos')?.addEventListener('click', function () {
             const workorderId = window.currentWorkorderId;
-            const workorderNumber = window.currentWorkorderNumber || 'workorder';
             if (!workorderId) return showNotification('Workorder ID missing', 'error');
 
             showSpin();
-
-            fetch(`/workorders/download/${workorderId}/all`)
-                .then(response => {
-                    if (!response.ok) throw new Error('Download failed');
-                    return response.blob();
-                })
-                .then(blob => {
-                    const url = window.URL.createObjectURL(blob);
-                    const a = document.createElement('a');
-                    a.href = url;
-                    a.download = `workorder_${workorderNumber}_images.zip`;
-                    a.click();
-                    window.URL.revokeObjectURL(url);
-                })
-                .catch(err => {
-                    console.error('Error downloading ZIP:', err);
-                    showNotification('Download failed', 'error');
-                })
-                .finally(() => hideSpin());
+            try {
+                const a = document.createElement('a');
+                a.href = `/workorders/download/${workorderId}/all`;
+                a.click();
+            } catch (err) {
+                console.error('Error downloading ZIP:', err);
+                showNotification('Download failed', 'error');
+            } finally {
+                hideSpin();
+            }
         });
 
         // =====================================================

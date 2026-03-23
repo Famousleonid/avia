@@ -15,7 +15,8 @@
                     <tr>
                         <td class="text-center fs-8">{{ $missingCondition->name }}</td>
                         <td class="text-center img-icon p-0">
-                            <img src="{{ asset('img/missing.gif') }}" alt="missing" class="w-100 d-block"
+                            <img src="{{ asset('img/missing.gif') }}" alt="missing" class="d-block"
+                                 style="width: 55px;"
                                  data-bs-toggle="modal" data-bs-target="#missingModal{{$current_wo->number}}">
                         </td>
                     </tr>

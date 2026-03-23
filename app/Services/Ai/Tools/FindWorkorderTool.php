@@ -19,10 +19,15 @@ class FindWorkorderTool
         }
 
         $workorder = Workorder::withDrafts()
-            ->when(is_numeric($query), function ($q) use ($query) {
-                $q->orWhere('id', (int)$query);
+            ->where(function ($q) use ($query) {
+                if (is_numeric($query)) {
+                    $n = (int) $query;
+                    $q->where('number', $n)
+                        ->orWhere('number', 'like', '%'.$query.'%');
+                } else {
+                    $q->where('number', 'like', '%'.$query.'%');
+                }
             })
-            ->orWhere('number', 'like', '%' . $query . '%')
             ->with(['customer', 'unit'])
             ->latest('id')
             ->first();
@@ -44,7 +49,6 @@ class FindWorkorderTool
         return [
             'ok' => true,
             'workorder' => [
-                'id' => $workorder->id,
                 'number' => $workorder->number,
                 'status' => $workorder->status ?? null,
                 'customer' => $workorder->customer->name ?? null,
@@ -59,13 +63,13 @@ class FindWorkorderTool
         return [
             'type' => 'function',
             'name' => 'findWorkorder',
-            'description' => 'Find workorder by id or number',
+            'description' => 'Find one workorder by WO number (partial match). Do not expose internal database id to the user.',
             'parameters' => [
                 'type' => 'object',
                 'properties' => [
                     'query' => [
                         'type' => 'string',
-                        'description' => 'Workorder id or number',
+                        'description' => 'Workorder number (digits) or fragment',
                     ],
                 ],
                 'required' => ['query'],

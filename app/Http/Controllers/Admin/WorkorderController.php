@@ -656,9 +656,9 @@ class WorkorderController extends Controller
 
             return new StreamedResponse(function () use ($workorder, $groups, $id) {
                 $options = new ArchiveOptions();
-                $options->setSendHttpHeaders(true);
+                $options->setSendHttpHeaders(false);
 
-                $zip = new ZipStream(null, $options);
+                $zip = new ZipStream('', $options);
 
                 foreach ($groups as $group) {
                     foreach ($workorder->getMedia($group) as $media) {
@@ -684,7 +684,7 @@ class WorkorderController extends Controller
 
             }, 200, [
                 'Content-Type' => 'application/octet-stream',
-                'Content-Disposition' => 'attachment; filename="workorder_' . $id . '_images.zip"',
+                'Content-Disposition' => 'attachment; filename="wo_' . $workorder->number . '_images.zip"',
             ]);
         } catch (\Throwable $e) {
             //  Log::channel('avia')->error("ZIP creation failed: " . $e->getMessage());
@@ -706,9 +706,9 @@ class WorkorderController extends Controller
 
             return new StreamedResponse(function () use ($workorder, $group) {
                 $options = new ArchiveOptions();
-                $options->setSendHttpHeaders(true);
+                $options->setSendHttpHeaders(false);
 
-                $zip = new ZipStream(null, $options);
+                $zip = new ZipStream('', $options);
 
                 foreach ($workorder->getMedia($group) as $media) {
                     $filePath = $media->getPath();
@@ -725,7 +725,7 @@ class WorkorderController extends Controller
 
             }, 200, [
                 'Content-Type' => 'application/octet-stream',
-                'Content-Disposition' => 'attachment; filename="workorder_' . $id . '_' . $group . '.zip"',
+                'Content-Disposition' => 'attachment; filename="wo_' . $workorder->number . '_' . $group . '.zip"',
             ]);
 
         } catch (\Throwable $e) {

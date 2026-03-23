@@ -2,6 +2,8 @@
 
 namespace App\Services\Ai\Tools;
 
+use App\Models\GeneralTask;
+use App\Models\Task;
 use App\Models\Workorder;
 use App\Models\User;
 
@@ -32,67 +34,152 @@ class AnalyzeWorkorderTool
             ];
         }
 
-        $mains = $workorder->main->filter(fn ($m) => ! empty($m->task_id));
+        $tasks = Task::with('generalTask')
+            ->orderBy('general_task_id')
+            ->orderBy('name')
+            ->get();
 
-        $openTasks = $mains
-            ->filter(fn ($m) => ! $m->ignore_row && empty($m->date_finish))
-            ->count();
+        // There can be legacy duplicates; use latest row per task for state.
+        $mainsByTaskId = $workorder->main
+            ->filter(fn ($m) => !empty($m->task_id))
+            ->groupBy('task_id')
+            ->map(fn ($rows) => $rows->sortByDesc('id')->first());
 
-        $completedMains = $mains->filter(fn ($m) => ! $m->ignore_row && ! empty($m->date_finish));
+        $taskRows = $tasks->map(function (Task $task) use ($mainsByTaskId) {
+            $main = $mainsByTaskId->get($task->id);
+            $ignored = (bool)($main?->ignore_row ?? false);
+            $dateStart = $main?->date_start?->format('Y-m-d');
+            $dateFinish = $main?->date_finish?->format('Y-m-d');
+            $isClosed = !$ignored && !empty($dateFinish);
+            $isOpen = !$ignored && empty($dateFinish);
 
-        $completed_tasks = $completedMains
-            ->map(function ($m) {
-                $gt = $m->task?->generalTask?->name;
-                $name = $m->task?->name;
+            return [
+                'general_task_id' => $task->general_task_id,
+                'general_task' => $task->generalTask?->name,
+                'task_id' => $task->id,
+                'task' => $task->name,
+                'ignored' => $ignored,
+                'date_start' => $dateStart,
+                'date_finish' => $dateFinish,
+                'is_closed' => $isClosed,
+                'is_open' => $isOpen,
+            ];
+        });
+
+        $tasksIgnored = $taskRows->where('ignored', true)->count();
+        $effectiveRows = $taskRows->where('ignored', false)->values();
+        $tasksTotal = $effectiveRows->count();          // total excluding ignored
+        $tasksClosed = $effectiveRows->where('is_closed', true)->count();
+        $tasksOpen = $effectiveRows->where('is_open', true)->count();
+
+        $completedTasks = $effectiveRows
+            ->where('is_closed', true)
+            ->map(fn ($r) => [
+                'general_task' => $r['general_task'],
+                'task' => $r['task'],
+                'date_finish' => $r['date_finish'],
+            ])
+            ->values()
+            ->all();
+
+        $openTaskRows = $effectiveRows
+            ->where('is_open', true)
+            ->map(fn ($r) => [
+                'general_task' => $r['general_task'],
+                'task' => $r['task'],
+            ])
+            ->values()
+            ->all();
+
+        $tasksByGeneralId = $tasks->groupBy('general_task_id');
+
+        $generalTaskStats = $taskRows
+            ->groupBy('general_task_id')
+            ->map(function ($rows) {
+                $rows = $rows->values();
+                $active = $rows->where('ignored', false)->values();
+                $openRows = $active->where('is_open', true)->values();
 
                 return [
-                    'general_task' => $gt,
-                    'task' => $name,
-                    'date_finish' => $m->date_finish?->format('Y-m-d'),
+                    'general_task' => $rows->first()['general_task'] ?? null,
+                    'tasks_total' => $active->count(), // excluding ignored
+                    'tasks_closed' => $active->where('is_closed', true)->count(),
+                    'tasks_open' => $openRows->count(),
+                    'tasks_ignored' => $rows->where('ignored', true)->count(),
+                    'open_tasks' => $openRows->map(fn ($r) => $r['task'])->all(),
                 ];
             })
             ->values()
             ->all();
 
-        $open_task_names = $mains
-            ->filter(fn ($m) => ! $m->ignore_row && empty($m->date_finish))
-            ->map(fn ($m) => [
-                'general_task' => $m->task?->generalTask?->name,
-                'task' => $m->task?->name,
-            ])
-            ->values()
-            ->all();
+        // Status / step: first "general task" stage (by sort_order) that still has an open non-ignored task row.
+        $generalTasksOrdered = GeneralTask::orderBy('sort_order')->orderBy('id')->get();
+        $currentStageName = null;
+        $currentStageSortOrder = null;
+        foreach ($generalTasksOrdered as $gt) {
+            $rowsInGt = $tasksByGeneralId->get($gt->id, collect());
+            if ($rowsInGt->isEmpty()) {
+                continue;
+            }
+            $stageHasOpen = false;
+            foreach ($rowsInGt as $row) {
+                $main = $mainsByTaskId->get($row->id);
+                if (! $main) {
+                    $stageHasOpen = true;
+                    break;
+                }
+                if ($main->ignore_row) {
+                    continue;
+                }
+                if (empty($main->date_finish)) {
+                    $stageHasOpen = true;
+                    break;
+                }
+            }
+            if ($stageHasOpen) {
+                $currentStageName = $gt->name;
+                $currentStageSortOrder = $gt->sort_order;
+                break;
+            }
+        }
 
-        $hasApprove = ! empty($workorder->approve_at);
+        $workorderClosed = $workorder->isDone();
+        $hasApprove = !empty($workorder->approve_at);
 
         $reasons = [];
-
-        if ($openTasks > 0) {
-            $reasons[] = "{$openTasks} open tasks";
+        if (!$workorderClosed) {
+            $reasons[] = 'Complete task is not finished (isDone() is false).';
         }
-
-        if (! $hasApprove) {
-            $reasons[] = 'approve is missing';
+        if ($tasksOpen > 0) {
+            $reasons[] = "{$tasksOpen} task(s) are still open out of {$tasksTotal} active task(s).";
         }
-
-        // Photos in any section are never a blocker for closing a workorder.
 
         return [
             'ok' => true,
             'workorder' => [
-                'id' => $workorder->id,
                 'number' => $workorder->number,
-                'status' => $workorder->status ?? null,
             ],
             'analysis' => [
-                'open_tasks' => $openTasks,
-                'open_task_rows' => $open_task_names,
-                'completed_tasks' => $completed_tasks,
-                'completed_task_rows_count' => count($completed_tasks),
+                'workorder_closed' => $workorderClosed,
+                'close_rule' => 'Workorder is considered closed only by isDone() (Complete task finished).',
+                'status_step' => [
+                    'current_general_stage_name' => $currentStageName,
+                    'current_general_stage_sort_order' => $currentStageSortOrder,
+                    'definition' => 'First general task stage (general_tasks.sort_order) that still has at least one open non-ignored task (no finish date). Photos do not affect this.',
+                ],
+                'tasks_total' => $tasksTotal,
+                'tasks_closed' => $tasksClosed,
+                'tasks_open' => $tasksOpen,
+                'tasks_ignored' => $tasksIgnored,
+                'open_of_total' => "{$tasksOpen} / {$tasksTotal}",
+                'open_task_rows' => $openTaskRows,
+                'completed_tasks' => $completedTasks,
+                'completed_task_rows_count' => count($completedTasks),
+                'general_tasks' => $generalTaskStats,
                 'has_approve' => $hasApprove,
                 'reasons' => $reasons,
-                'can_be_completed' => count($reasons) === 0,
-                'note' => 'Missing photos in any section does not prevent closing the workorder.',
+                'can_be_completed' => $workorderClosed,
+                'note' => 'Task completion is defined by date_finish. Ignored rows are excluded from totals. Photos do not affect workorder status or closed state.',
             ],
         ];
     }
@@ -102,13 +189,13 @@ class AnalyzeWorkorderTool
         return [
             'type' => 'function',
             'name' => 'analyzeWorkorder',
-            'description' => 'Analyze workorder progress: open vs finished task rows (from mains), approve. Photos are informational only and never block completion. Use for which tasks are done or what blocks closing.',
+            'description' => 'Analyze workorder: closed only via isDone(); task done = finish date; ignored rows excluded; status step = first unfinished general stage by sort_order. Open/total counts. Do not tell the user internal DB ids — only WO number.',
             'parameters' => [
                 'type' => 'object',
                 'properties' => [
                     'workorder_id' => [
                         'type' => 'integer',
-                        'description' => 'Workorder ID',
+                        'description' => 'Internal workorder id (from context; never repeat to end users)',
                     ],
                 ],
                 'required' => ['workorder_id'],

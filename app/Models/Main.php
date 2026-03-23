@@ -99,8 +99,9 @@ class Main extends Model
      * @param  \App\Models\Task $task  Таск текущей строки
      * @param  \App\Models\Main|null $existing Текущая запись (для update), чтобы взять старые даты
      * @param  bool        $ignoreRow Текущее значение ignore_row (после клика)
-     * @param  bool        $hasStart  Пришло ли поле date_start в запросе ($request->has('date_start'))
-     * @param  bool        $hasFinish Пришло ли поле date_finish в запросе ($request->has('date_finish'))
+     * @param  bool        $hasStart  Поле date_start в запросе ($request->has('date_start'))
+     * @param  bool        $hasFinish Поле date_finish в запросе ($request->has('date_finish'))
+     *                             Пустая строка при update = «не меняли» → берём из $existing.
      *
      * @return array{date_start: Carbon|null, date_finish: Carbon|null}
      */
@@ -119,20 +120,29 @@ class Main extends Model
         if (!$requiresStart) {
             return [
                 'date_start'  => null,
-                'date_finish' => $hasFinish
-                    ? (empty($data['date_finish']) ? null : Carbon::parse($data['date_finish']))
-                    : ($existing?->date_finish ? Carbon::parse($existing->date_finish) : null),
+                'date_finish' => self::resolveDateField(
+                    $data['date_finish'] ?? null,
+                    $hasFinish,
+                    $existing,
+                    'date_finish'
+                ),
             ];
         }
 
-        // Считаем "итоговые" значения с учётом того, что поле могло не прийти (update-кейс)
-        $newStart = $hasStart
-            ? (empty($data['date_start']) ? null : Carbon::parse($data['date_start']))
-            : ($existing?->date_start ? Carbon::parse($existing->date_start) : null);
+        // Считаем "итоговые" значения: пустая строка при update = не трогать поле (взять из $existing)
+        $newStart = self::resolveDateField(
+            $data['date_start'] ?? null,
+            $hasStart,
+            $existing,
+            'date_start'
+        );
 
-        $newFinish = $hasFinish
-            ? (empty($data['date_finish']) ? null : Carbon::parse($data['date_finish']))
-            : ($existing?->date_finish ? Carbon::parse($existing->date_finish) : null);
+        $newFinish = self::resolveDateField(
+            $data['date_finish'] ?? null,
+            $hasFinish,
+            $existing,
+            'date_finish'
+        );
 
         // Если строка игнорируется — обычно проверки дат не нужны
         if (!$ignoreRow) {
@@ -155,6 +165,33 @@ class Main extends Model
             'date_start'  => $newStart,
             'date_finish' => $newFinish,
         ];
+    }
+
+    /**
+     * Разрешить значение даты: при update пустой вход (null/"") = оставить как в $existing.
+     * При store ($existing === null) пустой вход = null.
+     */
+    protected static function resolveDateField(
+        mixed $incoming,
+        bool $fieldPresentInRequest,
+        ?self $existing,
+        string $attribute
+    ): ?Carbon {
+        if (! $fieldPresentInRequest) {
+            $cur = $existing?->{$attribute};
+
+            return $cur ? Carbon::parse($cur) : null;
+        }
+
+        if ($incoming === null || $incoming === '') {
+            if ($existing && $existing->{$attribute}) {
+                return Carbon::parse($existing->{$attribute});
+            }
+
+            return null;
+        }
+
+        return Carbon::parse($incoming);
     }
 
 

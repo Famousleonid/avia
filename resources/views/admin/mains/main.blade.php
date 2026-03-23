@@ -133,7 +133,7 @@
                                                   style="cursor:help;">&#9432;</span>
 
                                             {{-- TDR --}}
-                                            <a href="{{ route('tdrs.show', $current_workorder->id) }}"
+                                            <a href="{{ route('tdrs.show2', $current_workorder->id) }}"
                                                class="btn btn-outline-success"
                                                data-tippy-content="{{ __('TDR Report') }}"
                                                onclick="showLoadingSpinner()">
@@ -142,11 +142,18 @@
 
 
                                             {{-- Pictures --}}
-                                            <a class="btn btn-outline-info btn-sm open-photo-modal"
+                                            <a class="btn btn-outline-info btn-sm open-photo-modal position-relative"
                                                data-tippy-content="{{ __('Pictures') }}"
                                                data-id="{{ $current_workorder->id }}"
                                                data-number="{{ $current_workorder->number }}">
                                                 <i class="bi bi-images text-decoration-none" style="font-size:18px"></i>
+                                                @if($photoTotalCount)
+                                                    <span
+                                                        class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-info"
+                                                        style="font-size:10px; min-width:18px;">
+                                                    {{ (int)($photoTotalCount ?? 0) }}
+                                                </span>
+                                                @endif
                                             </a>
 
                                             {{-- Logs --}}
@@ -156,13 +163,13 @@
                                                data-url="{{ route('workorders.logs-json', $current_workorder->id) }}">
                                                 <i class="bi bi-clock-history" style="font-size:18px"></i>
                                             </a>
-                                            {{-- TDR Report 2 --}}
-                                            <a href="{{ route('tdrs.show2', $current_workorder->id) }}"
-                                               class="btn btn-outline-warning ms-2"
-                                               data-tippy-content="{{ __('TDR Report 2') }}"
-                                               onclick="showLoadingSpinner()">
-                                                <i class="bi bi-hammer" style="font-size:20px; line-height:0;"></i>
-                                            </a>
+{{--                                            --}}{{-- TDR Report 2 --}}
+{{--                                            <a href="{{ route('tdrs.show2', $current_workorder->id) }}"--}}
+{{--                                               class="btn btn-outline-warning ms-2"--}}
+{{--                                               data-tippy-content="{{ __('TDR Report 2') }}"--}}
+{{--                                               onclick="showLoadingSpinner()">--}}
+{{--                                                <i class="bi bi-hammer" style="font-size:20px; line-height:0;"></i>--}}
+{{--                                            </a>--}}
 
 
                                             @endrole
@@ -616,7 +623,8 @@
                                             @php $prs = $tdr->tdrProcesses; @endphp
                                             @if($prs->isNotEmpty())
                                                 <div class="mt-2 ps-2">
-                                                    <table class="table table-sm table-dark table-bordered table-hover mb-2 align-middle dir-table">
+                                                    <table
+                                                        class="table table-sm table-dark table-bordered table-hover mb-2 align-middle dir-table">
                                                         <thead>
                                                         <tr>
                                                             <th style="width:10%; text-align:center"
@@ -1073,6 +1081,7 @@
                 if (!form?.classList?.contains('js-main-inline-ajax')) return;
 
                 e.preventDefault();
+                if (form.dataset.sending === '1') return;
                 submitMainInlineForm(form);
             }, true);
 
@@ -1087,6 +1096,7 @@
                 ) {
                     const form = input.closest('form.js-main-inline-ajax');
                     if (!form) return;
+                    if (form.dataset.sending === '1') return;
 
                     const original = input.getAttribute('data-original') ?? '';
                     const current = input.value ?? '';
@@ -1109,6 +1119,7 @@
                 ) {
                     const form = input.closest('form.js-main-inline-ajax');
                     if (!form) return;
+                    if (form.dataset.sending === '1') return;
 
                     const original = input.getAttribute('data-original') ?? '';
                     const current = input.value ?? '';
@@ -1146,6 +1157,7 @@
 
                 const form = checkbox.closest('form.js-main-inline-ajax');
                 if (!form) return;
+                if (form.dataset.sending === '1') return;
 
                 const hidden = form.querySelector('.js-ignore-hidden');
                 if (hidden) {

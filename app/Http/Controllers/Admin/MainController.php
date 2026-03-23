@@ -14,6 +14,7 @@ use App\Models\User;
 use App\Models\Workorder;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Str;
 use Spatie\Activitylog\Models\Activity;
 
 
@@ -167,6 +168,14 @@ class MainController extends Controller
 
         $imgThumb = $imgThumb ?? asset('img/noimage.png');
 
+        // Total image count across all configured workorder media groups
+        $photoGroups = array_keys(config('workorder_media.groups', ['photos' => 'Photos']));
+        $photoTotalCount = collect($photoGroups)->sum(function (string $group) use ($current_workorder) {
+            return $current_workorder->getMedia($group)
+                ->filter(fn($m) => $m->mime_type && Str::startsWith($m->mime_type, 'image/'))
+                ->count();
+        });
+
         // TDR ids
         $tdrIds = Tdr::where('workorder_id', $current_workorder->id)->pluck('id');
 
@@ -299,6 +308,7 @@ class MainController extends Controller
             'generalMains',
             'mainsByTask',
             'gtAllFinished',
+            'photoTotalCount',
             'trainingAuthLatest',
             'trainingHistoryAuth',
             'trainingWoLatest',
