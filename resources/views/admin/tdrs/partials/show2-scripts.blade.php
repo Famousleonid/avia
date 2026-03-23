@@ -51,6 +51,7 @@ document.addEventListener('DOMContentLoaded', function() {
     var createLogCardUrl = '{{ route("log_card.create", ["id" => "__ID__"]) }}';
     var editLogCardUrl = '{{ route("log_card.edit", ["id" => "__ID__"]) }}';
     var editBushingUrl = '{{ route("wo_bushings.edit", ["wo_bushing" => "__ID__"]) }}';
+    var getProcessesBaseUrl = '{{ url("/get-processes") }}';
 
     function loadAllPartsProcesses() {
         if (!allPartsBody) return;
@@ -123,7 +124,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     var specFormUrl = wrap.dataset.specFormUrl || '';
                     var woBushingId = wrap.dataset.woBushingId || '';
                     if (hasWoBushing && editUrl) {
-                        bushingTabActions.innerHTML = '<button type="button" class="btn btn-outline-primary btn-sm open-edit-bushing-modal" data-wo-bushing-id="' + woBushingId + '"><i class="fas fa-edit"></i> {{ __("Update Bushings List") }}</button><a href="' + specFormUrl + '" target="_blank" class="btn btn-outline-primary btn-sm ms-1">Bushing SP Form</a>';
+                        bushingTabActions.innerHTML = '<button type="button" class="btn btn-outline-primary btn-sm open-edit-bushing-modal" data-wo-bushing-id="' + woBushingId + '"><i class="fas fa-edit"></i> {{ __("Update Bushings List") }}</button>';
                     } else if (wrap.dataset.hasBushings === '1') {
                         bushingTabActions.innerHTML = '<button type="submit" form="bushings-form" class="btn btn-success btn-sm"><i class="fas fa-plus"></i> {{ __("Create Bushing Data") }}</button><button type="button" class="btn btn-secondary btn-sm bushing-clear-btn"><i class="fas fa-eraser"></i> {{ __("Clear All") }}</button>';
                     }
@@ -495,8 +496,42 @@ document.addEventListener('DOMContentLoaded', function() {
     }
     var logCardTabActions = document.getElementById('logCardTabActions');
     var bushingTabActions = document.getElementById('bushingTabActions');
+    function openAddProcessesModalByUrl(url) {
+        var ifr = document.getElementById('addProcessesIframe');
+        var modal = document.getElementById('addProcessesModal');
+        if (ifr && modal && url) {
+            var fullUrl = url + (url.indexOf('?') >= 0 ? '&' : '?') + 'modal=1';
+            ifr.src = fullUrl;
+            var inst = bootstrap.Modal.getOrCreateInstance(modal);
+            inst.show();
+            modal.addEventListener('shown.bs.modal', function setZ() { modal.style.zIndex = '1090'; var b = document.querySelectorAll('.modal-backdrop'); if (b.length) b[b.length-1].style.zIndex = '1085'; }, { once: true });
+        }
+    }
+    function openAddPartModalByUrl(url) {
+        var ifr = document.getElementById('addPartIframe');
+        var modal = document.getElementById('addPartModal');
+        if (ifr && modal && url) {
+            var fullUrl = url + (url.indexOf('?') >= 0 ? '&' : '?') + 'modal=1';
+            ifr.src = fullUrl;
+            var inst = bootstrap.Modal.getOrCreateInstance(modal);
+            inst.show();
+            modal.addEventListener('shown.bs.modal', function setZ() { modal.style.zIndex = '1090'; var b = document.querySelectorAll('.modal-backdrop'); if (b.length) b[b.length-1].style.zIndex = '1085'; }, { once: true });
+        }
+    }
     if (bushingTabBody) {
         bushingTabBody.addEventListener('click', function(e) {
+            var addProcessesBtn = e.target.closest('.open-add-processes-modal');
+            if (addProcessesBtn && addProcessesBtn.getAttribute('data-add-processes-url')) {
+                e.preventDefault();
+                openAddProcessesModalByUrl(addProcessesBtn.getAttribute('data-add-processes-url'));
+                return;
+            }
+            var addPartBtn = e.target.closest('.open-add-part-modal');
+            if (addPartBtn && addPartBtn.getAttribute('data-add-part-url')) {
+                e.preventDefault();
+                openAddPartModalByUrl(addPartBtn.getAttribute('data-add-part-url'));
+                return;
+            }
             var formBtn = e.target.closest('.form-btn');
             if (formBtn && formBtn.getAttribute('href')) {
                 e.preventDefault();
@@ -712,6 +747,136 @@ document.addEventListener('DOMContentLoaded', function() {
     if (bushingTabBody && typeof loadBushingPartial === 'function') {
         loadBushingPartial();
     }
+
+    function loadModalContentViaAjax(modalId, bodyId, url, type) {
+        var modal = document.getElementById(modalId);
+        var bodyEl = document.getElementById(bodyId);
+        if (!modal || !bodyEl) return;
+        if (!url || typeof url !== 'string') { bodyEl.innerHTML = '<div class="alert alert-danger">{{ __("Invalid URL.") }}</div>'; return; }
+        var fetchUrl = url;
+        if (url.startsWith('/') && !url.startsWith('//')) {
+            fetchUrl = window.location.origin + url;
+        } else if (url.startsWith('http')) {
+            try {
+                var u = new URL(url);
+                if (u.origin !== window.location.origin) {
+                    fetchUrl = window.location.origin + u.pathname + u.search;
+                }
+            } catch (e) {}
+        }
+        bodyEl.innerHTML = '<div class="text-center py-5"><div class="spinner-border text-primary" role="status"></div></div>';
+        var inst = bootstrap.Modal.getOrCreateInstance(modal);
+        inst.show();
+        modal.addEventListener('shown.bs.modal', function setZ() { modal.style.zIndex = '1090'; var b = document.querySelectorAll('.modal-backdrop'); if (b.length) b[b.length-1].style.zIndex = '1085'; }, { once: true });
+        fetch(fetchUrl, { headers: { 'X-Requested-With': 'XMLHttpRequest', 'Accept': 'text/html' }, credentials: 'same-origin' })
+            .then(function(r) {
+                if (!r.ok) throw new Error('HTTP ' + r.status + ' ' + r.statusText);
+                return r.text();
+            })
+            .then(function(html) {
+                var parser = new DOMParser();
+                var doc = parser.parseFromString(html, 'text/html');
+                var formEl = doc.querySelector('form');
+                var container = doc.querySelector('.container') || doc.querySelector('.card') || (formEl && formEl.parentElement);
+                var content = container ? container.outerHTML : (doc.body ? doc.body.innerHTML : html);
+                bodyEl.innerHTML = content;
+                var scope = bodyEl;
+                var form = scope.querySelector('form');
+                var hasExpectedForm = (type === 'processes' && scope.querySelector('#createCMMForm')) || (type === 'components' && (scope.querySelector('#createForm') || scope.querySelector('#createComponentForm')));
+                if (!form || !hasExpectedForm) {
+                    bodyEl.innerHTML = '<div class="alert alert-danger">{{ __("Failed to load.") }} {{ __("Form not found. You may need to log in again.") }}</div>';
+                    return;
+                }
+                if (window.$ && $.fn.select2) {
+                    var $ = window.$;
+                    if (type === 'processes') {
+                        var pn = scope.querySelector('#process_name_id');
+                        if (pn) $(pn).select2({ theme: 'bootstrap-5', width: '100%', dropdownParent: $(modal) });
+                        var exList = scope.querySelector('#ex_process-list');
+                        var manualInput = scope.querySelector('input[name="manual_id"]');
+                        if (pn && exList && manualInput) {
+                            function loadExisting() {
+                                var pid = $(pn).val();
+                                if (!pid) { exList.innerHTML = ''; return; }
+                                var gpBase = (typeof getProcessesBaseUrl !== 'undefined' ? getProcessesBaseUrl : '/get-processes');
+                                fetch(gpBase + (gpBase.indexOf('?') >= 0 ? '&' : '?') + 'processNameId=' + encodeURIComponent(pid) + '&manualId=' + encodeURIComponent(manualInput.value))
+                                    .then(function(r) { return r.json(); })
+                                    .then(function(data) {
+                                        exList.innerHTML = '';
+                                        if (data.existingProcesses && data.existingProcesses.length) {
+                                            data.existingProcesses.forEach(function(p) {
+                                                var d = document.createElement('div'); d.className = 'process-item'; d.textContent = p.process; d.style.marginBottom = '5px'; exList.appendChild(d);
+                                            });
+                                        } else exList.innerHTML = '<div class="text-muted small">There are no existing processes</div>';
+                                    })
+                                    .catch(function() { exList.innerHTML = '<div class="text-danger small">Failed to load processes</div>'; });
+                            }
+                            $(pn).on('change', loadExisting);
+                            loadExisting();
+                        }
+                    } else if (type === 'components') {
+                        var manualSel = scope.querySelector('#manual_id');
+                        if (manualSel) $(manualSel).select2({ theme: 'bootstrap-5', width: '100%', dropdownParent: $(modal) });
+                        var bushCb = scope.querySelector('#is_bush');
+                        var bushCnt = scope.querySelector('#bush_ipl_container');
+                        var bushInp = scope.querySelector('#bush_ipl_num');
+                        if (bushCb && bushCnt && bushInp) {
+                            bushCb.addEventListener('change', function() {
+                                if (this.checked) { bushCnt.style.display = 'block'; bushInp.required = true; } else { bushCnt.style.display = 'none'; bushInp.required = false; bushInp.value = ''; }
+                            });
+                            if (bushCb.checked) { bushCnt.style.display = 'block'; bushInp.required = true; }
+                        }
+                    }
+                }
+                scope.querySelectorAll('a.btn-outline-secondary, a[href*="return_to"], a[href*="redirect"]').forEach(function(lnk) {
+                    lnk.addEventListener('click', function(ev) {
+                        ev.preventDefault();
+                        var m = bootstrap.Modal.getInstance(modal);
+                        if (m) m.hide();
+                    });
+                });
+                var form = scope.querySelector('form');
+                if (form) {
+                    form.addEventListener('submit', function(ev) {
+                        ev.preventDefault();
+                        var fd = new FormData(form);
+                        var submitBtn = form.querySelector('button[type="submit"]');
+                        var origHtml = submitBtn ? submitBtn.innerHTML : '';
+                        if (submitBtn) { submitBtn.disabled = true; submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm"></span>'; }
+                        fetch(form.action, {
+                            method: 'POST',
+                            body: fd,
+                            headers: { 'X-Requested-With': 'XMLHttpRequest', 'Accept': 'application/json' },
+                            credentials: 'same-origin'
+                        })
+                        .then(function(r) { return r.json().catch(function() { return {}; }); })
+                        .then(function(data) {
+                            if (submitBtn) { submitBtn.disabled = false; submitBtn.innerHTML = origHtml; }
+                            if (data.success) {
+                                var m = bootstrap.Modal.getInstance(modal);
+                                if (m) m.hide();
+                                bodyEl.innerHTML = '';
+                                if (bushingTabBody) loadBushingPartial();
+                                var editIfr = document.getElementById('editBushingIframe');
+                                if (editIfr && editIfr.src && editIfr.src !== 'about:blank') { try { editIfr.contentWindow.location.reload(); } catch(e){} }
+                            } else {
+                                alert(data.message || (data.errors ? JSON.stringify(data.errors) : '') || '{{ __("Error.") }}');
+                            }
+                        })
+                        .catch(function() {
+                            if (submitBtn) { submitBtn.disabled = false; submitBtn.innerHTML = origHtml; }
+                            alert('{{ __("Failed to submit.") }}');
+                        });
+                    });
+                }
+            })
+            .catch(function(err) {
+                var msg = '{{ __("Failed to load.") }}';
+                if (err && err.message && err.message.indexOf('HTTP') === 0) msg += ' (' + err.message + ')';
+                bodyEl.innerHTML = '<div class="alert alert-danger">' + msg + '<br><a href="' + fetchUrl + '" target="_blank" class="alert-link mt-2 d-inline-block">{{ __("Open in new tab") }}</a></div>';
+            });
+    }
+
     window.addEventListener('message', function(e) {
         if (e.data && e.data.type === 'createProcessSuccess' && e.data.tdrId) {
             var m = bootstrap.Modal.getInstance(document.getElementById('addPartProcessesModal'));
@@ -822,6 +987,34 @@ document.addEventListener('DOMContentLoaded', function() {
             if (m) m.hide();
             var ifr = document.getElementById('editBushingIframe');
             if (ifr) ifr.src = 'about:blank';
+        } else if (e.data && e.data.type === 'openAddProcessesModal' && e.data.url) {
+            openAddProcessesModalByUrl(e.data.url);
+        } else if (e.data && e.data.type === 'addProcessesCancel') {
+            var m = bootstrap.Modal.getInstance(document.getElementById('addProcessesModal'));
+            if (m) m.hide();
+            var ifr = document.getElementById('addProcessesIframe');
+            if (ifr) ifr.src = 'about:blank';
+        } else if (e.data && e.data.type === 'openAddPartModal' && e.data.url) {
+            openAddPartModalByUrl(e.data.url);
+        } else if (e.data && e.data.type === 'addPartCancel') {
+            var m = bootstrap.Modal.getInstance(document.getElementById('addPartModal'));
+            if (m) m.hide();
+            var ifr = document.getElementById('addPartIframe');
+            if (ifr) ifr.src = 'about:blank';
+        } else if (e.data && (e.data.type === 'addProcessesSuccess' || e.data.type === 'addPartSuccess')) {
+            var procModal = document.getElementById('addProcessesModal');
+            var partModal = document.getElementById('addPartModal');
+            var m1 = procModal ? bootstrap.Modal.getInstance(procModal) : null;
+            var m2 = partModal ? bootstrap.Modal.getInstance(partModal) : null;
+            if (m1) m1.hide();
+            if (m2) m2.hide();
+            var ifr1 = document.getElementById('addProcessesIframe');
+            var b2 = document.getElementById('addPartModalBody');
+            if (ifr1) ifr1.src = 'about:blank';
+            if (b2) b2.innerHTML = '';
+            if (bushingTabBody) loadBushingPartial();
+            var editIfr = document.getElementById('editBushingIframe');
+            if (editIfr && editIfr.src && editIfr.src !== 'about:blank') { try { editIfr.contentWindow.location.reload(); } catch(e){} }
         }
     });
     document.getElementById('addPartProcessesModal')?.addEventListener('hidden.bs.modal', function() {
@@ -843,6 +1036,18 @@ document.addEventListener('DOMContentLoaded', function() {
     document.getElementById('editBushingModal')?.addEventListener('hidden.bs.modal', function() {
         var ifr = document.getElementById('editBushingIframe');
         if (ifr) ifr.src = 'about:blank';
+    });
+    document.getElementById('addProcessesModal')?.addEventListener('hidden.bs.modal', function() {
+        var ifr = document.getElementById('addProcessesIframe');
+        if (ifr) ifr.src = 'about:blank';
+        var editIfr = document.getElementById('editBushingIframe');
+        if (editIfr && editIfr.src && editIfr.src !== 'about:blank') { try { editIfr.contentWindow.location.reload(); } catch(e){} }
+    });
+    document.getElementById('addPartModal')?.addEventListener('hidden.bs.modal', function() {
+        var ifr = document.getElementById('addPartIframe');
+        if (ifr) ifr.src = 'about:blank';
+        var editIfr = document.getElementById('editBushingIframe');
+        if (editIfr && editIfr.src && editIfr.src !== 'about:blank') { try { editIfr.contentWindow.location.reload(); } catch(e){} }
     });
     if (editTdrModal) {
         editTdrModal.addEventListener('show.bs.modal', function(e) {

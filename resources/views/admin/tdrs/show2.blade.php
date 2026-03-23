@@ -67,8 +67,9 @@
             border: 1px solid #495057 !important;
         }
         /* Add Part Processes & Edit Part Process modals (iframe) - ensure on top */
-        #addPartProcessesModal, #editTdrProcessModal, #editExtraProcessModal, #addExtraProcessModal, #addExtraPartModal, #createLogCardModal, #editLogCardModal, #editBushingModal { z-index: 1080 !important; }
-        #addPartProcessesModal ~ .modal-backdrop, #editTdrProcessModal ~ .modal-backdrop, #editExtraProcessModal ~ .modal-backdrop, #addExtraProcessModal ~ .modal-backdrop, #addExtraPartModal ~ .modal-backdrop, #createLogCardModal ~ .modal-backdrop, #editLogCardModal ~ .modal-backdrop, #editBushingModal ~ .modal-backdrop { z-index: 1075 !important; }
+        #addPartProcessesModal, #editTdrProcessModal, #editExtraProcessModal, #addExtraProcessModal, #addExtraPartModal, #createLogCardModal, #editLogCardModal, #editBushingModal, #addProcessesModal, #addPartModal { z-index: 1080 !important; }
+        #addProcessesModal.modal.show, #addPartModal.modal.show { z-index: 1090 !important; }
+        #addPartProcessesModal ~ .modal-backdrop, #editTdrProcessModal ~ .modal-backdrop, #editExtraProcessModal ~ .modal-backdrop, #addExtraProcessModal ~ .modal-backdrop, #addExtraPartModal ~ .modal-backdrop, #createLogCardModal ~ .modal-backdrop, #editLogCardModal ~ .modal-backdrop, #editBushingModal ~ .modal-backdrop, #addProcessesModal ~ .modal-backdrop, #addPartModal ~ .modal-backdrop { z-index: 1075 !important; }
     </style>
 
     @php

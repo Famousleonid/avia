@@ -1,4 +1,4 @@
-@extends('admin.master')
+@extends(request()->query('modal') ? 'admin.master-embed' : 'admin.master')
 
 @section('content')
     <style>
@@ -193,8 +193,12 @@
                     </div>
                     <div class="text-end">
                         <button type="submit" class="btn btn-outline-primary mt-3 ">{{ __('Save') }}</button>
-                        <a href="{{ old('redirect', request('redirect', route('components.index'))) }}"
-                           class="btn btn-outline-secondary mt-3">{{ __('Cancel') }} </a>
+                        @if(request()->query('modal'))
+                            <button type="button" class="btn btn-outline-secondary mt-3" id="componentCreateCancelBtn">{{ __('Cancel') }}</button>
+                        @else
+                            <a href="{{ old('redirect', request('redirect', route('components.index'))) }}"
+                               class="btn btn-outline-secondary mt-3">{{ __('Cancel') }}</a>
+                        @endif
                     </div>
                 </form>
             </div>
@@ -210,11 +214,44 @@
             // --------------------------------- Select 2 --------------------------------------------------------
 
             $(document).ready(function () {
+                var inModal = {{ request()->query('modal') ? 'true' : 'false' }};
                 if ($('#manual_id').length) {
                     $('#manual_id').select2({
                         placeholder: '---',
                         theme: 'bootstrap-5',
-                        allowClear: true
+                        allowClear: true,
+                        dropdownParent: inModal && window.parent !== window ? $(document.body) : undefined
+                    });
+                }
+                if (inModal && window.parent !== window) {
+                    $('#componentCreateCancelBtn').on('click', function() {
+                        (window.top || window.parent).postMessage({ type: 'addPartCancel' }, '*');
+                    });
+                    $('#createForm').on('submit', function(e) {
+                        e.preventDefault();
+                        var form = this;
+                        var submitBtn = $(form).find('button[type="submit"]');
+                        var origHtml = submitBtn.html();
+                        submitBtn.prop('disabled', true).html('<span class="spinner-border spinner-border-sm"></span>');
+                        $.ajax({
+                            url: $(form).attr('action'),
+                            method: 'POST',
+                            data: new FormData(form),
+                            processData: false,
+                            contentType: false,
+                            headers: { 'X-Requested-With': 'XMLHttpRequest', 'Accept': 'application/json' }
+                        }).done(function(data) {
+                            if (data.success) {
+                                (window.top || window.parent).postMessage({ type: 'addPartSuccess' }, '*');
+                            } else {
+                                submitBtn.prop('disabled', false).html(origHtml);
+                                alert(data.message || (data.errors ? JSON.stringify(data.errors) : '') || '{{ __("Error.") }}');
+                            }
+                        }).fail(function(xhr) {
+                            submitBtn.prop('disabled', false).html(origHtml);
+                            var data = xhr.responseJSON || {};
+                            alert(data.message || (data.errors ? JSON.stringify(data.errors) : '') || '{{ __("Failed to submit.") }}');
+                        });
                     });
                 }
             });

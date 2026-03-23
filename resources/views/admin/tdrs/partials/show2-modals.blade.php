@@ -419,6 +419,36 @@
     </div>
 </div>
 
+{{-- Add Processes Modal (iframe) - processes.create from Update Bushings List --}}
+<div class="modal fade" id="addProcessesModal" tabindex="-1" aria-labelledby="addProcessesModalLabel" aria-hidden="true">
+    <div class="modal-dialog" style="max-width: 900px; width: 95%; height: 85vh;">
+        <div class="modal-content bg-gradient" style="height: 85vh;">
+            <div class="modal-header">
+                <h5 class="modal-title" id="addProcessesModalLabel">{{ __('Add Processes') }}</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body p-0 overflow-hidden" style="height: calc(85vh - 60px);">
+                <iframe id="addProcessesIframe" src="about:blank" style="width: 100%; height: 100%; border: none;"></iframe>
+            </div>
+        </div>
+    </div>
+</div>
+
+{{-- Add Part Modal (iframe) - components.create from Update Bushings List --}}
+<div class="modal fade" id="addPartModal" tabindex="-1" aria-labelledby="addPartModalLabel" aria-hidden="true">
+    <div class="modal-dialog" style="max-width: 900px; width: 95%; height: 85vh;">
+        <div class="modal-content bg-gradient" style="height: 85vh;">
+            <div class="modal-header">
+                <h5 class="modal-title" id="addPartModalLabel">{{ __('Add Part') }}</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body p-0 overflow-hidden" style="height: calc(85vh - 60px);">
+                <iframe id="addPartIframe" src="about:blank" style="width: 100%; height: 100%; border: none;"></iframe>
+            </div>
+        </div>
+    </div>
+</div>
+
 {{-- Edit Log Card Modal (iframe) --}}
 <div class="modal fade" id="editLogCardModal" tabindex="-1" aria-labelledby="editLogCardModalLabel" aria-hidden="true">
     <div class="modal-dialog" style="max-width: 1100px; width: 95%; height: 90vh;">

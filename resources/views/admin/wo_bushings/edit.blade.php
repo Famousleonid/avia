@@ -160,14 +160,23 @@
             @if($bushings->flatten()->count() > 0)
             <div class="card-body">
                 <div class="d-flex flex-wrap gap-2 mb-2">
-                    <a href="{{ route('processes.create', ['manual_id' => $current_wo->unit->manual_id, 'return_to' => route('wo_bushings.edit', $woBushing->id)]) }}"
-                       class="btn btn-outline-primary btn-sm">
-                        <i class="fas fa-cogs"></i> {{ __('Add Processes') }}
-                    </a>
-                    <a href="{{ route('components.create', ['manual_id' => $current_wo->unit->manual_id ?? null, 'redirect' => request()->fullUrl()]) }}"
-                       class="btn btn-outline-primary btn-sm">
-                        <i class="fas fa-plus"></i> {{ __('Add Part') }}
-                    </a>
+                    @if(request()->query('modal'))
+                        <button type="button" class="btn btn-outline-primary btn-sm" data-add-processes-url="{{ route('processes.create', ['manual_id' => $current_wo->unit->manual_id, 'return_to' => route('wo_bushings.edit', $woBushing->id)]) }}">
+                            <i class="fas fa-cogs"></i> {{ __('Add Processes') }}
+                        </button>
+                        <button type="button" class="btn btn-outline-primary btn-sm" data-add-part-url="{{ route('components.create', ['manual_id' => $current_wo->unit->manual_id ?? null, 'redirect' => request()->fullUrl()]) }}">
+                            <i class="fas fa-plus"></i> {{ __('Add Part') }}
+                        </button>
+                    @else
+                        <a href="{{ route('processes.create', ['manual_id' => $current_wo->unit->manual_id, 'return_to' => route('wo_bushings.edit', $woBushing->id)]) }}"
+                           class="btn btn-outline-primary btn-sm">
+                            <i class="fas fa-cogs"></i> {{ __('Add Processes') }}
+                        </a>
+                        <a href="{{ route('components.create', ['manual_id' => $current_wo->unit->manual_id ?? null, 'redirect' => request()->fullUrl()]) }}"
+                           class="btn btn-outline-primary btn-sm">
+                            <i class="fas fa-plus"></i> {{ __('Add Part') }}
+                        </a>
+                    @endif
                     <button type="button" class="btn btn-outline-secondary btn-sm" onclick="clearForm()">
                         <i class="fas fa-eraser"></i> {{ __('Clear All') }}
                     </button>
@@ -176,16 +185,16 @@
                 <div class="table-responsive table-scroll-container">
                         <table class="table table-bordered dir-table table-hover align-middle">
                             <colgroup>
-                                <col style="width: 13%;">
-                                <col style="width: 5%;">
-                                <col style="width: 4%;">
-                                <col style="width: 11%;">
-                                <col style="width: 11%;">
-                                <col style="width: 11%;">
-                                <col style="width: 11%;">
-                                <col style="width: 11%;">
-                                <col style="width: 11%;">
-                                <col style="width: 12%;">
+                                <col style="width: 14%;">
+                                <col style="width: 8%;">
+                                <col style="width: 8%;">
+                                <col style="width: 10%;">
+                                <col style="width: 10%;">
+                                <col style="width: 10%;">
+                                <col style="width: 10%;">
+                                <col style="width: 10%;">
+                                <col style="width: 10%;">
+                                <col style="width: 10%;">
                             </colgroup>
                             <thead>
                                 <tr class="header-row">
@@ -263,6 +272,7 @@
                                                         <input type="checkbox" name="group_bushings[{{ $bushIplNum ?: 'no_ipl' }}][components][]"
                                                                value="{{ $bushing->id }}" class="form-check-input me-1 component-checkbox"
                                                                data-group="{{ $bushIplNum ?: 'no_ipl' }}"
+                                                               data-units-assy="{{ $bushing->units_assy ?? 1 }}"
                                                                {{ in_array($bushing->id, $selectedComponentsInGroup) ? 'checked' : '' }}
                                                                onchange="toggleGroupFields('{{ $bushIplNum ?: 'no_ipl' }}')">
                                                         <small>{{ $bushing->ipl_num }}</small>
@@ -416,25 +426,24 @@
             const groupCheckboxes = document.querySelectorAll(`.component-checkbox[data-group="${groupName}"]`);
             const groupFields = document.querySelectorAll(`[data-group="${groupName}"]:not(.component-checkbox)`);
 
-            // Проверяем, есть ли выбранные чекбоксы в группе
             const hasSelected = Array.from(groupCheckboxes).some(checkbox => checkbox.checked);
+            const firstChecked = Array.from(groupCheckboxes).find(cb => cb.checked);
+            const unitsAssy = firstChecked ? (firstChecked.dataset.unitsAssy || '1') : '1';
 
-            // Активируем/деактивируем поля группы
             groupFields.forEach(field => {
-                // Для чекбоксов NDT используем другой подход
                 if (field.type === 'checkbox' && field.name && field.name.includes('[ndt]')) {
                     field.disabled = !hasSelected;
-                    if (!hasSelected) {
-                        field.checked = false;
-                    }
+                    if (!hasSelected) field.checked = false;
                 } else if (field.tagName === 'SELECT' || field.classList.contains('qty-input')) {
                     field.disabled = !hasSelected;
                     if (!hasSelected) {
                         if (field.classList.contains('qty-input')) {
-                            field.value = '1'; // Возвращаем значение по умолчанию для QTY
+                            field.value = '1';
                         } else {
-                            field.value = ''; // Очищаем значения для остальных полей
+                            field.value = '';
                         }
+                    } else if (field.classList.contains('qty-input') && hasSelected) {
+                        field.value = unitsAssy;
                     }
                 }
             });
@@ -459,7 +468,28 @@
             var cancelBtn = document.getElementById('editBushingCancelBtn');
             if (cancelBtn && inModal && window.parent !== window) {
                 cancelBtn.addEventListener('click', function() {
-                    window.parent.postMessage({ type: 'editBushingCancel' }, '*');
+                    (window.top || window.parent).postMessage({ type: 'editBushingCancel' }, '*');
+                });
+            }
+
+            if (inModal && window.parent !== window) {
+                document.querySelectorAll('button[data-add-processes-url]').forEach(function(btn) {
+                    btn.addEventListener('click', function(e) {
+                        e.preventDefault();
+                        var url = this.getAttribute('data-add-processes-url');
+                        if (url) {
+                            (window.top || window.parent).postMessage({ type: 'openAddProcessesModal', url: url }, '*');
+                        }
+                    });
+                });
+                document.querySelectorAll('button[data-add-part-url]').forEach(function(btn) {
+                    btn.addEventListener('click', function(e) {
+                        e.preventDefault();
+                        var url = this.getAttribute('data-add-part-url');
+                        if (url) {
+                            (window.top || window.parent).postMessage({ type: 'openAddPartModal', url: url }, '*');
+                        }
+                    });
                 });
             }
 

@@ -69,6 +69,14 @@ class ComponentController extends Controller
             $component->addMedia($request->file('assy_img'))->toMediaCollection('assy_components');
         }
 
+        if ($request->ajax() || $request->wantsJson()) {
+            return response()->json([
+                'success' => true,
+                'message' => __('Component created successfully.'),
+                'redirect' => $request->input('redirect', route('components.index'))
+            ]);
+        }
+
         return redirect($request->input('redirect', route('components.index')))
             ->with('success', 'Component created successfully.');
 

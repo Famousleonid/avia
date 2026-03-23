@@ -4,11 +4,20 @@
 <form id="bushings-form" method="POST" action="{{ route('wo_bushings.store') }}" class="bushing-create-form" data-embed="{{ $embed ? '1' : '0' }}">
     @csrf
     <input type="hidden" name="workorder_id" value="{{ $current_wo->id }}">
-    @if(!$embed)
     <div class="d-flex justify-content-end gap-2 mb-3">
+        @if(!$embed)
         <button type="button" class="btn btn-outline-info btn-sm" data-bs-toggle="modal" data-bs-target="#addBushingsFromManualModal">
             <i class="fas fa-exchange-alt"></i> {{ __('Add from Manual') }}
         </button>
+        @endif
+        @if($embed)
+        <button type="button" class="btn btn-outline-primary btn-sm open-add-processes-modal" data-add-processes-url="{{ route('processes.create', ['manual_id' => $current_wo->unit->manual_id, 'return_to' => $returnTo ?? route('wo_bushings.create', $current_wo->id)]) }}">
+            <i class="fas fa-cogs"></i> {{ __('Add Processes') }}
+        </button>
+        <button type="button" class="btn btn-outline-primary btn-sm open-add-part-modal" data-add-part-url="{{ route('components.create', ['manual_id' => $current_wo->unit->manual_id ?? null, 'redirect' => $returnTo ?? route('wo_bushings.create', $current_wo->id)]) }}">
+            <i class="fas fa-plus"></i> {{ __('Add Part') }}
+        </button>
+        @else
         <a href="{{ route('processes.create', ['manual_id' => $current_wo->unit->manual_id, 'return_to' => route('wo_bushings.create', $current_wo->id)]) }}"
            class="btn btn-outline-primary btn-sm">
             <i class="fas fa-cogs"></i> {{ __('Add Processes') }}
@@ -17,22 +26,22 @@
            class="btn btn-outline-primary btn-sm">
             <i class="fas fa-plus"></i> {{ __('Add Component') }}
         </a>
+        @endif
     </div>
-    @endif
     <div class="table-wrapper me-3" style="max-height: 60vh; overflow: auto;">
         <table class="display table shadow table-hover align-middle table-bordered dir-table">
             <thead class="header-row bg-gradient">
                 <tr>
-                    <th class="text-primary text-center">Bushings</th>
-                    <th class="text-primary text-center">Select</th>
-                    <th class="text-primary text-center">QTY</th>
-                    <th class="text-primary text-center">Machining</th>
-                    <th class="text-primary text-center">Stress Relief</th>
-                    <th class="text-primary text-center">NDT</th>
-                    <th class="text-primary text-center">Passivation</th>
-                    <th class="text-primary text-center">CAD</th>
-                    <th class="text-primary text-center">Anodizing</th>
-                    <th class="text-primary text-center">Xylan</th>
+                    <th class="text-primary text-center" style="width: 14%">Bushings</th>
+                    <th class="text-primary text-center" style="width: 6%">Select</th>
+                    <th class="text-primary text-center" style="width: 4%">QTY</th>
+                    <th class="text-primary text-center" style="width: 12%">Machining</th>
+                    <th class="text-primary text-center" style="width: 12%">Stress Relief</th>
+                    <th class="text-primary text-center" style="width: 6%">NDT</th>
+                    <th class="text-primary text-center" style="width: 12%">Passivation</th>
+                    <th class="text-primary text-center" style="width: 12%">CAD</th>
+                    <th class="text-primary text-center" style="width: 12%">Anodizing</th>
+                    <th class="text-primary text-center" style="width: 12%">Xylan</th>
                 </tr>
             </thead>
             <tbody>
@@ -50,6 +59,7 @@
                                     <input type="checkbox" name="group_bushings[{{ $bushIplNum ?: 'no_ipl' }}][components][]"
                                            value="{{ $bushing->id }}" class="form-check-input me-1 component-checkbox"
                                            data-group="{{ $bushIplNum ?: 'no_ipl' }}"
+                                           data-units-assy="{{ $bushing->units_assy ?? 1 }}"
                                            onchange="window.bushingToggleGroupFields && window.bushingToggleGroupFields('{{ $bushIplNum ?: 'no_ipl' }}')">
                                     <small>{{ $bushing->ipl_num }}</small>
                                 </div>
@@ -187,6 +197,8 @@
         var groupCheckboxes = document.querySelectorAll('.component-checkbox[data-group="' + groupName + '"]');
         var groupFields = document.querySelectorAll('[data-group="' + groupName + '"]:not(.component-checkbox)');
         var hasSelected = Array.from(groupCheckboxes).some(function(c){ return c.checked; });
+        var firstChecked = Array.from(groupCheckboxes).find(function(c){ return c.checked; });
+        var unitsAssy = firstChecked ? (firstChecked.dataset.unitsAssy || '1') : '1';
         groupFields.forEach(function(field) {
             if (field.type === 'checkbox' && field.name && field.name.indexOf('[ndt]') !== -1) {
                 field.disabled = !hasSelected;
@@ -195,6 +207,8 @@
                 field.disabled = !hasSelected;
                 if (!hasSelected) {
                     field.value = field.classList.contains('qty-input') ? '1' : '';
+                } else if (field.classList.contains('qty-input')) {
+                    field.value = unitsAssy;
                 }
             }
         });

@@ -10,17 +10,18 @@
     </style>
     <div class="w-100 mt-3">
         <div class="table-wrapper table-scroll-container w-100" style="max-height: calc(100vh - 320px); overflow: auto;">
-            <table class="display table shadow table-hover align-middle table-bordered bg-gradient dir-table bushing-view-table w-100">
+            <table class="display table shadow table-hover align-middle table-bordered bg-gradient dir-table bushing-view-table
+             w-100">
                 <colgroup>
-                    <col style="width: 14%;">
-                    <col style="width: 4%;">
-                    <col style="width: 12%;">
-                    <col style="width: 12%;">
-                    <col style="width: 12%;">
-                    <col style="width: 12%;">
-                    <col style="width: 12%;">
-                    <col style="width: 12%;">
-                    <col style="width: 10%;">
+                    <col style="width: 18%;">
+                    <col style="width: 5%;">
+                    <col style="width: 11%;">
+                    <col style="width: 11%;">
+                    <col style="width: 11%;">
+                    <col style="width: 11%;">
+                    <col style="width: 11%;">
+                    <col style="width: 11%;">
+                    <col style="width: 11%;">
                 </colgroup>
                 <thead style="position: sticky; top: 0; z-index: 10; background: #031e3a;">
                     <tr class="header-row">
@@ -269,7 +270,9 @@
                                 $xylanProcess = $xylanProcesses->firstWhere('id', $data['xylan'] ?? null);
                             @endphp
                             <tr>
-                                <td class="ps-4 bushing-col"><strong>{{ $component->ipl_num }}</strong> - <span class="text-muted">{{ $component->part_number }}</span></td>
+                                <td class="ps-4 bushing-col" style="width: 150px"><strong>{{ $component->ipl_num }}</strong> -
+                                    <span
+                                        class="text-muted">{{ $component->part_number }}</span></td>
                                 <td class="text-center">{{ $data['qty'] ?? '-' }}</td>
                                 <td class="bushing-process-col" title="{{ $machiningProcess ? $machiningProcess->process : '-' }}">{{ $machiningProcess ? $machiningProcess->process : '-' }}</td>
                                 <td class="bushing-process-col" title="{{ $stressReliefProcess ? $stressReliefProcess->process : '-' }}">{{ $stressReliefProcess ? $stressReliefProcess->process : '-' }}</td>
@@ -287,12 +290,13 @@
     </div>
 @elseif($bushings->flatten()->count() > 0)
     @include('admin.wo_bushings.partials.create-form', ['embed' => true])
+
 @else
     <div class="text-center mt-5">
         <h3 class="text-muted">{{__('No Bushings Available')}}</h3>
         <p class="text-muted">{{__('No components with "Is Bush" marked are found for this manual.')}}</p>
-        <a href="{{ route('components.create', ['manual_id' => $current_wo->unit->manual_id ?? null, 'redirect' => $returnTo ?? route('wo_bushings.show', $current_wo->id)]) }}" class="btn btn-primary mt-3">
-            <i class="fas fa-plus"></i> {{__('Add Components')}}
-        </a>
+        <button type="button" class="btn btn-primary mt-3 open-add-part-modal" data-add-part-url="{{ route('components.create', ['manual_id' => $current_wo->unit->manual_id ?? null, 'redirect' => $returnTo ?? route('wo_bushings.show', $current_wo->id)]) }}">
+            <i class="fas fa-plus"></i> {{__('Add Part')}}
+        </button>
     </div>
 @endif

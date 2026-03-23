@@ -1,4 +1,4 @@
-@extends('admin.master')
+@extends(request()->query('modal') ? 'admin.master-embed' : 'admin.master')
 
 @section('content')
     <style>
@@ -95,8 +95,11 @@
 
                     <div class="text-end m-3">
                         <button type="submit" class="btn btn-outline-primary mt-3 ">{{ __('Save') }}</button>
-                        <a href="{{ request()->query('return_to', route('processes.index')) }}" class="btn btn-outline-secondary mt-3">{{ __('Back') }}
-                        </a>
+                        @if(request()->query('modal'))
+                            <button type="button" class="btn btn-outline-secondary mt-3" id="processCreateCancelBtn">{{ __('Cancel') }}</button>
+                        @else
+                            <a href="{{ request()->query('return_to', route('processes.index')) }}" class="btn btn-outline-secondary mt-3">{{ __('Back') }}</a>
+                        @endif
                     </div>
                 </form>
             </div>
@@ -152,7 +155,8 @@
         document.addEventListener('DOMContentLoaded', function () {
             const processNameSelect = document.getElementById('process_name_id');
             const exProcessList = document.getElementById('ex_process-list');
-            const manualId = document.querySelector('input[name="manual_id"]').value;
+            const manualId = document.querySelector('input[name="manual_id"]')?.value;
+            const inModal = {{ request()->query('modal') ? 'true' : 'false' }};
 
             // Select2 для Process Name с поиском
             if (typeof $ !== 'undefined' && $.fn.select2 && processNameSelect) {
@@ -161,6 +165,7 @@
                     width: '100%',
                     placeholder: '{{__('Select process Name')}}',
                     allowClear: false,
+                    dropdownParent: inModal && window.parent !== window ? $(document.body) : undefined,
                     templateResult: function(data) { if (!data.id) return null; return data.text; },
                     templateSelection: function(data) { if (!data.id) return data.text || ''; return data.text; }
                 });
@@ -204,6 +209,46 @@
                     $(processNameSelect).on('change', loadExisting);
                 } else {
                     processNameSelect.addEventListener('change', loadExisting);
+                }
+            }
+
+            // Modal mode: Cancel button and AJAX form submit
+            if (inModal && window.parent !== window) {
+                const cancelBtn = document.getElementById('processCreateCancelBtn');
+                if (cancelBtn) {
+                    cancelBtn.addEventListener('click', function() {
+                        (window.top || window.parent).postMessage({ type: 'addProcessesCancel' }, '*');
+                    });
+                }
+
+                const form = document.getElementById('createCMMForm');
+                if (form) {
+                    form.addEventListener('submit', function(e) {
+                        e.preventDefault();
+                        const submitBtn = form.querySelector('button[type="submit"]');
+                        const origHtml = submitBtn ? submitBtn.innerHTML : '';
+                        if (submitBtn) { submitBtn.disabled = true; submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm"></span>'; }
+                        const fd = new FormData(form);
+                        fetch(form.action, {
+                            method: 'POST',
+                            body: fd,
+                            headers: { 'X-Requested-With': 'XMLHttpRequest', 'Accept': 'application/json' },
+                            credentials: 'same-origin'
+                        })
+                        .then(function(r) { return r.json().catch(function() { return {}; }); })
+                        .then(function(data) {
+                            if (submitBtn) { submitBtn.disabled = false; submitBtn.innerHTML = origHtml; }
+                            if (data.success) {
+                                (window.top || window.parent).postMessage({ type: 'addProcessesSuccess' }, '*');
+                            } else {
+                                alert(data.message || (data.errors ? JSON.stringify(data.errors) : '') || '{{ __("Error.") }}');
+                            }
+                        })
+                        .catch(function() {
+                            if (submitBtn) { submitBtn.disabled = false; submitBtn.innerHTML = origHtml; }
+                            alert('{{ __("Failed to submit.") }}');
+                        });
+                    });
                 }
             }
         });

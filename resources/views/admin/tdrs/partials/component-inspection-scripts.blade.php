@@ -17,8 +17,16 @@ document.addEventListener('DOMContentLoaded', function() {
                 $('#addComponentManualId').val(defaultManualId);
             }
 
-            var $dropdownParent = $(document.body);
-            $('#i_component_id, #codes_id, #necessaries_id, #c_conditions_id').select2({
+            var $dropdownParent = $(compModal);
+            $('#i_component_id').select2({
+                placeholder: '---',
+                theme: 'bootstrap-5',
+                allowClear: true,
+                dropdownParent: $dropdownParent,
+                width: '100%',
+                minimumResultsForSearch: 0
+            });
+            $('#codes_id, #necessaries_id, #c_conditions_id').select2({
                 placeholder: '---',
                 theme: 'bootstrap-5',
                 allowClear: true,

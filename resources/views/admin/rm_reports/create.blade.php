@@ -114,7 +114,7 @@
                                 <div id="previewTechnicalNotes" class="border rounded p-2" style="min-height: 80px; white-space: pre-line;"></div>
                             </div>
                             <div class="table mt-3 table-scroll-rm-records">
-                                <table class="table table-striped text-center align-items-center dir-table">
+                                <table class="table table-striped text-center align-items-center dir-table" >
                                     <thead>
                                     <tr>
                                         <th class="border align-middle">{{ __('Item') }}</th>
