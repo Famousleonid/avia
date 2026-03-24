@@ -5,9 +5,11 @@
 class FormLinkHandler {
     /**
      * Инициализирует обработчики для ссылок на формы
+     * @param {ParentNode} [root] - искать только внутри узла (например после AJAX); по умолчанию document
      */
-    static init() {
-        const formLinks = document.querySelectorAll('.form-link:not(.disabled)');
+    static init(root) {
+        const scope = root && root.querySelectorAll ? root : document;
+        const formLinks = scope.querySelectorAll('.form-link:not(.disabled)');
         formLinks.forEach(link => {
             link.addEventListener('click', function(e) {
                 // Пропускаем неактивные ссылки
@@ -36,36 +38,46 @@ class FormLinkHandler {
         const process = link.getAttribute('data-process');
         const processNameId = link.getAttribute('data-process-name-id');
 
+        // Сначала ищем вендор в той же строке таблицы / блоке процессов (show2, модалки), иначе — по всему document
+        const row = link.closest('tr');
+        const localRoot = row || link.closest('.processes-modal-body') || link.closest('.extra-processes-modal-body') || document;
+
         let vendorSelect = null;
-        
+
         // Ищем селект vendor по tdrProcessId и process (для обычных процессов - несколько строк на tdr_process)
         if (tdrProcessId && process) {
-            vendorSelect = document.querySelector(
-                `select[data-tdr-process-id="${tdrProcessId}"][data-process="${process}"]`
-            );
+            vendorSelect = localRoot.querySelector(
+                `select.vendor-select[data-tdr-process-id="${tdrProcessId}"][data-process="${process}"]`
+            )
+                || document.querySelector(
+                    `select.vendor-select[data-tdr-process-id="${tdrProcessId}"][data-process="${process}"]`
+                );
         }
-        
-        // Если не нашли, ищем по tdrProcessId только (для NDT с дополнительными процессами - одна объединённая строка без data-process)
+
+        // Если не нашли, ищем по tdrProcessId только (NDT с plus — одна строка без data-process на ссылке)
         if (!vendorSelect && tdrProcessId) {
-            const selects = document.querySelectorAll(`select.vendor-select[data-tdr-process-id="${tdrProcessId}"]`);
-            if (selects.length > 0) {
-                vendorSelect = selects[0];
+            const pool = localRoot.querySelectorAll(`select.vendor-select[data-tdr-process-id="${tdrProcessId}"]`);
+            vendorSelect = pool.length ? pool[0] : null;
+            if (!vendorSelect) {
+                const globalPool = document.querySelectorAll(`select.vendor-select[data-tdr-process-id="${tdrProcessId}"]`);
+                vendorSelect = globalPool.length ? globalPool[0] : null;
             }
         }
-        
-        // Если не нашли, ищем по processNameId (для групповых форм)
+
+        // Если не нашли, ищем по processNameId (групповые формы в модалке на полной странице процессов)
         if (!vendorSelect && processNameId) {
             vendorSelect = document.querySelector(
                 `select.vendor-select[data-process-name-id="${processNameId}"]`
             );
         }
 
-        // Если vendor выбран, добавляем его в URL
+        const currentUrl = new URL(link.getAttribute('href') || link.href, window.location.origin);
         if (vendorSelect && vendorSelect.value) {
-            const currentUrl = new URL(link.href, window.location.origin);
             currentUrl.searchParams.set('vendor_id', vendorSelect.value);
-            link.href = currentUrl.toString();
+        } else {
+            currentUrl.searchParams.delete('vendor_id');
         }
+        link.setAttribute('href', currentUrl.pathname + currentUrl.search + currentUrl.hash);
     }
 }
 

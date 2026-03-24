@@ -5,6 +5,7 @@
 <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/Sortable.min.js"></script>
 <script src="{{ asset('js/tdr-processes/sortable-handler.js') }}"></script>
 <script src="{{ asset('js/tdr-processes/vendor-handler.js') }}"></script>
+<script src="{{ asset('js/tdr-processes/form-link-handler.js') }}"></script>
 <script src="{{ asset('js/tdr-processes/edit-process/edit-process.js') }}"></script>
 <script>
     window.ProcessesConfig = window.ProcessesConfig || {};
@@ -271,6 +272,22 @@ document.addEventListener('DOMContentLoaded', function() {
 
     function bindExtraProcessesHandlers(container) {
         if (!container) return;
+        container.querySelectorAll('.form-link[data-extra-process-id][data-process-name-id]').forEach(function(link) {
+            link.addEventListener('click', function() {
+                var extraProcessId = link.getAttribute('data-extra-process-id');
+                var processNameId = link.getAttribute('data-process-name-id');
+                var vendorSelect = container.querySelector('select.vendor-select[data-extra-process-id="' + extraProcessId + '"][data-process-name-id="' + processNameId + '"]');
+                var href = link.getAttribute('href');
+                if (!href) return;
+                var url = new URL(href, window.location.origin);
+                if (vendorSelect && vendorSelect.value) {
+                    url.searchParams.set('vendor_id', vendorSelect.value);
+                } else {
+                    url.searchParams.delete('vendor_id');
+                }
+                link.setAttribute('href', url.pathname + url.search + url.hash);
+            });
+        });
         container.querySelectorAll('.load-edit-extra-process-process').forEach(function(btn) {
             btn.addEventListener('click', function() {
                 var extraProcessId = btn.dataset.extraProcessId;
@@ -453,6 +470,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 if (typeof Sortable !== 'undefined' && typeof SortableHandler !== 'undefined') SortableHandler.init(updateOrderUrl);
                 if (typeof VendorHandler !== 'undefined' && ProcessesConfig.storeVendorUrl) VendorHandler.init(ProcessesConfig.storeVendorUrl);
                 bindProcessHandlers(wrapper);
+                if (typeof FormLinkHandler !== 'undefined') FormLinkHandler.init(body);
                 if (addProcessBtn) {
                     addProcessBtn.disabled = false;
                     addProcessBtn.onclick = function() {

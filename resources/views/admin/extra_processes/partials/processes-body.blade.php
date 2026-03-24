@@ -66,7 +66,7 @@
                                             <option value="">Vendor</option>
                                             @foreach($vendors as $v)<option value="{{ $v->id }}">{{ $v->name }}</option>@endforeach
                                         </select>
-                                        <a href="{{ route('extra_processes.show_form', ['id' => $extra_process->id, 'processNameId' => $processNameId]) }}" class="btn btn-sm btn-outline-primary" target="_blank">{{ __('Form') }}</a>
+                                        <a href="{{ route('extra_processes.show_form', ['id' => $extra_process->id, 'processNameId' => $processNameId]) }}" class="btn btn-sm btn-outline-primary form-link" target="_blank" data-extra-process-id="{{ $extra_process->id }}" data-process-name-id="{{ $processNameId }}">{{ __('Form') }}</a>
                                     </div>
                                 </td>
                             </tr>
@@ -118,7 +118,7 @@
                                             <option value="">Vendor</option>
                                             @foreach($vendors as $v)<option value="{{ $v->id }}">{{ $v->name }}</option>@endforeach
                                         </select>
-                                        <a href="{{ route('extra_processes.show_form', ['id' => $extra_process->id, 'processNameId' => $processItem['process_name_id']]) }}" class="btn btn-sm btn-outline-primary" target="_blank">{{ __('Form') }}</a>
+                                        <a href="{{ route('extra_processes.show_form', ['id' => $extra_process->id, 'processNameId' => $processItem['process_name_id']]) }}" class="btn btn-sm btn-outline-primary form-link" target="_blank" data-extra-process-id="{{ $extra_process->id }}" data-process-name-id="{{ $processItem['process_name_id'] }}">{{ __('Form') }}</a>
                                     </div>
                                 </td>
                             </tr>
