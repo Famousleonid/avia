@@ -33,15 +33,15 @@
             <thead class="header-row bg-gradient">
                 <tr>
                     <th class="text-primary text-center" style="width: 14%">Bushings</th>
-                    <th class="text-primary text-center" style="width: 8%">Select</th>
-                    <th class="text-primary text-center" style="width: 5%">QTY</th>
-                    <th class="text-primary text-center" style="width: 11%">Machining</th>
-                    <th class="text-primary text-center" style="width: 11%">Stress Relief</th>
-                    <th class="text-primary text-center" style="width: 7%">NDT</th>
-                    <th class="text-primary text-center" style="width: 11%">Passivation</th>
-                    <th class="text-primary text-center" style="width: 11%">CAD</th>
-                    <th class="text-primary text-center" style="width: 11%">Anodizing</th>
-                    <th class="text-primary text-center" style="width: 11%">Xylan</th>
+                    <th class="text-primary text-center" style="width: 10%">Select</th>
+                    <th class="text-primary text-center" style="width: 7%">QTY</th>
+                    <th class="text-primary text-center" style="width: 10%">Machining</th>
+                    <th class="text-primary text-center" style="width: 10%">Stress Relief</th>
+                    <th class="text-primary text-center" style="width: 9%">NDT</th>
+                    <th class="text-primary text-center" style="width: 10%">Passivation</th>
+                    <th class="text-primary text-center" style="width: 10%">CAD</th>
+                    <th class="text-primary text-center" style="width: 10%">Anodizing</th>
+                    <th class="text-primary text-center" style="width: 10%">Xylan</th>
                 </tr>
             </thead>
             <tbody>

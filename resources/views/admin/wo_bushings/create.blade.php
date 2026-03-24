@@ -312,16 +312,16 @@
                         <table class="display table shadow table-hover align-middle table-bordered ">
                             <thead class="">
                                 <tr class="header-row bg-gradient">
-                                    <th class="text-primary text-center">Bushings</th>
-                                    <th class="text-primary text-center "> Select</th>
-                                    <th class="text-primary text-center">QTY</th>
-                                    <th class="text-primary text-center">Machining</th>
-                                    <th class="text-primary text-center">Stress Relief</th>
-                                    <th class="text-primary text-center">NDT</th>
-                                    <th class="text-primary text-center">Passivation</th>
-                                    <th class="text-primary text-center">CAD</th>
-                                    <th class="text-primary text-center">Anodizing</th>
-                                    <th class="text-primary text-center">Xylan</th>
+                                    <th class="text-primary text-center" style="width: 14%">Bushings</th>
+                                    <th class="text-primary text-center" style="width: 10%">Select</th>
+                                    <th class="text-primary text-center" style="width: 7%">QTY</th>
+                                    <th class="text-primary text-center" style="width: 10%">Machining</th>
+                                    <th class="text-primary text-center" style="width: 10%">Stress Relief</th>
+                                    <th class="text-primary text-center" style="width: 9%">NDT</th>
+                                    <th class="text-primary text-center" style="width: 10%">Passivation</th>
+                                    <th class="text-primary text-center" style="width: 10%">CAD</th>
+                                    <th class="text-primary text-center" style="width: 10%">Anodizing</th>
+                                    <th class="text-primary text-center" style="width: 10%">Xylan</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -823,7 +823,7 @@
 
                     processTypes.forEach(function(processType) {
                         rowHtml += `<td>`;
-                        
+
                         // Для NDT используем чекбоксы, для остальных - select
                         if (processType === 'ndt') {
                             rowHtml += `<div class="ndt-checkboxes" data-group="${uniqueGroupKey}">`;
