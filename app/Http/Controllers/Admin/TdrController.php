@@ -1426,9 +1426,20 @@ class TdrController extends Controller
 
         $tdr_proc = TdrProcess::where('ec', 1)->get();
 
-        $hasTransfers = \App\Models\Transfer::where('workorder_id', $current_wo->id)
+        $hasTransfers = Transfer::where('workorder_id', $current_wo->id)
             ->orWhere('workorder_source', $current_wo->id)
             ->exists();
+
+        $transfersIncomingGroupsWithMultiple = collect();
+        $transfersHasOutgoingGroup = false;
+        if ($hasTransfers) {
+            $incomingTransfersHeader = Transfer::with('workorderSource')->where('workorder_id', $current_wo->id)->get();
+            $outgoingTransfersHeader = Transfer::where('workorder_source', $current_wo->id)->get();
+            $transfersIncomingGroupsWithMultiple = $incomingTransfersHeader->groupBy('workorder_source')->filter(function ($group) {
+                return $group->count() > 1;
+            });
+            $transfersHasOutgoingGroup = $outgoingTransfersHeader->count() > 1;
+        }
 
         $hasExtraProcessRecords = ExtraProcess::where('workorder_id', $current_wo->id)->exists();
         $hasExtraProcessRecordsMoreThanOne = ExtraProcess::where('workorder_id', $current_wo->id)->count() > 1;
@@ -1444,6 +1455,7 @@ class TdrController extends Controller
             'necessaries', 'unit_conditions', 'component_conditions',
             'codes', 'conditions', 'missingParts', 'ordersParts', 'inspectsUnit',
             'processParts', 'ordersPartsNew', 'trainings', 'user_wo', 'manual_id', 'log_card', 'woBushing', 'hasBushings', 'prl_parts', 'tdr_proc', 'hasTransfers',
+            'transfersIncomingGroupsWithMultiple', 'transfersHasOutgoingGroup',
             'hasMissingParts', 'missingCondition', 'orderedPartsCount', 'hasOrderedParts', 'hasProcessFormTdrs',
             'hasExtraProcessRecords', 'hasExtraProcessRecordsMoreThanOne', 'showLogCardTab'
         );

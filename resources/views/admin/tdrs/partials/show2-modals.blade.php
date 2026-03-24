@@ -449,6 +449,10 @@
     </div>
 </div>
 
+@if($hasTransfers ?? false)
+    @include('admin.transfers.change-sn-modal')
+@endif
+
 {{-- Edit Log Card Modal (iframe) --}}
 <div class="modal fade" id="editLogCardModal" tabindex="-1" aria-labelledby="editLogCardModalLabel" aria-hidden="true">
     <div class="modal-dialog" style="max-width: 1100px; width: 95%; height: 90vh;">

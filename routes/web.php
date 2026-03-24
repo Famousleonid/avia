@@ -164,6 +164,7 @@ Route::group(['middleware' => ['auth']], function () {
 
     Route::get('tdrs/processes-partial/{workorder_id}', [TdrController::class, 'processesPartial'])->name('tdrs.processesPartial');
         Route::get('tdrs/log-card-partial/{workorder_id}', [LogCardController::class, 'partial'])->name('log_card.partial');
+        Route::get('tdrs/transfers-partial/{workorder}', [TransferController::class, 'partial'])->name('transfers.partial');
 
 
         Route::get('/tdrs/inspection/unit/{workorder_id}', [TdrController::class, 'inspectionUnit'])->name('tdrs.inspection.unit');

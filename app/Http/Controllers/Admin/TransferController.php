@@ -74,7 +74,10 @@ class TransferController extends Controller
      * @param  \App\Models\Workorder  $workorder
      * @return \Illuminate\Contracts\View\View
      */
-    public function show(Workorder $workorder)
+    /**
+     * @return array<string, mixed>
+     */
+    protected function transferShowData(Workorder $workorder): array
     {
         $incomingTransfers = Transfer::with(['workorderSource', 'component', 'reasonCode'])
             ->where('workorder_id', $workorder->id)
@@ -84,22 +87,33 @@ class TransferController extends Controller
             ->where('workorder_source', $workorder->id)
             ->get();
 
-        // Группируем входящие трансферы по workorder_source для определения, есть ли несколько от одного WO
         $incomingGrouped = $incomingTransfers->groupBy('workorder_source');
         $incomingGroupsWithMultiple = $incomingGrouped->filter(function ($group) {
             return $group->count() > 1;
         });
 
-        // Для исходящих: если их несколько от текущего WO, то это одна группа
         $hasOutgoingGroup = $outgoingTransfers->count() > 1;
 
-        return view('admin.transfers.show', [
+        return [
             'workorder' => $workorder,
             'incomingTransfers' => $incomingTransfers,
             'outgoingTransfers' => $outgoingTransfers,
             'incomingGroupsWithMultiple' => $incomingGroupsWithMultiple,
             'hasOutgoingGroup' => $hasOutgoingGroup,
-        ]);
+        ];
+    }
+
+    public function show(Workorder $workorder)
+    {
+        return view('admin.transfers.show', $this->transferShowData($workorder));
+    }
+
+    /**
+     * HTML fragment for TDR show2 "Transfers" tab (AJAX).
+     */
+    public function partial(Workorder $workorder)
+    {
+        return view('admin.transfers.partial', $this->transferShowData($workorder));
     }
 
     /**

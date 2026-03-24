@@ -47,6 +47,11 @@ document.addEventListener('DOMContentLoaded', function() {
     var extraPartsTabActions = document.getElementById('extraPartsTabActions');
     var logCardTabBody = document.getElementById('logCardTabBody');
     var logCardPartialUrl = '{{ route("log_card.partial", ["workorder_id" => $current_wo->id]) }}';
+    var transfersTabBody = document.getElementById('transfersTabBody');
+    var transfersPartialUrl = @json(($hasTransfers ?? false) ? route('transfers.partial', ['workorder' => $current_wo->id]) : null);
+    var transfersTabActions = document.getElementById('transfersTabActions');
+    var transfersSnCell = null;
+    var transfersUpdateSnUrlTemplate = '{{ route("transfers.updateSn", ["id" => "__ID__"]) }}';
     var bushingTabBody = document.getElementById('bushingTabBody');
     var bushingPartialUrl = '{{ route("wo_bushings.partial", ["workorder_id" => $current_wo->id]) }}';
     var rmReportsTabBody = document.getElementById('rmReportsTabBody');
@@ -165,6 +170,22 @@ document.addEventListener('DOMContentLoaded', function() {
             })
             .catch(function(err) {
                 logCardTabBody.innerHTML = '<div class="alert alert-danger">{{ __("Failed to load.") }} (' + (err && err.message ? err.message : '') + ')</div>';
+            });
+    }
+
+    function loadTransfersPartial() {
+        if (!transfersTabBody || !transfersPartialUrl) return;
+        transfersTabBody.innerHTML = '<div class="text-center py-5"><div class="spinner-border text-primary" role="status"></div></div>';
+        fetch(transfersPartialUrl, { headers: { 'X-Requested-With': 'XMLHttpRequest', 'Accept': 'text/html' }, credentials: 'same-origin' })
+            .then(function(r) {
+                if (!r.ok) throw new Error('HTTP ' + r.status);
+                return r.text();
+            })
+            .then(function(html) {
+                transfersTabBody.innerHTML = html;
+            })
+            .catch(function(err) {
+                transfersTabBody.innerHTML = '<div class="alert alert-danger">{{ __("Failed to load.") }} (' + (err && err.message ? err.message : '') + ')</div>';
             });
     }
 
@@ -712,6 +733,73 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         });
     }
+    document.addEventListener('click', function(e) {
+        var snLink = e.target.closest && e.target.closest('.transfers-partial .change-sn-link');
+        if (!snLink || !document.getElementById('changeSnModal')) return;
+        e.preventDefault();
+        var transferId = snLink.dataset.transferId;
+        var currentSn = snLink.dataset.currentSn || '';
+        transfersSnCell = snLink.closest('td');
+        var snTransferIdEl = document.getElementById('snTransferId');
+        var snInputEl = document.getElementById('component_sn');
+        if (snTransferIdEl) snTransferIdEl.value = transferId;
+        if (snInputEl) snInputEl.value = currentSn;
+        var snModal = document.getElementById('changeSnModal');
+        if (snModal && typeof bootstrap !== 'undefined') {
+            var snInst = bootstrap.Modal.getOrCreateInstance(snModal);
+            snInst.show();
+        }
+    });
+    var changeSnFormTransfer = document.getElementById('changeSnForm');
+    if (changeSnFormTransfer && transfersPartialUrl) {
+        changeSnFormTransfer.addEventListener('submit', function(e) {
+            e.preventDefault();
+            var transferId = document.getElementById('snTransferId') && document.getElementById('snTransferId').value;
+            var newSn = document.getElementById('component_sn') ? document.getElementById('component_sn').value : '';
+            if (!transferId) return;
+            var url = transfersUpdateSnUrlTemplate.replace('__ID__', transferId);
+            fetch(url, {
+                method: 'PATCH',
+                headers: {
+                    'X-CSRF-TOKEN': '{{ csrf_token() }}',
+                    'Accept': 'application/json',
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ component_sn: newSn })
+            })
+                .then(function(response) { return response.json(); })
+                .then(function(data) {
+                    if (data.success) {
+                        if (transfersSnCell) {
+                            if (data.component_sn) {
+                                transfersSnCell.textContent = '';
+                                var aSn = document.createElement('a');
+                                aSn.href = '#';
+                                aSn.className = 'text-decoration-underline text-info change-sn-link';
+                                aSn.setAttribute('data-transfer-id', transferId);
+                                aSn.setAttribute('data-current-sn', data.component_sn);
+                                aSn.setAttribute('data-bs-toggle', 'modal');
+                                aSn.setAttribute('data-bs-target', '#changeSnModal');
+                                aSn.textContent = data.component_sn;
+                                transfersSnCell.appendChild(aSn);
+                            } else {
+                                transfersSnCell.textContent = '-';
+                            }
+                        }
+                        var modalEl = document.getElementById('changeSnModal');
+                        if (modalEl && typeof bootstrap !== 'undefined') {
+                            var modalInstance = bootstrap.Modal.getInstance(modalEl);
+                            if (modalInstance) modalInstance.hide();
+                        }
+                    } else if (typeof showNotification === 'function') {
+                        showNotification('Failed to update Serial Number', 'error');
+                    }
+                })
+                .catch(function() {
+                    if (typeof showNotification === 'function') showNotification('Server error', 'error');
+                });
+        });
+    }
     if (extraPartsBody) {
         extraPartsBody.addEventListener('click', function(e) {
             var editBtn = e.target.closest('.open-edit-extra-process-modal');
@@ -750,6 +838,7 @@ document.addEventListener('DOMContentLoaded', function() {
             if (extraPartsTabActions) extraPartsTabActions.classList.add('d-none');
             if (logCardTabActions) logCardTabActions.classList.add('d-none');
             if (bushingTabActions) bushingTabActions.classList.add('d-none');
+            if (transfersTabActions) transfersTabActions.classList.add('d-none');
             if (rmReportsTabBody) rmReportsTabBody.dataset.loaded = '';
             return;
         }
@@ -759,6 +848,7 @@ document.addEventListener('DOMContentLoaded', function() {
             if (extraPartsTabActions) extraPartsTabActions.classList.add('d-none');
             if (logCardTabActions) logCardTabActions.classList.add('d-none');
             if (bushingTabActions) bushingTabActions.classList.add('d-none');
+            if (transfersTabActions) transfersTabActions.classList.add('d-none');
             if (allPartsBody && !allPartsBody.dataset.loaded) {
                 allPartsBody.dataset.loaded = '1';
                 loadAllPartsProcesses();
@@ -768,6 +858,7 @@ document.addEventListener('DOMContentLoaded', function() {
             if (extraPartsTabActions) extraPartsTabActions.classList.remove('d-none');
             if (logCardTabActions) logCardTabActions.classList.add('d-none');
             if (bushingTabActions) bushingTabActions.classList.add('d-none');
+            if (transfersTabActions) transfersTabActions.classList.add('d-none');
             if (extraPartsBody && !extraPartsBody.dataset.loaded) {
                 extraPartsBody.dataset.loaded = '1';
                 loadExtraPartProcesses();
@@ -780,6 +871,7 @@ document.addEventListener('DOMContentLoaded', function() {
             if (extraGroupFormsHeaderBtn) extraGroupFormsHeaderBtn.classList.add('d-none');
             if (extraPartsTabActions) extraPartsTabActions.classList.add('d-none');
             if (bushingTabActions) bushingTabActions.classList.add('d-none');
+            if (transfersTabActions) transfersTabActions.classList.add('d-none');
             if (logCardTabActions) logCardTabActions.classList.remove('d-none');
             if (logCardTabBody && !logCardTabBody.dataset.loaded) {
                 logCardTabBody.dataset.loaded = '1';
@@ -790,6 +882,7 @@ document.addEventListener('DOMContentLoaded', function() {
             if (extraGroupFormsHeaderBtn) extraGroupFormsHeaderBtn.classList.add('d-none');
             if (extraPartsTabActions) extraPartsTabActions.classList.add('d-none');
             if (logCardTabActions) logCardTabActions.classList.add('d-none');
+            if (transfersTabActions) transfersTabActions.classList.add('d-none');
             if (bushingTabActions) bushingTabActions.classList.remove('d-none');
             if (bushingTabBody && !bushingTabBody.dataset.loaded) {
                 bushingTabBody.dataset.loaded = '1';
@@ -801,6 +894,7 @@ document.addEventListener('DOMContentLoaded', function() {
             if (extraPartsTabActions) extraPartsTabActions.classList.add('d-none');
             if (logCardTabActions) logCardTabActions.classList.add('d-none');
             if (bushingTabActions) bushingTabActions.classList.add('d-none');
+            if (transfersTabActions) transfersTabActions.classList.add('d-none');
             if (rmReportsTabBody && !rmReportsTabBody.dataset.loaded) {
                 rmReportsTabBody.dataset.loaded = '1';
                 loadRmReportsPartial();
@@ -811,9 +905,21 @@ document.addEventListener('DOMContentLoaded', function() {
             if (extraPartsTabActions) extraPartsTabActions.classList.add('d-none');
             if (logCardTabActions) logCardTabActions.classList.add('d-none');
             if (bushingTabActions) bushingTabActions.classList.add('d-none');
+            if (transfersTabActions) transfersTabActions.classList.add('d-none');
             if (stdProcessesTabBody && !stdProcessesTabBody.dataset.loaded) {
                 stdProcessesTabBody.dataset.loaded = '1';
                 loadStdProcessesPartial();
+            }
+        } else if (target && String(target).indexOf('content-transfers') !== -1) {
+            if (groupProcessFormsHeaderBtn) groupProcessFormsHeaderBtn.classList.add('d-none');
+            if (extraGroupFormsHeaderBtn) extraGroupFormsHeaderBtn.classList.add('d-none');
+            if (extraPartsTabActions) extraPartsTabActions.classList.add('d-none');
+            if (logCardTabActions) logCardTabActions.classList.add('d-none');
+            if (bushingTabActions) bushingTabActions.classList.add('d-none');
+            if (transfersTabActions) transfersTabActions.classList.remove('d-none');
+            if (transfersTabBody && !transfersTabBody.dataset.loaded) {
+                transfersTabBody.dataset.loaded = '1';
+                loadTransfersPartial();
             }
         } else if (target && String(target).indexOf('content-extra-processes') !== -1) {
             if (groupProcessFormsHeaderBtn) groupProcessFormsHeaderBtn.classList.add('d-none');
@@ -821,12 +927,14 @@ document.addEventListener('DOMContentLoaded', function() {
             if (extraPartsTabActions) extraPartsTabActions.classList.add('d-none');
             if (logCardTabActions) logCardTabActions.classList.add('d-none');
             if (bushingTabActions) bushingTabActions.classList.add('d-none');
+            if (transfersTabActions) transfersTabActions.classList.add('d-none');
         } else {
             if (groupProcessFormsHeaderBtn) groupProcessFormsHeaderBtn.classList.add('d-none');
             if (extraGroupFormsHeaderBtn) extraGroupFormsHeaderBtn.classList.add('d-none');
             if (extraPartsTabActions) extraPartsTabActions.classList.add('d-none');
             if (logCardTabActions) logCardTabActions.classList.add('d-none');
             if (bushingTabActions) bushingTabActions.classList.add('d-none');
+            if (transfersTabActions) transfersTabActions.classList.add('d-none');
         }
         if (target && String(target).indexOf('content-part-processes') === -1) {
             if (tabLi) tabLi.classList.add('d-none');

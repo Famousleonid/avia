@@ -67,9 +67,9 @@
             border: 1px solid #495057 !important;
         }
         /* Add Part Processes & Edit Part Process modals (iframe) - ensure on top */
-        #addPartProcessesModal, #editTdrProcessModal, #editExtraProcessModal, #addExtraProcessModal, #addExtraPartModal, #createLogCardModal, #editLogCardModal, #editBushingModal, #addProcessesModal, #addPartModal { z-index: 1080 !important; }
+        #addPartProcessesModal, #editTdrProcessModal, #editExtraProcessModal, #addExtraProcessModal, #addExtraPartModal, #createLogCardModal, #editLogCardModal, #editBushingModal, #addProcessesModal, #addPartModal, #changeSnModal { z-index: 1080 !important; }
         #addProcessesModal.modal.show, #addPartModal.modal.show { z-index: 1090 !important; }
-        #addPartProcessesModal ~ .modal-backdrop, #editTdrProcessModal ~ .modal-backdrop, #editExtraProcessModal ~ .modal-backdrop, #addExtraProcessModal ~ .modal-backdrop, #addExtraPartModal ~ .modal-backdrop, #createLogCardModal ~ .modal-backdrop, #editLogCardModal ~ .modal-backdrop, #editBushingModal ~ .modal-backdrop, #addProcessesModal ~ .modal-backdrop, #addPartModal ~ .modal-backdrop { z-index: 1075 !important; }
+        #addPartProcessesModal ~ .modal-backdrop, #editTdrProcessModal ~ .modal-backdrop, #editExtraProcessModal ~ .modal-backdrop, #addExtraProcessModal ~ .modal-backdrop, #addExtraPartModal ~ .modal-backdrop, #createLogCardModal ~ .modal-backdrop, #editLogCardModal ~ .modal-backdrop, #editBushingModal ~ .modal-backdrop, #addProcessesModal ~ .modal-backdrop, #addPartModal ~ .modal-backdrop, #changeSnModal ~ .modal-backdrop { z-index: 1075 !important; }
     </style>
 
     @php
@@ -231,7 +231,7 @@
                     @endif
                     @if($hasTransfers)
                         <li class="nav-item" role="presentation">
-                            <a class="nav-link" href="{{ route('transfers.show', $current_wo->id) }}">Transfers</a>
+                            <button class="nav-link" id="tab-transfers" data-bs-toggle="tab" data-bs-target="#content-transfers" type="button" role="tab">{{ __('Transfers') }}</button>
                         </li>
                     @endif
                 </ul>
@@ -268,6 +268,31 @@
                         </button>
                     @endif
                 </div>
+                @if($hasTransfers)
+                    <div id="transfersTabActions" class="d-none d-flex gap-2 align-items-center flex-wrap">
+                        @if($transfersHasOutgoingGroup ?? false)
+                            <a href="{{ route('transfers.transfersForm', $current_wo->id) }}"
+                               class="btn btn-outline-info btn-sm"
+                               target="_blank"
+                               title="{{ __('Transfers Form for outgoing transfers from WO') }} W{{ $current_wo->number }}">
+                                {{ __('Transfers Form') }} (Outgoing)
+                            </a>
+                        @endif
+                        @foreach(($transfersIncomingGroupsWithMultiple ?? collect()) as $sourceWoId => $transfers)
+                            @php
+                                $sourceWo = $transfers->first()->workorderSource;
+                            @endphp
+                            @if($sourceWo)
+                                <a href="{{ route('transfers.transfersForm', $sourceWoId) }}"
+                                   class="btn btn-outline-info btn-sm"
+                                   target="_blank"
+                                   title="{{ __('Transfers Form for transfers from WO') }} W{{ $sourceWo->number }}">
+                                    {{ __('Transfers Form') }} (From W{{ $sourceWo->number }})
+                                </a>
+                            @endif
+                        @endforeach
+                    </div>
+                @endif
                 </div>
 
                 <div class="tab-content">
@@ -350,6 +375,16 @@
                     <div class="tab-pane fade" id="content-std-processes" role="tabpanel">
                         <div class="card bg-gradient h-100">
                             <div class="card-body p-2 overflow-auto" id="stdProcessesTabBody"
+                                 style="height: calc(100vh - 280px); min-height: 400px;">
+                                <div class="text-center py-5 text-muted">{{ __('Loading...') }}</div>
+                            </div>
+                        </div>
+                    </div>
+                    @endif
+                    @if($hasTransfers)
+                    <div class="tab-pane fade" id="content-transfers" role="tabpanel">
+                        <div class="card bg-gradient h-100">
+                            <div class="card-body p-2 overflow-auto" id="transfersTabBody"
                                  style="height: calc(100vh - 280px); min-height: 400px;">
                                 <div class="text-center py-5 text-muted">{{ __('Loading...') }}</div>
                             </div>
