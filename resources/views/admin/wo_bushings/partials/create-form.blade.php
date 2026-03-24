@@ -28,20 +28,20 @@
         </a>
         @endif
     </div>
-    <div class="table-wrapper me-3" style="max-height: 60vh; overflow: auto;">
+    <div class="table-wrapper me-3" style="max-height: 65vh; overflow: auto;">
         <table class="display table shadow table-hover align-middle table-bordered dir-table">
             <thead class="header-row bg-gradient">
                 <tr>
                     <th class="text-primary text-center" style="width: 14%">Bushings</th>
-                    <th class="text-primary text-center" style="width: 6%">Select</th>
-                    <th class="text-primary text-center" style="width: 4%">QTY</th>
-                    <th class="text-primary text-center" style="width: 12%">Machining</th>
-                    <th class="text-primary text-center" style="width: 12%">Stress Relief</th>
-                    <th class="text-primary text-center" style="width: 6%">NDT</th>
-                    <th class="text-primary text-center" style="width: 12%">Passivation</th>
-                    <th class="text-primary text-center" style="width: 12%">CAD</th>
-                    <th class="text-primary text-center" style="width: 12%">Anodizing</th>
-                    <th class="text-primary text-center" style="width: 12%">Xylan</th>
+                    <th class="text-primary text-center" style="width: 8%">Select</th>
+                    <th class="text-primary text-center" style="width: 5%">QTY</th>
+                    <th class="text-primary text-center" style="width: 11%">Machining</th>
+                    <th class="text-primary text-center" style="width: 11%">Stress Relief</th>
+                    <th class="text-primary text-center" style="width: 7%">NDT</th>
+                    <th class="text-primary text-center" style="width: 11%">Passivation</th>
+                    <th class="text-primary text-center" style="width: 11%">CAD</th>
+                    <th class="text-primary text-center" style="width: 11%">Anodizing</th>
+                    <th class="text-primary text-center" style="width: 11%">Xylan</th>
                 </tr>
             </thead>
             <tbody>

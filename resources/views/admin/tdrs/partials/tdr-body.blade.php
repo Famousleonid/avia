@@ -34,6 +34,7 @@
                                         }
                                     }
                                 }
+
                                 $isNoteCondition = $conditionName && preg_match('/^note\s+\d+$/i', $conditionName);
                             @endphp
                             @if(!$isNoteCondition)

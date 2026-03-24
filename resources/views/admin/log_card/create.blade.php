@@ -118,9 +118,11 @@
                                 @endphp
                                 <tr>
                                     @if($i === 0)
-                                        <td rowspan="{{ $group['count'] }}" class="align-middle">{{ $component->name }}</td>
+                                        <td rowspan="{{ $group['count'] }}" class="align-middle">{{ $component->name }}
+                                            ({{$component->ipl_num}})
+                                        </td>
                                     @endif
-                                    <td>
+                                    <td class="text-center">
                                         {{ $component->part_number }}
                                         @if($component->assy_part_number)
                                             / {{ $component->assy_part_number }}

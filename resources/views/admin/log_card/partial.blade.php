@@ -19,12 +19,12 @@
                     @endphp
                     <tr>
                         <td>
-                            {{ $comp ? $comp->name : '' }}
+                            {{ $comp ? $comp->name : '' }} ({{$comp->ipl_num}})
                             @if($hasAssySerialNumber && !$hasSerialNumber)
                                 , S/A
                             @endif
                         </td>
-                        <td>
+                        <td class="text-center">
                             @if($hasAssySerialNumber && !$hasSerialNumber)
                                 {{ $comp ? $comp->assy_part_number : '' }}
                             @else
