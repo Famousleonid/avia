@@ -1,6 +1,10 @@
 @extends('admin.master')
 
 @section('content')
+    @php
+        $manualUrlParts = route('manuals.show', ['manual' => $cmm, 'tab' => 'parts']);
+        $manualUrlProcesses = route('manuals.show', ['manual' => $cmm, 'tab' => 'processes']);
+    @endphp
     <style>
         /* Общие настройки таблиц */
         .table{
@@ -253,7 +257,7 @@
                                    class="form-control form-control-sm"
                                    placeholder="Search parts...">
                         </div>
-                        <a href="{{ route('components.create', ['manual_id' => $cmm->id, 'redirect' => request()->fullUrl().'#nav-parts']) }}"
+                        <a href="{{ route('components.create', ['manual_id' => $cmm->id, 'redirect' => $manualUrlParts]) }}"
                            class="btn btn-outline-primary btn-sm d-none"
                            data-tab-target="#nav-parts">
                             {{ __('Add Parts') }}
@@ -265,7 +269,7 @@
                                 data-bs-target="#uploadCsvModal">
                             <i class="bi bi-upload"></i> {{__('Upload CSV')}}
                         </button>
-                        <a href="{{ route('processes.create', ['manual_id' => $cmm->id, 'return_to' => route('manuals.show', $cmm) . '#nav-processes']) }}"
+                        <a href="{{ route('processes.create', ['manual_id' => $cmm->id, 'return_to' => $manualUrlProcesses]) }}"
                            class="btn btn-outline-primary btn-sm d-none"
                            data-tab-target="#nav-processes">
                             {{ __('Add Process') }}
@@ -369,7 +373,7 @@
                                               class="form-destroy-part">
                                             @csrf
                                             @method('DELETE')
-                                            <input type="hidden" name="redirect" value="{{ request()->fullUrl().'#nav-parts' }}">
+                                            <input type="hidden" name="redirect" value="{{ $manualUrlParts }}">
                                             <button type="submit" class="btn btn-outline-danger btn-sm" onclick="return confirm('Вы уверены, что хотите удалить эту запчасть (part)?');">
                                                 <i class="bi bi-trash"></i>
                                             </button>
@@ -401,13 +405,13 @@
                                     <td class="align-content-center"> {{$mp->process->process_name->name}} </td>
                                     <td class="align-content-center text-start ps-3"> {{$mp->process->process}} </td>
                                     <td class="align-content-center">
-                                        <a href="{{ route('manual_processes.edit', $mp) }}?return_to={{ urlencode(route('manuals.show', $cmm) . '#nav-processes') }}" class="btn btn-outline-primary btn-sm" title="{{ __('Edit') }}">
+                                        <a href="{{ route('manual_processes.edit', $mp) }}?return_to={{ urlencode($manualUrlProcesses) }}" class="btn btn-outline-primary btn-sm" title="{{ __('Edit') }}">
                                             <i class="bi bi-pencil-square"></i>
                                         </a>
-                                        <form action="{{ route('manual_processes.destroy', $mp) }}?return_to={{ urlencode(route('manuals.show', $cmm) . '#nav-processes') }}" method="POST" class="d-inline" onsubmit="return confirm('{{ __('Are you sure you want to delete this process?') }}');">
+                                        <form action="{{ route('manual_processes.destroy', $mp) }}?return_to={{ urlencode($manualUrlProcesses) }}" method="POST" class="d-inline" onsubmit="return confirm('{{ __('Are you sure you want to delete this process?') }}');">
                                             @csrf
                                             @method('DELETE')
-                                            <input type="hidden" name="return_to" value="{{ route('manuals.show', $cmm) . '#nav-processes' }}">
+                                            <input type="hidden" name="return_to" value="{{ $manualUrlProcesses }}">
                                             <button type="submit" class="btn btn-outline-danger btn-sm" title="{{ __('Delete') }}">
                                                 <i class="bi bi-trash"></i>
                                             </button>
@@ -676,7 +680,7 @@
 
                                 {{-- КУДА вернуться после успешной загрузки --}}
                                 <input type="hidden" name="redirect"
-                                       value="{{ request()->fullUrl().'#nav-parts' }}">
+                                       value="{{ $manualUrlParts }}">
 
                                 <div class="mb-3">
                                     <label class="form-label">{{__('CMM')}}</label>
@@ -930,14 +934,33 @@
             // Начальное состояние (активна вкладка Components)
             let activeTab = document.querySelector('#nav-tab .nav-link.active');
 
-            // Если пришли с якорем (#nav-parts, #nav-processes, ...), переключаем вкладку
-            const hash = window.location.hash;
+            const tabQueryMap = {
+                components: '#nav-components',
+                parts: '#nav-parts',
+                processes: '#nav-processes',
+                std: '#nav-std'
+            };
+            const urlParams = new URLSearchParams(window.location.search);
+            const tabFromQuery = urlParams.get('tab');
+            // Якорь в URL или ?tab=parts|processes|... (редиректы с сервера часто не сохраняют #fragment)
+            let hash = window.location.hash;
+            if (!hash && tabFromQuery && tabQueryMap[tabFromQuery]) {
+                hash = tabQueryMap[tabFromQuery];
+            }
             if (hash) {
-                const targetTab = document.querySelector(`#nav-tab .nav-link[data-bs-target="${hash}"]`);
+                const targetTab = document.querySelector('#nav-tab .nav-link[data-bs-target="' + hash + '"]');
                 if (targetTab) {
                     const tabInstance = new bootstrap.Tab(targetTab);
                     tabInstance.show();
                     activeTab = targetTab;
+                    if (tabFromQuery && window.history && window.history.replaceState) {
+                        var u = new URL(window.location.href);
+                        u.searchParams.delete('tab');
+                        if (hash) {
+                            u.hash = hash;
+                        }
+                        window.history.replaceState(null, '', u.pathname + u.search + u.hash);
+                    }
                 }
             }
 
@@ -1173,7 +1196,7 @@
                                 const modalEl = document.getElementById('editPartModal');
                                 const modalInstance = bootstrap.Modal.getInstance(modalEl);
                                 if (modalInstance) modalInstance.hide();
-                                location.reload();
+                                window.location.href = @json($manualUrlParts);
                             } else {
                                 showNotification(data && data.message ? data.message : 'Ошибка при обновлении запчасти', 'error');
                             }

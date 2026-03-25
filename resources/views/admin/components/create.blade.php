@@ -75,7 +75,8 @@
                     <input type="hidden" name="redirect" value="{{ old('redirect', request('redirect', route('components.index'))) }}">
 
                     @php
-                        $fromPartsTab = str_contains(request('redirect', ''), '#nav-parts');
+                        $fromPartsTab = str_contains(request('redirect', ''), '#nav-parts')
+                            || str_contains(request('redirect', ''), 'tab=parts');
                     @endphp
                     @if($fromPartsTab)
                         <input type="hidden" name="manual_id" value="{{ old('manual_id', request('manual_id')) }}">
