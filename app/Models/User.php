@@ -13,6 +13,7 @@ use Spatie\Activitylog\LogOptions;
 use Spatie\Activitylog\Traits\LogsActivity;
 use Spatie\MediaLibrary\HasMedia;
 use Spatie\MediaLibrary\InteractsWithMedia;
+use App\Models\Manual;
 
 
 class User extends Authenticatable implements MustVerifyEmail, HasMedia
@@ -46,6 +47,12 @@ class User extends Authenticatable implements MustVerifyEmail, HasMedia
     public function roleName(): ?string
     {
         return $this->role?->name;
+    }
+
+    public function permittedManuals()
+    {
+        return $this->belongsToMany(Manual::class, 'manual_user_permissions', 'user_id', 'manual_id')
+            ->withTimestamps();
     }
 
     public function roleIs(string|array $roles): bool

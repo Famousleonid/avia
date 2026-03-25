@@ -52,6 +52,42 @@
             font-weight: normal;
         }
 
+        .col-ec {
+            width: 50px;
+            font-size: 0.9rem;
+        }
+
+        .ec-icon-img {
+            width: 20px;
+            height: auto;
+            display: inline-block;
+            font-weight: 800;
+        }
+
+        .ec-arrow {
+            color: #198754;
+            font-size: 1.3rem;
+            font-weight: 800;
+            line-height: 1;
+            transform: translateY(1px);
+        }
+
+        .ec-open-arrow {
+            color: #198754;
+            font-size: 1.1rem;
+            font-weight: 600;
+            line-height: 1;
+            transform: translateY(1px);
+        }
+
+        .ec-arrow-finish {
+            color: #198754;
+            font-size: 1.5rem;
+            font-weight: 900;
+            line-height: 1;
+            transform: translateY(1px);
+        }
+
         .col-SN {
             width: 100px;
             font-size: 0.8rem;
@@ -392,6 +428,7 @@
                             Number <i class="bi bi-chevron-expand ms-1"></i>
                         </th>
                         <th class="text-center text-primary col-approve no-print">Approve</th>
+                        <th class="text-center text-primary col-ec no-print sortable">EC</th>
                         @hasanyrole('Admin|Manager')
                         <th class="text-center text-primary col-stages no-print">Stages</th>
                         @endhasanyrole
@@ -466,6 +503,58 @@
                                         <img src="{{ asset('img/icon_no.png') }}" width="12">
                                     @endif
                                     @endhasanyrole
+                            </td>
+
+                            @php
+                                $ec = $ecStatuses[$workorder->id] ?? null;
+                                $ecState = $ec['state'] ?? 'none';
+
+                                $startDate = optional($ec['date_start'] ?? null)->format('d.m.Y');
+                                $finishDate = optional($ec['date_finish'] ?? null)->format('d.m.Y');
+
+                                $startBy = $ec['date_start_user'] ?? ($ec['user_name'] ?? '');
+                                $finishBy = $ec['date_finish_user'] ?? ($ec['user_name'] ?? '');
+
+                                $startDateText = $startDate ?: '—';
+                                $finishDateText = $finishDate ?: '—';
+
+                                $ecTitle = '';
+                                if ($ecState === 'none') {
+                                    $ecTitle = 'There is no EC process';
+                                } elseif ($ecState === 'exists') {
+                                    $who = $startBy ?: ' ';
+                                    $ecTitle = "EC: open: {$who}";
+                                } elseif ($ecState === 'started') {
+                                    $who = $startBy ?: '—';
+                                    $ecTitle = "EC: start {$startDateText} ({$who}).";
+                                } elseif ($ecState === 'finished') {
+                                    $whoStart = $startBy ?: '—';
+                                    $whoFinish = $finishBy ?: '—';
+                                    $ecTitle = "EC: start {$startDateText} ({$whoStart}); finish {$finishDateText} ({$whoFinish}).";
+                                } else {
+                                    $ecTitle = 'EC: —';
+                                }
+                            @endphp
+                            <td class="text-center no-print" title="{{ $ecTitle }}">
+                                @if($ecState === 'none')
+                                    <img
+                                        class="ec-icon-img"
+                                        src="{{ asset('img/icon_no.png') }}"
+                                        alt="EC none"
+                                    >
+                                @elseif($ecState === 'exists')
+                                    <i class=" ec-open-arrow">EC</i>
+                                @elseif($ecState === 'started')
+                                    <i class="bi bi-arrow-right ec-arrow"></i>
+                                @elseif($ecState === 'finished')
+                                    <i class="bi bi-box-arrow-in-left ec-arrow-finish"></i>
+                                @else
+                                    <img
+                                        class="ec-icon-img"
+                                        src="{{ asset('img/icon_no.png') }}"
+                                        alt="EC unknown"
+                                    >
+                                @endif
                             </td>
                             @hasanyrole('Admin|Manager')
                             <td class="text-center no-print">
@@ -815,6 +904,16 @@
                 searchInput.value = '';
                 searchInput.dispatchEvent(new Event('input'));
             });
+
+            // ?q= из URL — подставить в поиск (например ссылка из AI: открыть таблицу с фильтром)
+            try {
+                const params = new URLSearchParams(window.location.search);
+                const q = params.get('q');
+                if (q !== null && searchInput) {
+                    searchInput.value = q;
+                    if (clearSearchBtn) clearSearchBtn.style.display = searchInput.value ? 'block' : 'none';
+                }
+            } catch (e) {}
 
             // delete workorder (модалка)
             let currentFormId = null;

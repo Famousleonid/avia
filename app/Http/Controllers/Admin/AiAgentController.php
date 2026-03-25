@@ -25,6 +25,7 @@ class AiAgentController extends Controller
             'current_context.current_workorder.manual_id' => ['nullable', 'integer'],
             'current_context.page' => ['nullable', 'array'],
             'current_context.page.route' => ['nullable', 'string', 'max:191'],
+            'current_context.origin' => ['nullable', 'string', 'max:128'],
             'confirm_action' => ['nullable', 'array'],
             'confirm_action.type' => ['nullable', 'string'],
             'confirm_action.tool' => ['nullable', 'string'],

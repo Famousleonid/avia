@@ -88,6 +88,12 @@ class Manual extends Model implements  HasMedia
         return $this->hasMany(Component::class, 'manual_id');
     }
 
+    public function permittedUsers()
+    {
+        return $this->belongsToMany(User::class, 'manual_user_permissions', 'manual_id', 'user_id')
+            ->withTimestamps();
+    }
+
     public function registerAllMediaConversions(): void
     {
         $this->addMediaConversion('thumb')

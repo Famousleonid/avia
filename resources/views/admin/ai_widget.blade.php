@@ -143,6 +143,16 @@
         border-bottom-left-radius: 4px;
     }
 
+    .ai-msg.assistant .ai-msg-bubble a {
+        color: var(--bs-link-color, #0d6efd);
+        text-decoration: underline;
+        font-weight: 600;
+    }
+
+    .ai-msg.assistant .ai-msg-bubble a:hover {
+        opacity: .9;
+    }
+
     .ai-widget-typing {
         padding: 0 14px 8px;
         font-size: 12px;
@@ -282,13 +292,58 @@
             return div.innerHTML;
         }
 
+        function escapeAttr(str) {
+            return String(str ?? '')
+                .replace(/&/g, '&amp;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#39;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;');
+        }
+
+        /** Разрешённые markdown-ссылки [текст](url) → <a>; только тот же origin или относительный путь. */
+        function isSafeAssistantHref(href) {
+            const t = String(href || '').trim();
+            if (!t || /^(javascript:|data:|vbscript:)/i.test(t)) return false;
+            if (t.startsWith('/')) return true;
+            try {
+                const u = new URL(t, window.location.origin);
+                return u.origin === window.location.origin;
+            } catch (e) {
+                return false;
+            }
+        }
+
+        function assistantMarkdownLinksToHtml(raw) {
+            const s = String(raw ?? '');
+            const re = /\[([^\]]*)\]\(([^)]+)\)/g;
+            let out = '';
+            let last = 0;
+            let m;
+            while ((m = re.exec(s)) !== null) {
+                out += escapeHtml(s.slice(last, m.index));
+                const label = m[1];
+                const href = m[2].trim();
+                if (isSafeAssistantHref(href)) {
+                    out += '<a href="' + escapeAttr(href) + '">' + escapeHtml(label) + '</a>';
+                } else {
+                    out += escapeHtml(m[0]);
+                }
+                last = m.index + m[0].length;
+            }
+            out += escapeHtml(s.slice(last));
+            return out;
+        }
+
         function appendMessage(role, text) {
             const row = document.createElement('div');
             row.className = 'ai-msg ' + role;
 
             const bubble = document.createElement('div');
             bubble.className = 'ai-msg-bubble';
-            bubble.innerHTML = escapeHtml(text);
+            bubble.innerHTML = role === 'assistant'
+                ? assistantMarkdownLinksToHtml(text)
+                : escapeHtml(text);
 
             row.appendChild(bubble);
             messages.appendChild(row);
@@ -306,7 +361,8 @@
                     number: Number(wo.number) || null,
                     manual_id: Number(wo.manual_id) || null
                 } : null,
-                page: page && page.route ? page : null
+                page: page && page.route ? page : null,
+                origin: window.location.origin || null
             };
         }
 

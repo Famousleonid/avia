@@ -168,7 +168,7 @@ class TdrProcessController extends Controller
         }
 
         // Получаем имена процессов, отсортированные по алфавиту
-        $processNames = ProcessName::orderBy('name')->get();
+        $processNames = ProcessName::forPicker()->orderBy('name')->get();
 
         // Получаем процессы, связанные с manual_id
         $processes = Process::whereHas('manuals', function ($query) use ($manual_id) {
@@ -934,7 +934,7 @@ class TdrProcessController extends Controller
         $current_wo = Workorder::find($workorder_id);
 
         // Получаем имена процессов, отсортированные по алфавиту
-        $processNames = ProcessName::orderBy('name')->get();
+        $processNames = ProcessName::forPicker()->orderBy('name')->get();
 
         // Получаем процессы, связанные с manual_id
         $manual_id = $current_wo->unit->manual_id ?? null;
@@ -966,7 +966,7 @@ class TdrProcessController extends Controller
         $current_tdr_processes = TdrProcess::findOrFail($id);
         $current_tdr = Tdr::with(['workorder.unit', 'component'])->find($current_tdr_processes->tdrs_id);
         $current_wo = $current_tdr->workorder;
-        $processNames = ProcessName::orderBy('name')->get();
+        $processNames = ProcessName::forPicker()->orderBy('name')->get();
         $manual_id = $current_wo->unit->manual_id ?? null;
         $processes = Process::whereHas('manuals', fn($q) => $q->where('manual_id', $manual_id))->get();
         $ndtProcessNames = ProcessName::where('name', 'like', 'NDT-%')->get();

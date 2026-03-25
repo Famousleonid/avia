@@ -88,6 +88,19 @@
         <div class="card-body p-0 shadow-lg">
             <div class="vh-layout">
 
+                @if(session('success'))
+                    <div class="alert alert-success alert-dismissible py-2 px-3 mb-0 rounded-0 border-0 border-bottom border-success">
+                        {{ session('success') }}
+                        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                    </div>
+                @endif
+                @if(session('error'))
+                    <div class="alert alert-danger alert-dismissible py-2 px-3 mb-0 rounded-0 border-0 border-bottom border-danger">
+                        {{ session('error') }}
+                        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                    </div>
+                @endif
+
                 {{-- Top --}}
                 <div class="top-pane border-info gradient-pane dir-topbar">
                     <div class="row g-2 align-items-stretch">
@@ -589,11 +602,14 @@
                     <div class="bottom-col right border-info gradient-pane p-1">
 
                         <div class="d-flex align-items-center justify-content-between mb-2">
+
                             <div class="d-flex align-items-center gap-2">
                                 <h6 class="mb-0 text-primary">Parts</h6>
                                 <span class="text-info">({{ $components->count() }})</span>
                                 <h6 class="mb-0 text-primary">&nbsp;& Repair Processes</h6>
                             </div>
+
+
 
                             <div class="form-check form-switch" data-no-spinner>
                                 <input class="form-check-input"
@@ -611,6 +627,100 @@
 
                         </div>
 
+                        @if($stdListTdrProcesses && $stdListTdrProcesses->isNotEmpty())
+                            <div class="req_standart mb-2 w-100">
+                                <table class="table table-sm table-dark table-bordered table-hover mb-0 align-middle dir-table">
+                                    <thead>
+                                    <tr>
+                                        <th style="width:28%;" class="fw-normal text-muted small">List</th>
+                                        <th style="width:24%; text-align: center"
+                                            class="fw-normal text-muted small">Repair Order
+                                        </th>
+                                        <th style="width:24%; text-align: center"
+                                            class="fw-normal text-muted small">Sent (edit)
+                                        </th>
+                                        <th style="width:24%; text-align: center"
+                                            class="fw-normal text-muted small">Returned (edit)
+                                        </th>
+                                    </tr>
+                                    </thead>
+                                    <tbody>
+                                    @php
+                                        $stdRows = [
+                                            'ndt' => 'NDT list',
+                                            'cad' => 'CAD list',
+                                            'stress' => 'Stress relief list',
+                                            'paint' => 'Paint list',
+                                        ];
+                                    @endphp
+                                    @foreach($stdRows as $key => $label)
+                                        @php $pr = $stdListTdrProcesses->get($key); @endphp
+                                        @if($pr)
+                                            @php $isClosed = !empty($pr->date_finish); @endphp
+                                            <tr data-closed="{{ $isClosed ? 1 : 0 }}">
+                                                <td>
+                                                    <span class="text-info">{{ $label }}</span>
+                                                </td>
+                                                <td>
+                                                    @hasanyrole('Admin|Manager')
+                                                    <form method="POST"
+                                                          action="{{ route('tdrprocesses.updateRepairOrder', $pr) }}"
+                                                          class="auto-submit-form js-auto-submit auto-submit-order position-relative js-ajax"
+                                                          data-no-spinner>
+                                                        @csrf
+                                                        @method('PATCH')
+                                                        <input type="text"
+                                                               name="repair_order"
+                                                               class="form-control form-control-sm pe-4"
+                                                               value="{{ $pr->repair_order ?? '' }}"
+                                                               placeholder="..."
+                                                               autocomplete="off"
+                                                               data-original="{{ $pr->repair_order ?? '' }}">
+                                                        <i class="bi bi-save save-indicator d-none"></i>
+                                                    </form>
+                                                    @else
+                                                    <input type="text"
+                                                           class="form-control form-control-sm pe-4 bg-dark"
+                                                           value="{{ $pr->repair_order ?? '' }}"
+                                                           readonly>
+                                                    @endhasanyrole
+                                                </td>
+                                                <td>
+                                                    <form method="POST"
+                                                          action="{{ route('tdrprocesses.updateDate', $pr) }}"
+                                                          class="auto-submit-form js-ajax"
+                                                          data-no-spinner>
+                                                        @csrf
+                                                        @method('PATCH')
+                                                        <input type="text" data-fp name="date_start"
+                                                               class="form-control form-control-sm finish-input"
+                                                               value="{{ $pr->date_start?->format('Y-m-d') }}"
+                                                               data-original="{{ $pr->date_start?->format('Y-m-d') ?? '' }}"
+                                                               placeholder="...">
+                                                    </form>
+                                                </td>
+                                                <td>
+                                                    <form method="POST"
+                                                          action="{{ route('tdrprocesses.updateDate', $pr) }}"
+                                                          class="auto-submit-form js-ajax"
+                                                          data-no-spinner>
+                                                        @csrf
+                                                        @method('PATCH')
+                                                        <input type="text" data-fp name="date_finish"
+                                                               class="form-control form-control-sm finish-input"
+                                                               value="{{ $pr->date_finish?->format('Y-m-d') }}"
+                                                               data-original="{{ $pr->date_finish?->format('Y-m-d') ?? '' }}"
+                                                               placeholder="...">
+                                                    </form>
+                                                </td>
+                                            </tr>
+                                        @endif
+                                    @endforeach
+                                    </tbody>
+                                </table>
+                            </div>
+                        @endif
+
                         @if($components->isEmpty())
                             <div class="text-muted small">
                                 No components with processes.
@@ -620,7 +730,11 @@
                                 @foreach($components as $cmp)
                                     <div class="list-group-item bg-transparent text-light border-secondary p-0">
                                         @forelse($cmp->tdrs as $tdr)
-                                            @php $prs = $tdr->tdrProcesses; @endphp
+                                            @php
+                                                $prs = $tdr->tdrProcesses->filter(function ($p) {
+                                                    return optional($p->processName)->show_in_process_picker !== false;
+                                                });
+                                            @endphp
                                             @if($prs->isNotEmpty())
                                                 <div class="mt-2 ps-2">
                                                     <table

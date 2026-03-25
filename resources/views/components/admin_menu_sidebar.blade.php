@@ -142,17 +142,28 @@
 
     @endrole
 
+    @php
+        $showManualsMenu = auth()->user()->roleIs('Admin')
+            || auth()->user()->permittedManuals()->exists();
+    @endphp
+
     @if (auth()->user()->roleIs('Admin'))
         <li class="nav-item">
             <a class="nav-link press-spinner" href="{{route('customers.index')}}">
                 <i class="bi bi-person-workspace me-2"></i> <span>Customers</span>
             </a>
         </li>
+    @endif
+
+    @if ($showManualsMenu)
         <li class="nav-item">
             <a class="nav-link press-spinner" href="{{route('manuals.index')}}">
                 <i class="bi bi-book-half me-2"></i> <span>Manuals</span>
             </a>
         </li>
+    @endif
+
+    @if (auth()->user()->roleIs('Admin'))
         <li class="nav-item">
             <a class="nav-link press-spinner" href="{{route('units.index')}}">
                 <i class="bi bi-unity me-2"></i> <span>Component CMM</span>

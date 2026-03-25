@@ -3171,7 +3171,9 @@ class TdrController extends Controller
             });
         }
 // Получаем все ID процессов, где name содержит 'NDT'
-        $ndtIds = ProcessName::where('name', 'LIKE', '%NDT%')->pluck('id');
+        $ndtIds = ProcessName::where('name', 'LIKE', '%NDT%')
+            ->where('show_in_process_picker', true)
+            ->pluck('id');
 
 // Фильтруем коллекцию processes, оставляя только те записи, где process_name_id есть в $ndtIds
         $ndt_processes = $result->filter(function ($item) use ($ndtIds) {
@@ -3342,7 +3344,9 @@ class TdrController extends Controller
             });
         }
 
-        $ndtIds = ProcessName::where('name', 'LIKE', '%NDT%')->pluck('id');
+        $ndtIds = ProcessName::where('name', 'LIKE', '%NDT%')
+            ->where('show_in_process_picker', true)
+            ->pluck('id');
         $ndt_processes = $result->filter(function ($item) use ($ndtIds) {
             return $ndtIds->contains($item['process_name_id']);
         })->map(function ($item) {

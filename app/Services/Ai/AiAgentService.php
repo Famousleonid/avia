@@ -8,6 +8,7 @@ use App\Services\Ai\Tools\AnalyzeWorkorderTool;
 use App\Services\Ai\Tools\CreateWorkorderNoteTool;
 use App\Services\Ai\Tools\FindWorkorderTool;
 use App\Services\Ai\Tools\LookupWorkorderPartsTool;
+use App\Services\Ai\Tools\SearchMyWorkordersByOpenProcessTool;
 use App\Services\Ai\Tools\SearchWorkordersTool;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Str;
@@ -20,6 +21,7 @@ class AiAgentService
         protected CreateWorkorderNoteTool $createWorkorderNoteTool,
         protected LookupWorkorderPartsTool $lookupWorkorderPartsTool,
         protected SearchWorkordersTool $searchWorkordersTool,
+        protected SearchMyWorkordersByOpenProcessTool $searchMyWorkordersByOpenProcessTool,
     ) {
     }
 
@@ -47,6 +49,7 @@ class AiAgentService
             $this->findWorkorderTool->schema(),
             $this->searchWorkordersTool->schema(),
             $this->analyzeWorkorderTool->schema(),
+            $this->searchMyWorkordersByOpenProcessTool->schema(),
             $this->createWorkorderNoteTool->schema(),
             $this->lookupWorkorderPartsTool->schema(),
         ];
@@ -170,6 +173,7 @@ class AiAgentService
             'findWorkorder' => $this->findWorkorderTool->run($user, $arguments),
             'searchWorkorders' => $this->searchWorkordersTool->run($user, $arguments),
             'analyzeWorkorder' => $this->analyzeWorkorderTool->run($user, $arguments),
+            'searchMyWorkordersByOpenProcess' => $this->searchMyWorkordersByOpenProcessTool->run($user, $arguments),
             'createWorkorderNote' => $this->createWorkorderNoteTool->run($user, $arguments),
             'lookupWorkorderParts' => $this->lookupWorkorderPartsTool->run($user, $arguments),
             default => [
@@ -303,6 +307,12 @@ class AiAgentService
                 . "Current browser screen (Laravel route name): «{$pageRoute}». Use this with the UI NAVIGATION MAP to tailor steps (e.g. user already on mains.show vs workorders.index).";
         }
 
+        $origin = $pageContext['origin'] ?? null;
+        if (is_string($origin) && $origin !== '' && preg_match('#^https?://#i', $origin)) {
+            $contextLine .= ($contextLine !== '' ? "\n" : '')
+                . "Browser origin for building links: {$origin}. Workorder list with search box pre-filled: {$origin}/workorders?q=<url-encoded terms> (use a markdown link; the chat UI shows only clickable text, not the raw URL).";
+        }
+
         $uiNavigationBlock = $this->buildUiNavigationHelpBlock();
 
         $fullName = trim((string)($user->name ?? ''));
@@ -337,8 +347,9 @@ Your goals:
 
 What you can actually do in THIS app (strict — if the user asks «what can you do» / «что ты умеешь», list ONLY this; do not add features from imagination or generic chatbot abilities):
 - findWorkorder: find one workorder by WO number (read-only). Never tell the user internal row ids.
-- searchWorkorders: partial search only on workorder fields: number, user_id, unit_id, instruction_id, open_at, customer_id, approve, approve_at, description, manual, serial_number, customer_po, modified, is_draft; return links to open the main page.
+- searchWorkorders: partial search on all workorder columns (except internal id) plus related customer, unit (+ manual), instruction, assigned user; return links to open the main page.
 - analyzeWorkorder: task progress, closed = isDone(); status/step = first unfinished general task stage by sort_order; photos do not affect status or closed state.
+- searchMyWorkordersByOpenProcess: find only current user's workorders (workorders.user_id = current user) where in tdr_process date_start is set and date_finish is empty; optional process-name filter (e.g. machining); return links to open the main page.
 - createWorkorderNote: propose appending a note to a workorder — only after explicit user intent and UI confirmation (not instant).
 - lookupWorkorderParts: look up manual/parts lines for a workorder (read-only).
 - UI navigation help: explain where to click in the admin interface using ONLY the «UI NAVIGATION MAP» block below (no tools; no invented menus).
@@ -350,12 +361,13 @@ Communication style (strict):
 - Never mention or write internal workorder database IDs to the user — only WO number (номер воркордера) and human-readable facts.
 - Speak only in plain human language (Russian or English, matching the user). No SQL, no programming code, no database queries, no framework names, no technical dumps.
 - Do not show raw JSON, stack traces, or API payloads to the user; summarize what they mean in words.
+- For workorder lists from tools: use markdown links only on the WO number, e.g. `[WO 107300](url)` then plain text after ` — ` for the rest of the line. Do not wrap the whole line in a link; do not paste bare URLs (the widget renders links as clickable text without showing the address).
 - If the user asks how something works technically, explain the idea in simple terms without code. If they explicitly ask for code/SQL, briefly refuse in a friendly way and describe what to do in the UI or in general terms.
 
 Important behavior:
 - If the question is general, answer directly without tools.
 - If the question needs real data from the system, use tools.
-- If the user wants a list of workorders matching text, use searchWorkorders (only the allowed workorder fields above) and give each result as a markdown link [label](url). Missing photos does not affect workorder status or whether it is closed.
+- If the user wants a list of workorders matching text, use searchWorkorders (all WO fields + related customer/unit/instruction/user). Format each line as: `[WO <number>](open_url) — description…` (link text = WO number only). Optionally add a second markdown link to open the Workorder table with search pre-filled if origin is in context (`…/workorders?q=…`). Missing photos does not affect workorder status or whether it is closed.
 - If the user asks to create or modify something, first confirm details.
 - If a tool returns an error, explain it plainly in human language.
 - For write actions, request explicit UI confirmation first. Never execute write action immediately after tool proposal.

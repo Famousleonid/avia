@@ -63,7 +63,7 @@ class ProcessController extends Controller
         }
 
         $manual = Manual::findOrFail($manualId);
-        $processNames = ProcessName::orderBy('name')->get();
+        $processNames = ProcessName::forPicker()->orderBy('name')->get();
         $processes = Process::all();
 
         return view('admin.processes.create', compact('manual','processNames','processes'));
@@ -244,7 +244,7 @@ class ProcessController extends Controller
     {
 //        dd($id);
         $manual = Manual::findorFail($id);
-        $processNames = ProcessName::all();
+        $processNames = ProcessName::forPicker()->orderBy('name')->get();
         $processes = Process::all();
         $man_processes = ManualProcess::where('manual_id',$id)->get();
 
