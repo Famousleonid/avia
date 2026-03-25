@@ -36,8 +36,8 @@
     <div class="col-3 text-center reserved-info" >
         <strong>All rights reserved.</strong>
     </div>
-    <div class="col-1"></div>
-    <div class="col-2 text-end version-info pe-4" >
-        <b>Version</b> 1.4.0
+
+    <div class="col-2 text-end version-info pe-5 me-5" >
+        <b>Version</b> 2.0.0
     </div>
 </footer>

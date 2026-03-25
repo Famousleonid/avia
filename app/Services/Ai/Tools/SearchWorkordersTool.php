@@ -8,16 +8,11 @@ use Illuminate\Support\Facades\Schema;
 
 class SearchWorkordersTool
 {
-    /**
-     * Searchable workorder columns (partial match). Related tables are not searched here.
-     */
-    private const SEARCHABLE_COLUMNS = [
-        'number', 'user_id', 'unit_id', 'instruction_id', 'open_at', 'customer_id',
-        'approve', 'approve_at', 'description', 'manual', 'serial_number', 'customer_po', 'modified', 'is_draft',
-    ];
+    /** Не ищем по surrogate key (и не подставляем имя колонки извне). */
+    private const SKIP_WORKORDER_COLUMNS = ['id'];
 
     /**
-     * Search workorders by substring on allowed workorder fields only.
+     * Search workorders by substring on all workorder columns (except id) and related: customer, unit (+ manual), instruction, assigned user.
      * Returns links to mains.show for the AI to present as clickable list (do not expose internal DB id to users).
      */
     public function run(User $user, array $args): array
@@ -36,18 +31,54 @@ class SearchWorkordersTool
         $like = '%'.$this->escapeLike($search).'%';
 
         $tableColumns = Schema::getColumnListing('workorders');
-        $columns = array_values(array_intersect(self::SEARCHABLE_COLUMNS, $tableColumns));
 
         // withDrafts() already returns a Builder; do not chain ->query() on it.
         $q = Workorder::withDrafts();
 
-        $q->where(function ($outer) use ($columns, $like) {
-            foreach ($columns as $col) {
+        $q->where(function ($outer) use ($tableColumns, $like) {
+            foreach ($tableColumns as $col) {
+                if (in_array($col, self::SKIP_WORKORDER_COLUMNS, true)) {
+                    continue;
+                }
+                if (! preg_match('/^[a-zA-Z0-9_]+$/', (string) $col)) {
+                    continue;
+                }
                 $outer->orWhere('workorders.'.$col, 'like', $like);
             }
+
+            $outer->orWhereHas('customer', function ($cq) use ($like) {
+                $cq->where('name', 'like', $like);
+            });
+
+            $outer->orWhereHas('unit', function ($uq) use ($like) {
+                $uq->where(function ($inner) use ($like) {
+                    $inner->where('name', 'like', $like)
+                        ->orWhere('part_number', 'like', $like)
+                        ->orWhere('description', 'like', $like)
+                        ->orWhere('eff_code', 'like', $like);
+                })->orWhereHas('manual', function ($mq) use ($like) {
+                    $mq->where(function ($m) use ($like) {
+                        $m->where('title', 'like', $like)
+                            ->orWhere('number', 'like', $like)
+                            ->orWhere('unit_name', 'like', $like);
+                    });
+                });
+            });
+
+            $outer->orWhereHas('instruction', function ($iq) use ($like) {
+                $iq->where('name', 'like', $like);
+            });
+
+            $outer->orWhereHas('user', function ($uq) use ($like) {
+                $uq->where(function ($inner) use ($like) {
+                    $inner->where('name', 'like', $like)
+                        ->orWhere('email', 'like', $like)
+                        ->orWhere('phone', 'like', $like);
+                });
+            });
         });
 
-        $candidates = $q->with(['customer', 'unit'])
+        $candidates = $q->with(['customer', 'unit', 'instruction'])
             ->latest('id')
             ->limit(400)
             ->get();
@@ -64,6 +95,10 @@ class SearchWorkordersTool
             if ($unit) {
                 $label .= ' — '.$unit;
             }
+            $instruction = $wo->instruction?->name;
+            if ($instruction) {
+                $label .= ' — '.$instruction;
+            }
 
             return [
                 'number' => $wo->number,
@@ -76,7 +111,7 @@ class SearchWorkordersTool
             'ok' => true,
             'count' => count($workorders),
             'workorders' => $workorders,
-            'instruction_for_model' => 'Present each row as a markdown link [label](url). Never mention internal database IDs — only WO number in text. If count is 0, say nothing was found.',
+            'instruction_for_model' => 'One result per line. Only the workorder number is a markdown link: [WO 107300](url) — then plain text description (customer, unit, etc.). Do not put the whole line inside the link; do not output bare URLs. Never mention internal database IDs. If count is 0, say nothing was found.',
         ];
     }
 
@@ -85,7 +120,7 @@ class SearchWorkordersTool
         return [
             'type' => 'function',
             'name' => 'searchWorkorders',
-            'description' => 'Find workorders by partial match on workorder fields only: number, user_id, unit_id, instruction_id, open_at, customer_id, approve, approve_at, description, manual, serial_number, customer_po, modified, is_draft. Returns links to open the main page; never expose internal row id to the user.',
+            'description' => 'Find workorders by partial match on all workorder table columns (except internal id), plus related: customer name, unit (name, part number, description, eff code) and linked manual (title, number, unit_name), instruction name, assigned user (name, email, phone). Returns links to open the main page; never expose internal row id to the user.',
             'parameters' => [
                 'type' => 'object',
                 'properties' => [

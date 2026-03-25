@@ -3,6 +3,7 @@
 namespace App\Exceptions;
 
 use Illuminate\Auth\Access\AuthorizationException;
+use Illuminate\Database\QueryException;
 use Illuminate\Foundation\Exceptions\Handler as ExceptionHandler;
 use Throwable;
 
@@ -30,6 +31,24 @@ class Handler extends ExceptionHandler
 
     public function render($request, Throwable $e)
     {
+        // MySQL 1265: Data truncated — часто при вводе не-целого номера WO в INTEGER колонку workorders.number
+        if ($e instanceof QueryException) {
+            $msg = $e->getMessage();
+            $code = (int) ($e->errorInfo[1] ?? 0);
+            if (
+                $code === 1265
+                && str_contains($msg, 'workorders')
+                && str_contains($msg, 'number')
+            ) {
+                $friendly = __('The workorder number must be a whole number (digits only, no dashes or letters).');
+                if ($request->expectsJson()) {
+                    return response()->json(['message' => $friendly], 422);
+                }
+
+                return redirect()->back()->withInput()->with('error', $friendly);
+            }
+        }
+
         // 403 из policy/gate
         if ($e instanceof AuthorizationException) {
             // Если запрос ожидает JSON (AJAX, fetch, axios, DataTables и т.п.)

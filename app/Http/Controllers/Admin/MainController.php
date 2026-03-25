@@ -12,6 +12,7 @@ use App\Models\Tdr;
 use App\Models\Training;
 use App\Models\User;
 use App\Models\Workorder;
+use App\Services\WorkorderStdListProcessesService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Str;
@@ -41,19 +42,26 @@ class MainController extends Controller
         $hasStart  = $request->has('date_start');
         $hasFinish = $request->has('date_finish');
 
+        $main = Main::query()
+            ->where('workorder_id', $data['workorder_id'])
+            ->where('task_id', $task->id)
+            ->first();
+
         $resolved = Main::validateAndResolveDates(
             $data,
             $task,
-            null,
+            $main,
             $ignoreRow,
             $hasStart,
             $hasFinish
         );
 
-        $main = new Main();
-        $main->workorder_id     = $data['workorder_id'];
-        $main->task_id          = $task->id;
-        $main->general_task_id  = $task->general_task_id;
+        if (!$main) {
+            $main = new Main();
+            $main->workorder_id     = $data['workorder_id'];
+            $main->task_id          = $task->id;
+            $main->general_task_id  = $task->general_task_id;
+        }
         $main->user_id          = auth()->id();
         $main->date_start       = $resolved['date_start'];
         $main->date_finish      = $resolved['date_finish'];
@@ -70,7 +78,7 @@ class MainController extends Controller
         if ($request->ajax() || $request->expectsJson()) {
             return response()->json([
                 'success' => true,
-                'message' => 'Record created.',
+                'message' => 'Record saved.',
                 'main_id' => $main->id,
                 'date_start' => optional($main->date_start)?->format('Y-m-d'),
                 'date_finish' => optional($main->date_finish)?->format('Y-m-d'),
@@ -78,7 +86,7 @@ class MainController extends Controller
             ]);
         }
 
-        return back()->with('success', 'Record created.');
+        return back()->with('success', 'Record saved.');
     }
 
     public function show(Workorder $workorder, Request $request)
@@ -286,6 +294,9 @@ class MainController extends Controller
             ->limit($historyLimit)
             ->get(['date_training', 'form_type']);
 
+        $stdListTdrProcesses = app(WorkorderStdListProcessesService::class)
+            ->resolveForWorkorder($current_workorder);
+
         return view('admin.mains.main', compact(
             'users',
             'current_workorder',
@@ -313,6 +324,7 @@ class MainController extends Controller
             'trainingHistoryAuth',
             'trainingWoLatest',
             'trainingHistoryWo',
+            'stdListTdrProcesses',
         ));
     }
 

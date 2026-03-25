@@ -247,6 +247,22 @@
                     if (!workorderId) return showNotification('Workorder ID missing', 'error');
                     if (!files || !files.length) return;
 
+                    // Keep in sync with server-side validation: max:15360 (KB) per file.
+                    const MAX_FILE_KB = 15360;
+                    const MAX_FILE_BYTES = MAX_FILE_KB * 1024;
+                    const MAX_FILE_MB = Math.round((MAX_FILE_BYTES / (1024 * 1024)) * 10) / 10;
+
+                    const fileArr = Array.from(files);
+                    const tooBig = fileArr.find(f => (f?.size ?? 0) > MAX_FILE_BYTES);
+                    if (tooBig) {
+                        showNotification(
+                            `File "${tooBig.name}" is too large. Max per file: ${MAX_FILE_MB}MB.`,
+                            'error'
+                        );
+                        inp.value = '';
+                        return;
+                    }
+
                     const fd = new FormData();
                     fd.append('group', group);
                     Array.from(files).forEach(f => fd.append('files[]', f));
@@ -258,6 +274,15 @@
                             headers: {'X-CSRF-TOKEN': csrf()},
                             body: fd
                         });
+
+                        if (resp.status === 413) {
+                            // 413 usually means server/webserver limit exceeded (file or whole request payload).
+                            showNotification(
+                                `Upload failed: payload too large. Ensure each file is <= ${MAX_FILE_MB}MB.`,
+                                'error'
+                            );
+                            return;
+                        }
 
                         if (!resp.ok) throw new Error('Upload failed');
 

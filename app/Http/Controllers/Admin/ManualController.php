@@ -12,6 +12,7 @@ use App\Models\Process;
 use App\Models\ProcessName;
 use App\Models\Scope;
 use App\Models\Unit;
+use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -31,7 +32,15 @@ class ManualController extends Controller
 
     public function index()
     {
-        $cmms = Manual::with(['plane', 'builder', 'scope'])->get();
+        $query = Manual::with(['plane', 'builder', 'scope']);
+
+        if (! auth()->user()->roleIs('Admin')) {
+            $query->whereHas('permittedUsers', function ($q) {
+                $q->where('users.id', auth()->id());
+            });
+        }
+
+        $cmms = $query->get();
 
         return view('admin.manuals.index', compact('cmms'));
 
@@ -179,6 +188,7 @@ class ManualController extends Controller
     public function show(string $id)
     {
         $cmm = Manual::findOrFail($id);
+        $this->ensureManualAccess($cmm);
 
         $planes = Plane::all();
         $builders = Builder::all();
@@ -229,16 +239,20 @@ class ManualController extends Controller
     public function edit($id)
     {
         $cmm = Manual::with('units')->findOrFail($id);
+        $this->ensureManualAccess($cmm);
         $planes = Plane::all();
         $builders = Builder::all();
         $scopes = Scope::all();
+        $users = User::orderBy('name')->get(['id', 'name', 'email']);
+        $permittedUserIds = $cmm->permittedUsers()->pluck('users.id')->all();
 
-        return view('admin.manuals.edit', compact('cmm', 'planes', 'builders', 'scopes'));
+        return view('admin.manuals.edit', compact('cmm', 'planes', 'builders', 'scopes', 'users', 'permittedUserIds'));
     }
 
     public function update(Request $request, $id)
     {
         $cmm = Manual::findOrFail($id);
+        $this->ensureManualAccess($cmm);
 
         $validatedData = $request->validate([
             'number' => 'required',
@@ -257,6 +271,8 @@ class ManualController extends Controller
             'units.*' => 'required|string|max:255',
             'eff_codes' => 'nullable|array',
             'eff_codes.*' => 'nullable|string|max:255',
+            'permitted_user_ids' => 'nullable|array',
+            'permitted_user_ids.*' => 'integer|exists:users,id',
             // CSV файлы теперь загружаются только через AJAX
             // 'csv_files.*' => 'nullable|file|mimes:csv,txt|max:10240', // 10MB max
             // 'process_type' => 'nullable|in:ndt,cad,stress_relief,other',
@@ -356,6 +372,10 @@ class ManualController extends Controller
             }
         }
 
+        if (auth()->user()->roleIs('Admin')) {
+            $cmm->permittedUsers()->sync($request->input('permitted_user_ids', []));
+        }
+
         return redirect()->route('manuals.index')->with('success', $message);
     }
 
@@ -371,6 +391,21 @@ class ManualController extends Controller
         $cmm->delete();
 
         return redirect()->route('manuals.index')->with('success', 'Manual deleted successfully');
+    }
+
+    protected function ensureManualAccess(Manual $manual): void
+    {
+        $user = auth()->user();
+        if (! $user) {
+            abort(403);
+        }
+
+        if ($user->roleIs('Admin')) {
+            return;
+        }
+
+        $allowed = $manual->permittedUsers()->where('users.id', $user->id)->exists();
+        abort_unless($allowed, 403);
     }
 }
 

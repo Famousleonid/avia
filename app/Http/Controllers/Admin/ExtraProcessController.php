@@ -39,7 +39,7 @@ class ExtraProcessController extends Controller
         $current_wo = Workorder::findOrFail($id);
         $manual_id = $current_wo->unit->manual_id;
         $components = Component::where('manual_id', $manual_id)->get();
-        $processNames = ProcessName::orderBy('name')->get();
+        $processNames = ProcessName::forPicker()->orderBy('name')->get();
         // Получаем процессы, связанные с manual_id
         $processes = Process::whereHas('manuals', function ($query) use ($manual_id) {
             $query->where('manual_id', $manual_id);
@@ -66,7 +66,7 @@ class ExtraProcessController extends Controller
         $current_wo = Workorder::findOrFail($workorderId);
         $component = Component::findOrFail($componentId);
         $manual_id = $current_wo->unit->manual_id;
-        $processNames = ProcessName::orderBy('name')->get();
+        $processNames = ProcessName::forPicker()->orderBy('name')->get();
 
         // Получаем процессы, связанные с manual_id
         $processes = Process::whereHas('manuals', function ($query) use ($manual_id) {
@@ -1314,7 +1314,7 @@ class ExtraProcessController extends Controller
         }
 
         // Получаем имена процессов
-        $processNames = ProcessName::orderBy('name')->get();
+        $processNames = ProcessName::forPicker()->orderBy('name')->get();
 
         // Получаем процессы, связанные с manual_id
         $manual_id = $current_wo->unit->manual_id ?? null;

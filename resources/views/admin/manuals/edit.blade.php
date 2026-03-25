@@ -3,10 +3,27 @@
 @section('content')
     <style>
         .container {
-            max-width: 1200px;
+            width: 85vw;
+            max-width: 85vw;
         }
         .fs-7{
             font-size: .7rem;
+        }
+
+        /* Чтобы страница Edit CMM не выходила за границы маленьких экранов:
+           ограничиваем высоту карточки и делаем прокрутку внутри. */
+        .edit-cmm-card-body{
+            max-height: calc(100vh - 170px);
+            overflow-y: auto;
+        }
+
+        .edit-cmm-form-actions{
+            position: sticky;
+            bottom: 0;
+            background: var(--bs-body-bg, #fff);
+            padding-top: 10px;
+            padding-bottom: 10px;
+            z-index: 5;
         }
     </style>
 
@@ -16,7 +33,7 @@
                 <h5><strong>{{__('Edit CMM:')}}</strong> {{ $cmm->number }}</h5>
             </div>
 
-            <div class="card-body">
+            <div class="card-body edit-cmm-card-body">
                 <form method="POST"
                       action="{{ route('manuals.update', [ 'manual' => $cmm->id] ) }}"
                       enctype="multipart/form-data"   id="editCMMForm">
@@ -109,7 +126,7 @@
                                        value="{{ old('training_hours', $cmm->training_hours) }}" required>
                             </div>
                         </div>
-                        <div style="width: 300px" class="m-2 p-2 border">
+                        <div style="flex: 0 0 33%; min-width: 320px; max-width: 460px;" class="m-2 p-2 border">
                             <div class="mb-1">
                                 <label for="ovh_life">{{ __('Overhaul Life') }}</label>
                                 <input id='ovh_life' type="text"
@@ -200,14 +217,46 @@
                             </div>
                         </div>
 
+                        @if(auth()->user()?->roleIs('Admin'))
+                            <div class="mt-3 ms-2 p-2 border d-flex flex-column" style="flex: 0 0 24%; min-width: 280px; max-width: 380px;">
+                                <div class="mt-1 d-flex flex-column flex-grow-1">
+                                    <label for="permitted_user_ids">{{ __('Users with access to this manual') }}</label>
+                                    <div style="height: 100%; overflow-y: auto; border: 1px solid rgba(0,0,0,.08); border-radius: 10px; padding: 10px;">
+                                        @foreach(($users ?? collect()) as $u)
+                                            @php
+                                                $checked = in_array($u->id, $permittedUserIds ?? [], true);
+                                            @endphp
+                                            <label class="d-flex align-items-center gap-2" style="white-space: nowrap; cursor: pointer; margin-bottom: 6px;">
+                                                <input
+                                                    id="permitted_user_{{ $u->id }}"
+                                                    type="checkbox"
+                                                    name="permitted_user_ids[]"
+                                                    value="{{ $u->id }}"
+                                                    {{ $checked ? 'checked' : '' }}
+                                                >
+                                                <span>
+                                                    {{ $u->name }}
+                                                </span>
+                                            </label>
+                                        @endforeach
+                                    </div>
+                                    <small class="text-muted d-block mt-2">
+                                        {{ __('By default, users have no permissions. Admin selects allowed users here.') }}
+                                    </small>
+                                </div>
+                            </div>
+                        @endif
+
                     </div>
 
-                    <button type="submit" class="btn btn-outline-primary text-center ">
-                        {{ __('UpDate') }}
-                    </button>
-                    <a href="{{ route('manuals.index') }}" class="btn btn-outline-secondary">
-                        {{ __('Cancel') }}
-                    </a>
+                    <div class="edit-cmm-form-actions">
+                        <button type="submit" class="btn btn-outline-primary text-center ">
+                            {{ __('UpDate') }}
+                        </button>
+                        <a href="{{ route('manuals.index') }}" class="btn btn-outline-secondary">
+                            {{ __('Cancel') }}
+                        </a>
+                    </div>
                 </form>
             </div>
         </div>

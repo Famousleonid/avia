@@ -10,8 +10,11 @@ use App\Models\Main;
 use App\Models\Manual;
 use App\Models\Task;
 use App\Models\Unit;
+use App\Models\ProcessName;
 use App\Models\User;
 use App\Models\Workorder;
+use App\Models\TdrProcess;
+use App\Services\WorkorderStdListProcessesService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Auth;
@@ -248,6 +251,79 @@ class WorkorderController extends Controller
 
         $workorders = $query->get();
 
+        // --- EC status column (after Approve) ---
+        $ecStatuses = [];
+        $ecProcessNameId = ProcessName::where('name', 'EC')->value('id');
+        if ($ecProcessNameId) {
+            $workorderIds = $workorders->pluck('id')->values()->all();
+
+            $ecRows = TdrProcess::query()
+                ->where('process_names_id', $ecProcessNameId)
+                ->whereHas('tdr', function ($q) use ($workorderIds) {
+                    $q->whereIn('workorder_id', $workorderIds);
+                })
+                ->with([
+                    'tdr:id,workorder_id',
+                    // кто менял/вводил даты (у записи один user_id; показываем его и для start/finish)
+                    'updatedBy:id,name'
+                ])
+                ->get();
+
+            foreach ($ecRows as $row) {
+                $woId = (int)($row->tdr?->workorder_id ?? 0);
+                if ($woId <= 0) continue;
+
+                $current = $ecStatuses[$woId] ?? [
+                    'state' => 'none', // none | exists | started | finished
+                    'date_start' => null,
+                    'date_finish' => null,
+                    'date_start_user' => null,
+                    'date_finish_user' => null,
+                    'user_name' => null,
+                ];
+
+                $userName = optional($row->updatedBy)->name;
+
+                // precedence: finished > started > exists > none
+                if (!empty($row->date_finish)) {
+                    $current['state'] = 'finished';
+                    $current['date_finish'] = $current['date_finish'] ?? $row->date_finish;
+                    $current['date_finish_user'] = $current['date_finish_user'] ?? $userName;
+
+                    // если start ещё не записан — запишем из текущей строки (если есть)
+                    if (!empty($row->date_start)) {
+                        $current['date_start'] = $current['date_start'] ?? $row->date_start;
+                        $current['date_start_user'] = $current['date_start_user'] ?? $userName;
+                    }
+                } elseif (!empty($row->date_start)) {
+                    // если date_start появился — апгрейдим в started (если не finished)
+                    if ($current['state'] !== 'finished') {
+                        $current['state'] = 'started';
+                    }
+                    $current['date_start'] = $current['date_start'] ?? $row->date_start;
+                    $current['date_start_user'] = $current['date_start_user'] ?? $userName;
+                } else {
+                    if ($current['state'] === 'none') {
+                        $current['state'] = 'exists'; // has EC row, but no dates
+                        $current['user_name'] = $current['user_name'] ?? $userName;
+                    }
+                }
+
+                $ecStatuses[$woId] = $current;
+            }
+
+            // ensure started/finished contain proper fields
+            foreach ($ecStatuses as $woId => $st) {
+                $ecStatuses[$woId] = [
+                    'state' => $st['state'] ?? 'none',
+                    'date_start' => $st['date_start'] ?? null,
+                    'date_finish' => $st['date_finish'] ?? null,
+                    'date_start_user' => $st['date_start_user'] ?? null,
+                    'date_finish_user' => $st['date_finish_user'] ?? null,
+                    'user_name' => $st['user_name'] ?? null,
+                ];
+            }
+        }
 
         $generalTasks = GeneralTask::orderBy('sort_order')->orderBy('id')->get();
         $tasksByGeneral = \App\Models\Task::select('id','name','general_task_id')
@@ -262,7 +338,16 @@ class WorkorderController extends Controller
         $users     = User::orderBy('name')->get();
 
 
-        return view('admin.workorders.index', compact('workorders', 'units', 'manuals','customers','users','generalTasks','tasksByGeneral'));
+        return view('admin.workorders.index', compact(
+            'workorders',
+            'units',
+            'manuals',
+            'customers',
+            'users',
+            'generalTasks',
+            'tasksByGeneral',
+            'ecStatuses'
+        ));
     }
 
     public function create()
@@ -303,10 +388,13 @@ class WorkorderController extends Controller
 
         // ✅ Если НЕ draft — номер обязателен и уникален
         if (!$isDraft) {
-            $rules['number'] = ['required', 'unique:workorders,number'];
+            // Колонка workorders.number — INTEGER; значения вида 190-70500-405 дают SQL 1265 / 500
+            $rules['number'] = ['required', 'integer', 'unique:workorders,number'];
         }
 
-        $data = $request->validate($rules);
+        $data = $request->validate($rules, [
+            'number.integer' => __('The workorder number must be a whole number (digits only, no dashes or letters).'),
+        ]);
 
         // ✅ Чекбоксы (как у тебя)
         $data = array_merge($data, [
@@ -340,6 +428,13 @@ class WorkorderController extends Controller
         $data['modified'] = $request->input('modified');
 
         $workorder = Workorder::create($data);
+
+        if (!$isDraft) {
+            $overhaulId = Instruction::overhaulId();
+            if ($overhaulId && (int) $workorder->instruction_id === (int) $overhaulId) {
+                app(WorkorderStdListProcessesService::class)->resolveForWorkorder($workorder);
+            }
+        }
 
         // ✅ Если description заполнено и unit->name пустое — обновляем unit->name
         if (!empty($request->description)) {
@@ -407,11 +502,14 @@ class WorkorderController extends Controller
         if ($allowChangeNumber) {
             $rules['number'] = [
                 'required',
+                'integer',
                 Rule::unique('workorders', 'number')->ignore($workorder->id),
             ];
         }
 
-        $request->validate($rules);
+        $request->validate($rules, [
+            'number.integer' => __('The workorder number must be a whole number (digits only, no dashes or letters).'),
+        ]);
 
         // Чекбоксы
         $request->merge([
@@ -494,6 +592,13 @@ class WorkorderController extends Controller
             if ($unit && empty($unit->name)) {
                 $unit->name = $request->description;
                 $unit->save();
+            }
+        }
+
+        if (!$newIsDraft) {
+            $overhaulId = Instruction::overhaulId();
+            if ($overhaulId && (int) $workorder->instruction_id === (int) $overhaulId) {
+                app(WorkorderStdListProcessesService::class)->resolveForWorkorder($workorder);
             }
         }
 
@@ -792,6 +897,13 @@ class WorkorderController extends Controller
 
         if ($number === '') {
             return response()->json(['ok' => false, 'message' => 'Empty number']);
+        }
+
+        if (filter_var($number, FILTER_VALIDATE_INT) === false) {
+            return response()->json([
+                'ok' => false,
+                'message' => __('The workorder number must be a whole number (digits only, no dashes or letters).'),
+            ]);
         }
 
         $exists = Workorder::query()
