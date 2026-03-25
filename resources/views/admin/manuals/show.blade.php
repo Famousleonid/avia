@@ -2,6 +2,18 @@
 
 @section('content')
     @php
+        $manualTabKeys = ['components', 'parts', 'processes', 'std'];
+        $manualShowTab = in_array(request('tab'), $manualTabKeys, true) ? request('tab') : 'components';
+
+        $manualScrollPartId = null;
+        if (request()->filled('part_id') && ctype_digit((string) request('part_id'))) {
+            $pid = (int) request('part_id');
+            if ($parts->pluck('id')->contains($pid)) {
+                $manualScrollPartId = $pid;
+                $manualShowTab = 'parts';
+            }
+        }
+
         $manualUrlParts = route('manuals.show', ['manual' => $cmm, 'tab' => 'parts']);
         $manualUrlProcesses = route('manuals.show', ['manual' => $cmm, 'tab' => 'processes']);
     @endphp
@@ -186,6 +198,18 @@
             max-height: 60vh;
             overflow-y: auto;
         }
+        #manual-show-tabs-overlay {
+            display: none;
+            position: fixed;
+            inset: 0;
+            z-index: 2000;
+            background: rgba(0, 0, 0, 0.4);
+            align-items: center;
+            justify-content: center;
+        }
+        html.manual-show-tabs-pending #manual-show-tabs-overlay {
+            display: flex;
+        }
     </style>
     <div class="card shadow">
         <div class="card-header m-2 ">
@@ -226,17 +250,32 @@
         </div>
 
         <div class="card-body">
+            <div id="manual-show-tabs-overlay" aria-hidden="true">
+                <div class="spinner-border text-light" role="status"><span class="visually-hidden">Loading</span></div>
+            </div>
+            <script>
+                (function () {
+                    var allowedTabs = ['components', 'parts', 'processes', 'std'];
+                    var hashToTab = {'#nav-components': 'components', '#nav-parts': 'parts', '#nav-processes': 'processes', '#nav-std': 'std'};
+                    var q = new URLSearchParams(location.search).get('tab');
+                    var desiredKey = (q && allowedTabs.indexOf(q) !== -1) ? q : (hashToTab[location.hash] || null);
+                    var server = @json($manualShowTab);
+                    if (desiredKey && desiredKey !== server) {
+                        document.documentElement.classList.add('manual-show-tabs-pending');
+                    }
+                })();
+            </script>
             <nav>
                 <div class="d-flex justify-content-between align-items-center">
                     <div class="nav nav-tabs" id="nav-tab" role="tablist">
-                        <button class="nav-link active" id="nav-components-tab" data-bs-toggle="tab" data-bs-target="#nav-components"
-                                type="button" role="tab" aria-controls="nav-components" aria-selected="true">Components</button>
-                        <button class="nav-link" id="nav-parts-tab" data-bs-toggle="tab" data-bs-target="#nav-parts"
-                                type="button" role="tab" aria-controls="nav-parts" aria-selected="false">Parts</button>
-                        <button class="nav-link" id="nav-processes-tab" data-bs-toggle="tab" data-bs-target="#nav-processes"
-                                type="button" role="tab" aria-controls="nav-processes" aria-selected="false">Processes</button>
-                        <button class="nav-link" id="nav-std-tab" data-bs-toggle="tab" data-bs-target="#nav-std"
-                                type="button" role="tab" aria-controls="nav-std" aria-selected="false">STD Processes</button>
+                        <button class="nav-link @if($manualShowTab === 'components') active @endif" id="nav-components-tab" data-bs-toggle="tab" data-bs-target="#nav-components"
+                                type="button" role="tab" aria-controls="nav-components" aria-selected="{{ $manualShowTab === 'components' ? 'true' : 'false' }}">Components</button>
+                        <button class="nav-link @if($manualShowTab === 'parts') active @endif" id="nav-parts-tab" data-bs-toggle="tab" data-bs-target="#nav-parts"
+                                type="button" role="tab" aria-controls="nav-parts" aria-selected="{{ $manualShowTab === 'parts' ? 'true' : 'false' }}">Parts</button>
+                        <button class="nav-link @if($manualShowTab === 'processes') active @endif" id="nav-processes-tab" data-bs-toggle="tab" data-bs-target="#nav-processes"
+                                type="button" role="tab" aria-controls="nav-processes" aria-selected="{{ $manualShowTab === 'processes' ? 'true' : 'false' }}">Processes</button>
+                        <button class="nav-link @if($manualShowTab === 'std') active @endif" id="nav-std-tab" data-bs-toggle="tab" data-bs-target="#nav-std"
+                                type="button" role="tab" aria-controls="nav-std" aria-selected="{{ $manualShowTab === 'std' ? 'true' : 'false' }}">STD Processes</button>
                     </div>
                     <div class="ms-3 d-flex align-items-center gap-2" id="nav-tab-actions">
                         <button type="button"
@@ -284,7 +323,7 @@
                 </div>
             </nav>
             <div class="tab-content" id="nav-tabContent">
-                <div class="tab-pane  justify-content-start fade show active" id="nav-components" role="tabpanel"
+                <div class="tab-pane justify-content-start fade @if($manualShowTab === 'components') show active @endif" id="nav-components" role="tabpanel"
                      aria-labelledby="nav-components-tab" tabindex="0">
                     <div class=" component-table-container m-2">
                         <table class="table table-hover table-bordered">
@@ -315,7 +354,7 @@
 
 
                 </div>
-                <div class="tab-pane fade" id="nav-parts" role="tabpanel" aria-labelledby="nav-parts-tab" tabindex="0">
+                <div class="tab-pane fade @if($manualShowTab === 'parts') show active @endif" id="nav-parts" role="tabpanel" aria-labelledby="nav-parts-tab" tabindex="0">
                     <div class="parts-table-container m-2">
                         <table class="table table-hover table-bordered">
                             <thead class="bg-gradient">
@@ -332,7 +371,7 @@
                             </thead>
                             <tbody class="text-center" >
                             @foreach($parts as $p)
-                                <tr>
+                                <tr id="manual-part-row-{{ $p->id }}">
                                     <td class="align-content-center">{{$p->ipl_num}}</td>
                                     <td class="align-content-center"> {{$p->assy_ipl_num}} </td>
                                     <td class="align-content-center"> {{$p->part_number}} </td>
@@ -386,7 +425,7 @@
                         </div>
 
                 </div>
-                <div class="tab-pane fade" id="nav-processes" role="tabpanel" aria-labelledby="nav-processes-tab" tabindex="0">
+                <div class="tab-pane fade @if($manualShowTab === 'processes') show active @endif" id="nav-processes" role="tabpanel" aria-labelledby="nav-processes-tab" tabindex="0">
                     <div class="process-table-container m-2">
                         <table class="table table-hover table-bordered ">
                             <thead class="bg-gradient">
@@ -425,7 +464,7 @@
 
 
                 </div>
-                <div class="tab-pane fade" id="nav-std" role="tabpanel" aria-labelledby="nav-std-tab" tabindex="0">
+                <div class="tab-pane fade @if($manualShowTab === 'std') show active @endif" id="nav-std" role="tabpanel" aria-labelledby="nav-std-tab" tabindex="0">
                     <div class="std-table-container m-2">
                         @php
                             $stdProcessTypes = ['ndt', 'cad', 'stress', 'paint'];
@@ -931,41 +970,81 @@
                 });
             }
 
-            // Начальное состояние (активна вкладка Components)
-            let activeTab = document.querySelector('#nav-tab .nav-link.active');
-
-            const tabQueryMap = {
+            const tabKeyToPane = {
                 components: '#nav-components',
                 parts: '#nav-parts',
                 processes: '#nav-processes',
                 std: '#nav-std'
             };
-            const urlParams = new URLSearchParams(window.location.search);
-            const tabFromQuery = urlParams.get('tab');
-            // Якорь в URL или ?tab=parts|processes|... (редиректы с сервера часто не сохраняют #fragment)
+            const initialParams = new URLSearchParams(window.location.search);
+            const partIdToScroll = initialParams.get('part_id');
+            const serverTab = @json($manualShowTab);
+
             let hash = window.location.hash;
-            if (!hash && tabFromQuery && tabQueryMap[tabFromQuery]) {
-                hash = tabQueryMap[tabFromQuery];
+            const tabFromQuery = initialParams.get('tab');
+            if (!hash && tabFromQuery && tabKeyToPane[tabFromQuery]) {
+                hash = tabKeyToPane[tabFromQuery];
             }
-            if (hash) {
-                const targetTab = document.querySelector('#nav-tab .nav-link[data-bs-target="' + hash + '"]');
-                if (targetTab) {
-                    const tabInstance = new bootstrap.Tab(targetTab);
-                    tabInstance.show();
-                    activeTab = targetTab;
-                    if (tabFromQuery && window.history && window.history.replaceState) {
-                        var u = new URL(window.location.href);
-                        u.searchParams.delete('tab');
-                        if (hash) {
-                            u.hash = hash;
-                        }
-                        window.history.replaceState(null, '', u.pathname + u.search + u.hash);
-                    }
-                }
+            let desiredPane = hash || '';
+            if (!desiredPane && serverTab && tabKeyToPane[serverTab]) {
+                desiredPane = tabKeyToPane[serverTab];
             }
 
-            if (activeTab) {
-                updateTabActions(activeTab.getAttribute('data-bs-target'));
+            let activeTab = document.querySelector('#nav-tab .nav-link.active');
+            const activePane = activeTab ? activeTab.getAttribute('data-bs-target') : null;
+            const needsClientSwitch = !!(desiredPane && activePane !== desiredPane);
+
+            function applyManualShowUrlCleanup() {
+                if (!window.history || !window.history.replaceState) return;
+                var removedQueryParams = initialParams.has('tab') || initialParams.has('part_id');
+                if (!removedQueryParams && !needsClientSwitch) return;
+                var u = new URL(window.location.href);
+                u.searchParams.delete('tab');
+                u.searchParams.delete('part_id');
+                if (desiredPane) {
+                    u.hash = desiredPane;
+                }
+                window.history.replaceState(null, '', u.pathname + u.search + u.hash);
+            }
+
+            function scrollToEditedPartRow() {
+                if (!partIdToScroll) return;
+                requestAnimationFrame(function () {
+                    var row = document.getElementById('manual-part-row-' + partIdToScroll);
+                    if (row) {
+                        row.scrollIntoView({ block: 'center', behavior: 'auto' });
+                        row.classList.add('table-warning');
+                        window.setTimeout(function () { row.classList.remove('table-warning'); }, 1400);
+                    }
+                });
+            }
+
+            function finishManualShowTabsBoot() {
+                document.documentElement.classList.remove('manual-show-tabs-pending');
+                activeTab = document.querySelector('#nav-tab .nav-link.active');
+                if (activeTab) {
+                    updateTabActions(activeTab.getAttribute('data-bs-target'));
+                }
+                scrollToEditedPartRow();
+            }
+
+            if (needsClientSwitch) {
+                var targetTabEl = document.querySelector('#nav-tab .nav-link[data-bs-target="' + desiredPane + '"]');
+                if (targetTabEl) {
+                    function onTabShown() {
+                        targetTabEl.removeEventListener('shown.bs.tab', onTabShown);
+                        applyManualShowUrlCleanup();
+                        finishManualShowTabsBoot();
+                    }
+                    targetTabEl.addEventListener('shown.bs.tab', onTabShown);
+                    new bootstrap.Tab(targetTabEl).show();
+                } else {
+                    applyManualShowUrlCleanup();
+                    finishManualShowTabsBoot();
+                }
+            } else {
+                applyManualShowUrlCleanup();
+                finishManualShowTabsBoot();
             }
 
             // Обновляем при переключении вкладок (Bootstrap event)
@@ -1196,7 +1275,7 @@
                                 const modalEl = document.getElementById('editPartModal');
                                 const modalInstance = bootstrap.Modal.getInstance(modalEl);
                                 if (modalInstance) modalInstance.hide();
-                                window.location.href = @json($manualUrlParts);
+                                window.location.href = @json($manualUrlParts) + '&part_id=' + encodeURIComponent(partId);
                             } else {
                                 showNotification(data && data.message ? data.message : 'Ошибка при обновлении запчасти', 'error');
                             }

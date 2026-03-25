@@ -15,6 +15,16 @@ use Illuminate\Http\Request;
 class WoBushingController extends Controller
 {
     /**
+     * Process name rows that share the Bushing "Stress Relief" column (bake vs plain stress relief).
+     *
+     * @return list<string>
+     */
+    private static function stressReliefProcessNames(): array
+    {
+        return ['Bake (Stress relief)', 'Stress Relief'];
+    }
+
+    /**
      * Display a listing of the resource.
      *
      * @return \Illuminate\Http\Response
@@ -60,9 +70,9 @@ class WoBushingController extends Controller
             ->with('process_name')
             ->get();
 
-        // Stress Relief processes - все процессы для 'Bake (Stress relief)'
-        $stressReliefProcesses = Process::whereHas('process_name', function($query) {
-                $query->where('name', 'Bake (Stress relief)');
+        // Stress Relief: процессы для Bake (Stress relief) и Stress Relief
+        $stressReliefProcesses = Process::whereHas('process_name', function ($query) {
+                $query->whereIn('name', self::stressReliefProcessNames());
             })
             ->whereHas('manuals', function($query) use ($manual_id) {
                 $query->where('manual_id', $manual_id);
@@ -255,9 +265,9 @@ class WoBushingController extends Controller
             ->with('process_name')
             ->get();
 
-        // Stress Relief processes - все процессы для 'Bake (Stress relief)'
-        $stressReliefProcesses = Process::whereHas('process_name', function($query) {
-                $query->where('name', 'Bake (Stress relief)');
+        // Stress Relief: Bake (Stress relief) и Stress Relief
+        $stressReliefProcesses = Process::whereHas('process_name', function ($query) {
+                $query->whereIn('name', self::stressReliefProcessNames());
             })
             ->whereHas('manuals', function($query) use ($manual_id) {
                 $query->where('manual_id', $manual_id);
@@ -370,7 +380,7 @@ class WoBushingController extends Controller
             ->whereHas('manuals', fn($q) => $q->where('manual_id', $manual_id))
             ->with('process_name')->get();
 
-        $stressReliefProcesses = Process::whereHas('process_name', fn($q) => $q->where('name', 'Bake (Stress relief)'))
+        $stressReliefProcesses = Process::whereHas('process_name', fn($q) => $q->whereIn('name', self::stressReliefProcessNames()))
             ->whereHas('manuals', fn($q) => $q->where('manual_id', $manual_id))
             ->with('process_name')->get();
 
@@ -463,9 +473,8 @@ class WoBushingController extends Controller
             ->with('process_name')
             ->get();
 
-        // Stress Relief processes - все процессы для 'Bake (Stress relief)'
-        $stressReliefProcesses = Process::whereHas('process_name', function($query) {
-                $query->where('name', 'Bake (Stress relief)');
+        $stressReliefProcesses = Process::whereHas('process_name', function ($query) {
+                $query->whereIn('name', self::stressReliefProcessNames());
             })
             ->whereHas('manuals', function($query) use ($manual_id) {
                 $query->where('manual_id', $manual_id);
@@ -814,6 +823,7 @@ class WoBushingController extends Controller
                                 $processId = data_get($processes, 'machining');
                                 break;
                             case 'Bake (Stress relief)':
+                            case 'Stress Relief':
                                 $processId = data_get($processes, 'stress_relief');
                                 break;
                             case 'Passivation':
@@ -1014,8 +1024,8 @@ class WoBushingController extends Controller
             ->with('process_name')
             ->get();
 
-        $stressReliefProcesses = Process::whereHas('process_name', function($query) {
-                $query->where('name', 'Stress Relief');
+        $stressReliefProcesses = Process::whereHas('process_name', function ($query) {
+                $query->whereIn('name', self::stressReliefProcessNames());
             })
             ->whereHas('manuals', function($query) use ($current_manual_id) {
                 $query->where('manual_id', $current_manual_id);

@@ -63,7 +63,23 @@
                             Stress Relief<br>
                             @if($woBushing)
                                 @php
-                                    $stressReliefProcessName = \App\Models\ProcessName::where('name', 'Bake (Stress relief)')->first();
+                                    $stressReliefProcessName = null;
+                                    if (!empty($bushData)) {
+                                        foreach ($bushData as $bushItem) {
+                                            $srId = $bushItem['processes']['stress_relief'] ?? null;
+                                            if (!empty($srId)) {
+                                                $srProc = \App\Models\Process::find($srId);
+                                                if ($srProc) {
+                                                    $stressReliefProcessName = \App\Models\ProcessName::find($srProc->process_names_id);
+                                                    break;
+                                                }
+                                            }
+                                        }
+                                    }
+                                    if (!$stressReliefProcessName) {
+                                        $stressReliefProcessName = \App\Models\ProcessName::where('name', 'Bake (Stress relief)')->first()
+                                            ?? \App\Models\ProcessName::where('name', 'Stress Relief')->first();
+                                    }
                                     $hasStressReliefData = false;
                                     if (!empty($bushData)) {
                                         foreach ($bushData as $bushItem) {
