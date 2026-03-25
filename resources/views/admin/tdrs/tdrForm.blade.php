@@ -20,6 +20,41 @@
             --print-footer-font-size: 10px;
             --print-footer-padding: 3px 3px;
             --tdr-form-rows: 19;
+            /* Строки сетки TDR: только текст масштабируется; иконки как при ячейке 40px */
+            --tdr-grid-font-size: 11px;
+            --tdr-grid-line-height: 1.15;
+            --tdr-grid-text-padding-left: 0px;
+            --tdr-grid-text-padding-right: 0px;
+        }
+
+        .tdr-row p.tdr-grid-text {
+            font-size: var(--tdr-grid-font-size);
+            line-height: var(--tdr-grid-line-height);
+            margin: 0;
+            padding-left: var(--tdr-grid-text-padding-left);
+            padding-right: var(--tdr-grid-text-padding-right);
+            box-sizing: border-box;
+        }
+
+        .tdr-row .tdr-grid-reqs {
+            height: 26px;
+            width: auto;
+        }
+
+        .tdr-row .tdr-grid-reqs-bb {
+            height: 40px;
+            width: auto;
+            object-fit: contain;
+            margin-left: -16px;
+        }
+
+        /* Bootstrap img { max-width: 100% } иначе режет ширину до col-1 — width в CSS «не работает» */
+        img.tdr-grid-check {
+            width: 32px;
+            height: auto;
+            max-width: none;
+            flex-shrink: 0;
+
         }
 
         body {
@@ -310,7 +345,7 @@
         <div class="col-6">
             <div class="row " >
                 <div class="col-1 border-l-b" style="height: 36px">
-                    <img class="pt-1 ps-1" src="{{ asset('img/icons/reqs.png') }}" alt="reqs" style="height: 24px; margin-left:
+                    <img class="pt-1 ps-1" src="{{ asset('img/icons/reqs.png') }}" alt="reqs" style="height: 28px; margin-left:
                             -10px" >
                 </div>
                 <div class="col-10 border-ll-bb">
@@ -335,7 +370,7 @@
         <div class="col-6">
             <div class="row " >
                 <div class="col-1 border-l-b align-items-center justify-content-center" style="height: 36px">
-                     <img class="pt-1 ps-1" src="{{ asset('img/icons/reqs.png') }}" alt="reqs" style="height: 24px; margin-left:
+                     <img class="pt-1 ps-1" src="{{ asset('img/icons/reqs.png') }}" alt="reqs" style="height: 28px; margin-left:
                             -10px" >
                 </div>
                 <div class="col-10 border-ll-bb">
@@ -368,59 +403,57 @@
             $currentIndex = 0;
             $totalPages = $totalInspections > $maxRowsPerPage ? ceil($totalInspections / $maxRowsPerPage) : 1;
         @endphp
-        
+
         @while($currentIndex < $totalInspections)
             @if($pageNumber > 1)
                 <div style="page-break-before: always;"></div>
             @endif
-            
+
             <div class="page data-page" data-page-index="{{ $pageNumber }}">
                 @php
                     $pageItems = array_slice($tdrInspections, $currentIndex, $maxRowsPerPage);
                     $firstColumn = array_slice($pageItems, 0, $totalRows);
                     $secondColumn = array_slice($pageItems, $totalRows, $totalRows);
                 @endphp
-                
+
                 @for ($i = 0; $i < $totalRows; $i++)
                     <div class="row tdr-row" data-row-index="{{ $i }}" data-page="{{ $pageNumber }}">
                         <div class="col-6 first-column">
                             <div class="row">
-                                <div class="col-1 border-l-b-r" style="height: 40px">
-                                    <img class="pt-1 ps-1" src="{{ asset('img/icons/reqs.png') }}" alt="reqs" style="height: 24px; margin-left: -10px">
+                                <div class="col-1 border-l-b-r d-flex align-items-center" style="height: 40px">
+                                    <img class=" tdr-grid-reqs" src="{{ asset('img/icons/reqs.png') }}" alt="reqs"
+                                         >
                                 </div>
-                                <div class="col-10 border-b" style="height: 40px">
-                                    <p class="fs-75" style="line-height: .8rem;font-size: 11px">
-                                        {!! strtoupper($firstColumn[$i] ?? '') !!}
-                                    </p>
+                                <div class="col-10 border-b d-flex align-items-start" style="height: 40px">
+                                    <p class="tdr-grid-text pt-1">{!! strtoupper($firstColumn[$i] ?? '') !!}</p>
                                 </div>
-                                <div class="col-1 border-l-b">
+                                <div class="col-1 border-l-b d-flex align-items-start">
                                     @if(isset($firstColumn[$i]) && $firstColumn[$i] !== '')
-                                        <img src="{{ asset('img/icons/check.svg') }}" alt="Check" style="width: 32px; margin-left: -14px;">
+                                        <img class="tdr-grid-check pt-1" src="{{ asset('img/icons/check.svg') }}" alt="Check"
+                                             style="margin-left: -16px;">
                                     @endif
                                 </div>
                             </div>
                         </div>
                         <div class="col-6 second-column">
                             <div class="row">
-                                <div class="d-flex col-1 border-b-r" style="height: 40px">
-                                    <img src="{{ asset('img/icons/reqs_bb.png') }}" alt="reqs" style="height: 40px; margin-left: -16px">
-                                    <img class="pt-1 ps-1" src="{{ asset('img/icons/reqs.png') }}" alt="reqs" style="height: 24px;">
+                                <div class="d-flex col-1 border-b-r align-items-center" style="height: 40px">
+                                    <img class="tdr-grid-reqs-bb" src="{{ asset('img/icons/reqs_bb.png') }}" alt="reqs">
+                                    <img class=" tdr-grid-reqs" src="{{ asset('img/icons/reqs.png') }}" alt="reqs">
                                 </div>
-                                <div class="col-10 border-b" style="height: 40px">
-                                    <p class="fs-75" style="line-height: .8rem;font-size: 11px">
-                                        {!! strtoupper($secondColumn[$i] ?? '') !!}
-                                    </p>
+                                <div class="col-10 border-b d-flex align-items-start" style="height: 40px">
+                                    <p class="tdr-grid-text pt-1">{!! strtoupper($secondColumn[$i] ?? '') !!}</p>
                                 </div>
-                                <div class="col-1 border-l-b-r" style="height: 40px">
+                                <div class="col-1 border-l-b-r d-flex align-items-start" style="height: 40px">
                                     @if(isset($secondColumn[$i]) && $secondColumn[$i] !== '')
-                                        <img src="{{ asset('img/icons/check.svg') }}" alt="Check" style="width: 32px; margin-left: -16px">
+                                        <img class="tdr-grid-check pt-1" src="{{ asset('img/icons/check.svg') }}" alt="Check" style="margin-left: -16px">
                                     @endif
                                 </div>
                             </div>
                         </div>
                     </div>
                 @endfor
-                
+
                 <footer>
                     <div class="row" style="width: 100%; padding: 5px 0;">
                         <div class="col-6 text-start">
@@ -432,7 +465,7 @@
                     </div>
                 </footer>
             </div>
-            
+
             @php
                 $currentIndex += $maxRowsPerPage;
                 $pageNumber++;
@@ -453,7 +486,7 @@
                         <!-- Tables - Основная группа -->
                         <div class="mb-4">
                             <h5 class="mb-3">📊 Tables</h5>
-                            
+
                             <div class="row mb-3">
                                 <div class="col-md-6">
                                     <label for="tdrFormRows" class="form-label">
@@ -471,13 +504,13 @@
                             <div class="accordion mb-3" id="tableSettingsAccordion">
                                 <div class="accordion-item">
                                     <h2 class="accordion-header" id="tableSettingsHeading">
-                                        <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" 
-                                                data-bs-target="#tableSettingsCollapse" aria-expanded="false" 
+                                        <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse"
+                                                data-bs-target="#tableSettingsCollapse" aria-expanded="false"
                                                 aria-controls="tableSettingsCollapse">
                                             Table Setting
                                         </button>
                                     </h2>
-                                    <div id="tableSettingsCollapse" class="accordion-collapse collapse" 
+                                    <div id="tableSettingsCollapse" class="accordion-collapse collapse"
                                          aria-labelledby="tableSettingsHeading" data-bs-parent="#tableSettingsAccordion">
                                         <div class="accordion-body">
                                             <div class="row">
@@ -501,6 +534,28 @@
                                                     <input type="number" class="form-control" id="containerMarginRight" name="containerMarginRight"
                                                            min="0" max="50" step="1" value="10">
                                                 </div>
+                                                <div class="col-md-4 mb-3">
+                                                    <label for="tdrGridFontSize" class="form-label">TDR grid — font size (px)</label>
+                                                    <input type="number" class="form-control" id="tdrGridFontSize" name="tdrGridFontSize"
+                                                           min="6" max="16" step="0.5" value="11">
+                                                    <small class="form-text text-muted">Только текст в ячейке; иконки и галочки фиксированы (36 / 40 / 36 px).</small>
+                                                </div>
+                                                <div class="col-md-4 mb-3">
+                                                    <label for="tdrGridLineHeight" class="form-label">TDR grid — line height</label>
+                                                    <input type="number" class="form-control" id="tdrGridLineHeight" name="tdrGridLineHeight"
+                                                           min="1" max="1.6" step="0.05" value="1.15">
+                                                    <small class="form-text text-muted">Межстрочный интервал текста (множитель, без единиц).</small>
+                                                </div>
+                                                <div class="col-md-4 mb-3">
+                                                    <label for="tdrGridTextPaddingLeft" class="form-label">TDR text — padding left (px)</label>
+                                                    <input type="number" class="form-control" id="tdrGridTextPaddingLeft" name="tdrGridTextPaddingLeft"
+                                                           min="0" max="24" step="1" value="0">
+                                                </div>
+                                                <div class="col-md-4 mb-3">
+                                                    <label for="tdrGridTextPaddingRight" class="form-label">TDR text — padding right (px)</label>
+                                                    <input type="number" class="form-control" id="tdrGridTextPaddingRight" name="tdrGridTextPaddingRight"
+                                                           min="0" max="24" step="1" value="0">
+                                                </div>
                                             </div>
                                         </div>
                                     </div>
@@ -513,13 +568,13 @@
                             <div class="accordion" id="pageSettingsAccordion">
                                 <div class="accordion-item">
                                     <h2 class="accordion-header" id="pageSettingsHeading">
-                                        <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" 
-                                                data-bs-target="#pageSettingsCollapse" aria-expanded="false" 
+                                        <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse"
+                                                data-bs-target="#pageSettingsCollapse" aria-expanded="false"
                                                 aria-controls="pageSettingsCollapse">
                                             Page Setting
                                         </button>
                                     </h2>
-                                    <div id="pageSettingsCollapse" class="accordion-collapse collapse" 
+                                    <div id="pageSettingsCollapse" class="accordion-collapse collapse"
                                          aria-labelledby="pageSettingsHeading" data-bs-parent="#pageSettingsAccordion">
                                         <div class="accordion-body">
                                             <div class="row">
@@ -555,13 +610,13 @@
                             <div class="accordion" id="footerSettingsAccordion">
                                 <div class="accordion-item">
                                     <h2 class="accordion-header" id="footerSettingsHeading">
-                                        <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" 
-                                                data-bs-target="#footerSettingsCollapse" aria-expanded="false" 
+                                        <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse"
+                                                data-bs-target="#footerSettingsCollapse" aria-expanded="false"
                                                 aria-controls="footerSettingsCollapse">
                                             Footer Setting
                                         </button>
                                     </h2>
-                                    <div id="footerSettingsCollapse" class="accordion-collapse collapse" 
+                                    <div id="footerSettingsCollapse" class="accordion-collapse collapse"
                                          aria-labelledby="footerSettingsHeading" data-bs-parent="#footerSettingsAccordion">
                                         <div class="accordion-body">
                                             <div class="row">
@@ -599,7 +654,7 @@
     <!-- Скрипт для печати и Print Settings -->
     <script>
         const PRINT_SETTINGS_KEY = 'tdrForm_print_settings';
-        
+
         // Настройки по умолчанию
         const defaultSettings = {
             tdrFormRows: 19,
@@ -607,13 +662,17 @@
             bodyWidth: '98%',
             bodyHeight: '86%',
             bodyMarginLeft: '3px',
-            containerMaxWidth: '940px',
+            containerMaxWidth: '800px',
             containerPadding: '5px',
             containerMarginLeft: '10px',
             containerMarginRight: '10px',
             footerWidth: '800px',
             footerFontSize: '10px',
-            footerPadding: '3px 3px'
+            footerPadding: '3px 3px',
+            tdrGridFontSize: '9px',
+            tdrGridLineHeight: '1.15',
+            tdrGridTextPaddingLeft: '0px',
+            tdrGridTextPaddingRight: '0px'
         };
 
         // Загрузка настроек из localStorage
@@ -629,7 +688,7 @@
             }
             return defaultSettings;
         }
-        
+
         // Сохранение настроек в localStorage
         window.savePrintSettings = function() {
             try {
@@ -653,26 +712,51 @@
                     containerMarginRight: getValue('containerMarginRight', '10', 'px'),
                     footerWidth: getValue('footerWidth', '800', 'px'),
                     footerFontSize: getValue('footerFontSize', '10', 'px'),
-                    footerPadding: getValue('footerPadding', '3px 3px', '')
+                    footerPadding: getValue('footerPadding', '3px 3px', ''),
+                    tdrGridFontSize: (function() {
+                        const el = document.getElementById('tdrGridFontSize');
+                        if (el && el.value !== '') {
+                            return el.value + 'px';
+                        }
+                        return defaultSettings.tdrGridFontSize;
+                    })(),
+                    tdrGridLineHeight: (function() {
+                        const el = document.getElementById('tdrGridLineHeight');
+                        return el && el.value !== '' ? String(el.value) : defaultSettings.tdrGridLineHeight;
+                    })(),
+                    tdrGridTextPaddingLeft: (function() {
+                        const el = document.getElementById('tdrGridTextPaddingLeft');
+                        if (el && el.value !== '') {
+                            return el.value + 'px';
+                        }
+                        return defaultSettings.tdrGridTextPaddingLeft;
+                    })(),
+                    tdrGridTextPaddingRight: (function() {
+                        const el = document.getElementById('tdrGridTextPaddingRight');
+                        if (el && el.value !== '') {
+                            return el.value + 'px';
+                        }
+                        return defaultSettings.tdrGridTextPaddingRight;
+                    })()
                 };
 
                 localStorage.setItem(PRINT_SETTINGS_KEY, JSON.stringify(settings));
                 applyPrintSettings(settings);
                 applyTdrFormRowLimits(settings);
-                
+
                 // Закрываем модальное окно
                 const modal = bootstrap.Modal.getInstance(document.getElementById('printSettingsModal'));
                 if (modal) {
                     modal.hide();
                 }
-                
+
                 showNotification('Settings saved successfully!', 'success');
             } catch (e) {
                 console.error('Ошибка сохранения настроек:', e);
                 showNotification('Error saving settings', 'error');
             }
         };
-        
+
         // Применение CSS переменных
         function applyPrintSettings(settings) {
             const root = document.documentElement;
@@ -687,120 +771,124 @@
             root.style.setProperty('--print-footer-width', settings.footerWidth || defaultSettings.footerWidth);
             root.style.setProperty('--print-footer-font-size', settings.footerFontSize || defaultSettings.footerFontSize);
             root.style.setProperty('--print-footer-padding', settings.footerPadding || defaultSettings.footerPadding);
+            root.style.setProperty('--tdr-grid-font-size', settings.tdrGridFontSize || defaultSettings.tdrGridFontSize);
+            root.style.setProperty('--tdr-grid-line-height', settings.tdrGridLineHeight || defaultSettings.tdrGridLineHeight);
+            root.style.setProperty('--tdr-grid-text-padding-left', settings.tdrGridTextPaddingLeft || defaultSettings.tdrGridTextPaddingLeft);
+            root.style.setProperty('--tdr-grid-text-padding-right', settings.tdrGridTextPaddingRight || defaultSettings.tdrGridTextPaddingRight);
         }
 
         // Применение лимитов строк для TDR формы с поддержкой многостраничности
         function applyTdrFormRowLimits(settings) {
             const tdrFormRows = parseInt(settings.tdrFormRows) || 19;
             const maxRowsPerPage = tdrFormRows * 2; // Максимум элементов на странице
-            
+
             // Получаем все элементы из Blade
             const allInspections = @json($tdrInspections);
             const totalInspections = allInspections.length;
-            
+
             // Удаляем все существующие страницы
             const container = document.querySelector('.all-rows-container');
             container.innerHTML = '';
-            
+
             // Создаём страницы
             let currentIndex = 0;
             let pageNumber = 1;
-            
+
             while (currentIndex < totalInspections) {
                 if (pageNumber > 1) {
                     const pageBreak = document.createElement('div');
                     pageBreak.style.pageBreakBefore = 'always';
                     container.appendChild(pageBreak);
                 }
-                
+
                 const page = document.createElement('div');
                 page.className = 'page data-page';
                 page.setAttribute('data-page-index', pageNumber);
-                
+
                 const pageItems = allInspections.slice(currentIndex, currentIndex + maxRowsPerPage);
                 const firstColumn = pageItems.slice(0, tdrFormRows);
                 const secondColumn = pageItems.slice(tdrFormRows, tdrFormRows * 2);
-                
+
                 // Создаём строки для страницы
                 for (let i = 0; i < tdrFormRows; i++) {
                     const row = createTdrRow(i, pageNumber, firstColumn[i], secondColumn[i]);
                     page.appendChild(row);
                 }
-                
+
                 // Добавляем footer для страницы
                 const totalPages = Math.ceil(totalInspections / maxRowsPerPage);
                 const footer = createTdrFooter(pageNumber, totalPages);
                 page.appendChild(footer);
-                
+
                 container.appendChild(page);
-                
+
                 currentIndex += maxRowsPerPage;
                 pageNumber++;
             }
         }
-        
+
         // Создание строки TDR
         function createTdrRow(index, pageNumber, firstItem, secondItem) {
             const row = document.createElement('div');
             row.className = 'row tdr-row';
             row.setAttribute('data-row-index', index);
             row.setAttribute('data-page', pageNumber);
-            
+
             row.innerHTML = `
                 <div class="col-6 first-column">
                     <div class="row">
-                        <div class="col-1 border-l-b-r" style="height: 40px">
-                            <img class="pt-1 ps-1" src="{{ asset('img/icons/reqs.png') }}" alt="reqs" style="height: 24px; margin-left: -10px">
+                        <div class="col-1 border-l-b-r d-flex align-items-center" style="height: 40px">
+                            <img class="pt-1 ps-1 tdr-grid-reqs" src="{{ asset('img/icons/reqs.png') }}" alt="reqs" style="margin-left: -10px">
                         </div>
-                        <div class="col-10 border-b" style="height: 40px">
-                            <p class="fs-75" style="line-height: .8rem;font-size: 11px">${(firstItem || '').toUpperCase()}</p>
+                        <div class="col-10 border-b d-flex align-items-start" style="height: 40px">
+                            <p class="tdr-grid-text pt-1">${(firstItem || '').toUpperCase()}</p>
                         </div>
-                        <div class="col-1 border-l-b">
-                            ${firstItem ? '<img src="{{ asset("img/icons/check.svg") }}" alt="Check" style="width: 32px; margin-left: -14px;">' : ''}
+                        <div class="col-1 border-l-b d-flex align-items-start">
+                            ${firstItem ? '<img class="tdr-grid-check pt-1" src="{{ asset("img/icons/check.svg") }}" alt="Check" style="margin-left: -14px;">' : ''}
                         </div>
                     </div>
                 </div>
                 <div class="col-6 second-column">
                     <div class="row">
-                        <div class="d-flex col-1 border-b-r" style="height: 40px">
-                            <img src="{{ asset('img/icons/reqs_bb.png') }}" alt="reqs" style="height: 40px; margin-left: -16px">
-                            <img class="pt-1 ps-1" src="{{ asset('img/icons/reqs.png') }}" alt="reqs" style="height: 24px;">
+                        <div class="d-flex col-1 border-b-r align-items-center" style="height: 40px">
+                            <img class="tdr-grid-reqs-bb" src="{{ asset('img/icons/reqs_bb.png') }}" alt="reqs">
+                            <img class="pt-1 ps-1 tdr-grid-reqs" src="{{ asset('img/icons/reqs.png') }}" alt="reqs">
                         </div>
-                        <div class="col-10 border-b" style="height: 40px">
-                            <p class="fs-75" style="line-height: .8rem;font-size: 11px">${(secondItem || '').toUpperCase()}</p>
+                        <div class="col-10 border-b d-flex align-items-start" style="height: 40px">
+                            <p class="tdr-grid-text pt-1">${(secondItem || '').toUpperCase()}</p>
                         </div>
-                        <div class="col-1 border-l-b-r" style="height: 40px">
-                            ${secondItem ? '<img src="{{ asset("img/icons/check.svg") }}" alt="Check" style="width: 32px; margin-left: -16px">' : ''}
+                        <div class="col-1 border-l-b-r d-flex align-items-start" style="height: 40px">
+                            ${secondItem ? '<img class="tdr-grid-check pt-1" src="{{ asset("img/icons/check.svg") }}" alt="Check" style="margin-left: -16px">' : ''}
                         </div>
                     </div>
                 </div>
             `;
-            
+
             return row;
         }
-        
+
         // Обновление строки TDR
         function updateTdrRow(row, firstItem, secondItem) {
             const firstColText = row.querySelector('.first-column .col-10 p');
             const firstColCheck = row.querySelector('.first-column .col-1');
             const secondColText = row.querySelector('.second-column .col-10 p');
             const secondColCheck = row.querySelector('.second-column .col-1');
-            
+
             if (firstColText) {
                 firstColText.textContent = (firstItem || '').toUpperCase();
             }
             if (firstColCheck) {
-                firstColCheck.innerHTML = firstItem ? '<img src="{{ asset("img/icons/check.svg") }}" alt="Check" style="width: 32px; margin-left: -14px;">' : '';
+                firstColCheck.innerHTML = firstItem ? '<img class="tdr-grid-check pt-1" src="{{ asset("img/icons/check.svg") }}" alt="Check" style="margin-left: -14px;">' : '';
             }
-            
+
             if (secondColText) {
                 secondColText.textContent = (secondItem || '').toUpperCase();
             }
             if (secondColCheck) {
-                secondColCheck.innerHTML = secondItem ? '<img src="{{ asset("img/icons/check.svg") }}" alt="Check" style="width: 32px; margin-left: -16px">' : '';
+                secondColCheck.innerHTML = secondItem ? '<img class="tdr-grid-check pt-1" src="{{ asset("img/icons/check.svg") }}" alt="Check" style="margin-left: -16px">' : '';
             }
         }
-        
+
         // Создание footer для страницы
         function createTdrFooter(pageNumber, totalPages) {
             const footer = document.createElement('footer');
@@ -812,7 +900,7 @@
             `;
             return footer;
         }
-        
+
         // Загрузка настроек в форму
         function loadSettingsToForm(settings) {
             const elements = {
@@ -827,7 +915,11 @@
                 'containerMarginRight': { suffix: '', default: '10' },
                 'footerWidth': { suffix: '', default: '800' },
                 'footerFontSize': { suffix: '', default: '10' },
-                'footerPadding': { suffix: '', default: '3px 3px' }
+                'footerPadding': { suffix: '', default: '3px 3px' },
+                'tdrGridFontSize': { suffix: '', default: '11' },
+                'tdrGridLineHeight': { suffix: '', default: '1.15' },
+                'tdrGridTextPaddingLeft': { suffix: '', default: '0' },
+                'tdrGridTextPaddingRight': { suffix: '', default: '0' }
             };
 
             Object.keys(elements).forEach(function(id) {
@@ -840,8 +932,10 @@
                         element.value = value.replace('%', '');
                     } else if (id === 'bodyHeight') {
                         element.value = value.replace('%', '');
-                    } else if (id.includes('Margin') || id.includes('Width') || id.includes('Padding') || id.includes('FontSize')) {
+                    } else if (id.includes('Margin') || id.includes('Width') || id.includes('Padding') || id.includes('FontSize') || id === 'tdrGridFontSize' || id === 'tdrGridTextPaddingLeft' || id === 'tdrGridTextPaddingRight') {
                         element.value = value.replace('px', '').replace('mm', '');
+                    } else if (id === 'tdrGridLineHeight') {
+                        element.value = String(value);
                     } else {
                         element.value = value;
                     }
@@ -866,7 +960,7 @@
             applyPrintSettings(settings);
             applyTdrFormRowLimits(settings);
             loadSettingsToForm(settings);
-            
+
             // Загрузка настроек в форму при открытии модального окна
             const modal = document.getElementById('printSettingsModal');
             if (modal) {
