@@ -4,12 +4,14 @@ namespace App\Models;
 
 use App\Traits\HasMediaHelpers;
 use Illuminate\Database\Eloquent\Model;
+use Spatie\Activitylog\LogOptions;
+use Spatie\Activitylog\Traits\LogsActivity;
 use Spatie\MediaLibrary\HasMedia;
 use Spatie\MediaLibrary\InteractsWithMedia;
 
 class Component extends Model implements  hasMedia
 {
-    use  InteractsWithMedia, HasMediaHelpers;
+    use  InteractsWithMedia, HasMediaHelpers, LogsActivity;
 
     protected $fillable = [
         'part_number',
@@ -27,6 +29,15 @@ class Component extends Model implements  hasMedia
         'bush_ipl_num',
         'is_bush',
     ];
+
+    public function getActivitylogOptions(): LogOptions
+    {
+        return LogOptions::defaults()
+            ->useLogName('component')
+            ->logOnly($this->fillable)
+            ->logOnlyDirty()
+            ->dontSubmitEmptyLogs();
+    }
 
 
     public function manual()

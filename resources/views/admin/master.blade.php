@@ -74,7 +74,7 @@
 
         .page-layout {
             height: calc(100vh - 35px);
-            overflow: hidden;
+            overflow: visible; /* allow sidebar dropdowns (notifications) */
         }
 
         .content {

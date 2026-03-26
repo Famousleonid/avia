@@ -12,9 +12,29 @@ document.addEventListener('DOMContentLoaded', function() {
         if (window.$ && window.$.fn.select2) {
             const $ = window.$;
             const defaultManualId = {{ $manual_id }};
+
+            const canManageAllManualParts = {!! json_encode($canManageAllManualParts ?? false) !!};
+            const allowedManualIds = {!! json_encode($allowedManualIds ?? []) !!};
+            const allowedManualSet = new Set((allowedManualIds || []).map(v => parseInt(v, 10)));
+
+            const partsActionsEl = document.getElementById('js-parts-actions');
+
+            // Hide immediately to avoid "appear then disappear" flicker.
+            if (partsActionsEl) {
+                partsActionsEl.classList.add('d-none');
+            }
+
+            const updatePartsActions = function (manualId) {
+                if (!partsActionsEl) return;
+                const mid = parseInt(manualId, 10);
+                const allowed = canManageAllManualParts || (Number.isFinite(mid) && allowedManualSet.has(mid));
+                partsActionsEl.classList.toggle('d-none', !allowed);
+            };
+
             if (defaultManualId) {
                 $('#i_manual_id').val(defaultManualId).trigger('change');
                 $('#addComponentManualId').val(defaultManualId);
+                updatePartsActions(defaultManualId);
             }
 
             var $dropdownParent = $(compModal);
@@ -158,6 +178,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 const manualId = $(this).val() || {{ $manual_id }};
                 $('#addComponentManualId').val(manualId);
                 if (manualId) loadComponentsByManual(manualId);
+                updatePartsActions(manualId);
             });
 
             function loadComponentsByManual(manualId) {

@@ -241,6 +241,28 @@ class TdrController extends Controller
     {
         $current_wo = Workorder::findOrFail($workorder_id);
         $manual_id = $current_wo->unit->manual_id;
+        $user = Auth::user();
+
+        $canManageAllManualParts = (bool) ($user?->roleIs('Admin') ?? false);
+        $allowedManualIds = $canManageAllManualParts
+            ? []
+            : $user?->permittedManuals()->pluck('manuals.id')->all();
+
+        $manualHasAnyPermissions = DB::table('manual_user_permissions')
+            ->where('manual_id', $manual_id)
+            ->exists();
+
+        $canManageManualParts = $canManageAllManualParts
+            || !$manualHasAnyPermissions
+            || in_array((int)$manual_id, array_map('intval', $allowedManualIds ?? []), true);
+
+        // Для фронта: чтобы JS-разрешения совпадали с правилом "если manual не задан никому — разрешено всем"
+        if (!$canManageAllManualParts && !$manualHasAnyPermissions) {
+            $allowedManualIds = array_values(array_unique(array_merge(
+                array_map('intval', $allowedManualIds ?? []),
+                [(int) $manual_id]
+            )));
+        }
 
         // Компоненты для данного manual
         $components = Component::where('manual_id', $manual_id)
@@ -253,10 +275,22 @@ class TdrController extends Controller
         // Получаем коды и necessaries
         $codes = Code::all();
         $necessaries = Necessary::all();
-        $manuals=Manual::all();
+        if ($canManageAllManualParts) {
+            $manuals = Manual::all();
+        } else {
+            $manualIdsToShow = array_unique(array_merge(
+                array_map('intval', $allowedManualIds ?? []),
+                [(int)$manual_id]
+            ));
+            $manuals = Manual::query()
+                ->whereIn('id', $manualIdsToShow)
+                ->orderBy('number')
+                ->get();
+        }
 
         return view('admin.tdrs.component-inspection', compact('current_wo', 'component_conditions',
-            'components', 'codes', 'necessaries', 'manual_id', 'manuals'));
+            'components', 'codes', 'necessaries', 'manual_id', 'manuals',
+            'canManageManualParts', 'canManageAllManualParts', 'allowedManualIds'));
     }
 
     public function getComponentsByManual(Request $request)
@@ -1311,7 +1345,38 @@ class TdrController extends Controller
             ->orderBy('date_training', 'desc')
             ->first();
 
-        $manuals = Manual::all();
+        $canManageAllManualParts = (bool) ($user?->roleIs('Admin') ?? false);
+        $allowedManualIds = $canManageAllManualParts
+            ? []
+            : $user?->permittedManuals()->pluck('manuals.id')->all();
+
+        $manualHasAnyPermissions = DB::table('manual_user_permissions')
+            ->where('manual_id', $manual_id)
+            ->exists();
+
+        $canManageManualParts = $canManageAllManualParts
+            || !$manualHasAnyPermissions
+            || in_array((int)$manual_id, array_map('intval', $allowedManualIds ?? []), true);
+
+        if (!$canManageAllManualParts && !$manualHasAnyPermissions) {
+            $allowedManualIds = array_values(array_unique(array_merge(
+                array_map('intval', $allowedManualIds ?? []),
+                [(int) $manual_id]
+            )));
+        }
+
+        if ($canManageAllManualParts) {
+            $manuals = Manual::all();
+        } else {
+            $manualIdsToShow = array_unique(array_merge(
+                array_map('intval', $allowedManualIds ?? []),
+                [(int)$manual_id]
+            ));
+            $manuals = Manual::query()
+                ->whereIn('id', $manualIdsToShow)
+                ->orderBy('number')
+                ->get();
+        }
         $log_card = LogCard::where('workorder_id', $current_wo->id)->first();
         $woBushing = WoBushing::where('workorder_id', $current_wo->id)->first();
         $hasBushings = Component::where('manual_id', $manual_id)->where('is_bush', 1)->exists();
@@ -1458,6 +1523,7 @@ class TdrController extends Controller
             'transfersIncomingGroupsWithMultiple', 'transfersHasOutgoingGroup',
             'hasMissingParts', 'missingCondition', 'orderedPartsCount', 'hasOrderedParts', 'hasProcessFormTdrs',
             'hasExtraProcessRecords', 'hasExtraProcessRecordsMoreThanOne', 'showLogCardTab'
+            , 'allowedManualIds', 'canManageManualParts', 'canManageAllManualParts'
         );
     }
 
@@ -3098,7 +3164,8 @@ class TdrController extends Controller
         })->distinct()->pluck('process_names_id');
 
         // Получаем ProcessName по этим ID с фильтрами. EC включаем только если showEcInForm
-        $processNamesQuery = ProcessName::whereIn('id', $processNameIds)
+        $processNamesQuery = ProcessName::forPicker()
+            ->whereIn('id', $processNameIds)
             ->where('name', 'NOT LIKE', '%NDT%');
         if (!$showEcInForm) {
             $processNamesQuery->where('name', '!=', 'EC');
@@ -3120,7 +3187,11 @@ class TdrController extends Controller
         $tdrs = Tdr::where('workorder_id', $current_wo->id)
             ->where('use_process_forms', true)
             ->with(['tdrProcesses' => function($query) {
-                $query->orderBy('sort_order')->with('processName');
+                $query->whereHas('processName', function ($q) {
+                        $q->where('show_in_process_picker', true);
+                    })
+                    ->orderBy('sort_order')
+                    ->with('processName');
             }]) // Предварительная загрузка TdrProcess с сортировкой и processName
             ->with('component')
             ->get();
@@ -3267,7 +3338,8 @@ class TdrController extends Controller
         })->distinct()->pluck('process_names_id');
 
         // Получаем ProcessName по этим ID с фильтрами, ограничиваем до 20 элементов
-        $processNames = ProcessName::whereIn('id', $processNameIds)
+        $processNames = ProcessName::forPicker()
+            ->whereIn('id', $processNameIds)
             ->where(function ($query) {
                 $query->where('name', 'NOT LIKE', '%NDT%')
 //                ->where('name', 'NOT LIKE', '%Paint%');
@@ -3280,10 +3352,11 @@ class TdrController extends Controller
         // Порядок: Machining → Stress Relief → Cad Plate → Chrome Plate → Paint (NDT — отдельный блок из 3 строк)
         if ($processNames->isEmpty()) {
             $defaultNames = ['Machining', 'Bake (Stress relief)', 'Cad plate', 'Chrome plate'];
-            $processNames = ProcessName::whereIn('name', $defaultNames)
+            $processNames = ProcessName::forPicker()
+                ->whereIn('name', $defaultNames)
                 ->orderByRaw("FIELD(name, 'Machining', 'Bake (Stress relief)', 'Cad plate', 'Chrome plate')")
                 ->get();
-            $paint = ProcessName::where('name', 'LIKE', 'Paint%')->first();
+            $paint = ProcessName::forPicker()->where('name', 'LIKE', 'Paint%')->first();
             if ($paint) {
                 $processNames->push($paint);
             }
@@ -3317,7 +3390,11 @@ class TdrController extends Controller
         $tdrs = Tdr::where('workorder_id', $current_wo->id)
             ->where('use_process_forms', true)
             ->with(['tdrProcesses' => function($query) {
-                $query->orderBy('sort_order')->with('processName');
+                $query->whereHas('processName', function ($q) {
+                        $q->where('show_in_process_picker', true);
+                    })
+                    ->orderBy('sort_order')
+                    ->with('processName');
             }])
             ->with('component')
             ->get();

@@ -369,7 +369,7 @@
                                     <div class="js-gt-pane h-100 d-none"
                                          data-gt-id="{{ $gt->id }}">
                                         <div class="table-responsive border border-secondary rounded"
-                                             style="overflow:auto; height:calc(100% - 19px);">
+                                             style="overflow:auto; height:calc(100% - 1px);">
 
                                             @php
                                                 $gtTasks = ($tasksByGeneral[$gt->id] ?? collect());
@@ -447,10 +447,17 @@
                                                         </td>
 
                                                         {{-- user --}}
-                                                        <td class="js-fade-on-ignore {{ $isIgnored ? 'is-ignored' : '' }}"
-                                                            data-bs-toggle="tooltip"
-                                                            title="{{ $main?->user?->name ?? '' }}"
-                                                        >
+                                                        <td class="js-fade-on-ignore {{ $isIgnored ? 'is-ignored' : '' }} js-last-user"
+                                                            data-tippy-content="
+                                                                <span style='color:#adb5bd'>Updated by:</span>
+                                                                <span style='color:#0dcaf0;font-weight:500'>
+                                                                    {{ $main?->user?->name ?? '—' }}
+                                                                </span>
+                                                                <br>
+                                                                <span style='color:#adb5bd'>Updated at:</span>
+                                                                <span style='color:#20c997;font-weight:500'>
+                                                                    {{ $main?->updated_at?->format('d-M-Y H:i') ?? '—' }}
+                                                                </span>">
                                                             {{ $main?->user?->name ?? '' }}
 
                                                         </td>
@@ -674,14 +681,15 @@
                                     <thead>
                                     <tr>
                                         <th style="width:6%; text-align:center" class="fw-normal text-muted small">I</th>
-                                        <th style="width:22%;" class="fw-normal text-muted small">List</th>
-                                        <th style="width:24%; text-align: center"
+                                        <th style="width:12%; text-align:center" class="fw-normal text-muted small">Technik</th>
+                                        <th style="width:18%;" class="fw-normal text-muted small">List</th>
+                                        <th style="width:22%; text-align: center"
                                             class="fw-normal text-muted small">Repair Order
                                         </th>
-                                        <th style="width:24%; text-align: center"
+                                        <th style="width:21%; text-align: center"
                                             class="fw-normal text-muted small">Sent (edit)
                                         </th>
-                                        <th style="width:24%; text-align: center"
+                                        <th style="width:21%; text-align: center"
                                             class="fw-normal text-muted small">Returned (edit)
                                         </th>
                                     </tr>
@@ -719,9 +727,22 @@
                                                                    value="1"
                                                                    class="form-check-input m-0 js-std-ignore-row"
                                                                    {{ $pr->ignore_row ? 'checked' : '' }}
-                                                                   onchange="this.form.dataset.success=this.checked?'Row ignored':'Row restored'; window.applyStdIgnoreState?.(this);">
+                                                                   onchange="window.applyStdIgnoreState?.(this);">
                                                         </form>
                                                     @endif
+                                                </td>
+                                                <td class="text-center small text-info js-last-user"
+                                                    data-tippy-content="
+                                                        <span style='color:#adb5bd'>Updated by:</span>
+                                                        <span style='color:#0dcaf0;font-weight:500'>
+                                                            {{ $pr->updatedBy?->name ?? '—' }}
+                                                        </span>
+                                                        <br>
+                                                        <span style='color:#adb5bd'>Updated at:</span>
+                                                        <span style='color:#20c997;font-weight:500'>
+                                                            {{ $pr->updated_at?->format('d-M-Y H:i') ?? '—' }}
+                                                        </span>">
+                                                    {{ $pr->updatedBy?->name ?? '—' }}
                                                 </td>
                                                 <td>
                                                     <span class="text-info">{{ $label }}</span>
@@ -1244,7 +1265,7 @@
                         input.setAttribute('data-original', input.value ?? '');
                     });
 
-                    const successText = form.getAttribute('data-success') || data?.message || 'Saved';
+                    const successText = data?.message || form.getAttribute('data-success') || 'Saved';
 
                     if (typeof showNotification === 'function') {
                         showNotification(successText, 'success', 2500);
@@ -1371,8 +1392,6 @@
                 if (hidden) {
                     hidden.value = checkbox.checked ? '1' : '0';
                 }
-
-                form.setAttribute('data-success', checkbox.checked ? 'Row ignored' : 'Row restored');
 
                 submitMainInlineForm(form);
             }, true);

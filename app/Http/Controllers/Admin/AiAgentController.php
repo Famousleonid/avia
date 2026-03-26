@@ -26,6 +26,9 @@ class AiAgentController extends Controller
             'current_context.page' => ['nullable', 'array'],
             'current_context.page.route' => ['nullable', 'string', 'max:191'],
             'current_context.origin' => ['nullable', 'string', 'max:128'],
+            'current_context.current_manual' => ['nullable', 'array'],
+            'current_context.current_manual.number' => ['nullable', 'string', 'max:64'],
+            'current_context.current_manual.title' => ['nullable', 'string', 'max:512'],
             'confirm_action' => ['nullable', 'array'],
             'confirm_action.type' => ['nullable', 'string'],
             'confirm_action.tool' => ['nullable', 'string'],
@@ -97,9 +100,7 @@ class AiAgentController extends Controller
                 'exception' => $e,
             ]);
 
-            $userMessage = config('app.debug')
-                ? 'Server error: '.$e->getMessage()
-                : 'Server Error';
+            $userMessage = $this->aiChatErrorReplyForUser($e);
 
             return response()->json([
                 'ok' => false,
@@ -109,6 +110,44 @@ class AiAgentController extends Controller
                 'action' => null,
             ], 500);
         }
+    }
+
+    /**
+     * Текст для пользователя: без сырого JSON и stack trace; сбои OpenAI — по-человечески и с юмором.
+     */
+    protected function aiChatErrorReplyForUser(Throwable $e): string
+    {
+        if ($this->isOpenAiApiFailure($e)) {
+            return $this->randomOpenAiUnavailableMessage();
+        }
+
+        if (config('app.debug')) {
+            return 'Server error: '.$e->getMessage();
+        }
+
+        return 'Server Error';
+    }
+
+    protected function isOpenAiApiFailure(Throwable $e): bool
+    {
+        return str_contains($e->getMessage(), 'OpenAI API error');
+    }
+
+    protected function randomOpenAiUnavailableMessage(): string
+    {
+        $nick = trim((string) config('services.openai.agent_nickname', 'Авиоша'));
+        if ($nick === '') {
+            $nick = 'Ассистент';
+        }
+
+        $lines = config('services.openai.unavailable_messages');
+        if (! is_array($lines) || $lines === []) {
+            return sprintf('%s временно недоступен. Попробуйте чуть позже.', $nick);
+        }
+
+        $line = $lines[array_rand($lines)];
+
+        return sprintf($line, $nick);
     }
 
     public function reset(Request $request): JsonResponse

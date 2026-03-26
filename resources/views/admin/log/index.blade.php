@@ -78,21 +78,204 @@
                             <tr class="text-muted small">
                                 <th class="text-center">Date</th>
                                 <th class="text-center">User</th>
-                                <th class="text-center">log_name</th>
+                                <th class="text-center">Model</th>
                                 <th class="text-center">Event</th>
-                                <th class="text-center">Subject</th>
-                                <th class="text-center">ID</th>
-                                <th class="text-start">Description</th>
-                                <th class="text-start">Properties</th>
+                                <th class="text-start">Old data</th>
+                                <th class="text-start">New data</th>
                             </tr>
                             </thead>
 
                             <tbody>
                             @forelse($activities as $a)
+                                @php
+                                    $propsRaw = $a->properties ?? [];
+                                    if (is_object($propsRaw) && method_exists($propsRaw, 'toArray')) {
+                                        $props = $propsRaw->toArray();
+                                    } elseif (is_array($propsRaw)) {
+                                        $props = $propsRaw;
+                                    } else {
+                                        $props = (array) $propsRaw;
+                                    }
+
+                                    $changes = (array)($props['changes'] ?? []);
+                                    $old = (array)($props['old'] ?? $changes['old'] ?? []);
+                                    $new = (array)($props['attributes'] ?? $props['new'] ?? $changes['attributes'] ?? $changes['new'] ?? []);
+
+                                    $keyLabel = function (string $key): string {
+                                        return match ($key) {
+                                            'workorder_id' => 'workorder',
+                                            'general_task_id' => 'general task',
+                                            'task_id' => 'task',
+                                            'user_id' => 'user',
+                                            'manual_id', 'manuals_id' => 'manual',
+                                            'component_id' => 'component',
+                                            'order_component_id' => 'order component',
+                                            'process_names_id' => 'process name',
+                                            'processes_id' => 'process',
+                                            'tdrs_id' => 'tdr',
+                                            'codes_id' => 'code',
+                                            'conditions_id' => 'condition',
+                                            'necessaries_id' => 'necessary',
+                                            'builders_id' => 'builder',
+                                            'planes_id' => 'plane',
+                                            'scopes_id' => 'scope',
+                                            'unit_id' => 'unit',
+                                            'instruction_id' => 'instruction',
+                                            'customer_id' => 'customer',
+                                            'done_user_id' => 'done by',
+                                            'notify_user_id' => 'notify user',
+                                            default => str_replace('_', ' ', $key),
+                                        };
+                                    };
+
+                                    $formatValue = function (string $key, $value) use (
+                                        $workorderMap,
+                                        $generalTaskMap,
+                                        $taskMap,
+                                        $userMap,
+                                        $manualMap,
+                                        $componentMap,
+                                        $processNameMap,
+                                        $processMap,
+                                        $tdrMap,
+                                        $codeMap,
+                                        $conditionMap,
+                                        $necessaryMap,
+                                        $builderMap,
+                                        $planeMap,
+                                        $scopeMap,
+                                        $unitMap,
+                                        $instructionMap,
+                                        $customerMap,
+                                        $doneUserMap,
+                                        $notifyUserMap
+                                    ) {
+                                        if ($value === null) {
+                                            return 'null';
+                                        }
+
+                                        if ($key === 'workorder_id' && is_numeric($value)) {
+                                            $id = (int)$value;
+                                            $num = $workorderMap[$id] ?? null;
+                                            return $num ? "WO #{$num}" : "WO id {$id}";
+                                        }
+
+                                        if ($key === 'general_task_id' && is_numeric($value)) {
+                                            $id = (int)$value;
+                                            $name = $generalTaskMap[$id] ?? null;
+                                            return $name ? $name : "general_task id {$id}";
+                                        }
+
+                                        if ($key === 'task_id' && is_numeric($value)) {
+                                            $id = (int)$value;
+                                            $name = $taskMap[$id] ?? null;
+                                            return $name ? $name : "task id {$id}";
+                                        }
+
+                                        if ($key === 'user_id' && is_numeric($value)) {
+                                            $id = (int)$value;
+                                            $name = $userMap[$id] ?? null;
+                                            return $name ? $name : "user id {$id}";
+                                        }
+
+                                        if (($key === 'manual_id' || $key === 'manuals_id') && is_numeric($value)) {
+                                            $id = (int)$value;
+                                            return $manualMap[$id] ?? "manual id {$id}";
+                                        }
+
+                                        if (($key === 'component_id' || $key === 'order_component_id') && is_numeric($value)) {
+                                            $id = (int)$value;
+                                            return $componentMap[$id] ?? "component id {$id}";
+                                        }
+
+                                        if ($key === 'process_names_id' && is_numeric($value)) {
+                                            $id = (int)$value;
+                                            return $processNameMap[$id] ?? "process_name id {$id}";
+                                        }
+
+                                        if ($key === 'processes_id' && is_numeric($value)) {
+                                            $id = (int)$value;
+                                            return $processMap[$id] ?? "process id {$id}";
+                                        }
+
+                                        if ($key === 'tdrs_id' && is_numeric($value)) {
+                                            $id = (int)$value;
+                                            return $tdrMap[$id] ?? "tdr id {$id}";
+                                        }
+
+                                        if ($key === 'codes_id' && is_numeric($value)) {
+                                            $id = (int)$value;
+                                            return $codeMap[$id] ?? "code id {$id}";
+                                        }
+
+                                        if ($key === 'conditions_id' && is_numeric($value)) {
+                                            $id = (int)$value;
+                                            return $conditionMap[$id] ?? "condition id {$id}";
+                                        }
+
+                                        if ($key === 'necessaries_id' && is_numeric($value)) {
+                                            $id = (int)$value;
+                                            return $necessaryMap[$id] ?? "necessary id {$id}";
+                                        }
+
+                                        if ($key === 'builders_id' && is_numeric($value)) {
+                                            $id = (int)$value;
+                                            return $builderMap[$id] ?? "builder id {$id}";
+                                        }
+
+                                        if ($key === 'planes_id' && is_numeric($value)) {
+                                            $id = (int)$value;
+                                            return $planeMap[$id] ?? "plane id {$id}";
+                                        }
+
+                                        if ($key === 'scopes_id' && is_numeric($value)) {
+                                            $id = (int)$value;
+                                            return $scopeMap[$id] ?? "scope id {$id}";
+                                        }
+
+                                        if ($key === 'unit_id' && is_numeric($value)) {
+                                            $id = (int)$value;
+                                            return $unitMap[$id] ?? "unit id {$id}";
+                                        }
+
+                                        if ($key === 'instruction_id' && is_numeric($value)) {
+                                            $id = (int)$value;
+                                            return $instructionMap[$id] ?? "instruction id {$id}";
+                                        }
+
+                                        if ($key === 'customer_id' && is_numeric($value)) {
+                                            $id = (int)$value;
+                                            return $customerMap[$id] ?? "customer id {$id}";
+                                        }
+
+                                        if ($key === 'done_user_id' && is_numeric($value)) {
+                                            $id = (int)$value;
+                                            return $doneUserMap[$id] ?? "user id {$id}";
+                                        }
+
+                                        if ($key === 'notify_user_id' && is_numeric($value)) {
+                                            $id = (int)$value;
+                                            return $notifyUserMap[$id] ?? "user id {$id}";
+                                        }
+
+                                        return (is_scalar($value) || $value === null)
+                                            ? (string)$value
+                                            : json_encode($value, JSON_UNESCAPED_UNICODE);
+                                    };
+
+                                    $renderProps = function (array $rows) use ($keyLabel, $formatValue) {
+                                        return collect($rows)
+                                            ->map(fn($v, $k) => $keyLabel((string)$k).': '.$formatValue((string)$k, $v))
+                                            ->implode("\n");
+                                    };
+
+                                    $oldText = $old ? $renderProps($old) : '—';
+                                    $newText = $new ? $renderProps($new) : '—';
+                                @endphp
                                 <tr>
                                     <td class="text-center small">{{ $a->created_at?->format('d.m.Y H:i') }}</td>
                                     <td class="text-center small">{{ $a->causer?->name ?? 'system' }}</td>
-                                    <td class="text-center small text-info">{{ $a->log_name }}</td>
+                                    <td class="text-center small text-info">{{ class_basename($a->subject_type) }}</td>
                                     <td class="text-center">
                                     <span class="badge
                                         @if($a->event === 'created') bg-success
@@ -103,19 +286,16 @@
                                         {{ $a->event }}
                                     </span>
                                     </td>
-                                    <td class="text-center small text-muted">{{ class_basename($a->subject_type) }}</td>
-                                    <td class="text-center small text-muted">{{ $a->subject_id }}</td>
-                                    <td class="small">{{ $a->description }}</td>
-
                                     <td class="props small">
-                                    <pre class="mb-0" style="white-space:pre-wrap;word-break:break-word;">
-{{ json_encode($a->properties, JSON_PRETTY_PRINT|JSON_UNESCAPED_UNICODE) }}
-                                    </pre>
+                                        <pre class="mb-0" style="white-space:pre-wrap;word-break:break-word;">{{ $oldText }}</pre>
+                                    </td>
+                                    <td class="props small">
+                                        <pre class="mb-0" style="white-space:pre-wrap;word-break:break-word;">{{ $newText }}</pre>
                                     </td>
                                 </tr>
                             @empty
                                 <tr>
-                                    <td colspan="8" class="text-center text-muted py-3">No logs</td>
+                                    <td colspan="6" class="text-center text-muted py-3">No logs</td>
                                 </tr>
                             @endforelse
                             </tbody>

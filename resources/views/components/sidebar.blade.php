@@ -14,7 +14,7 @@
         z-index: 1010;
     }
     nav.sidebar.sidebar-main {
-        overflow: hidden;
+        overflow: visible; /* allow bell dropdown to render */
     }
 
     .sidebar {
@@ -36,7 +36,7 @@
         min-height: 0;
         display: flex;
         flex-direction: column;
-        overflow: hidden;
+        overflow: visible; /* allow bell dropdown to render */
     }
     .user-panel {
         background-color: #343A40;
