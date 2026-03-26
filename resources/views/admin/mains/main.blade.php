@@ -79,6 +79,47 @@
             padding-right: 2rem !important;
         }
 
+        .std-ignored-row td {
+            opacity: .55;
+        }
+
+        .std-ignored-row td.std-ignore-cell {
+            opacity: 1;
+        }
+
+        .std-ignore-cell .form-check-input {
+            cursor: pointer !important;
+            opacity: 1 !important;
+        }
+
+        .std-ignored-row .js-std-editable,
+        .std-ignored-row .js-std-editable:disabled,
+        .std-ignored-row .flatpickr-input,
+        .std-ignored-row .fp-alt {
+            cursor: not-allowed !important;
+        }
+
+        .fp-alt-wrap {
+            position: relative;
+        }
+
+        .fp-alt-wrap .fp-cal-btn {
+            position: absolute;
+            top: 50%;
+            right: 8px;
+            transform: translateY(-50%);
+            border: 0;
+            background: transparent;
+            color: #adb5bd;
+            padding: 0;
+            line-height: 1;
+            cursor: pointer;
+        }
+
+        .fp-alt-wrap .fp-cal-btn:hover {
+            color: #0dcaf0;
+        }
+
     </style>
 @endsection
 
@@ -305,7 +346,7 @@
                 <div class="bottom-row d-flex align-items-stretch">
 
                     {{-- Left panel --}}
-                    <div class="bottom-col left gradient-pane border-info p-1">
+                    <div class="bottom-col left gradient-pane border-info p-1" >
                         <div class="left-pane d-flex flex-column gap-2 h-100">
 
                             {{-- GeneralTask buttons --}}
@@ -327,8 +368,8 @@
 
                                     <div class="js-gt-pane h-100 d-none"
                                          data-gt-id="{{ $gt->id }}">
-                                        <div class="table-responsive border border-secondary rounded h-100"
-                                             style="overflow:auto;">
+                                        <div class="table-responsive border border-secondary rounded"
+                                             style="overflow:auto; height:calc(100% - 19px);">
 
                                             @php
                                                 $gtTasks = ($tasksByGeneral[$gt->id] ?? collect());
@@ -367,7 +408,7 @@
 
                                                     <tr class="align-middle">
                                                         {{-- чекбокс ignore --}}
-                                                        <td class="text-center align-middle">
+                                                        <td class="text-center align-middle task-ignore-cell">
 
                                                             <form method="POST"
                                                                   action="{{ $action }}"
@@ -632,7 +673,8 @@
                                 <table class="table table-sm table-dark table-bordered table-hover mb-0 align-middle dir-table">
                                     <thead>
                                     <tr>
-                                        <th style="width:28%;" class="fw-normal text-muted small">List</th>
+                                        <th style="width:6%; text-align:center" class="fw-normal text-muted small">I</th>
+                                        <th style="width:22%;" class="fw-normal text-muted small">List</th>
                                         <th style="width:24%; text-align: center"
                                             class="fw-normal text-muted small">Repair Order
                                         </th>
@@ -656,8 +698,31 @@
                                     @foreach($stdRows as $key => $label)
                                         @php $pr = $stdListTdrProcesses->get($key); @endphp
                                         @if($pr)
-                                            @php $isClosed = !empty($pr->date_finish); @endphp
-                                            <tr data-closed="{{ $isClosed ? 1 : 0 }}">
+                                            @php
+                                                $isClosed = !empty($pr->date_finish);
+                                                $isIgnoredStd = (bool) ($pr->ignore_row ?? false);
+                                            @endphp
+                                            <tr data-closed="{{ $isClosed ? 1 : 0 }}" data-std-row="1"
+                                                class="{{ $isIgnoredStd ? 'text-muted std-ignored-row' : '' }}">
+                                                <td class="text-center align-middle std-ignore-cell">
+                                                    @if(in_array($key, ['ndt', 'cad', 'stress'], true))
+                                                        <form method="POST"
+                                                              action="{{ route('tdrprocesses.updateIgnoreRow', $pr) }}"
+                                                              class="js-ajax d-inline"
+                                                              data-success="Row ignored"
+                                                              data-no-spinner>
+                                                            @csrf
+                                                            @method('PATCH')
+                                                            <input type="hidden" name="ignore_row" value="0">
+                                                            <input type="checkbox"
+                                                                   name="ignore_row"
+                                                                   value="1"
+                                                                   class="form-check-input m-0 js-std-ignore-row"
+                                                                   {{ $pr->ignore_row ? 'checked' : '' }}
+                                                                   onchange="this.form.dataset.success=this.checked?'Row ignored':'Row restored'; window.applyStdIgnoreState?.(this);">
+                                                        </form>
+                                                    @endif
+                                                </td>
                                                 <td>
                                                     <span class="text-info">{{ $label }}</span>
                                                 </td>
@@ -671,11 +736,12 @@
                                                         @method('PATCH')
                                                         <input type="text"
                                                                name="repair_order"
-                                                               class="form-control form-control-sm pe-4"
+                                                               class="form-control form-control-sm pe-4 js-std-editable {{ $isIgnoredStd ? 'bg-dark text-secondary' : '' }}"
                                                                value="{{ $pr->repair_order ?? '' }}"
                                                                placeholder="..."
                                                                autocomplete="off"
-                                                               data-original="{{ $pr->repair_order ?? '' }}">
+                                                               data-original="{{ $pr->repair_order ?? '' }}"
+                                                               @if($isIgnoredStd) disabled @endif>
                                                         <i class="bi bi-save save-indicator d-none"></i>
                                                     </form>
                                                     @else
@@ -693,10 +759,11 @@
                                                         @csrf
                                                         @method('PATCH')
                                                         <input type="text" data-fp name="date_start"
-                                                               class="form-control form-control-sm finish-input"
+                                                               class="form-control form-control-sm finish-input js-std-editable {{ $isIgnoredStd ? 'is-ignored' : '' }}"
                                                                value="{{ $pr->date_start?->format('Y-m-d') }}"
                                                                data-original="{{ $pr->date_start?->format('Y-m-d') ?? '' }}"
-                                                               placeholder="...">
+                                                               placeholder="..."
+                                                               @if($isIgnoredStd) disabled @endif>
                                                     </form>
                                                 </td>
                                                 <td>
@@ -707,10 +774,11 @@
                                                         @csrf
                                                         @method('PATCH')
                                                         <input type="text" data-fp name="date_finish"
-                                                               class="form-control form-control-sm finish-input"
+                                                               class="form-control form-control-sm finish-input js-std-editable {{ $isIgnoredStd ? 'is-ignored' : '' }}"
                                                                value="{{ $pr->date_finish?->format('Y-m-d') }}"
                                                                data-original="{{ $pr->date_finish?->format('Y-m-d') ?? '' }}"
-                                                               placeholder="...">
+                                                               placeholder="..."
+                                                               @if($isIgnoredStd) disabled @endif>
                                                     </form>
                                                 </td>
                                             </tr>
@@ -732,7 +800,8 @@
                                         @forelse($cmp->tdrs as $tdr)
                                             @php
                                                 $prs = $tdr->tdrProcesses->filter(function ($p) {
-                                                    return optional($p->processName)->show_in_process_picker !== false;
+                                                    return optional($p->processName)->show_in_process_picker !== false
+                                                        && !((bool) ($p->ignore_row ?? false));
                                                 });
                                             @endphp
                                             @if($prs->isNotEmpty())
@@ -937,6 +1006,27 @@
 
     <script>
         document.addEventListener('DOMContentLoaded', () => {
+            window.applyStdIgnoreState = function (checkbox) {
+                const tr = checkbox?.closest?.('tr');
+                if (!tr) return;
+
+                const isIgnored = !!checkbox.checked;
+                tr.classList.toggle('std-ignored-row', isIgnored);
+                tr.classList.toggle('text-muted', isIgnored);
+
+                tr.querySelectorAll('.js-std-editable').forEach((el) => {
+                    el.disabled = isIgnored;
+                    if (el._flatpickr?.altInput) {
+                        el._flatpickr.altInput.readOnly = isIgnored;
+                        el._flatpickr.altInput.classList.toggle('fp-locked', isIgnored);
+                        el._flatpickr.altInput.style.cursor = isIgnored ? 'not-allowed' : '';
+                    }
+                });
+            };
+
+            document.querySelectorAll('.js-std-ignore-row').forEach((cb) => {
+                window.applyStdIgnoreState(cb);
+            });
 
             // 1) submit
             document.addEventListener('submit', (e) => {
@@ -1082,6 +1172,10 @@
                 if (!rightPanel) return;
 
                 rightPanel.querySelectorAll('tr[data-closed]').forEach(tr => {
+                    if (tr.dataset.stdRow === '1') {
+                        tr.style.display = '';
+                        return;
+                    }
                     const isClosed = tr.dataset.closed === '1';
                     tr.style.display = (!showAll && isClosed) ? 'none' : '';
                 });
@@ -1277,6 +1371,8 @@
                 if (hidden) {
                     hidden.value = checkbox.checked ? '1' : '0';
                 }
+
+                form.setAttribute('data-success', checkbox.checked ? 'Row ignored' : 'Row restored');
 
                 submitMainInlineForm(form);
             }, true);

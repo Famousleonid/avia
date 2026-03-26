@@ -92,6 +92,11 @@
             /*background-color: black;*/
         }
 
+        #sidebarColumn {
+            height: 100%;
+            min-height: 0;
+        }
+
 
 
     </style>

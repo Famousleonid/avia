@@ -393,6 +393,39 @@
         opacity: 0.5;
     }
 
+    .row-ignored > td {
+        opacity: 0.5;
+    }
+
+    .row-ignored > td.task-ignore-cell {
+        opacity: 1;
+    }
+
+    .task-ignore-cell .form-check-input {
+        cursor: pointer !important;
+        opacity: 1 !important;
+    }
+
+    .row-ignored input,
+    .row-ignored .form-control,
+    .row-ignored .finish-input,
+    .row-ignored .flatpickr-input,
+    .row-ignored .fp-alt {
+        cursor: not-allowed !important;
+    }
+
+    /* For ignored task rows: keep hover active on disabled/readonly date inputs
+       so the "not-allowed" cursor is visible (red prohibition icon). */
+    .row-ignored .js-start,
+    .row-ignored .js-finish,
+    .row-ignored .fp-alt {
+        pointer-events: auto !important;
+    }
+
+    .row-ignored .task-ignore-cell .form-check-input {
+        cursor: pointer !important;
+    }
+
     .table .form-control.is-invalid,
     .table-dark .form-control.is-invalid,
     .form-control.is-invalid {
@@ -404,6 +437,12 @@
     .is-ignored input,
     .is-ignored .form-check-input {
         pointer-events: none;
+    }
+
+    .std-ignored-row .form-control:disabled,
+    .std-ignored-row .flatpickr-input,
+    .std-ignored-row .flatpickr-input[readonly] {
+        cursor: not-allowed !important;
     }
 
     .lock-icon {

@@ -146,6 +146,9 @@
 
 
     <script>
+        if (typeof window.safeShowSpinner === 'function') {
+            window.safeShowSpinner();
+        }
 
         let mainTable = $('#show-workorder').DataTable({
             "AutoWidth": false,
@@ -157,6 +160,11 @@
             "info": false,
             "order": [[1, 'desc']],
             "bAutoWidth": false,
+            initComplete: function () {
+                if (typeof window.safeHideSpinner === 'function') {
+                    window.safeHideSpinner();
+                }
+            },
 
             columnDefs: [
 

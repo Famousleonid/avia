@@ -687,6 +687,9 @@
         const currentUserNameLC = currentUserName.toLowerCase();
 
         document.addEventListener('DOMContentLoaded', function () {
+            if (typeof window.safeShowSpinner === 'function') {
+                window.safeShowSpinner();
+            }
 
             const searchInput = document.getElementById('searchInput');
             const clearSearchBtn = document.getElementById('clearSearch');

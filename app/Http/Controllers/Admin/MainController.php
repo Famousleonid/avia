@@ -514,6 +514,27 @@ class MainController extends Controller
         ]);
     }
 
+    public function updateIgnoreRow(Request $request, \App\Models\TdrProcess $tdrProcess)
+    {
+        abort_unless(auth()->check() && auth()->user()->hasAnyRole('Admin|Manager'), 403);
+
+        $data = $request->validate([
+            'ignore_row' => ['required', 'boolean'],
+        ]);
+
+        $tdrProcess->ignore_row = (bool) $data['ignore_row'];
+        $tdrProcess->user_id = auth()->id();
+        $tdrProcess->save();
+
+        return response()->json([
+            'success' => true,
+            'message' => $tdrProcess->ignore_row ? 'Row ignored' : 'Row restored',
+            'ignore_row' => (bool) $tdrProcess->ignore_row,
+            'user' => auth()->user()?->name ?? 'system',
+            'updated_at' => now()->format('d.m.Y H:i'),
+        ]);
+    }
+
     public function activity(Main $main)
     {
         $logs = Activity::query()

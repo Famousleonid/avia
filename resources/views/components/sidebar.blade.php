@@ -2,12 +2,19 @@
     .sidebar-main {
         width: 240px;
         transition: width 0.5s ease;
+        height: 100%;
+        display: flex;
+        flex-direction: column;
+        min-height: 0;
     }
     nav.sidebar.sidebar-main,
     .sidebar.sidebar-main,
     .sidebar-main{
         position: relative;
         z-index: 1010;
+    }
+    nav.sidebar.sidebar-main {
+        overflow: hidden;
     }
 
     .sidebar {
@@ -17,9 +24,19 @@
         color:#B9BEC7;
     }
     .sidebar-scroll{
+        flex: 1 1 auto;
         overflow-y: auto;
         overflow-x: hidden;
         min-height: 0;
+    }
+
+    #sidebarMenu > .position-sticky {
+        top: 0;
+        height: 100%;
+        min-height: 0;
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
     }
     .user-panel {
         background-color: #343A40;
@@ -116,7 +133,7 @@
 </style>
 
 <nav id="sidebarMenu" class="d-none d-lg-block sidebar sidebar-main">
-    <div class="position-sticky d-flex flex-column" style="height: 95vh;">
+    <div class="position-sticky d-flex flex-column" style="height: 100%;">
 
         <div class="border-bottom p-3 d-flex align-items-center gap-2">
 

@@ -65,7 +65,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
     function loadAllPartsProcesses() {
         if (!allPartsBody) return;
-        allPartsBody.innerHTML = '<div class="text-center py-5"><div class="spinner-border text-primary" role="status"></div></div>';
+        allPartsBody.innerHTML = '<div class="text-center py-5 text-muted">{{ __("Loading...") }}</div>';
         fetch(allPartsProcessesUrl, { headers: { 'X-Requested-With': 'XMLHttpRequest', 'Accept': 'text/html' }, spinner: false })
             .then(function(r) { return r.text(); })
             .then(function(html) {
@@ -94,7 +94,7 @@ document.addEventListener('DOMContentLoaded', function() {
     }
     function loadExtraPartProcesses() {
         if (!extraPartsBody) return;
-        extraPartsBody.innerHTML = '<div class="text-center py-5"><div class="spinner-border text-primary" role="status"></div></div>';
+        extraPartsBody.innerHTML = '<div class="text-center py-5 text-muted">{{ __("Loading...") }}</div>';
         fetch(extraPartsProcessesUrl, { headers: { 'X-Requested-With': 'XMLHttpRequest', 'Accept': 'text/html' }, spinner: false })
             .then(function(r) { return r.text(); })
             .then(function(html) {
@@ -110,7 +110,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
     function loadBushingPartial() {
         if (!bushingTabBody) return;
-        bushingTabBody.innerHTML = '<div class="text-center py-5"><div class="spinner-border text-primary" role="status"></div></div>';
+        bushingTabBody.innerHTML = '<div class="text-center py-5 text-muted">{{ __("Loading...") }}</div>';
         fetch(bushingPartialUrl, { headers: { 'X-Requested-With': 'XMLHttpRequest', 'Accept': 'text/html' }, credentials: 'same-origin' })
             .then(function(r) {
                 if (!r.ok) throw new Error('HTTP ' + r.status);
@@ -159,7 +159,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
     function loadLogCardPartial() {
         if (!logCardTabBody) return;
-        logCardTabBody.innerHTML = '<div class="text-center py-5"><div class="spinner-border text-primary" role="status"></div></div>';
+        logCardTabBody.innerHTML = '<div class="text-center py-5 text-muted">{{ __("Loading...") }}</div>';
         fetch(logCardPartialUrl, { headers: { 'X-Requested-With': 'XMLHttpRequest', 'Accept': 'text/html' }, credentials: 'same-origin' })
             .then(function(r) {
                 if (!r.ok) throw new Error('HTTP ' + r.status);
@@ -175,7 +175,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
     function loadTransfersPartial() {
         if (!transfersTabBody || !transfersPartialUrl) return;
-        transfersTabBody.innerHTML = '<div class="text-center py-5"><div class="spinner-border text-primary" role="status"></div></div>';
+        transfersTabBody.innerHTML = '<div class="text-center py-5 text-muted">{{ __("Loading...") }}</div>';
         fetch(transfersPartialUrl, { headers: { 'X-Requested-With': 'XMLHttpRequest', 'Accept': 'text/html' }, credentials: 'same-origin' })
             .then(function(r) {
                 if (!r.ok) throw new Error('HTTP ' + r.status);
@@ -191,7 +191,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
     function loadStdProcessesPartial() {
         if (!stdProcessesTabBody || !stdProcessesPartialUrl) return;
-        stdProcessesTabBody.innerHTML = '<div class="text-center py-5"><div class="spinner-border text-primary" role="status"></div></div>';
+        stdProcessesTabBody.innerHTML = '<div class="text-center py-5 text-muted">{{ __("Loading...") }}</div>';
         fetch(stdProcessesPartialUrl, { headers: { 'X-Requested-With': 'XMLHttpRequest', 'Accept': 'text/html' }, credentials: 'same-origin' })
             .then(function(r) {
                 if (!r.ok) throw new Error('HTTP ' + r.status);
@@ -216,7 +216,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
     function loadRmReportsPartial() {
         if (!rmReportsTabBody) return;
-        rmReportsTabBody.innerHTML = '<div class="text-center py-5"><div class="spinner-border text-primary" role="status"></div></div>';
+        rmReportsTabBody.innerHTML = '<div class="text-center py-5 text-muted">{{ __("Loading...") }}</div>';
         fetch(rmReportsPartialUrl, { headers: { 'X-Requested-With': 'XMLHttpRequest', 'Accept': 'text/html' }, credentials: 'same-origin' })
             .then(function(r) {
                 if (!r.ok) throw new Error('HTTP ' + r.status);
@@ -276,7 +276,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
     function loadExtraProcesses(workorderId, componentId) {
         if (!extraProcessesTabBody) return;
-        extraProcessesTabBody.innerHTML = '<div class="text-center py-5"><div class="spinner-border text-primary" role="status"></div></div>';
+        extraProcessesTabBody.innerHTML = '<div class="text-center py-5 text-muted">{{ __("Loading...") }}</div>';
         var url = extraProcessesProcessesUrl.replace('__WO__', workorderId).replace('__COMP__', componentId);
         fetch(url, { headers: { 'X-Requested-With': 'XMLHttpRequest', 'Accept': 'text/html' }, spinner: false })
             .then(function(r) { return r.text(); })
@@ -469,7 +469,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
     function loadProcessesAndBind(tdrId) {
         if (!body) return;
-        body.innerHTML = '<div class="text-center py-5"><div class="spinner-border text-primary" role="status"></div></div>';
+        body.innerHTML = '<div class="text-center py-5 text-muted">{{ __("Loading...") }}</div>';
         if (woNum) woNum.textContent = '-';
         if (itemName) itemName.textContent = '-';
         if (itemIpl) itemIpl.textContent = '-';
@@ -965,7 +965,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 }
             } catch (e) {}
         }
-        bodyEl.innerHTML = '<div class="text-center py-5"><div class="spinner-border text-primary" role="status"></div></div>';
+        bodyEl.innerHTML = '<div class="text-center py-5 text-muted">{{ __("Loading...") }}</div>';
         var inst = bootstrap.Modal.getOrCreateInstance(modal);
         inst.show();
         modal.addEventListener('shown.bs.modal', function setZ() { modal.style.zIndex = '1090'; var b = document.querySelectorAll('.modal-backdrop'); if (b.length) b[b.length-1].style.zIndex = '1085'; }, { once: true });
@@ -1255,7 +1255,7 @@ document.addEventListener('DOMContentLoaded', function() {
             var btn = e.relatedTarget;
             var body = document.getElementById('editTdrModalBody');
             if (!body) return;
-            body.innerHTML = '<div class="text-center py-5"><div class="spinner-border text-primary" role="status"><span class="visually-hidden">{{ __("Loading...") }}</span></div></div>';
+            body.innerHTML = '<div class="text-center py-5 text-muted">{{ __("Loading...") }}</div>';
             if (btn && btn.dataset.tdrId) {
                 var tdrId = btn.dataset.tdrId;
                 var url = '{{ route("tdrs.editForm", ["id" => "__ID__"]) }}'.replace('__ID__', tdrId);

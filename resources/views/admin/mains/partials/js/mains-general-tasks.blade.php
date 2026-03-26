@@ -12,23 +12,39 @@ document.addEventListener('DOMContentLoaded', () => {
     //    Инпуты: .js-start, .js-finish
     //    Серые ячейки: .js-task-name, .js-user-name (если используешь)
     // =========================
+    function setTaskDateInputState(input, isIgnored) {
+        if (!input) return;
+
+        input.disabled = isIgnored;
+        input.classList.toggle('is-ignored', isIgnored);
+
+        const fp = input._flatpickr;
+        const alt = fp?.altInput;
+        if (alt) {
+            alt.readOnly = isIgnored;
+            alt.disabled = isIgnored;
+            alt.classList.toggle('is-ignored', isIgnored);
+            alt.classList.toggle('fp-locked', isIgnored);
+            alt.style.cursor = isIgnored ? 'not-allowed' : '';
+        }
+    }
+
     document.querySelectorAll('.js-ignore-row:checked').forEach(cb => {
         const form   = cb.closest('form');
         if (!form) return;
 
         const tr     = form.closest('tr');
+        const start  = tr?.querySelector('.js-start');
         const finish = tr?.querySelector('.js-finish');
         const hidden = form.querySelector('.js-ignore-hidden');
 
         if (hidden) hidden.value = '1';
-        if (finish) {
-            finish.disabled = true;
-            finish.classList.add('is-ignored');
-        }
+        setTaskDateInputState(start, true);
+        setTaskDateInputState(finish, true);
 
         // Если хочешь сразу серить всю строку:
         if (tr) tr.classList.add('row-ignored');
-        tr?.querySelectorAll('.js-start, .js-finish, .js-task-name, .js-user-name')
+        tr?.querySelectorAll('.js-fade-on-ignore, .js-start, .js-finish, .js-task-name, .js-user-name')
             ?.forEach(el => el.classList.add('is-ignored'));
     });
 
@@ -266,6 +282,25 @@ document.addEventListener('DOMContentLoaded', () => {
                         instance.altInput.classList.add('fp-locked');
                     }
 
+                    // Firefox-friendly explicit calendar trigger icon
+                    const alt = instance.altInput;
+                    const parent = alt?.parentElement;
+                    if (alt && parent && !parent.classList.contains('fp-alt-wrap')) {
+                        parent.classList.add('fp-alt-wrap');
+                        const btn = document.createElement('button');
+                        btn.type = 'button';
+                        btn.className = 'fp-cal-btn';
+                        btn.setAttribute('tabindex', '-1');
+                        btn.innerHTML = '<i class="bi bi-calendar3"></i>';
+                        btn.addEventListener('click', (e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            if (src.disabled || isLocked) return;
+                            try { instance.open(); } catch (_) {}
+                        });
+                        parent.appendChild(btn);
+                    }
+
                     src.style.display = 'none';
                 }
             });
@@ -273,6 +308,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
         document.body.classList.add('fp-ready');
     }
+    // expose for other handlers (restore after ignore toggle)
+    window.__mainsInitDatePickers = initDatePickers;
 
     // =========================
     // 5. Авто-submit форм js-auto-submit по change инпута
@@ -315,6 +352,9 @@ document.addEventListener('DOMContentLoaded', () => {
         const form = cb.closest('form');
         if (!form) return;
 
+        // js-main-inline-ajax forms are submitted by unified handler in main.blade.php
+        if (form.classList.contains('js-main-inline-ajax')) return;
+
         if (form.requestSubmit) form.requestSubmit();
         else form.submit();
     });
@@ -325,6 +365,7 @@ function applyIgnoreState(cb) {
     if (!form) return;
 
     const tr     = form.closest('tr');
+    const start  = tr?.querySelector('.js-start');
     const finish = tr?.querySelector('.js-finish');
     const hidden = form.querySelector('.js-ignore-hidden');
 
@@ -334,21 +375,66 @@ function applyIgnoreState(cb) {
     if (hidden) hidden.value = isChecked ? '1' : '0';
 
     if (isChecked) {
+        if (start) {
+            start.disabled = true;
+            start.classList.add('is-ignored');
+            const alt = start._flatpickr?.altInput;
+            if (alt) {
+                alt.readOnly = true;
+                alt.disabled = true;
+                alt.classList.add('is-ignored', 'fp-locked');
+                alt.style.cursor = 'not-allowed';
+            }
+        }
         if (finish) {
             finish.disabled = true;
             finish.classList.add('is-ignored');
+            const alt = finish._flatpickr?.altInput;
+            if (alt) {
+                alt.readOnly = true;
+                alt.disabled = true;
+                alt.classList.add('is-ignored', 'fp-locked');
+                alt.style.cursor = 'not-allowed';
+            }
         }
         if (tr) tr.classList.add('row-ignored');
-        tr?.querySelectorAll('.js-start, .js-finish, .js-task-name, .js-user-name')
+        tr?.querySelectorAll('.js-fade-on-ignore, .js-start, .js-finish, .js-task-name, .js-user-name')
             ?.forEach(el => el.classList.add('is-ignored'));
     } else {
+        if (start) {
+            start.disabled = false;
+            start.classList.remove('is-ignored');
+            start.style.display = '';
+            const alt = start._flatpickr?.altInput;
+            if (alt) {
+                alt.readOnly = false;
+                alt.disabled = false;
+                alt.classList.remove('is-ignored', 'fp-locked');
+                alt.style.cursor = '';
+                alt.style.display = '';
+            }
+        }
         if (finish) {
             finish.disabled = false;
             finish.classList.remove('is-ignored');
+            finish.style.display = '';
+            const alt = finish._flatpickr?.altInput;
+            if (alt) {
+                alt.readOnly = false;
+                alt.disabled = false;
+                alt.classList.remove('is-ignored', 'fp-locked');
+                alt.style.cursor = '';
+                alt.style.display = '';
+            }
         }
         if (tr) tr.classList.remove('row-ignored');
-        tr?.querySelectorAll('.js-start, .js-finish, .js-task-name, .js-user-name')
+        tr?.querySelectorAll('.js-fade-on-ignore, .js-start, .js-finish, .js-task-name, .js-user-name')
             ?.forEach(el => el.classList.remove('is-ignored'));
+
+        // ensure visible date widgets are present immediately after restore
+        if (typeof window.__mainsInitDatePickers === 'function') {
+            window.__mainsInitDatePickers();
+        }
     }
 }
 

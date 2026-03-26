@@ -507,9 +507,7 @@
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
             <div class="modal-body" id="editTdrModalBody" style="min-height: 200px;">
-                <div class="text-center py-5">
-                    <div class="spinner-border text-primary" role="status"><span class="visually-hidden">{{ __('Loading...') }}</span></div>
-                </div>
+                <div class="text-center py-5 text-muted">{{ __('Loading...') }}</div>
             </div>
         </div>
     </div>

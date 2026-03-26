@@ -9,6 +9,7 @@ use App\Services\Ai\Tools\CreateWorkorderNoteTool;
 use App\Services\Ai\Tools\FindWorkorderTool;
 use App\Services\Ai\Tools\LookupWorkorderPartsTool;
 use App\Services\Ai\Tools\SearchMyWorkordersByOpenProcessTool;
+use App\Services\Ai\Tools\SearchWorkordersByOpenProcessTool;
 use App\Services\Ai\Tools\SearchWorkordersTool;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Str;
@@ -22,6 +23,7 @@ class AiAgentService
         protected LookupWorkorderPartsTool $lookupWorkorderPartsTool,
         protected SearchWorkordersTool $searchWorkordersTool,
         protected SearchMyWorkordersByOpenProcessTool $searchMyWorkordersByOpenProcessTool,
+        protected SearchWorkordersByOpenProcessTool $searchWorkordersByOpenProcessTool,
     ) {
     }
 
@@ -50,6 +52,7 @@ class AiAgentService
             $this->searchWorkordersTool->schema(),
             $this->analyzeWorkorderTool->schema(),
             $this->searchMyWorkordersByOpenProcessTool->schema(),
+            $this->searchWorkordersByOpenProcessTool->schema(),
             $this->createWorkorderNoteTool->schema(),
             $this->lookupWorkorderPartsTool->schema(),
         ];
@@ -174,6 +177,7 @@ class AiAgentService
             'searchWorkorders' => $this->searchWorkordersTool->run($user, $arguments),
             'analyzeWorkorder' => $this->analyzeWorkorderTool->run($user, $arguments),
             'searchMyWorkordersByOpenProcess' => $this->searchMyWorkordersByOpenProcessTool->run($user, $arguments),
+            'searchWorkordersByOpenProcess' => $this->searchWorkordersByOpenProcessTool->run($user, $arguments),
             'createWorkorderNote' => $this->createWorkorderNoteTool->run($user, $arguments),
             'lookupWorkorderParts' => $this->lookupWorkorderPartsTool->run($user, $arguments),
             default => [
@@ -350,6 +354,7 @@ What you can actually do in THIS app (strict — if the user asks «what can you
 - searchWorkorders: partial search on all workorder columns (except internal id) plus related customer, unit (+ manual), instruction, assigned user; return links to open the main page.
 - analyzeWorkorder: task progress, closed = isDone(); status/step = first unfinished general task stage by sort_order; photos do not affect status or closed state.
 - searchMyWorkordersByOpenProcess: find only current user's workorders (workorders.user_id = current user) where in tdr_process date_start is set and date_finish is empty; optional process-name filter (e.g. machining); return links to open the main page.
+- searchWorkordersByOpenProcess: find all visible workorders (not only mine) with open process rows (date_start set, date_finish empty, ignore_row=0); optional customer and process filters; return links to open the main page.
 - createWorkorderNote: propose appending a note to a workorder — only after explicit user intent and UI confirmation (not instant).
 - lookupWorkorderParts: look up manual/parts lines for a workorder (read-only).
 - UI navigation help: explain where to click in the admin interface using ONLY the «UI NAVIGATION MAP» block below (no tools; no invented menus).

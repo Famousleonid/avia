@@ -158,6 +158,32 @@
         font-size: 12px;
         opacity: .75;
         background: var(--bs-body-bg, #fff);
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+
+    .ai-typing-dots {
+        display: inline-flex;
+        gap: 4px;
+        align-items: center;
+    }
+
+    .ai-typing-dots span {
+        width: 5px;
+        height: 5px;
+        border-radius: 50%;
+        background: currentColor;
+        opacity: .35;
+        animation: aiDots 1.1s infinite ease-in-out;
+    }
+
+    .ai-typing-dots span:nth-child(2) { animation-delay: .15s; }
+    .ai-typing-dots span:nth-child(3) { animation-delay: .3s; }
+
+    @keyframes aiDots {
+        0%, 80%, 100% { transform: translateY(0); opacity: .35; }
+        40% { transform: translateY(-3px); opacity: .95; }
     }
 
     .ai-widget-footer {
@@ -236,6 +262,7 @@
 
         <div id="aiWidgetTyping" class="ai-widget-typing d-none">
             {{ $aiAgentName }} думает…
+            <span class="ai-typing-dots" aria-hidden="true"><span></span><span></span><span></span></span>
         </div>
 
         <div class="ai-widget-footer">

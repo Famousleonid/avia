@@ -139,8 +139,11 @@
     let pendingFetch = 0;
 
     function shouldSkipSpinner(input, init) {
+        // Default policy: do NOT show global spinner for fetch/ajax.
+        // Enable only when explicitly requested: fetch(..., { spinner: true }).
+        if (!init || init.spinner !== true) return true;
 
-        // 1) кастомный флаг
+        // explicit off still supported
         if (init && init.spinner === false) return true;
 
         // 2) заголовок-выключатель

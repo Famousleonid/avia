@@ -4,7 +4,7 @@
         bottom: 0;
         width: 100%;
         z-index: 1050;
-        height: 5%;
+        height: 4%;
         padding: 0;
         margin: 0;
         align-items: center;

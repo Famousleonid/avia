@@ -23,6 +23,7 @@ class TdrProcess extends Model
         'sort_order', // Поле для сортировки
         'date_start',
         'date_finish',
+        'ignore_row',
         'ec',
         'user_id',
     ];
@@ -30,6 +31,7 @@ class TdrProcess extends Model
         'processes'   => 'array',
         'date_start'  => 'date',   // <-- важно
         'date_finish' => 'date',   // <-- важно
+        'ignore_row'  => 'boolean',
     ];
 
 

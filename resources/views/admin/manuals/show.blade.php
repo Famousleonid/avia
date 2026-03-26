@@ -114,7 +114,7 @@
 
         }
 
-        #nav-parts table thead th {
+        #nav-parts table:not(.dir-table) thead th {
             position: sticky;
             top: 0;
             z-index: 2;
@@ -134,7 +134,7 @@
             font-size: 14px;
         }
 
-        #nav-components table thead th {
+        #nav-components table:not(.dir-table) thead th {
             position: sticky;
             top: 0;
             z-index: 2;
@@ -151,7 +151,7 @@
 
         }
 
-        #nav-processes table thead th {
+        #nav-processes table:not(.dir-table) thead th {
             position: sticky;
             top: 0;
             z-index: 2;
@@ -164,7 +164,7 @@
             overflow: auto;
             font-size: 12px;
         }
-        #nav-std table thead th {
+        #nav-std table:not(.dir-table) thead th {
             position: sticky;
             top: 0;
             z-index: 2;
@@ -251,7 +251,7 @@
 
         <div class="card-body">
             <div id="manual-show-tabs-overlay" aria-hidden="true">
-                <div class="spinner-border text-light" role="status"><span class="visually-hidden">Loading</span></div>
+                <div class="text-light">{{ __("Loading...") }}</div>
             </div>
             <script>
                 (function () {
@@ -326,7 +326,7 @@
                 <div class="tab-pane justify-content-start fade @if($manualShowTab === 'components') show active @endif" id="nav-components" role="tabpanel"
                      aria-labelledby="nav-components-tab" tabindex="0">
                     <div class=" component-table-container m-2">
-                        <table class="table table-hover table-bordered">
+                        <table class="table table-hover table-bordered dir-table">
                             <thead class="bg-gradient">
                             <tr>
                                 <th class="text-center bg-gradient" scope="col">#</th>
@@ -356,7 +356,7 @@
                 </div>
                 <div class="tab-pane fade @if($manualShowTab === 'parts') show active @endif" id="nav-parts" role="tabpanel" aria-labelledby="nav-parts-tab" tabindex="0">
                     <div class="parts-table-container m-2">
-                        <table class="table table-hover table-bordered">
+                        <table class="table table-hover table-bordered dir-table">
                             <thead class="bg-gradient">
                             <tr>
                                 <th class="text-center bg-gradient align-content-center" >IPL Number</th>
@@ -427,7 +427,7 @@
                 </div>
                 <div class="tab-pane fade @if($manualShowTab === 'processes') show active @endif" id="nav-processes" role="tabpanel" aria-labelledby="nav-processes-tab" tabindex="0">
                     <div class="process-table-container m-2">
-                        <table class="table table-hover table-bordered ">
+                        <table class="table table-hover table-bordered dir-table">
                             <thead class="bg-gradient">
                             <tr>
                                 <th class="text-center bg-gradient" scope="col">#</th>
@@ -472,7 +472,7 @@
                                 return in_array($m->getCustomProperty('process_type'), $stdProcessTypes, true);
                             });
                         @endphp
-                        <table class="table table-hover table-bordered">
+                        <table class="table table-hover table-bordered dir-table">
                             <thead class="bg-gradient">
                             <tr>
                                 <th class="text-center bg-gradient" scope="col">#</th>
