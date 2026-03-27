@@ -29,13 +29,14 @@ class SearchWorkordersTool
         $limit = max(1, min(50, $limit));
 
         $like = '%'.$this->escapeLike($search).'%';
+        $ecFilter = $this->parseEcIntent($search);
 
         $tableColumns = Schema::getColumnListing('workorders');
 
         // withDrafts() already returns a Builder; do not chain ->query() on it.
         $q = Workorder::withDrafts();
 
-        $q->where(function ($outer) use ($tableColumns, $like) {
+        $q->where(function ($outer) use ($tableColumns, $like, $ecFilter) {
             foreach ($tableColumns as $col) {
                 if (in_array($col, self::SKIP_WORKORDER_COLUMNS, true)) {
                     continue;
@@ -75,6 +76,26 @@ class SearchWorkordersTool
                         ->orWhere('email', 'like', $like)
                         ->orWhere('phone', 'like', $like);
                 });
+            });
+
+            // EC is stored on related tdr_processes.ec; include it in workorder search.
+            $outer->orWhereHas('tdrs.tdrProcesses', function ($tpq) use ($like, $ecFilter) {
+                if ($ecFilter !== null) {
+                    $tpq->where('ec', $ecFilter);
+                } else {
+                    $tpq->where(function ($inner) use ($like) {
+                        $inner->where('description', 'like', $like)
+                            ->orWhere('notes', 'like', $like)
+                            ->orWhereHas('processName', function ($pnq) use ($like) {
+                                $pnq->where('name', 'like', $like);
+                            });
+
+                        // Query like "EC" should find workorders that have any EC=true rows.
+                        if (trim($like, '%') !== '' && str_contains(mb_strtolower(trim($like, '%')), 'ec')) {
+                            $inner->orWhere('ec', true);
+                        }
+                    });
+                }
             });
         });
 
@@ -120,7 +141,7 @@ class SearchWorkordersTool
         return [
             'type' => 'function',
             'name' => 'searchWorkorders',
-            'description' => 'Find workorders by partial match on all workorder table columns (except internal id), plus related: customer name, unit (name, part number, description, eff code) and linked manual (title, number, unit_name), instruction name, assigned user (name, email, phone). Returns links to open the main page; never expose internal row id to the user.',
+            'description' => 'Find workorders by partial match on all workorder table columns (except internal id), plus related: customer name, unit (name, part number, description, eff code) and linked manual (title, number, unit_name), instruction name, assigned user (name, email, phone), and EC on related tdr_processes.ec (supports ec/true/false/yes/no intent). Returns links to open the main page; never expose internal row id to the user.',
             'parameters' => [
                 'type' => 'object',
                 'properties' => [
@@ -142,5 +163,29 @@ class SearchWorkordersTool
     private function escapeLike(string $s): string
     {
         return str_replace(['\\', '%', '_'], ['\\\\', '\%', '\_'], $s);
+    }
+
+    /**
+     * Parse EC intent from user text:
+     * - "ec", "ec yes/true/1" => true
+     * - "ec no/false/0/not"  => false
+     * - otherwise null (no strict EC filter)
+     */
+    private function parseEcIntent(string $query): ?bool
+    {
+        $q = mb_strtolower(trim($query));
+        if ($q === '' || !str_contains($q, 'ec')) {
+            return null;
+        }
+
+        if (preg_match('/\bec\b.*\b(no|false|0|off|not)\b/u', $q)) {
+            return false;
+        }
+        if (preg_match('/\bec\b.*\b(yes|true|1|on)\b/u', $q)) {
+            return true;
+        }
+
+        // Bare "ec" means show EC=true workorders.
+        return true;
     }
 }

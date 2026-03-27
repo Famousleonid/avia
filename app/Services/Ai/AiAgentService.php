@@ -447,7 +447,7 @@ What you can actually do in THIS app (strict — if the user asks «what can you
 - searchWorkordersByOpenProcess: find all visible workorders (not only mine) with open process rows (date_start set, date_finish empty, ignore_row=0); optional customer and process filters; return links to open the main page.
 - createWorkorderNote: propose appending a note to a workorder — only after explicit user intent and UI confirmation (not instant).
 - lookupWorkorderParts: look up manual/parts lines for a workorder (read-only).
-- lookupManualEditPermissions: from manual_user_permissions — which CMM manuals a user may edit (by name/email fragment) or which users may edit a manual (by manual number fragment); read-only.
+- lookupManualEditPermissions: from manual_user_permissions — which CMM manuals a user may edit, who may edit a manual, list all manuals with responsible users, and map manual number ↔ LIB (by manual number or LIB fragments); read-only.
 - UI navigation help: explain where to click in the admin interface using ONLY the «UI NAVIGATION MAP» block below (no tools; no invented menus).
 - Plus: plain-language conversation without accessing the database when no tool is needed.
 

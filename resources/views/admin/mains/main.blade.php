@@ -149,12 +149,12 @@
                         {{-- Manual image --}}
                         <div class="col-12 col-md-2 col-lg-1 d-flex">
                             <div
-                                class="card h-100 w-100 bg-dark text-light border-secondary d-flex align-items-center justify-content-center p-2">
+                                class="card h-100 w-100 bg-dark text-light border-secondary d-flex align-items-center justify-content-center p-1">
                                 @php
                                     $previewHref = $imgFull ?: $imgThumb; // если нет full — открываем то, что показано
                                 @endphp
                                 <a href="{{ $previewHref }}" data-fancybox="wo-manual" title="Manual">
-                                    <img class="rounded-circle" src="{{ $imgThumb }}" width="70" height="70"
+                                    <img class="rounded-2" src="{{ $imgThumb }}" width="80" height="80"
                                          alt="Manual preview">
                                 </a>
                             </div>
@@ -164,74 +164,67 @@
                         <div class="col-12 col-md-10 col-lg-11">
                             <div class="card bg-dark text-light border-secondary h-100">
 
-                                <div class="card-body py-2 d-flex flex-column mb-1">
+                                <div class="card-body dir-top-compact d-flex flex-column mb-1">
+                                    @php
+                                        $unitPn = trim((string)($current_workorder->unit->part_number ?? '—'));
+                                        $modTag = trim((string)($current_workorder->modified ?? ''));
+                                        $pnValue = $unitPn . ($modTag !== '' ? (' | mod: ' . $modTag) : '');
+                                        $serialValue = (string)($current_workorder->serial_number ?? ($current_workorder->unit->serial_number ?? '—'));
+                                        $instructionValue = (string)($current_workorder->instruction->name ?? '—');
+                                        $customerValue = (string)($current_workorder->customer->name ?? '—');
+                                        $technikValue = (string)($current_workorder->user->name ?? '—');
+                                        $manualValue = (string)(($manual->number ?? '—') . ' | Lib: ' . ($manual->lib ?? '—'));
+                                        $descriptionValue = (string)($current_workorder->description ?? '—');
+                                        $openedValue = (string)($current_workorder->open_at?->format('d-M-y') ?? '—');
+                                    @endphp
 
-                                    {{-- TOP LINE: left info + right trainings --}}
-                                    <div class="d-flex align-items-start justify-content-between mb-3 gap-3">
-
-                                        {{-- LEFT: number / badges / buttons --}}
-                                        <div class="d-flex flex-wrap align-items-center gap-3">
-
+                                    {{-- Compact actions line --}}
+                                    <div class="dir-top-actions d-flex align-items-center justify-content-between gap-2">
+                                        <div class="d-flex flex-wrap align-items-center gap-2">
                                             <h5 class="mb-0 text-white">w {{ $current_workorder->number }}</h5>
 
                                             @if($current_workorder->approve_at)
-                                                <span class="badge bg-success">
-                                    Approved {{ $current_workorder->approve_at?->format('d-M-y') ?? '—' }}
-                                </span>
+                                                <span class="badge bg-success me-5">Approved {{ $current_workorder->approve_at?->format('d-M-y') ?? '—' }}</span>
                                             @else
-                                                <span class="badge bg-warning text-dark">Not approved</span>
+                                                <span class="badge bg-warning text-dark me-5">Not approved</span>
                                             @endif
 
-                                            <span class="ms-2 fs-4 me-3"
-                                                  data-tippy-content="{{ $current_workorder->description }}"
-                                                  style="cursor:help;">&#9432;</span>
+                                            <div class="d-flex align-items-center gap-2 ms-3">
+                                                <a href="{{ route('tdrs.show2', $current_workorder->id) }}"
+                                                   class="btn btn-outline-success dir-top-square-btn"
+                                                   data-tippy-content="{{ __('TDR Report') }}"
+                                                   onclick="showLoadingSpinner()">
+                                                    <i class="bi bi-hammer"></i>
+                                                </a>
 
-                                            {{-- TDR --}}
-                                            <a href="{{ route('tdrs.show2', $current_workorder->id) }}"
-                                               class="btn btn-outline-success"
-                                               data-tippy-content="{{ __('TDR Report') }}"
-                                               onclick="showLoadingSpinner()">
-                                                <i class="bi bi-hammer" style="font-size:20px; line-height:0;"></i>
-                                            </a>
+                                                <a class="btn btn-outline-info dir-top-square-btn open-photo-modal position-relative ms-2"
+                                                   data-tippy-content="{{ __('Pictures') }}"
+                                                   data-id="{{ $current_workorder->id }}"
+                                                   data-number="{{ $current_workorder->number }}">
+                                                    <i class="bi bi-images text-decoration-none"></i>
+                                                    @if($photoTotalCount)
+                                                        <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-info"
+                                                              style="font-size:10px; min-width:18px;">
+                                                            {{ (int)($photoTotalCount ?? 0) }}
+                                                        </span>
+                                                    @endif
+                                                </a>
 
+                                                @role('Admin')
+                                                <a class="btn btn-outline-warning dir-top-square-btn open-log-modal ms-2"
+                                                   data-tippy-content="{{ __('Logs') }}"
+                                                   data-url="{{ route('workorders.logs-json', $current_workorder->id) }}">
+                                                    <i class="bi bi-clock-history"></i>
+                                                </a>
+                                                @endrole
+                                            </div>
 
-                                            {{-- Pictures --}}
-                                            <a class="btn btn-outline-info btn-sm open-photo-modal position-relative"
-                                               data-tippy-content="{{ __('Pictures') }}"
-                                               data-id="{{ $current_workorder->id }}"
-                                               data-number="{{ $current_workorder->number }}">
-                                                <i class="bi bi-images text-decoration-none" style="font-size:18px"></i>
-                                                @if($photoTotalCount)
-                                                    <span
-                                                        class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-info"
-                                                        style="font-size:10px; min-width:18px;">
-                                                    {{ (int)($photoTotalCount ?? 0) }}
-                                                </span>
-                                                @endif
-                                            </a>
-
-                                            {{-- Logs --}}
-                                            @role('Admin')
-                                            <a class="btn btn-outline-warning btn-sm open-log-modal"
-                                               data-tippy-content="{{ __('Logs') }}"
-                                               data-url="{{ route('workorders.logs-json', $current_workorder->id) }}">
-                                                <i class="bi bi-clock-history" style="font-size:18px"></i>
-                                            </a>
-{{--                                            --}}{{-- TDR Report 2 --}}
-{{--                                            <a href="{{ route('tdrs.show2', $current_workorder->id) }}"--}}
-{{--                                               class="btn btn-outline-warning ms-2"--}}
-{{--                                               data-tippy-content="{{ __('TDR Report 2') }}"--}}
-{{--                                               onclick="showLoadingSpinner()">--}}
-{{--                                                <i class="bi bi-hammer" style="font-size:20px; line-height:0;"></i>--}}
-{{--                                            </a>--}}
-
-
-                                            @endrole
-
-
+                                            <span class="dir-top-desc ms-5 text-white font-bold " style="font-size: 1.3rem"
+                                                  data-tippy-content="{{ $descriptionValue }}">
+                                                {{ $descriptionValue }}
+                                            </span>
                                         </div>
 
-                                        {{-- RIGHT: trainings (ONE LINE) --}}
                                         <div class="d-flex align-items-center gap-2 flex-shrink-0">
                                             @if($manual_id && $current_workorder->user)
                                                 <x-training-status
@@ -240,99 +233,65 @@
                                                     :owner-user="$current_workorder->user"
                                                     :owner-training="$trainingWoLatest"
                                                     :owner-history="$trainingHistoryWo"
-
                                                     :my-training="$trainingAuthLatest"
                                                     :my-history="$trainingHistoryAuth"
                                                 />
                                             @endif
                                         </div>
-
                                     </div>
 
-                                    {{-- SECOND LINE: three info blocks --}}
-                                    <div class="row g-2 flex-fill align-items-stretch">
-
-                                        {{-- 1) Unit / Serial / Instruction --}}
-                                        <div class="col-12 col-lg-4 d-flex">
-                                            <div class="border rounded p-1 w-100">
-                                                <div class="small">
-                                                    <div class="d-flex gap-2">
-                                                        <span class="text-info">Component PN:</span>
-                                                        <span>{{ $current_workorder->unit->part_number ?? '—' }}</span>
-                                                        @if($current_workorder->modified)
-                                                            <span>&nbsp;<span class="text-muted">mod: </span>{{ $current_workorder->modified }}</span>
-                                                        @endif
-                                                    </div>
-                                                    <div class="d-flex gap-1">
-                                                        <span class="text-info">Serial number:</span>
-                                                        <span
-                                                            class="ms-4">{{ $current_workorder->serial_number ?? ($current_workorder->unit->serial_number ?? '—') }}</span>
-                                                    </div>
-                                                    <div class="d-flex gap-1">
-                                                        <span class="text-info me-4">Instruction:</span>
-                                                        <span
-                                                            class="ms-3">{{ $current_workorder->instruction->name ?? '—' }}</span>
-                                                    </div>
+                                    {{-- Single info block: 4 equal columns, 2 lines each --}}
+                                    <div class="dir-top-info-block border rounded mt-2 p-2">
+                                        <div class="dir-top-info-grid">
+                                            <div class="dir-top-cell">
+                                                <div class="dir-top-line" data-tippy-content="Component PN: {{ $pnValue }}">
+                                                    <span class="dir-top-k">Component PN:</span>
+                                                    <span class="dir-top-v">{{ $pnValue }}</span>
+                                                </div>
+                                                <div class="dir-top-line" data-tippy-content="Technik: {{ $technikValue }}">
+                                                    <span class="dir-top-k">Technik:</span>
+                                                    <span class="dir-top-v">{{ $technikValue }}</span>
                                                 </div>
                                             </div>
-                                        </div>
-
-                                        {{-- 2) Customer / Technik / Manual --}}
-                                        <div class="col-12 col-lg-4 d-flex">
-                                            <div class="border rounded p-1 w-100">
-                                                <div class="small">
-                                                    <div class="d-flex gap-1">
-                                                        <span class="text-info">Customer:</span>
-                                                        <span>{{ $current_workorder->customer->name ?? '—' }}</span>
-                                                    </div>
-                                                    <div class="d-flex gap-1">
-                                                        <span class="text-info me-3">Technik:</span>
-                                                        <span>{{ $current_workorder->user->name ?? '—' }}</span>
-                                                    </div>
-                                                    <div class="d-flex gap-1 align-items-center flex-wrap">
-                                                        <span class="text-info me-3">Manual:</span>
-                                                        <span>{{ $manual->number ?? '—' }}</span>
-                                                        <span class="text-muted small ms-4">Lib:</span>
-                                                        <span class="text-light">{{ $manual->lib ?? '—' }}</span>
-                                                    </div>
+                                            <div class="dir-top-cell">
+                                                <div class="dir-top-line" data-tippy-content="Serial: {{ $serialValue }}">
+                                                    <span class="dir-top-k">Serial:</span>
+                                                    <span class="dir-top-v">{{ $serialValue }}</span>
+                                                </div>
+                                                <div class="dir-top-line" data-tippy-content="Customer: {{ $customerValue }}">
+                                                    <span class="dir-top-k">Customer:</span>
+                                                    <span class="dir-top-v">{{ $customerValue }}</span>
                                                 </div>
                                             </div>
-                                        </div>
-
-                                        {{-- 3) Parts --}}
-                                        <div class="col-12 col-lg-4 d-flex">
-                                            <div class="border rounded p-1 w-100">
-                                                <div class="small d-flex align-items-center gap-2 parts-line">
-                                                    <span class="text-info me-4">Parts:</span>
-
-                                                    <span class="text-muted ms-3">Ordered:</span>
-                                                    <span
-                                                        id="orderedQty{{ $current_workorder->number }}">{{ $orderedQty ?? 0 }}</span>
-
-                                                    <span class="text-muted">Received:</span>
-                                                    <span
-                                                        id="receivedQty{{ $current_workorder->number }}">{{ $receivedQty ?? 0 }}</span>
-
+                                            <div class="dir-top-cell">
+                                                <div class="dir-top-line" data-tippy-content="Instruction: {{ $instructionValue }}">
+                                                    <span class="dir-top-k">Instruction:</span>
+                                                    <span class="dir-top-v">{{ $instructionValue }}</span>
+                                                </div>
+                                                <div class="dir-top-line" data-tippy-content="Manual: {{ $manualValue }}">
+                                                    <span class="dir-top-k">Manual:</span>
+                                                    <span class="dir-top-v">{{ $manualValue }}</span>
+                                                </div>
+                                            </div>
+                                            <div class="dir-top-cell">
+                                                <div class="dir-top-line align-items-center"
+                                                     data-tippy-content="Parts: Ordered {{ $orderedQty ?? 0 }}, Received {{ $receivedQty ?? 0 }}">
+                                                    <span class="dir-top-k">Parts:</span>
+                                                    <span class="dir-top-v dir-top-v-fit">Ordered: {{ $orderedQty ?? 0 }} | Received: {{ $receivedQty ?? 0 }}</span>
                                                     <button type="button"
-                                                            class="btn btn-success ms-3"
-                                                            style="height: 100%; --bs-btn-padding-y:.02rem; --bs-btn-padding-x:.6rem; --bs-btn-font-size:.7rem;"
+                                                            class="btn btn-success btn-sm ms-0 dir-top-parts-btn"
                                                             data-bs-toggle="modal"
                                                             data-bs-target="#partsModal{{ $current_workorder->number }}">
                                                         Parts
                                                     </button>
                                                 </div>
-
-                                                <div class="small d-flex gap-1 align-items-center flex-wrap">
-                                                    <span class="text-info">Description:</span>&nbsp;
-                                                    <span>{{ $current_workorder->description ?? '—' }}</span>
-                                                </div>
-                                                <div class="small d-flex gap-1 align-items-center flex-wrap">
-                                                    <span class="text-info me-4">Opened:</span>
-                                                    <span>{{ $current_workorder->open_at?->format('d-M-y') ?? '—' }}</span>
+                                                <div class="dir-top-line"
+                                                     data-tippy-content="Opened: {{ $openedValue }}">
+                                                    <span class="dir-top-k">Opened:</span>
+                                                    <span class="dir-top-v">{{ $openedValue }}</span>
                                                 </div>
                                             </div>
                                         </div>
-
                                     </div>
 
                                 </div>{{-- card-body --}}
@@ -369,7 +328,7 @@
                                     <div class="js-gt-pane h-100 d-none"
                                          data-gt-id="{{ $gt->id }}">
                                         <div class="table-responsive border border-secondary rounded"
-                                             style="overflow:auto; height:calc(100% - 1px);">
+                                             style="overflow:hidden; height:calc(100% - 1px);">
 
                                             @php
                                                 $gtTasks = ($tasksByGeneral[$gt->id] ?? collect());
@@ -628,10 +587,55 @@
 
                                                         <textarea name="notes"
                                                                   class="form-control form-control-sm bg-dark text-light border-secondary wo-notes-textarea"
-                                                                  rows="4"
+                                                                  rows="3"
                                                                   placeholder="Type notes..."
                                                                   data-original="{{ $current_workorder->notes ?? '' }}">{{ $current_workorder->notes ?? '' }}</textarea>
                                                     </form>
+                                                </div>
+                                            </div>
+
+                                            {{-- WO Bushings (table, scrollable) --}}
+                                            <div class="mt-3 border border-secondary rounded wo-bushings-box">
+                                                <div class="wo-notes-head">
+                                                    <div class="wo-notes-title">WO Bushings</div>
+                                                    <div class="wo-notes-right">
+                                                        <span class="text-muted small">rows: {{ $bushingRows->count() }}</span>
+                                                    </div>
+                                                </div>
+
+                                                <div class="p-2 pt-1 wo-bushings-list">
+                                                    @forelse($bushingRows as $row)
+                                                        @if($loop->first)
+                                                            <div class="table-responsive">
+                                                                <table class="table table-sm table-dark table-bordered mb-0 wo-bushings-table">
+                                                                    <thead>
+                                                                    <tr>
+                                                                        <th style="width:68px;">WO Bush</th>
+                                                                        <th style="width:116px;">Saved</th>
+                                                                        <th style="width:72px;">Qty</th>
+                                                                        <th style="width:110px;">IPL</th>
+                                                                        <th>Bushing</th>
+                                                                        <th>Processes</th>
+                                                                    </tr>
+                                                                    </thead>
+                                                                    <tbody>
+                                                        @endif
+                                                                    <tr>
+                                                                        <td class="text-info">#{{ $row['wo_bushing_id'] }}</td>
+                                                                        <td class="text-muted small">{{ $row['saved_at'] ?: '—' }}</td>
+                                                                        <td>{{ $row['qty'] }}</td>
+                                                                        <td>{{ $row['ipl_num'] }}</td>
+                                                                        <td>{{ $row['component_label'] }}</td>
+                                                                        <td class="small">{{ $row['processes_text'] }}</td>
+                                                                    </tr>
+                                                        @if($loop->last)
+                                                                    </tbody>
+                                                                </table>
+                                                            </div>
+                                                        @endif
+                                                    @empty
+                                                        <div class="text-muted small">No bushings for this workorder.</div>
+                                                    @endforelse
                                                 </div>
                                             </div>
 

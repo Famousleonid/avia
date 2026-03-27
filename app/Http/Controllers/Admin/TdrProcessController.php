@@ -199,6 +199,63 @@ class TdrProcessController extends Controller
         ));
     }
 
+    /**
+     * Same rule as Add/Edit Parts.
+     * Returns Response on deny, null on allow.
+     */
+    private function denyIfCannotManageManualParts(Request $request, int $manualId)
+    {
+        if ($manualId <= 0) {
+            return null;
+        }
+
+        $user = auth()->user();
+        $canManageAllManualParts = (bool) ($user?->roleIs('Admin') ?? false);
+        if ($canManageAllManualParts) {
+            return null;
+        }
+
+        $manualHasAnyPermissions = DB::table('manual_user_permissions')
+            ->where('manual_id', $manualId)
+            ->exists();
+        if (! $manualHasAnyPermissions) {
+            return null;
+        }
+
+        $allowedManualIds = $user?->permittedManuals()->pluck('manuals.id')->all() ?? [];
+        $isAllowed = in_array($manualId, array_map('intval', $allowedManualIds), true);
+        if ($isAllowed) {
+            return null;
+        }
+
+        $responsibleNames = Manual::query()
+            ->with(['permittedUsers' => function ($q) {
+                $q->select('users.id', 'users.name');
+            }])
+            ->find($manualId)
+            ?->permittedUsers
+            ?->pluck('name')
+            ?->filter()
+            ?->unique()
+            ?->values()
+            ?->all() ?? [];
+
+        $responsiblesText = ! empty($responsibleNames)
+            ? implode(', ', $responsibleNames)
+            : 'Admin';
+
+        $message = 'Вы не ответственный за этот manual. Обратитесь к: '.$responsiblesText.'.';
+
+        if ($request->wantsJson() || $request->ajax()) {
+            return response()->json([
+                'success' => false,
+                'message' => $message,
+            ], 403);
+        }
+
+        return redirect()->back()->with('error', $message);
+    }
+
     public function getProcess($processNameId, Request $request)
     {
         try {
@@ -322,6 +379,17 @@ class TdrProcessController extends Controller
         $tdr = Tdr::find($tdrId);
         if (!$tdr) {
             return response()->json(['error' => 'TDR not found.'], 404);
+        }
+
+        $manualId = (int) ($this->getManualIdForTdr((int) $tdrId) ?: 0);
+        if ($manualId <= 0) {
+            $manualId = (int) ($tdr->workorder?->unit?->manual_id ?? 0);
+        }
+        if ($manualId > 0) {
+            $deny = $this->denyIfCannotManageManualParts($request, $manualId);
+            if ($deny) {
+                return $deny;
+            }
         }
 
         // Получаем максимальный sort_order для данного tdr_id
@@ -1014,6 +1082,14 @@ class TdrProcessController extends Controller
             'description' => 'nullable|string|max:255', // Валидация для description
             'notes' => 'nullable|string|max:255', // Валидация для notes
         ]);
+
+        $manualId = (int) ($this->getManualIdForTdr((int) $validated['tdrs_id']) ?: 0);
+        if ($manualId > 0) {
+            $deny = $this->denyIfCannotManageManualParts($request, $manualId);
+            if ($deny) {
+                return $deny;
+            }
+        }
 
         // Извлекаем данные из запроса
         $processData = $validated['processes'][0]; // Берём первый элемент массива

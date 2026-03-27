@@ -160,7 +160,7 @@
         border: 1px solid rgba(0, 0, 0, .125);
         border-radius: .5rem;
         padding: 1rem;
-        overflow: auto;
+        overflow: hidden;
 
         display: flex;
         flex-direction: column;
@@ -306,6 +306,114 @@
         width: auto !important;
         display: inline !important;
     }
+
+    /* =========================================================
+    Top compact header
+    ========================================================= */
+    .dir-top-compact {
+        padding: .35rem .55rem !important;
+        gap: .15rem;
+    }
+
+    .dir-top-actions h6 {
+        font-size: 1rem;
+    }
+
+    .dir-top-actions .badge {
+        font-size: .72rem;
+        padding: .28rem .42rem;
+    }
+
+    .dir-top-actions .btn {
+        line-height: 1;
+    }
+
+    .dir-top-square-btn {
+        width: 30px;
+        height: 30px;
+        padding: 0 !important;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .dir-top-square-btn i {
+        font-size: .95rem;
+        line-height: 1;
+    }
+
+    .dir-top-help {
+        font-size: 1rem;
+        line-height: 1;
+        color: #8fd4ff;
+    }
+
+    .dir-top-desc {
+        max-width: 340px;
+        font-size: .78rem;
+        color: #adb5bd;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        vertical-align: middle;
+    }
+
+    .dir-top-info-block {
+        background: rgba(255,255,255,.03);
+    }
+
+    .dir-top-info-grid {
+        display: grid;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: .2rem .6rem;
+    }
+
+    .dir-top-cell {
+        min-width: 0;
+    }
+
+    .dir-top-line {
+        display: flex;
+        align-items: baseline;
+        gap: .2rem;
+        min-width: 0;
+        font-size: .8rem;
+        line-height: 1.1rem;
+        white-space: nowrap;
+        color: #f8f9fa;
+        margin-bottom: .06rem;
+    }
+
+    .dir-top-line:last-child {
+        margin-bottom: 0;
+    }
+
+    .dir-top-k {
+        flex: 0 0 auto;
+        color: #8fd4ff;
+        font-weight: 500;
+    }
+
+    .dir-top-v {
+        flex: 1 1 auto;
+        min-width: 0;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        color: #f8f9fa;
+        font-weight: 400;
+    }
+
+    .dir-top-v-fit {
+        flex: 0 1 auto;
+    }
+
+    .dir-top-parts-btn {
+        --bs-btn-padding-y: .06rem;
+        --bs-btn-padding-x: .45rem;
+        --bs-btn-font-size: .7rem;
+    }
+
 
     #addBtn.btn-success {
         background-color: var(--bs-success) !important;
@@ -514,7 +622,36 @@
     .wo-notes-textarea{
         font-size: .85rem;
         min-height: 70px;
-        resize: vertical;
+        resize: none;
+    }
+
+    .wo-bushings-box{
+        background: rgba(255,255,255,0.03);
+    }
+
+    .wo-bushings-list{
+        max-height: 34vh;
+        min-height: 120px;
+        overflow-y: auto;
+        overflow-x: hidden;
+    }
+
+    .wo-bushings-table th,
+    .wo-bushings-table td{
+        white-space: nowrap;
+        vertical-align: middle;
+    }
+
+    .wo-bushings-table td:last-child{
+        white-space: normal;
+        min-width: 280px;
+    }
+
+    .wo-bushings-table thead th{
+        position: sticky;
+        top: 0;
+        z-index: 2;
+        background: #1f2a34;
     }
 
 </style>

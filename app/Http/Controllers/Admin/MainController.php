@@ -4,13 +4,16 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\Code;
+use App\Models\Component;
 use App\Models\GeneralTask;
 use App\Models\Main;
 use App\Models\Necessary;
+use App\Models\Process;
 use App\Models\Task;
 use App\Models\Tdr;
 use App\Models\Training;
 use App\Models\User;
+use App\Models\WoBushing;
 use App\Models\Workorder;
 use App\Services\WorkorderStdListProcessesService;
 use Illuminate\Http\Request;
@@ -302,6 +305,126 @@ class MainController extends Controller
         $stdListTdrProcesses = app(WorkorderStdListProcessesService::class)
             ->resolveForWorkorder($current_workorder);
 
+        $woBushings = WoBushing::query()
+            ->where('workorder_id', $current_workorder->id)
+            ->latest('id')
+            ->get();
+
+        $bushingRows = collect();
+        $componentIds = [];
+        $processIds = [];
+        $processLabels = [
+            'machining' => 'Machining',
+            'stress_relief' => 'Stress relief',
+            'ndt' => 'NDT',
+            'passivation' => 'Passivation',
+            'cad' => 'Cad',
+            'anodizing' => 'Anodizing',
+            'xylan' => 'Xylan',
+        ];
+
+        foreach ($woBushings as $wb) {
+            $payload = is_array($wb->bush_data)
+                ? $wb->bush_data
+                : (json_decode((string) ($wb->bush_data ?? ''), true) ?: []);
+
+            if (! is_array($payload)) {
+                continue;
+            }
+
+            foreach ($payload as $item) {
+                if (! is_array($item)) {
+                    continue;
+                }
+
+                $componentId = (int) ($item['bushing'] ?? 0);
+                $qty = (int) ($item['qty'] ?? 1);
+                $processes = is_array($item['processes'] ?? null) ? $item['processes'] : [];
+                $resolvedProcesses = [];
+
+                foreach ($processLabels as $key => $label) {
+                    $raw = $processes[$key] ?? null;
+                    $ids = [];
+                    if (is_array($raw)) {
+                        foreach ($raw as $id) {
+                            $id = (int) $id;
+                            if ($id > 0) {
+                                $ids[] = $id;
+                            }
+                        }
+                    } else {
+                        $id = (int) $raw;
+                        if ($id > 0) {
+                            $ids[] = $id;
+                        }
+                    }
+                    if ($ids !== []) {
+                        $resolvedProcesses[$key] = $ids;
+                        $processIds = array_merge($processIds, $ids);
+                    }
+                }
+
+                if ($componentId > 0) {
+                    $componentIds[] = $componentId;
+                }
+
+                $bushingRows->push([
+                    'wo_bushing_id' => (int) $wb->id,
+                    'saved_at' => optional($wb->created_at)?->format('d-M-y H:i'),
+                    'component_id' => $componentId,
+                    'qty' => max(1, $qty),
+                    'processes' => $resolvedProcesses,
+                ]);
+            }
+        }
+
+        $componentsMap = Component::query()
+            ->whereIn('id', array_values(array_unique($componentIds)))
+            ->get(['id', 'part_number', 'name', 'ipl_num'])
+            ->keyBy('id');
+
+        $processesMap = Process::query()
+            ->with('process_name')
+            ->whereIn('id', array_values(array_unique($processIds)))
+            ->get()
+            ->keyBy('id');
+
+        $bushingRows = $bushingRows->map(function (array $row) use ($componentsMap, $processesMap, $processLabels) {
+            $component = $componentsMap->get($row['component_id']);
+            $componentLabel = $component
+                ? trim((string) ($component->part_number ?? '')) . ' — ' . trim((string) ($component->name ?? ''))
+                : ('#' . $row['component_id']);
+            $ipl = $component?->ipl_num ?: '—';
+
+            $processText = [];
+            foreach ($processLabels as $key => $label) {
+                $ids = $row['processes'][$key] ?? [];
+                if (! is_array($ids) || $ids === []) {
+                    continue;
+                }
+                $names = [];
+                foreach ($ids as $id) {
+                    $pr = $processesMap->get($id);
+                    if ($pr) {
+                        $prName = trim((string) ($pr->process_name->name ?? ''));
+                        $prNum = trim((string) ($pr->process ?? ''));
+                        $names[] = trim(($prName !== '' ? $prName : 'Process') . ($prNum !== '' ? ' '.$prNum : ''));
+                    } else {
+                        $names[] = '#'.$id;
+                    }
+                }
+                if ($names !== []) {
+                    $processText[] = $label . ': ' . implode(', ', $names);
+                }
+            }
+
+            $row['component_label'] = $componentLabel;
+            $row['ipl_num'] = $ipl;
+            $row['processes_text'] = $processText !== [] ? implode(' | ', $processText) : '—';
+
+            return $row;
+        });
+
         return view('admin.mains.main', compact(
             'users',
             'current_workorder',
@@ -330,6 +453,8 @@ class MainController extends Controller
             'trainingWoLatest',
             'trainingHistoryWo',
             'stdListTdrProcesses',
+            'woBushings',
+            'bushingRows',
         ));
     }
 

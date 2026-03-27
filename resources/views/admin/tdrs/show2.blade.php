@@ -16,6 +16,42 @@
         .order-modal .order-modal-table thead { position: sticky; top: 0; z-index: 10; }
         .order-modal .order-modal-table thead th { background-color: #030334 !important; box-shadow: 0 2px 2px -1px rgba(0, 0, 0, 0.1); }
         .img-icon:hover { cursor: pointer; }
+        .show2-back-btn{
+            min-height: 55px;
+            padding: .25rem .55rem !important;
+            border-width: 1px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: .35rem;
+            font-weight: 700;
+            color: #31d2f2 !important;
+            background: rgba(13, 202, 240, .08);
+            text-decoration: none !important;
+        }
+        .show2-back-btn:hover,
+        .show2-back-btn:focus {
+            color: #5ee3ff !important;
+            border-color: #5ee3ff !important;
+            background: rgba(13, 202, 240, .16) !important;
+            box-shadow: 0 0 0 .12rem rgba(13, 202, 240, .22);
+            text-decoration: none !important;
+        }
+        .show2-back-arrow{
+            font-size: 1.35rem;
+            line-height: 1;
+            font-weight: 900;
+            color: #fff;
+        }
+        .show2-back-text{
+            display: inline-flex;
+            flex-direction: column;
+            align-items: flex-start;
+            line-height: 1.02;
+            text-align: left;
+        }
+        .show2-back-text .t1{ font-size: 1rem; opacity: .95; }
+        .show2-back-text .t2{ font-size: 1.3rem; font-weight: 700; }
         /* Select2 in modals - ensure dropdown appears above modal (Bootstrap modal z-index: 1055) */
         #componentInspectionModal .select2-container--open,
         .select2-container--open { z-index: 1065 !important; }
@@ -95,12 +131,18 @@
             {{-- Header show2: link to main, PDF Library, x-paper buttons --}}
             <div class="card-header m-1 shadow">
                 <div class="d-flex text-center align-items-center">
-                    <div style="width: 100px;">
-                        <h5 class="text-success-emphasis ps-1">{{__('WO')}}
-                            <a class="text-success-emphasis" href="{{ route('mains.show', $current_wo->id) }}">{{$current_wo->number}}</a>
-                        </h5>
+                    <div style="width: 120px;">
+                        <a href="{{ route('mains.show', $current_wo->id) }}"
+                           class="btn btn-outline-info show2-back-btn"
+                           title="{{ __('Back to WO main') }}">
+                            <i class="bi bi-arrow-left show2-back-arrow" aria-hidden="true"></i>
+                            <span class="show2-back-text">
+                                <span class="t1">wo</span>
+                                <span class="t2">{{ $current_wo->number }}</span>
+                            </span>
+                        </a>
                     </div>
-                    <div class="ps-2 d-flex align-items-center">
+                    <div class="ps-2 d-flex align-items-center ms-3">
                         <div class="me-2 position-relative">
                             <button class="btn btn-outline-warning ms-2 open-pdf-modal text-center"
                                     title="{{ __('PDF Library') }}"
