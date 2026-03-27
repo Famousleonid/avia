@@ -15,57 +15,64 @@
             font-family: "Times New Roman", serif;
         }
 
-        .container-fluid {
-            max-width: 920px;
-            height: 100%;
-            padding: 5px;
-            margin-left: 10px;
-            margin-right: 10px;
+        :root {
+            --container-max-width: 920px;
+            --container-padding: 5px;
+            --container-margin-left: 10px;
+            --container-margin-right: 10px;
+            --print-page-margin: 6mm;
+            --print-body-height: 99%;
+            --print-body-width: 107%;
+            --print-body-margin-left: 1px;
+            --print-footer-width: 920px;
+            --print-footer-font-size: 10px;
+            --print-footer-padding: 1px 20px;
+        }
 
+        .container-fluid {
+            max-width: var(--container-max-width);
+            height: 100%;
+            padding: var(--container-padding);
+            margin-left: var(--container-margin-left);
+            margin-right: var(--container-margin-right);
         }
 
         @media print {
-            /* Задаем размер страницы Letter (8.5 x 11 дюймов) */
             @page {
                 size: letter;
-                /*margin: 6mm;*/
-                margin-left: 15mm;
-                margin-top: 5mm;
-                margin-right: 6mm;
-                margin-bottom: 15mm;
+                margin: var(--print-page-margin);
             }
 
-            /* Убедитесь, что вся страница помещается на один лист */
             html, body {
-                /*height: 90%;*/
-                width: 107%;
-                margin-left: 1px;
+                width: 100%;
+                height: auto;
+                margin-left: var(--print-body-margin-left);
                 padding: 0;
             }
 
-            /* Отключаем разрывы страниц внутри элементов */
+            .training-form-print-root {
+                zoom: var(--print-layout-zoom, 1);
+            }
+
             table, h1, p {
                 page-break-inside: avoid;
             }
 
-            /* Скрываем ненужные элементы при печати */
             .no-print {
                 display: none;
             }
 
-            /* Колонтитул внизу страницы */
             footer {
                 position: fixed;
                 bottom: 0;
-                width: 920px;
+                width: var(--print-footer-width);
+                max-width: var(--print-footer-width);
                 text-align: center;
-                font-size: 10px;
-                /*background-color: #fff;*/
-                padding: 1px 20px;
+                font-size: var(--print-footer-font-size);
+                padding: var(--print-footer-padding);
                 min-height: 10px;
             }
 
-            /* Обрезка контента и размещение на одной странице */
             .container {
                 max-height: 100vh;
                 overflow: hidden;
@@ -183,14 +190,14 @@
 </head>
 
 <body>
-<!-- Кнопка для печати -->
-<div class="text-start m-2">
-    <button class="btn btn-primary no-print" onclick="window.print()">Печать
-        формы
+<div class="text-start m-2 no-print">
+    <button class="btn btn-primary" onclick="window.print()">Печать формы</button>
+    <button class="btn btn-secondary ms-2" data-bs-toggle="modal" data-bs-target="#printSettingsModal">
+        ⚙️ Print Settings
     </button>
-
 </div>
 
+<div class="training-form-print-root">
 <div class="container-fluid">
     <div class="row">
         <img src="{{ asset('img/icons/AT_logo-rb.svg') }}" alt="Logo"
@@ -1426,13 +1433,24 @@
     </div>
 
 </footer>
+</div>
 
-<!-- Скрипт для печати -->
+@php $tdrFormConfig = config('tdr_forms.trainingForm132'); @endphp
+@include('shared.tdr-forms._print-settings-modal', ['formType' => 'trainingForm132', 'formConfig' => $tdrFormConfig])
+
 <script>
-    function printForm() {
-        window.print();
+    if (typeof window.bootstrapLoaded === 'undefined') {
+        window.bootstrapLoaded = true;
+        const script = document.createElement('script');
+        script.src = "{{ asset('assets/Bootstrap 5/bootstrap.bundle.min.js') }}";
+        script.async = true;
+        document.head.appendChild(script);
     }
 </script>
+<script>
+    window.tdrFormApplyTableRowLimits = function () {};
+</script>
+@include('shared.tdr-forms._scripts', ['formType' => 'trainingForm132', 'formConfig' => $tdrFormConfig])
 
 </body>
 </html>

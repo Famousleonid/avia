@@ -41,10 +41,14 @@
                 margin: var(--print-page-margin);
             }
 
+            /* Width/height из Print Settings (:root обновляется в shared.tdr-forms._scripts) */
             html, body {
-                height: var(--print-body-height);
+                height: auto;
+                min-height: var(--print-body-height);
                 width: var(--print-body-width);
-                margin-left: var(--print-body-margin-left);
+                max-width: var(--print-body-width);
+                margin-left: 0;
+                margin-right: 0;
                 padding: 0;
             }
 
@@ -52,13 +56,46 @@
                 page-break-inside: avoid;
             }
 
-            /* Разрешаем разрыв таблиц внутри страницы, но избегаем разрыва строк */
-            .data-page {
-                page-break-inside: auto;
+            /* Фиксированная высота 98% + fixed footer ломали разбиение: лишние «листы», шапка на одном листе, таблица на другом */
+            .container-fluid {
+                height: auto !important;
+                max-height: none !important;
             }
 
-            .data-row {
+            /*
+             * Лист 1: body + .container-fluid давали разный суммарный отступ, чем лист 2+ (только .container-fluid).
+             * Весь горизонтальный отступ — на каждом блоке листа одинаково.
+             */
+            .container-fluid.tdr-primary-sheet,
+            .container-fluid.dynamic-page-wrapper {
+                margin-left: calc(var(--print-body-margin-left) + var(--container-margin-left)) !important;
+                margin-right: var(--container-margin-right) !important;
+                padding-left: var(--container-padding) !important;
+                padding-right: var(--container-padding) !important;
+                box-sizing: border-box;
+                max-width: var(--container-max-width);
+            }
+
+            /*
+             * Нельзя вешать break-inside: avoid на весь .data-page: блок выше листа → движок ломает разрыв
+             * и на одном листе оказываются «хвост» 1-й страницы + начало 2-й (дублирование данных).
+             * Разрыв только между логическими страницами; шапку формы не рвём по возможности.
+             */
+            .dynamic-page-wrapper {
+                break-before: page !important;
+                page-break-before: always !important;
+                display: block !important;
+            }
+
+            .tdr-print-force-page-end {
+                page-break-after: always !important;
+                break-after: page !important;
+            }
+
+            .page.data-page .header-page,
+            .page.data-page .table-header {
                 page-break-inside: avoid;
+                break-inside: avoid;
             }
 
             .no-print {
@@ -70,10 +107,24 @@
                 display: none !important;
             }
 
+            /* Строки источника, не входящие в 1-ю логическую страницу — полностью убрать из потока печати */
+            .tdr-source-row-off {
+                display: none !important;
+                visibility: hidden !important;
+                height: 0 !important;
+                min-height: 0 !important;
+                max-height: 0 !important;
+                overflow: hidden !important;
+                margin: 0 !important;
+                padding: 0 !important;
+                border-width: 0 !important;
+            }
+
             footer {
-                position: fixed;
-                bottom: 0;
-                width: var(--print-footer-width);
+                position: static !important;
+                width: 100%;
+                max-width: var(--print-footer-width);
+                margin-top: 0.5rem;
                 text-align: center;
                 font-size: var(--print-footer-font-size);
                 background-color: #fff;
@@ -81,13 +132,18 @@
             }
 
             .container {
-                max-height: 100vh;
-                overflow: hidden;
+                max-height: none;
+                overflow: visible;
             }
         }
 
         /* Скрываем строки сверх лимита на экране тоже */
         .print-hide-row {
+            display: none !important;
+        }
+
+        /* Строки не для первой логической страницы (см. JS tdrFormApplyTableRowLimits) */
+        .tdr-source-row-off {
             display: none !important;
         }
 
@@ -215,7 +271,17 @@
         ⚙️ Print Settings
     </button>
 </div>
-<div class="container-fluid">
+@php
+    $stress_table_pages = $stress_table_pages ?? [[]];
+    $stress_total_pages = max(1, count($stress_table_pages));
+    $stressGlobalRowIndex = 1;
+@endphp
+@foreach($stress_table_pages as $stressPageIndex => $stressPageRows)
+@php
+    $stress_page_num = $stressPageIndex + 1;
+@endphp
+<div class="container-fluid {{ $stress_page_num === 1 ? 'tdr-primary-sheet' : 'dynamic-page-wrapper' }}">
+    <div class="page data-page {{ $stress_page_num === 1 ? 'tdr-primary-logical-page' : '' }}" data-page-index="{{ $stress_page_num }}">
     <div class="header-page">
         <div class="row">
             <div class="col-3">
@@ -260,14 +326,7 @@
                     <div class="col-4 pt-2 text-end"><strong>VENDOR:</strong></div>
                     <div class="col-8 pt-2 border-b"><strong> AVIATECHNIK</strong></div>
                 </div>
-                <div class="row" style="height: 32px">
-{{--                    <div class="col-4 pt-2 text-end"><strong>TOTAL QTY:</strong></div>--}}
-{{--                    <div class="col-8 pt-2 border-b">--}}
-{{--                        @if(isset($total_quantities['total_qty']))--}}
-{{--                            {{ $total_quantities['total_qty'] }}--}}
-{{--                        @endif--}}
-{{--                    </div>--}}
-{{--                </div>--}}
+                {{-- TOTAL QTY: при раскомментировании вернуть полный .row с закрывающим </div> --}}
             </div>
 
         </div>
@@ -293,9 +352,7 @@
                        <h6 class="ps-4">
                            <strong class="">
                            {{__('Perform the Stress Relief as specified under Process No. and in accordance with SMM No. ')}}
-{{--                            <span class="ms-5">--}}
-{{--                                {{$manual->number}}--}}
-{{--                            </span>--}}
+
                           </strong>
                        </h6>
                    @endif
@@ -303,7 +360,7 @@
            </h5>
     </div>
 
-    <div class="page table-header">
+    <div class="table-header">
         <div class="row mt-2">
             <div class="col-1 border-l-t-b pt-2 details-row text-center" style="height: 42px"><h6 class="fs-7">
                     <strong>ITEM No.</strong></h6></div>
@@ -317,81 +374,50 @@
         </div>
     </div>
 
-    @php
-        // Все компоненты передаются без разбиения на страницы
-        // Разбиение происходит на фронтенде через JavaScript
-        $previousManual = null;
-    @endphp
-
-    {{-- Все компоненты выводятся в одном контейнере - разбиение на страницы через JavaScript --}}
+    {{-- Страницы и строки на странице задаются на серверe ($stress_table_pages) --}}
     <div class="all-rows-container">
-        @php
-            $rowIndex = 1;
-        @endphp
-
-        @foreach($stress_components as $component)
-            @php
-                $currentManual = $component->manual ?? null;
-                // Если manual изменился и не пустой, вставляем строку с manual
-                $shouldInsertManualRow = ($currentManual !== null && $currentManual !== '' && $currentManual !== $previousManual);
-            @endphp
-
-            @if($shouldInsertManualRow)
-                {{-- Строка с Manual --}}
-                <div class="row fs-85 data-row manual-row" data-row-index="{{ $rowIndex }}">
-                    <div class="col-1 border-l-b details-cell text-center" style="min-height: 34px; font-weight: bold;">
-                        <!-- Пустая ячейка -->
-                    </div>
-                    <div class="col-2 border-l-b details-cell text-center" style="min-height: 34px; font-weight: bold;">
-                        <!-- Пустая ячейка -->
-                    </div>
-                    <div class="col-2 border-l-b details-cell text-center" style="min-height: 34px; font-weight: bold;">
-                        <strong>{{ $currentManual }}</strong>
-                    </div>
-                    <div class="col-4 border-l-b details-cell text-center" style="min-height: 34px; font-weight: bold;">
-                        <!-- Пустая ячейка -->
-                    </div>
-                    <div class="col-1 border-l-b details-cell text-center" style="min-height: 34px; font-weight: bold;">
-                        <!-- Пустая ячейка -->
-                    </div>
-                    <div class="col-2 border-l-b-r details-cell text-center" style="min-height: 34px; font-weight: bold;">
-                        <!-- Пустая ячейка -->
+        @foreach($stressPageRows as $stressEntry)
+            @if(($stressEntry['kind'] ?? '') === 'manual')
+                <div class="row fs-85 data-row manual-row" data-row-index="{{ $stressGlobalRowIndex }}">
+                    <div class="col-12 border-l-b-r details-cell text-center" style="min-height: 34px; font-weight: bold;">
+                        <strong>{{ $stressEntry['text'] ?? '' }}</strong>
                     </div>
                 </div>
-                @php $rowIndex++; @endphp
+                @php $stressGlobalRowIndex++; @endphp
+            @elseif(($stressEntry['kind'] ?? '') === 'data')
+                @php $component = $stressEntry['component']; @endphp
+                <div class="row fs-85 data-row" data-row-index="{{ $stressGlobalRowIndex }}">
+                    <div class="col-1 border-l-b details-cell text-center" style="min-height: 34px">
+                        {{ $component->ipl_num }}
+                    </div>
+                    <div class="col-2 border-l-b details-cell text-center" style="min-height: 34px">
+                        {{ $component->part_number }}
+                    </div>
+                    <div class="col-2 border-l-b details-cell text-center" style="min-height: 34px">
+                        {{ $component->name }}
+                    </div>
+                    <div class="col-4 border-l-b details-cell text-center process-cell" style="min-height: 34px">
+                        {{ $component->process_name }}
+                    </div>
+                    <div class="col-1 border-l-b details-cell text-center" style="min-height: 34px">
+                        {{ $component->qty }}
+                    </div>
+                    <div class="col-2 border-l-b-r details-cell text-center" style="min-height: 34px">
+                    </div>
+                </div>
+                @php $stressGlobalRowIndex++; @endphp
+            @else
+                <div class="row fs-85 data-row empty-row">
+                    <div class="col-1 border-l-b details-cell text-center" style="min-height: 34px"></div>
+                    <div class="col-2 border-l-b details-cell text-center" style="min-height: 34px"></div>
+                    <div class="col-2 border-l-b details-cell text-center" style="min-height: 34px"></div>
+                    <div class="col-4 border-l-b details-cell text-center" style="min-height: 34px"></div>
+                    <div class="col-1 border-l-b details-cell text-center" style="min-height: 34px"></div>
+                    <div class="col-2 border-l-b-r details-cell text-center" style="min-height: 34px"></div>
+                </div>
             @endif
-
-            <div class="row fs-85 data-row" data-row-index="{{ $rowIndex }}">
-                <div class="col-1 border-l-b details-cell text-center" style="min-height: 34px">
-                    {{ $component->ipl_num }}
-                </div>
-                <div class="col-2 border-l-b details-cell text-center" style="min-height: 34px">
-                    {{ $component->part_number }}
-                </div>
-                <div class="col-2 border-l-b details-cell text-center" style="min-height: 34px">
-                    {{ $component->name }}
-                </div>
-                <div class="col-4 border-l-b details-cell text-center process-cell" style="min-height: 34px">
-                    {{ $component->process_name }}
-                </div>
-                <div class="col-1 border-l-b details-cell text-center" style="min-height: 34px">
-                    {{ $component->qty }}
-                </div>
-                <div class="col-2 border-l-b-r details-cell text-center" style="min-height: 34px">
-{{--                    @foreach($manuals as $manual)--}}
-{{--                        @if($manual->id == $current_wo->unit->manual_id)--}}
-{{--                            <h6 class="text-center mt-3">{{$manual->number}}</h6>--}}
-{{--                        @endif--}}
-{{--                    @endforeach--}}
-                </div>
-            </div>
-            @php
-                $rowIndex++;
-                $previousManual = $currentManual;
-            @endphp
         @endforeach
     </div>
-    {{-- Пустые строки будут генерироваться на фронтенде через JavaScript --}}
 
     <footer>
         <div class="row fs-85" style="width: 100%; padding: 5px 0;">
@@ -399,7 +425,7 @@
                 {{__('Form # 015')}}
             </div>
             <div class="col-3 text-center">
-                {{__('Page')}} <span class="page-number">1</span> {{__('of')}} <span class="total-pages">1</span>
+                {{__('Page')}} <span class="page-number" data-tdr-footer-page>{{ $stress_page_num }}</span> {{__('of')}} <span class="total-pages" data-tdr-footer-total>{{ $stress_total_pages }}</span>
             </div>
             <div class="col-3 text-end pe-4">
                 {{__('Rev#0, 15/Dec/2012   ')}}
@@ -408,7 +434,9 @@
             </div>
         </div>
     </footer>
+    </div>
 </div>
+@endforeach
 
 @php $tdrFormConfig = config('tdr_forms.stressFormStd'); @endphp
 @include('shared.tdr-forms._print-settings-modal', ['formType' => 'stressFormStd', 'formConfig' => $tdrFormConfig])
@@ -425,261 +453,12 @@
 </script>
 
 <script>
-    // Stress Relief-специфичная логика лимитов строк (используется shared scripts)
-    window.tdrFormApplyTableRowLimits = function(settings) {
-        const stressMaxRows = parseInt(settings.stressTableRows) || 21;
-        console.log('Применение ограничений строк Stress Relief:', { stressMaxRows, settings });
-        
-        const allRowsContainer = document.querySelector('.all-rows-container');
-        if (!allRowsContainer) {
-            console.warn('Контейнер .all-rows-container не найден!');
-            return;
-        }
-        
-        // Удаляем все созданные ранее динамические страницы
-        document.querySelectorAll('.dynamic-page-wrapper').forEach(function(wrapper) {
-            wrapper.remove();
-        });
-        
-        // Удаляем все пустые строки из контейнера перед пересчётом
-        const emptyRowsToRemove = allRowsContainer.querySelectorAll('.data-row.empty-row, .empty-row');
-        emptyRowsToRemove.forEach(function(row) {
-            row.remove();
-        });
-        console.log('Удалено пустых строк перед пересчётом:', emptyRowsToRemove.length);
-        
-        // Собираем все строки из контейнера (только строки с данными, без пустых)
-        const allRows = Array.from(allRowsContainer.querySelectorAll('.data-row:not(.empty-row)'));
-        
-        // Разделяем на manual-row и data-rows
-        const manualRows = allRows.filter(function(row) {
-            return row.classList.contains('manual-row');
-        });
-        const dataRows = allRows.filter(function(row) {
-            return !row.classList.contains('manual-row');
-        });
-        
-        const hasManualRows = manualRows.length > 0;
-        console.log('Найдено manual-row:', hasManualRows, 'количество:', manualRows.length);
-        console.log('Найдено строк с данными:', dataRows.length);
-        
-        let totalRows;
-        let rowsToProcess;
-        
-        if (hasManualRows) {
-            // Случай с manual-row: считаем все строки (manual + data)
-            totalRows = allRows.length;
-            rowsToProcess = allRows;
-        } else {
-            // Случай без manual-row: считаем только data-rows
-            totalRows = dataRows.length;
-            rowsToProcess = dataRows;
-        }
-        
-        // Вычисляем количество страниц
-        const totalPages = Math.max(1, Math.ceil(totalRows / stressMaxRows));
-        console.log('Всего строк:', totalRows, ', Лимит на странице:', stressMaxRows, ', Создано страниц:', totalPages);
-        
-        // Находим элементы для копирования
-        const originalHeader = document.querySelector('.header-page');
-        const originalTableHeader = document.querySelector('.table-header');
-        const originalFooter = document.querySelector('footer');
-        const firstContainerFluid = document.querySelector('.container-fluid');
-        
-        if (!originalHeader || !originalTableHeader || !originalFooter || !firstContainerFluid) {
-            console.warn('Не найдены необходимые элементы для создания страниц:', {
-                header: !!originalHeader,
-                tableHeader: !!originalTableHeader,
-                footer: !!originalFooter,
-                containerFluid: !!firstContainerFluid
-            });
-            return;
-        }
-        
-        // Скрываем строки, которые не на первой странице
-        rowsToProcess.forEach(function(row, index) {
-            if (index < stressMaxRows) {
-                row.style.display = '';
-            } else {
-                row.style.display = 'none';
-            }
-        });
-        
-        // Обновляем footer для первой страницы
-        const firstPageNumberEl = originalFooter.querySelector('.page-number');
-        const firstTotalPagesEl = originalFooter.querySelector('.total-pages');
-        if (firstPageNumberEl) firstPageNumberEl.textContent = '1';
-        if (firstTotalPagesEl) firstTotalPagesEl.textContent = totalPages;
-        
-        // Создаём дополнительные страницы (начиная со второй)
-        for (let pageIndex = 1; pageIndex < totalPages; pageIndex++) {
-            const startIndex = pageIndex * stressMaxRows;
-            const endIndex = Math.min(startIndex + stressMaxRows, rowsToProcess.length);
-            const pageRows = rowsToProcess.slice(startIndex, endIndex);
-            
-            // Создаём контейнер для новой страницы (как container-fluid)
-            const dynamicPageWrapper = document.createElement('div');
-            dynamicPageWrapper.className = 'container-fluid dynamic-page-wrapper';
-            
-            // Создаём новую страницу
-            const pageDiv = document.createElement('div');
-            pageDiv.className = 'page data-page';
-            pageDiv.setAttribute('data-page-index', pageIndex + 1);
-            pageDiv.style.pageBreakBefore = 'always';
-            
-            // Копируем header
-            if (originalHeader) {
-                const headerClone = originalHeader.cloneNode(true);
-                pageDiv.appendChild(headerClone);
-            }
-            
-            // Копируем table-header
-            if (originalTableHeader) {
-                const tableHeaderClone = originalTableHeader.cloneNode(true);
-                pageDiv.appendChild(tableHeaderClone);
-            }
-            
-            // Создаём контейнер для строк этой страницы
-            const rowsContainer = document.createElement('div');
-            rowsContainer.className = 'page-rows-container';
-            
-            // Клонируем строки для этой страницы
-            pageRows.forEach(function(row) {
-                const rowClone = row.cloneNode(true);
-                rowClone.style.display = '';
-                rowsContainer.appendChild(rowClone);
-            });
-            
-            // Добавляем пустые строки на последней странице, если нужно
-            if (pageIndex === totalPages - 1) {
-                const rowsOnLastPage = pageRows.length;
-                const emptyRowsNeeded = rowsOnLastPage === 0 ? stressMaxRows : (stressMaxRows - rowsOnLastPage);
-                
-                if (emptyRowsNeeded > 0 && emptyRowsNeeded < stressMaxRows) {
-                    for (let i = 0; i < emptyRowsNeeded; i++) {
-                        const emptyRow = document.createElement('div');
-                        emptyRow.className = 'row fs-85 data-row empty-row';
-                        emptyRow.innerHTML = `
-                            <div class="col-1 border-l-b details-cell text-center" style="min-height: 34px"></div>
-                            <div class="col-2 border-l-b details-cell text-center" style="min-height: 34px"></div>
-                            <div class="col-2 border-l-b details-cell text-center" style="min-height: 34px"></div>
-                            <div class="col-4 border-l-b details-cell text-center" style="min-height: 34px"></div>
-                            <div class="col-1 border-l-b details-cell text-center" style="min-height: 34px"></div>
-                            <div class="col-2 border-l-b-r details-cell text-center" style="min-height: 34px"></div>
-                        `;
-                        rowsContainer.appendChild(emptyRow);
-                    }
-                    console.log('Добавлено пустых строк на последнюю страницу:', emptyRowsNeeded, 'из', stressMaxRows, '(строк на странице:', rowsOnLastPage, ')');
-                }
-            }
-            
-            pageDiv.appendChild(rowsContainer);
-            
-            // Копируем footer с правильной нумерацией
-            if (originalFooter) {
-                const footerClone = originalFooter.cloneNode(true);
-                const pageNumberEl = footerClone.querySelector('.page-number');
-                const totalPagesEl = footerClone.querySelector('.total-pages');
-                if (pageNumberEl) {
-                    pageNumberEl.textContent = pageIndex + 1;
-                }
-                if (totalPagesEl) {
-                    totalPagesEl.textContent = totalPages;
-                }
-                pageDiv.appendChild(footerClone);
-            }
-            
-            // Добавляем pageDiv в dynamicPageWrapper
-            dynamicPageWrapper.appendChild(pageDiv);
-            
-            // Вставляем страницу после первого container-fluid
-            if (firstContainerFluid && firstContainerFluid.parentNode) {
-                const nextSibling = firstContainerFluid.nextSibling;
-                if (nextSibling) {
-                    firstContainerFluid.parentNode.insertBefore(dynamicPageWrapper, nextSibling);
-                } else {
-                    firstContainerFluid.parentNode.appendChild(dynamicPageWrapper);
-                }
-            } else {
-                console.warn('Не удалось найти родительский элемент для вставки страницы');
-            }
-        }
-        
-        // Добавляем пустые строки на первую страницу, если это единственная страница и нужно
-        if (totalPages === 1) {
-            const rowsOnFirstPage = rowsToProcess.length;
-            const emptyRowsNeeded = rowsOnFirstPage === 0 ? stressMaxRows : (stressMaxRows - rowsOnFirstPage);
-            
-            if (emptyRowsNeeded > 0 && emptyRowsNeeded < stressMaxRows) {
-                for (let i = 0; i < emptyRowsNeeded; i++) {
-                    const emptyRow = document.createElement('div');
-                    emptyRow.className = 'row fs-85 data-row empty-row';
-                    emptyRow.innerHTML = `
-                        <div class="col-1 border-l-b details-cell text-center" style="min-height: 34px"></div>
-                        <div class="col-2 border-l-b details-cell text-center" style="min-height: 34px"></div>
-                        <div class="col-2 border-l-b details-cell text-center" style="min-height: 34px"></div>
-                        <div class="col-4 border-l-b details-cell text-center" style="min-height: 34px"></div>
-                        <div class="col-1 border-l-b details-cell text-center" style="min-height: 34px"></div>
-                        <div class="col-2 border-l-b-r details-cell text-center" style="min-height: 34px"></div>
-                    `;
-                    allRowsContainer.appendChild(emptyRow);
-                }
-                console.log('Добавлено пустых строк на первую страницу:', emptyRowsNeeded, 'из', stressMaxRows, '(строк на странице:', rowsOnFirstPage, ')');
-            }
-        }
-        
-        console.log('Ограничения строк применены. Всего страниц:', totalPages);
-    };
+    {{-- Лимит строк / страницы формируются в PHP ($stress_table_pages). Опционально: ?stress_table_rows=19 --}}
+    window.tdrFormApplyTableRowLimits = function () {};
 </script>
+<script src="{{ asset('js/tdrs/forms/ndt-std/chartjs-patcher.js') }}"></script>
 <script src="{{ asset('js/main.js') }}"></script>
 @include('shared.tdr-forms._scripts', ['formType' => 'stressFormStd', 'formConfig' => $tdrFormConfig])
-<script>
-// Предотвращаем ошибки Chart.js - переопределяем функцию как можно раньше
-(function() {
-    function patchChartJs() {
-        if (typeof Chart !== 'undefined' && Chart.helpers) {
-            const originalIdentifyDuplicates = Chart.helpers.identifyDuplicates;
-            if (originalIdentifyDuplicates && typeof originalIdentifyDuplicates === 'function') {
-                Chart.helpers.identifyDuplicates = function(statements) {
-                    if (!statements || !Array.isArray(statements)) {
-                        return [];
-                    }
-                    try {
-                        return originalIdentifyDuplicates.call(this, statements);
-                    } catch (e) {
-                        console.warn('Chart.js identifyDuplicates error:', e);
-                        return [];
-                    }
-                };
-            }
-        }
-    }
-
-    // Пытаемся переопределить сразу
-    patchChartJs();
-
-    // Также переопределяем после загрузки DOM
-    if (document.readyState === 'loading') {
-        document.addEventListener('DOMContentLoaded', patchChartJs);
-    } else {
-        // DOM уже загружен
-        setTimeout(patchChartJs, 0);
-    }
-
-    // Переопределяем при каждом изменении Chart (на случай асинхронной загрузки)
-    let chartCheckInterval = setInterval(function() {
-        if (typeof Chart !== 'undefined' && Chart.helpers) {
-            patchChartJs();
-            clearInterval(chartCheckInterval);
-        }
-    }, 100);
-
-    // Останавливаем проверку через 5 секунд
-    setTimeout(function() {
-        clearInterval(chartCheckInterval);
-    }, 5000);
-})();
-</script>
 <!-- table-height-adjuster.js отключен - управление строками через Print Settings -->
 
 <!-- Общие модули -->

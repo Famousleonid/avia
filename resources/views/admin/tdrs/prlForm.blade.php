@@ -1150,6 +1150,7 @@
         const originalFooter = document.querySelector('footer');
         const containerFluid = originalContainerFluid || document.querySelector('.container-fluid');
         const stampsBlock = document.querySelector('.stamps-block');
+        let pageInsertAnchor = containerFluid;
 
         // Скрываем строки, которые не на первой странице
         rowsToProcess.forEach(function(row, index) {
@@ -1247,9 +1248,10 @@
             // Добавляем pageDiv в pageContainer
             pageContainer.appendChild(pageDiv);
 
-            // Вставляем страницу после container-fluid
+            // Вставляем страницу сразу после предыдущей (первая — после container-fluid)
             if (containerFluid && containerFluid.parentNode) {
-                containerFluid.parentNode.insertBefore(pageContainer, containerFluid.nextSibling);
+                containerFluid.parentNode.insertBefore(pageContainer, pageInsertAnchor.nextSibling);
+                pageInsertAnchor = pageContainer;
             } else {
                 document.body.appendChild(pageContainer);
             }

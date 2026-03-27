@@ -233,14 +233,7 @@
                     <div class="col-4 pt-2 text-end"><strong>VENDOR:</strong></div>
                     <div class="col-8 pt-2 border-b"><strong>AVIATECHNIK</strong></div>
                 </div>
-                <div class="row" style="height: 32px">
-{{--                    <div class="col-4 pt-2 text-end"><strong>TOTAL QTY:</strong></div>--}}
-{{--                    <div class="col-8 pt-2 border-b">--}}
-{{--                        @if(isset($total_quantities['total_qty']))--}}
-{{--                            {{ $total_quantities['total_qty'] }}--}}
-{{--                        @endif--}}
-{{--                    </div>--}}
-{{--                </div>--}}
+                {{-- TOTAL QTY: при раскомментировании вернуть полный .row с закрывающим </div> --}}
             </div>
 
         </div>

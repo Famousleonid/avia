@@ -687,6 +687,23 @@ class WoBushingController extends Controller
             ? $woBushing->bush_data
             : json_decode($woBushing->bush_data, true);
 
+        $filterBushingComponentIds = null;
+        if ($request->has('bushing_component_ids')) {
+            $raw = $request->input('bushing_component_ids', []);
+            $filterBushingComponentIds = array_values(array_unique(array_filter(array_map('intval', is_array($raw) ? $raw : [$raw]))));
+        }
+
+        $applyBushingComponentFilter = function (array $rows) use ($filterBushingComponentIds) {
+            if ($filterBushingComponentIds === null) {
+                return $rows;
+            }
+            $allowed = array_flip($filterBushingComponentIds);
+            return array_values(array_filter($rows, function ($row) use ($allowed) {
+                $c = $row['component'] ?? null;
+                return $c && isset($allowed[$c->id]);
+            }));
+        };
+
         // Обработка NDT формы
         if ($processName->process_sheet_name == 'NDT') {
             // Получаем ID process names одним запросом
@@ -797,6 +814,8 @@ class WoBushingController extends Controller
                 ];
             }
 
+            $tableData = $applyBushingComponentFilter($tableData);
+
             return view('admin.wo_bushings.processesForm', array_merge($viewData, [
                 'ndt_processes' => $ndt_processes,
                 'table_data' => $tableData
@@ -858,6 +877,8 @@ class WoBushingController extends Controller
                 }
             }
         }
+
+        $tableData = $applyBushingComponentFilter($tableData);
 
         return view('admin.wo_bushings.processesForm', array_merge($viewData, [
             'process_components' => $process_components,

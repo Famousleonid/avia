@@ -30,6 +30,7 @@
             </div>
             <div class="modal-body">
                 <form id="printSettingsForm">
+                    @if(($formConfig['show_table_settings'] ?? true))
                     <div class="mb-4">
                         <h5 class="mb-3" data-bs-toggle="tooltip" data-bs-placement="top"
                             title="Настройки количества строк в таблице. Строки распределяются по страницам. Настройки применяются автоматически при загрузке."
@@ -101,6 +102,7 @@
                             </div>
                         </div>
                     </div>
+                    @endif
 
                     <div class="accordion mb-3" id="pageSettingsAccordion">
                         <div class="accordion-item">
