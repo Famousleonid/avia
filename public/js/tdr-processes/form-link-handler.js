@@ -38,7 +38,7 @@ class FormLinkHandler {
         const process = link.getAttribute('data-process');
         const processNameId = link.getAttribute('data-process-name-id');
 
-        // Сначала ищем вендор в той же строке таблицы / блоке процессов (show2, модалки), иначе — по всему document
+        // Сначала ищем вендор в той же строке таблицы / блоке процессов (TDR show, модалки), иначе — по всему document
         const row = link.closest('tr');
         const localRoot = row || link.closest('.processes-modal-body') || link.closest('.extra-processes-modal-body') || document;
 

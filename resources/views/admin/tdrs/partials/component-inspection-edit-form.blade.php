@@ -12,7 +12,7 @@
 
     <input type="hidden" name="workorder_id" value="{{ $current_tdr->workorder->id }}">
     <input type="hidden" name="use_process_forms" value="{{ $current_tdr->use_process_forms }}">
-    <input type="hidden" name="return_to" value="show2">
+    <input type="hidden" name="return_to" value="show">
 
     <div class="mb-3">
         <div class="row">

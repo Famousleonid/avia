@@ -1,6 +1,6 @@
 <script>
     window.currentWorkorderId = {{ $current_wo->id }};
-    window.show2Url = '{{ route("tdrs.show2", ["id" => $current_wo->id]) }}';
+    window.tdrShowUrl = '{{ route("tdrs.show", ["id" => $current_wo->id]) }}';
 </script>
 <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/Sortable.min.js"></script>
 <script src="{{ asset('js/tdr-processes/sortable-handler.js') }}"></script>
@@ -853,7 +853,7 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     var groupProcessFormsHeaderBtn = document.getElementById('groupProcessFormsHeaderBtn');
-    document.getElementById('show2TabList')?.addEventListener('shown.bs.tab', function(e) {
+    document.getElementById('tdrShowTabList')?.addEventListener('shown.bs.tab', function(e) {
         var target = (e.target.getAttribute && e.target.getAttribute('data-bs-target')) || (e.target.getAttribute && e.target.getAttribute('href'));
         if (target && String(target).indexOf('content-part-processes') !== -1) {
             if (extraPartsTabActions) extraPartsTabActions.classList.add('d-none');
@@ -1499,12 +1499,12 @@ document.addEventListener('DOMContentLoaded', function() {
                     headers: { 'X-CSRF-TOKEN': csrfToken, 'Accept': 'application/json' }
                 })
                 .then(response => {
-                    if (response.redirected && response.url.includes('/show2/')) {
+                    if (response.redirected && (response.url.includes('/show2/') || response.url.includes('/tdrs/show/'))) {
                         window.top.location.href = response.url;
                         return null;
                     }
-                    if (response.redirected && window.show2Url) {
-                        window.top.location.href = window.show2Url;
+                    if (response.redirected && window.tdrShowUrl) {
+                        window.top.location.href = window.tdrShowUrl;
                         return null;
                     }
                     return response.json();
@@ -1512,7 +1512,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 .then(data => {
                     if (!data) return;
                     if (data.success) {
-                        const redirectUrl = data.redirect || window.show2Url;
+                        const redirectUrl = data.redirect || window.tdrShowUrl;
                         delete manageConditionModal.dataset.returnToModal;
                         window.top.location.href = redirectUrl;
                     } else {
@@ -1549,7 +1549,7 @@ document.addEventListener('DOMContentLoaded', function() {
                         if (addModal) addModal.hide();
                         const tabTdr = document.getElementById('tab-tdr');
                         if (tabTdr) { const t = new bootstrap.Tab(tabTdr); t.show(); }
-                        window.location.replace(window.show2Url);
+                        window.location.replace(window.tdrShowUrl);
                     } else {
                         (typeof showNotification === 'function' ? (m) => showNotification(m, 'error') : (window.NotificationHandler?.error || alert))(data.message || '{{ __("An error occurred while saving.") }}');
                         submitBtn.disabled = false;

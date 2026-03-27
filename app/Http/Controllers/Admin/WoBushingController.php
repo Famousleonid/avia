@@ -353,7 +353,7 @@ class WoBushingController extends Controller
     }
 
     /**
-     * Return partial HTML for Bushing Processes tab (embedded in show2).
+     * Return partial HTML for Bushing Processes tab (embedded in TDR show).
      *
      * @param int $workorder_id
      * @return \Illuminate\Contracts\View\View
@@ -415,7 +415,7 @@ class WoBushingController extends Controller
         $vendors = Vendor::all();
         $manuals = Manual::all();
 
-        $returnTo = route('tdrs.show2', ['id' => $current_wo->id]);
+        $returnTo = route('tdrs.show', ['id' => $current_wo->id]);
 
         return view('admin.wo_bushings.partial', compact(
             'current_wo',

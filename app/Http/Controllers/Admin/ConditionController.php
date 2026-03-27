@@ -200,7 +200,7 @@ class ConditionController extends Controller
             'message' => __('Condition deleted successfully.')
         ];
         if ($workorderId) {
-            $response['redirect'] = route('tdrs.show2', ['id' => $workorderId]);
+            $response['redirect'] = route('tdrs.show', ['id' => $workorderId]);
         }
 
         return response()->json($response);

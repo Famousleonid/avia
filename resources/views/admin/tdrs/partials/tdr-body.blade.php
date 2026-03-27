@@ -57,7 +57,7 @@
                             <form action="{{ route('tdrs.destroy', $tdr->id) }}" method="POST" onsubmit="return confirm('Are you sure you want to delete this item?');">
                                 @csrf
                                 @method('DELETE')
-                                <input type="hidden" name="return_to" value="show2">
+                                <input type="hidden" name="return_to" value="show">
                                 <button type="submit" class="btn btn-outline-danger btn-sm"><i class="bi bi-trash"></i></button>
                             </form>
                         </td>
@@ -142,7 +142,7 @@
                                     <form action="{{ route('tdrs.destroy', ['tdr' => $tdr->id]) }}" method="POST" onsubmit="return confirm('Are you sure you want to delete this item?');">
                                         @csrf
                                         @method('DELETE')
-                                        <input type="hidden" name="return_to" value="show2">
+                                        <input type="hidden" name="return_to" value="show">
                                         <button type="submit" class="btn btn-outline-danger btn-sm"><i class="bi bi-trash"></i></button>
                                     </form>
                                 </div>

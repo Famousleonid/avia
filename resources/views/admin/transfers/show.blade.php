@@ -32,7 +32,7 @@
                         </a>
                     @endif
                 @endforeach
-                <a href="{{ route('tdrs.show', $workorder->id) }}"
+                <a href="{{ route('tdrs.show', ['id' => $workorder->id]) }}"
                    class="btn btn-outline-secondary">
                     {{ __('Back to TDR') }}
                 </a>

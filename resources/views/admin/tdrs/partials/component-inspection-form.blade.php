@@ -1,10 +1,10 @@
 {{-- Partial: Add Part Inspection form (from component-inspection) --}}
-{{-- Used in modal on show2, requires: $current_wo, $components, $manuals, $manual_id, $codes, $necessaries, $component_conditions --}}
+{{-- Used in modal on TDR show, requires: $current_wo, $components, $manuals, $manual_id, $codes, $necessaries, $component_conditions --}}
 <form id="createForm" class="createForm" role="form" method="POST"
       action="{{ route('tdrs.store') }}" enctype="multipart/form-data">
     @csrf
     <input type="hidden" name="workorder_id" value="{{ $current_wo->id }}">
-    <input type="hidden" name="return_to" value="show2">
+    <input type="hidden" name="return_to" value="show">
 
     <div class="row">
         <div class="col">

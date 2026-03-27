@@ -152,8 +152,12 @@ Route::group(['middleware' => ['auth']], function () {
         Route::get('tdrs/create/{id}', [TdrController::class, 'create'])->name('tdrs.create');
         Route::get('tdrs/edit/{id}', [TdrController::class, 'edit'])->name('tdrs.edit');
         Route::get('tdrs/edit-form/{id}', [TdrController::class, 'editForm'])->name('tdrs.editForm');
+
         Route::get('tdrs/show/{id}', [TdrController::class, 'show'])->name('tdrs.show');
-        Route::get('tdrs/show2/{id}', [TdrController::class, 'show2'])->name('tdrs.show2');
+
+        Route::get('tdrs/show2/{id}', function ($id) {
+            return redirect()->route('tdrs.show', ['id' => $id], 301);
+        });
         Route::get('tdrs/processes/{workorder_id}',[TdrController::class, 'processes'])->name('tdrs.processes');
         Route::get('tdrs/{id}/group-forms/{processNameId}', [TdrController::class, 'showGroupForms'])->name('tdrs.show_group_forms');
         Route::get('/tdrs/inspection/{workorder_id}',[TdrController::class, 'inspection'])->name('tdrs.inspection');

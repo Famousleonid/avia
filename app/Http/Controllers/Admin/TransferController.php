@@ -109,7 +109,7 @@ class TransferController extends Controller
     }
 
     /**
-     * HTML fragment for TDR show2 "Transfers" tab (AJAX).
+     * HTML fragment for TDR show "Transfers" tab (AJAX).
      */
     public function partial(Workorder $workorder)
     {

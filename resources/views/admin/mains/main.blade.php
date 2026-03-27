@@ -190,7 +190,7 @@
                                             @endif
 
                                             <div class="d-flex align-items-center gap-2 ms-3">
-                                                <a href="{{ route('tdrs.show2', $current_workorder->id) }}"
+                                                <a href="{{ route('tdrs.show', ['id' => $current_workorder->id]) }}"
                                                    class="btn btn-outline-success dir-top-square-btn"
                                                    data-tippy-content="{{ __('TDR Report') }}"
                                                    onclick="showLoadingSpinner()">

@@ -126,7 +126,7 @@ class NdtCadCsvController extends Controller
     }
 
     /**
-     * Partial для встраивания в show2 (без layout)
+     * Partial для встраивания в TDR show (без layout)
      */
     public function partial(Workorder $workorder): View
     {

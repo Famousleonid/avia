@@ -93,7 +93,7 @@ class RmReportController extends Controller
 }
 
     /**
-     * Return partial HTML for Repair & Modification Record tab (embedded in show2).
+     * Return partial HTML for Repair & Modification Record tab (embedded in TDR show).
      *
      * @param int $workorder_id
      * @return Application|Factory|View

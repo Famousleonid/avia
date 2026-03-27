@@ -401,9 +401,8 @@ class TdrController extends Controller
                     $workorder->save();
                 }
 
-                $redirectRoute = $request->input('return_to') === 'show2' ? 'tdrs.show2' : 'tdrs.show';
                 return redirect()
-                    ->route($redirectRoute, ['id' => $workorder->id])
+                    ->route('tdrs.show', ['id' => $workorder->id])
                     ->with('success', __('TDR records created successfully'));
             } catch (\Exception $e) {
                 return redirect()->back()
@@ -581,9 +580,8 @@ class TdrController extends Controller
             }
         }
 
-        $redirectRoute = $request->input('return_to') === 'show2' ? 'tdrs.show2' : 'tdrs.show';
         return redirect()
-            ->route($redirectRoute, ['id' => $workorder->id])
+            ->route('tdrs.show', ['id' => $workorder->id])
             ->with('success', 'TDR record created successfully');
     }
     public function store_old(Request $request)
@@ -1306,25 +1304,20 @@ class TdrController extends Controller
         ]));
     }
 
-    public function show($id)
-    {
-        return view('admin.tdrs.show', $this->getShowData($id));
-    }
-
     /**
-     * Display TDR Report - alternative layout (show2) with tabs.
+     * Display TDR Report (tabbed layout).
      *
      * @param int $id Workorder ID
      * @return Application|Factory|View
      */
-    public function show2($id)
+    public function show($id)
     {
         $viewData = $this->getShowData($id);
-        return view('admin.tdrs.show2', $viewData);
+        return view('admin.tdrs.show', $viewData);
     }
 
     /**
-     * Prepare data for TDR show/show2 views.
+     * Prepare data for TDR show view.
      *
      * @param int $id Workorder ID
      * @return array
@@ -1610,13 +1603,12 @@ class TdrController extends Controller
         $tdr->update($validated);
 
         if ($request->wantsJson() || $request->ajax()) {
-            return response()->json(['success' => true, 'redirect' => route($request->input('return_to') === 'show2' ? 'tdrs.show2' : 'tdrs.show', ['id' => $request->workorder_id])]);
+            return response()->json(['success' => true, 'redirect' => route('tdrs.show', ['id' => $request->workorder_id])]);
         }
 
         // Перенаправляем на страницу просмотра с сообщением об успехе
-        $redirectRoute = $request->input('return_to') === 'show2' ? 'tdrs.show2' : 'tdrs.show';
         return redirect()
-            ->route($redirectRoute, ['id' => $request->workorder_id])
+            ->route('tdrs.show', ['id' => $request->workorder_id])
             ->with('success', 'TDR for Component updated successfully');
     }
 
@@ -3973,9 +3965,7 @@ class TdrController extends Controller
             }
         }
 
-        // Перенаправить на show2 (TDR tab)
-        $redirectRoute = request()->input('return_to') === 'show' ? 'tdrs.show' : 'tdrs.show2';
-        return redirect()->route($redirectRoute, ['id' => $workorderId])
+        return redirect()->route('tdrs.show', ['id' => $workorderId])
             ->with('success', 'Запись успешно удалена.');
     }
 
