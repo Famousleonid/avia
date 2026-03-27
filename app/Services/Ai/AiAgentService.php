@@ -3,10 +3,12 @@
 namespace App\Services\Ai;
 
 use App\Models\AiChatMessage;
+use App\Models\Manual;
 use App\Models\User;
 use App\Services\Ai\Tools\AnalyzeWorkorderTool;
 use App\Services\Ai\Tools\CreateWorkorderNoteTool;
 use App\Services\Ai\Tools\FindWorkorderTool;
+use App\Services\Ai\Tools\LookupManualEditPermissionsTool;
 use App\Services\Ai\Tools\LookupWorkorderPartsTool;
 use App\Services\Ai\Tools\SearchMyWorkordersByOpenProcessTool;
 use App\Services\Ai\Tools\SearchWorkordersByOpenProcessTool;
@@ -24,6 +26,7 @@ class AiAgentService
         protected SearchWorkordersTool $searchWorkordersTool,
         protected SearchMyWorkordersByOpenProcessTool $searchMyWorkordersByOpenProcessTool,
         protected SearchWorkordersByOpenProcessTool $searchWorkordersByOpenProcessTool,
+        protected LookupManualEditPermissionsTool $lookupManualEditPermissionsTool,
     ) {
     }
 
@@ -55,6 +58,7 @@ class AiAgentService
             $this->searchWorkordersByOpenProcessTool->schema(),
             $this->createWorkorderNoteTool->schema(),
             $this->lookupWorkorderPartsTool->schema(),
+            $this->lookupManualEditPermissionsTool->schema(),
         ];
 
         $systemPrompt = $this->systemPrompt($user, $pageContext);
@@ -180,6 +184,7 @@ class AiAgentService
             'searchWorkordersByOpenProcess' => $this->searchWorkordersByOpenProcessTool->run($user, $arguments),
             'createWorkorderNote' => $this->createWorkorderNoteTool->run($user, $arguments),
             'lookupWorkorderParts' => $this->lookupWorkorderPartsTool->run($user, $arguments),
+            'lookupManualEditPermissions' => $this->lookupManualEditPermissionsTool->run($user, $arguments),
             default => [
                 'ok' => false,
                 'message' => "Unknown tool: {$toolName}",
@@ -201,15 +206,63 @@ class AiAgentService
             $payload['previous_response_id'] = $previousResponseId;
         }
 
-        $response = Http::withToken($apiKey)
-            ->acceptJson()
-            ->post('https://api.openai.com/v1/responses', $payload);
+        $maxAttempts = (int) config('services.openai.retry_attempts', 4);
+        $maxAttempts = max(1, min(8, $maxAttempts));
 
-        if (! $response->successful()) {
-            throw new \RuntimeException('OpenAI API error: ' . $response->body());
+        for ($attempt = 1; $attempt <= $maxAttempts; $attempt++) {
+            $response = Http::withToken($apiKey)
+                ->acceptJson()
+                ->timeout((int) config('services.openai.timeout_seconds', 120))
+                ->post('https://api.openai.com/v1/responses', $payload);
+
+            if ($response->successful()) {
+                $data = $response->json();
+                if (is_array($data) && isset($data['error']) && $this->openAiPayloadErrorIsRetryable($data)) {
+                    if ($attempt < $maxAttempts) {
+                        $this->sleepOpenAiBackoff($attempt);
+                        continue;
+                    }
+                }
+
+                if (is_array($data) && isset($data['error'])) {
+                    throw new \RuntimeException('OpenAI API error: ' . $response->body());
+                }
+
+                return is_array($data) ? $data : [];
+            }
+
+            $status = $response->status();
+            $body = $response->body();
+            $json = $response->json();
+            $retryable = $status >= 500
+                || $status === 429
+                || (is_array($json) && $this->openAiPayloadErrorIsRetryable($json));
+
+            if ($retryable && $attempt < $maxAttempts) {
+                $this->sleepOpenAiBackoff($attempt);
+                continue;
+            }
+
+            throw new \RuntimeException('OpenAI API error: ' . $body);
         }
 
-        return $response->json();
+        throw new \RuntimeException('OpenAI API error: request failed after '.$maxAttempts.' attempts.');
+    }
+
+    /**
+     * OpenAI sometimes returns HTTP 5xx with error.type "server_error" (transient); retry with backoff.
+     */
+    protected function openAiPayloadErrorIsRetryable(array $payload): bool
+    {
+        $type = (string) ($payload['error']['type'] ?? '');
+
+        return $type === 'server_error' || $type === 'rate_limit_exceeded' || $type === 'timeout';
+    }
+
+    protected function sleepOpenAiBackoff(int $attempt): void
+    {
+        $ms = (int) min(8000, 400 * (2 ** ($attempt - 1))) + random_int(0, 350);
+        usleep($ms * 1000);
     }
 
     protected function extractToolCalls(array $response): array
@@ -295,15 +348,52 @@ class AiAgentService
         ]);
     }
 
+    /**
+     * Текст для system prompt: WO и открытый CMM — только человекочитаемые номера; manual_id не передаём в реплики пользователю.
+     */
+    protected function buildAiPageContextLine(array $pageContext): string
+    {
+        $lines = [];
+
+        $currentWo = $pageContext['current_workorder'] ?? null;
+        if (is_array($currentWo) && ! empty($currentWo['id'])) {
+            $woNo = (int) ($currentWo['number'] ?? 0);
+            $manualId = (int) ($currentWo['manual_id'] ?? 0);
+            $cmmNumber = '';
+            $cmmTitle = '';
+            if ($manualId > 0) {
+                $manual = Manual::query()->find($manualId);
+                if ($manual) {
+                    $cmmNumber = trim((string) ($manual->number ?? ''));
+                    $cmmTitle = trim((string) ($manual->title ?? ''));
+                }
+            }
+            if ($cmmNumber !== '') {
+                $lines[] = 'Workorder context: WO '.$woNo.', linked CMM number «'.$cmmNumber.'»'
+                    .($cmmTitle !== '' ? ', title «'.$cmmTitle.'»' : '')
+                    .'. When speaking to the user, use this CMM number for the manual — never manual_id or internal ids.';
+            } else {
+                $lines[] = 'Workorder context: WO '.$woNo.'. When speaking to the user, use only this WO number — never internal database ids.';
+            }
+        }
+
+        $cm = $pageContext['current_manual'] ?? null;
+        if (is_array($cm)) {
+            $mn = trim((string) ($cm['number'] ?? ''));
+            $mt = trim((string) ($cm['title'] ?? ''));
+            if ($mn !== '' || $mt !== '') {
+                $lines[] = 'Browser: user is viewing the CMM manual page for «'.$mn.'»'
+                    .($mt !== '' ? ' — '.$mt : '')
+                    .'. Refer to this manual only by CMM number «'.$mn.'» — never manual_id or internal ids.';
+            }
+        }
+
+        return $lines === [] ? '' : implode("\n", $lines);
+    }
+
     protected function systemPrompt(User $user, array $pageContext = []): string
     {
-        $currentWo = $pageContext['current_workorder'] ?? null;
-        $contextLine = '';
-        if (is_array($currentWo) && !empty($currentWo['id'])) {
-            $woNo = (int)($currentWo['number'] ?? 0);
-            $manualId = (int)($currentWo['manual_id'] ?? 0);
-            $contextLine = "Current page context (internal): WO number {$woNo}, manual_id {$manualId}. When talking to the user, refer to the workorder only by WO number — never mention internal database IDs.";
-        }
+        $contextLine = $this->buildAiPageContextLine($pageContext);
 
         $pageRoute = $pageContext['page']['route'] ?? null;
         if (is_string($pageRoute) && $pageRoute !== '') {
@@ -357,6 +447,7 @@ What you can actually do in THIS app (strict — if the user asks «what can you
 - searchWorkordersByOpenProcess: find all visible workorders (not only mine) with open process rows (date_start set, date_finish empty, ignore_row=0); optional customer and process filters; return links to open the main page.
 - createWorkorderNote: propose appending a note to a workorder — only after explicit user intent and UI confirmation (not instant).
 - lookupWorkorderParts: look up manual/parts lines for a workorder (read-only).
+- lookupManualEditPermissions: from manual_user_permissions — which CMM manuals a user may edit (by name/email fragment) or which users may edit a manual (by manual number fragment); read-only.
 - UI navigation help: explain where to click in the admin interface using ONLY the «UI NAVIGATION MAP» block below (no tools; no invented menus).
 - Plus: plain-language conversation without accessing the database when no tool is needed.
 
@@ -364,6 +455,7 @@ Do NOT claim you can: upload or delete files or photos, send email or notificati
 
 Communication style (strict):
 - Never mention or write internal workorder database IDs to the user — only WO number (номер воркордера) and human-readable facts.
+- For CMM manuals, always use the **manual number** (номер CMM, e.g. 32-21-09) and title if helpful — **never** say `manual_id`, «manual id 12», internal row ids, or other database keys for manuals.
 - Speak only in plain human language (Russian or English, matching the user). No SQL, no programming code, no database queries, no framework names, no technical dumps.
 - Do not show raw JSON, stack traces, or API payloads to the user; summarize what they mean in words.
 - For workorder lists from tools: use markdown links only on the WO number, e.g. `[WO 107300](url)` then plain text after ` — ` for the rest of the line. Do not wrap the whole line in a link; do not paste bare URLs (the widget renders links as clickable text without showing the address).
@@ -376,6 +468,7 @@ Important behavior:
 - If the user asks to create or modify something, first confirm details.
 - If a tool returns an error, explain it plainly in human language.
 - For write actions, request explicit UI confirmation first. Never execute write action immediately after tool proposal.
+- For `lookupManualEditPermissions` about the manual on screen: use the **CMM number** from context (e.g. 32-21-09) as `manual_number` when calling the tool; in the answer, speak only in terms of that CMM number — never `manual_id`.
 
 System context:
 - «Status / step» of a workorder for the user = on which unfinished **general task** stage it sits; order of stages is `general_tasks.sort_order`. Closed workorder = `isDone()` (Completed task finished). Photos do not change status or closed state.

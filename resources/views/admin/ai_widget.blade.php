@@ -382,12 +382,21 @@
             const page = window.aiPageContext && typeof window.aiPageContext === 'object'
                 ? { route: window.aiPageContext.route || null }
                 : null;
+            let currentManual = null;
+            if (window.aiCurrentManual && typeof window.aiCurrentManual === 'object') {
+                const n = window.aiCurrentManual.number != null ? String(window.aiCurrentManual.number).trim() : '';
+                const t = window.aiCurrentManual.title != null ? String(window.aiCurrentManual.title).trim() : '';
+                if (n || t) {
+                    currentManual = { number: n || null, title: t || null };
+                }
+            }
             return {
                 current_workorder: wo && wo.id ? {
                     id: Number(wo.id) || null,
                     number: Number(wo.number) || null,
                     manual_id: Number(wo.manual_id) || null
                 } : null,
+                current_manual: currentManual,
                 page: page && page.route ? page : null,
                 origin: window.location.origin || null
             };

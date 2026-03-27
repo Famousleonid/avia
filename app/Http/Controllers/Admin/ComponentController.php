@@ -8,6 +8,7 @@ use App\Models\Manual;
 use App\Models\Plane;
 use App\Models\Builder;
 use App\Models\Scope;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Contracts\Foundation\Application;
 use Illuminate\Contracts\View\Factory;
 use Illuminate\Contracts\View\View;
@@ -100,6 +101,20 @@ class ComponentController extends Controller
 //                'img' => 'nullable|image|mimes:jpeg,png,jpg,gif,svg|max:2048',
 //                'assy_img' => 'nullable|image|mimes:jpeg,png,jpg,gif,svg|max:2048',
             ]);
+            $user = auth()->user();
+            $manualId = (int) $validated['manual_id'];
+            $manualHasAnyPermissions = DB::table('manual_user_permissions')
+                ->where('manual_id', $manualId)
+                ->exists();
+
+            abort_unless(
+                $user && (
+                    $user->roleIs('Admin') ||
+                    (!$manualHasAnyPermissions) ||
+                    $user->permittedManuals()->where('manuals.id', $manualId)->exists()
+                ),
+                403
+            );
             $validated['assy_part_number'] = $request->assy_part_number;
             $validated['eff_code'] = $request->eff_code;
             $validated['units_assy'] = $request->units_assy;
@@ -148,6 +163,20 @@ class ComponentController extends Controller
                 'eff_code' => 'nullable|string|max:100',
                 'units_assy' => 'nullable|string|max:100',
             ]);
+            $user = auth()->user();
+            $manualId = (int) $validated['manual_id'];
+            $manualHasAnyPermissions = DB::table('manual_user_permissions')
+                ->where('manual_id', $manualId)
+                ->exists();
+
+            abort_unless(
+                $user && (
+                    $user->roleIs('Admin') ||
+                    (!$manualHasAnyPermissions) ||
+                    $user->permittedManuals()->where('manuals.id', $manualId)->exists()
+                ),
+                403
+            );
             $validated['assy_part_number'] = $request->assy_part_number;
             $validated['eff_code'] = $request->eff_code;
             $validated['units_assy'] = $request->units_assy;
@@ -307,6 +336,21 @@ class ComponentController extends Controller
     {
         $component = Component::findOrFail($id);
 
+        $user = auth()->user();
+        $manualId = (int) ($component->manual_id ?? 0);
+
+        $manualHasAnyPermissions = DB::table('manual_user_permissions')
+            ->where('manual_id', $manualId)
+            ->exists();
+        abort_unless(
+            $user && (
+                $user->roleIs('Admin') ||
+                (!$manualHasAnyPermissions) ||
+                $user->permittedManuals()->where('manuals.id', $manualId)->exists()
+            ),
+            403
+        );
+
         return response()->json([
             'success'   => true,
             'component' => [
@@ -339,6 +383,21 @@ class ComponentController extends Controller
             'eff_code'     => 'nullable|string|max:100',
             'units_assy'   => 'nullable|string|max:100',
         ]);
+        $user = auth()->user();
+        $manualId = (int) $validated['manual_id'];
+
+        $manualHasAnyPermissions = DB::table('manual_user_permissions')
+            ->where('manual_id', $manualId)
+            ->exists();
+
+        abort_unless(
+            $user && (
+                $user->roleIs('Admin') ||
+                (!$manualHasAnyPermissions) ||
+                $user->permittedManuals()->where('manuals.id', $manualId)->exists()
+            ),
+            403
+        );
 
         $validated['assy_part_number'] = $request->assy_part_number;
         $validated['eff_code']         = $request->eff_code;
@@ -374,6 +433,21 @@ class ComponentController extends Controller
     public function destroy(Request $request, $id)
     {
         $component = Component::findOrFail($id);
+        $user = auth()->user();
+        $manualId = (int) ($component->manual_id ?? 0);
+
+        $manualHasAnyPermissions = DB::table('manual_user_permissions')
+            ->where('manual_id', $manualId)
+            ->exists();
+
+        abort_unless(
+            $user && (
+                $user->roleIs('Admin') ||
+                (!$manualHasAnyPermissions) ||
+                $user->permittedManuals()->where('manuals.id', $manualId)->exists()
+            ),
+            403
+        );
         $component->delete();
 
         $redirect = $request->input('redirect');

@@ -1289,3 +1289,13 @@
     </script>
 
 @endsection
+
+@section('scripts')
+    {{-- Контекст CMM для AI: номер и название — без manual_id в ответах пользователю --}}
+    <script>
+        window.aiCurrentManual = @json([
+            'number' => $cmm->number ?? '',
+            'title' => $cmm->title ?? '',
+        ]);
+    </script>
+@endsection

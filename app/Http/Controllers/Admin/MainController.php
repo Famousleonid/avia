@@ -76,9 +76,14 @@ class MainController extends Controller
         }
 
         if ($request->ajax() || $request->expectsJson()) {
+            $updatedAt = now()->format('d ') . Str::lower(now()->format('M')) . now()->format(' Y');
+            $ignoreMessage = $main->ignore_row
+                ? "Row ignored ({$task->name}) {$updatedAt}"
+                : "Row restored ({$task->name}) {$updatedAt}";
+
             return response()->json([
                 'success' => true,
-                'message' => 'Record saved.',
+                'message' => $request->has('ignore_row') ? $ignoreMessage : 'Record saved.',
                 'main_id' => $main->id,
                 'date_start' => optional($main->date_start)?->format('Y-m-d'),
                 'date_finish' => optional($main->date_finish)?->format('Y-m-d'),
@@ -477,9 +482,15 @@ class MainController extends Controller
         }
 
         if ($request->ajax() || $request->expectsJson()) {
+            $taskLabel = $main->task?->name ?? 'Task';
+            $updatedAt = now()->format('d ') . Str::lower(now()->format('M')) . now()->format(' Y');
+            $ignoreMessage = $main->ignore_row
+                ? "Row ignored ({$taskLabel}) {$updatedAt}"
+                : "Row restored ({$taskLabel}) {$updatedAt}";
+
             return response()->json([
                 'success' => true,
-                'message' => 'Record updated.',
+                'message' => $request->has('ignore_row') ? $ignoreMessage : 'Record updated.',
                 'main_id' => $main->id,
                 'date_start' => optional($main->date_start)?->format('Y-m-d'),
                 'date_finish' => optional($main->date_finish)?->format('Y-m-d'),
@@ -526,12 +537,17 @@ class MainController extends Controller
         $tdrProcess->user_id = auth()->id();
         $tdrProcess->save();
 
+        $rowName = $tdrProcess->processName()->value('name') ?? 'Process';
+        $updatedAt = now()->format('d ') . Str::lower(now()->format('M')) . now()->format(' Y');
+
         return response()->json([
             'success' => true,
-            'message' => $tdrProcess->ignore_row ? 'Row ignored' : 'Row restored',
+            'message' => $tdrProcess->ignore_row
+                ? "Row ignored ({$rowName}) {$updatedAt}"
+                : "Row restored ({$rowName}) {$updatedAt}",
             'ignore_row' => (bool) $tdrProcess->ignore_row,
             'user' => auth()->user()?->name ?? 'system',
-            'updated_at' => now()->format('d.m.Y H:i'),
+            'updated_at' => $updatedAt,
         ]);
     }
 

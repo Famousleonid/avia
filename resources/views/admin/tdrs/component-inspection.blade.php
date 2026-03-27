@@ -93,9 +93,16 @@
                                     @endforeach
                                 </select>
                             </div>
-                            <div class="mt-1 d-flex">
-                                <button type="button" class="btn btn-link p-0 me-3" data-bs-toggle="modal"
-                                        data-bs-target="#addComponentModal">{{ __('Add Part') }}
+                            <div class="mt-1 d-flex" id="js-parts-actions" @class([
+                                'mt-1 d-flex',
+                                'd-none' => !($canManageManualParts ?? false),
+                            ])>
+                                <button type="button"
+                                        id="js-add-part-btn"
+                                        class="btn btn-link p-0 me-3"
+                                        data-bs-toggle="modal"
+                                        data-bs-target="#addComponentModal">
+                                    {{ __('Add Part') }}
                                 </button>
                                 <button type="button" class="btn btn-link p-0" id="editComponentBtn">
                                     {{ __('Edit Part') }}
