@@ -1,81 +1,101 @@
 /**
- * ChartJSPatcher - модуль для исправления ошибок Chart.js
- * Используется в ndtFormStd для предотвращения ошибок identifyDuplicates
+ * ChartJSPatcher — защита Chart.helpers.identifyDuplicates от неитерируемых / не-массивных аргументов.
+ * Идемпотентно: один раз сохраняет оригинал в Chart.helpers.__tdrOriginalIdentifyDuplicates.
  */
 class ChartJSPatcher {
-    /**
-     * Применяет патч для Chart.js
-     * Переопределяет Chart.helpers.identifyDuplicates для предотвращения ошибок
-     */
-    static applyPatch() {
-        function patchChartJs() {
-            if (typeof Chart !== 'undefined' && Chart.helpers) {
-                const originalIdentifyDuplicates = Chart.helpers.identifyDuplicates;
-                if (originalIdentifyDuplicates && typeof originalIdentifyDuplicates === 'function') {
-                    Chart.helpers.identifyDuplicates = function(statements) {
-                        if (!statements || !Array.isArray(statements)) {
-                            return [];
-                        }
-                        try {
-                            return originalIdentifyDuplicates.call(this, statements);
-                        } catch (e) {
-                            console.warn('Chart.js identifyDuplicates error:', e);
-                            return [];
-                        }
-                    };
-                    console.log('Chart.js патч применен');
-                }
+    static _normalizeStatements(statements) {
+        if (statements == null) {
+            return [];
+        }
+        if (Array.isArray(statements)) {
+            return statements;
+        }
+        if (statements && typeof statements.toArray === 'function') {
+            try {
+                const a = statements.toArray();
+                return Array.isArray(a) ? a : [];
+            } catch (e) {
+                /* fall through */
             }
         }
+        if (typeof statements === 'object' && typeof statements.length === 'number' && typeof statements !== 'string') {
+            try {
+                return Array.prototype.slice.call(statements);
+            } catch (e) {
+                /* fall through */
+            }
+        }
+        if (typeof Symbol !== 'undefined' && typeof statements[Symbol.iterator] === 'function') {
+            try {
+                return Array.from(statements);
+            } catch (e) {
+                /* fall through */
+            }
+        }
+        return [];
+    }
 
-        // Пытаемся переопределить сразу
+    static applyPatch() {
+        function patchChartJs() {
+            if (typeof Chart === 'undefined' || !Chart.helpers) {
+                return;
+            }
+            const identify = Chart.helpers.identifyDuplicates;
+            if (typeof identify !== 'function') {
+                return;
+            }
+
+            const helpers = Chart.helpers;
+            const key = '__tdrOriginalIdentifyDuplicates';
+            if (!helpers[key]) {
+                helpers[key] = identify;
+            }
+
+            helpers.identifyDuplicates = function tdrPatchedIdentifyDuplicates(statements) {
+                const arr = ChartJSPatcher._normalizeStatements(statements);
+                try {
+                    return helpers[key].call(this, arr);
+                } catch (e) {
+                    console.warn('Chart.js identifyDuplicates error:', e);
+                    return [];
+                }
+            };
+        }
+
         patchChartJs();
 
-        // Также переопределяем после загрузки DOM
+        if (ChartJSPatcher._hooksInstalled) {
+            return;
+        }
+        ChartJSPatcher._hooksInstalled = true;
+
         if (document.readyState === 'loading') {
             document.addEventListener('DOMContentLoaded', patchChartJs);
         } else {
-            // DOM уже загружен
             setTimeout(patchChartJs, 0);
         }
 
-        // Переопределяем при каждом изменении Chart (на случай асинхронной загрузки)
-        let chartCheckInterval = setInterval(function() {
+        const chartCheckInterval = setInterval(function () {
             if (typeof Chart !== 'undefined' && Chart.helpers) {
                 patchChartJs();
                 clearInterval(chartCheckInterval);
             }
         }, 100);
 
-        // Останавливаем проверку через 5 секунд
-        setTimeout(function() {
+        setTimeout(function () {
             clearInterval(chartCheckInterval);
         }, 5000);
     }
 
-    /**
-     * Проверяет, применен ли патч
-     * @returns {boolean} true если патч применен
-     */
     static isPatched() {
-        if (typeof Chart === 'undefined' || !Chart.helpers) {
-            return false;
-        }
-        
-        // Проверяем, что функция была переопределена
-        const func = Chart.helpers.identifyDuplicates;
-        return func && func.toString().includes('console.warn');
+        return typeof Chart !== 'undefined'
+            && Chart.helpers
+            && typeof Chart.helpers.__tdrOriginalIdentifyDuplicates === 'function';
     }
 }
 
-// Применяем патч сразу при загрузке модуля
 ChartJSPatcher.applyPatch();
 
-// Экспорт для использования в других модулях
 if (typeof module !== 'undefined' && module.exports) {
     module.exports = ChartJSPatcher;
 }
-
-
-
-

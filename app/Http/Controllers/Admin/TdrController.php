@@ -2118,7 +2118,7 @@ class TdrController extends Controller
             ] + $ndt_ids); // Добавляем ID процессов NDT
     }
 
-    public function cadStd($workorder_id)
+    public function cadStd(Request $request, $workorder_id)
     {
         try {
             // Получаем рабочий заказ и связанные данные
@@ -2539,17 +2539,21 @@ class TdrController extends Controller
             // Рассчитываем общее количество деталей на основе отфильтрованных компонентов
             $cadSum = $this->calcCadSumsFromComponents($cad_components);
 
-            // Разбиение на страницы теперь происходит на фронтенде через JavaScript
-            // Передаём все компоненты без предварительного разбиения
+            $cadFormCfg = config('tdr_forms.cadFormStd', []);
+            $cadDefaultRows = (int) ($cadFormCfg['table_rows_default'] ?? 19);
+            $cadRowsPerPage = (int) $request->query('cad_table_rows', $cadDefaultRows);
+            $cadRowsPerPage = max(1, min(99, $cadRowsPerPage));
+            $cad_table_pages = $this->buildStdProcessSheetTablePages($cad_components, $cadRowsPerPage);
 
             return view('admin.tdrs.cadFormStd', [
                     'current_wo' => $current_wo,
                     'manual' => $manual,
-                    'cad_components' => $cad_components, // Передаём все компоненты напрямую
+                    'cad_components' => $cad_components,
+                    'cad_table_pages' => $cad_table_pages,
+                    'cad_rows_per_page' => $cadRowsPerPage,
                     'cad_processes' => $cad_processes,
                     'form_number' => $form_number,
                     'manuals' => [$manual],
-                    // 'componentChunks' => $componentChunks, // Удалено - разбиение на фронтенде
                     'process_name' => ProcessName::where('name', 'Cad plate')->first(),
                     'cadSum' => $cadSum,
                 ] + $cad_ids);
@@ -2731,7 +2735,48 @@ class TdrController extends Controller
         }
     }
 
-    public function stressStd($workorder_id)
+    /**
+     * Разбиение строк Stress/CAD std-форм по страницам на сервере.
+     * Элементы: kind = manual | data | empty.
+     *
+     * @param  array<int, object>  $components  объекты с полем manual (как в stress/cad)
+     * @return array<int, array<int, array<string, mixed>>>
+     */
+    private function buildStdProcessSheetTablePages(array $components, int $rowsPerPage): array
+    {
+        $rowsPerPage = max(1, min(99, $rowsPerPage));
+        $flat = [];
+        $previousManual = null;
+        foreach ($components as $component) {
+            $currentManual = $component->manual ?? null;
+            $shouldInsertManualRow = ($currentManual !== null && $currentManual !== '' && $currentManual !== $previousManual);
+            if ($shouldInsertManualRow) {
+                $flat[] = ['kind' => 'manual', 'text' => $currentManual];
+            }
+            $flat[] = ['kind' => 'data', 'component' => $component];
+            $previousManual = $currentManual;
+        }
+        if ($flat === []) {
+            $pages = [[]];
+        } else {
+            $pages = array_chunk($flat, $rowsPerPage);
+        }
+        $pageCount = count($pages);
+        if ($pageCount >= 1) {
+            $lastIdx = $pageCount - 1;
+            $n = count($pages[$lastIdx]);
+            $need = $rowsPerPage - $n;
+            if ($need > 0 && $n > 0 && $need < $rowsPerPage) {
+                for ($j = 0; $j < $need; $j++) {
+                    $pages[$lastIdx][] = ['kind' => 'empty'];
+                }
+            }
+        }
+
+        return $pages;
+    }
+
+    public function stressStd(Request $request, $workorder_id)
     {
         try {
             // Получаем рабочий заказ и связанные данные
@@ -3085,19 +3130,23 @@ class TdrController extends Controller
             // Рассчитываем общее количество деталей
             $stressSum = $this->calcStressSums($workorder_id);
 
-            // Разбиение на страницы теперь происходит на фронтенде через JavaScript
-            // Передаём все компоненты без предварительного разбиения
+            $stressFormCfg = config('tdr_forms.stressFormStd', []);
+            $defaultRows = (int) ($stressFormCfg['table_rows_default'] ?? 21);
+            $stressRowsPerPage = (int) $request->query('stress_table_rows', $defaultRows);
+            $stressRowsPerPage = max(1, min(99, $stressRowsPerPage));
+            $stress_table_pages = $this->buildStdProcessSheetTablePages($stress_components, $stressRowsPerPage);
 
             return view('admin.tdrs.stressFormStd', [
                     'current_wo' => $current_wo,
                     'manual' => $manual,
-                    'stress_components' => $stress_components, // Передаём все компоненты напрямую
+                    'stress_components' => $stress_components,
+                    'stress_table_pages' => $stress_table_pages,
+                    'stress_rows_per_page' => $stressRowsPerPage,
                     'stress_processes' => $stress_processes,
                     'form_number' => $form_number,
                     'manuals' => [$manual],
                     'process_name' => ProcessName::where('id', 3)->first(),
                     'stressSum' => $stressSum,
-                    // 'componentChunks' => $componentChunks, // Удалено - разбиение на фронтенде
                 ] + $stress_ids);
 
         } catch (\Exception $e) {

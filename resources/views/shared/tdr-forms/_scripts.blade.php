@@ -53,6 +53,22 @@
         root.style.setProperty('--print-footer-font-size', settings.footerFontSize || defaultSettings.footerFontSize);
         root.style.setProperty('--print-footer-padding', settings.footerPadding || defaultSettings.footerPadding);
         root.style.setProperty('--component-name-font-size', (settings.componentNameFontSize || defaultSettings.componentNameFontSize) + 'px');
+
+        const parsePct = (v, fallback) => {
+            const n = parseFloat(String(v ?? '').replace(/[^\d.-]/g, ''));
+            return Number.isFinite(n) && n > 0 ? n : fallback;
+        };
+        const defW = parsePct(defaultSettings.bodyWidth, 100);
+        const defH = parsePct(defaultSettings.bodyHeight, 100);
+        const curW = parsePct(settings.bodyWidth, defW);
+        const curH = parsePct(settings.bodyHeight, defH);
+        const zx = curW / defW;
+        const zy = curH / defH;
+        root.style.setProperty('--print-scale-x', String(zx));
+        root.style.setProperty('--print-scale-y', String(zy));
+        /* trainingForms: transform:scale не меняет габариты в потоке → лишние страницы при печати; zoom учитывает раскладку (Chrome/Edge) */
+        const layoutZoom = Math.sqrt(Math.max(0.05, zx * zy));
+        root.style.setProperty('--print-layout-zoom', String(layoutZoom));
     }
 
     function loadSettingsToForm(settings) {
@@ -111,6 +127,41 @@
             if (typeof window.tdrFormApplyTableRowLimits === 'function') {
                 window.tdrFormApplyTableRowLimits(settings);
             }
+@if(($formType ?? '') === 'stressFormStd')
+            {
+                const rows = parseInt(String(settings['{{ $tableRowsKey }}'] ?? '').replace(/[^\d]/g, ''), 10);
+                if (Number.isFinite(rows) && rows >= 1) {
+                    const u = new URL(window.location.href);
+                    const def = {{ (int) $tableRowsDefault }};
+                    if (rows === def) {
+                        u.searchParams.delete('stress_table_rows');
+                    } else {
+                        u.searchParams.set('stress_table_rows', String(rows));
+                    }
+                    if (u.href !== window.location.href) {
+                        window.location.href = u.href;
+                        return;
+                    }
+                }
+            }
+@elseif(($formType ?? '') === 'cadFormStd')
+            {
+                const rows = parseInt(String(settings['{{ $tableRowsKey }}'] ?? '').replace(/[^\d]/g, ''), 10);
+                if (Number.isFinite(rows) && rows >= 1) {
+                    const u = new URL(window.location.href);
+                    const def = {{ (int) $tableRowsDefault }};
+                    if (rows === def) {
+                        u.searchParams.delete('cad_table_rows');
+                    } else {
+                        u.searchParams.set('cad_table_rows', String(rows));
+                    }
+                    if (u.href !== window.location.href) {
+                        window.location.href = u.href;
+                        return;
+                    }
+                }
+            }
+@endif
             if (document.activeElement?.blur) document.activeElement.blur();
             const modal = bootstrap.Modal.getInstance(document.getElementById('printSettingsModal'));
             if (modal) modal.hide();
@@ -130,6 +181,13 @@
                 if (typeof window.tdrFormApplyTableRowLimits === 'function') {
                     window.tdrFormApplyTableRowLimits(defaultSettings);
                 }
+@if(($formType ?? '') === 'stressFormStd')
+                if (window.location.search.indexOf('stress_table_rows') !== -1) {
+                    const u = new URL(window.location.href);
+                    u.searchParams.delete('stress_table_rows');
+                    window.location.href = u.href;
+                }
+@endif
             }, 50);
             if (typeof showNotification === 'function') showNotification('Settings reset to default values!', 'success');
         }
@@ -154,6 +212,35 @@
             if (typeof window.tdrFormApplyTableRowLimits === 'function') {
                 window.tdrFormApplyTableRowLimits(settings);
             }
+@if(($formType ?? '') === 'stressFormStd')
+            (function syncStressRowsQueryFromStorage() {
+                const u = new URL(window.location.href);
+                if (u.searchParams.has('stress_table_rows')) {
+                    return;
+                }
+                const rows = parseInt(String(settings['{{ $tableRowsKey }}'] ?? '').replace(/[^\d]/g, ''), 10);
+                const def = {{ (int) $tableRowsDefault }};
+                if (!Number.isFinite(rows) || rows < 1 || rows === def) {
+                    return;
+                }
+                u.searchParams.set('stress_table_rows', String(rows));
+                window.location.replace(u.href);
+            })();
+@elseif(($formType ?? '') === 'cadFormStd')
+            (function syncCadRowsQueryFromStorage() {
+                const u = new URL(window.location.href);
+                if (u.searchParams.has('cad_table_rows')) {
+                    return;
+                }
+                const rows = parseInt(String(settings['{{ $tableRowsKey }}'] ?? '').replace(/[^\d]/g, ''), 10);
+                const def = {{ (int) $tableRowsDefault }};
+                if (!Number.isFinite(rows) || rows < 1 || rows === def) {
+                    return;
+                }
+                u.searchParams.set('cad_table_rows', String(rows));
+                window.location.replace(u.href);
+            })();
+@endif
         }, 300);
 
         const modal = document.getElementById('printSettingsModal');

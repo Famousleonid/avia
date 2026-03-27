@@ -629,10 +629,31 @@ document.addEventListener('DOMContentLoaded', function() {
             if (formBtn && formBtn.getAttribute('href')) {
                 e.preventDefault();
                 var vendorSelectId = formBtn.getAttribute('data-vendor-select');
-                var vendorSelect = document.getElementById(vendorSelectId);
+                var vendorSelect = vendorSelectId ? document.getElementById(vendorSelectId) : null;
                 var vendorId = vendorSelect ? vendorSelect.value : '';
                 var baseUrl = formBtn.getAttribute('href');
-                var finalUrl = baseUrl + (vendorId ? (baseUrl.includes('?') ? '&' : '?') + 'vendor_id=' + vendorId : '');
+                var processKey = formBtn.getAttribute('data-process-key');
+                var queryParts = [];
+                if (processKey) {
+                    var seen = {};
+                    document.querySelectorAll(
+                        '.bushing-process-include-checkbox[data-process-key="' + processKey + '"]:checked'
+                    ).forEach(function(cb) {
+                        var cid = cb.getAttribute('data-component-id');
+                        if (cid && !seen[cid]) {
+                            seen[cid] = true;
+                            queryParts.push('bushing_component_ids[]=' + encodeURIComponent(cid));
+                        }
+                    });
+                    if (queryParts.length === 0) {
+                        alert({!! json_encode(__('Select at least one bushing for this process using the checkboxes in the table.')) !!});
+                        return;
+                    }
+                }
+                if (vendorId) {
+                    queryParts.push('vendor_id=' + encodeURIComponent(vendorId));
+                }
+                var finalUrl = baseUrl + (queryParts.length ? (baseUrl.indexOf('?') === -1 ? '?' : '&') + queryParts.join('&') : '');
                 window.open(finalUrl, '_blank');
             }
         });

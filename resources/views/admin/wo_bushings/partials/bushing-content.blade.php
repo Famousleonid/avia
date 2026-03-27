@@ -5,8 +5,26 @@
         .bushing-view-table .bushing-col { white-space: nowrap; }
         .bushing-view-table .vendor-select-sm { min-width: 60px; max-width: 80px; font-size: 0.9rem; padding: 0.15rem 0.25rem; }
         .bushing-view-table th.bushing-process-col,
-        .bushing-view-table td.bushing-process-col { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; box-sizing: border-box; }
+        .bushing-view-table td.bushing-process-col { overflow: hidden; box-sizing: border-box; vertical-align: middle; }
+        .bushing-view-table th.bushing-process-col { text-overflow: ellipsis; white-space: nowrap; }
+        .bushing-view-table td.bushing-process-col:not(:has(.bushing-process-include-checkbox)) { text-overflow: ellipsis; white-space: nowrap; }
+        .bushing-view-table td.bushing-process-col .bushing-process-cell-inner {
+            display: flex;
+            align-items: center;
+            gap: 0.25rem;
+            min-width: 0;
+            max-width: 100%;
+        }
+        /* min-width:0 + ellipsis на потомке flex — иначе длинный текст раздувает строку */
+        .bushing-view-table td.bushing-process-col .bushing-process-cell-text {
+            min-width: 0;
+            flex: 1 1 auto;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
         .bushing-view-table th.bushing-process-col > div { overflow: hidden; max-width: 100%; }
+        .bushing-view-table .bushing-process-include-checkbox { cursor: pointer; flex-shrink: 0; }
     </style>
     <div class="w-100 mt-3">
         <div class="table-wrapper table-scroll-container w-100" style="max-height: calc(100vh - 320px); overflow: auto;">
@@ -50,7 +68,7 @@
                                         @endforeach
                                     </select>
                                     @if($machiningProcessName && $hasMachiningData)
-                                        <a href="{{ route('wo_bushings.processesForm', ['id' => $woBushing->id, 'processNameId' => $machiningProcessName->id]) }}" target="_blank" class="btn btn-sm btn-outline-warning form-btn" data-vendor-select="vendor_machining">Form</a>
+                                        <a href="{{ route('wo_bushings.processesForm', ['id' => $woBushing->id, 'processNameId' => $machiningProcessName->id]) }}" target="_blank" class="btn btn-sm btn-outline-warning form-btn" data-vendor-select="vendor_machining" data-process-key="machining">Form</a>
                                     @else
                                         <span class="text-muted">Form</span>
                                     @endif
@@ -93,7 +111,7 @@
                                         @foreach($vendors as $vendor)<option value="{{ $vendor->id }}">{{ $vendor->name }}</option>@endforeach
                                     </select>
                                     @if($stressReliefProcessName && $hasStressReliefData)
-                                        <a href="{{ route('wo_bushings.processesForm', ['id' => $woBushing->id, 'processNameId' => $stressReliefProcessName->id]) }}" target="_blank" class="btn btn-sm btn-outline-warning form-btn" data-vendor-select="vendor_stress_relief">Form</a>
+                                        <a href="{{ route('wo_bushings.processesForm', ['id' => $woBushing->id, 'processNameId' => $stressReliefProcessName->id]) }}" target="_blank" class="btn btn-sm btn-outline-warning form-btn" data-vendor-select="vendor_stress_relief" data-process-key="stress_relief">Form</a>
                                     @else
                                         <span class="text-muted">Form</span>
                                     @endif
@@ -120,7 +138,7 @@
                                         @foreach($vendors as $vendor)<option value="{{ $vendor->id }}">{{ $vendor->name }}</option>@endforeach
                                     </select>
                                     @if($ndtProcessName && $hasNdtData)
-                                        <a href="{{ route('wo_bushings.processesForm', ['id' => $woBushing->id, 'processNameId' => $ndtProcessName->id]) }}" target="_blank" class="btn btn-sm btn-outline-warning form-btn" data-vendor-select="vendor_ndt">Form</a>
+                                        <a href="{{ route('wo_bushings.processesForm', ['id' => $woBushing->id, 'processNameId' => $ndtProcessName->id]) }}" target="_blank" class="btn btn-sm btn-outline-warning form-btn" data-vendor-select="vendor_ndt" data-process-key="ndt">Form</a>
                                     @else
                                         <span class="text-muted">Form</span>
                                     @endif
@@ -147,7 +165,7 @@
                                         @foreach($vendors as $vendor)<option value="{{ $vendor->id }}">{{ $vendor->name }}</option>@endforeach
                                     </select>
                                     @if($passivationProcessName && $hasPassivationData)
-                                        <a href="{{ route('wo_bushings.processesForm', ['id' => $woBushing->id, 'processNameId' => $passivationProcessName->id]) }}" target="_blank" class="btn btn-sm btn-outline-warning form-btn" data-vendor-select="vendor_passivation">Form</a>
+                                        <a href="{{ route('wo_bushings.processesForm', ['id' => $woBushing->id, 'processNameId' => $passivationProcessName->id]) }}" target="_blank" class="btn btn-sm btn-outline-warning form-btn" data-vendor-select="vendor_passivation" data-process-key="passivation">Form</a>
                                     @else
                                         <span class="text-muted">Form</span>
                                     @endif
@@ -174,7 +192,7 @@
                                         @foreach($vendors as $vendor)<option value="{{ $vendor->id }}">{{ $vendor->name }}</option>@endforeach
                                     </select>
                                     @if($cadProcessName && $hasCadData)
-                                        <a href="{{ route('wo_bushings.processesForm', ['id' => $woBushing->id, 'processNameId' => $cadProcessName->id]) }}" target="_blank" class="btn btn-sm btn-outline-warning form-btn" data-vendor-select="vendor_cad">Form</a>
+                                        <a href="{{ route('wo_bushings.processesForm', ['id' => $woBushing->id, 'processNameId' => $cadProcessName->id]) }}" target="_blank" class="btn btn-sm btn-outline-warning form-btn" data-vendor-select="vendor_cad" data-process-key="cad">Form</a>
                                     @else
                                         <span class="text-muted">Form</span>
                                     @endif
@@ -201,7 +219,7 @@
                                         @foreach($vendors as $vendor)<option value="{{ $vendor->id }}">{{ $vendor->name }}</option>@endforeach
                                     </select>
                                     @if($anodizingProcessName && $hasAnodizingData)
-                                        <a href="{{ route('wo_bushings.processesForm', ['id' => $woBushing->id, 'processNameId' => $anodizingProcessName->id]) }}" target="_blank" class="btn btn-sm btn-outline-warning form-btn" data-vendor-select="vendor_anodizing">Form</a>
+                                        <a href="{{ route('wo_bushings.processesForm', ['id' => $woBushing->id, 'processNameId' => $anodizingProcessName->id]) }}" target="_blank" class="btn btn-sm btn-outline-warning form-btn" data-vendor-select="vendor_anodizing" data-process-key="anodizing">Form</a>
                                     @else
                                         <span class="text-muted">Form</span>
                                     @endif
@@ -228,7 +246,7 @@
                                         @foreach($vendors as $vendor)<option value="{{ $vendor->id }}">{{ $vendor->name }}</option>@endforeach
                                     </select>
                                     @if($xylanProcessName && $hasXylanData)
-                                        <a href="{{ route('wo_bushings.processesForm', ['id' => $woBushing->id, 'processNameId' => $xylanProcessName->id]) }}" target="_blank" class="btn btn-sm btn-outline-warning form-btn" data-vendor-select="vendor_xylan">Form</a>
+                                        <a href="{{ route('wo_bushings.processesForm', ['id' => $woBushing->id, 'processNameId' => $xylanProcessName->id]) }}" target="_blank" class="btn btn-sm btn-outline-warning form-btn" data-vendor-select="vendor_xylan" data-process-key="xylan">Form</a>
                                     @else
                                         <span class="text-muted">Form</span>
                                     @endif
@@ -290,13 +308,76 @@
                                     <span
                                         class="text-muted">{{ $component->part_number }}</span></td>
                                 <td class="text-center">{{ $data['qty'] ?? '-' }}</td>
-                                <td class="bushing-process-col" title="{{ $machiningProcess ? $machiningProcess->process : '-' }}">{{ $machiningProcess ? $machiningProcess->process : '-' }}</td>
-                                <td class="bushing-process-col" title="{{ $stressReliefProcess ? $stressReliefProcess->process : '-' }}">{{ $stressReliefProcess ? $stressReliefProcess->process : '-' }}</td>
-                                <td class="bushing-process-col" title="{{ !empty($ndtNames) ? implode(' / ', $ndtNames) : '-' }}">{{ !empty($ndtNames) ? implode(' / ', $ndtNames) : '-' }}</td>
-                                <td class="bushing-process-col" title="{{ $passivationProcess ? $passivationProcess->process : '-' }}">{{ $passivationProcess ? $passivationProcess->process : '-' }}</td>
-                                <td class="bushing-process-col" title="{{ $cadProcess ? $cadProcess->process : '-' }}">{{ $cadProcess ? $cadProcess->process : '-' }}</td>
-                                <td class="bushing-process-col" title="{{ $anodizingProcess ? $anodizingProcess->process : '-' }}">{{ $anodizingProcess ? $anodizingProcess->process : '-' }}</td>
-                                <td class="bushing-process-col" title="{{ $xylanProcess ? $xylanProcess->process : '-' }}">{{ $xylanProcess ? $xylanProcess->process : '-' }}</td>
+                                <td class="bushing-process-col" title="{{ $machiningProcess ? $machiningProcess->process : '-' }}">
+                                    @if($machiningProcess)
+                                        <div class="bushing-process-cell-inner">
+                                            <input type="checkbox" class="form-check-input bushing-process-include-checkbox mt-0" data-process-key="machining" data-component-id="{{ $component->id }}" autocomplete="off" title="{{ __('Include in Machining form') }}">
+                                            <span class="bushing-process-cell-text">{{ $machiningProcess->process }}</span>
+                                        </div>
+                                    @else
+                                        -
+                                    @endif
+                                </td>
+                                <td class="bushing-process-col" title="{{ $stressReliefProcess ? $stressReliefProcess->process : '-' }}">
+                                    @if($stressReliefProcess)
+                                        <div class="bushing-process-cell-inner">
+                                            <input type="checkbox" class="form-check-input bushing-process-include-checkbox mt-0" data-process-key="stress_relief" data-component-id="{{ $component->id }}" autocomplete="off" title="{{ __('Include in Stress Relief form') }}">
+                                            <span class="bushing-process-cell-text">{{ $stressReliefProcess->process }}</span>
+                                        </div>
+                                    @else
+                                        -
+                                    @endif
+                                </td>
+                                <td class="bushing-process-col" title="{{ !empty($ndtNames) ? implode(' / ', $ndtNames) : '-' }}">
+                                    @if(!empty($ndtNames))
+                                        <div class="bushing-process-cell-inner">
+                                            <input type="checkbox" class="form-check-input bushing-process-include-checkbox mt-0" data-process-key="ndt" data-component-id="{{ $component->id }}" autocomplete="off" title="{{ __('Include in NDT form') }}">
+                                            <span class="bushing-process-cell-text">{{ implode(' / ', $ndtNames) }}</span>
+                                        </div>
+                                    @else
+                                        -
+                                    @endif
+                                </td>
+                                <td class="bushing-process-col" title="{{ $passivationProcess ? $passivationProcess->process : '-' }}">
+                                    @if($passivationProcess)
+                                        <div class="bushing-process-cell-inner">
+                                            <input type="checkbox" class="form-check-input bushing-process-include-checkbox mt-0" data-process-key="passivation" data-component-id="{{ $component->id }}" autocomplete="off" title="{{ __('Include in Passivation form') }}">
+                                            <span class="bushing-process-cell-text">{{ $passivationProcess->process }}</span>
+                                        </div>
+                                    @else
+                                        -
+                                    @endif
+                                </td>
+                                <td class="bushing-process-col" title="{{ $cadProcess ? $cadProcess->process : '-' }}">
+                                    @if($cadProcess)
+                                        <div class="bushing-process-cell-inner">
+                                            <input type="checkbox" class="form-check-input bushing-process-include-checkbox mt-0" data-process-key="cad" data-component-id="{{ $component->id }}" autocomplete="off" title="{{ __('Include in CAD form') }}">
+                                            <span class="bushing-process-cell-text">{{ $cadProcess->process }}</span>
+                                        </div>
+                                    @else
+                                        -
+                                    @endif
+                                </td>
+                                <td class="bushing-process-col" title="{{ $anodizingProcess ? $anodizingProcess->process : '-' }}">
+                                    @if($anodizingProcess)
+                                        <div class="bushing-process-cell-inner">
+                                            <input type="checkbox" class="form-check-input bushing-process-include-checkbox mt-0" data-process-key="anodizing" data-component-id="{{ $component->id }}" autocomplete="off" title="{{ __('Include in Anodizing form') }}">
+                                            <span class="bushing-process-cell-text">{{ $anodizingProcess->process }}</span>
+                                        </div>
+                                    @else
+                                        -
+                                    @endif
+                                </td>
+                                <td class="bushing-process-col" title="{{ $xylanProcess ? $xylanProcess->process : '-' }}">
+                                    @if($xylanProcess)
+                                        <div class="bushing-process-cell-inner">
+                                            <input type="checkbox" class="form-check-input bushing-process-include-checkbox mt-0" data-process-key="xylan" data-component-id="{{ $component->id }}" autocomplete="off" title="{{ __('Include in Xylan form') }}">
+                                            <span class="bushing-process-cell-text">{{ $xylanProcess->process }}</span>
+                                        </div>
+                                    @else
+                                        -
+                                    @endif
+                                </td>
                             </tr>
                         @endforeach
                     @endforeach

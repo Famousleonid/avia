@@ -501,9 +501,9 @@
                 @endphp
 
                 @if($shouldInsertManualRow)
-                    {{-- Строка с Manual --}}
-                    <div class="fs-85 data-row-ndt manual-row" data-row-index="{{ $rowIndex }}">
-                        <div class=" border-l-b-r details-row text-center" style="height: 32px; font-weight: bold;">
+                    {{-- Строка с Manual — та же сетка, что у data-row (row + col-12), иначе бордеры не совпадают с шапкой --}}
+                    <div class="row fs-85 data-row-ndt manual-row" data-row-index="{{ $rowIndex }}">
+                        <div class="col-12 border-l-b-r details-row text-center" style="height: 32px; font-weight: bold;">
                             <strong>{{ $currentManual }}</strong>
                         </div>
                     </div>
@@ -583,216 +583,17 @@
     }
 </script>
 
+<script src="{{ asset('js/tdrs/forms/common/tdr-multipage-layout.js') }}"></script>
 <script>
-    // NDT-специфичная логика лимитов строк (используется shared scripts)
     window.tdrFormApplyTableRowLimits = function(settings) {
-        const ndtMaxRows = parseInt(settings.ndtTableRows) || 16;
-        console.log('Применение ограничений строк NDT:', { ndtMaxRows, settings });
-
-        const allRowsContainer = document.querySelector('.all-rows-container');
-        if (!allRowsContainer) {
-            console.warn('Контейнер .all-rows-container не найден!');
+        if (typeof TdrMultipageLayout === 'undefined') {
+            console.error('TdrMultipageLayout не загружен');
             return;
         }
-
-        // Удаляем все созданные ранее страницы (кроме первой)
-        document.querySelectorAll('.data-page[data-page-index]').forEach(function(page) {
-            const pageIndex = page.getAttribute('data-page-index');
-            if (pageIndex && parseInt(pageIndex) > 1) {
-                page.remove();
-            }
-        });
-
-        // Удаляем все разделители и пустые строки
-        document.querySelectorAll('.page-break-divider').forEach(function(el) {
-            el.remove();
-        });
-        document.querySelectorAll('.page-break-after').forEach(function(el) {
-            el.classList.remove('page-break-after');
-        });
-        document.querySelectorAll('.all-rows-container .data-row-ndt.empty-row').forEach(function(row) {
-            row.remove();
-        });
-
-        // Собираем все строки из контейнера
-        const allRows = Array.from(allRowsContainer.querySelectorAll('.data-row-ndt:not(.empty-row)'));
-
-        // Разделяем на manual-row и data-rows
-        const manualRows = allRows.filter(function(row) {
-            return row.classList.contains('manual-row');
-        });
-        const dataRows = allRows.filter(function(row) {
-            return !row.classList.contains('manual-row');
-        });
-
-        const hasManualRows = manualRows.length > 0;
-        console.log('Найдено manual-row:', hasManualRows);
-        console.log('Найдено строк с данными:', dataRows.length);
-
-        let totalRows;
-        let rowsToProcess;
-
-        if (hasManualRows) {
-            // Случай с manual-row: считаем все строки (manual + data)
-            totalRows = allRows.length;
-            rowsToProcess = allRows;
-        } else {
-            // Случай без manual-row: считаем только data-rows
-            totalRows = dataRows.length;
-            rowsToProcess = dataRows;
-        }
-
-        // Вычисляем количество страниц
-        const totalPages = Math.max(1, Math.ceil(totalRows / ndtMaxRows));
-        console.log('Всего строк:', totalRows, ', Лимит на странице:', ndtMaxRows, ', Создано страниц:', totalPages);
-
-        // Находим элементы для копирования
-        const originalHeader = document.querySelector('.header-page');
-        const originalTableHeader = document.querySelector('.table-header');
-        const originalFooter = document.querySelector('footer');
-        const containerFluid = document.querySelector('.container-fluid');
-
-        // Скрываем строки, которые не на первой странице
-        rowsToProcess.forEach(function(row, index) {
-            if (index < ndtMaxRows) {
-                row.style.display = '';
-            } else {
-                row.style.display = 'none';
-            }
-        });
-
-        // Создаём дополнительные страницы (начиная со второй)
-        for (let pageIndex = 1; pageIndex < totalPages; pageIndex++) {
-            const startIndex = pageIndex * ndtMaxRows;
-            const endIndex = Math.min(startIndex + ndtMaxRows, rowsToProcess.length);
-            const pageRows = rowsToProcess.slice(startIndex, endIndex);
-
-            // Создаём контейнер для новой страницы (как container-fluid)
-            const pageContainer = document.createElement('div');
-            pageContainer.className = 'container-fluid';
-
-            // Создаём новую страницу
-            const pageDiv = document.createElement('div');
-            pageDiv.className = 'page data-page';
-            pageDiv.setAttribute('data-page-index', pageIndex + 1);
-            pageDiv.style.pageBreakBefore = 'always';
-
-            // Копируем header
-            if (originalHeader) {
-                const headerClone = originalHeader.cloneNode(true);
-                pageDiv.appendChild(headerClone);
-            }
-
-            // Копируем table-header
-            if (originalTableHeader) {
-                const tableHeaderClone = originalTableHeader.cloneNode(true);
-                pageDiv.appendChild(tableHeaderClone);
-            }
-
-            // Создаём контейнер для строк этой страницы (как all-rows-container)
-            const rowsContainer = document.createElement('div');
-            rowsContainer.className = 'all-rows-container';
-
-            // Клонируем строки для этой страницы
-            pageRows.forEach(function(row) {
-                const rowClone = row.cloneNode(true);
-                rowClone.style.display = '';
-                rowsContainer.appendChild(rowClone);
-            });
-
-            // Добавляем пустые строки на последней странице, если нужно
-            if (pageIndex === totalPages - 1) {
-                const rowsOnLastPage = totalRows % ndtMaxRows;
-                const emptyRowsNeeded = rowsOnLastPage === 0 ? 0 : (ndtMaxRows - rowsOnLastPage);
-
-                if (emptyRowsNeeded > 0) {
-                    for (let i = 0; i < emptyRowsNeeded; i++) {
-                        const emptyRow = document.createElement('div');
-                        emptyRow.className = 'row fs-85 data-row-ndt empty-row';
-                        emptyRow.innerHTML = `
-                            <div class="col-1 border-l-b details-row text-center" style="height: 32px"></div>
-                            <div class="col-3 border-l-b details-row text-center" style="height: 32px"></div>
-                            <div class="col-3 border-l-b details-row text-center" style="height: 32px"></div>
-                            <div class="col-2 border-l-b details-row text-center" style="height: 32px"></div>
-                            <div class="col-1 border-l-b details-row text-center" style="height: 32px"></div>
-                            <div class="col-1 border-l-b details-row text-center" style="height: 32px"></div>
-                            <div class="col-1 border-l-b-r details-row text-center" style="height: 32px"></div>
-                        `;
-                        rowsContainer.appendChild(emptyRow);
-                    }
-                    console.log('Добавлено пустых строк на последнюю страницу:', emptyRowsNeeded);
-                }
-            }
-
-            pageDiv.appendChild(rowsContainer);
-
-            // Копируем footer с правильной нумерацией
-            if (originalFooter) {
-                const footerClone = originalFooter.cloneNode(true);
-                const pageNumberEl = footerClone.querySelector('.page-number');
-                const totalPagesEl = footerClone.querySelector('.total-pages');
-                if (pageNumberEl) {
-                    pageNumberEl.textContent = pageIndex + 1;
-                }
-                if (totalPagesEl) {
-                    totalPagesEl.textContent = totalPages;
-                }
-                pageDiv.appendChild(footerClone);
-            }
-
-            // Добавляем pageDiv в pageContainer
-            pageContainer.appendChild(pageDiv);
-
-            // Вставляем страницу после container-fluid
-            if (containerFluid && containerFluid.parentNode) {
-                containerFluid.parentNode.insertBefore(pageContainer, containerFluid.nextSibling);
-            } else {
-                document.body.appendChild(pageContainer);
-            }
-        }
-
-        // Добавляем пустые строки на первую страницу, если это единственная страница и нужно
-        if (totalPages === 1) {
-            const rowsOnLastPage = totalRows % ndtMaxRows;
-            const emptyRowsNeeded = rowsOnLastPage === 0 ? 0 : (ndtMaxRows - rowsOnLastPage);
-
-            if (emptyRowsNeeded > 0 && allRowsContainer) {
-                const lastDataRow = allRowsContainer.querySelector('.data-row-ndt:not(.empty-row):last-of-type');
-                if (lastDataRow) {
-                    for (let i = 0; i < emptyRowsNeeded; i++) {
-                        const emptyRow = document.createElement('div');
-                        emptyRow.className = 'row fs-85 data-row-ndt empty-row';
-                        emptyRow.innerHTML = `
-                            <div class="col-1 border-l-b details-row text-center" style="height: 32px"></div>
-                            <div class="col-3 border-l-b details-row text-center" style="height: 32px"></div>
-                            <div class="col-3 border-l-b details-row text-center" style="height: 32px"></div>
-                            <div class="col-2 border-l-b details-row text-center" style="height: 32px"></div>
-                            <div class="col-1 border-l-b details-row text-center" style="height: 32px"></div>
-                            <div class="col-1 border-l-b details-row text-center" style="height: 32px"></div>
-                            <div class="col-1 border-l-b-r details-row text-center" style="height: 32px"></div>
-                        `;
-                        allRowsContainer.appendChild(emptyRow);
-                    }
-                    console.log('Добавлено пустых строк на первую страницу:', emptyRowsNeeded);
-                }
-            }
-        }
-
-        // Обновляем нумерацию в оригинальном footer
-        if (originalFooter) {
-            const pageNumberEl = originalFooter.querySelector('.page-number');
-            const totalPagesEl = originalFooter.querySelector('.total-pages');
-            if (pageNumberEl) {
-                pageNumberEl.textContent = '1';
-            }
-            if (totalPagesEl) {
-                totalPagesEl.textContent = totalPages;
-            }
-        }
-
-        console.log('Создано страниц:', totalPages);
+        TdrMultipageLayout.apply(TdrMultipageLayout.presets.ndtFormStd, settings);
     };
 </script>
+<script src="{{ asset('js/tdrs/forms/ndt-std/chartjs-patcher.js') }}"></script>
 <script src="{{ asset('js/main.js') }}"></script>
 @include('shared.tdr-forms._scripts', ['formType' => 'ndtFormStd', 'formConfig' => $tdrFormConfig])
 
@@ -803,7 +604,6 @@
 <script src="{{ asset('js/tdr-processes/processes-form/row-manager.js') }}"></script>
 
 <!-- Модули для NDT Standard формы -->
-<script src="{{ asset('js/tdrs/forms/ndt-std/chartjs-patcher.js') }}"></script>
 <script src="{{ asset('js/tdrs/forms/ndt-std/ndt-std-row-manager.js') }}"></script>
 <script src="{{ asset('js/tdrs/forms/ndt-std/ndt-std-form-main.js') }}"></script>
 </body>

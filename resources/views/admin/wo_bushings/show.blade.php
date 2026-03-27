@@ -195,23 +195,37 @@
                 btn.addEventListener('click', function(e) {
                     e.preventDefault();
 
-                    // ÐŸÐ¾Ð»ÑƒÑ‡Ð°ÐµÐ¼ ID Ð´Ñ€Ð¾Ð¿Ð´Ð°ÑƒÐ½Ð° Ð¸Ð· data-Ð°Ñ‚Ñ€Ð¸Ð±ÑƒÑ‚Ð°
                     var vendorSelectId = this.getAttribute('data-vendor-select');
-                    var vendorSelect = document.getElementById(vendorSelectId);
-
-                    // ÐŸÐ¾Ð»ÑƒÑ‡Ð°ÐµÐ¼ Ð²Ñ‹Ð±Ñ€Ð°Ð½Ð½Ð¾Ðµ Ð·Ð½Ð°Ñ‡ÐµÐ½Ð¸Ðµ vendor_id
+                    var vendorSelect = vendorSelectId ? document.getElementById(vendorSelectId) : null;
                     var vendorId = vendorSelect ? vendorSelect.value : '';
 
-                    // ÐŸÐ¾Ð»ÑƒÑ‡Ð°ÐµÐ¼ Ð±Ð°Ð·Ð¾Ð²Ñ‹Ð¹ URL
                     var baseUrl = this.getAttribute('href');
+                    var processKey = this.getAttribute('data-process-key');
 
-                    // Ð”Ð¾Ð±Ð°Ð²Ð»ÑÐµÐ¼ vendor_id Ðº URL, ÐµÑÐ»Ð¸ Ð¾Ð½ Ð²Ñ‹Ð±Ñ€Ð°Ð½
-                    var finalUrl = baseUrl;
-                    if (vendorId) {
-                        finalUrl += (baseUrl.includes('?') ? '&' : '?') + 'vendor_id=' + vendorId;
+                    var queryParts = [];
+                    if (processKey) {
+                        var seen = {};
+                        document.querySelectorAll(
+                            '.bushing-process-include-checkbox[data-process-key="' + processKey + '"]:checked'
+                        ).forEach(function(cb) {
+                            var cid = cb.getAttribute('data-component-id');
+                            if (cid && !seen[cid]) {
+                                seen[cid] = true;
+                                queryParts.push('bushing_component_ids[]=' + encodeURIComponent(cid));
+                            }
+                        });
+                        if (queryParts.length === 0) {
+                            alert({!! json_encode(__('Select at least one bushing for this process using the checkboxes in the table.')) !!});
+                            return;
+                        }
                     }
 
-                    // Открываем форму в новом окне
+                    if (vendorId) {
+                        queryParts.push('vendor_id=' + encodeURIComponent(vendorId));
+                    }
+
+                    var finalUrl = baseUrl + (queryParts.length ? (baseUrl.indexOf('?') === -1 ? '?' : '&') + queryParts.join('&') : '');
+
                     window.open(finalUrl, '_blank');
                 });
             });
