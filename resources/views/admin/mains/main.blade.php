@@ -151,10 +151,12 @@
                             <div
                                 class="card h-100 w-100 bg-dark text-light border-secondary d-flex align-items-center justify-content-center p-1">
                                 @php
-                                    $previewHref = $imgFull ?: $imgThumb; // если нет full — открываем то, что показано
+                                    $manualPreview = $imgThumb ?: asset('img/noimage.png');
+                                    $previewHref = $imgFull ?: $manualPreview; // если нет full — открываем то, что показано
                                 @endphp
                                 <a href="{{ $previewHref }}" data-fancybox="wo-manual" title="Manual">
-                                    <img class="rounded-2" src="{{ $imgThumb }}" width="80" height="80"
+                                    <img class="rounded-2" src="{{ $manualPreview }}" width="80" height="80"
+                                         onerror="this.onerror=null;this.src='{{ asset('img/noimage.png') }}';if(this.closest('a')){this.closest('a').setAttribute('href','{{ asset('img/noimage.png') }}');}"
                                          alt="Manual preview">
                                 </a>
                             </div>
@@ -438,6 +440,7 @@
                                                                           action="{{ $action }}"
                                                                           data-no-spinner
                                                                           class="js-main-inline-ajax"
+                                                                          data-gt-id="{{ $gt->id }}"
                                                                           data-success="Start date saved">
                                                                         @csrf
                                                                         @if($main)
@@ -483,6 +486,7 @@
                                                                       action="{{ $action }}"
                                                                       data-no-spinner
                                                                       class="js-main-inline-ajax"
+                                                                      data-gt-id="{{ $gt->id }}"
                                                                       data-success="Finish date saved"
                                                                       @if($task->id === 10) data-tippy-content="Edit in the Workrorder section"@endif
                                                                 >
@@ -1374,6 +1378,7 @@
                     }
 
                     refreshFinishInputState(form, data);
+                    applyGeneralTaskButtonState(form, data);
 
                     form.querySelectorAll('input[type="text"], textarea').forEach(input => {
                         input.setAttribute('data-original', input.value ?? '');
@@ -1416,6 +1421,23 @@
 
                     input.classList.toggle('has-finish', String(value).trim() !== '');
                 });
+            }
+
+            function applyGeneralTaskButtonState(form, responseData = null) {
+                const raw = responseData?.general_task_all_finished;
+                if (raw === undefined || raw === null) return;
+                const allFinished = raw === true || raw === 1 || raw === '1' || raw === 'true';
+
+                let gtId = form?.dataset?.gtId;
+                if (!gtId) {
+                    gtId = form?.closest?.('.js-gt-pane')?.dataset?.gtId;
+                }
+                if (!gtId) return;
+
+                const btn = document.querySelector(`.js-gt-btn[data-gt-id="${gtId}"]`);
+                if (!btn) return;
+                btn.classList.toggle('btn-outline-success', allFinished);
+                btn.classList.toggle('btn-outline-danger', !allFinished);
             }
 
             // submit

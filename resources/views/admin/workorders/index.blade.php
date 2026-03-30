@@ -117,31 +117,42 @@
             font-weight: normal;
         }
         .col-stages {
-            width: 90px;
+            width: 92px;
             font-size: 0.8rem;
             font-weight: normal;
         }
 
-        .stage-dot {
-            width: 10px;
-            height: 10px;
-            border-radius: 999px;
-            display: inline-block;
-            border: 1px solid rgba(255, 255, 255, .35);
-            opacity: .95;
-            cursor: help;
+        .stage-strip {
+            display: inline-flex;
+            align-items: center;
+            gap: 0;
+            max-width: 100%;
         }
 
-        .stage-dot.done {
+        .stage-strip-segments {
+            display: inline-flex;
+            align-items: center;
+            gap: 3px;
+        }
+
+        .stage-seg {
+            width: 10px;
+            height: 8px;
+            border-radius: 2px;
+            display: inline-block;
+            border: 1px solid rgba(255, 255, 255, .25);
+        }
+
+        .stage-seg.done {
             background: #198754; /* green */
         }
 
-        .stage-dot.todo {
-            background: #dc3545; /* red */
+        .stage-seg.todo {
+            background: #f59e0b; /* amber (in progress) */
         }
 
-        .stage-dot.empty {
-            background: #6c757d; /* gray */
+        .stage-seg.empty {
+            background: #6c757d; /* gray (not started) */
         }
 
         .table thead th {
@@ -295,6 +306,16 @@
 @endsection
 
 @section('content')
+
+    {{-- Сразу при разборе HTML (ещё до DOMContentLoaded): спиннер на F5/перезагрузке, пока тянется разметка таблицы и фильтры --}}
+    <script>
+        (function () {
+            try {
+                var el = document.getElementById('spinner-load');
+                if (el) el.classList.remove('d-none');
+            } catch (e) {}
+        })();
+    </script>
 
     <div class="card shadow">
 
@@ -565,7 +586,8 @@
                                         : collect();
                                 @endphp
 
-                                <div class="d-inline-flex gap-1 align-items-center">
+                                <div class="stage-strip">
+                                    <span class="stage-strip-segments" aria-hidden="true">
                                     @foreach($generalTasks as $gt)
                                         @php
                                             $st = $byGt->get($gt->id);
@@ -576,19 +598,16 @@
 
                                             if (!$started) {
                                                 $class = 'empty'; // серый
-                                                $title = $gt->name . ' (not started)';
                                             } elseif ($st && $st->is_done) {
                                                 $class = 'done'; // зелёный
-                                                $title = $gt->name . ' (done)';
                                             } else {
-                                                $class = 'todo'; // красный
-                                                $title = $gt->name . ' (in progress)';
+                                                $class = 'todo'; // amber
                                             }
                                         @endphp
 
-                                        <span class="stage-dot {{ $class }}"
-                                              title="{{ $title }}"></span>
+                                        <span class="stage-seg {{ $class }}"></span>
                                     @endforeach
+                                    </span>
                                 </div>
                             </td>
                             @endhasanyrole
@@ -687,10 +706,6 @@
         const currentUserNameLC = currentUserName.toLowerCase();
 
         document.addEventListener('DOMContentLoaded', function () {
-            if (typeof window.safeShowSpinner === 'function') {
-                window.safeShowSpinner();
-            }
-
             const searchInput = document.getElementById('searchInput');
             const clearSearchBtn = document.getElementById('clearSearch');
 
@@ -774,6 +789,16 @@
 
 
             function filterTable() {
+                if (!table) {
+                    if (!firstFilterDone) {
+                        firstFilterDone = true;
+                        if (typeof window.safeHideSpinner === 'function') {
+                            window.safeHideSpinner();
+                        }
+                    }
+                    return;
+                }
+
                 const filterText = searchInput.value.toLowerCase();
                 const onlyMy = checkboxMy.checked;
                 const onlyActive = checkboxDone.checked;
@@ -784,8 +809,6 @@
                 const selectedTechnik = technikFilter ? technikFilter.value : '';
 
                 const rows = table.querySelectorAll('tbody tr');
-
-                if (typeof showLoadingSpinner === 'function') showLoadingSpinner();
 
                 rows.forEach(row => {
                     const rowText = row.innerText.toLowerCase();
@@ -810,13 +833,14 @@
                             : 'none';
                 });
 
-                if (typeof hideLoadingSpinner === 'function') hideLoadingSpinner();
-
                 updateVisibleCounter();
 
                 if (!firstFilterDone) {
                     firstFilterDone = true;
                     tableWrapper.classList.add('ready');
+                    if (typeof window.safeHideSpinner === 'function') {
+                        window.safeHideSpinner();
+                    }
                 }
 
             }

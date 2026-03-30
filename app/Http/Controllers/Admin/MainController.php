@@ -91,6 +91,10 @@ class MainController extends Controller
                 'date_start' => optional($main->date_start)?->format('Y-m-d'),
                 'date_finish' => optional($main->date_finish)?->format('Y-m-d'),
                 'ignore_row' => (bool) $main->ignore_row,
+                'general_task_all_finished' => $this->isGeneralTaskAllFinished(
+                    (int) $main->workorder_id,
+                    (int) $main->general_task_id
+                ),
             ]);
         }
 
@@ -641,6 +645,10 @@ class MainController extends Controller
                 'date_finish' => optional($main->date_finish)?->format('Y-m-d'),
                 'ignore_row' => (bool) $main->ignore_row,
                 'user_name' => $main->user?->name ?? '',
+                'general_task_all_finished' => $this->isGeneralTaskAllFinished(
+                    (int) $main->workorder_id,
+                    (int) $main->general_task_id
+                ),
             ]);
         }
 
@@ -651,6 +659,30 @@ class MainController extends Controller
     {
 
         return redirect()->back();
+    }
+
+    private function isGeneralTaskAllFinished(int $workorderId, int $generalTaskId): bool
+    {
+        $taskIds = Task::query()
+            ->where('general_task_id', $generalTaskId)
+            ->pluck('id');
+
+        if ($taskIds->isEmpty()) {
+            return false;
+        }
+
+        $mainsByTask = Main::query()
+            ->where('workorder_id', $workorderId)
+            ->whereIn('task_id', $taskIds)
+            ->get()
+            ->keyBy('task_id');
+
+        return $taskIds->every(function ($taskId) use ($mainsByTask) {
+            $main = $mainsByTask->get($taskId);
+            if (!$main) return false;
+            if ($main->ignore_row) return true;
+            return !empty($main->date_finish);
+        });
     }
 
     public function updateWoBushingProcessRepairOrder(Request $request, WoBushingProcess $woBushingProcess)
