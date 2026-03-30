@@ -264,8 +264,22 @@ document.addEventListener('DOMContentLoaded', () => {
 
                     if (isLocked) return; // 🔒 не сабмитим
 
+                    const filled = String(dateStr || '').trim() !== '';
+                    if (src.classList.contains('finish-input')) {
+                        src.classList.toggle('has-finish', filled);
+                    }
+                    const altIn = instance.altInput;
+                    if (altIn && altIn.classList.contains('finish-input')) {
+                        altIn.classList.toggle('has-finish', filled);
+                    }
+
                     const form = src.closest('form');
                     if (!form) return;
+
+                    if (typeof window.refreshWoBushingStripCounts === 'function') {
+                        window.refreshWoBushingStripCounts(form);
+                    }
+
                     if (form.requestSubmit) form.requestSubmit();
                     else form.submit();
                 },
@@ -319,6 +333,8 @@ document.addEventListener('DOMContentLoaded', () => {
         // если это чекбокс ignore_row, его обрабатывает другой скрипт
         if (e.target.closest('.js-ignore-row')) return;
 
+        // repair_order сохраняется blur/focusout + ajaxSubmit в main.blade.php — иначе дубль сабмита
+        if (e.target?.name === 'repair_order') return;
 
         const input = e.target.closest('form.js-auto-submit input');
         if (!input) return;

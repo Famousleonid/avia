@@ -320,21 +320,22 @@
                             </div>
 
                             {{-- Tables --}}
-                            <div class="flex-grow-1 min-h-0 js-gt-container" data-wo-id="{{$current_workorder->id}}"
+                            <div class="d-flex flex-column flex-grow-1 min-h-0 js-gt-container" data-wo-id="{{$current_workorder->id}}"
                                  hidden>
 
                                 @foreach($general_tasks as $i => $gt)
 
-                                    <div class="js-gt-pane h-100 d-none"
+                                    <div class="js-gt-pane d-none flex-grow-1 min-h-0 d-flex flex-column"
                                          data-gt-id="{{ $gt->id }}">
-                                        <div class="table-responsive border border-secondary rounded"
-                                             style="overflow:hidden; height:calc(100% - 1px);">
+                                        <div class="main-gt-scroll-area border border-secondary rounded flex-grow-1 min-h-0">
+                                            <div class="d-flex flex-column gap-3 main-gt-scroll-inner min-h-0">
 
                                             @php
                                                 $gtTasks = ($tasksByGeneral[$gt->id] ?? collect());
                                                 $showStartCol = $gtTasks->contains(fn($t) => (bool) $t->task_has_start_date);
                                             @endphp
 
+                                            <div class="table-responsive flex-shrink-0">
                                             <table
                                                 class="table table-dark table-hover table-bordered mb-0 align-middle tasks-table dir-table mt-1">
                                                 <colgroup>
@@ -548,9 +549,10 @@
                                                 @endforelse
                                                 </tbody>
                                             </table>
+                                            </div>
                                             {{-- Workorder Notes --}}
 
-                                            <div class="mt-3 border border-secondary rounded wo-notes-box">
+                                            <div class="border border-secondary rounded wo-notes-box flex-shrink-0">
                                                 {{-- Header --}}
                                                 <div class="wo-notes-head">
                                                     <div class="wo-notes-title">Workorder Notes</div>
@@ -587,50 +589,158 @@
 
                                                         <textarea name="notes"
                                                                   class="form-control form-control-sm bg-dark text-light border-secondary wo-notes-textarea"
-                                                                  rows="3"
+                                                                  rows="2"
                                                                   placeholder="Type notes..."
                                                                   data-original="{{ $current_workorder->notes ?? '' }}">{{ $current_workorder->notes ?? '' }}</textarea>
                                                     </form>
                                                 </div>
                                             </div>
 
-                                            {{-- WO Bushings (table, scrollable) --}}
-                                            <div class="mt-3 border border-secondary rounded wo-bushings-box">
+                                            {{-- WO bushing → процессы (по одной строке на процесс), Qty / RO / даты --}}
+                                            <div class="border border-secondary rounded wo-bushings-box d-flex flex-column flex-grow-1">
                                                 <div class="wo-notes-head">
-                                                    <div class="wo-notes-title">WO Bushings</div>
+                                                    <div class="wo-notes-title small">
+                                                        WO bushing → WO bushing process:
+                                                        <span class="text-info">{{ $bushingTotalPcs }}</span> pcs.
+                                                    </div>
                                                     <div class="wo-notes-right">
-                                                        <span class="text-muted small">rows: {{ $bushingRows->count() }}</span>
+                                                        <span class="text-muted small">{{ $bushingProcessGroupedRows->count() }} {{ __('processes') }}</span>
                                                     </div>
                                                 </div>
 
                                                 <div class="p-2 pt-1 wo-bushings-list">
-                                                    @forelse($bushingRows as $row)
+                                                    @forelse($bushingProcessSections as $section)
                                                         @if($loop->first)
-                                                            <div class="table-responsive">
-                                                                <table class="table table-sm table-dark table-bordered mb-0 wo-bushings-table">
-                                                                    <thead>
-                                                                    <tr>
-                                                                        <th style="width:68px;">WO Bush</th>
-                                                                        <th style="width:116px;">Saved</th>
-                                                                        <th style="width:72px;">Qty</th>
-                                                                        <th style="width:110px;">IPL</th>
-                                                                        <th>Bushing</th>
-                                                                        <th>Processes</th>
-                                                                    </tr>
-                                                                    </thead>
-                                                                    <tbody>
+                                                            <div class="accordion wo-bush-strip-accordion" id="woBushingStripAccordion{{ $gt->id }}">
                                                         @endif
-                                                                    <tr>
-                                                                        <td class="text-info">#{{ $row['wo_bushing_id'] }}</td>
-                                                                        <td class="text-muted small">{{ $row['saved_at'] ?: '—' }}</td>
-                                                                        <td>{{ $row['qty'] }}</td>
-                                                                        <td>{{ $row['ipl_num'] }}</td>
-                                                                        <td>{{ $row['component_label'] }}</td>
-                                                                        <td class="small">{{ $row['processes_text'] }}</td>
-                                                                    </tr>
+                                                                @php
+                                                                    $stripCollapseId = 'woBushStrip_gt'.$gt->id.'_'.$section['group_key'];
+                                                                    $stripHeadingId = 'woBushStrip_gt'.$gt->id.'_'.$section['group_key'].'_hdr';
+                                                                @endphp
+                                                                <div class="accordion-item wo-bush-strip-item border-secondary border-start-0 border-end-0 border-top-0">
+                                                                    <h2 class="accordion-header" id="{{ $stripHeadingId }}">
+                                                                        @php
+                                                                            $stripDone = $section['qty_total'] > 0
+                                                                                && (int) $section['finished_total'] === (int) $section['qty_total'];
+                                                                        @endphp
+                                                                        <button class="accordion-button collapsed wo-bush-strip-btn py-2 px-3 rounded-0"
+                                                                                type="button"
+                                                                                data-bs-toggle="collapse"
+                                                                                data-bs-target="#{{ $stripCollapseId }}"
+                                                                                aria-expanded="false"
+                                                                                aria-controls="{{ $stripCollapseId }}">
+                                                                            <span class="wo-bush-strip-btn-inner d-flex align-items-center min-w-0 flex-grow-1 me-2">
+                                                                                <span class="wo-bush-strip-title text-truncate">{{ $section['group_label'] }}</span>
+                                                                                <span class="wo-bush-strip-count {{ $stripDone ? 'wo-bush-strip-count--done' : '' }}">
+                                                                                    <span class="wo-bush-strip-count-a">{{ $section['finished_total'] }}</span><span class="wo-bush-strip-count-sep">/</span><span class="wo-bush-strip-count-b">{{ $section['qty_total'] }}</span>
+                                                                                </span>
+                                                                            </span>
+                                                                        </button>
+                                                                    </h2>
+                                                                    <div id="{{ $stripCollapseId }}"
+                                                                         class="accordion-collapse collapse"
+                                                                         aria-labelledby="{{ $stripHeadingId }}"
+                                                                         data-bs-parent="#woBushingStripAccordion{{ $gt->id }}">
+                                                                        <div class="accordion-body p-2 pt-1">
+                                                                            @foreach($section['rows'] as $row)
+                                                                                <div class="mb-3 wo-bush-process-block">
+                                                                                    @php
+                                                                                        $rowDone = $row['total_qty'] > 0
+                                                                                            && (int) ($row['finished_qty'] ?? 0) === (int) $row['total_qty'];
+                                                                                    @endphp
+                                                                                    <div class="d-flex align-items-center justify-content-between flex-wrap gap-2 mb-1">
+                                                                                        <div class="small text-info text-truncate">{{ $row['process_label'] }}</div>
+                                                                                        <div class="d-flex align-items-center gap-2">
+                                                                                            <span class="wo-bush-strip-count wo-bush-strip-count--sm {{ $rowDone ? 'wo-bush-strip-count--done' : '' }}">
+                                                                                                <span class="wo-bush-strip-count-a">{{ $row['finished_qty'] ?? 0 }}</span><span class="wo-bush-strip-count-sep">/</span><span class="wo-bush-strip-count-b">{{ $row['total_qty'] }}</span>
+                                                                                            </span>
+                                                                                        </div>
+                                                                                    </div>
+                                                                                    <div class="table-responsive">
+                                                                                        <table class="table table-sm table-dark table-bordered table-hover mb-0 align-middle wo-bushings-table dir-table">
+                                                                                            <thead>
+                                                                                            <tr>
+                                                                                                <th>Part number</th>
+                                                                                                <th>IPL</th>
+                                                                                                <th>Name</th>
+                                                                                                <th class="text-center">Qty</th>
+                                                                                                <th>Repair order</th>
+                                                                                                <th>Sent</th>
+                                                                                                <th>Returned</th>
+                                                                                            </tr>
+                                                                                            </thead>
+                                                                                            <tbody>
+                                                                                            @foreach($row['line_items'] as $item)
+                                                                                                <tr data-bush-line-qty="{{ (int) $item['qty'] }}">
+                                                                                                    <td class="small">{{ $item['part_number'] !== '' ? $item['part_number'] : '—' }}</td>
+                                                                                                    <td class="small">{{ $item['ipl_num'] !== '' ? $item['ipl_num'] : '—' }}</td>
+                                                                                                    <td class="small">{{ $item['name'] !== '' ? $item['name'] : '—' }}</td>
+                                                                                                    <td class="text-center">{{ $item['qty'] }}</td>
+                                                                                                    <td>
+                                                                                                        @hasanyrole('Admin|Manager')
+                                                                                                        <form method="POST"
+                                                                                                              action="{{ route('wo_bushing_processes.updateRepairOrder', $item['id']) }}"
+                                                                                                              class="auto-submit-form js-auto-submit auto-submit-order position-relative js-ajax"
+                                                                                                              data-no-spinner>
+                                                                                                            @csrf
+                                                                                                            @method('PATCH')
+                                                                                                            <input type="text"
+                                                                                                                   name="repair_order"
+                                                                                                                   class="form-control form-control-sm pe-4"
+                                                                                                                   value="{{ $item['repair_order'] ?? '' }}"
+                                                                                                                   placeholder="…"
+                                                                                                                   autocomplete="off"
+                                                                                                                   data-original="{{ $item['repair_order'] ?? '' }}">
+                                                                                                            <i class="bi bi-save save-indicator d-none"></i>
+                                                                                                        </form>
+                                                                                                        @else
+                                                                                                        <input type="text"
+                                                                                                               class="form-control form-control-sm bg-dark"
+                                                                                                               value="{{ $item['repair_order'] ?? '' }}"
+                                                                                                               readonly>
+                                                                                                        @endhasanyrole
+                                                                                                    </td>
+                                                                                                    <td>
+                                                                                                        <form method="POST"
+                                                                                                              action="{{ route('wo_bushing_processes.updateDate', $item['id']) }}"
+                                                                                                              class="auto-submit-form js-ajax"
+                                                                                                              data-no-spinner>
+                                                                                                            @csrf
+                                                                                                            @method('PATCH')
+                                                                                                            <input type="text" data-fp name="date_start"
+                                                                                                                   class="form-control form-control-sm finish-input"
+                                                                                                                   value="{{ $item['date_start']?->format('Y-m-d') }}"
+                                                                                                                   data-original="{{ $item['date_start']?->format('Y-m-d') ?? '' }}"
+                                                                                                                   placeholder="…"
+                                                                                                                   autocomplete="off">
+                                                                                                        </form>
+                                                                                                    </td>
+                                                                                                    <td>
+                                                                                                        <form method="POST"
+                                                                                                              action="{{ route('wo_bushing_processes.updateDate', $item['id']) }}"
+                                                                                                              class="auto-submit-form js-ajax"
+                                                                                                              data-no-spinner>
+                                                                                                            @csrf
+                                                                                                            @method('PATCH')
+                                                                                                            <input type="text" data-fp name="date_finish"
+                                                                                                                   class="form-control form-control-sm finish-input"
+                                                                                                                   value="{{ $item['date_finish']?->format('Y-m-d') }}"
+                                                                                                                   data-original="{{ $item['date_finish']?->format('Y-m-d') ?? '' }}"
+                                                                                                                   placeholder="…"
+                                                                                                                   autocomplete="off">
+                                                                                                        </form>
+                                                                                                    </td>
+                                                                                                </tr>
+                                                                                            @endforeach
+                                                                                            </tbody>
+                                                                                        </table>
+                                                                                    </div>
+                                                                                </div>
+                                                                            @endforeach
+                                                                        </div>
+                                                                    </div>
+                                                                </div>
                                                         @if($loop->last)
-                                                                    </tbody>
-                                                                </table>
                                                             </div>
                                                         @endif
                                                     @empty
@@ -639,7 +749,7 @@
                                                 </div>
                                             </div>
 
-
+                                            </div>
                                         </div>
                                     </div>
 
@@ -1093,8 +1203,8 @@
                 icon.classList.toggle('d-none', (input.value ?? '') === original);
             }, true);
 
-            // 4) blur — сохранить repair_order
-            document.addEventListener('blur', (e) => {
+            // 4) focusout — сохранить repair_order (blur не всплывает; focusout — да, надёжнее для делегирования)
+            document.addEventListener('focusout', (e) => {
                 const input = e.target;
                 if (!input || !input.closest) return;
                 if (input?.name !== 'repair_order') return;

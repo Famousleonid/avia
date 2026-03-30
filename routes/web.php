@@ -126,6 +126,8 @@ Route::group(['middleware' => ['auth']], function () {
     Route::resource('/users', UserController::class);
     Route::resource('/mains',  MainController::class)->except(['show']);
     Route::get('/mains/{workorder}', [MainController::class, 'show'])->name('mains.show');
+    Route::patch('/mains/{workorder}/wo-bushing-process-group/{process}/repair-order', [MainController::class, 'updateWoBushingProcessGroupRepairOrder'])->name('mains.wo_bushing_group.repair_order');
+    Route::patch('/mains/{workorder}/wo-bushing-process-group/{process}/dates', [MainController::class, 'updateWoBushingProcessGroupDates'])->name('mains.wo_bushing_group.dates');
 
   //  Route::patch('/mains/general-task/{workorder}/{generalTask}', [MainController::class, 'updateGeneralTaskDates'])->name('mains.updateGeneralTaskDates');
     Route::get('/main-rows/{main}/activity', [MainController::class, 'activity'])->name('mains.activity');
@@ -257,6 +259,9 @@ Route::group(['middleware' => ['auth']], function () {
     Route::get('processes/create/{manual_id}', [ProcessController::class, 'create'])->name('processes.create');
     Route::get('processes/edit/{id}', [ProcessController::class, 'edit'])->name('processes.edit');
     Route::get('/get-processes', [ProcessController::class, 'getProcesses'])->name('processes.getProcesses');
+
+    Route::patch('/wo-bushing-processes/{woBushingProcess}/repair-order', [MainController::class, 'updateWoBushingProcessRepairOrder'])->name('wo_bushing_processes.updateRepairOrder');
+    Route::patch('/wo-bushing-processes/{woBushingProcess}/dates', [MainController::class, 'updateWoBushingProcessDate'])->name('wo_bushing_processes.updateDate');
 
     Route::patch('/tdr-processes/{tdrProcess}/dates', [TdrProcessController::class, 'updateDate'])->name('tdrprocesses.updateDate');
     Route::patch('/tdr-processes/{tdrProcess}/repair-order', [MainController::class, 'updateRepairOrder'])->name('tdrprocesses.updateRepairOrder');

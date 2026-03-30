@@ -1550,7 +1550,7 @@
                                 loadingDiv.remove();
                             }
 
-                            showNotification("Ошибка при добавлении нового процесса: " + (error.message || 'Unknown error'), 'error');
+                            showNotification("Error adding new process: " + (error.message || 'Unknown error'), 'error');
                         });
                 }
             } else {

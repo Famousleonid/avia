@@ -77,13 +77,17 @@ class ProcessController extends Controller
      */
     public function store(Request $request)
     {
-        \Log::info('ProcessController::store - Request data:', $request->all());
 
         // Валидация с поддержкой двух сценариев: новый процесс или выбор существующего
         $validated = $request->validate([
             'process_names_id' => 'required|integer|exists:process_names,id',
             'manual_id' => 'required|integer|exists:manuals,id',
         ]);
+
+        $deny = $this->denyIfCannotManageManualParts($request, (int)$validated['manual_id']);
+        if ($deny) {
+            return $deny;
+        }
 
         // Проверяем, какой сценарий используется
         if ($request->has('selected_process_id') && $request->selected_process_id) {
@@ -121,15 +125,6 @@ class ProcessController extends Controller
                     'manual_id' => $validated['manual_id'],
                     'processes_id' => $processId,
                 ]);
-                \Log::info('ProcessController::store - Created manual_processes record', [
-                    'manual_id' => $validated['manual_id'],
-                    'processes_id' => $processId
-                ]);
-            } else {
-                \Log::info('ProcessController::store - manual_processes record already exists', [
-                    'manual_id' => $validated['manual_id'],
-                    'processes_id' => $processId
-                ]);
             }
 
             // Загружаем процесс для возврата (независимо от того, новый он или существующий)
@@ -147,9 +142,6 @@ class ProcessController extends Controller
 
             return redirect()->back()->with('success', 'Process added successfully.');
         } catch (\Exception $e) {
-            \Log::error('ProcessController::store - Error: ' . $e->getMessage(), [
-                'trace' => $e->getTraceAsString()
-            ]);
 
             if ($request->ajax() || $request->wantsJson()) {
                 return response()->json([
@@ -221,6 +213,65 @@ class ProcessController extends Controller
         ]);
     }
 
+    /**
+     * Same rule as Add/Edit parts:
+     * - Admin can manage all manuals
+     * - if manual has no explicit responsibles -> allowed for everyone
+     * - otherwise only users from manual_user_permissions may modify
+     */
+    private function denyIfCannotManageManualParts(Request $request, int $manualId)
+    {
+        if ($manualId <= 0) {
+            return null;
+        }
+
+        $user = auth()->user();
+        $canManageAllManualParts = (bool) ($user?->roleIs('Admin') ?? false);
+        if ($canManageAllManualParts) {
+            return null;
+        }
+
+        $manualHasAnyPermissions = DB::table('manual_user_permissions')
+            ->where('manual_id', $manualId)
+            ->exists();
+        if (! $manualHasAnyPermissions) {
+            return null;
+        }
+
+        $allowedManualIds = $user?->permittedManuals()->pluck('manuals.id')->all() ?? [];
+        $isAllowed = in_array($manualId, array_map('intval', $allowedManualIds), true);
+        if ($isAllowed) {
+            return null;
+        }
+
+        $responsibleNames = Manual::query()
+            ->with(['permittedUsers' => function ($q) {
+                $q->select('users.id', 'users.name');
+            }])
+            ->find($manualId)
+            ?->permittedUsers
+            ?->pluck('name')
+            ?->filter()
+            ?->unique()
+            ?->values()
+            ?->all() ?? [];
+
+        $responsiblesText = ! empty($responsibleNames)
+            ? implode(', ', $responsibleNames)
+            : 'Admin';
+
+        $message = 'No rights to submit process Contact: '.$responsiblesText.'.';
+
+        if ($request->ajax() || $request->wantsJson()) {
+            return response()->json([
+                'success' => false,
+                'message' => $message,
+            ], 403);
+        }
+
+        return redirect()->back()->with('error', $message);
+    }
+
 
 
     /**
@@ -263,7 +314,58 @@ class ProcessController extends Controller
      */
     public function update(Request $request, $id)
     {
-        //;
+        $process = Process::findOrFail($id);
+
+        // Prefer explicit manual_id from request; fallback to any linked manual.
+        $manualId = (int)($request->input('manual_id') ?? 0);
+        if ($manualId <= 0) {
+            $manualId = (int) DB::table('manual_processes')
+                ->where('processes_id', $process->id)
+                ->value('manual_id');
+        }
+
+        $deny = $this->denyIfCannotManageManualParts($request, $manualId);
+        if ($deny) {
+            return $deny;
+        }
+
+        $validated = $request->validate([
+            'process_names_id' => 'required|integer|exists:process_names,id',
+            'process' => 'required|string|max:255',
+            'manual_id' => 'nullable|integer|exists:manuals,id',
+        ]);
+
+        $process->update([
+            'process_names_id' => (int)$validated['process_names_id'],
+            'process' => (string)$validated['process'],
+        ]);
+
+        // Keep/attach relation to manual if manual_id is explicitly passed.
+        if (!empty($validated['manual_id'])) {
+            $existingManualProcess = ManualProcess::where('manual_id', (int)$validated['manual_id'])
+                ->where('processes_id', $process->id)
+                ->first();
+            if (!$existingManualProcess) {
+                ManualProcess::create([
+                    'manual_id' => (int)$validated['manual_id'],
+                    'processes_id' => $process->id,
+                ]);
+            }
+        }
+
+        if ($request->ajax() || $request->wantsJson()) {
+            return response()->json([
+                'success' => true,
+                'message' => 'Process updated successfully.',
+                'process' => $process->fresh(),
+            ]);
+        }
+
+        if ($request->has('return_to') && $request->return_to) {
+            return redirect($request->return_to)->with('success', 'Process updated successfully.');
+        }
+
+        return redirect()->back()->with('success', 'Process updated successfully.');
     }
 
     /**

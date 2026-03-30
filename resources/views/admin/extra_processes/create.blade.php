@@ -847,8 +847,7 @@
                             }
                         })
                         .catch(error => {
-                            console.error('Ошибка:', error);
-                            alert("Ошибка при добавлении нового процесса: " + error.message);
+                            showNotification("Error adding new process: " + (error.message || 'Unknown error'), 'error');
                         });
                 }
 

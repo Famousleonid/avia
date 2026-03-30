@@ -175,11 +175,19 @@
     3) Left window (Tasks)
     ========================================================= */
     .left-pane {
-        height: auto;
+        flex: 1 1 0%;
         min-height: 0;
         display: flex;
         flex-direction: column;
         gap: .75rem;
+        overflow: hidden;
+    }
+
+    /* flex-basis 0% — иначе блок не сжимается ниже высоты контента и не появляется overflow/scroll */
+    .js-gt-container,
+    .js-gt-pane {
+        flex: 1 1 0% !important;
+        min-height: 0;
     }
 
     /* Tasks table */
@@ -244,6 +252,11 @@
         background-position: right 0.7rem, 60%;
         background-size: 1rem 1rem;
         padding-right: 3.5rem;
+    }
+
+    /* Flatpickr: hide extra calendar trigger when the field already shows the green “has date” check */
+    .fp-alt-wrap:has(.finish-input.has-finish) .fp-cal-btn {
+        display: none !important;
     }
 
     #taskTabContent {
@@ -625,15 +638,119 @@
         resize: none;
     }
 
+    /* Левая колонка: один скролл здесь (таблица + заметки + бушинги). flex-basis 0% обязателен для сжатия. */
+    .main-gt-scroll-area{
+        flex: 1 1 0%;
+        min-height: 0;
+        max-height: 100%;
+        overflow-y: auto;
+        overflow-x: hidden;
+        -webkit-overflow-scrolling: touch;
+    }
+
+    .main-gt-scroll-inner{
+        min-height: 100%;
+        box-sizing: border-box;
+    }
+
     .wo-bushings-box{
         background: rgba(255,255,255,0.03);
     }
 
+    /* Прокрутка только у .main-gt-scroll-area; min-h-0 на этом блоке обрезал аккордеон без скролла */
     .wo-bushings-list{
-        max-height: 34vh;
-        min-height: 120px;
-        overflow-y: auto;
-        overflow-x: hidden;
+        flex: 1 1 auto;
+        min-height: 0;
+        overflow: visible;
+    }
+
+    /* WO bushing: одна «карусель» из 7 полос (аккордеон), без вложенных полос */
+    .wo-bush-strip-accordion{
+        border: 1px solid rgba(255,255,255,.14);
+        border-radius: .35rem;
+        overflow: hidden;
+    }
+
+    .wo-bush-strip-accordion .wo-bush-strip-item{
+        margin: 0;
+        border: 0 !important;
+        border-bottom: 1px solid rgba(255,255,255,.12) !important;
+        border-radius: 0 !important;
+    }
+
+    .wo-bush-strip-accordion .wo-bush-strip-item:last-child{
+        border-bottom: 0 !important;
+    }
+
+    .wo-bush-strip-btn{
+        width: 100%;
+        display: flex !important;
+        align-items: center !important;
+        background: rgba(255,255,255,.04) !important;
+        color: #e9ecef !important;
+        border: 0 !important;
+        box-shadow: none !important;
+        min-height: 2.5rem;
+    }
+
+    .wo-bush-strip-btn:not(.collapsed){
+        color: #9eeaf9 !important;
+        background: rgba(13, 202, 240, .12) !important;
+    }
+
+    .wo-bush-strip-btn::after{
+        flex-shrink: 0;
+        filter: invert(80%) sepia(8%) saturate(355%) hue-rotate(170deg) brightness(92%) contrast(86%);
+    }
+
+    .wo-bush-strip-btn-inner{
+        min-width: 0;
+    }
+
+    .wo-bush-strip-title{
+        flex: 1 1 auto;
+        min-width: 0;
+    }
+
+    /* Счётчик справа, одна вертикальная линия по правому краю полосы */
+    .wo-bush-strip-count{
+        flex: 0 0 auto;
+        min-width: 3.75rem;
+        text-align: right;
+        font-size: .8125rem;
+        font-variant-numeric: tabular-nums;
+        line-height: 1.2;
+        background: transparent !important;
+        border: 0 !important;
+        padding: 0 !important;
+    }
+
+    .wo-bush-strip-count--sm{
+        min-width: 3.25rem;
+        font-size: .75rem;
+    }
+
+    .wo-bush-strip-count .wo-bush-strip-count-a{
+        color: #f8f9fa;
+    }
+
+    .wo-bush-strip-count .wo-bush-strip-count-sep{
+        color: rgba(248,249,250,.45);
+        padding: 0 .1rem;
+    }
+
+    .wo-bush-strip-count .wo-bush-strip-count-b{
+        color: rgba(248,249,250,.55);
+    }
+
+    .wo-bush-strip-count--done .wo-bush-strip-count-a,
+    .wo-bush-strip-count--done .wo-bush-strip-count-sep,
+    .wo-bush-strip-count--done .wo-bush-strip-count-b{
+        color: #2ea043 !important;
+    }
+
+    .wo-bush-process-block:last-child{
+        margin-bottom: 0 !important;
     }
 
     .wo-bushings-table th,
@@ -642,16 +759,27 @@
         vertical-align: middle;
     }
 
-    .wo-bushings-table td:last-child{
+    .wo-bushings-table .wo-bush-col-process{
+        min-width: 9rem;
+        max-width: 14rem;
         white-space: normal;
-        min-width: 280px;
     }
 
-    .wo-bushings-table thead th{
-        position: sticky;
-        top: 0;
-        z-index: 2;
-        background: #1f2a34;
+    .wo-bushings-table .wo-bush-col-qty{
+        width: 3.25rem;
+        min-width: 3.25rem;
+    }
+
+    .wo-bushings-table .wo-bush-col-ro{
+        min-width: 7.5rem;
+        width: 8.5rem;
+        white-space: normal;
+    }
+
+    .wo-bushings-table .wo-bush-col-dt{
+        width: 118px;
+        min-width: 118px;
+        max-width: 118px;
     }
 
 </style>

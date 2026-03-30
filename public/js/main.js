@@ -538,7 +538,7 @@ window.hapticTap = function (pattern = 10) {
 
         if (!errors) return;
 
-        Object.keys(data.errors || {}).forEach((field) => {
+        Object.keys(errors || {}).forEach((field) => {
             const input = form.querySelector(`[name="${field}"]`);
             if (!input) return;
 
@@ -549,6 +549,55 @@ window.hapticTap = function (pattern = 10) {
             setTimeout(() => visible.classList.remove('is-invalid'), 2000);
         });
     }
+// ===== WO bushing: счётчики finished/total и класс «готово» без перезагрузки =====
+    function refreshWoBushingStripCounts(form) {
+        if (!form?.closest?.('.wo-bushings-list')) return;
+
+        const body = form.closest('.accordion-body');
+        if (!body) return;
+
+        const blocks = body.querySelectorAll('.wo-bush-process-block');
+        let sectionFinished = 0;
+        let sectionTotal = 0;
+
+        blocks.forEach((block) => {
+            let t = 0;
+            let f = 0;
+            block.querySelectorAll('tbody tr').forEach((tr) => {
+                const q = parseInt(tr.getAttribute('data-bush-line-qty') || '0', 10);
+                const lineQty = Number.isFinite(q) && q > 0 ? q : 0;
+                t += lineQty;
+                const inp = tr.querySelector('input[name="date_finish"]');
+                const hasFinish = inp && String(inp.value || '').trim() !== '';
+                if (hasFinish) f += lineQty;
+            });
+
+            sectionFinished += f;
+            sectionTotal += t;
+
+            const countEl = block.querySelector('.wo-bush-strip-count.wo-bush-strip-count--sm');
+            if (countEl) {
+                const a = countEl.querySelector('.wo-bush-strip-count-a');
+                const b = countEl.querySelector('.wo-bush-strip-count-b');
+                if (a) a.textContent = String(f);
+                if (b) b.textContent = String(t);
+                countEl.classList.toggle('wo-bush-strip-count--done', t > 0 && f === t);
+            }
+        });
+
+        const item = body.closest('.accordion-item');
+        const stripCount = item?.querySelector('.accordion-header .wo-bush-strip-count');
+        if (stripCount && !stripCount.classList.contains('wo-bush-strip-count--sm')) {
+            const a = stripCount.querySelector('.wo-bush-strip-count-a');
+            const b = stripCount.querySelector('.wo-bush-strip-count-b');
+            if (a) a.textContent = String(sectionFinished);
+            if (b) b.textContent = String(sectionTotal);
+            stripCount.classList.toggle('wo-bush-strip-count--done', sectionTotal > 0 && sectionFinished === sectionTotal);
+        }
+    }
+
+    window.refreshWoBushingStripCounts = refreshWoBushingStripCounts;
+
 // ===== helper =====
     function applySavedState(form, data) {
         const tr = form.closest('tr');
@@ -557,6 +606,11 @@ window.hapticTap = function (pattern = 10) {
 
         const icon = form.querySelector('.save-indicator');
         if (icon) icon.classList.add('d-none');
+
+        const repairInp = form.querySelector('input[name="repair_order"]');
+        if (repairInp) {
+            repairInp.dataset.original = repairInp.value ?? '';
+        }
 
         form.querySelectorAll('.finish-input').forEach(inp => {
             const hasValue = inp.value && inp.value.trim() !== '';
@@ -567,6 +621,8 @@ window.hapticTap = function (pattern = 10) {
 
             inp.dataset.original = inp.value ?? '';
         });
+
+        refreshWoBushingStripCounts(form);
     }
 
     function applyNotesSavedState(form, data) {
@@ -604,7 +660,7 @@ window.hapticTap = function (pattern = 10) {
                 method: 'POST',
                 headers: {
                     'X-Requested-With': 'XMLHttpRequest',
-                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
+                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '',
                     'Accept': 'application/json',
                 },
                 body: fd,

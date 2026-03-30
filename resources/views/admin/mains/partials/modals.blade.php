@@ -24,7 +24,7 @@
 
             @if(count($ordersPartsNew))
                 <div class="table-wrapper">
-                    <table class="display table table-cm table-hover table-striped align-middle table-bordered">
+                    <table class="display table table-cm table-hover table-striped align-middle table-bordered dir-table">
                         <thead class="bg-gradient">
                         <tr>
                             <th class="text-primary  bg-gradient " data-direction="asc">{{__('IPL')}}</th>

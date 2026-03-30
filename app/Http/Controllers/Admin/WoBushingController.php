@@ -10,10 +10,16 @@ use App\Models\Process;
 use App\Models\ProcessName;
 use App\Models\Vendor;
 use App\Models\Manual;
+use App\Services\WoBushingRelationalSync;
 use Illuminate\Http\Request;
 
 class WoBushingController extends Controller
 {
+    public function __construct(
+        private WoBushingRelationalSync $woBushingSync
+    ) {
+    }
+
     /**
      * Process name rows that share the Bushing "Stress Relief" column (bake vs plain stress relief).
      *
@@ -174,38 +180,7 @@ class WoBushingController extends Controller
                 ->with('warning', 'Bushings data already exists for this Work Order. Please use Edit to modify.');
         }
 
-        // Process group data and convert to individual component records
-        $bushDataArray = [];
-        foreach ($groupBushingsData as $groupKey => $groupData) {
-            if (isset($groupData['components']) && is_array($groupData['components'])) {
-                foreach ($groupData['components'] as $componentId) {
-
-                    // NDT может быть одним значением или массивом (multiple select)
-                    $ndtInput = $groupData['ndt'] ?? [];
-                    if (is_null($ndtInput) || $ndtInput === '') {
-                        $ndtValues = [];
-                    } elseif (is_array($ndtInput)) {
-                        $ndtValues = array_map('intval', $ndtInput);
-                    } else {
-                        $ndtValues = [(int)$ndtInput];
-                    }
-
-                    $bushDataArray[] = [
-                        'bushing' => (int)$componentId,
-                        'qty' => (int)($groupData['qty'] ?? 1),
-                        'processes' => [
-                            'machining' => !empty($groupData['machining'] ?? null) ? (int)$groupData['machining'] : null,
-                            'stress_relief' => !empty($groupData['stress_relief'] ?? null) ? (int)$groupData['stress_relief'] : null,
-                            'ndt' => $ndtValues,
-                            'passivation' => !empty($groupData['passivation'] ?? null) ? (int)$groupData['passivation'] : null,
-                            'cad' => !empty($groupData['cad'] ?? null) ? (int)$groupData['cad'] : null,
-                            'anodizing' => !empty($groupData['anodizing'] ?? null) ? (int)$groupData['anodizing'] : null,
-                            'xylan' => !empty($groupData['xylan'] ?? null) ? (int)$groupData['xylan'] : null,
-                        ]
-                    ];
-                }
-            }
-        }
+        $bushDataArray = $this->woBushingSync->buildBushDataArrayFromGroups($groupBushingsData);
 
         if (empty($bushDataArray)) {
             if ($isAjax ?? $request->ajax()) {
@@ -216,10 +191,10 @@ class WoBushingController extends Controller
                 ->withInput();
         }
 
-        WoBushing::create([
+        $woBushing = WoBushing::create([
             'workorder_id' => $workorderId,
-            'bush_data' => $bushDataArray,
         ]);
+        $this->woBushingSync->syncFromGroupBushings($woBushing, $groupBushingsData);
 
         if ($isAjax ?? $request->ajax()) {
             return response()->json(['success' => true]);
@@ -324,14 +299,9 @@ class WoBushingController extends Controller
             ->with('process_name')
             ->get();
 
-        // Get existing WoBushing data if available
+        // Get existing WoBushing data if available (из нормализованных таблиц или legacy JSON)
         $woBushing = WoBushing::where('workorder_id', $current_wo->id)->first();
-        $bushData = [];
-        if ($woBushing && $woBushing->bush_data) {
-            $bushData = is_array($woBushing->bush_data)
-                ? $woBushing->bush_data
-                : json_decode($woBushing->bush_data, true);
-        }
+        $bushData = $woBushing ? $this->woBushingSync->resolveBushDataForViews($woBushing) : [];
 
         // Get all vendors
         $vendors = Vendor::all();
@@ -405,12 +375,7 @@ class WoBushingController extends Controller
             ->with('process_name')->get();
 
         $woBushing = WoBushing::where('workorder_id', $current_wo->id)->first();
-        $bushData = [];
-        if ($woBushing && $woBushing->bush_data) {
-            $bushData = is_array($woBushing->bush_data)
-                ? $woBushing->bush_data
-                : json_decode($woBushing->bush_data, true);
-        }
+        $bushData = $woBushing ? $this->woBushingSync->resolveBushDataForViews($woBushing) : [];
 
         $vendors = Vendor::all();
         $manuals = Manual::all();
@@ -531,10 +496,7 @@ class WoBushingController extends Controller
             ->with('process_name')
             ->get();
 
-        // Get existing bush data
-        $bushData = is_array($woBushing->bush_data)
-            ? $woBushing->bush_data
-            : json_decode($woBushing->bush_data, true);
+        $bushData = $this->woBushingSync->resolveBushDataForViews($woBushing);
 
         return view('admin.wo_bushings.edit', compact(
             'current_wo',
@@ -576,38 +538,7 @@ class WoBushingController extends Controller
                 ->withInput();
         }
 
-        // Process group data and convert to individual component records
-        $bushDataArray = [];
-        foreach ($groupBushingsData as $groupKey => $groupData) {
-            if (isset($groupData['components']) && is_array($groupData['components'])) {
-                foreach ($groupData['components'] as $componentId) {
-
-                    // NDT может быть одним значением или массивом (multiple select)
-                    $ndtInput = $groupData['ndt'] ?? [];
-                    if (is_null($ndtInput) || $ndtInput === '') {
-                        $ndtValues = [];
-                    } elseif (is_array($ndtInput)) {
-                        $ndtValues = array_map('intval', $ndtInput);
-                    } else {
-                        $ndtValues = [(int)$ndtInput];
-                    }
-
-                    $bushDataArray[] = [
-                        'bushing' => (int)$componentId,
-                        'qty' => (int)($groupData['qty'] ?? 1),
-                        'processes' => [
-                            'machining' => !empty($groupData['machining'] ?? null) ? (int)$groupData['machining'] : null,
-                            'stress_relief' => !empty($groupData['stress_relief'] ?? null) ? (int)$groupData['stress_relief'] : null,
-                            'ndt' => $ndtValues,
-                            'passivation' => !empty($groupData['passivation'] ?? null) ? (int)$groupData['passivation'] : null,
-                            'cad' => !empty($groupData['cad'] ?? null) ? (int)$groupData['cad'] : null,
-                            'anodizing' => !empty($groupData['anodizing'] ?? null) ? (int)$groupData['anodizing'] : null,
-                            'xylan' => !empty($groupData['xylan'] ?? null) ? (int)$groupData['xylan'] : null,
-                        ]
-                    ];
-                }
-            }
-        }
+        $bushDataArray = $this->woBushingSync->buildBushDataArrayFromGroups($groupBushingsData);
 
         if (empty($bushDataArray)) {
             if ($request->ajax()) {
@@ -618,10 +549,7 @@ class WoBushingController extends Controller
                 ->withInput();
         }
 
-        // Update record with processed component data
-        $woBushing->update([
-            'bush_data' => $bushDataArray
-        ]);
+        $this->woBushingSync->syncFromGroupBushings($woBushing, $groupBushingsData);
 
         if ($request->ajax()) {
             return response()->json(['success' => true]);
@@ -682,10 +610,7 @@ class WoBushingController extends Controller
             'selectedVendor' => $selectedVendor
         ];
 
-        // Получаем данные о втулках
-        $bushData = is_array($woBushing->bush_data)
-            ? $woBushing->bush_data
-            : json_decode($woBushing->bush_data, true);
+        $bushData = $this->woBushingSync->resolveBushDataForViews($woBushing);
 
         $filterBushingComponentIds = null;
         if ($request->has('bushing_component_ids')) {
@@ -902,10 +827,7 @@ class WoBushingController extends Controller
         $components = Component::where('manual_id', $manual_id)->get();
         $manuals = \App\Models\Manual::where('id', $manual_id)->get();
 
-        // Получаем данные о втулках
-        $bushData = is_array($woBushing->bush_data) 
-            ? $woBushing->bush_data 
-            : json_decode($woBushing->bush_data, true);
+        $bushData = $this->woBushingSync->resolveBushDataForViews($woBushing);
 
         // Группируем втулки по процессам
         $processGroups = [];
