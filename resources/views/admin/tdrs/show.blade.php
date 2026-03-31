@@ -222,7 +222,40 @@
 
             {{-- Body: tabs (header links as tabs), TDR tab = main content --}}
             <div class="card-body">
-                <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
+                <style>
+                    .tdr-tabs-loading {
+                        min-height: 34px;
+                        display: flex;
+                        align-items: center;
+                        margin-bottom: .75rem;
+                    }
+                    .tdr-tabs-loading-dots {
+                        display: inline-flex;
+                        align-items: center;
+                        gap: 6px;
+                    }
+                    .tdr-tabs-loading-dot {
+                        width: 7px;
+                        height: 7px;
+                        border-radius: 999px;
+                        background: rgba(173, 181, 189, .9);
+                        animation: tdrTabsDotWave 1s infinite ease-in-out;
+                    }
+                    .tdr-tabs-loading-dot:nth-child(2) { animation-delay: .12s; }
+                    .tdr-tabs-loading-dot:nth-child(3) { animation-delay: .24s; }
+                    @keyframes tdrTabsDotWave {
+                        0%, 80%, 100% { transform: translateY(0); opacity: .45; }
+                        40% { transform: translateY(-4px); opacity: 1; }
+                    }
+                </style>
+                <div id="tdrShowTabsLoading" class="tdr-tabs-loading">
+                    <span class="tdr-tabs-loading-dots" aria-label="Loading tabs">
+                        <span class="tdr-tabs-loading-dot"></span>
+                        <span class="tdr-tabs-loading-dot"></span>
+                        <span class="tdr-tabs-loading-dot"></span>
+                    </span>
+                </div>
+                <div id="tdrShowTabsHeader" class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3" style="visibility:hidden;">
                 <ul class="nav nav-tabs mb-0" role="tablist" id="tdrShowTabList">
                     <li class="nav-item" role="presentation">
                         <button class="nav-link active" id="tab-tdr" data-bs-toggle="tab" data-bs-target="#content-tdr" type="button" role="tab">{{ __('TDR') }}</button>
@@ -337,7 +370,7 @@
                 @endif
                 </div>
 
-                <div class="tab-content">
+                <div class="tab-content" id="tdrShowTabContent" style="visibility:hidden;">
                     <div class="tab-pane fade show active" id="content-tdr" role="tabpanel">
                         @include('admin.tdrs.partials.tdr-body')
                     </div>

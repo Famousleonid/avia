@@ -101,7 +101,7 @@ class Main extends Model
      * @param  bool        $ignoreRow Текущее значение ignore_row (после клика)
      * @param  bool        $hasStart  Поле date_start в запросе ($request->has('date_start'))
      * @param  bool        $hasFinish Поле date_finish в запросе ($request->has('date_finish'))
-     *                             Пустая строка при update = «не меняли» → берём из $existing.
+     *                             Пустая строка при update = явная очистка поля.
      *
      * @return array{date_start: Carbon|null, date_finish: Carbon|null}
      */
@@ -168,8 +168,10 @@ class Main extends Model
     }
 
     /**
-     * Разрешить значение даты: при update пустой вход (null/"") = оставить как в $existing.
-     * При store ($existing === null) пустой вход = null.
+     * Разрешить значение даты:
+     * - если поле не пришло в запросе, оставляем текущее значение (для partial update);
+     * - если поле пришло пустым (null/"") — явная очистка в null;
+     * - если пришла дата — парсим её.
      */
     protected static function resolveDateField(
         mixed $incoming,
@@ -183,13 +185,7 @@ class Main extends Model
             return $cur ? Carbon::parse($cur) : null;
         }
 
-        if ($incoming === null || $incoming === '') {
-            if ($existing && $existing->{$attribute}) {
-                return Carbon::parse($existing->{$attribute});
-            }
-
-            return null;
-        }
+        if ($incoming === null || $incoming === '') return null;
 
         return Carbon::parse($incoming);
     }

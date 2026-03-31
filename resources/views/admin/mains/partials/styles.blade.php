@@ -183,6 +183,35 @@
         overflow: hidden;
     }
 
+    .main-left-loading{
+        min-height: 34px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .main-left-loading-dots{
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+    }
+
+    .main-left-loading-dot{
+        width: 7px;
+        height: 7px;
+        border-radius: 999px;
+        background: rgba(173, 181, 189, .9);
+        animation: mainLeftDotWave 1s infinite ease-in-out;
+    }
+
+    .main-left-loading-dot:nth-child(2){ animation-delay: .12s; }
+    .main-left-loading-dot:nth-child(3){ animation-delay: .24s; }
+
+    @keyframes mainLeftDotWave{
+        0%, 80%, 100% { transform: translateY(0); opacity: .45; }
+        40% { transform: translateY(-4px); opacity: 1; }
+    }
+
     /* flex-basis 0% — иначе блок не сжимается ниже высоты контента и не появляется overflow/scroll */
     .js-gt-container,
     .js-gt-pane {

@@ -321,6 +321,14 @@
                                 @endforeach
                             </div>
 
+                            <div id="mainLeftLoading" class="main-left-loading">
+                                <span class="main-left-loading-dots" aria-label="Loading left panel">
+                                    <span class="main-left-loading-dot"></span>
+                                    <span class="main-left-loading-dot"></span>
+                                    <span class="main-left-loading-dot"></span>
+                                </span>
+                            </div>
+
                             {{-- Tables --}}
                             <div class="d-flex flex-column flex-grow-1 min-h-0 js-gt-container" data-wo-id="{{$current_workorder->id}}"
                                  hidden>
@@ -831,7 +839,7 @@
                                             <tr data-closed="{{ $isClosed ? 1 : 0 }}" data-std-row="1"
                                                 class="{{ $isIgnoredStd ? 'text-muted std-ignored-row' : '' }}">
                                                 <td class="text-center align-middle std-ignore-cell">
-                                                    @if(in_array($key, ['ndt', 'cad', 'stress'], true))
+                                                    @if(in_array($key, ['ndt', 'cad', 'stress', 'paint'], true))
                                                         <form method="POST"
                                                               action="{{ route('tdrprocesses.updateIgnoreRow', $pr) }}"
                                                               class="js-ajax d-inline"
@@ -1275,6 +1283,38 @@
                 } catch (err) {
                     tbody.innerHTML = `<tr><td colspan="4" class="text-danger small">Error loading logs</td></tr>`;
                 }
+            }, true);
+
+            // WO bushing accordion: после раскрытия полосы прокручиваем ВНЕШНИЙ скролл-контейнер к низу
+            // раскрытого блока (там, где даты), чтобы не крутить колесо вручную.
+            document.addEventListener('shown.bs.collapse', (e) => {
+                const collapseEl = e.target;
+                if (!collapseEl?.classList?.contains('accordion-collapse')) return;
+                if (!collapseEl.closest('.wo-bush-strip-accordion')) return;
+
+                const scroller = collapseEl.closest('.main-gt-scroll-area');
+                if (!scroller) return;
+
+                const scrollToBottom = () => {
+                    const lastRow =
+                        collapseEl.querySelector('.wo-bush-process-block:last-child tr:last-child') ||
+                        collapseEl.querySelector('.wo-bush-process-block:last-child') ||
+                        collapseEl;
+
+                    if (lastRow?.scrollIntoView) {
+                        lastRow.scrollIntoView({ behavior: 'smooth', block: 'end', inline: 'nearest' });
+                    }
+                    if (typeof scroller.scrollTo === 'function') {
+                        scroller.scrollTo({ top: scroller.scrollHeight, behavior: 'smooth' });
+                    } else {
+                        scroller.scrollTop = scroller.scrollHeight;
+                    }
+                };
+
+                // На некоторых браузерах высота дочерних таблиц догружается чуть позже.
+                requestAnimationFrame(scrollToBottom);
+                setTimeout(scrollToBottom, 120);
+                setTimeout(scrollToBottom, 260);
             }, true);
 
 // маленький helper

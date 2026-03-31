@@ -55,6 +55,7 @@ document.addEventListener('DOMContentLoaded', () => {
 // 1. GeneralTask табы (слева) — .js-gt-btn / .js-gt-pane
 
     const gtContainer = document.querySelector('.js-gt-container');
+    const leftLoader = document.getElementById('mainLeftLoading');
     const woId       = gtContainer?.dataset.woId || '';
     const GT_KEY     = woId ? `gt_tab_wo_${woId}` : 'gt_tab_default';
 
@@ -114,6 +115,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
         if (gtContainer) {
             gtContainer.hidden = false;
+        }
+        if (leftLoader) {
+            leftLoader.style.display = 'none';
         }
     })();
 

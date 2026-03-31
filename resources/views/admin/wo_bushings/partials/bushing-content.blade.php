@@ -25,6 +25,30 @@
         }
         .bushing-view-table th.bushing-process-col > div { overflow: hidden; max-width: 100%; }
         .bushing-view-table .bushing-process-include-checkbox { cursor: pointer; flex-shrink: 0; }
+
+        /* 1280x1024 и ниже: компактнее заголовки и controls, чтобы не ломало сетку */
+        @media (max-width: 1280px) {
+            .bushing-view-table thead th {
+                font-size: .82rem;
+                padding: .28rem .22rem;
+                line-height: 1.12;
+            }
+            .bushing-view-table .vendor-select-sm {
+                min-width: 54px;
+                max-width: 66px;
+                height: 24px;
+                font-size: .72rem;
+                padding: 0 .18rem;
+            }
+            .bushing-view-table .form-btn {
+                font-size: .72rem;
+                line-height: 1.05;
+                padding: .18rem .32rem;
+            }
+            .bushing-view-table th.bushing-process-col > div {
+                gap: .2rem !important;
+            }
+        }
     </style>
     <div class="w-100 mt-3">
         <div class="table-wrapper table-scroll-container w-100" style="max-height: calc(100vh - 320px); overflow: auto;">
@@ -64,17 +88,17 @@
                                     <select class="form-select form-select-sm vendor-select-sm" name="vendor_id" id="vendor_machining">
                                         <option value="">Vendor</option>
                                         @foreach($vendors as $vendor)
-                                            <option value="{{ $vendor->id }}">{{ $vendor->name }}</option>
+                                            <option style="font-size: 10px;" value="{{ $vendor->id }}">{{ $vendor->name }}</option>
                                         @endforeach
                                     </select>
                                     @if($machiningProcessName && $hasMachiningData)
-                                        <a href="{{ route('wo_bushings.processesForm', ['id' => $woBushing->id, 'processNameId' => $machiningProcessName->id]) }}" target="_blank" class="btn btn-sm btn-outline-warning form-btn" data-vendor-select="vendor_machining" data-process-key="machining">Form</a>
+                                        <a href="{{ route('wo_bushings.processesForm', ['id' => $woBushing->id, 'processNameId' => $machiningProcessName->id]) }}" target="_blank" class="btn btn-sm btn-outline-warning form-btn" data-vendor-select="vendor_machining" data-process-key="machining" >Form</a>
                                     @else
                                         <span class="text-muted">Form</span>
                                     @endif
                                 </div>
                             @else
-                                <span class="text-muted">Form</span>
+                                <span class="text-muted" >Form</span>
                             @endif
                         </th>
                         <th class="text-primary text-center bushing-process-col">

@@ -15,6 +15,37 @@
 @include('admin.tdrs.partials.component-inspection-scripts')
 <script>
 document.addEventListener('DOMContentLoaded', function() {
+    var tdrShowTabListEl = document.getElementById('tdrShowTabList');
+    var tdrShowTabsHeaderEl = document.getElementById('tdrShowTabsHeader');
+    var tdrShowTabsLoadingEl = document.getElementById('tdrShowTabsLoading');
+    var tdrShowTabContentEl = document.getElementById('tdrShowTabContent');
+    var TAB_STORAGE_KEY = 'tdr_show_active_tab_wo_{{ $current_wo->id }}';
+    var PERSISTENT_TAB_IDS = [
+        'tab-tdr',
+        'tab-all-parts-processes',
+        'tab-extra-parts-processes',
+        'tab-log-card',
+        'tab-bushing',
+        'tab-rm-reports',
+        'tab-std-processes',
+        'tab-transfers'
+    ];
+
+    function isPersistentTabId(tabId) {
+        return !!tabId && PERSISTENT_TAB_IDS.indexOf(tabId) !== -1;
+    }
+
+    function revealTabsContent() {
+        if (tdrShowTabsHeaderEl) {
+            tdrShowTabsHeaderEl.style.visibility = '';
+        }
+        if (tdrShowTabContentEl) {
+            tdrShowTabContentEl.style.visibility = '';
+        }
+        if (tdrShowTabsLoadingEl) {
+            tdrShowTabsLoadingEl.style.display = 'none';
+        }
+    }
     var editTdrModal = document.getElementById('editTdrModal');
     var processesBodyUrl = '{{ route("tdr-processes.processesBody", ["tdrId" => "__ID__"]) }}';
     var createProcessesUrl = '{{ route("tdr-processes.createProcesses", ["tdrId" => "__ID__"]) }}';
@@ -114,9 +145,29 @@ document.addEventListener('DOMContentLoaded', function() {
         fetch(bushingPartialUrl, { headers: { 'X-Requested-With': 'XMLHttpRequest', 'Accept': 'text/html' }, credentials: 'same-origin' })
             .then(function(r) {
                 if (!r.ok) throw new Error('HTTP ' + r.status);
-                return r.text();
+                return r.text().then(function(html) {
+                    return { response: r, html: html };
+                });
             })
-            .then(function(html) {
+            .then(function(payload) {
+                var r = payload.response;
+                var html = payload.html;
+                var finalUrl = (r && r.url) ? String(r.url) : '';
+                var looksLikeLoginUrl = finalUrl.indexOf('/login') !== -1;
+                var looksLikeLoginHtml = /name=["']email["']/i.test(html)
+                    && /name=["']password["']/i.test(html)
+                    && /remember/i.test(html);
+
+                if (looksLikeLoginUrl || looksLikeLoginHtml) {
+                    bushingTabBody.innerHTML = '<div class="alert alert-warning mb-0">{{ __("Session expired. Please log in again.") }}</div>';
+                    if (typeof showNotification === 'function') {
+                        showNotification('{{ __("Session expired. Please log in again.") }}', 'warning', 5000);
+                    } else {
+                        alert('{{ __("Session expired. Please log in again.") }}');
+                    }
+                    return;
+                }
+
                 bushingTabBody.innerHTML = html;
                 bushingTabBody.dataset.loaded = '1';
                 bushingTabBody.querySelectorAll('script').forEach(function(oldScript) {
@@ -853,7 +904,12 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     var groupProcessFormsHeaderBtn = document.getElementById('groupProcessFormsHeaderBtn');
-    document.getElementById('tdrShowTabList')?.addEventListener('shown.bs.tab', function(e) {
+    tdrShowTabListEl?.addEventListener('shown.bs.tab', function(e) {
+        var activeTabId = e?.target?.id || '';
+        if (isPersistentTabId(activeTabId)) {
+            try { localStorage.setItem(TAB_STORAGE_KEY, activeTabId); } catch (_) {}
+        }
+
         var target = (e.target.getAttribute && e.target.getAttribute('data-bs-target')) || (e.target.getAttribute && e.target.getAttribute('href'));
         if (target && String(target).indexOf('content-part-processes') !== -1) {
             if (extraPartsTabActions) extraPartsTabActions.classList.add('d-none');
@@ -966,6 +1022,38 @@ document.addEventListener('DOMContentLoaded', function() {
             if (extraProcessesTabBody) extraProcessesTabBody.innerHTML = '<div class="text-center py-5 text-muted">{{ __("Click Processes in Extra Part Processes table to load.") }}</div>';
         }
     });
+
+    (function restorePersistentTab() {
+        var savedTabId = null;
+        try { savedTabId = localStorage.getItem(TAB_STORAGE_KEY); } catch (_) {}
+
+        if (!isPersistentTabId(savedTabId)) {
+            revealTabsContent();
+            return;
+        }
+
+        var savedTabBtn = document.getElementById(savedTabId);
+        if (!savedTabBtn) {
+            revealTabsContent();
+            return;
+        }
+
+        var isHiddenTab = !!savedTabBtn.closest('.d-none');
+        if (isHiddenTab) {
+            revealTabsContent();
+            return;
+        }
+
+        try {
+            var tabInstance = bootstrap.Tab.getOrCreateInstance(savedTabBtn);
+            tabInstance.show();
+        } catch (_) {
+            // keep default tab
+        } finally {
+            revealTabsContent();
+        }
+    })();
+
     if (bushingTabBody && typeof loadBushingPartial === 'function') {
         loadBushingPartial();
     }

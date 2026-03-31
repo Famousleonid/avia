@@ -2,12 +2,12 @@
 
 @section('content')
     <style>
-        .table-wrapper{
+        .table-wrapper {
             flex: 1 1 auto;
             min-height: 0;
             overflow-y: auto;
+            position: relative;
         }
-
 
         .table th, .table td {
             white-space: nowrap;
@@ -76,42 +76,32 @@
             background: none;
             border: none;
             cursor: pointer;
+            padding: 0;
+            line-height: 1;
+        }
+
+        .clearable-input .form-control {
+            padding-right: 2rem;
         }
 
         .js-table-hidden {
             visibility: hidden;
         }
 
-        /* title */
         .dir-header .dir-title {
             margin: 0;
             line-height: 1.1;
         }
 
-        /* search input same height as buttons */
         .dir-header .form-control-sm {
             height: 32px;
         }
 
-        /* clearable search */
-        .clearable-input { position: relative; width: 400px; }
-        .clearable-input .btn-clear {
-            position: absolute;
-            right: .45rem;
-            top: 50%;
-            transform: translateY(-50%);
-            background: none;
-            border: none;
-            padding: 0;
-            line-height: 1;
-        }
-        .clearable-input .form-control { padding-right: 2rem; }
-
-        .cmm-thumb-link{
+        .cmm-thumb-link {
             display: inline-block;
         }
 
-        .cmm-thumb-wrap{
+        .cmm-thumb-wrap {
             width: 40px;
             height: 40px;
             display: inline-flex;
@@ -122,7 +112,7 @@
             flex: 0 0 40px;
         }
 
-        .cmm-thumb-img{
+        .cmm-thumb-img {
             width: 40px !important;
             height: 40px !important;
             min-width: 40px !important;
@@ -134,78 +124,121 @@
             display: block;
         }
 
+        .table-loading-overlay {
+            position: absolute;
+            inset: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: rgba(255, 255, 255, 0.78);
+            z-index: 30;
+            transition: opacity .15s ease;
+        }
+
+        html[data-bs-theme="dark"] .table-loading-overlay {
+            background: rgba(20, 20, 20, 0.68);
+        }
+
+        .table-loading-overlay.d-none {
+            display: none !important;
+        }
     </style>
 
     <div class="card dir-page">
-
         <div class="card-header dir-header shadow-sm">
             <div class="d-flex w-100 align-items-center justify-content-between gap-2 flex-wrap">
 
-                {{-- Left: title --}}
                 <h5 class="text-primary dir-title">
-                    {{__('Manage CMMs')}} (
-                    <span class="text-success">{{$cmms->count()}}</span>
+                    {{ __('Manage CMMs') }} (
+                    <span class="text-success">{{ $cmms->count() }}</span>
                     )
                 </h5>
 
-                {{-- Center: search --}}
-                <div class="clearable-input ">
-                    <input id="searchInput" type="text" class="form-control form-control-sm w-100" placeholder="Search...">
-                    <button class="btn-clear text-secondary" id="clearSearchBtn" type="button" title="Clear">
+                <div class="clearable-input">
+                    <input id="searchInput"
+                           type="text"
+                           class="form-control form-control-sm w-100"
+                           placeholder="Search...">
+                    <button class="btn-clear text-secondary"
+                            id="clearSearchBtn"
+                            type="button"
+                            title="Clear">
                         <i class="bi bi-x-circle"></i>
                     </button>
                 </div>
 
-                {{-- Right: action --}}
                 <a href="{{ route('manuals.create') }}" class="btn btn-outline-primary btn-sm me-5">
                     {{ __('Add CMM') }}
                 </a>
             </div>
         </div>
 
-
         @if(count($cmms))
+            <div class="table-wrapper me-3 p-0" id="tableWrapper">
 
-            <div class="table-wrapper me-3 p-0">
+                <div id="tableLoading" class="table-loading-overlay">
+                    <div class="text-center">
+                        <div class="spinner-border text-warning-emphasis" role="status"></div>
+                    </div>
+                </div>
 
                 <table id="cmmTable" class="table table-sm table-hover align-middle table-bordered js-table-hidden dir-table">
                     <thead class="bg-gradient">
                     <tr>
-                        <th class="text-primary sortable bg-gradient " data-direction="asc">{{__('Number')}}<i class="bi bi-chevron-expand ms-1"></i></th>
-                        <th class="text-primary  sortable bg-gradient">{{__('Title')}}<i class="bi bi-chevron-expand ms-1"></i></th>
-                        <th class="text-primary  sortable bg-gradient">{{__('Components PN')}}<i class="bi bi-chevron-expand
-                        ms-1"></i></th>
-                        <th class="text-primary text-center bg-gradient">{{__('Image')}}</th>
-                        <th class="text-primary text-center bg-gradient">{{__('Rev.Date')}}</th>
-                        <th class="text-primary text-center  sortable bg-gradient" data-direction="asc">{{__('Lib')}} <i class="bi bi-chevron-expand ms-1"></i></th>
-                        <th class="text-primary text-center bg-gradient">{{__('STD Files')}}</th>
-                        <th class="text-primary text-center bg-gradient">{{__('Action')}}</th>
+                        <th class="text-primary sortable bg-gradient" data-direction="asc">
+                            {{ __('Number') }}<i class="bi bi-chevron-expand ms-1"></i>
+                        </th>
+                        <th class="text-primary sortable bg-gradient">
+                            {{ __('Title') }}<i class="bi bi-chevron-expand ms-1"></i>
+                        </th>
+                        <th class="text-primary sortable bg-gradient">
+                            {{ __('Components PN') }}<i class="bi bi-chevron-expand ms-1"></i>
+                        </th>
+                        <th class="text-primary text-center bg-gradient">{{ __('Image') }}</th>
+                        <th class="text-primary text-center bg-gradient">{{ __('Rev.Date') }}</th>
+                        <th class="text-primary text-center sortable bg-gradient" data-direction="asc">
+                            {{ __('Lib') }} <i class="bi bi-chevron-expand ms-1"></i>
+                        </th>
+                        <th class="text-primary text-center bg-gradient">{{ __('STD Files') }}</th>
+                        <th class="text-primary text-center bg-gradient">{{ __('Action') }}</th>
                     </tr>
                     </thead>
+
                     <tbody>
                     @foreach($cmms as $cmm)
                         <tr>
                             <td>
-                                <a href="{{ route('manuals.show', ['manual' => $cmm->id]) }}">{{$cmm->number}}</a>
-
-                            </td>
-                            <td title="{{$cmm->title}}">{{$cmm->title}}</td>
-                            <td title="{{$cmm->unit_name}}">{{$cmm->unit_name}}</td>
-                            <td class="text-center">
-                                <a href="{{ $cmm->getFirstMediaBigUrl('manuals') }}" data-fancybox="gallery" class="cmm-thumb-link">
-        <span class="cmm-thumb-wrap">
-            <img
-                src="{{ $cmm->getFirstMediaThumbnailUrl('manuals') }}"
-                class="cmm-thumb-img"
-                alt="Image"
-            >
-        </span>
+                                <a href="{{ route('manuals.show', ['manual' => $cmm->id]) }}">
+                                    {{ $cmm->number }}
                                 </a>
                             </td>
-                            <td class="text-center">{{$cmm->revision_date}}</td>
-                            <td class="text-center">{{$cmm->lib}}</td>
+
+                            <td title="{{ $cmm->title }}">{{ $cmm->title }}</td>
+                            <td title="{{ $cmm->unit_name }}">{{ $cmm->unit_name }}</td>
+
                             <td class="text-center">
-                                <div class="d-flex justify-content-center gap-1">
+                                @php
+                                    $manualThumb = $cmm->getFirstMediaThumbnailUrl('manuals') ?: asset('img/noimage.png');
+                                    $manualBig = $cmm->getFirstMediaBigUrl('manuals') ?: $manualThumb;
+                                @endphp
+
+                                <a href="{{ $manualBig }}" data-fancybox="gallery" class="cmm-thumb-link">
+                                    <span class="cmm-thumb-wrap">
+                                        <img
+                                            src="{{ $manualThumb }}"
+                                            onerror="this.onerror=null;this.src='{{ asset('img/noimage.png') }}';if(this.closest('a')){this.closest('a').setAttribute('href','{{ asset('img/noimage.png') }}');}"
+                                            class="cmm-thumb-img"
+                                            alt="Image"
+                                        >
+                                    </span>
+                                </a>
+                            </td>
+
+                            <td class="text-center">{{ $cmm->revision_date }}</td>
+                            <td class="text-center">{{ $cmm->lib }}</td>
+
+                            <td class="text-center">
+                                <div class="d-flex justify-content-center gap-1 flex-wrap">
                                     @foreach($cmm->getMedia('csv_files') as $file)
                                         <a href="{{ route('manuals.csv.view', ['manual' => $cmm->id, 'file' => $file->id]) }}"
                                            class="btn btn-sm btn-outline-info">
@@ -213,23 +246,33 @@
                                             @if($file->getCustomProperty('process_type'))
                                                 {{ $file->getCustomProperty('process_type') }}
                                             @else
-                                                {{__('No Type')}}
+                                                {{ __('No Type') }}
                                             @endif
                                         </a>
                                     @endforeach
                                 </div>
                             </td>
-                            <td class="text-center">
 
-                                <a href="{{ route('manuals.edit', ['manual' => $cmm->id]) }}" class="btn btn-outline-primary btn-sm">
+                            <td class="text-center">
+                                <a href="{{ route('manuals.edit', ['manual' => $cmm->id]) }}"
+                                   class="btn btn-outline-primary btn-sm">
                                     <i class="bi bi-pencil-square"></i>
                                 </a>
+
                                 @role('Admin')
-                                <form id="deleteForm_{{$cmm->id}}" action="{{ route('manuals.destroy', ['manual' => $cmm->id]) }}" method="POST" style="display:inline;">
+                                <form id="deleteForm_{{ $cmm->id }}"
+                                      action="{{ route('manuals.destroy', ['manual' => $cmm->id]) }}"
+                                      method="POST"
+                                      style="display:inline;">
                                     @csrf
                                     @method('DELETE')
-                                    <button class="btn btn-sm btn-outline-danger" type="button" name="btn_delete" data-bs-toggle="modal"
-                                            data-bs-target="#useConfirmDelete" data-title="Delete Confirmation row {{$cmm->number}}">
+
+                                    <button class="btn btn-sm btn-outline-danger"
+                                            type="button"
+                                            name="btn_delete"
+                                            data-bs-toggle="modal"
+                                            data-bs-target="#useConfirmDelete"
+                                            data-title="Delete Confirmation row {{ $cmm->number }}">
                                         <i class="bi bi-trash"></i>
                                     </button>
                                 </form>
@@ -239,157 +282,168 @@
                     @endforeach
                     </tbody>
                 </table>
-                @else
-                    <p>Manuals not created</p>
-                @endif
             </div>
+        @else
+            <div class="p-3">
+                <p class="mb-0">Manuals not created</p>
+            </div>
+        @endif
     </div>
 
     @include('components.delete')
-
-
 @endsection
 
 @section('scripts')
     <script>
         document.addEventListener('DOMContentLoaded', function () {
-
-            // =========================
-            // GLOBAL SAFE SPINNER
-            // =========================
-            function spinnerOn()  { if (typeof showLoadingSpinner === 'function') showLoadingSpinner(); }
-            function spinnerOff() { if (typeof hideLoadingSpinner === 'function') hideLoadingSpinner(); }
-
-            // =========================
-            // TABLE
-            // =========================
             const table = document.getElementById('cmmTable');
             if (!table) return;
 
-            // прячем до применения фильтра, чтобы не было "дергания"
-            table.style.visibility = 'hidden';
-
-            // =========================
-            // 1) SORTING (как у тебя)
-            // =========================
-            const headers = document.querySelectorAll('.sortable');
-            headers.forEach(header => {
-                header.addEventListener('click', () => {
-                    const columnIndex = Array.from(header.parentNode.children).indexOf(header);
-                    const rows = Array.from(table.querySelectorAll('tbody tr'));
-                    const direction = header.dataset.direction === 'asc' ? 'desc' : 'asc';
-                    header.dataset.direction = direction;
-
-                    rows.sort((a, b) => {
-                        const aText = (a.cells[columnIndex]?.innerText || '').trim();
-                        const bText = (b.cells[columnIndex]?.innerText || '').trim();
-                        return direction === 'asc'
-                            ? aText.localeCompare(bText)
-                            : bText.localeCompare(aText);
-                    });
-
-                    const tbody = table.querySelector('tbody');
-                    rows.forEach(row => tbody.appendChild(row));
-                });
-            });
-
-            // =========================
-            // 2) SEARCH (persist + back/forward fix)
-            // =========================
+            const tbody = table.querySelector('tbody');
             const searchInput = document.getElementById('searchInput');
-
-            // кнопка крестика: либо дай ей id="clearSearchBtn", либо мы возьмём по классу
-            const clearBtn =
-                document.getElementById('clearSearchBtn') ||
+            const clearBtn = document.getElementById('clearSearchBtn') ||
                 document.querySelector('.clearable-input .btn-clear');
+            const loading = document.getElementById('tableLoading');
 
             const STORAGE_KEY = 'cmm_search';
+            const rows = Array.from(tbody.querySelectorAll('tr'));
+            const headers = document.querySelectorAll('.sortable');
 
-            function applySearch(raw) {
-                const filter = (raw || '').toLowerCase();
-                const rows = table.querySelectorAll('tbody tr');
+            let inputTimer = null;
 
+            function showGlobalSpinner() {
+                if (typeof showLoadingSpinner === 'function') showLoadingSpinner();
+            }
+
+            function hideGlobalSpinner() {
+                if (typeof hideLoadingSpinner === 'function') hideLoadingSpinner();
+            }
+
+            function showTableLoader() {
+                if (loading) loading.classList.remove('d-none');
+                table.style.visibility = 'hidden';
+            }
+
+            function hideTableLoader() {
+                if (loading) loading.classList.add('d-none');
+                table.style.visibility = 'visible';
+            }
+
+            function cacheRowSearchText() {
                 rows.forEach(row => {
-                    const text = row.innerText.toLowerCase();
-                    row.style.display = text.includes(filter) ? '' : 'none';
+                    row.dataset.searchText = (row.textContent || '').toLowerCase();
                 });
             }
 
-            // ВАЖНО: берём значение и из localStorage, и из текущего input (на случай bfcache)
+            function applySearch(raw) {
+                const filter = (raw || '').trim().toLowerCase();
+
+                rows.forEach(row => {
+                    const text = row.dataset.searchText || '';
+                    row.style.display = !filter || text.includes(filter) ? '' : 'none';
+                });
+            }
+
+            function saveSearchValue(value) {
+                const v = (value || '').trim();
+                if (v) localStorage.setItem(STORAGE_KEY, v);
+                else localStorage.removeItem(STORAGE_KEY);
+            }
+
             function getActualSearchValue() {
                 const fromStorage = (localStorage.getItem(STORAGE_KEY) || '').trim();
-                const fromInput   = (searchInput?.value || '').trim();
-                // если storage пуст, но input не пуст (браузер восстановил), используем input
+                const fromInput = (searchInput?.value || '').trim();
                 return fromStorage || fromInput;
             }
 
-            function restoreAndApply() {
-                spinnerOn();
+            function restoreAndApplyAsync() {
+                showTableLoader();
 
-                const value = getActualSearchValue();
+                requestAnimationFrame(() => {
+                    requestAnimationFrame(() => {
+                        const value = getActualSearchValue();
 
-                if (searchInput) searchInput.value = value;
+                        if (searchInput) {
+                            searchInput.value = value;
+                        }
 
-                // синхронизируем storage (чтобы дальше всегда было одинаково)
-                if (value) localStorage.setItem(STORAGE_KEY, value);
-                else localStorage.removeItem(STORAGE_KEY);
-
-                applySearch(value);
-
-                // показываем таблицу только после применения фильтра
-                table.style.visibility = 'visible';
-
-                spinnerOff();
+                        saveSearchValue(value);
+                        applySearch(value);
+                        hideTableLoader();
+                    });
+                });
             }
 
-            // обычная загрузка
-            restoreAndApply();
+            function sortTableByColumn(header) {
+                showTableLoader();
 
-            // возврат назад/вперёд (bfcache)
-            window.addEventListener('pageshow', () => {
-                // иногда нужно после восстановления DOM дать 1-2 кадра
                 requestAnimationFrame(() => {
-                    requestAnimationFrame(() => restoreAndApply());
-                });
-            });
+                    const columnIndex = Array.from(header.parentNode.children).indexOf(header);
+                    const direction = header.dataset.direction === 'asc' ? 'desc' : 'asc';
+                    header.dataset.direction = direction;
 
-            // дополнительная страховка: если вкладка/страница стала видимой
-            document.addEventListener('visibilitychange', () => {
-                if (document.visibilityState === 'visible') {
-                    restoreAndApply();
+                    const sortedRows = rows.slice().sort((a, b) => {
+                        const aText = (a.cells[columnIndex]?.innerText || '').trim();
+                        const bText = (b.cells[columnIndex]?.innerText || '').trim();
+
+                        return direction === 'asc'
+                            ? aText.localeCompare(bText, undefined, { numeric: true, sensitivity: 'base' })
+                            : bText.localeCompare(aText, undefined, { numeric: true, sensitivity: 'base' });
+                    });
+
+                    sortedRows.forEach(row => tbody.appendChild(row));
+                    hideTableLoader();
+                });
+            }
+
+            cacheRowSearchText();
+            restoreAndApplyAsync();
+
+            window.addEventListener('pageshow', function (event) {
+                if (event.persisted) {
+                    restoreAndApplyAsync();
                 }
             });
 
-            // ввод
+            headers.forEach(header => {
+                header.addEventListener('click', () => {
+                    sortTableByColumn(header);
+                });
+            });
+
             if (searchInput) {
                 searchInput.addEventListener('input', () => {
                     const value = searchInput.value.trim();
+                    saveSearchValue(value);
 
-                    if (value) localStorage.setItem(STORAGE_KEY, value);
-                    else localStorage.removeItem(STORAGE_KEY);
+                    clearTimeout(inputTimer);
+                    showTableLoader();
 
-                    applySearch(value);
+                    inputTimer = setTimeout(() => {
+                        applySearch(value);
+                        hideTableLoader();
+                    }, 50);
                 });
             }
 
-            // крестик — сброс (и storage тоже)
             if (clearBtn) {
                 clearBtn.addEventListener('click', (e) => {
                     e.preventDefault();
 
-                    spinnerOn();
+                    if (searchInput) {
+                        searchInput.value = '';
+                    }
 
-                    if (searchInput) searchInput.value = '';
-                    localStorage.removeItem(STORAGE_KEY);
-                    applySearch('');
+                    saveSearchValue('');
+                    showTableLoader();
 
-                    spinnerOff();
+                    requestAnimationFrame(() => {
+                        applySearch('');
+                        hideTableLoader();
+                    });
                 });
             }
 
-            // =========================
-            // 3) DELETE MODAL (как у тебя)
-            // =========================
             const modal = document.getElementById('useConfirmDelete');
             const confirmDeleteBtn = document.getElementById('confirmDeleteBtn');
             let deleteForm = null;
@@ -401,16 +455,17 @@
 
                     const title = button ? button.getAttribute('data-title') : null;
                     const modalTitle = modal.querySelector('#confirmDeleteLabel');
-                    if (modalTitle) modalTitle.textContent = title || 'Delete Confirmation';
+
+                    if (modalTitle) {
+                        modalTitle.textContent = title || 'Delete Confirmation';
+                    }
                 });
 
                 confirmDeleteBtn.addEventListener('click', function () {
+                    showGlobalSpinner();
                     if (deleteForm) deleteForm.submit();
                 });
             }
-
         });
     </script>
 @endsection
-
-
