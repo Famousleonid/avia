@@ -10,8 +10,12 @@ use App\Models\Process;
 use App\Models\ProcessName;
 use App\Models\Vendor;
 use App\Models\Manual;
+use App\Models\WoBushingBatch;
+use App\Models\WoBushingProcess;
 use App\Services\WoBushingRelationalSync;
+use App\Support\WoBushingProcessColumnKey;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 
 class WoBushingController extends Controller
 {
@@ -28,6 +32,47 @@ class WoBushingController extends Controller
     private static function stressReliefProcessNames(): array
     {
         return ['Bake (Stress relief)', 'Stress Relief'];
+    }
+
+    private function resolveProcessKey(?string $processName, ?string $processCode = null): string
+    {
+        return WoBushingProcessColumnKey::resolve(
+            (string) $processName,
+            (string) ($processCode ?? '')
+        );
+    }
+
+    private function buildProcessAssignments(?WoBushing $woBushing): array
+    {
+        if (! $woBushing) {
+            return [];
+        }
+
+        $lines = $woBushing->lines()->with([
+            'processes.process.process_name',
+            'processes.batch',
+        ])->get();
+
+        $rows = [];
+        foreach ($lines as $line) {
+            $componentId = (int) $line->component_id;
+            foreach ($line->processes as $wp) {
+                $name = $wp->process?->process_name?->name;
+                $code = $wp->process?->process;
+                $key = $this->resolveProcessKey($name, $code);
+                if ($key === 'other') {
+                    continue;
+                }
+                $batch = $wp->batch;
+                $rows[$componentId][$key] = [
+                    'wo_process_id' => (int) $wp->id,
+                    'batch_id' => $wp->batch_id ? (int) $wp->batch_id : null,
+                    'locked' => ! empty($batch?->date_start),
+                ];
+            }
+        }
+
+        return $rows;
     }
 
     /**
@@ -302,6 +347,7 @@ class WoBushingController extends Controller
         // Get existing WoBushing data if available (из нормализованных таблиц или legacy JSON)
         $woBushing = WoBushing::where('workorder_id', $current_wo->id)->first();
         $bushData = $woBushing ? $this->woBushingSync->resolveBushDataForViews($woBushing) : [];
+        $processAssignments = $this->buildProcessAssignments($woBushing);
 
         // Get all vendors
         $vendors = Vendor::all();
@@ -318,6 +364,7 @@ class WoBushingController extends Controller
             'xylanProcesses',
             'woBushing',
             'bushData',
+            'processAssignments',
             'vendors'
         ));
     }
@@ -376,6 +423,7 @@ class WoBushingController extends Controller
 
         $woBushing = WoBushing::where('workorder_id', $current_wo->id)->first();
         $bushData = $woBushing ? $this->woBushingSync->resolveBushDataForViews($woBushing) : [];
+        $processAssignments = $this->buildProcessAssignments($woBushing);
 
         $vendors = Vendor::all();
         $manuals = Manual::all();
@@ -396,6 +444,7 @@ class WoBushingController extends Controller
             'xylanProcesses',
             'woBushing',
             'bushData',
+            'processAssignments',
             'vendors'
         ));
     }
@@ -1065,5 +1114,130 @@ class WoBushingController extends Controller
                 }),
             ]
         ]);
+    }
+
+    public function createBatch(Request $request, WoBushing $woBushing)
+    {
+        $data = $request->validate([
+            'wo_bushing_process_ids' => ['required', 'array', 'min:1'],
+            'wo_bushing_process_ids.*' => ['integer', 'exists:wo_bushing_processes,id'],
+        ]);
+
+        $ids = collect($data['wo_bushing_process_ids'])->map(fn ($v) => (int) $v)->unique()->values();
+
+        DB::transaction(function () use ($ids, $woBushing) {
+            $rows = WoBushingProcess::query()
+                ->whereIn('id', $ids)
+                ->whereHas('line', fn ($q) => $q->where('wo_bushing_id', $woBushing->id))
+                ->with('process')
+                ->lockForUpdate()
+                ->get();
+
+            if ($rows->count() !== $ids->count()) {
+                abort(422, 'Some selected rows are invalid.');
+            }
+
+            // Одна колонка шапки (NDT, Machining, …), не NDT-1 vs NDT-4.
+            $columnKeys = $rows->map(fn (WoBushingProcess $wp) => WoBushingProcessColumnKey::fromProcess($wp->process));
+            if ($columnKeys->unique()->count() !== 1) {
+                abort(422, 'Batch must contain only one process column (header).');
+            }
+            $processColumnKey = $columnKeys->first();
+            if ($processColumnKey === 'other') {
+                abort(422, 'Invalid process for selected rows.');
+            }
+
+            $unavailable = $rows->filter(function (WoBushingProcess $wp) {
+                if (empty($wp->batch_id)) {
+                    return false;
+                }
+                $batch = $wp->batch()->first();
+                return ! empty($batch?->date_start);
+            });
+            if ($unavailable->isNotEmpty()) {
+                abort(422, 'Some selected rows are already sent and locked.');
+            }
+
+            $canonicalProcessId = (int) $rows->first()->process_id;
+
+            // Одна открытая партия на (WO + колонка шапки: ndt, machining, …).
+            $batch = WoBushingBatch::query()
+                ->where('workorder_id', $woBushing->workorder_id)
+                ->whereNull('date_start')
+                ->where('process_column_key', $processColumnKey)
+                ->orderBy('id')
+                ->first();
+
+            if (! $batch) {
+                $batch = WoBushingBatch::create([
+                    'workorder_id' => $woBushing->workorder_id,
+                    'process_id' => $canonicalProcessId,
+                    'process_column_key' => $processColumnKey,
+                ]);
+            }
+
+            WoBushingProcess::query()
+                ->whereIn('id', $rows->pluck('id'))
+                ->update(['batch_id' => $batch->id]);
+
+            WoBushingBatch::query()
+                ->where('workorder_id', $woBushing->workorder_id)
+                ->whereNull('date_start')
+                ->whereDoesntHave('woBushingProcesses')
+                ->delete();
+        });
+
+        return response()->json(['success' => true]);
+    }
+
+    public function ungroupBatch(Request $request, WoBushing $woBushing)
+    {
+        $data = $request->validate([
+            'wo_bushing_process_ids' => ['required', 'array', 'min:1'],
+            'wo_bushing_process_ids.*' => ['integer', 'exists:wo_bushing_processes,id'],
+        ]);
+
+        $ids = collect($data['wo_bushing_process_ids'])->map(fn ($v) => (int) $v)->unique()->values();
+
+        DB::transaction(function () use ($ids, $woBushing) {
+            $rows = WoBushingProcess::query()
+                ->whereIn('id', $ids)
+                ->whereHas('line', fn ($q) => $q->where('wo_bushing_id', $woBushing->id))
+                ->with('batch')
+                ->lockForUpdate()
+                ->get();
+
+            if ($rows->count() !== $ids->count()) {
+                abort(422, 'Some selected rows are invalid.');
+            }
+
+            $batchIds = $rows->pluck('batch_id')->filter()->unique()->values();
+
+            foreach ($rows as $wp) {
+                if (! $wp->batch_id) {
+                    continue;
+                }
+                if (! empty($wp->batch?->date_start)) {
+                    abort(422, 'Cannot ungroup sent rows.');
+                }
+                $wp->batch_id = null;
+                $wp->save();
+            }
+
+            if ($batchIds->isNotEmpty()) {
+                $stillUsed = WoBushingProcess::query()
+                    ->whereIn('batch_id', $batchIds)
+                    ->pluck('batch_id')
+                    ->filter()
+                    ->unique()
+                    ->values();
+                $toDelete = $batchIds->diff($stillUsed);
+                if ($toDelete->isNotEmpty()) {
+                    WoBushingBatch::query()->whereIn('id', $toDelete)->delete();
+                }
+            }
+        });
+
+        return response()->json(['success' => true]);
     }
 }

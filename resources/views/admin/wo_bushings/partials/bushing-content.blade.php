@@ -1,3 +1,6 @@
+@php
+    $processAssignments = $processAssignments ?? [];
+@endphp
 @if($woBushing && $bushData)
     {{-- Показ сохраненных данных в режиме просмотра --}}
     <style>
@@ -24,7 +27,9 @@
             white-space: nowrap;
         }
         .bushing-view-table th.bushing-process-col > div { overflow: hidden; max-width: 100%; }
-        .bushing-view-table .bushing-process-include-checkbox { cursor: pointer; flex-shrink: 0; }
+        .bushing-view-table .bushing-process-include-checkbox,
+        .bushing-view-table .bushing-batch-group-checkbox,
+        .bushing-view-table .bushing-batch-ungroup-checkbox { cursor: pointer; flex-shrink: 0; }
 
         /* 1280x1024 и ниже: компактнее заголовки и controls, чтобы не ломало сетку */
         @media (max-width: 1280px) {
@@ -50,6 +55,19 @@
             }
         }
     </style>
+    <div class="d-flex align-items-center gap-2 mt-3 mb-2">
+        <button type="button"
+                class="btn btn-sm btn-outline-info js-bushing-create-batch"
+                data-url="{{ route('wo_bushings.batches.create', $woBushing) }}">
+            Group selected
+        </button>
+        <button type="button"
+                class="btn btn-sm btn-outline-secondary js-bushing-ungroup-batch"
+                data-url="{{ route('wo_bushings.batches.ungroup', $woBushing) }}">
+            Ungroup selected
+        </button>
+        <span class="text-muted small">{{ __('Form: left checkbox. Group: only on rows not yet grouped. Ungroup: checkbox next to “Grp”.') }}</span>
+    </div>
     <div class="w-100 mt-3">
         <div class="table-wrapper table-scroll-container w-100" style="max-height: calc(100vh - 320px); overflow: auto;">
             <table class="display table shadow table-hover align-middle table-bordered bg-gradient dir-table bushing-view-table
@@ -314,6 +332,7 @@
                             @php
                                 $component = $savedBushing['component'];
                                 $data = $savedBushing['data'];
+                                $assignments = $processAssignments[$component->id] ?? [];
                                 $machiningProcess = $machiningProcesses->firstWhere('id', $data['machining'] ?? null);
                                 $stressReliefProcess = $stressReliefProcesses->firstWhere('id', $data['stress_relief'] ?? null);
                                 $ndtIds = isset($data['ndt']) ? (array)$data['ndt'] : [];
@@ -334,8 +353,19 @@
                                 <td class="text-center">{{ $data['qty'] ?? '-' }}</td>
                                 <td class="bushing-process-col" title="{{ $machiningProcess ? $machiningProcess->process : '-' }}">
                                     @if($machiningProcess)
+                                        @php($a = $assignments['machining'] ?? null)
+                                        @php($inBatch = !empty($a['batch_id'] ?? null))
+                                        @php($locked = !empty($a['locked'] ?? false))
                                         <div class="bushing-process-cell-inner">
                                             <input type="checkbox" class="form-check-input bushing-process-include-checkbox mt-0" data-process-key="machining" data-component-id="{{ $component->id }}" autocomplete="off" title="{{ __('Include in Machining form') }}">
+                                            @if(!$inBatch && !empty($a['wo_process_id'] ?? null))
+                                                <input type="checkbox" class="form-check-input bushing-batch-group-checkbox mt-0" data-process-key="machining" data-wo-process-id="{{ $a['wo_process_id'] }}" title="{{ __('Select to add to a new batch') }}">
+                                            @elseif($inBatch && !$locked)
+                                                <span class="badge bg-secondary align-self-center" style="font-size:0.65rem;" title="{{ __('Already in a batch') }}">Grp</span>
+                                                <input type="checkbox" class="form-check-input bushing-batch-ungroup-checkbox mt-0" data-process-key="machining" data-wo-process-id="{{ $a['wo_process_id'] ?? '' }}" title="{{ __('Select to remove from batch') }}">
+                                            @elseif($locked)
+                                                <span class="badge bg-warning text-dark align-self-center" style="font-size:0.65rem;" title="{{ __('Sent — batch locked') }}">Sent</span>
+                                            @endif
                                             <span class="bushing-process-cell-text">{{ $machiningProcess->process }}</span>
                                         </div>
                                     @else
@@ -344,8 +374,19 @@
                                 </td>
                                 <td class="bushing-process-col" title="{{ $stressReliefProcess ? $stressReliefProcess->process : '-' }}">
                                     @if($stressReliefProcess)
+                                        @php($a = $assignments['stress_relief'] ?? null)
+                                        @php($inBatch = !empty($a['batch_id'] ?? null))
+                                        @php($locked = !empty($a['locked'] ?? false))
                                         <div class="bushing-process-cell-inner">
                                             <input type="checkbox" class="form-check-input bushing-process-include-checkbox mt-0" data-process-key="stress_relief" data-component-id="{{ $component->id }}" autocomplete="off" title="{{ __('Include in Stress Relief form') }}">
+                                            @if(!$inBatch && !empty($a['wo_process_id'] ?? null))
+                                                <input type="checkbox" class="form-check-input bushing-batch-group-checkbox mt-0" data-process-key="stress_relief" data-wo-process-id="{{ $a['wo_process_id'] }}" title="{{ __('Select to add to a new batch') }}">
+                                            @elseif($inBatch && !$locked)
+                                                <span class="badge bg-secondary align-self-center" style="font-size:0.65rem;" title="{{ __('Already in a batch') }}">Grp</span>
+                                                <input type="checkbox" class="form-check-input bushing-batch-ungroup-checkbox mt-0" data-process-key="stress_relief" data-wo-process-id="{{ $a['wo_process_id'] ?? '' }}" title="{{ __('Select to remove from batch') }}">
+                                            @elseif($locked)
+                                                <span class="badge bg-warning text-dark align-self-center" style="font-size:0.65rem;" title="{{ __('Sent — batch locked') }}">Sent</span>
+                                            @endif
                                             <span class="bushing-process-cell-text">{{ $stressReliefProcess->process }}</span>
                                         </div>
                                     @else
@@ -354,8 +395,19 @@
                                 </td>
                                 <td class="bushing-process-col" title="{{ !empty($ndtNames) ? implode(' / ', $ndtNames) : '-' }}">
                                     @if(!empty($ndtNames))
+                                        @php($a = $assignments['ndt'] ?? null)
+                                        @php($inBatch = !empty($a['batch_id'] ?? null))
+                                        @php($locked = !empty($a['locked'] ?? false))
                                         <div class="bushing-process-cell-inner">
                                             <input type="checkbox" class="form-check-input bushing-process-include-checkbox mt-0" data-process-key="ndt" data-component-id="{{ $component->id }}" autocomplete="off" title="{{ __('Include in NDT form') }}">
+                                            @if(!$inBatch && !empty($a['wo_process_id'] ?? null))
+                                                <input type="checkbox" class="form-check-input bushing-batch-group-checkbox mt-0" data-process-key="ndt" data-wo-process-id="{{ $a['wo_process_id'] }}" title="{{ __('Select to add to a new batch') }}">
+                                            @elseif($inBatch && !$locked)
+                                                <span class="badge bg-secondary align-self-center" style="font-size:0.65rem;" title="{{ __('Already in a batch') }}">Grp</span>
+                                                <input type="checkbox" class="form-check-input bushing-batch-ungroup-checkbox mt-0" data-process-key="ndt" data-wo-process-id="{{ $a['wo_process_id'] ?? '' }}" title="{{ __('Select to remove from batch') }}">
+                                            @elseif($locked)
+                                                <span class="badge bg-warning text-dark align-self-center" style="font-size:0.65rem;" title="{{ __('Sent — batch locked') }}">Sent</span>
+                                            @endif
                                             <span class="bushing-process-cell-text">{{ implode(' / ', $ndtNames) }}</span>
                                         </div>
                                     @else
@@ -364,8 +416,19 @@
                                 </td>
                                 <td class="bushing-process-col" title="{{ $passivationProcess ? $passivationProcess->process : '-' }}">
                                     @if($passivationProcess)
+                                        @php($a = $assignments['passivation'] ?? null)
+                                        @php($inBatch = !empty($a['batch_id'] ?? null))
+                                        @php($locked = !empty($a['locked'] ?? false))
                                         <div class="bushing-process-cell-inner">
                                             <input type="checkbox" class="form-check-input bushing-process-include-checkbox mt-0" data-process-key="passivation" data-component-id="{{ $component->id }}" autocomplete="off" title="{{ __('Include in Passivation form') }}">
+                                            @if(!$inBatch && !empty($a['wo_process_id'] ?? null))
+                                                <input type="checkbox" class="form-check-input bushing-batch-group-checkbox mt-0" data-process-key="passivation" data-wo-process-id="{{ $a['wo_process_id'] }}" title="{{ __('Select to add to a new batch') }}">
+                                            @elseif($inBatch && !$locked)
+                                                <span class="badge bg-secondary align-self-center" style="font-size:0.65rem;" title="{{ __('Already in a batch') }}">Grp</span>
+                                                <input type="checkbox" class="form-check-input bushing-batch-ungroup-checkbox mt-0" data-process-key="passivation" data-wo-process-id="{{ $a['wo_process_id'] ?? '' }}" title="{{ __('Select to remove from batch') }}">
+                                            @elseif($locked)
+                                                <span class="badge bg-warning text-dark align-self-center" style="font-size:0.65rem;" title="{{ __('Sent — batch locked') }}">Sent</span>
+                                            @endif
                                             <span class="bushing-process-cell-text">{{ $passivationProcess->process }}</span>
                                         </div>
                                     @else
@@ -374,8 +437,19 @@
                                 </td>
                                 <td class="bushing-process-col" title="{{ $cadProcess ? $cadProcess->process : '-' }}">
                                     @if($cadProcess)
+                                        @php($a = $assignments['cad'] ?? null)
+                                        @php($inBatch = !empty($a['batch_id'] ?? null))
+                                        @php($locked = !empty($a['locked'] ?? false))
                                         <div class="bushing-process-cell-inner">
                                             <input type="checkbox" class="form-check-input bushing-process-include-checkbox mt-0" data-process-key="cad" data-component-id="{{ $component->id }}" autocomplete="off" title="{{ __('Include in CAD form') }}">
+                                            @if(!$inBatch && !empty($a['wo_process_id'] ?? null))
+                                                <input type="checkbox" class="form-check-input bushing-batch-group-checkbox mt-0" data-process-key="cad" data-wo-process-id="{{ $a['wo_process_id'] }}" title="{{ __('Select to add to a new batch') }}">
+                                            @elseif($inBatch && !$locked)
+                                                <span class="badge bg-secondary align-self-center" style="font-size:0.65rem;" title="{{ __('Already in a batch') }}">Grp</span>
+                                                <input type="checkbox" class="form-check-input bushing-batch-ungroup-checkbox mt-0" data-process-key="cad" data-wo-process-id="{{ $a['wo_process_id'] ?? '' }}" title="{{ __('Select to remove from batch') }}">
+                                            @elseif($locked)
+                                                <span class="badge bg-warning text-dark align-self-center" style="font-size:0.65rem;" title="{{ __('Sent — batch locked') }}">Sent</span>
+                                            @endif
                                             <span class="bushing-process-cell-text">{{ $cadProcess->process }}</span>
                                         </div>
                                     @else
@@ -384,8 +458,19 @@
                                 </td>
                                 <td class="bushing-process-col" title="{{ $anodizingProcess ? $anodizingProcess->process : '-' }}">
                                     @if($anodizingProcess)
+                                        @php($a = $assignments['anodizing'] ?? null)
+                                        @php($inBatch = !empty($a['batch_id'] ?? null))
+                                        @php($locked = !empty($a['locked'] ?? false))
                                         <div class="bushing-process-cell-inner">
                                             <input type="checkbox" class="form-check-input bushing-process-include-checkbox mt-0" data-process-key="anodizing" data-component-id="{{ $component->id }}" autocomplete="off" title="{{ __('Include in Anodizing form') }}">
+                                            @if(!$inBatch && !empty($a['wo_process_id'] ?? null))
+                                                <input type="checkbox" class="form-check-input bushing-batch-group-checkbox mt-0" data-process-key="anodizing" data-wo-process-id="{{ $a['wo_process_id'] }}" title="{{ __('Select to add to a new batch') }}">
+                                            @elseif($inBatch && !$locked)
+                                                <span class="badge bg-secondary align-self-center" style="font-size:0.65rem;" title="{{ __('Already in a batch') }}">Grp</span>
+                                                <input type="checkbox" class="form-check-input bushing-batch-ungroup-checkbox mt-0" data-process-key="anodizing" data-wo-process-id="{{ $a['wo_process_id'] ?? '' }}" title="{{ __('Select to remove from batch') }}">
+                                            @elseif($locked)
+                                                <span class="badge bg-warning text-dark align-self-center" style="font-size:0.65rem;" title="{{ __('Sent — batch locked') }}">Sent</span>
+                                            @endif
                                             <span class="bushing-process-cell-text">{{ $anodizingProcess->process }}</span>
                                         </div>
                                     @else
@@ -394,8 +479,19 @@
                                 </td>
                                 <td class="bushing-process-col" title="{{ $xylanProcess ? $xylanProcess->process : '-' }}">
                                     @if($xylanProcess)
+                                        @php($a = $assignments['xylan'] ?? null)
+                                        @php($inBatch = !empty($a['batch_id'] ?? null))
+                                        @php($locked = !empty($a['locked'] ?? false))
                                         <div class="bushing-process-cell-inner">
                                             <input type="checkbox" class="form-check-input bushing-process-include-checkbox mt-0" data-process-key="xylan" data-component-id="{{ $component->id }}" autocomplete="off" title="{{ __('Include in Xylan form') }}">
+                                            @if(!$inBatch && !empty($a['wo_process_id'] ?? null))
+                                                <input type="checkbox" class="form-check-input bushing-batch-group-checkbox mt-0" data-process-key="xylan" data-wo-process-id="{{ $a['wo_process_id'] }}" title="{{ __('Select to add to a new batch') }}">
+                                            @elseif($inBatch && !$locked)
+                                                <span class="badge bg-secondary align-self-center" style="font-size:0.65rem;" title="{{ __('Already in a batch') }}">Grp</span>
+                                                <input type="checkbox" class="form-check-input bushing-batch-ungroup-checkbox mt-0" data-process-key="xylan" data-wo-process-id="{{ $a['wo_process_id'] ?? '' }}" title="{{ __('Select to remove from batch') }}">
+                                            @elseif($locked)
+                                                <span class="badge bg-warning text-dark align-self-center" style="font-size:0.65rem;" title="{{ __('Sent — batch locked') }}">Sent</span>
+                                            @endif
                                             <span class="bushing-process-cell-text">{{ $xylanProcess->process }}</span>
                                         </div>
                                     @else

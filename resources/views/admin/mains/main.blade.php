@@ -120,6 +120,20 @@
             color: #0dcaf0;
         }
 
+        /* WO bushing: без table-secondary — иначе hover светлый поверх table-dark */
+        .wo-bushings-table.table-hover > tbody > tr:hover > td {
+            background-color: rgba(255, 255, 255, 0.075) !important;
+            color: var(--bs-table-color, #fff);
+        }
+        .wo-bushings-table tr.wo-bush-batch-row > td {
+            background-color: rgba(255, 255, 255, 0.06);
+            color: var(--bs-table-color, #fff);
+        }
+        .wo-bushings-table.table-hover > tbody > tr.wo-bush-batch-row:hover > td {
+            background-color: rgba(13, 202, 240, 0.12) !important;
+            color: var(--bs-table-color, #fff);
+        }
+
     </style>
 @endsection
 
@@ -675,6 +689,7 @@
                                                                                                 <th>Part number</th>
                                                                                                 <th>IPL</th>
                                                                                                 <th>Name</th>
+                                                                                                <th>{{ __('Process') }}</th>
                                                                                                 <th class="text-center">Qty</th>
                                                                                                 <th>Repair order</th>
                                                                                                 <th>Sent</th>
@@ -682,67 +697,170 @@
                                                                                             </tr>
                                                                                             </thead>
                                                                                             <tbody>
-                                                                                            @foreach($row['line_items'] as $item)
-                                                                                                <tr data-bush-line-qty="{{ (int) $item['qty'] }}">
-                                                                                                    <td class="small">{{ $item['part_number'] !== '' ? $item['part_number'] : '—' }}</td>
-                                                                                                    <td class="small">{{ $item['ipl_num'] !== '' ? $item['ipl_num'] : '—' }}</td>
-                                                                                                    <td class="small">{{ $item['name'] !== '' ? $item['name'] : '—' }}</td>
-                                                                                                    <td class="text-center">{{ $item['qty'] }}</td>
-                                                                                                    <td>
-                                                                                                        @hasanyrole('Admin|Manager')
-                                                                                                        <form method="POST"
-                                                                                                              action="{{ route('wo_bushing_processes.updateRepairOrder', $item['id']) }}"
-                                                                                                              class="auto-submit-form js-auto-submit auto-submit-order position-relative js-ajax"
-                                                                                                              data-no-spinner>
-                                                                                                            @csrf
-                                                                                                            @method('PATCH')
-                                                                                                            <input type="text"
-                                                                                                                   name="repair_order"
-                                                                                                                   class="form-control form-control-sm pe-4"
-                                                                                                                   value="{{ $item['repair_order'] ?? '' }}"
-                                                                                                                   placeholder="…"
-                                                                                                                   autocomplete="off"
-                                                                                                                   data-original="{{ $item['repair_order'] ?? '' }}">
-                                                                                                            <i class="bi bi-save save-indicator d-none"></i>
-                                                                                                        </form>
-                                                                                                        @else
-                                                                                                        <input type="text"
-                                                                                                               class="form-control form-control-sm bg-dark"
-                                                                                                               value="{{ $item['repair_order'] ?? '' }}"
-                                                                                                               readonly>
-                                                                                                        @endhasanyrole
-                                                                                                    </td>
-                                                                                                    <td>
-                                                                                                        <form method="POST"
-                                                                                                              action="{{ route('wo_bushing_processes.updateDate', $item['id']) }}"
-                                                                                                              class="auto-submit-form js-ajax"
-                                                                                                              data-no-spinner>
-                                                                                                            @csrf
-                                                                                                            @method('PATCH')
-                                                                                                            <input type="text" data-fp name="date_start"
-                                                                                                                   class="form-control form-control-sm finish-input"
-                                                                                                                   value="{{ $item['date_start']?->format('Y-m-d') }}"
-                                                                                                                   data-original="{{ $item['date_start']?->format('Y-m-d') ?? '' }}"
-                                                                                                                   placeholder="…"
-                                                                                                                   autocomplete="off">
-                                                                                                        </form>
-                                                                                                    </td>
-                                                                                                    <td>
-                                                                                                        <form method="POST"
-                                                                                                              action="{{ route('wo_bushing_processes.updateDate', $item['id']) }}"
-                                                                                                              class="auto-submit-form js-ajax"
-                                                                                                              data-no-spinner>
-                                                                                                            @csrf
-                                                                                                            @method('PATCH')
-                                                                                                            <input type="text" data-fp name="date_finish"
-                                                                                                                   class="form-control form-control-sm finish-input"
-                                                                                                                   value="{{ $item['date_finish']?->format('Y-m-d') }}"
-                                                                                                                   data-original="{{ $item['date_finish']?->format('Y-m-d') ?? '' }}"
-                                                                                                                   placeholder="…"
-                                                                                                                   autocomplete="off">
-                                                                                                        </form>
-                                                                                                    </td>
-                                                                                                </tr>
+                                                                                            @foreach($row['batches'] as $batch)
+                                                                                                @if(!empty($batch['is_batch']))
+                                                                                                    @php
+                                                                                                        $batchCollapseId = 'woBushBatchCollapse_gt'.$gt->id.'_'.$row['process_group_key'].'_b'.$batch['id'];
+                                                                                                        $batchLineCount = count($batch['line_items'] ?? []);
+                                                                                                    @endphp
+                                                                                                    <tr class="wo-bush-batch-row">
+                                                                                                        <td colspan="5"
+                                                                                                            class="small align-middle wo-bush-batch-toggle user-select-none"
+                                                                                                            style="cursor: pointer;"
+                                                                                                            data-bs-toggle="collapse"
+                                                                                                            data-bs-target="#{{ $batchCollapseId }}"
+                                                                                                            role="button"
+                                                                                                            tabindex="0"
+                                                                                                            title="{{ __('Click to show bushings in this batch') }}">
+                                                                                                            <span class="fw-bold text-uppercase">{{ __('Batch') }}</span>
+                                                                                                            <span class="text-muted mx-1">·</span>
+                                                                                                            <span class="badge bg-info text-dark">{{ $batch['qty'] }} {{ __('pcs') }}</span>
+                                                                                                            <span class="text-muted small ms-1">({{ $batchLineCount }} {{ __('lines') }})</span>
+                                                                                                            <i class="bi bi-chevron-down small ms-1" aria-hidden="true"></i>
+                                                                                                        </td>
+                                                                                                        <td class="align-middle" onclick="event.stopPropagation();">
+                                                                                                            @hasanyrole('Admin|Manager')
+                                                                                                            <form method="POST"
+                                                                                                                  action="{{ route('wo_bushing_batches.updateRepairOrder', $batch['id']) }}"
+                                                                                                                  class="auto-submit-form js-auto-submit auto-submit-order position-relative js-ajax"
+                                                                                                                  data-no-spinner>
+                                                                                                                @csrf
+                                                                                                                @method('PATCH')
+                                                                                                                <input type="text"
+                                                                                                                       name="repair_order"
+                                                                                                                       class="form-control form-control-sm pe-4"
+                                                                                                                       value="{{ $batch['repair_order'] ?? '' }}"
+                                                                                                                       placeholder="…"
+                                                                                                                       autocomplete="off"
+                                                                                                                       data-original="{{ $batch['repair_order'] ?? '' }}">
+                                                                                                                <i class="bi bi-save save-indicator d-none"></i>
+                                                                                                            </form>
+                                                                                                            @else
+                                                                                                            <input type="text" class="form-control form-control-sm bg-dark" value="{{ $batch['repair_order'] ?? '' }}" readonly>
+                                                                                                            @endhasanyrole
+                                                                                                        </td>
+                                                                                                        <td class="align-middle" onclick="event.stopPropagation();">
+                                                                                                            <form method="POST"
+                                                                                                                  action="{{ route('wo_bushing_batches.updateDate', $batch['id']) }}"
+                                                                                                                  class="auto-submit-form js-ajax"
+                                                                                                                  data-no-spinner>
+                                                                                                                @csrf
+                                                                                                                @method('PATCH')
+                                                                                                                <input type="text" data-fp name="date_start" class="form-control form-control-sm finish-input"
+                                                                                                                       value="{{ $batch['date_start']?->format('Y-m-d') }}"
+                                                                                                                       data-original="{{ $batch['date_start']?->format('Y-m-d') ?? '' }}"
+                                                                                                                       placeholder="…" autocomplete="off">
+                                                                                                            </form>
+                                                                                                        </td>
+                                                                                                        <td class="align-middle" onclick="event.stopPropagation();">
+                                                                                                            <form method="POST"
+                                                                                                                  action="{{ route('wo_bushing_batches.updateDate', $batch['id']) }}"
+                                                                                                                  class="auto-submit-form js-ajax"
+                                                                                                                  data-no-spinner>
+                                                                                                                @csrf
+                                                                                                                @method('PATCH')
+                                                                                                                <input type="text" data-fp name="date_finish" class="form-control form-control-sm finish-input"
+                                                                                                                       value="{{ $batch['date_finish']?->format('Y-m-d') }}"
+                                                                                                                       data-original="{{ $batch['date_finish']?->format('Y-m-d') ?? '' }}"
+                                                                                                                       placeholder="…" autocomplete="off">
+                                                                                                            </form>
+                                                                                                        </td>
+                                                                                                    </tr>
+                                                                                                    <tr class="collapse" id="{{ $batchCollapseId }}">
+                                                                                                        <td colspan="8" class="p-0 border-secondary bg-opacity-10" style="background: rgba(0,0,0,.15);">
+                                                                                                            <div class="p-2">
+                                                                                                                <div class="small text-muted mb-1">{{ __('Bushings in this batch') }} — {{ $batch['qty'] }} {{ __('pcs') }}</div>
+                                                                                                                <table class="table table-sm table-dark table-bordered mb-0 wo-bush-batch-nested">
+                                                                                                                    <thead>
+                                                                                                                    <tr class="small">
+                                                                                                                        <th>{{ __('Part number') }}</th>
+                                                                                                                        <th>{{ __('IPL') }}</th>
+                                                                                                                        <th>{{ __('Name') }}</th>
+                                                                                                                        <th>{{ __('Process') }}</th>
+                                                                                                                        <th class="text-center">{{ __('Qty') }}</th>
+                                                                                                                    </tr>
+                                                                                                                    </thead>
+                                                                                                                    <tbody>
+                                                                                                                    @foreach($batch['line_items'] as $item)
+                                                                                                                        <tr>
+                                                                                                                            <td class="small">{{ ($item['part_number'] ?? '') !== '' ? $item['part_number'] : '—' }}</td>
+                                                                                                                            <td class="small">{{ ($item['ipl_num'] ?? '') !== '' ? $item['ipl_num'] : '—' }}</td>
+                                                                                                                            <td class="small">{{ ($item['name'] ?? '') !== '' ? $item['name'] : '—' }}</td>
+                                                                                                                            <td class="small text-info">{{ ($item['process_detail'] ?? '') !== '' ? $item['process_detail'] : '—' }}</td>
+                                                                                                                            <td class="text-center small">{{ $item['qty'] ?? 0 }}</td>
+                                                                                                                        </tr>
+                                                                                                                    @endforeach
+                                                                                                                    </tbody>
+                                                                                                                    @php
+                                                                                                                        $lineQtySum = collect($batch['line_items'] ?? [])->sum(fn ($i) => (int) ($i['qty'] ?? 0));
+                                                                                                                    @endphp
+                                                                                                                    <tfoot>
+                                                                                                                    <tr class="small">
+                                                                                                                        <th colspan="4" class="text-end text-muted">{{ __('Sum') }}</th>
+                                                                                                                        <th class="text-center">{{ $lineQtySum }}</th>
+                                                                                                                    </tr>
+                                                                                                                    </tfoot>
+                                                                                                                </table>
+                                                                                                            </div>
+                                                                                                        </td>
+                                                                                                    </tr>
+                                                                                                @else
+                                                                                                    @php $item = $batch['line_items'][0] ?? null; @endphp
+                                                                                                    <tr data-bush-line-qty="{{ (int) ($item['qty'] ?? 0) }}">
+                                                                                                        <td class="small">{{ ($item['part_number'] ?? '') !== '' ? $item['part_number'] : '—' }}</td>
+                                                                                                        <td class="small">{{ ($item['ipl_num'] ?? '') !== '' ? $item['ipl_num'] : '—' }}</td>
+                                                                                                        <td class="small">{{ ($item['name'] ?? '') !== '' ? $item['name'] : '—' }}</td>
+                                                                                                        <td class="small text-info">{{ ($item['process_detail'] ?? '') !== '' ? $item['process_detail'] : '—' }}</td>
+                                                                                                        <td class="text-center">{{ $item['qty'] ?? 0 }}</td>
+                                                                                                        <td>
+                                                                                                            @hasanyrole('Admin|Manager')
+                                                                                                            <form method="POST"
+                                                                                                                  action="{{ route('wo_bushing_processes.updateRepairOrder', $batch['id']) }}"
+                                                                                                                  class="auto-submit-form js-auto-submit auto-submit-order position-relative js-ajax"
+                                                                                                                  data-no-spinner>
+                                                                                                                @csrf
+                                                                                                                @method('PATCH')
+                                                                                                                <input type="text"
+                                                                                                                       name="repair_order"
+                                                                                                                       class="form-control form-control-sm pe-4"
+                                                                                                                       value="{{ $batch['repair_order'] ?? '' }}"
+                                                                                                                       placeholder="…"
+                                                                                                                       autocomplete="off"
+                                                                                                                       data-original="{{ $batch['repair_order'] ?? '' }}">
+                                                                                                                <i class="bi bi-save save-indicator d-none"></i>
+                                                                                                            </form>
+                                                                                                            @else
+                                                                                                            <input type="text" class="form-control form-control-sm bg-dark" value="{{ $batch['repair_order'] ?? '' }}" readonly>
+                                                                                                            @endhasanyrole
+                                                                                                        </td>
+                                                                                                        <td>
+                                                                                                            <form method="POST"
+                                                                                                                  action="{{ route('wo_bushing_processes.updateDate', $batch['id']) }}"
+                                                                                                                  class="auto-submit-form js-ajax"
+                                                                                                                  data-no-spinner>
+                                                                                                                @csrf
+                                                                                                                @method('PATCH')
+                                                                                                                <input type="text" data-fp name="date_start" class="form-control form-control-sm finish-input"
+                                                                                                                       value="{{ $batch['date_start']?->format('Y-m-d') }}"
+                                                                                                                       data-original="{{ $batch['date_start']?->format('Y-m-d') ?? '' }}"
+                                                                                                                       placeholder="…" autocomplete="off">
+                                                                                                            </form>
+                                                                                                        </td>
+                                                                                                        <td>
+                                                                                                            <form method="POST"
+                                                                                                                  action="{{ route('wo_bushing_processes.updateDate', $batch['id']) }}"
+                                                                                                                  class="auto-submit-form js-ajax"
+                                                                                                                  data-no-spinner>
+                                                                                                                @csrf
+                                                                                                                @method('PATCH')
+                                                                                                                <input type="text" data-fp name="date_finish" class="form-control form-control-sm finish-input"
+                                                                                                                       value="{{ $batch['date_finish']?->format('Y-m-d') }}"
+                                                                                                                       data-original="{{ $batch['date_finish']?->format('Y-m-d') ?? '' }}"
+                                                                                                                       placeholder="…" autocomplete="off">
+                                                                                                            </form>
+                                                                                                        </td>
+                                                                                                    </tr>
+                                                                                                @endif
                                                                                             @endforeach
                                                                                             </tbody>
                                                                                         </table>

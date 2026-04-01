@@ -255,6 +255,8 @@ Route::group(['middleware' => ['auth']], function () {
     Route::resource('/wo_bushings', WoBushingController::class)->except(['create']);
     Route::get('/wo_bushings/create/{id}', [WoBushingController::class, 'create'])->name('wo_bushings.create');
     Route::post('/wo_bushings/get-bushings-from-manual', [WoBushingController::class, 'getBushingsFromManual'])->name('wo_bushings.getBushingsFromManual');
+    Route::post('/wo_bushings/{woBushing}/batches', [WoBushingController::class, 'createBatch'])->name('wo_bushings.batches.create');
+    Route::post('/wo_bushings/{woBushing}/batches/ungroup', [WoBushingController::class, 'ungroupBatch'])->name('wo_bushings.batches.ungroup');
 
     Route::get('processes/create/{manual_id}', [ProcessController::class, 'create'])->name('processes.create');
     Route::get('processes/edit/{id}', [ProcessController::class, 'edit'])->name('processes.edit');
@@ -262,6 +264,8 @@ Route::group(['middleware' => ['auth']], function () {
 
     Route::patch('/wo-bushing-processes/{woBushingProcess}/repair-order', [MainController::class, 'updateWoBushingProcessRepairOrder'])->name('wo_bushing_processes.updateRepairOrder');
     Route::patch('/wo-bushing-processes/{woBushingProcess}/dates', [MainController::class, 'updateWoBushingProcessDate'])->name('wo_bushing_processes.updateDate');
+    Route::patch('/wo-bushing-batches/{woBushingBatch}/repair-order', [MainController::class, 'updateWoBushingBatchRepairOrder'])->name('wo_bushing_batches.updateRepairOrder');
+    Route::patch('/wo-bushing-batches/{woBushingBatch}/dates', [MainController::class, 'updateWoBushingBatchDate'])->name('wo_bushing_batches.updateDate');
 
     Route::patch('/tdr-processes/{tdrProcess}/dates', [TdrProcessController::class, 'updateDate'])->name('tdrprocesses.updateDate');
     Route::patch('/tdr-processes/{tdrProcess}/repair-order', [MainController::class, 'updateRepairOrder'])->name('tdrprocesses.updateRepairOrder');

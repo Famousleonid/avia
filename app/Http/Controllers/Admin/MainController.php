@@ -13,11 +13,14 @@ use App\Models\Task;
 use App\Models\Tdr;
 use App\Models\Training;
 use App\Models\User;
+use App\Models\WoBushingBatch;
 use App\Models\WoBushingProcess;
 use App\Models\Workorder;
 use App\Services\WorkorderStdListProcessesService;
+use App\Support\WoBushingProcessColumnKey;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Spatie\Activitylog\Models\Activity;
 
@@ -309,45 +312,70 @@ class MainController extends Controller
         $stdListTdrProcesses = app(WorkorderStdListProcessesService::class)
             ->resolveForWorkorder($current_workorder);
 
+        $this->mergeDuplicateOpenBushingBatches((int) $current_workorder->id);
+
         $wpCollection = WoBushingProcess::query()
             ->whereHas('line', fn ($q) => $q->where('workorder_id', $current_workorder->id))
-            ->with(['line.component', 'process.process_name'])
+            ->with(['line.component', 'process.process_name', 'batch'])
             ->get();
 
         $bushingTotalPcs = (int) $wpCollection->sum('qty');
 
-        $bushingProcessGroupedRows = $wpCollection->groupBy('process_id')->map(function ($group) {
+        $bushingProcessGroupedRows = $wpCollection->groupBy(function (WoBushingProcess $wp) {
+            $key = WoBushingProcessColumnKey::fromProcess($wp->process);
+            if ($key === 'other') {
+                return 'other_'.$wp->process_id;
+            }
+
+            return $key;
+        })->map(function ($group) {
             $first = $group->first();
-            $p = $first->process;
-            $pn = $p?->process_name;
-            $prName = trim((string) ($pn->name ?? ''));
-            $prNum = trim((string) ($p->process ?? ''));
-            $label = trim(($prName !== '' ? $prName : 'Process').($prNum !== '' ? ' '.$prNum : ''));
-            $groupKey = $this->resolveBushingProcessGroupKey($prName, $prNum);
+            $groupKey = WoBushingProcessColumnKey::fromProcess($first->process);
+            if ($groupKey === 'other') {
+                $p = $first->process;
+                $pn = $p?->process_name;
+                $prName = trim((string) ($pn->name ?? ''));
+                $prNum = trim((string) ($p->process ?? ''));
+                $label = trim(($prName !== '' ? $prName : 'Process').($prNum !== '' ? ' '.$prNum : ''));
+            } else {
+                $label = $this->bushingProcessGroupLabel($groupKey);
+            }
 
-            $repairNorm = $group->map(fn (WoBushingProcess $wp) => trim((string) ($wp->repair_order ?? '')))->unique()->values();
-            $repairOrderDisplay = $repairNorm->count() === 1 ? $repairNorm->first() : '';
-            $repairOrderMixed = $repairNorm->count() > 1;
+            $batches = $group->groupBy(function (WoBushingProcess $wp) {
+                return $wp->batch_id ? 'batch_'.$wp->batch_id : 'single_'.$wp->id;
+            })->map(function ($batchRows) {
+                $firstWp = $batchRows->first();
+                $batch = $firstWp->batch;
+                $isBatch = ! empty($firstWp->batch_id);
 
-            $starts = $group->pluck('date_start')->filter();
-            $finishes = $group->pluck('date_finish')->filter();
-            $sentQty = (int) $group->filter(fn (WoBushingProcess $wp) => !empty($wp->date_start))->sum('qty');
-            $finishedQty = (int) $group->filter(fn (WoBushingProcess $wp) => !empty($wp->date_finish))->sum('qty');
+                $lineItems = $batchRows->map(function (WoBushingProcess $wp) {
+                    $c = $wp->line?->component;
 
-            $lineItems = $group->map(function (WoBushingProcess $wp) {
-                $c = $wp->line?->component;
+                    return [
+                        'id' => (int) $wp->id,
+                        'qty' => (int) $wp->qty,
+                        'part_number' => trim((string) ($c?->part_number ?? '')),
+                        'ipl_num' => trim((string) ($c?->ipl_num ?? '')),
+                        'name' => trim((string) ($c?->name ?? '')),
+                        'process_detail' => $this->bushingLineProcessDetail($wp),
+                    ];
+                })->sortBy(fn (array $row) => ($row['part_number'] !== '' ? $row['part_number'] : 'zzz').'|'.$row['ipl_num'])->values();
 
                 return [
-                    'id' => (int) $wp->id,
-                    'qty' => (int) $wp->qty,
-                    'repair_order' => (string) ($wp->repair_order ?? ''),
-                    'date_start' => $wp->date_start,
-                    'date_finish' => $wp->date_finish,
-                    'part_number' => trim((string) ($c?->part_number ?? '')),
-                    'ipl_num' => trim((string) ($c?->ipl_num ?? '')),
-                    'name' => trim((string) ($c?->name ?? '')),
+                    'is_batch' => $isBatch,
+                    'id' => $isBatch ? (int) $firstWp->batch_id : (int) $firstWp->id,
+                    'qty' => (int) $batchRows->sum('qty'),
+                    'repair_order' => $isBatch ? (string) ($batch?->repair_order ?? '') : (string) ($firstWp->repair_order ?? ''),
+                    'date_start' => $isBatch ? $batch?->date_start : $firstWp->date_start,
+                    'date_finish' => $isBatch ? $batch?->date_finish : $firstWp->date_finish,
+                    'line_items' => $lineItems,
                 ];
-            })->sortBy(fn (array $row) => ($row['part_number'] !== '' ? $row['part_number'] : 'zzz').'|'.$row['ipl_num'])->values();
+            })->values();
+
+            $starts = $batches->pluck('date_start')->filter();
+            $finishes = $batches->pluck('date_finish')->filter();
+            $sentQty = (int) $batches->filter(fn (array $b) => ! empty($b['date_start']))->sum('qty');
+            $finishedQty = (int) $batches->filter(fn (array $b) => ! empty($b['date_finish']))->sum('qty');
 
             return [
                 'process_id' => (int) $first->process_id,
@@ -357,11 +385,9 @@ class MainController extends Controller
                 'total_qty' => (int) $group->sum('qty'),
                 'sent_qty' => $sentQty,
                 'finished_qty' => $finishedQty,
-                'repair_order' => $repairOrderDisplay,
-                'repair_order_mixed' => $repairOrderMixed,
                 'date_start' => $starts->isNotEmpty() ? $starts->min() : null,
                 'date_finish' => $finishes->isNotEmpty() ? $finishes->max() : null,
-                'line_items' => $lineItems,
+                'batches' => $batches,
             ];
         })->sortBy('process_label')->values();
 
@@ -435,37 +461,70 @@ class MainController extends Controller
         ));
     }
 
+    /**
+     * Несколько «открытых» партий без date_start на одну колонку шапки (NDT, Machining, …)
+     * сливать в одну запись wo_bushing_batches.
+     */
+    protected function mergeDuplicateOpenBushingBatches(int $workorderId): void
+    {
+        DB::transaction(function () use ($workorderId) {
+            $batches = WoBushingBatch::query()
+                ->where('workorder_id', $workorderId)
+                ->whereNull('date_start')
+                ->whereNotNull('process_id')
+                ->with('process.process_name')
+                ->orderBy('id')
+                ->get();
+
+            $groups = $batches->groupBy(function (WoBushingBatch $b) {
+                $stored = $b->process_column_key ?? null;
+                if ($stored !== null && $stored !== '') {
+                    return $stored;
+                }
+
+                $fromProcess = WoBushingProcessColumnKey::fromProcess($b->process);
+                if ($fromProcess !== 'other') {
+                    return $fromProcess;
+                }
+
+                return 'orphan_'.$b->id;
+            });
+
+            foreach ($groups as $groupBatches) {
+                if ($groupBatches->count() <= 1) {
+                    continue;
+                }
+                $sorted = $groupBatches->sortBy('id')->values();
+                $keep = $sorted->first();
+                foreach ($sorted->skip(1) as $drop) {
+                    WoBushingProcess::query()
+                        ->where('batch_id', $drop->id)
+                        ->update(['batch_id' => $keep->id]);
+                    $drop->delete();
+                }
+
+                $key = WoBushingProcessColumnKey::fromProcess($keep->process);
+                if ($key !== 'other' && ($keep->process_column_key === null || $keep->process_column_key === '')) {
+                    $keep->process_column_key = $key;
+                    $keep->save();
+                }
+            }
+        });
+    }
+
     protected function resolveBushingProcessGroupKey(string $processName, string $processCode): string
     {
-        $haystack = Str::lower(trim($processName.' '.$processCode));
+        return WoBushingProcessColumnKey::resolve($processName, $processCode);
+    }
 
-        if ($haystack === '') {
-            return 'other';
-        }
+    protected function bushingLineProcessDetail(WoBushingProcess $wp): string
+    {
+        $p = $wp->process;
+        $pn = $p?->process_name;
+        $prName = trim((string) ($pn->name ?? ''));
+        $prNum = trim((string) ($p->process ?? ''));
 
-        if (Str::contains($haystack, 'machining')) {
-            return 'machining';
-        }
-        if (Str::contains($haystack, ['stress', 'bake'])) {
-            return 'stress_relief';
-        }
-        if (Str::contains($haystack, 'ndt')) {
-            return 'ndt';
-        }
-        if (Str::contains($haystack, 'passivation')) {
-            return 'passivation';
-        }
-        if (Str::contains($haystack, ['cad ', 'cad-', 'cadmium', 'cad plate'])) {
-            return 'cad';
-        }
-        if (Str::contains($haystack, 'anodiz')) {
-            return 'anodizing';
-        }
-        if (Str::contains($haystack, 'xylan')) {
-            return 'xylan';
-        }
-
-        return 'other';
+        return trim(($prName !== '' ? $prName : 'Process').($prNum !== '' ? ' '.$prNum : ''));
     }
 
     protected function bushingProcessGroupLabel(string $key): string
@@ -775,6 +834,88 @@ class MainController extends Controller
         }
 
         return back()->with('success', 'Bushing process dates updated');
+    }
+
+    public function updateWoBushingBatchRepairOrder(Request $request, WoBushingBatch $woBushingBatch)
+    {
+        abort_unless(auth()->check() && auth()->user()->hasAnyRole('Admin|Manager'), 403);
+
+        $request->validate([
+            'repair_order' => 'nullable|string|max:255',
+        ]);
+
+        $woBushingBatch->repair_order = $request->repair_order;
+        $woBushingBatch->save();
+
+        return response()->json([
+            'success' => true,
+            'user' => auth()->user()?->name ?? 'system',
+            'updated_at' => now()->format('d.m.Y H:i'),
+        ]);
+    }
+
+    public function updateWoBushingBatchDate(Request $request, WoBushingBatch $woBushingBatch)
+    {
+        $isAjax = $request->ajax()
+            || $request->expectsJson()
+            || $request->header('X-Requested-With') === 'XMLHttpRequest';
+
+        $v = \Illuminate\Support\Facades\Validator::make($request->all(), [
+            'date_start' => ['nullable', 'date'],
+            'date_finish' => ['nullable', 'date'],
+        ]);
+
+        if ($v->fails()) {
+            if ($isAjax) {
+                return response()->json(['success' => false, 'errors' => $v->errors()], 422);
+            }
+
+            return back()->withErrors($v)->withInput();
+        }
+
+        $data = $v->validated();
+        $currentStart = $woBushingBatch->date_start ? $woBushingBatch->date_start->format('Y-m-d') : null;
+        $effectiveStart = array_key_exists('date_start', $data)
+            ? ($data['date_start'] ?: null)
+            : $currentStart;
+
+        if (! empty($data['date_finish']) && ! $effectiveStart) {
+            $errors = ['date_finish' => ['The start date must be filled in before setting the end date.']];
+            if ($isAjax) {
+                return response()->json(['success' => false, 'errors' => $errors], 422);
+            }
+            return back()->withErrors($errors)->withInput();
+        }
+
+        if (! empty($data['date_finish']) && $effectiveStart) {
+            if (\Carbon\Carbon::parse($data['date_finish'])->lt(\Carbon\Carbon::parse($effectiveStart))) {
+                $errors = ['date_finish' => ['The end date cannot be earlier than the start date.']];
+                if ($isAjax) {
+                    return response()->json(['success' => false, 'errors' => $errors], 422);
+                }
+                return back()->withErrors($errors)->withInput();
+            }
+        }
+
+        if (array_key_exists('date_start', $data)) {
+            $woBushingBatch->date_start = $data['date_start'] ?: null;
+            if (empty($data['date_start'])) {
+                $woBushingBatch->date_finish = null;
+            }
+        }
+        if (array_key_exists('date_finish', $data)) {
+            $woBushingBatch->date_finish = $data['date_finish'] ?: null;
+        }
+        $woBushingBatch->save();
+
+        if ($isAjax) {
+            return response()->json([
+                'success' => true,
+                'user' => auth()->user()?->name ?? 'system',
+            ], 200);
+        }
+
+        return back()->with('success', 'Bushing batch dates updated');
     }
 
     /**

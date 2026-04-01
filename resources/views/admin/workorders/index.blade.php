@@ -58,7 +58,7 @@
         }
 
         .ec-icon-img {
-            width: 20px;
+            width: 12px;
             height: auto;
             display: inline-block;
             font-weight: 800;
