@@ -199,7 +199,8 @@
                             <thead>
                                 <tr class="header-row">
                                     <th class="text-primary text-center">Bushings</th>
-                                    <th class="text-primary text-center">Select</th>
+                                    <th class="text-primary text-center"
+                                        title="{{ __("Check or uncheck to include or exclude each bushing from this row's group. Processes apply to all selected bushings in the row.") }}">Select</th>
                                     <th class="text-primary text-center">QTY</th>
                                     <th class="text-primary text-center">Machining</th>
                                     <th class="text-primary text-center">Stress Relief</th>
@@ -213,12 +214,22 @@
                             <tbody>
                                 @foreach($bushings as $bushIplNum => $bushingGroup)
                                     @php
-                                        // Создаем карту выбранных компонентов из новой структуры bushData
+                                        // Только строки bushData, относящиеся к этой группе (group_key из sync = ключ группы в форме)
+                                        $normRowKey = (string) ($bushIplNum ?: 'no_ipl');
                                         $selectedComponentsMap = [];
                                         $groupData = [];
 
                                         foreach($bushData as $bushItem) {
                                             if(isset($bushItem['bushing'])) {
+                                                $gk = $bushItem['group_key'] ?? null;
+                                                $normGk = ($gk === null || $gk === '') ? 'no_ipl' : (string) $gk;
+                                                if ($normGk === 'No Bush IPL Number') {
+                                                    $normGk = 'no_ipl';
+                                                }
+                                                if ($normGk !== $normRowKey) {
+                                                    continue;
+                                                }
+
                                                 $componentId = $bushItem['bushing'];
 
                                                 // Нормализуем NDT: всегда массив id
@@ -273,8 +284,8 @@
                                                                value="{{ $bushing->id }}" class="form-check-input me-1 component-checkbox"
                                                                data-group="{{ $bushIplNum ?: 'no_ipl' }}"
                                                                data-units-assy="{{ $bushing->units_assy ?? 1 }}"
-                                                               {{ in_array($bushing->id, $selectedComponentsInGroup) ? 'checked' : '' }}
-                                                               onchange="toggleGroupFields('{{ $bushIplNum ?: 'no_ipl' }}')">
+                                                               title="{{ __('Include this bushing in this group (shared QTY and processes for the row)') }}"
+                                                               {{ in_array($bushing->id, $selectedComponentsInGroup) ? 'checked' : '' }}>
                                                         <small>{{ $bushing->ipl_num }}</small>
                                                     </div>
                                                 @endforeach
@@ -421,14 +432,22 @@
             }
         }
 
-        // Функция для управления активностью полей группы
+        // Функция для управления активностью полей группы (по data-group; без CSS-селектора — ключ IPL может содержать кавычки и т.д.)
         function toggleGroupFields(groupName) {
-            const groupCheckboxes = document.querySelectorAll(`.component-checkbox[data-group="${groupName}"]`);
-            const groupFields = document.querySelectorAll(`[data-group="${groupName}"]:not(.component-checkbox)`);
+            if (groupName === null || groupName === undefined) {
+                return;
+            }
+            var g = String(groupName);
+            var groupCheckboxes = Array.prototype.slice.call(document.querySelectorAll('.component-checkbox')).filter(function (cb) {
+                return cb.getAttribute('data-group') === g;
+            });
+            var groupFields = Array.prototype.slice.call(document.querySelectorAll('[data-group]')).filter(function (el) {
+                return el.getAttribute('data-group') === g && !el.classList.contains('component-checkbox');
+            });
 
-            const hasSelected = Array.from(groupCheckboxes).some(checkbox => checkbox.checked);
-            const firstChecked = Array.from(groupCheckboxes).find(cb => cb.checked);
-            const unitsAssy = firstChecked ? (firstChecked.dataset.unitsAssy || '1') : '1';
+            const hasSelected = groupCheckboxes.some(function (checkbox) { return checkbox.checked; });
+            const firstChecked = groupCheckboxes.find(function (cb) { return cb.checked; });
+            const unitsAssy = firstChecked ? (firstChecked.getAttribute('data-units-assy') || '1') : '1';
 
             groupFields.forEach(field => {
                 if (field.type === 'checkbox' && field.name && field.name.includes('[ndt]')) {
@@ -464,6 +483,16 @@
             allGroups.forEach(function(groupName) {
                 toggleGroupFields(groupName);
             });
+
+            var bushingsForm = document.getElementById('bushings-form');
+            if (bushingsForm) {
+                bushingsForm.addEventListener('change', function (e) {
+                    var t = e.target;
+                    if (t && t.classList && t.classList.contains('component-checkbox')) {
+                        toggleGroupFields(t.getAttribute('data-group'));
+                    }
+                });
+            }
 
             var cancelBtn = document.getElementById('editBushingCancelBtn');
             if (cancelBtn && inModal && window.parent !== window) {

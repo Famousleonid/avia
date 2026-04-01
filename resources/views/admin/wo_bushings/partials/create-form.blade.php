@@ -33,7 +33,8 @@
             <thead class="header-row bg-gradient">
                 <tr>
                     <th class="text-primary text-center" style="width: 14%">Bushings</th>
-                    <th class="text-primary text-center" style="width: 10%">Select</th>
+                    <th class="text-primary text-center" style="width: 10%"
+                        title="{{ __("Check or uncheck to include or exclude each bushing from this row's group. Processes apply to all selected bushings in the row.") }}">Select</th>
                     <th class="text-primary text-center" style="width: 7%">QTY</th>
                     <th class="text-primary text-center" style="width: 10%">Machining</th>
                     <th class="text-primary text-center" style="width: 10%">Stress Relief</th>
@@ -60,7 +61,7 @@
                                            value="{{ $bushing->id }}" class="form-check-input me-1 component-checkbox"
                                            data-group="{{ $bushIplNum ?: 'no_ipl' }}"
                                            data-units-assy="{{ $bushing->units_assy ?? 1 }}"
-                                           onchange="window.bushingToggleGroupFields && window.bushingToggleGroupFields('{{ $bushIplNum ?: 'no_ipl' }}')">
+                                           title="{{ __('Include this bushing in this group (shared QTY and processes for the row)') }}">
                                     <small>{{ $bushing->ipl_num }}</small>
                                 </div>
                             @endforeach
@@ -194,11 +195,17 @@
     };
 
     window.bushingToggleGroupFields = function(groupName) {
-        var groupCheckboxes = document.querySelectorAll('.component-checkbox[data-group="' + groupName + '"]');
-        var groupFields = document.querySelectorAll('[data-group="' + groupName + '"]:not(.component-checkbox)');
-        var hasSelected = Array.from(groupCheckboxes).some(function(c){ return c.checked; });
-        var firstChecked = Array.from(groupCheckboxes).find(function(c){ return c.checked; });
-        var unitsAssy = firstChecked ? (firstChecked.dataset.unitsAssy || '1') : '1';
+        if (groupName === null || groupName === undefined) return;
+        var g = String(groupName);
+        var groupCheckboxes = Array.prototype.slice.call(document.querySelectorAll('.component-checkbox')).filter(function (cb) {
+            return cb.getAttribute('data-group') === g;
+        });
+        var groupFields = Array.prototype.slice.call(document.querySelectorAll('[data-group]')).filter(function (el) {
+            return el.getAttribute('data-group') === g && !el.classList.contains('component-checkbox');
+        });
+        var hasSelected = groupCheckboxes.some(function(c){ return c.checked; });
+        var firstChecked = groupCheckboxes.find(function(c){ return c.checked; });
+        var unitsAssy = firstChecked ? (firstChecked.getAttribute('data-units-assy') || '1') : '1';
         groupFields.forEach(function(field) {
             if (field.type === 'checkbox' && field.name && field.name.indexOf('[ndt]') !== -1) {
                 field.disabled = !hasSelected;
@@ -216,6 +223,13 @@
 
     form.querySelectorAll('[data-group]').forEach(function(field) {
         if (!field.classList.contains('component-checkbox')) field.disabled = true;
+    });
+
+    form.addEventListener('change', function (e) {
+        var t = e.target;
+        if (t && t.classList && t.classList.contains('component-checkbox')) {
+            window.bushingToggleGroupFields(t.getAttribute('data-group'));
+        }
     });
 })();
 </script>

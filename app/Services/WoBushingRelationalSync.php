@@ -2,9 +2,12 @@
 
 namespace App\Services;
 
+use App\Models\Process;
 use App\Models\WoBushing;
+use App\Models\WoBushingBatch;
 use App\Models\WoBushingLine;
 use App\Models\WoBushingProcess;
+use App\Support\WoBushingProcessColumnKey;
 use Illuminate\Support\Facades\DB;
 
 class WoBushingRelationalSync
@@ -28,6 +31,28 @@ class WoBushingRelationalSync
         $bushDataArray = $this->buildBushDataArrayFromGroups($groupBushingsData);
 
         DB::transaction(function () use ($woBushing, $groupBushingsData, $workorderId, $bushDataArray) {
+            // До удаления строк: запомнить party/даты по (component_id × колонка шапки), иначе после Update из модалки теряются batch_id и «Grp».
+            $preserveByComponent = [];
+            $existingLines = $woBushing->lines()->with(['processes.process.process_name'])->get();
+            foreach ($existingLines as $oldLine) {
+                $cid = (int) $oldLine->component_id;
+                foreach ($oldLine->processes as $wp) {
+                    $col = WoBushingProcessColumnKey::fromProcess($wp->process);
+                    if ($col === 'other') {
+                        continue;
+                    }
+                    if (! isset($preserveByComponent[$cid])) {
+                        $preserveByComponent[$cid] = [];
+                    }
+                    $preserveByComponent[$cid][$col] = [
+                        'batch_id' => $wp->batch_id,
+                        'repair_order' => $wp->repair_order,
+                        'date_start' => $wp->date_start,
+                        'date_finish' => $wp->date_finish,
+                    ];
+                }
+            }
+
             $woBushing->lines()->delete();
 
             $sortOrder = 0;
@@ -80,13 +105,44 @@ class WoBushingRelationalSync
                         }
                     }
 
+                    $cid = (int) $componentId;
+                    $processCache = [];
                     foreach ($rows as $row) {
+                        $pid = (int) $row['process_id'];
+                        if (! isset($processCache[$pid])) {
+                            $processCache[$pid] = Process::query()->with('process_name')->find($pid);
+                        }
+                        $process = $processCache[$pid];
+                        $col = WoBushingProcessColumnKey::fromProcess($process);
+
+                        $batchId = null;
+                        $repairOrder = null;
+                        $dateStart = null;
+                        $dateFinish = null;
+                        if ($col !== 'other' && isset($preserveByComponent[$cid][$col])) {
+                            $snap = $preserveByComponent[$cid][$col];
+                            if (! empty($snap['batch_id'])) {
+                                $batchOk = WoBushingBatch::query()
+                                    ->where('id', (int) $snap['batch_id'])
+                                    ->where('workorder_id', $workorderId)
+                                    ->exists();
+                                if ($batchOk) {
+                                    $batchId = (int) $snap['batch_id'];
+                                }
+                            }
+                            $repairOrder = $snap['repair_order'];
+                            $dateStart = $snap['date_start'];
+                            $dateFinish = $snap['date_finish'];
+                        }
+
                         WoBushingProcess::create([
                             'wo_bushing_line_id' => $line->id,
                             'process_id' => $row['process_id'],
                             'qty' => $row['qty'],
-                            'date_start' => null,
-                            'date_finish' => null,
+                            'batch_id' => $batchId,
+                            'repair_order' => $repairOrder,
+                            'date_start' => $dateStart,
+                            'date_finish' => $dateFinish,
                         ]);
                     }
                 }
@@ -155,7 +211,7 @@ class WoBushingRelationalSync
      */
     public function bushDataFromLines(WoBushing $woBushing): array
     {
-        $lines = $woBushing->lines()->with(['processes.process.process_name'])->orderBy('sort_order')->get();
+        $lines = $woBushing->lines()->with(['processes.process.process_name', 'component'])->orderBy('sort_order')->get();
 
         $out = [];
         foreach ($lines as $line) {
@@ -194,8 +250,19 @@ class WoBushingRelationalSync
 
             $processes['ndt'] = array_values(array_unique($processes['ndt']));
 
+            $fallbackGroup = $line->component?->bush_ipl_num;
+            $groupKey = $line->group_key;
+            if ($groupKey === null || $groupKey === '') {
+                $groupKey = $fallbackGroup !== null && $fallbackGroup !== ''
+                    ? (string) $fallbackGroup
+                    : 'no_ipl';
+            }
+
             $out[] = [
+                'line_id' => (int) $line->id,
                 'bushing' => (int) $line->component_id,
+                'group_key' => $groupKey,
+                'sort_order' => (int) $line->sort_order,
                 'qty' => (int) $line->qty,
                 'processes' => $processes,
             ];

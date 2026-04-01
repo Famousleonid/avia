@@ -313,7 +313,8 @@
                             <thead class="">
                                 <tr class="header-row bg-gradient">
                                     <th class="text-primary text-center" style="width: 14%">Bushings</th>
-                                    <th class="text-primary text-center" style="width: 10%">Select</th>
+                                    <th class="text-primary text-center" style="width: 10%"
+                                        title="{{ __("Check or uncheck to include or exclude each bushing from this row's group. Processes apply to all selected bushings in the row.") }}">Select</th>
                                     <th class="text-primary text-center" style="width: 7%">QTY</th>
                                     <th class="text-primary text-center" style="width: 10%">Machining</th>
                                     <th class="text-primary text-center" style="width: 10%">Stress Relief</th>
@@ -343,7 +344,8 @@
                                                         <input type="checkbox" name="group_bushings[{{ $bushIplNum ?: 'no_ipl' }}][components][]"
                                                                value="{{ $bushing->id }}" class="form-check-input me-1 component-checkbox"
                                                                data-group="{{ $bushIplNum ?: 'no_ipl' }}"
-                                                               onchange="toggleGroupFields('{{ $bushIplNum ?: 'no_ipl' }}')">
+                                                               data-units-assy="{{ $bushing->units_assy ?? 1 }}"
+                                                               title="{{ __('Include this bushing in this group (shared QTY and processes for the row)') }}">
                                                         <small>{{ $bushing->ipl_num }}</small>
                                                     </div>
                                                 @endforeach
@@ -471,24 +473,21 @@
             }
         }
 
-        // Функция для управления активностью полей группы
+        // Функция для управления активностью полей группы (без CSS-селектора по ключу — спецсимволы в IPL не ломают скрипт)
         function toggleGroupFields(groupName) {
-            console.log('toggleGroupFields called for group:', groupName);
+            if (groupName === null || groupName === undefined) return;
+            var g = String(groupName);
+            var groupCheckboxes = Array.prototype.slice.call(document.querySelectorAll('.component-checkbox')).filter(function (cb) {
+                return cb.getAttribute('data-group') === g;
+            });
+            var groupFields = Array.prototype.slice.call(document.querySelectorAll('[data-group]')).filter(function (el) {
+                return el.getAttribute('data-group') === g && !el.classList.contains('component-checkbox');
+            });
+            var hasSelected = groupCheckboxes.some(function (checkbox) { return checkbox.checked; });
+            var firstChecked = groupCheckboxes.find(function (cb) { return cb.checked; });
+            var unitsAssy = firstChecked ? (firstChecked.getAttribute('data-units-assy') || '1') : '1';
 
-            const groupCheckboxes = document.querySelectorAll(`.component-checkbox[data-group="${groupName}"]`);
-            const groupFields = document.querySelectorAll(`[data-group="${groupName}"]:not(.component-checkbox)`);
-
-            console.log('Found checkboxes:', groupCheckboxes.length);
-            console.log('Found fields:', groupFields.length);
-
-            // Проверяем, есть ли выбранные чекбоксы в группе
-            const hasSelected = Array.from(groupCheckboxes).some(checkbox => checkbox.checked);
-
-            console.log('Has selected:', hasSelected);
-
-            // Активируем/деактивируем поля группы
             groupFields.forEach(field => {
-                // Для чекбоксов NDT используем другой подход
                 if (field.type === 'checkbox' && field.name && field.name.includes('[ndt]')) {
                     field.disabled = !hasSelected;
                     if (!hasSelected) {
@@ -498,13 +497,14 @@
                     field.disabled = !hasSelected;
                     if (!hasSelected) {
                         if (field.classList.contains('qty-input')) {
-                            field.value = '1'; // Возвращаем значение по умолчанию для QTY
+                            field.value = '1';
                         } else {
-                            field.value = ''; // Очищаем значения для остальных полей
+                            field.value = '';
                         }
+                    } else if (field.classList.contains('qty-input') && hasSelected) {
+                        field.value = unitsAssy;
                     }
                 }
-                console.log('Field disabled state:', field.disabled, 'for field:', field.name);
             });
         }
 
@@ -518,6 +518,13 @@
             });
 
             const form = document.getElementById('bushings-form');
+
+            form.addEventListener('change', function (e) {
+                var t = e.target;
+                if (t && t.classList && t.classList.contains('component-checkbox')) {
+                    toggleGroupFields(t.getAttribute('data-group'));
+                }
+            });
 
             form.addEventListener('submit', function(e) {
                 const selectedComponents = document.querySelectorAll('.component-checkbox:checked');
@@ -798,7 +805,7 @@
                     rowHtml += '<td class="text-center"><div class="text-start">';
                     components.forEach(function(comp) {
                         rowHtml += `<div class="mb-1">`;
-                        rowHtml += `<input type="checkbox" name="group_bushings[${uniqueGroupKey}][components][]" value="${comp.id}" class="form-check-input me-1 component-checkbox" data-group="${uniqueGroupKey}" onchange="toggleGroupFields('${uniqueGroupKey}')">`;
+                        rowHtml += `<input type="checkbox" name="group_bushings[${uniqueGroupKey}][components][]" value="${comp.id}" class="form-check-input me-1 component-checkbox" data-group="${uniqueGroupKey}" data-units-assy="${comp.units_assy != null ? comp.units_assy : 1}">`;
                         rowHtml += `<small>${comp.ipl_num}</small>`;
                         rowHtml += `</div>`;
                     });

@@ -190,7 +190,6 @@
 
     <script>
         document.addEventListener('DOMContentLoaded', function() {
-            // ÐžÐ±Ñ€Ð°Ð±Ð¾Ñ‚Ñ‡Ð¸Ðº Ð´Ð»Ñ Ð²ÑÐµÑ… ÐºÐ½Ð¾Ð¿Ð¾Ðº Form (Ð´Ð»Ñ wo_bushings.show ÑÑ‚Ñ€Ð°Ð½Ð¸Ñ†Ñ‹)
             document.querySelectorAll('.form-btn').forEach(function(btn) {
                 btn.addEventListener('click', function(e) {
                     e.preventDefault();
@@ -205,9 +204,8 @@
                     var queryParts = [];
                     if (processKey) {
                         var seen = {};
-                        document.querySelectorAll(
-                            '.bushing-process-include-checkbox[data-process-key="' + processKey + '"]:checked'
-                        ).forEach(function(cb) {
+                        document.querySelectorAll('.bushing-process-include-checkbox').forEach(function(cb) {
+                            if ((cb.getAttribute('data-process-key') || '') !== processKey || !cb.checked) return;
                             var cid = cb.getAttribute('data-component-id');
                             if (cid && !seen[cid]) {
                                 seen[cid] = true;
@@ -227,6 +225,62 @@
                     var finalUrl = baseUrl + (queryParts.length ? (baseUrl.indexOf('?') === -1 ? '?' : '&') + queryParts.join('&') : '');
 
                     window.open(finalUrl, '_blank');
+                });
+            });
+
+            document.body.addEventListener('click', function(e) {
+                var createBatchBtn = e.target.closest('.js-bushing-create-batch');
+                var ungroupBatchBtn = e.target.closest('.js-bushing-ungroup-batch');
+                if (!createBatchBtn && !ungroupBatchBtn) return;
+                e.preventDefault();
+                var actionBtn = createBatchBtn || ungroupBatchBtn;
+                var actionUrl = actionBtn.getAttribute('data-url');
+                if (!actionUrl) return;
+                var scopeKey = actionBtn.getAttribute('data-process-key') || '';
+                var selector = createBatchBtn ? '.bushing-batch-group-checkbox:checked' : '.bushing-batch-ungroup-checkbox:checked';
+                var checkboxes = Array.from(document.querySelectorAll(selector));
+                if (scopeKey) {
+                    checkboxes = checkboxes.filter(function (cb) { return (cb.getAttribute('data-process-key') || '') === scopeKey; });
+                }
+                var selected = checkboxes.map(function (cb) {
+                    return { processKey: cb.getAttribute('data-process-key') || '', id: cb.getAttribute('data-wo-process-id') || '' };
+                }).filter(function (row) { return !!row.id; });
+                if (selected.length === 0) {
+                    alert(createBatchBtn
+                        ? {!! json_encode(__('Select rows using the small “batch” checkbox (not grouped yet).')) !!}
+                        : {!! json_encode(__('Select rows using the small checkbox next to “Grp” to ungroup.')) !!});
+                    return;
+                }
+                var processKeys = Array.from(new Set(selected.map(function (r) { return r.processKey; })));
+                if (processKeys.length !== 1) {
+                    alert({!! json_encode(__('Please select rows from one process column only.')) !!});
+                    return;
+                }
+                var tokenEl = document.querySelector('meta[name="csrf-token"]');
+                var csrf = tokenEl ? tokenEl.getAttribute('content') : '';
+                fetch(actionUrl, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Accept': 'application/json',
+                        'X-Requested-With': 'XMLHttpRequest',
+                        'X-CSRF-TOKEN': csrf
+                    },
+                    credentials: 'same-origin',
+                    body: JSON.stringify({ wo_bushing_process_ids: selected.map(function (r) { return parseInt(r.id, 10); }) })
+                }).then(function (r) {
+                    return r.text().then(function (text) {
+                        try { return { status: r.status, json: JSON.parse(text) }; } catch (e) { return { status: r.status, json: null }; }
+                    });
+                }).then(function (res) {
+                    if (res.status >= 200 && res.status < 300) {
+                        window.location.reload();
+                        return;
+                    }
+                    var msg = (res.json && (res.json.message || res.json.error)) ? (res.json.message || res.json.error) : ('HTTP ' + res.status);
+                    alert(msg);
+                }).catch(function () {
+                    alert('Batch operation failed.');
                 });
             });
         });

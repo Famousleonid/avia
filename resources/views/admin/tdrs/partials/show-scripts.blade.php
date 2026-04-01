@@ -142,7 +142,7 @@ document.addEventListener('DOMContentLoaded', function() {
     function loadBushingPartial() {
         if (!bushingTabBody) return;
         bushingTabBody.innerHTML = '<div class="text-center py-5 text-muted">{{ __("Loading...") }}</div>';
-        fetch(bushingPartialUrl, { headers: { 'X-Requested-With': 'XMLHttpRequest', 'Accept': 'text/html' }, credentials: 'same-origin' })
+        fetch(bushingPartialUrl + (bushingPartialUrl.indexOf('?') >= 0 ? '&' : '?') + '_=' + Date.now(), { headers: { 'X-Requested-With': 'XMLHttpRequest', 'Accept': 'text/html' }, credentials: 'same-origin', cache: 'no-store' })
             .then(function(r) {
                 if (!r.ok) throw new Error('HTTP ' + r.status);
                 return r.text().then(function(html) {
@@ -713,13 +713,22 @@ document.addEventListener('DOMContentLoaded', function() {
             var ungroupBatchBtn = e.target.closest('.js-bushing-ungroup-batch');
             if (createBatchBtn || ungroupBatchBtn) {
                 e.preventDefault();
-                var actionUrl = (createBatchBtn || ungroupBatchBtn).getAttribute('data-url');
+                var actionBtn = createBatchBtn || ungroupBatchBtn;
+                var actionUrl = actionBtn.getAttribute('data-url');
                 if (!actionUrl) return;
+
+                var scopeKey = actionBtn.getAttribute('data-process-key') || '';
 
                 var selector = createBatchBtn
                     ? '.bushing-batch-group-checkbox:checked'
                     : '.bushing-batch-ungroup-checkbox:checked';
-                var selected = Array.from(document.querySelectorAll(selector))
+                var checkboxes = Array.from(document.querySelectorAll(selector));
+                if (scopeKey) {
+                    checkboxes = checkboxes.filter(function (cb) {
+                        return (cb.getAttribute('data-process-key') || '') === scopeKey;
+                    });
+                }
+                var selected = checkboxes
                     .map(function (cb) {
                         return {
                             processKey: cb.getAttribute('data-process-key') || '',

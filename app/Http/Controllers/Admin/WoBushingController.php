@@ -345,8 +345,9 @@ class WoBushingController extends Controller
             ->get();
 
         // Get existing WoBushing data if available (из нормализованных таблиц или legacy JSON)
-        $woBushing = WoBushing::where('workorder_id', $current_wo->id)->first();
-        $bushData = $woBushing ? $this->woBushingSync->resolveBushDataForViews($woBushing) : [];
+        $woBushing = WoBushing::where('workorder_id', $current_wo->id)->with('lines')->first();
+        $linesExist = $woBushing && $woBushing->lines->isNotEmpty();
+        $bushData = $linesExist ? $this->woBushingSync->resolveBushDataForViews($woBushing) : [];
         $processAssignments = $this->buildProcessAssignments($woBushing);
 
         // Get all vendors
@@ -364,6 +365,7 @@ class WoBushingController extends Controller
             'xylanProcesses',
             'woBushing',
             'bushData',
+            'linesExist',
             'processAssignments',
             'vendors'
         ));
@@ -421,8 +423,9 @@ class WoBushingController extends Controller
             ->whereHas('manuals', fn($q) => $q->where('manual_id', $manual_id))
             ->with('process_name')->get();
 
-        $woBushing = WoBushing::where('workorder_id', $current_wo->id)->first();
-        $bushData = $woBushing ? $this->woBushingSync->resolveBushDataForViews($woBushing) : [];
+        $woBushing = WoBushing::where('workorder_id', $current_wo->id)->with('lines')->first();
+        $linesExist = $woBushing && $woBushing->lines->isNotEmpty();
+        $bushData = $linesExist ? $this->woBushingSync->resolveBushDataForViews($woBushing) : [];
         $processAssignments = $this->buildProcessAssignments($woBushing);
 
         $vendors = Vendor::all();
@@ -444,6 +447,7 @@ class WoBushingController extends Controller
             'xylanProcesses',
             'woBushing',
             'bushData',
+            'linesExist',
             'processAssignments',
             'vendors'
         ));
@@ -545,6 +549,8 @@ class WoBushingController extends Controller
             ->with('process_name')
             ->get();
 
+        $woBushing->load('lines');
+        $linesExist = $woBushing->lines->isNotEmpty();
         $bushData = $this->woBushingSync->resolveBushDataForViews($woBushing);
 
         return view('admin.wo_bushings.edit', compact(
@@ -558,7 +564,8 @@ class WoBushingController extends Controller
             'cadProcesses',
             'anodizingProcesses',
             'xylanProcesses',
-            'bushData'
+            'bushData',
+            'linesExist'
         ));
     }
 
