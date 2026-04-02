@@ -56,33 +56,33 @@
         }
         /* Колонки Parts: IPL Number | ASSy IPL | Part Number | ASSy Part Number | Name | QTY | Name | Action */
         #nav-parts .table th:nth-child(1),
-        #nav-parts .table td:nth-child(1) { width: 110px; }
+        #nav-parts .table td:nth-child(1) { width: 10%; }
         #nav-parts .table th:nth-child(2),
-        #nav-parts .table td:nth-child(2) { width: 130px; }
+        #nav-parts .table td:nth-child(2) { width: 10%; }
         #nav-parts .table th:nth-child(3),
-        #nav-parts .table td:nth-child(3) { width: 140px; }
+        #nav-parts .table td:nth-child(3) { width: 15%; }
         #nav-parts .table th:nth-child(4),
-        #nav-parts .table td:nth-child(4) { width: 140px; }
+        #nav-parts .table td:nth-child(4) { width: 15%; }
         #nav-parts .table th:nth-child(5),
-        #nav-parts .table td:nth-child(5) { width: 350px; }
+        #nav-parts .table td:nth-child(5) { width: 30%; }
         #nav-parts .table th:nth-child(6),
-        #nav-parts .table td:nth-child(6) { width: 70px; }
+        #nav-parts .table td:nth-child(6) { width: 6%; }
         #nav-parts .table th:nth-child(7),
-        #nav-parts .table td:nth-child(7) { width: 100px; }
+        #nav-parts .table td:nth-child(7) { width: 6%; }
         #nav-parts .table th:nth-child(8),
-        #nav-parts .table td:nth-child(8) { width: 100px; }
+        #nav-parts .table td:nth-child(8) { width: 8%; }
 
         #nav-processes .table {
             width: 100%;
         }
         #nav-processes .table th:nth-child(1),
-        #nav-processes .table td:nth-child(1) { width: 60px; }
+        #nav-processes .table td:nth-child(1) { width: 10%; }
         #nav-processes .table th:nth-child(2),
-        #nav-processes .table td:nth-child(2) { width: 170px; }
+        #nav-processes .table td:nth-child(2) { width: 15%; }
         #nav-processes .table th:nth-child(3),
-        #nav-processes .table td:nth-child(3) { width: 560px; }
+        #nav-processes .table td:nth-child(3) { width: 60%; }
         #nav-processes .table th:nth-child(4),
-        #nav-processes .table td:nth-child(4) { width: 110px; }
+        #nav-processes .table td:nth-child(4) { width: 15%; }
 
         .card shadow {
             max-width: 1200px;
@@ -469,7 +469,13 @@
                 </div>
                 <div class="tab-pane fade @if($manualShowTab === 'std') show active @endif" id="nav-std" role="tabpanel" aria-labelledby="nav-std-tab" tabindex="0">
                     <div class="std-table-container m-2">
-                        @include('admin.manuals.partials.std-processes-tables', ['cmm' => $cmm, 'stdProcessesByType' => $stdProcessesByType ?? collect()])
+                        @include('admin.manuals.partials.std-processes-tables', [
+                            'cmm' => $cmm,
+                            'stdProcessesByType' => $stdProcessesByType ?? collect(),
+                            'stdExistingPartKeysByStd' => $stdExistingPartKeysByStd ?? [],
+                            'stdAddSourceManuals' => $stdAddSourceManuals ?? collect(),
+                            'stdProcessPicklists' => $stdProcessPicklists ?? ['cad' => [], 'stress' => [], 'paint' => []],
+                        ])
                     </div>
                 </div>
             </div>

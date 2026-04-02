@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 
 class StdProcess extends Model
 {
@@ -67,6 +68,88 @@ class StdProcess extends Model
         $suffixVal = $suffix === '' ? 0 : (ord($suffix) - 64);
 
         return $section * 1_000_000 + $number * 100 + $suffixVal;
+    }
+
+    /**
+     * Значения поля Process (процедура) с вкладки Processes руководства для добавления строки STD CAD / Stress / Paint.
+     *
+     * @return array<int, string>
+     */
+    public static function processPicklistValuesForManual(int $manualId, string $std): array
+    {
+        self::assertValidStd($std);
+        if ($std === self::STD_NDT) {
+            return [];
+        }
+
+        $mps = ManualProcess::query()
+            ->where('manual_id', $manualId)
+            ->with(['process.process_name'])
+            ->get();
+
+        $matchesStd = static function (?ProcessName $pn) use ($std): bool {
+            if (! $pn) {
+                return false;
+            }
+            $name = (string) ($pn->name ?? '');
+            $sheet = trim((string) ($pn->process_sheet_name ?? ''));
+
+            return match ($std) {
+                self::STD_CAD => $name === 'Cad plate',
+                self::STD_STRESS => in_array($name, ['Bake (Stress relief)', 'Stress Relief'], true),
+                self::STD_PAINT => trim($name) === 'Paint'
+                    || $name === 'STD Paint List'
+                    || Str::upper($sheet) === 'PAINT APPLICATION',
+                default => false,
+            };
+        };
+
+        $values = [];
+        foreach ($mps as $mp) {
+            $proc = $mp->process;
+            if (! $proc || ! $matchesStd($proc->process_name)) {
+                continue;
+            }
+            $val = trim((string) ($proc->process ?? ''));
+            if ($val !== '') {
+                $values[$val] = true;
+            }
+        }
+
+        return array_keys($values);
+    }
+
+    /**
+     * Ключ IPL + Part № для проверки дубликата строки STD (совпадает с duplicateKeyForClient на клиенте).
+     */
+    public static function duplicateKeyForClient(?string $ipl, ?string $partNumber): string
+    {
+        return trim((string) ($ipl ?? ''))."\n".trim((string) ($partNumber ?? ''));
+    }
+
+    /**
+     * Уже есть строка с тем же типом STD и той же деталью (IPL + Part №) для данного мануала.
+     */
+    public static function rowExistsForManualStdPart(int $manualId, string $std, ?string $ipl, ?string $partNumber): bool
+    {
+        self::assertValidStd($std);
+        $ipl = trim((string) ($ipl ?? ''));
+        $pn = trim((string) ($partNumber ?? ''));
+
+        $q = self::query()
+            ->where('manual_id', $manualId)
+            ->where('std', $std)
+            ->where('ipl_num', $ipl);
+
+        if ($pn === '') {
+            $q->where(function ($sub) {
+                $sub->whereNull('part_number')->orWhere('part_number', '');
+            });
+        } else {
+            $q->where('part_number', $pn);
+        }
+
+        return $q->exists();
     }
 
     /**

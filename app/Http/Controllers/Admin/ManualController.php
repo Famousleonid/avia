@@ -248,8 +248,32 @@ class ManualController extends Controller
             return [$std => $rows];
         });
 
+        $stdExistingPartKeysByStd = collect(StdProcess::validStdValues())->mapWithKeys(function ($std) use ($stdProcessesByType) {
+            $rows = $stdProcessesByType->get($std, collect());
+            $keys = $rows->map(fn (StdProcess $row) => StdProcess::duplicateKeyForClient($row->ipl_num, $row->part_number))->values()->all();
+
+            return [$std => $keys];
+        })->all();
+
+        $stdAddSourceManuals = Manual::query()
+            ->where('planes_id', $cmm->planes_id)
+            ->where('builders_id', $cmm->builders_id)
+            ->when(! auth()->user()->roleIs('Admin'), function ($q) {
+                $q->whereHas('permittedUsers', function ($q2) {
+                    $q2->where('users.id', auth()->id());
+                });
+            })
+            ->orderBy('number')
+            ->get(['id', 'number', 'title']);
+
+        $stdProcessPicklists = [
+            'cad' => StdProcess::processPicklistValuesForManual($cmm->id, StdProcess::STD_CAD),
+            'stress' => StdProcess::processPicklistValuesForManual($cmm->id, StdProcess::STD_STRESS),
+            'paint' => StdProcess::processPicklistValuesForManual($cmm->id, StdProcess::STD_PAINT),
+        ];
+
         return view('admin.manuals.show', compact('cmm','planes','builders','scopes',
-        'units','parts','manualProcesses','stdProcessesByType'
+        'units','parts','manualProcesses','stdProcessesByType','stdExistingPartKeysByStd','stdAddSourceManuals','stdProcessPicklists'
         ));
 
     }

@@ -360,6 +360,7 @@ Route::group(['middleware' => ['auth']], function () {
         Route::delete('/{file}', [ManualCsvController::class, 'delete'])->name('delete');
     });
 
+    Route::get('manuals/{manual}/std-processes/components-for-add', [ManualStdProcessController::class, 'componentsForAdd'])->name('manuals.std-processes.components-for-add');
     Route::post('manuals/{manual}/std-processes', [ManualStdProcessController::class, 'store'])->name('manuals.std-processes.store');
     Route::post('manuals/{manual}/std-processes/reimport-from-csv', [ManualStdProcessController::class, 'reimportFromCsv'])->name('manuals.std-processes.reimport-from-csv');
     Route::put('manuals/{manual}/std-processes/{stdProcess}', [ManualStdProcessController::class, 'update'])->name('manuals.std-processes.update');

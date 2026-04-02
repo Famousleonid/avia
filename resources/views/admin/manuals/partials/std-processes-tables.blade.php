@@ -1,5 +1,8 @@
 @php
     $stdLabels = ['ndt' => 'NDT', 'cad' => 'CAD', 'stress' => 'Stress', 'paint' => 'Paint'];
+    $stdAddSourceManuals = $stdAddSourceManuals ?? collect([$cmm]);
+    $stdProcessPicklists = $stdProcessPicklists ?? ['cad' => [], 'stress' => [], 'paint' => []];
+    $stdExistingPartKeysByStd = $stdExistingPartKeysByStd ?? [];
     if (! isset($stdCsvFiles)) {
         $stdProcessTypes = ['ndt', 'cad', 'stress', 'paint'];
         $stdCsvFiles = $cmm->getMedia('csv_files')->filter(function ($m) use ($stdProcessTypes) {
@@ -182,34 +185,47 @@
                     <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                 </div>
                 <div class="modal-body">
+                    <div class="alert alert-warning py-2 px-3 small d-none" id="add_std_duplicate_warning" role="alert">
+                        {{ __('Эта деталь уже есть в таблице для текущего типа STD (тот же IPL и Part №). Выберите другую деталь или удалите существующую строку.') }}
+                    </div>
+                    <p class="text-muted small mb-2">{{ __('Деталь выбирается только из Parts. Нет в списке — откройте вкладку Parts, добавьте деталь и вернитесь сюда.') }}
+                        <a href="{{ route('manuals.show', ['manual' => $cmm->id, 'tab' => 'parts']) }}">{{ __('Открыть Parts') }}</a>
+                    </p>
                     <div class="row g-2">
-                        <div class="col-md-4">
-                            <label class="form-label small mb-0">IPL</label>
-                            <input type="text" name="ipl_num" id="add_std_ipl_num" class="form-control form-control-sm" required autocomplete="off">
-                        </div>
-                        <div class="col-md-8">
-                            <label class="form-label small mb-0">Part №</label>
-                            <input type="text" name="part_number" id="add_std_part_number" class="form-control form-control-sm" autocomplete="off">
+                        <div class="col-12">
+                            <label class="form-label small mb-0">{{ __('Manual / CMM (источник детали)') }}</label>
+                            <select class="form-select form-select-sm" id="add_std_source_manual_id" required>
+                                @foreach($stdAddSourceManuals as $m)
+                                    <option value="{{ $m->id }}" @selected((int) $m->id === (int) $cmm->id)>
+                                        {{ $m->number }}@if(!empty($m->title)) — {{ \Illuminate\Support\Str::limit($m->title, 48) }}@endif
+                                    </option>
+                                @endforeach
+                            </select>
                         </div>
                         <div class="col-12">
-                            <label class="form-label small mb-0">Description</label>
-                            <input type="text" name="description" id="add_std_description" class="form-control form-control-sm" autocomplete="off">
+                            <label class="form-label small mb-0">{{ __('Part') }}</label>
+                            <select name="component_id" id="add_std_component_id" class="form-select form-select-sm" required disabled>
+                                <option value="">{{ __('Загрузка…') }}</option>
+                            </select>
                         </div>
                         <div class="col-md-6">
                             <label class="form-label small mb-0">EFF Code</label>
                             <input type="text" name="eff_code" id="add_std_eff_code" class="form-control form-control-sm" placeholder="{{ __('A / A,B — пусто = все') }}" autocomplete="off">
                         </div>
-                        <div class="col-md-3">
-                            <label class="form-label small mb-0">{{ __('Proc.') }}</label>
-                            <input type="text" name="process" id="add_std_process" class="form-control form-control-sm" value="1" autocomplete="off">
-                        </div>
-                        <div class="col-md-3">
+                        <div class="col-md-6">
                             <label class="form-label small mb-0">Qty</label>
                             <input type="number" name="qty" id="add_std_qty" class="form-control form-control-sm" value="1" min="1" required>
                         </div>
                         <div class="col-12">
-                            <label class="form-label small mb-0">Manual</label>
-                            <input type="text" name="manual" id="add_std_manual" class="form-control form-control-sm" autocomplete="off">
+                            <label class="form-label small mb-0">{{ __('Process') }}</label>
+                            <div id="add_std_process_ndt_wrap">
+                                <input type="text" name="process" id="add_std_process_input" class="form-control form-control-sm" value="1" autocomplete="off">
+                                <div class="form-text small">{{ __('NDT: ввод вручную.') }}</div>
+                            </div>
+                            <div id="add_std_process_pick_wrap" class="d-none">
+                                <select class="form-select form-select-sm" id="add_std_process_select" disabled></select>
+                                <div class="form-text small">{{ __('Значения с вкладки Processes текущего CMM.') }}</div>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -300,7 +316,39 @@
 
     var addBtn = document.getElementById('std-open-add-modal-btn');
     var reimportWrap = document.getElementById('std-reimport-from-csv-actions');
+    var addModalEl = document.getElementById('addStdProcessModal');
+    var addForm = document.getElementById('addStdProcessForm');
     var stdLabels = @json($stdLabels);
+    var stdProcessPicklists = @json($stdProcessPicklists);
+    var stdExistingPartKeysByStd = @json($stdExistingPartKeysByStd);
+    var componentsForAddUrl = @json(route('manuals.std-processes.components-for-add', $cmm));
+    var pageCmmId = @json((int) $cmm->id);
+    var txtStdPartsLoading = @json(__('Загрузка…'));
+    var txtStdChoosePart = @json(__('Выберите деталь…'));
+
+    function stdPartDuplicateKey(ipl, pn) {
+        return String(ipl == null ? '' : ipl).trim() + '\n' + String(pn == null ? '' : pn).trim();
+    }
+
+    function refreshDuplicateWarning() {
+        var warn = document.getElementById('add_std_duplicate_warning');
+        var btnAdd = addForm ? addForm.querySelector('button[type="submit"]') : null;
+        var h = document.getElementById('add_std_std_field');
+        var sel = document.getElementById('add_std_component_id');
+        if (!warn || !h || !sel) return;
+        var std = h.value;
+        var opt = sel.selectedOptions[0];
+        if (!opt || !opt.value || !std) {
+            warn.classList.add('d-none');
+            if (btnAdd) btnAdd.disabled = false;
+            return;
+        }
+        var key = stdPartDuplicateKey(opt.getAttribute('data-ipl-num'), opt.getAttribute('data-part-number'));
+        var list = (stdExistingPartKeysByStd && stdExistingPartKeysByStd[std]) ? stdExistingPartKeysByStd[std] : [];
+        var dup = list.indexOf(key) !== -1;
+        warn.classList.toggle('d-none', !dup);
+        if (btnAdd) btnAdd.disabled = dup;
+    }
 
     function currentInnerStd() {
         var active = tabList.querySelector('.nav-link.active');
@@ -316,6 +364,81 @@
         if (suffix) suffix.textContent = std ? (stdLabels[std] || std) : '';
     }
 
+    function syncProcessFieldsForStd(std) {
+        var ndtWrap = document.getElementById('add_std_process_ndt_wrap');
+        var pickWrap = document.getElementById('add_std_process_pick_wrap');
+        var input = document.getElementById('add_std_process_input');
+        var select = document.getElementById('add_std_process_select');
+        if (!ndtWrap || !pickWrap || !input || !select) return;
+
+        if (std === 'ndt') {
+            pickWrap.classList.add('d-none');
+            ndtWrap.classList.remove('d-none');
+            select.removeAttribute('name');
+            select.disabled = true;
+            select.innerHTML = '';
+            input.setAttribute('name', 'process');
+            input.disabled = false;
+            if (!input.value) input.value = '1';
+        } else {
+            ndtWrap.classList.add('d-none');
+            pickWrap.classList.remove('d-none');
+            input.removeAttribute('name');
+            input.disabled = true;
+            select.setAttribute('name', 'process');
+            select.disabled = false;
+            var opts = (stdProcessPicklists && stdProcessPicklists[std]) ? stdProcessPicklists[std] : [];
+            select.innerHTML = '';
+            var varEmpty = document.createElement('option');
+            varEmpty.value = '';
+            varEmpty.textContent = '—';
+            select.appendChild(varEmpty);
+            opts.forEach(function (v) {
+                var o = document.createElement('option');
+                o.value = v;
+                o.textContent = v;
+                select.appendChild(o);
+            });
+            if (opts.length) {
+                select.value = opts[0];
+            }
+        }
+    }
+
+    function loadPartsForSourceManual(manualId) {
+        var sel = document.getElementById('add_std_component_id');
+        if (!sel) return;
+        sel.innerHTML = '<option value="">' + txtStdPartsLoading + '</option>';
+        sel.disabled = true;
+        var url = componentsForAddUrl + (componentsForAddUrl.indexOf('?') === -1 ? '?' : '&') + 'source_manual_id=' + encodeURIComponent(manualId);
+        fetch(url, {
+            headers: { 'X-Requested-With': 'XMLHttpRequest', 'Accept': 'application/json' }
+        }).then(function (r) {
+            if (!r.ok) throw new Error('load parts');
+            return r.json();
+        }).then(function (rows) {
+            sel.innerHTML = '<option value="">' + txtStdChoosePart + '</option>';
+            (rows || []).forEach(function (row) {
+                var opt = document.createElement('option');
+                opt.value = row.id;
+                var label = (row.ipl_num || '—') + ' — ' + (row.part_number || '') + ' — ' + (row.name || '');
+                opt.textContent = label.length > 120 ? label.slice(0, 117) + '…' : label;
+                if (row.units_assy != null && String(row.units_assy).trim() !== '') {
+                    opt.setAttribute('data-units-assy', String(row.units_assy).trim());
+                }
+                opt.setAttribute('data-ipl-num', row.ipl_num != null ? String(row.ipl_num) : '');
+                opt.setAttribute('data-part-number', row.part_number != null ? String(row.part_number) : '');
+                sel.appendChild(opt);
+            });
+            sel.disabled = false;
+            refreshDuplicateWarning();
+        }).catch(function () {
+            sel.innerHTML = '<option value="">' + txtStdChoosePart + '</option>';
+            sel.disabled = false;
+            refreshDuplicateWarning();
+        });
+    }
+
     function syncStdInnerToolbar() {
         var active = tabList.querySelector('.nav-link.active');
         var onCsv = active && active.id === 'std-process-inner-tab-csv';
@@ -329,20 +452,69 @@
     });
     syncStdInnerToolbar();
 
-    var addModalEl = document.getElementById('addStdProcessModal');
-    var addForm = document.getElementById('addStdProcessForm');
+    var srcManualSel = document.getElementById('add_std_source_manual_id');
+    if (srcManualSel) {
+        srcManualSel.addEventListener('change', function () {
+            loadPartsForSourceManual(this.value);
+        });
+    }
+
+    var componentSel = document.getElementById('add_std_component_id');
+    if (componentSel) {
+        componentSel.addEventListener('change', function () {
+            var opt = this.selectedOptions[0];
+            var q = document.getElementById('add_std_qty');
+            if (!q) return;
+            if (!opt || !opt.value) {
+                refreshDuplicateWarning();
+                return;
+            }
+            var ua = opt.getAttribute('data-units-assy');
+            if (ua != null && ua !== '' && /^\d+$/.test(ua)) {
+                q.value = ua;
+            } else {
+                q.value = '1';
+            }
+            refreshDuplicateWarning();
+        });
+    }
+
     if (addModalEl && addForm) {
         addModalEl.addEventListener('show.bs.modal', function () {
             addForm.reset();
             var std = currentInnerStd();
             var h = document.getElementById('add_std_std_field');
             if (h && std) h.value = std;
-            var proc = document.getElementById('add_std_process');
-            if (proc) proc.value = '1';
-            var q = document.getElementById('add_std_qty');
-            if (q) q.value = '1';
             var sfx = document.getElementById('addStdProcessModalLabelSuffix');
             if (sfx) sfx.textContent = std ? (stdLabels[std] || std) : '';
+            if (srcManualSel) {
+                srcManualSel.value = String(pageCmmId);
+            }
+            var procIn = document.getElementById('add_std_process_input');
+            if (procIn) procIn.value = '1';
+            var q = document.getElementById('add_std_qty');
+            if (q) q.value = '1';
+            syncProcessFieldsForStd(std || 'ndt');
+            var w = document.getElementById('add_std_duplicate_warning');
+            if (w) w.classList.add('d-none');
+            var btnA = addForm ? addForm.querySelector('button[type="submit"]') : null;
+            if (btnA) btnA.disabled = false;
+            loadPartsForSourceManual(srcManualSel ? srcManualSel.value : pageCmmId);
+        });
+    }
+
+    if (addForm) {
+        addForm.addEventListener('submit', function (e) {
+            var btnAdd = addForm.querySelector('button[type="submit"]');
+            var warn = document.getElementById('add_std_duplicate_warning');
+            if (btnAdd && btnAdd.disabled) {
+                e.preventDefault();
+                return false;
+            }
+            if (warn && !warn.classList.contains('d-none')) {
+                e.preventDefault();
+                return false;
+            }
         });
     }
 })();
