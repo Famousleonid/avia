@@ -15,7 +15,7 @@ class NDTStdRowManager {
         if (typeof RowManager !== 'undefined') {
             return RowManager.addEmptyRowNDT(rowIndex, container);
         }
-        
+
         // Fallback если RowManager не загружен
         const containerElement = typeof container === 'string'
             ? document.querySelector(container)
@@ -52,7 +52,7 @@ class NDTStdRowManager {
         if (typeof RowManager !== 'undefined') {
             return RowManager.removeRowNDT(rowIndex, container);
         }
-        
+
         // Fallback
         const containerElement = typeof container === 'string'
             ? document.querySelector(container)

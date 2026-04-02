@@ -2062,6 +2062,7 @@ class TdrController extends Controller
             $componentObj->process_name = $component['process'] ?? '1';
             // Добавляем поле manual, если оно есть
             $componentObj->manual = $component['manual'] ?? null;
+            $componentObj->eff_code = trim((string) ($component['eff_code'] ?? ''));
 
             $ndt_components[] = $componentObj;
         }
@@ -2488,6 +2489,7 @@ class TdrController extends Controller
                 $componentObj->process_name = $processName;
                 // Добавляем поле manual, если оно есть
                 $componentObj->manual = $component['manual'] ?? null;
+                $componentObj->eff_code = trim((string) ($component['eff_code'] ?? ''));
 
                 $cad_components[] = $componentObj;
             }
@@ -2664,6 +2666,7 @@ class TdrController extends Controller
                 $obj->qty = (int)($component['qty'] ?? 1);
                 // Добавляем поле manual, если оно есть
                 $obj->manual = $component['manual'] ?? null;
+                $obj->eff_code = trim((string) ($component['eff_code'] ?? ''));
 
                 return $obj;
             })->toArray();
@@ -3079,6 +3082,7 @@ class TdrController extends Controller
                 $componentObj->process_name = $processName;
                 // Добавляем поле manual, если оно есть
                 $componentObj->manual = $component['manual'] ?? null;
+                $componentObj->eff_code = trim((string) ($component['eff_code'] ?? ''));
 
                 $stress_components[] = $componentObj;
             }

@@ -159,6 +159,9 @@
             color: grey;
 
         }
+        #nav-std .std-inner-toolbar-right {
+            min-width: 0;
+        }
         #nav-std .std-table-container {
             max-height: 70vh;
             overflow: auto;
@@ -317,7 +320,7 @@
                                 data-tab-target="#nav-std"
                                 data-bs-toggle="modal"
                                 data-bs-target="#stdCsvUploadModal">
-                            <i class="fas fa-upload"></i> {{__('Add CSV Files')}}
+                            <i class="fas fa-upload"></i> {{__('Add CSV Files') }} <span class="small text-muted">(→ STD)</span>
                         </button>
                     </div>
                 </div>
@@ -466,51 +469,7 @@
                 </div>
                 <div class="tab-pane fade @if($manualShowTab === 'std') show active @endif" id="nav-std" role="tabpanel" aria-labelledby="nav-std-tab" tabindex="0">
                     <div class="std-table-container m-2">
-                        @php
-                            $stdProcessTypes = ['ndt', 'cad', 'stress', 'paint'];
-                            $stdCsvFiles = $cmm->getMedia('csv_files')->filter(function ($m) use ($stdProcessTypes) {
-                                return in_array($m->getCustomProperty('process_type'), $stdProcessTypes, true);
-                            });
-                        @endphp
-                        <table class="table table-hover table-bordered dir-table">
-                            <thead class="bg-gradient">
-                            <tr>
-                                <th class="text-center bg-gradient" scope="col">#</th>
-                                <th class="text-center bg-gradient" scope="col">{{ __('File name') }}</th>
-                                <th class="text-center bg-gradient" scope="col">{{ __('Process Type') }}</th>
-                                <th class="text-center bg-gradient" scope="col">{{ __('Action') }}</th>
-                            </tr>
-                            </thead>
-                            <tbody class="text-center" id="std-csv-tbody">
-                            @php $stdIdx = 1; @endphp
-                            @foreach($stdCsvFiles as $csvFile)
-                                <tr data-process-type="{{ $csvFile->getCustomProperty('process_type') }}">
-                                    <td class="align-content-center">{{ $stdIdx++ }}</td>
-                                    <td class="align-content-center">{{ $csvFile->file_name }}</td>
-                                    <td class="align-content-center">
-                                        <span class="badge bg-secondary">{{ $csvFile->getCustomProperty('process_type') ?: '—' }}</span>
-                                    </td>
-                                    <td class="align-content-center">
-                                        <button type="button" class="btn btn-sm btn-outline-info me-1 std-csv-view-btn"
-                                                data-file-id="{{ $csvFile->id }}"
-                                                data-file-name="{{ $csvFile->file_name }}">
-                                            <i class="bi bi-view-list"></i>
-                                        </button>
-                                        <button type="button" class="btn btn-sm btn-outline-danger"
-                                                onclick="deleteStdCsvFile('{{ route('manuals.csv.delete', ['manual' => $cmm->id, 'file' => $csvFile->id]) }}', this)">
-                                            <i class="bi bi-trash"></i>
-{{--                                            {{ __('Delete') }}--}}
-                                        </button>
-                                    </td>
-                                </tr>
-                            @endforeach
-                            @if($stdCsvFiles->isEmpty())
-                                <tr id="std-csv-empty-row">
-                                    <td colspan="4" class="text-muted">{{ __('No STD process files. Use "Add CSV Files" to upload NDT, CAD, Stress Relief or Paint CSV.') }}</td>
-                                </tr>
-                            @endif
-                            </tbody>
-                        </table>
+                        @include('admin.manuals.partials.std-processes-tables', ['cmm' => $cmm, 'stdProcessesByType' => $stdProcessesByType ?? collect()])
                     </div>
                 </div>
             </div>
@@ -831,6 +790,16 @@
             (new bootstrap.Modal(modal)).show();
         }
 
+        function updateStdCsvTabCountBadge() {
+            var tbody = document.getElementById('std-csv-tbody');
+            var tabBtn = document.getElementById('std-process-inner-tab-csv');
+            if (!tbody || !tabBtn) return;
+            var badge = tabBtn.querySelector('.badge');
+            if (!badge) return;
+            var n = tbody.querySelectorAll('tr:not(#std-csv-empty-row)').length;
+            badge.textContent = n;
+        }
+
         // STD Processes CSV: удаление файла
         function deleteStdCsvFile(url, buttonEl) {
             if (!confirm('{{ __("Are you sure you want to delete this file?") }}')) return;
@@ -857,6 +826,7 @@
                             emptyRow.innerHTML = '<td colspan="4" class="text-muted">{{ __("No STD process files. Use \"Add CSV Files\" to upload NDT, CAD, Stress Relief or Paint CSV.") }}</td>';
                             tbody.appendChild(emptyRow);
                         }
+                        updateStdCsvTabCountBadge();
                     } else {
                         throw new Error(data.error || '{{ __("Error deleting file") }}');
                     }
@@ -908,32 +878,10 @@
                         })
                         .then(function (data) {
                             if (data.success && data.file) {
-                                var tbody = document.getElementById('std-csv-tbody');
-                                var emptyRow = document.getElementById('std-csv-empty-row');
-                                if (emptyRow) emptyRow.remove();
-                                var existing = tbody && tbody.querySelector('tr[data-process-type="' + data.file.process_type + '"]');
-                                if (existing) existing.remove();
-                                var count = tbody ? tbody.querySelectorAll('tr').length : 0;
-                                var tr = document.createElement('tr');
-                                tr.setAttribute('data-process-type', data.file.process_type);
-                                var deleteUrl = '{{ route("manuals.csv.delete", ["manual" => $cmm->id, "file" => "__ID__"]) }}'.replace('__ID__', data.file.id);
-                                var fileName = (data.file.name || '').replace(/"/g, '&quot;');
-                                tr.innerHTML =
-                                    '<td class="align-content-center">' + (count + 1) + '</td>' +
-                                    '<td class="align-content-center">' + (data.file.name || '') + '</td>' +
-                                    '<td class="align-content-center"><span class="badge bg-secondary">' + (data.file.process_type || '') + '</span></td>' +
-                                    '<td class="align-content-center">' +
-                                    '<button type="button" class="btn btn-sm btn-outline-info me-1 std-csv-view-btn" data-file-id="' + data.file.id + '" data-file-name="' + fileName + '"><i class="bi bi-view-list"></i></button> ' +
-                                    '<button type="button" class="btn btn-sm btn-outline-danger" onclick="deleteStdCsvFile(\'' + deleteUrl.replace(/'/g, "\\'") + '\', this)"><i class="bi bi-trash"></i></button>' +
-                                    '</td>';
-                                if (tbody) tbody.appendChild(tr);
-                                document.getElementById('stdCsvUploadForm').reset();
-                                var modal = bootstrap.Modal.getInstance(document.getElementById('stdCsvUploadModal'));
-                                if (modal) modal.hide();
-                                showNotification('{{ __("File uploaded successfully") }}', 'success');
-                            } else {
-                                throw new Error(data.error || '{{ __("Error uploading file") }}');
+                                window.location.assign(@json(route('manuals.show', ['manual' => $cmm->id, 'tab' => 'std'])));
+                                return;
                             }
+                            throw new Error(data.error || '{{ __("Error uploading file") }}');
                         })
                         .catch(function (err) {
                             console.error(err);
@@ -996,11 +944,12 @@
 
             function applyManualShowUrlCleanup() {
                 if (!window.history || !window.history.replaceState) return;
-                var removedQueryParams = initialParams.has('tab') || initialParams.has('part_id');
+                var removedQueryParams = initialParams.has('tab') || initialParams.has('part_id') || initialParams.has('std_inner');
                 if (!removedQueryParams && !needsClientSwitch) return;
                 var u = new URL(window.location.href);
                 u.searchParams.delete('tab');
                 u.searchParams.delete('part_id');
+                u.searchParams.delete('std_inner');
                 if (desiredPane) {
                     u.hash = desiredPane;
                 }
@@ -1019,6 +968,28 @@
                 });
             }
 
+            function activateStdInnerTabIfRequested() {
+                var inner = initialParams.get('std_inner');
+                if (!inner) {
+                    return;
+                }
+                var allowed = { ndt: 1, cad: 1, stress: 1, paint: 1, csv: 1 };
+                if (!allowed[inner]) {
+                    return;
+                }
+                var stdPane = document.getElementById('nav-std');
+                if (!stdPane || !stdPane.classList.contains('active')) {
+                    return;
+                }
+                var btnId = inner === 'csv' ? 'std-process-inner-tab-csv' : 'std-process-inner-tab-' + inner;
+                requestAnimationFrame(function () {
+                    var btn = document.getElementById(btnId);
+                    if (btn && window.bootstrap && bootstrap.Tab) {
+                        new bootstrap.Tab(btn).show();
+                    }
+                });
+            }
+
             function finishManualShowTabsBoot() {
                 document.documentElement.classList.remove('manual-show-tabs-pending');
                 activeTab = document.querySelector('#nav-tab .nav-link.active');
@@ -1026,6 +997,7 @@
                     updateTabActions(activeTab.getAttribute('data-bs-target'));
                 }
                 scrollToEditedPartRow();
+                activateStdInnerTabIfRequested();
             }
 
             if (needsClientSwitch) {

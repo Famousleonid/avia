@@ -4,6 +4,8 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\Manual;
+use App\Models\NdtCadCsv;
+use App\Models\StdProcess;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 use League\Csv\Reader;
@@ -19,7 +21,7 @@ class ManualCsvController extends Controller
 
         $file = $request->file('csv_file');
         $fileName = strtolower($file->getClientOriginalName());
-        
+
         // Автоматически определяем process_type по имени файла
         $processType = null;
         if (strpos($fileName, 'cad_std') !== false || strpos($fileName, 'cad') !== false) {
@@ -31,14 +33,14 @@ class ManualCsvController extends Controller
         } elseif (strpos($fileName, 'paint') !== false) {
             $processType = 'paint';
         }
-        
+
         // Если process_type определен, проверяем существующий файл с таким типом
         if ($processType) {
             $existingFile = $manual->getMedia('csv_files')
                 ->first(function ($media) use ($processType) {
                     return $media->getCustomProperty('process_type') === $processType;
                 });
-            
+
             // Если файл существует, удаляем его
             if ($existingFile) {
                 $existingFile->delete();
@@ -160,6 +162,11 @@ class ManualCsvController extends Controller
                 ], 404);
             }
 
+            $pType = $media->getCustomProperty('process_type');
+            if (is_string($pType) && in_array($pType, StdProcess::validStdValues(), true)) {
+                StdProcess::deleteForManualAndStd($manual->id, $pType);
+            }
+
             $media->delete();
 
             return response()->json([
@@ -189,6 +196,23 @@ class ManualCsvController extends Controller
             $file = $request->file('csv_file');
             $processType = $request->input('process_type');
 
+            if (! in_array($processType, StdProcess::validStdValues(), true)) {
+                return response()->json([
+                    'success' => false,
+                    'error' => 'Некорректный тип процесса',
+                ], 422);
+            }
+
+            $path = $file->getRealPath();
+            if (! $path || ! is_readable($path)) {
+                return response()->json([
+                    'success' => false,
+                    'error' => 'Не удалось прочитать файл',
+                ], 400);
+            }
+
+            $parsedRows = NdtCadCsv::loadComponentsFromCsv($path, $processType);
+
             // Проверяем, существует ли уже файл с таким process_type
             if ($processType) {
                 $existingFile = $manual->getMedia('csv_files')
@@ -206,6 +230,22 @@ class ManualCsvController extends Controller
             $media = $manual->addMedia($file)
                 ->withCustomProperties(['process_type' => $processType])
                 ->toMediaCollection('csv_files');
+
+            try {
+                StdProcess::replaceFromComponentRows($manual->id, $processType, $parsedRows);
+            } catch (\Throwable $e) {
+                $media->delete();
+                \Log::error('STD Processes import failed after upload', [
+                    'manual_id' => $manual->id,
+                    'process_type' => $processType,
+                    'error' => $e->getMessage(),
+                ]);
+
+                return response()->json([
+                    'success' => false,
+                    'error' => 'Ошибка импорта в STD Processes: '.$e->getMessage(),
+                ], 500);
+            }
 
             return response()->json([
                 'success' => true,

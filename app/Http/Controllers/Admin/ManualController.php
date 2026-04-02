@@ -7,6 +7,7 @@ use App\Models\Builder;
 use App\Models\Component;
 use App\Models\Manual;
 use App\Models\ManualProcess;
+use App\Models\StdProcess;
 use App\Models\Plane;
 use App\Models\Process;
 use App\Models\ProcessName;
@@ -190,6 +191,9 @@ class ManualController extends Controller
         $cmm = Manual::findOrFail($id);
         $this->ensureManualAccess($cmm);
 
+        $manualTabKeys = ['components', 'parts', 'processes', 'std'];
+        $manualShowTab = in_array(request('tab'), $manualTabKeys, true) ? request('tab') : 'components';
+
         $planes = Plane::all();
         $builders = Builder::all();
         $scopes = Scope::all();
@@ -230,8 +234,22 @@ class ManualController extends Controller
             })
             ->values();
 
+        if (in_array($manualShowTab, ['std'], true)) {
+            StdProcess::syncEmptyTypesFromMedia($cmm);
+        }
+
+        $stdProcessesByType = collect(StdProcess::validStdValues())->mapWithKeys(function ($std) use ($cmm) {
+            $rows = StdProcess::where('manual_id', $cmm->id)->where('std', $std)->get()->sort(function (StdProcess $a, StdProcess $b) {
+                $cmp = StdProcess::iplNumSortRank($a->ipl_num) <=> StdProcess::iplNumSortRank($b->ipl_num);
+
+                return $cmp !== 0 ? $cmp : $a->id <=> $b->id;
+            })->values();
+
+            return [$std => $rows];
+        });
+
         return view('admin.manuals.show', compact('cmm','planes','builders','scopes',
-        'units','parts','manualProcesses'
+        'units','parts','manualProcesses','stdProcessesByType'
         ));
 
     }
