@@ -204,8 +204,8 @@
                     var queryParts = [];
                     if (processKey) {
                         var seen = {};
-                        document.querySelectorAll('.bushing-process-include-checkbox').forEach(function(cb) {
-                            if ((cb.getAttribute('data-process-key') || '') !== processKey || !cb.checked) return;
+                        document.querySelectorAll('.bushing-batch-group-checkbox:checked, .bushing-batch-ungroup-checkbox:checked').forEach(function(cb) {
+                            if ((cb.getAttribute('data-process-key') || '') !== processKey) return;
                             var cid = cb.getAttribute('data-component-id');
                             if (cid && !seen[cid]) {
                                 seen[cid] = true;
@@ -213,7 +213,7 @@
                             }
                         });
                         if (queryParts.length === 0) {
-                            alert({!! json_encode(__('Select at least one bushing for this process using the checkboxes in the table.')) !!});
+                            alert({!! json_encode(__('Select at least one bushing for this process using Group checkboxes in the table.')) !!});
                             return;
                         }
                     }
@@ -229,6 +229,21 @@
             });
 
             document.body.addEventListener('click', function(e) {
+                var groupLabelBtn = e.target.closest('.js-bushing-batch-label');
+                if (groupLabelBtn) {
+                    e.preventDefault();
+                    var grpProcessKey = groupLabelBtn.getAttribute('data-process-key') || '';
+                    var grpBatchId = groupLabelBtn.getAttribute('data-batch-id') || '';
+                    if (!grpProcessKey || !grpBatchId) return;
+                    var groupBoxes = Array.from(document.querySelectorAll(
+                        '.bushing-batch-ungroup-checkbox[data-process-key="' + grpProcessKey + '"][data-batch-id="' + grpBatchId + '"]'
+                    ));
+                    if (!groupBoxes.length) return;
+                    var allChecked = groupBoxes.every(function (cb) { return !!cb.checked; });
+                    groupBoxes.forEach(function (cb) { cb.checked = !allChecked; });
+                    return;
+                }
+
                 var createBatchBtn = e.target.closest('.js-bushing-create-batch');
                 var ungroupBatchBtn = e.target.closest('.js-bushing-ungroup-batch');
                 if (!createBatchBtn && !ungroupBatchBtn) return;

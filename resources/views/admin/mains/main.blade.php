@@ -697,11 +697,25 @@
                                                                                             </tr>
                                                                                             </thead>
                                                                                             <tbody>
+                                                                                            @php
+                                                                                                $batchGroupLabels = [];
+                                                                                                $batchGroupCounter = 1;
+                                                                                            @endphp
                                                                                             @foreach($row['batches'] as $batch)
                                                                                                 @if(!empty($batch['is_batch']))
                                                                                                     @php
                                                                                                         $batchCollapseId = 'woBushBatchCollapse_gt'.$gt->id.'_'.$row['process_group_key'].'_b'.$batch['id'];
                                                                                                         $batchLineCount = count($batch['line_items'] ?? []);
+                                                                                                        $currentBatchId = (int) ($batch['id'] ?? 0);
+                                                                                                        if ($currentBatchId > 0) {
+                                                                                                            if (!isset($batchGroupLabels[$currentBatchId])) {
+                                                                                                                $batchGroupLabels[$currentBatchId] = 'Grp '.$batchGroupCounter;
+                                                                                                                $batchGroupCounter++;
+                                                                                                            }
+                                                                                                            $batchGroupLabel = $batchGroupLabels[$currentBatchId];
+                                                                                                        } else {
+                                                                                                            $batchGroupLabel = 'Grp';
+                                                                                                        }
                                                                                                     @endphp
                                                                                                     <tr class="wo-bush-batch-row">
                                                                                                         <td colspan="5"
@@ -712,7 +726,7 @@
                                                                                                             role="button"
                                                                                                             tabindex="0"
                                                                                                             title="{{ __('Click to show bushings in this batch') }}">
-                                                                                                            <span class="fw-bold text-uppercase">{{ __('Batch') }}</span>
+                                                                                                            <span class="fw-bold text-uppercase">{{ __('Batch') }} {{ $batchGroupLabel }}</span>
                                                                                                             <span class="text-muted mx-1">·</span>
                                                                                                             <span class="badge bg-info text-dark">{{ $batch['qty'] }} {{ __('pcs') }}</span>
                                                                                                             <span class="text-muted small ms-1">({{ $batchLineCount }} {{ __('lines') }})</span>

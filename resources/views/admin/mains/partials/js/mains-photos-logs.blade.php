@@ -20,6 +20,19 @@
             return document.getElementById(id);
         }
 
+        const buildWoUrl = (template, workorderId, group = null) => {
+            const woPart = encodeURIComponent(String(workorderId ?? ''));
+            const groupPart = encodeURIComponent(String(group ?? ''));
+            return template
+                .replace('__WO_ID__', woPart)
+                .replace('__GROUP__', groupPart);
+        };
+
+        const urls = {
+            downloadAll: @json(route('workorders.downloadAllGrouped', ['id' => '__WO_ID__'])),
+            downloadGroup: @json(route('workorders.downloadGroup', ['id' => '__WO_ID__', 'group' => '__GROUP__'])),
+        };
+
         // =====================================================
         // 1) PHOTO DELETE CONFIRM
         //    Modal: #confirmDeletePhotoModal
@@ -310,7 +323,7 @@
                     showSpin();
                     try {
                         const a = document.createElement('a');
-                        a.href = `/workorders/download/${workorderId}/group/${group}`;
+                        a.href = buildWoUrl(urls.downloadGroup, workorderId, group);
                         a.click();
                     } catch (e) {
                         console.error(e);
@@ -497,7 +510,7 @@
             showSpin();
             try {
                 const a = document.createElement('a');
-                a.href = `/workorders/download/${workorderId}/all`;
+                a.href = buildWoUrl(urls.downloadAll, workorderId);
                 a.click();
             } catch (err) {
                 console.error('Error downloading ZIP:', err);

@@ -55,7 +55,7 @@ class WoBushingController extends Controller
 
         $rows = [];
         foreach ($lines as $line) {
-            $componentId = (int) $line->component_id;
+            $lineId = (int) $line->id;
             foreach ($line->processes as $wp) {
                 $name = $wp->process?->process_name?->name;
                 $code = $wp->process?->process;
@@ -64,7 +64,7 @@ class WoBushingController extends Controller
                     continue;
                 }
                 $batch = $wp->batch;
-                $rows[$componentId][$key] = [
+                $rows[$lineId][$key] = [
                     'wo_process_id' => (int) $wp->id,
                     'batch_id' => $wp->batch_id ? (int) $wp->batch_id : null,
                     'locked' => ! empty($batch?->date_start),
@@ -1167,21 +1167,13 @@ class WoBushingController extends Controller
 
             $canonicalProcessId = (int) $rows->first()->process_id;
 
-            // Одна открытая партия на (WO + колонка шапки: ndt, machining, …).
-            $batch = WoBushingBatch::query()
-                ->where('workorder_id', $woBushing->workorder_id)
-                ->whereNull('date_start')
-                ->where('process_column_key', $processColumnKey)
-                ->orderBy('id')
-                ->first();
-
-            if (! $batch) {
-                $batch = WoBushingBatch::create([
-                    'workorder_id' => $woBushing->workorder_id,
-                    'process_id' => $canonicalProcessId,
-                    'process_column_key' => $processColumnKey,
-                ]);
-            }
+            // Всегда создаём новую группу при нажатии Group.
+            // Иначе все последующие клики попадали бы в одну и ту же партию (в UI всегда Grp1).
+            $batch = WoBushingBatch::create([
+                'workorder_id' => $woBushing->workorder_id,
+                'process_id' => $canonicalProcessId,
+                'process_column_key' => $processColumnKey,
+            ]);
 
             WoBushingProcess::query()
                 ->whereIn('id', $rows->pluck('id'))

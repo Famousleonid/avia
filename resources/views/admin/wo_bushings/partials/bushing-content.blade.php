@@ -60,7 +60,6 @@
             position: sticky; top: 2.6rem; z-index: 11; background: #031e3a;
             box-shadow: inset 0 1px 0 rgba(255,255,255,.06);
         }
-        .bushing-view-table .bushing-process-include-checkbox,
         .bushing-view-table .bushing-batch-group-checkbox,
         .bushing-view-table .bushing-batch-ungroup-checkbox { cursor: pointer; flex-shrink: 0; }
         .bushing-view-table th.bushing-subcol-form > .d-flex { overflow: hidden; max-width: 100%; }
@@ -78,221 +77,62 @@
                     <col style="width: 14%;">
                     <col style="width: 4%;">
                     @for($i = 0; $i < 7; $i++)
-                        <col style="width: 5%;">
-                        <col style="width: 6%;">
+                        <col style="width: 11%;">
                     @endfor
                 </colgroup>
                 <thead class="wo-bush-thead" style="background: #031e3a;">
                     <tr class="header-row">
                         <th rowspan="2" class="text-primary text-center align-middle bushing-col">{{ __('Bushings') }}</th>
                         <th rowspan="2" class="text-primary text-center align-middle">{{ __('QTY') }}</th>
-                        <th colspan="2" class="text-primary text-center">{{ __('Machining') }}</th>
-                        <th colspan="2" class="text-primary text-center">{{ __('Stress Relief') }}</th>
-                        <th colspan="2" class="text-primary text-center">{{ __('NDT') }}</th>
-                        <th colspan="2" class="text-primary text-center">{{ __('Passivation') }}</th>
-                        <th colspan="2" class="text-primary text-center">{{ __('CAD') }}</th>
-                        <th colspan="2" class="text-primary text-center">{{ __('Anodizing') }}</th>
-                        <th colspan="2" class="text-primary text-center">{{ __('Xylan') }}</th>
+                        <th class="text-primary text-center">{{ __('Machining') }}</th>
+                        <th class="text-primary text-center">{{ __('Stress Relief') }}</th>
+                        <th class="text-primary text-center">{{ __('NDT') }}</th>
+                        <th class="text-primary text-center">{{ __('Passivation') }}</th>
+                        <th class="text-primary text-center">{{ __('CAD') }}</th>
+                        <th class="text-primary text-center">{{ __('Anodizing') }}</th>
+                        <th class="text-primary text-center">{{ __('Xylan') }}</th>
                     </tr>
                     <tr class="bushing-process-subhead">
-                        {{-- Machining --}}
-                        <th class="bushing-subcol-batch text-center p-1">
-                            @if($woBushing)
-                                <div class="d-flex flex-column gap-1 align-items-stretch">
-                                    <button type="button" class="btn btn-sm btn-outline-info py-0 px-1 js-bushing-create-batch"
-                                            data-url="{{ $batchCreateUrl }}" data-process-key="machining">{{ __('Group') }}</button>
-                                    <button type="button" class="btn btn-sm btn-outline-secondary py-0 px-1 js-bushing-ungroup-batch"
-                                            data-url="{{ $batchUngroupUrl }}" data-process-key="machining">{{ __('Ungroup') }}</button>
-                                </div>
-                            @endif
-                        </th>
-                        <th class="bushing-subcol-form text-center p-1">
-                            @if($woBushing)
-                                <div class="d-flex align-items-center justify-content-center gap-1 flex-wrap mt-1">
-                                    <select class="form-select form-select-sm vendor-select-sm" name="vendor_id" id="vendor_machining">
-                                        <option value="">{{ __('Vendor') }}</option>
-                                        @foreach($vendors as $vendor)
-                                            <option style="font-size: 10px;" value="{{ $vendor->id }}">{{ $vendor->name }}</option>
-                                        @endforeach
-                                    </select>
-                                    @if($machiningProcessName && $hasMachiningData)
-                                        <a href="{{ route('wo_bushings.processesForm', ['id' => $woBushing->id, 'processNameId' => $machiningProcessName->id]) }}" target="_blank" class="btn btn-sm btn-outline-warning form-btn" data-vendor-select="vendor_machining" data-process-key="machining">{{ __('Form') }}</a>
-                                    @else
-                                        <span class="text-muted small">{{ __('Form') }}</span>
-                                    @endif
-                                </div>
-                            @else
-                                <span class="text-muted small">{{ __('Form') }}</span>
-                            @endif
-                        </th>
-                        {{-- Stress --}}
-                        <th class="bushing-subcol-batch text-center p-1">
-                            @if($woBushing)
-                                <div class="d-flex flex-column gap-1 align-items-stretch">
-                                    <button type="button" class="btn btn-sm btn-outline-info py-0 px-1 js-bushing-create-batch"
-                                            data-url="{{ $batchCreateUrl }}" data-process-key="stress_relief">{{ __('Group') }}</button>
-                                    <button type="button" class="btn btn-sm btn-outline-secondary py-0 px-1 js-bushing-ungroup-batch"
-                                            data-url="{{ $batchUngroupUrl }}" data-process-key="stress_relief">{{ __('Ungroup') }}</button>
-                                </div>
-                            @endif
-                        </th>
-                        <th class="bushing-subcol-form text-center p-1">
-                            @if($woBushing)
-                                <div class="d-flex align-items-center justify-content-center gap-1 flex-wrap mt-1">
-                                    <select class="form-select form-select-sm vendor-select-sm" name="vendor_id" id="vendor_stress_relief">
-                                        <option value="">{{ __('Vendor') }}</option>
-                                        @foreach($vendors as $vendor)<option value="{{ $vendor->id }}">{{ $vendor->name }}</option>@endforeach
-                                    </select>
-                                    @if($stressReliefProcessName && $hasStressReliefData)
-                                        <a href="{{ route('wo_bushings.processesForm', ['id' => $woBushing->id, 'processNameId' => $stressReliefProcessName->id]) }}" target="_blank" class="btn btn-sm btn-outline-warning form-btn" data-vendor-select="vendor_stress_relief" data-process-key="stress_relief">{{ __('Form') }}</a>
-                                    @else
-                                        <span class="text-muted small">{{ __('Form') }}</span>
-                                    @endif
-                                </div>
-                            @else
-                                <span class="text-muted small">{{ __('Form') }}</span>
-                            @endif
-                        </th>
-                        {{-- NDT --}}
-                        <th class="bushing-subcol-batch text-center p-1">
-                            @if($woBushing)
-                                <div class="d-flex flex-column gap-1 align-items-stretch">
-                                    <button type="button" class="btn btn-sm btn-outline-info py-0 px-1 js-bushing-create-batch"
-                                            data-url="{{ $batchCreateUrl }}" data-process-key="ndt">{{ __('Group') }}</button>
-                                    <button type="button" class="btn btn-sm btn-outline-secondary py-0 px-1 js-bushing-ungroup-batch"
-                                            data-url="{{ $batchUngroupUrl }}" data-process-key="ndt">{{ __('Ungroup') }}</button>
-                                </div>
-                            @endif
-                        </th>
-                        <th class="bushing-subcol-form text-center p-1">
-                            @if($woBushing)
-                                <div class="d-flex align-items-center justify-content-center gap-1 flex-wrap mt-1">
-                                    <select class="form-select form-select-sm vendor-select-sm" name="vendor_id" id="vendor_ndt">
-                                        <option value="">{{ __('Vendor') }}</option>
-                                        @foreach($vendors as $vendor)<option value="{{ $vendor->id }}">{{ $vendor->name }}</option>@endforeach
-                                    </select>
-                                    @if($ndtProcessName && $hasNdtData)
-                                        <a href="{{ route('wo_bushings.processesForm', ['id' => $woBushing->id, 'processNameId' => $ndtProcessName->id]) }}" target="_blank" class="btn btn-sm btn-outline-warning form-btn" data-vendor-select="vendor_ndt" data-process-key="ndt">{{ __('Form') }}</a>
-                                    @else
-                                        <span class="text-muted small">{{ __('Form') }}</span>
-                                    @endif
-                                </div>
-                            @else
-                                <span class="text-muted small">{{ __('Form') }}</span>
-                            @endif
-                        </th>
-                        {{-- Passivation --}}
-                        <th class="bushing-subcol-batch text-center p-1">
-                            @if($woBushing)
-                                <div class="d-flex flex-column gap-1 align-items-stretch">
-                                    <button type="button" class="btn btn-sm btn-outline-info py-0 px-1 js-bushing-create-batch"
-                                            data-url="{{ $batchCreateUrl }}" data-process-key="passivation">{{ __('Group') }}</button>
-                                    <button type="button" class="btn btn-sm btn-outline-secondary py-0 px-1 js-bushing-ungroup-batch"
-                                            data-url="{{ $batchUngroupUrl }}" data-process-key="passivation">{{ __('Ungroup') }}</button>
-                                </div>
-                            @endif
-                        </th>
-                        <th class="bushing-subcol-form text-center p-1">
-                            @if($woBushing)
-                                <div class="d-flex align-items-center justify-content-center gap-1 flex-wrap mt-1">
-                                    <select class="form-select form-select-sm vendor-select-sm" name="vendor_id" id="vendor_passivation">
-                                        <option value="">{{ __('Vendor') }}</option>
-                                        @foreach($vendors as $vendor)<option value="{{ $vendor->id }}">{{ $vendor->name }}</option>@endforeach
-                                    </select>
-                                    @if($passivationProcessName && $hasPassivationData)
-                                        <a href="{{ route('wo_bushings.processesForm', ['id' => $woBushing->id, 'processNameId' => $passivationProcessName->id]) }}" target="_blank" class="btn btn-sm btn-outline-warning form-btn" data-vendor-select="vendor_passivation" data-process-key="passivation">{{ __('Form') }}</a>
-                                    @else
-                                        <span class="text-muted small">{{ __('Form') }}</span>
-                                    @endif
-                                </div>
-                            @else
-                                <span class="text-muted small">{{ __('Form') }}</span>
-                            @endif
-                        </th>
-                        {{-- CAD --}}
-                        <th class="bushing-subcol-batch text-center p-1">
-                            @if($woBushing)
-                                <div class="d-flex flex-column gap-1 align-items-stretch">
-                                    <button type="button" class="btn btn-sm btn-outline-info py-0 px-1 js-bushing-create-batch"
-                                            data-url="{{ $batchCreateUrl }}" data-process-key="cad">{{ __('Group') }}</button>
-                                    <button type="button" class="btn btn-sm btn-outline-secondary py-0 px-1 js-bushing-ungroup-batch"
-                                            data-url="{{ $batchUngroupUrl }}" data-process-key="cad">{{ __('Ungroup') }}</button>
-                                </div>
-                            @endif
-                        </th>
-                        <th class="bushing-subcol-form text-center p-1">
-                            @if($woBushing)
-                                <div class="d-flex align-items-center justify-content-center gap-1 flex-wrap mt-1">
-                                    <select class="form-select form-select-sm vendor-select-sm" name="vendor_id" id="vendor_cad">
-                                        <option value="">{{ __('Vendor') }}</option>
-                                        @foreach($vendors as $vendor)<option value="{{ $vendor->id }}">{{ $vendor->name }}</option>@endforeach
-                                    </select>
-                                    @if($cadProcessName && $hasCadData)
-                                        <a href="{{ route('wo_bushings.processesForm', ['id' => $woBushing->id, 'processNameId' => $cadProcessName->id]) }}" target="_blank" class="btn btn-sm btn-outline-warning form-btn" data-vendor-select="vendor_cad" data-process-key="cad">{{ __('Form') }}</a>
-                                    @else
-                                        <span class="text-muted small">{{ __('Form') }}</span>
-                                    @endif
-                                </div>
-                            @else
-                                <span class="text-muted small">{{ __('Form') }}</span>
-                            @endif
-                        </th>
-                        {{-- Anodizing --}}
-                        <th class="bushing-subcol-batch text-center p-1">
-                            @if($woBushing)
-                                <div class="d-flex flex-column gap-1 align-items-stretch">
-                                    <button type="button" class="btn btn-sm btn-outline-info py-0 px-1 js-bushing-create-batch"
-                                            data-url="{{ $batchCreateUrl }}" data-process-key="anodizing">{{ __('Group') }}</button>
-                                    <button type="button" class="btn btn-sm btn-outline-secondary py-0 px-1 js-bushing-ungroup-batch"
-                                            data-url="{{ $batchUngroupUrl }}" data-process-key="anodizing">{{ __('Ungroup') }}</button>
-                                </div>
-                            @endif
-                        </th>
-                        <th class="bushing-subcol-form text-center p-1">
-                            @if($woBushing)
-                                <div class="d-flex align-items-center justify-content-center gap-1 flex-wrap mt-1">
-                                    <select class="form-select form-select-sm vendor-select-sm" name="vendor_id" id="vendor_anodizing">
-                                        <option value="">{{ __('Vendor') }}</option>
-                                        @foreach($vendors as $vendor)<option value="{{ $vendor->id }}">{{ $vendor->name }}</option>@endforeach
-                                    </select>
-                                    @if($anodizingProcessName && $hasAnodizingData)
-                                        <a href="{{ route('wo_bushings.processesForm', ['id' => $woBushing->id, 'processNameId' => $anodizingProcessName->id]) }}" target="_blank" class="btn btn-sm btn-outline-warning form-btn" data-vendor-select="vendor_anodizing" data-process-key="anodizing">{{ __('Form') }}</a>
-                                    @else
-                                        <span class="text-muted small">{{ __('Form') }}</span>
-                                    @endif
-                                </div>
-                            @else
-                                <span class="text-muted small">{{ __('Form') }}</span>
-                            @endif
-                        </th>
-                        {{-- Xylan --}}
-                        <th class="bushing-subcol-batch text-center p-1">
-                            @if($woBushing)
-                                <div class="d-flex flex-column gap-1 align-items-stretch">
-                                    <button type="button" class="btn btn-sm btn-outline-info py-0 px-1 js-bushing-create-batch"
-                                            data-url="{{ $batchCreateUrl }}" data-process-key="xylan">{{ __('Group') }}</button>
-                                    <button type="button" class="btn btn-sm btn-outline-secondary py-0 px-1 js-bushing-ungroup-batch"
-                                            data-url="{{ $batchUngroupUrl }}" data-process-key="xylan">{{ __('Ungroup') }}</button>
-                                </div>
-                            @endif
-                        </th>
-                        <th class="bushing-subcol-form text-center p-1">
-                            @if($woBushing)
-                                <div class="d-flex align-items-center justify-content-center gap-1 flex-wrap mt-1">
-                                    <select class="form-select form-select-sm vendor-select-sm" name="vendor_id" id="vendor_xylan">
-                                        <option value="">{{ __('Vendor') }}</option>
-                                        @foreach($vendors as $vendor)<option value="{{ $vendor->id }}">{{ $vendor->name }}</option>@endforeach
-                                    </select>
-                                    @if($xylanProcessName && $hasXylanData)
-                                        <a href="{{ route('wo_bushings.processesForm', ['id' => $woBushing->id, 'processNameId' => $xylanProcessName->id]) }}" target="_blank" class="btn btn-sm btn-outline-warning form-btn" data-vendor-select="vendor_xylan" data-process-key="xylan">{{ __('Form') }}</a>
-                                    @else
-                                        <span class="text-muted small">{{ __('Form') }}</span>
-                                    @endif
-                                </div>
-                            @else
-                                <span class="text-muted small">{{ __('Form') }}</span>
-                            @endif
-                        </th>
+                        @php
+                            $headerCells = [
+                                ['key' => 'machining', 'vendor' => 'vendor_machining', 'pn' => $machiningProcessName, 'has' => $hasMachiningData],
+                                ['key' => 'stress_relief', 'vendor' => 'vendor_stress_relief', 'pn' => $stressReliefProcessName, 'has' => $hasStressReliefData],
+                                ['key' => 'ndt', 'vendor' => 'vendor_ndt', 'pn' => $ndtProcessName, 'has' => $hasNdtData],
+                                ['key' => 'passivation', 'vendor' => 'vendor_passivation', 'pn' => $passivationProcessName, 'has' => $hasPassivationData],
+                                ['key' => 'cad', 'vendor' => 'vendor_cad', 'pn' => $cadProcessName, 'has' => $hasCadData],
+                                ['key' => 'anodizing', 'vendor' => 'vendor_anodizing', 'pn' => $anodizingProcessName, 'has' => $hasAnodizingData],
+                                ['key' => 'xylan', 'vendor' => 'vendor_xylan', 'pn' => $xylanProcessName, 'has' => $hasXylanData],
+                            ];
+                        @endphp
+                        @foreach($headerCells as $hc)
+                            <th class="bushing-subcol-batch text-center p-1">
+                                @if($woBushing)
+                                    <div class="d-flex flex-column gap-1 align-items-stretch">
+                                        <div class="d-flex align-items-center justify-content-center gap-1 flex-wrap mt-1">
+                                            <select class="form-select form-select-sm vendor-select-sm" name="vendor_id" id="{{ $hc['vendor'] }}">
+                                                <option value="">{{ __('Vendor') }}</option>
+                                                @foreach($vendors as $vendor)
+                                                    <option style="font-size: 10px;" value="{{ $vendor->id }}">{{ $vendor->name }}</option>
+                                                @endforeach
+                                            </select>
+                                            @if($hc['pn'] && $hc['has'])
+                                                <a href="{{ route('wo_bushings.processesForm', ['id' => $woBushing->id, 'processNameId' => $hc['pn']->id]) }}"
+                                                   target="_blank" class="btn btn-sm btn-outline-warning form-btn"
+                                                   data-vendor-select="{{ $hc['vendor'] }}" data-process-key="{{ $hc['key'] }}">{{ __('Form') }}</a>
+                                            @else
+                                                <span class="text-muted small">{{ __('Form') }}</span>
+                                            @endif
+                                        </div>
+                                        <button type="button" class="btn btn-sm btn-outline-info py-0 px-1 js-bushing-create-batch"
+                                                data-url="{{ $batchCreateUrl }}" data-process-key="{{ $hc['key'] }}">{{ __('Group') }}</button>
+                                        <button type="button" class="btn btn-sm btn-outline-secondary py-0 px-1 js-bushing-ungroup-batch"
+                                                data-url="{{ $batchUngroupUrl }}" data-process-key="{{ $hc['key'] }}">{{ __('Ungroup') }}</button>
+                                    </div>
+                                @else
+                                    <span class="text-muted small">{{ __('Form') }}</span>
+                                @endif
+                            </th>
+                        @endforeach
                     </tr>
                 </thead>
                 <tbody>
@@ -313,6 +153,7 @@
                                     if (is_null($ndtValue)) { $ndtValue = []; } elseif (!is_array($ndtValue)) { $ndtValue = [$ndtValue]; }
                                     $savedBushingsGrouped[$groupKey]->push([
                                         'component' => $component,
+                                        'line_id' => (int) ($bushItem['line_id'] ?? 0),
                                         'sort_order' => (int) ($bushItem['sort_order'] ?? 0),
                                         'data' => [
                                             'qty' => $bushItem['qty'] ?? 1,
@@ -334,12 +175,40 @@
                             return $groupRows->min('sort_order');
                         });
                     @endphp
+                    @php
+                        $batchLabelsByProcess = [];
+                        foreach ($processAssignments as $componentAssignments) {
+                            if (!is_array($componentAssignments)) {
+                                continue;
+                            }
+                            foreach ($componentAssignments as $pKey => $assignment) {
+                                $bId = (int) ($assignment['batch_id'] ?? 0);
+                                if ($bId <= 0) {
+                                    continue;
+                                }
+                                if (!isset($batchLabelsByProcess[$pKey])) {
+                                    $batchLabelsByProcess[$pKey] = [];
+                                }
+                                $batchLabelsByProcess[$pKey][$bId] = true;
+                            }
+                        }
+                        foreach ($batchLabelsByProcess as $pKey => $batches) {
+                            $ids = array_keys($batches);
+                            sort($ids, SORT_NUMERIC);
+                            $labels = [];
+                            foreach ($ids as $idx => $idVal) {
+                                $labels[$idVal] = 'Grp ' . ($idx + 1);
+                            }
+                            $batchLabelsByProcess[$pKey] = $labels;
+                        }
+                    @endphp
                     @foreach($savedBushingsGrouped as $groupKey => $savedBushings)
                         @foreach($savedBushings as $savedBushing)
                             @php
                                 $component = $savedBushing['component'];
+                                $lineId = (int) ($savedBushing['line_id'] ?? 0);
                                 $data = $savedBushing['data'];
-                                $assignments = $processAssignments[$component->id] ?? [];
+                                $assignments = $lineId > 0 ? ($processAssignments[$lineId] ?? []) : [];
                                 $machiningProcess = $machiningProcesses->firstWhere('id', $data['machining'] ?? null);
                                 $stressReliefProcess = $stressReliefProcesses->firstWhere('id', $data['stress_relief'] ?? null);
                                 $ndtIds = isset($data['ndt']) ? (array)$data['ndt'] : [];
@@ -363,6 +232,7 @@
                                     'process' => $machiningProcess,
                                     'assignment' => $assignments['machining'] ?? null,
                                     'detailTitle' => $machiningProcess ? trim((string) $machiningProcess->process) : '',
+                                    'batchLabel' => $batchLabelsByProcess['machining'][(int) (($assignments['machining']['batch_id'] ?? 0))] ?? 'Grp',
                                 ])
                                 @include('admin.wo_bushings.partials.bushing-process-cells', [
                                     'component' => $component,
@@ -370,6 +240,7 @@
                                     'process' => $stressReliefProcess,
                                     'assignment' => $assignments['stress_relief'] ?? null,
                                     'detailTitle' => $stressReliefProcess ? trim((string) $stressReliefProcess->process) : '',
+                                    'batchLabel' => $batchLabelsByProcess['stress_relief'][(int) (($assignments['stress_relief']['batch_id'] ?? 0))] ?? 'Grp',
                                 ])
                                 @include('admin.wo_bushings.partials.bushing-process-cells', [
                                     'component' => $component,
@@ -378,6 +249,7 @@
                                     'ndtNames' => $ndtNames,
                                     'assignment' => $assignments['ndt'] ?? null,
                                     'detailTitle' => count($ndtNames) ? implode(' / ', $ndtNames) : '',
+                                    'batchLabel' => $batchLabelsByProcess['ndt'][(int) (($assignments['ndt']['batch_id'] ?? 0))] ?? 'Grp',
                                 ])
                                 @include('admin.wo_bushings.partials.bushing-process-cells', [
                                     'component' => $component,
@@ -385,6 +257,7 @@
                                     'process' => $passivationProcess,
                                     'assignment' => $assignments['passivation'] ?? null,
                                     'detailTitle' => $passivationProcess ? trim((string) $passivationProcess->process) : '',
+                                    'batchLabel' => $batchLabelsByProcess['passivation'][(int) (($assignments['passivation']['batch_id'] ?? 0))] ?? 'Grp',
                                 ])
                                 @include('admin.wo_bushings.partials.bushing-process-cells', [
                                     'component' => $component,
@@ -392,6 +265,7 @@
                                     'process' => $cadProcess,
                                     'assignment' => $assignments['cad'] ?? null,
                                     'detailTitle' => $cadProcess ? trim((string) $cadProcess->process) : '',
+                                    'batchLabel' => $batchLabelsByProcess['cad'][(int) (($assignments['cad']['batch_id'] ?? 0))] ?? 'Grp',
                                 ])
                                 @include('admin.wo_bushings.partials.bushing-process-cells', [
                                     'component' => $component,
@@ -399,6 +273,7 @@
                                     'process' => $anodizingProcess,
                                     'assignment' => $assignments['anodizing'] ?? null,
                                     'detailTitle' => $anodizingProcess ? trim((string) $anodizingProcess->process) : '',
+                                    'batchLabel' => $batchLabelsByProcess['anodizing'][(int) (($assignments['anodizing']['batch_id'] ?? 0))] ?? 'Grp',
                                 ])
                                 @include('admin.wo_bushings.partials.bushing-process-cells', [
                                     'component' => $component,
@@ -406,6 +281,7 @@
                                     'process' => $xylanProcess,
                                     'assignment' => $assignments['xylan'] ?? null,
                                     'detailTitle' => $xylanProcess ? trim((string) $xylanProcess->process) : '',
+                                    'batchLabel' => $batchLabelsByProcess['xylan'][(int) (($assignments['xylan']['batch_id'] ?? 0))] ?? 'Grp',
                                 ])
                             </tr>
                         @endforeach

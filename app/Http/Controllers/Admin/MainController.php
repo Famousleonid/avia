@@ -312,8 +312,6 @@ class MainController extends Controller
         $stdListTdrProcesses = app(WorkorderStdListProcessesService::class)
             ->resolveForWorkorder($current_workorder);
 
-        $this->mergeDuplicateOpenBushingBatches((int) $current_workorder->id);
-
         $wpCollection = WoBushingProcess::query()
             ->whereHas('line', fn ($q) => $q->where('workorder_id', $current_workorder->id))
             ->with(['line.component', 'process.process_name', 'batch'])
