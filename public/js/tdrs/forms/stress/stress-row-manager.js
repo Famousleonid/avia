@@ -15,7 +15,7 @@ class StressRowManager {
         if (typeof RowManager !== 'undefined') {
             return RowManager.addEmptyRowRegular(rowIndex, container);
         }
-        
+
         // Fallback
         const containerElement = typeof container === 'string'
             ? document.querySelector(container)
@@ -51,7 +51,7 @@ class StressRowManager {
         if (typeof RowManager !== 'undefined') {
             return RowManager.removeRowRegular(rowIndex, container);
         }
-        
+
         // Fallback
         const containerElement = typeof container === 'string'
             ? document.querySelector(container)

@@ -326,112 +326,11 @@ class NdtCadCsv extends Model
             'paint_components' => []
         ]);
 
-        // Автоматическая загрузка из Manual CSV файлов
         if ($manual) {
-            $csvFiles = $manual->getMedia('csv_files');
-            \Log::info('Available CSV files in manual', [
-                'count' => $csvFiles->count(),
-                'files' => $csvFiles->map(function($file) {
-                    return [
-                        'name' => $file->name,
-                        'process_type' => $file->getCustomProperty('process_type'),
-                        'path' => $file->getPath()
-                    ];
-                })->toArray()
-            ]);
-
-            // Загружаем NDT компоненты
-            $ndtCsvMedia = $manual->getMedia('csv_files')->first(function ($media) {
-                return $media->getCustomProperty('process_type') === 'ndt';
-            });
-
-            \Log::info('NDT CSV media found', [
-                'found' => $ndtCsvMedia ? true : false,
-                'path' => $ndtCsvMedia ? $ndtCsvMedia->getPath() : null
-            ]);
-
-            if ($ndtCsvMedia) {
-                $ndtCadCsv->ndt_components = self::loadComponentsFromCsv($ndtCsvMedia->getPath(), 'ndt');
-            } else {
-                // Если NDT файл не найден, попробуем загрузить первый доступный CSV
-                $firstCsv = $manual->getMedia('csv_files')->first();
-                if ($firstCsv) {
-                    \Log::info('Loading first available CSV as NDT', ['file' => $firstCsv->name]);
-                    $ndtCadCsv->ndt_components = self::loadComponentsFromCsv($firstCsv->getPath(), 'ndt');
-                }
-            }
-
-            // Загружаем CAD компоненты
-            $cadCsvMedia = $manual->getMedia('csv_files')->first(function ($media) {
-                $processType = $media->getCustomProperty('process_type');
-                $fileName = strtolower($media->file_name ?? '');
-                // Проверяем process_type или имя файла
-                return $processType === 'cad' || 
-                       (strpos($fileName, 'cad_std') !== false || strpos($fileName, 'cad') !== false);
-            });
-
-            \Log::info('CAD CSV media found', [
-                'found' => $cadCsvMedia ? true : false,
-                'path' => $cadCsvMedia ? $cadCsvMedia->getPath() : null,
-                'file_name' => $cadCsvMedia ? $cadCsvMedia->file_name : null,
-                'process_type' => $cadCsvMedia ? $cadCsvMedia->getCustomProperty('process_type') : null
-            ]);
-
-            if ($cadCsvMedia) {
-                $ndtCadCsv->cad_components = self::loadComponentsFromCsv($cadCsvMedia->getPath(), 'cad');
-            } else {
-                // Если CAD файл не найден, попробуем загрузить второй доступный CSV
-                $secondCsv = $manual->getMedia('csv_files')->skip(1)->first();
-                if ($secondCsv) {
-                    \Log::info('Loading second available CSV as CAD', ['file' => $secondCsv->name]);
-                    $ndtCadCsv->cad_components = self::loadComponentsFromCsv($secondCsv->getPath(), 'cad');
-                }
-            }
-
-            // Загружаем Stress компоненты
-            $stressCsvMedia = $manual->getMedia('csv_files')->first(function ($media) {
-                return $media->getCustomProperty('process_type') === 'stress';
-            });
-
-            \Log::info('Stress CSV media found', [
-                'found' => $stressCsvMedia ? true : false,
-                'path' => $stressCsvMedia ? $stressCsvMedia->getPath() : null
-            ]);
-
-            if ($stressCsvMedia) {
-                $ndtCadCsv->stress_components = self::loadComponentsFromCsv($stressCsvMedia->getPath(), 'stress');
-            } else {
-                // Если Stress файл не найден, попробуем загрузить третий доступный CSV
-                // но только если это не paint файл
-                $thirdCsv = $manual->getMedia('csv_files')->skip(2)->first();
-                if ($thirdCsv && $thirdCsv->getCustomProperty('process_type') !== 'paint') {
-                    \Log::info('Loading third available CSV as Stress', ['file' => $thirdCsv->name]);
-                    $ndtCadCsv->stress_components = self::loadComponentsFromCsv($thirdCsv->getPath(), 'stress');
-                } else {
-                    \Log::info('No suitable CSV found for Stress, leaving empty');
-                }
-            }
-
-            // Загружаем Paint компоненты
-            $paintCsvMedia = $manual->getMedia('csv_files')->first(function ($media) {
-                return $media->getCustomProperty('process_type') === 'paint';
-            });
-
-            \Log::info('Paint CSV media found', [
-                'found' => $paintCsvMedia ? true : false,
-                'path' => $paintCsvMedia ? $paintCsvMedia->getPath() : null
-            ]);
-
-            if ($paintCsvMedia) {
-                $ndtCadCsv->paint_components = self::loadComponentsFromCsv($paintCsvMedia->getPath(), 'paint');
-            } else {
-                // Если Paint файл не найден, попробуем загрузить четвертый доступный CSV
-                $fourthCsv = $manual->getMedia('csv_files')->skip(3)->first();
-                if ($fourthCsv) {
-                    \Log::info('Loading fourth available CSV as Paint', ['file' => $fourthCsv->name]);
-                    $ndtCadCsv->paint_components = self::loadComponentsFromCsv($fourthCsv->getPath(), 'paint');
-                }
-            }
+            $ndtCadCsv->ndt_components = StdProcess::snapshotComponentsForWorkorder($workorder, StdProcess::STD_NDT);
+            $ndtCadCsv->cad_components = StdProcess::snapshotComponentsForWorkorder($workorder, StdProcess::STD_CAD);
+            $ndtCadCsv->stress_components = StdProcess::snapshotComponentsForWorkorder($workorder, StdProcess::STD_STRESS);
+            $ndtCadCsv->paint_components = StdProcess::snapshotComponentsForWorkorder($workorder, StdProcess::STD_PAINT);
         } else {
             \Log::warning('No manual found for workorder', ['workorder_id' => $workorderId]);
         }
@@ -463,83 +362,10 @@ class NdtCadCsv extends Model
         ]);
 
         if ($manual) {
-            $csvFiles = $manual->getMedia('csv_files');
-            \Log::info('Available CSV files in manual', [
-                'count' => $csvFiles->count(),
-                'files' => $csvFiles->map(function($file) {
-                    return [
-                        'name' => $file->name,
-                        'process_type' => $file->getCustomProperty('process_type'),
-                        'path' => $file->getPath()
-                    ];
-                })->toArray()
-            ]);
-
-            // Загружаем NDT компоненты
-            $ndtCsvMedia = $manual->getMedia('csv_files')->first(function ($media) {
-                return $media->getCustomProperty('process_type') === 'ndt';
-            });
-
-            if ($ndtCsvMedia) {
-                \Log::info('Loading NDT components from CSV', ['file' => $ndtCsvMedia->name]);
-                $ndtCadCsv->ndt_components = self::loadComponentsFromCsv($ndtCsvMedia->getPath(), 'ndt');
-            }
-
-            // Загружаем CAD компоненты
-            $cadCsvMedia = $manual->getMedia('csv_files')->first(function ($media) {
-                $processType = $media->getCustomProperty('process_type');
-                $fileName = strtolower($media->file_name ?? '');
-                // Проверяем process_type или имя файла
-                return $processType === 'cad' || 
-                       (strpos($fileName, 'cad_std') !== false || strpos($fileName, 'cad') !== false);
-            });
-
-            if ($cadCsvMedia) {
-                \Log::info('Loading CAD components from CSV', [
-                    'file' => $cadCsvMedia->name,
-                    'process_type' => $cadCsvMedia->getCustomProperty('process_type')
-                ]);
-                $ndtCadCsv->cad_components = self::loadComponentsFromCsv($cadCsvMedia->getPath(), 'cad');
-            }
-
-            // Загружаем Stress компоненты
-            $stressCsvMedia = $manual->getMedia('csv_files')->first(function ($media) {
-                return $media->getCustomProperty('process_type') === 'stress';
-            });
-
-            if ($stressCsvMedia) {
-                \Log::info('Loading Stress components from CSV', ['file' => $stressCsvMedia->name]);
-                $ndtCadCsv->stress_components = self::loadComponentsFromCsv($stressCsvMedia->getPath(), 'stress');
-            } else {
-                // Если Stress файл не найден, попробуем загрузить третий доступный CSV (по аналогии с createForWorkorder)
-                // но только если это не paint файл
-                $thirdCsv = $manual->getMedia('csv_files')->skip(2)->first();
-                if ($thirdCsv && $thirdCsv->getCustomProperty('process_type') !== 'paint') {
-                    \Log::info('Stress CSV not found; loading third available CSV as Stress', ['file' => $thirdCsv->name]);
-                    $ndtCadCsv->stress_components = self::loadComponentsFromCsv($thirdCsv->getPath(), 'stress');
-                } else {
-                    \Log::warning('No Stress CSV and no suitable third CSV available for fallback');
-                }
-            }
-
-            // Загружаем Paint компоненты
-            $paintCsvMedia = $manual->getMedia('csv_files')->first(function ($media) {
-                return $media->getCustomProperty('process_type') === 'paint';
-            });
-
-            if ($paintCsvMedia) {
-                \Log::info('Loading Paint components from CSV', ['file' => $paintCsvMedia->name]);
-                $ndtCadCsv->paint_components = self::loadComponentsFromCsv($paintCsvMedia->getPath(), 'paint');
-            } else {
-                // Если Paint файл не найден, попробуем загрузить четвертый доступный CSV
-                $fourthCsv = $manual->getMedia('csv_files')->skip(3)->first();
-                if ($fourthCsv) {
-                    \Log::info('Paint CSV not found; loading fourth available CSV as Paint', ['file' => $fourthCsv->name]);
-                    $ndtCadCsv->paint_components = self::loadComponentsFromCsv($fourthCsv->getPath(), 'paint');
-                } else {
-                    \Log::warning('No Paint CSV and no fourth CSV available for fallback');
-                }
-            }
+            $ndtCadCsv->ndt_components = StdProcess::snapshotComponentsForWorkorder($workorder, StdProcess::STD_NDT);
+            $ndtCadCsv->cad_components = StdProcess::snapshotComponentsForWorkorder($workorder, StdProcess::STD_CAD);
+            $ndtCadCsv->stress_components = StdProcess::snapshotComponentsForWorkorder($workorder, StdProcess::STD_STRESS);
+            $ndtCadCsv->paint_components = StdProcess::snapshotComponentsForWorkorder($workorder, StdProcess::STD_PAINT);
         }
 
         $ndtCadCsv->save();
@@ -561,53 +387,147 @@ class NdtCadCsv extends Model
     {
         try {
             $csv = \League\Csv\Reader::createFromPath($csvPath, 'r');
+            $csv->setDelimiter(self::detectCsvDelimiter($csvPath));
             $csv->setHeaderOffset(0);
             $records = iterator_to_array($csv->getRecords());
 
             $components = [];
             foreach ($records as $row) {
-                // Попробуем разные варианты названий колонок
-                $itemNo = $row['ITEM   No.'] ?? $row['ITEM No.'] ?? $row['ITEM'] ?? $row['item_no'] ?? '';
-                $partNo = $row['PART No.'] ?? $row['PART'] ?? $row['part_no'] ?? '';
-                $description = $row['DESCRIPTION'] ?? $row['description'] ?? '';
-                $process = $row['PROCESS No.'] ?? $row['PROCESS'] ?? $row['process'] ?? '1';
-                $qty = $row['QTY'] ?? $row['qty'] ?? '1';
-                // Пробуем разные варианты названия колонки MANUAL
-                $manual = $row['MANUAL'] ?? $row['Manual'] ?? $row['manual'] ?? null;
-                // Убираем пробелы и проверяем, что значение не пустое
-                $manual = $manual !== null ? trim($manual) : null;
+                $row = self::normalizeCsvRowKeys($row);
 
-                if (!empty($itemNo)) {
+                $itemNo = self::csvPickFirstNonEmptyString($row, [
+                    'item no.', 'item', 'item no', 'item_no', 'ipl', 'ipl num',
+                ]) ?? '';
+
+                $partNo = self::csvPickFirstNonEmptyString($row, [
+                    'part no.', 'part', 'part_no', 'pn',
+                ]) ?? '';
+
+                $description = self::csvPickFirstNonEmptyString($row, [
+                    'description', 'desc', 'name',
+                ]) ?? '';
+
+                $process = self::csvPickFirstNonEmptyString($row, [
+                    'process no.', 'process', 'proc.', 'proc',
+                ]) ?? '1';
+
+                $qtyStr = self::csvPickFirstNonEmptyString($row, ['qty', 'quantity']);
+                $qty = $qtyStr !== null ? (int) $qtyStr : 1;
+
+                $manual = self::csvPickFirstNonEmptyString($row, [
+                    'manual',
+                    'cmm no.', 'cmm no', 'cmmno', 'cmm', 'cmm number',
+                    'smm no.', 'smm no',
+                ]);
+
+                $effCodeRaw = self::csvPickFirstNonEmptyString($row, [
+                    'eff code', 'eff_code', 'effcode',
+                ]) ?? '';
+
+                if ($itemNo !== '') {
                     $component = [
                         'ipl_num' => $itemNo,
                         'part_number' => $partNo,
                         'description' => $description,
                         'process' => $process,
-                        'qty' => (int)$qty,
+                        'qty' => $qty,
                     ];
-                    
-                    // Добавляем поле MANUAL, если оно есть в CSV и не пустое
+
                     if ($manual !== null && $manual !== '') {
                         $component['manual'] = $manual;
                     }
-                    
+                    if ($effCodeRaw !== '') {
+                        $norm = StdProcess::normalizeEffCodeForStorage($effCodeRaw);
+                        if ($norm !== null) {
+                            $component['eff_code'] = $norm;
+                        }
+                    }
+
                     $components[] = $component;
                 }
             }
 
             \Log::info("Loaded {$type} components from CSV", [
                 'file' => $csvPath,
-                'count' => count($components)
+                'count' => count($components),
             ]);
 
             return $components;
         } catch (\Exception $e) {
-            \Log::error("Error loading {$type} components from CSV: " . $e->getMessage(), [
+            \Log::error("Error loading {$type} components from CSV: ".$e->getMessage(), [
                 'file' => $csvPath,
-                'error' => $e->getTraceAsString()
+                'error' => $e->getTraceAsString(),
             ]);
+
             return [];
         }
+    }
+
+    private static function detectCsvDelimiter(string $csvPath): string
+    {
+        $fh = fopen($csvPath, 'rb');
+        if (! $fh) {
+            return ',';
+        }
+        $line = fgets($fh);
+        fclose($fh);
+        if ($line === false || $line === '') {
+            return ',';
+        }
+        $line = preg_replace('/^\x{FEFF}/u', '', $line);
+        $line = str_replace("\xEF\xBB\xBF", '', $line);
+        $semi = substr_count($line, ';');
+        $comma = substr_count($line, ',');
+
+        return $semi > $comma ? ';' : ',';
+    }
+
+    /**
+     * Приводит ключи строки CSV к нижнему регистру, один пробел между словами, убирает BOM и ведущий «-» у заголовка.
+     *
+     * @param  array<string|int, mixed>  $row
+     * @return array<string, mixed>
+     */
+    private static function normalizeCsvRowKeys(array $row): array
+    {
+        $out = [];
+        foreach ($row as $key => $value) {
+            $k = (string) $key;
+            $k = preg_replace('/^\x{FEFF}/u', '', $k);
+            $k = str_replace("\xEF\xBB\xBF", '', $k);
+            $k = trim($k);
+            $k = preg_replace('/^[\-\x{2013}\x{2014}]+/u', '', $k);
+            $k = trim($k);
+            $k = preg_replace('/\s+/', ' ', $k);
+            $out[strtolower($k)] = $value;
+        }
+
+        return $out;
+    }
+
+    /**
+     * @param  array<string, mixed>  $norm  ключи уже нормализованы (строка поиска — lowercase, пробелы схлопнуты)
+     * @param  array<int, string>  $candidateLogicalKeys
+     */
+    private static function csvPickFirstNonEmptyString(array $norm, array $candidateLogicalKeysHint): ?string
+    {
+        foreach ($candidateLogicalKeysHint as $logical) {
+            $lk = strtolower(preg_replace('/\s+/', ' ', trim((string) $logical)));
+            $lk = preg_replace('/^[\-\x{2013}\x{2014}]+/u', '', $lk);
+            $lk = trim(preg_replace('/\s+/', ' ', $lk));
+
+            if (! array_key_exists($lk, $norm)) {
+                continue;
+            }
+            $v = $norm[$lk];
+            if ($v === null || $v === '') {
+                continue;
+            }
+
+            return trim((string) $v);
+        }
+
+        return null;
     }
 }
 

@@ -99,11 +99,8 @@
                 <button type="button" class="btn btn-success btn-sm" onclick="showAddNdtModal()">
                     <i class="fas fa-plus"></i> Add
                 </button>
-                <button type="button" class="btn btn-info btn-sm" onclick="importNdtFromCsv()">
-                    <i class="fas fa-file-import"></i> Upload CSV
-                </button>
-                <button type="button" class="btn btn-warning btn-sm" onclick="reloadFromManual('ndt')">
-                    <i class="fas fa-sync"></i> Reload CSV
+                <button type="button" class="btn btn-warning btn-sm" onclick="loadSnapshotFromStd('ndt')">
+                    <i class="fas fa-sync"></i> Load from STD
                 </button>
             </div>
         </div>
@@ -125,6 +122,7 @@
                         <th class="text-primary text-center align-middle">IPL №</th>
                         <th class="text-primary text-center align-middle">Part Number</th>
                         <th class="text-primary text-center align-middle">Description</th>
+                        <th class="text-primary text-center align-middle">EFF Code</th>
                         <th class="text-primary text-center align-middle">Process</th>
                         <th class="text-primary text-center align-middle">QTY</th>
                         @if($hasManual)
@@ -151,6 +149,7 @@
                         <td>{{ $component['ipl_num'] }}</td>
                         <td>{{ $component['part_number'] }}</td>
                         <td>{{ $component['description'] }}</td>
+                        <td>{{ $component['eff_code'] ?? '' }}</td>
                         <td>{{ $component['process'] }}</td>
                         <td>{{ $component['qty'] }}</td>
                         @if($hasManual)
@@ -167,7 +166,7 @@
                     </tr>
                     @empty
                     <tr>
-                        <td colspan="{{ $hasManual ? 7 : 6 }}" class="text-center text-muted">No NDT components</td>
+                        <td colspan="{{ $hasManual ? 8 : 7 }}" class="text-center text-muted">No NDT components</td>
                     </tr>
                     @endforelse
                 </tbody>
@@ -183,11 +182,8 @@
                 <button type="button" class="btn btn-success btn-sm" onclick="showAddCadModal()">
                     <i class="fas fa-plus"></i> Add
                 </button>
-                <button type="button" class="btn btn-info btn-sm" onclick="importCadFromCsv()">
-                    <i class="fas fa-file-import"></i> Upload CSV
-                </button>
-                <button type="button" class="btn btn-warning btn-sm" onclick="reloadFromManual('cad')">
-                    <i class="fas fa-sync"></i> Reload CSV
+                <button type="button" class="btn btn-warning btn-sm" onclick="loadSnapshotFromStd('cad')">
+                    <i class="fas fa-sync"></i> Load from STD
                 </button>
             </div>
         </div>
@@ -209,6 +205,7 @@
                         <th class="text-primary text-center align-middle">IPL №</th>
                         <th class="text-primary text-center align-middle">Part Number</th>
                         <th class="text-primary text-center align-middle">Description</th>
+                        <th class="text-primary text-center align-middle">EFF Code</th>
                         <th class="text-primary text-center align-middle">Process</th>
                         <th class="text-primary text-center align-middle">QTY</th>
                         @if($hasManual)
@@ -235,6 +232,7 @@
                         <td>{{ $component['ipl_num'] }}</td>
                         <td>{{ $component['part_number'] }}</td>
                         <td>{{ $component['description'] }}</td>
+                        <td>{{ $component['eff_code'] ?? '' }}</td>
                         <td>{{ $component['process'] }}</td>
                         <td>{{ $component['qty'] }}</td>
                         @if($hasManual)
@@ -251,7 +249,7 @@
                     </tr>
                     @empty
                     <tr>
-                        <td colspan="{{ $hasManual ? 7 : 6 }}" class="text-center text-muted">No CAD components</td>
+                        <td colspan="{{ $hasManual ? 8 : 7 }}" class="text-center text-muted">No CAD components</td>
                     </tr>
                     @endforelse
                 </tbody>
@@ -267,11 +265,8 @@
                 <button type="button" class="btn btn-success btn-sm" onclick="showAddPaintModal()">
                     <i class="fas fa-plus"></i> Add
                 </button>
-                <button type="button" class="btn btn-info btn-sm" onclick="importPaintFromCsv()">
-                    <i class="fas fa-file-import"></i> Upload CSV
-                </button>
-                <button type="button" class="btn btn-warning btn-sm" onclick="reloadFromManual('paint')">
-                    <i class="fas fa-sync"></i> Reload CSV
+                <button type="button" class="btn btn-warning btn-sm" onclick="loadSnapshotFromStd('paint')">
+                    <i class="fas fa-sync"></i> Load from STD
                 </button>
             </div>
         </div>
@@ -293,6 +288,7 @@
                         <th class="text-primary text-center align-middle">IPL №</th>
                         <th class="text-primary text-center align-middle">Part Number</th>
                         <th class="text-primary text-center align-middle">Description</th>
+                        <th class="text-primary text-center align-middle">EFF Code</th>
                         <th class="text-primary text-center align-middle">Process</th>
                         <th class="text-primary text-center align-middle">QTY</th>
                         @if($hasManual)
@@ -319,6 +315,7 @@
                         <td>{{ $component['ipl_num'] }}</td>
                         <td>{{ $component['part_number'] }}</td>
                         <td>{{ $component['description'] }}</td>
+                        <td>{{ $component['eff_code'] ?? '' }}</td>
                         <td>{{ $component['process'] }}</td>
                         <td>{{ $component['qty'] }}</td>
                         @if($hasManual)
@@ -335,7 +332,7 @@
                     </tr>
                     @empty
                     <tr>
-                        <td colspan="{{ $hasManual ? 7 : 6 }}" class="text-center text-muted">No Paint components</td>
+                        <td colspan="{{ $hasManual ? 8 : 7 }}" class="text-center text-muted">No Paint components</td>
                     </tr>
                     @endforelse
                 </tbody>
@@ -351,11 +348,8 @@
                 <button type="button" class="btn btn-success btn-sm" onclick="showAddStressModal()">
                     <i class="fas fa-plus"></i> Add
                 </button>
-                <button type="button" class="btn btn-info btn-sm" onclick="importStressFromCsv()">
-                    <i class="fas fa-file-import"></i> Upload CSV
-                </button>
-                <button type="button" class="btn btn-warning btn-sm" onclick="reloadFromManual('stress')">
-                    <i class="fas fa-sync"></i> Reload CSV
+                <button type="button" class="btn btn-warning btn-sm" onclick="loadSnapshotFromStd('stress')">
+                    <i class="fas fa-sync"></i> Load from STD
                 </button>
             </div>
         </div>
@@ -377,6 +371,7 @@
                         <th class="text-primary text-center align-middle">IPL №</th>
                         <th class="text-primary text-center align-middle">Part Number</th>
                         <th class="text-primary text-center align-middle">Description</th>
+                        <th class="text-primary text-center align-middle">EFF Code</th>
                         <th class="text-primary text-center align-middle">Process</th>
                         <th class="text-primary text-center align-middle">QTY</th>
                         @if($hasManual)
@@ -403,6 +398,7 @@
                         <td>{{ $component['ipl_num'] }}</td>
                         <td>{{ $component['part_number'] }}</td>
                         <td>{{ $component['description'] }}</td>
+                        <td>{{ $component['eff_code'] ?? '' }}</td>
                         <td>{{ $component['process'] }}</td>
                         <td>{{ $component['qty'] }}</td>
                         @if($hasManual)
@@ -419,7 +415,7 @@
                     </tr>
                     @empty
                     <tr>
-                        <td colspan="{{ $hasManual ? 7 : 6 }}" class="text-center text-muted">No Stress components</td>
+                        <td colspan="{{ $hasManual ? 8 : 7 }}" class="text-center text-muted">No Stress components</td>
                     </tr>
                     @endforelse
                 </tbody>
@@ -451,6 +447,10 @@
                     <div class="mb-3">
                         <label for="ndtProcess" class="form-label">Process *</label>
                         <input type="text" class="form-control" id="ndtProcess" name="process" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="ndtEffCode" class="form-label">EFF Code</label>
+                        <input type="text" class="form-control" id="ndtEffCode" name="eff_code" placeholder="А, В — пусто = все">
                     </div>
                 </div>
                 <div class="modal-footer">
@@ -488,6 +488,10 @@
                             <option value="">Select a process...</option>
                         </select>
                     </div>
+                    <div class="mb-3">
+                        <label for="cadEffCode" class="form-label">EFF Code</label>
+                        <input type="text" class="form-control" id="cadEffCode" name="eff_code" placeholder="А, В — пусто = все">
+                    </div>
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
@@ -523,6 +527,10 @@
                         <select class="form-control select2" id="stressProcess" name="process" required>
                             <option value="">Select a process...</option>
                         </select>
+                    </div>
+                    <div class="mb-3">
+                        <label for="stressEffCode" class="form-label">EFF Code</label>
+                        <input type="text" class="form-control" id="stressEffCode" name="eff_code" placeholder="А, В — пусто = все">
                     </div>
                 </div>
                 <div class="modal-footer">
@@ -560,6 +568,10 @@
                             <option value="">Select a process...</option>
                         </select>
                     </div>
+                    <div class="mb-3">
+                        <label for="paintEffCode" class="form-label">EFF Code</label>
+                        <input type="text" class="form-control" id="paintEffCode" name="eff_code" placeholder="А, В — пусто = все">
+                    </div>
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
@@ -590,6 +602,7 @@
                             </div>
                             <div class="col-md-6">
                                 <strong>Description:</strong> <span id="ndtCurrentDescription"></span><br>
+                                <strong>EFF Code:</strong> <span id="ndtCurrentEffCode"></span><br>
                                 <strong>Process:</strong> <span id="ndtCurrentProcess"></span><br>
                                 <strong>QTY:</strong> <span id="ndtCurrentQty"></span>
                             </div>
@@ -610,6 +623,10 @@
                     <div class="mb-3">
                         <label for="ndtEditQty" class="form-label">QTY *</label>
                         <input type="number" class="form-control" id="ndtEditQty" name="qty" min="1" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="ndtEditEffCode" class="form-label">EFF Code</label>
+                        <input type="text" class="form-control" id="ndtEditEffCode" name="eff_code" placeholder="А, В — пусто = все">
                     </div>
                 </div>
                 <div class="modal-footer">
@@ -641,6 +658,7 @@
                             </div>
                             <div class="col-md-6">
                                 <strong>Description:</strong> <span id="cadCurrentDescription"></span><br>
+                                <strong>EFF Code:</strong> <span id="cadCurrentEffCode"></span><br>
                                 <strong>Process:</strong> <span id="cadCurrentProcess"></span><br>
                                 <strong>QTY:</strong> <span id="cadCurrentQty"></span>
                             </div>
@@ -663,6 +681,10 @@
                     <div class="mb-3">
                         <label for="cadEditQty" class="form-label">QTY *</label>
                         <input type="number" class="form-control" id="cadEditQty" name="qty" min="1" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="cadEditEffCode" class="form-label">EFF Code</label>
+                        <input type="text" class="form-control" id="cadEditEffCode" name="eff_code" placeholder="А, В — пусто = все">
                     </div>
                 </div>
                 <div class="modal-footer">
@@ -694,6 +716,7 @@
                             </div>
                             <div class="col-md-6">
                                 <strong>Description:</strong> <span id="stressCurrentDescription"></span><br>
+                                <strong>EFF Code:</strong> <span id="stressCurrentEffCode"></span><br>
                                 <strong>Process:</strong> <span id="stressCurrentProcess"></span><br>
                                 <strong>QTY:</strong> <span id="stressCurrentQty"></span>
                             </div>
@@ -716,6 +739,10 @@
                     <div class="mb-3">
                         <label for="stressEditQty" class="form-label">QTY *</label>
                         <input type="number" class="form-control" id="stressEditQty" name="qty" min="1" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="stressEditEffCode" class="form-label">EFF Code</label>
+                        <input type="text" class="form-control" id="stressEditEffCode" name="eff_code" placeholder="А, В — пусто = все">
                     </div>
                 </div>
                 <div class="modal-footer">
@@ -747,6 +774,7 @@
                             </div>
                             <div class="col-md-6">
                                 <strong>Description:</strong> <span id="paintCurrentDescription"></span><br>
+                                <strong>EFF Code:</strong> <span id="paintCurrentEffCode"></span><br>
                                 <strong>Process:</strong> <span id="paintCurrentProcess"></span><br>
                                 <strong>QTY:</strong> <span id="paintCurrentQty"></span>
                             </div>
@@ -770,6 +798,10 @@
                         <label for="paintEditQty" class="form-label">QTY *</label>
                         <input type="number" class="form-control" id="paintEditQty" name="qty" min="1" required>
                     </div>
+                    <div class="mb-3">
+                        <label for="paintEditEffCode" class="form-label">EFF Code</label>
+                        <input type="text" class="form-control" id="paintEditEffCode" name="eff_code" placeholder="А, В — пусто = все">
+                    </div>
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
@@ -780,39 +812,19 @@
     </div>
 </div>
 
-<!-- Модальное окно для импорта CSV -->
-<div class="modal fade" id="csvImportModal" tabindex="-1">
-    <div class="modal-dialog">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title">Importing components from CSV</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-            </div>
-            <form id="csvImportForm" enctype="multipart/form-data">
-                <div class="modal-body">
-                    <div class="mb-3">
-                        <label for="csvType" class="form-label">Component type *</label>
-                        <select class="form-control" id="csvType" required>
-                            <option value="">Select type</option>
-                            <option value="ndt">NDT</option>
-                            <option value="cad">CAD</option>
-                            <option value="paint">Paint</option>
-                            <option value="stress">Stress</option>
-                        </select>
-                    </div>
-                    <div class="mb-3">
-                        <label for="csvFile" class="form-label">CSV file *</label>
-                        <input type="file" class="form-control" id="csvFile" accept=".csv,.txt" required>
-                    </div>
-                </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Отмена</button>
-                    <button type="submit" class="btn btn-primary">Import</button>
-                </div>
-            </form>
-        </div>
-    </div>
-</div>
-
+@php
+    $ndtHasManualCol = collect($ndtCadCsv->ndt_components ?? [])->contains(fn ($c) => ! empty($c['manual'] ?? null));
+    $cadHasManualCol = collect($ndtCadCsv->cad_components ?? [])->contains(fn ($c) => ! empty($c['manual'] ?? null));
+    $paintHasManualCol = collect($ndtCadCsv->paint_components ?? [])->contains(fn ($c) => ! empty($c['manual'] ?? null));
+    $stressHasManualCol = collect($ndtCadCsv->stress_components ?? [])->contains(fn ($c) => ! empty($c['manual'] ?? null));
+@endphp
+<script>
+window.__woNdtCadCols = {
+    ndtManual: @json($ndtHasManualCol),
+    cadManual: @json($cadHasManualCol),
+    paintManual: @json($paintHasManualCol),
+    stressManual: @json($stressHasManualCol)
+};
+</script>
 @include('admin.ndt-cad-csv.partial-scripts')
 </div>

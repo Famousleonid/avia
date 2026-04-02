@@ -27,6 +27,7 @@ use App\Http\Controllers\Admin\VendorController;
 use App\Http\Controllers\Admin\WorkorderController;
 use App\Http\Controllers\Admin\WoBushingController;
 use App\Http\Controllers\Admin\NdtCadCsvController;
+use App\Http\Controllers\Admin\ManualStdProcessController;
 use App\Http\Controllers\Front\FrontController;
 use App\Http\Controllers\General\MediaController;
 use App\Http\Controllers\General\NotificationController;
@@ -316,7 +317,7 @@ Route::group(['middleware' => ['auth']], function () {
     // NDT/CAD CSV Management Routes
     Route::get('/{workorder}/ndt-cad-csv/partial', [NdtCadCsvController::class, 'partial'])->name('ndt-cad-csv.partial');
     Route::get('/{workorder}/ndt-cad-csv', [NdtCadCsvController::class, 'index'])->name('ndt-cad-csv.index');
-    Route::post('/{workorder}/ndt-cad-csv/ndt-components', [NdtCadCsvController::class, 'updateNdtComponents'])->name('.ndt-cad-csv.update-ndt');
+    Route::post('/{workorder}/ndt-cad-csv/ndt-components', [NdtCadCsvController::class, 'updateNdtComponents'])->name('ndt-cad-csv.update-ndt');
     Route::post('/{workorder}/ndt-cad-csv/cad-components', [NdtCadCsvController::class, 'updateCadComponents'])->name('ndt-cad-csv.update-cad');
     Route::post('/{workorder}/ndt-cad-csv/stress-components', [NdtCadCsvController::class, 'updateStressComponents'])->name('ndt-cad-csv.update-stress');
     Route::post('/{workorder}/ndt-cad-csv/add-ndt', [NdtCadCsvController::class, 'addNdtComponent'])->name('ndt-cad-csv.add-ndt');
@@ -358,6 +359,11 @@ Route::group(['middleware' => ['auth']], function () {
         Route::get('/{file}', [ManualCsvController::class, 'view'])->name('view');
         Route::delete('/{file}', [ManualCsvController::class, 'delete'])->name('delete');
     });
+
+    Route::post('manuals/{manual}/std-processes', [ManualStdProcessController::class, 'store'])->name('manuals.std-processes.store');
+    Route::post('manuals/{manual}/std-processes/reimport-from-csv', [ManualStdProcessController::class, 'reimportFromCsv'])->name('manuals.std-processes.reimport-from-csv');
+    Route::put('manuals/{manual}/std-processes/{stdProcess}', [ManualStdProcessController::class, 'update'])->name('manuals.std-processes.update');
+    Route::delete('manuals/{manual}/std-processes/{stdProcess}', [ManualStdProcessController::class, 'destroy'])->name('manuals.std-processes.destroy');
 
     // Notification
 
