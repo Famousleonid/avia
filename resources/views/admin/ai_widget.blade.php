@@ -255,13 +255,13 @@
         <div id="aiWidgetMessages" class="ai-widget-messages">
             <div class="ai-msg assistant">
                 <div class="ai-msg-bubble">
-                    Привет! Я — {{ $aiAgentName }}. Спроси про воркордеры, задачи, мануалы, фото и замечания — или что угодно по работе.
+                    Hi! I’m {{ $aiAgentName }}. Ask about workorders, tasks, manuals, photos, and notes — or anything work-related.
                 </div>
             </div>
         </div>
 
         <div id="aiWidgetTyping" class="ai-widget-typing d-none">
-            {{ $aiAgentName }} думает…
+            {{ $aiAgentName }} is thinking…
             <span class="ai-typing-dots" aria-hidden="true"><span></span><span></span><span></span></span>
         </div>
 
@@ -545,7 +545,7 @@
                         appendMessage(msg.role, msg.content || '');
                     });
                 } else {
-                    appendMessage('assistant', 'Привет! Я — ' + AI_AGENT_NAME + '. Спроси про воркордеры, задачи, мануалы, фото и замечания — или что угодно по работе.');
+                    appendMessage('assistant', 'Hi! I’m ' + AI_AGENT_NAME + '. Ask about workorders, tasks, manuals, photos, and notes — or anything work-related.');
                 }
 
                 historyLoaded = true;

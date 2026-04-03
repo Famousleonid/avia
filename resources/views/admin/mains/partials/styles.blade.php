@@ -698,6 +698,11 @@
         border: 1px solid rgba(255,255,255,.14);
         border-radius: .35rem;
         overflow: hidden;
+        min-width: 0;
+    }
+    .wo-bush-strip-accordion .accordion-body{
+        min-width: 0;
+        max-width: 100%;
     }
 
     .wo-bush-strip-accordion .wo-bush-strip-item{
@@ -782,33 +787,106 @@
         margin-bottom: 0 !important;
     }
 
+    /* WO bushing: таблица целиком в ширину колонки, без уезда за край (flex + fixed layout) */
+    .wo-bush-process-block{
+        min-width: 0;
+        max-width: 100%;
+    }
+    .wo-bush-process-block .table-responsive{
+        max-width: 100%;
+        min-width: 0;
+        overflow-x: hidden;
+    }
+    .wo-bushings-table{
+        table-layout: fixed;
+        width: 100%;
+        max-width: 100%;
+    }
+    .wo-bush-batch-nested{
+        table-layout: fixed;
+        width: 100%;
+        max-width: 100%;
+    }
+
+    /*
+     * Доли колонок основной таблицы (сумма 100%). При узкой колонке всё сжимается пропорционально.
+     */
     .wo-bushings-table th,
     .wo-bushings-table td{
-        white-space: nowrap;
         vertical-align: middle;
+        min-width: 0;
+        box-sizing: border-box;
     }
-
+    .wo-bushings-table .wo-bush-col-part{ width: 11%; }
+    .wo-bushings-table .wo-bush-col-ipl{ width: 7%; }
     .wo-bushings-table .wo-bush-col-process{
-        min-width: 9rem;
-        max-width: 14rem;
+        width: 22%;
         white-space: normal;
+        word-wrap: break-word;
+        overflow-wrap: anywhere;
     }
-
     .wo-bushings-table .wo-bush-col-qty{
-        width: 3.25rem;
-        min-width: 3.25rem;
+        width: 5%;
+        white-space: nowrap;
+        text-align: center;
     }
-
     .wo-bushings-table .wo-bush-col-ro{
-        min-width: 7.5rem;
-        width: 8.5rem;
+        width: 17%;
         white-space: normal;
+        word-wrap: break-word;
+        overflow-wrap: anywhere;
+    }
+    .wo-bushings-table .wo-bush-col-dt{
+        width: 19%;
     }
 
-    .wo-bushings-table .wo-bush-col-dt{
-        width: 118px;
-        min-width: 118px;
-        max-width: 118px;
+    .wo-bushings-table .wo-bush-col-part,
+    .wo-bushings-table .wo-bush-col-ipl{
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+    .wo-bushings-table tr.wo-bush-batch-row > td.wo-bush-batch-toggle{
+        white-space: normal;
+        word-break: break-word;
+    }
+    .wo-bushings-table .wo-bush-col-ro .form-control{
+        max-width: 100%;
+        min-width: 0;
+    }
+
+    .wo-bushings-table .wo-bush-col-dt form{
+        margin: 0;
+        min-width: 0;
+    }
+    .wo-bushings-table .wo-bush-col-dt .finish-input,
+    .wo-bushings-table .wo-bush-col-dt .fp-alt{
+        width: 100%;
+        max-width: 100%;
+        min-width: 0 !important;
+        box-sizing: border-box;
+        font-size: clamp(0.65rem, 1.1vw, 0.75rem);
+        padding-left: 0.15rem;
+        padding-right: 1.5rem;
+    }
+    .wo-bushings-table .wo-bush-col-dt .fp-alt-wrap{
+        width: 100%;
+        min-width: 0;
+    }
+
+    /* Вложенная таблица batch */
+    .wo-bush-batch-nested .wo-bush-col-part{ width: 22%; }
+    .wo-bush-batch-nested .wo-bush-col-ipl{ width: 12%; }
+    .wo-bush-batch-nested .wo-bush-col-process{
+        width: 48%;
+        white-space: normal;
+        word-wrap: break-word;
+        overflow-wrap: anywhere;
+    }
+    .wo-bush-batch-nested .wo-bush-col-qty{ width: 18%; }
+    .wo-bush-batch-nested th,
+    .wo-bush-batch-nested td{
+        min-width: 0;
     }
 
 </style>

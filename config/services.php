@@ -33,20 +33,20 @@ return [
     'openai' => [
         'api_key' => env('OPENAI_API_KEY'),
         'model'   => env('OPENAI_MODEL', 'gpt-5.4'),
-        /** Имя ассистента в чате (представление, промпт, приветствие виджета). */
-        'agent_name' => env('OPENAI_AGENT_NAME', 'Ави'),
-        /** Ласковое имя в шутливых сообщениях при сбое API (подставляется в unavailable_messages как %s). */
-        'agent_nickname' => env('OPENAI_AGENT_NICKNAME', 'Авиоша'),
+        /** Имя ассистента в чате (латиница, чтобы было понятно всем; для русского ответа модель всё равно ответит по-русски). */
+        'agent_name' => env('OPENAI_AGENT_NAME', 'Avi'),
+        /** Ласковое имя в шутливых сообщениях при сбое API (sprintf, один аргумент — agent_nickname). */
+        'agent_nickname' => env('OPENAI_AGENT_NICKNAME', 'Aviosha'),
         /**
-         * Сообщения при недоступности OpenAI (sprintf, один аргумент — agent_nickname).
+         * Сообщения при недоступности OpenAI (sprintf, один аргумент — agent_nickname). По умолчанию EN.
          */
         'unavailable_messages' => [
-            '%s улетел на базу разобраться с техничкой. Загляните через минуту.',
-            '%s на обед. Даже умные нейросети едят. Попробуйте чуть позже.',
-            '%s отвлёкся на рейс / смену. Повторите вопрос попозже — обычно всё проходит.',
-            '%s зазевался и подвис — так бывает. Обновите или напишите ещё раз через пару минут.',
-            '%s временно недоступен: сервис умного ответа капризничает. Зайдите попозже.',
-            '%s сбежал на кофе. Кофе обязателен по регламенту. Вернитесь скоро.',
+            '%s dashed off to the hangar to sort something out. Try again in a minute.',
+            '%s is on lunch. Even neural nets eat. Try again shortly.',
+            '%s got pulled into a shift handover. Retry in a bit — usually it passes.',
+            '%s froze for a moment — refresh or send again in a couple of minutes.',
+            '%s is temporarily unavailable: the smart reply service is having a moment. Try later.',
+            '%s went for coffee. Coffee is basically in the manual. Back soon.',
         ],
         /** HTTP timeout for v1/responses (seconds). */
         'timeout_seconds' => (int) env('OPENAI_TIMEOUT', 120),

@@ -213,7 +213,15 @@
             if (type === 'process' && event === 'overdue') {
                 const woNoRaw = ui?.workorder?.no ?? '';
                 const woNo = has(woNoRaw) ? `#${h(woNoRaw)}` : '';
+                const ownerRaw = ui?.workorder?.owner_name ?? '';
+                const owner = has(ownerRaw) ? h(String(ownerRaw).trim()) : '';
+                const woWithOwner = woNo
+                    ? (owner ? `WO ${woNo} (${owner})` : `WO ${woNo}`)
+                    : '';
                 const pName = h(ui?.process?.name ?? '');
+                const partRaw = ui?.part?.number ?? '';
+                const partNo = has(partRaw) ? h(String(partRaw).trim()) : '';
+                const processLine = pName && partNo ? `${pName} - ${partNo}` : (pName || partNo);
                 const start = h(ui?.dates?.start ?? ui?.start ?? '');
                 const std = h(ui?.std_days ?? '');
                 const od = h(ui?.overdue_days ?? '');
@@ -221,10 +229,10 @@
                 return `
                     <div class="d-flex align-items-center gap-2 flex-wrap">
                         <span class="badge text-bg-danger">OVERDUE</span>
-                        ${woNo ? `<span class="text-warning fw-semibold">WO ${woNo}</span>` : ``}
+                        ${woWithOwner ? `<span class="text-warning fw-semibold">${woWithOwner}</span>` : ``}
                     </div>
 
-                    ${pName ? `<div class="small mt-1">${pName}</div>` : ``}
+                    ${processLine ? `<div class="small mt-1">${processLine}</div>` : ``}
 
                     <div class="text-muted small mt-1">
                         ${start ? `Start: ${start}` : ``}

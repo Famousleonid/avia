@@ -825,9 +825,13 @@ class MainController extends Controller
         $woBushingProcess->save();
 
         if ($isAjax) {
+            $woBushingProcess->refresh();
+
             return response()->json([
                 'success' => true,
                 'user' => auth()->user()?->name ?? 'system',
+                'date_start' => $woBushingProcess->date_start?->format('Y-m-d'),
+                'date_finish' => $woBushingProcess->date_finish?->format('Y-m-d'),
             ], 200);
         }
 
@@ -907,9 +911,13 @@ class MainController extends Controller
         $woBushingBatch->save();
 
         if ($isAjax) {
+            $woBushingBatch->refresh();
+
             return response()->json([
                 'success' => true,
                 'user' => auth()->user()?->name ?? 'system',
+                'date_start' => $woBushingBatch->date_start?->format('Y-m-d'),
+                'date_finish' => $woBushingBatch->date_finish?->format('Y-m-d'),
             ], 200);
         }
 
@@ -1018,9 +1026,14 @@ class MainController extends Controller
         }
 
         if ($isAjax) {
+            $first = $rows->first();
+            $first?->refresh();
+
             return response()->json([
                 'success' => true,
                 'user' => auth()->user()?->name ?? 'system',
+                'date_start' => $first?->date_start?->format('Y-m-d'),
+                'date_finish' => $first?->date_finish?->format('Y-m-d'),
             ], 200);
         }
 
@@ -1046,7 +1059,7 @@ class MainController extends Controller
 
     public function updateIgnoreRow(Request $request, \App\Models\TdrProcess $tdrProcess)
     {
-        abort_unless(auth()->check() && auth()->user()->hasAnyRole('Admin|Manager'), 403);
+        abort_unless(auth()->check(), 403);
 
         $data = $request->validate([
             'ignore_row' => ['required', 'boolean'],

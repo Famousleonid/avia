@@ -61,7 +61,7 @@ class AiAgentService
             $this->lookupManualEditPermissionsTool->schema(),
         ];
 
-        $systemPrompt = $this->systemPrompt($user, $pageContext);
+        $systemPrompt = $this->systemPrompt($user, $pageContext, $userMessage);
 
         $response = $this->callOpenAi(
             input: array_merge(
@@ -391,7 +391,39 @@ class AiAgentService
         return $lines === [] ? '' : implode("\n", $lines);
     }
 
-    protected function systemPrompt(User $user, array $pageContext = []): string
+    /**
+     * Подстраивает язык ответа под последнее пользовательское сообщение (RU/EN).
+     */
+    protected function buildReplyLanguageInstruction(string $userMessage): string
+    {
+        $t = trim($userMessage);
+        if ($t === '') {
+            return 'Language for this reply: default to **English**. If the visible conversation history is clearly in Russian, you may continue in Russian for consistency.';
+        }
+
+        $cyr = 0;
+        $lat = 0;
+        if (preg_match_all('/\p{Cyrillic}/u', $t, $m)) {
+            $cyr = count($m[0]);
+        }
+        if (preg_match_all('/\p{Latin}/u', $t, $m)) {
+            $lat = count($m[0]);
+        }
+
+        if ($cyr >= 2 && $cyr >= $lat) {
+            return 'Language for this reply: the user wrote in **Russian** — answer **fully in Russian** (same terms, tone, and UI hints).';
+        }
+        if ($lat >= 2 && $lat > $cyr) {
+            return 'Language for this reply: the user wrote in **English** — answer **fully in English**.';
+        }
+        if ($cyr >= 1 && $cyr >= $lat) {
+            return 'Language for this reply: the user message is **Russian** (or mixed with dominant Cyrillic) — answer **fully in Russian**.';
+        }
+
+        return 'Language for this reply: default to **English** (short or ambiguous input).';
+    }
+
+    protected function systemPrompt(User $user, array $pageContext = [], string $latestUserMessage = ''): string
     {
         $contextLine = $this->buildAiPageContextLine($pageContext);
 
@@ -420,13 +452,19 @@ class AiAgentService
             $agentName = 'Assistant';
         }
 
+        $languageInstruction = $this->buildReplyLanguageInstruction($latestUserMessage);
+
         return <<<PROMPT
 You are «{$agentName}», the AI assistant for an aviation maintenance workshop (workorders, tasks, manuals, photos, damage notes). Do not mention Laravel, PHP, frameworks, or programming stack to the user unless they explicitly ask about IT internals.
 Introduce yourself by this name when appropriate (first greeting, if asked who you are, or when it fits naturally). Do not use a different name or title.
 
+Assistant name (identity — important):
+- Always spell your name exactly as «{$agentName}» using **Latin letters only** (readable for everyone). Do **not** use Cyrillic for your name (e.g. «Ави», «Авиоша»), even when the rest of the reply is in Russian — e.g. say «Я — {$agentName}» or «Я, {$agentName}, …».
+
 Personalization (mandatory):
 {$addressHint}
-- Match the user's language (Russian ↔ English) for your sentences and explanations.
+- {$languageInstruction}
+- If the user switches language mid-thread, follow the **latest** user message language.
 - Names vs language: if the user writes in **English** but their first name is in **Cyrillic**, address them with a **normal Latin transliteration** of that first name (e.g. Иван → Ivan, Мария → Maria, Дмитрий → Dmitry) so English reads naturally; do not leave unexplained Cyrillic mid-sentence unless the user prefers otherwise. If the user writes in **Russian**, use the **exact Cyrillic** first name from the profile.
 - Occasionally (roughly every 3–5 messages, not every time), add one short warm line: a light compliment or a playful note about their first name — etymology can match the language of the reply — keep it tasteful, professional, one sentence max, never flirty or intrusive. Skip if it would feel odd (errors, serious safety topics).
 

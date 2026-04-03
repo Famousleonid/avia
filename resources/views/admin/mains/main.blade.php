@@ -686,14 +686,13 @@
                                                                                         <table class="table table-sm table-dark table-bordered table-hover mb-0 align-middle wo-bushings-table dir-table">
                                                                                             <thead>
                                                                                             <tr>
-                                                                                                <th>Part number</th>
-                                                                                                <th>IPL</th>
-                                                                                                <th>Name</th>
-                                                                                                <th>{{ __('Process') }}</th>
-                                                                                                <th class="text-center">Qty</th>
-                                                                                                <th>Repair order</th>
-                                                                                                <th>Sent</th>
-                                                                                                <th>Returned</th>
+                                                                                                <th class="wo-bush-col-part">Part number</th>
+                                                                                                <th class="wo-bush-col-ipl">IPL</th>
+                                                                                                <th class="wo-bush-col-process">{{ __('Process') }}</th>
+                                                                                                <th class="text-center wo-bush-col-qty">Qty</th>
+                                                                                                <th class="wo-bush-col-ro">Repair order</th>
+                                                                                                <th class="text-center wo-bush-col-dt">Sent</th>
+                                                                                                <th class="text-center wo-bush-col-dt">Returned</th>
                                                                                             </tr>
                                                                                             </thead>
                                                                                             <tbody>
@@ -718,7 +717,7 @@
                                                                                                         }
                                                                                                     @endphp
                                                                                                     <tr class="wo-bush-batch-row">
-                                                                                                        <td colspan="5"
+                                                                                                        <td colspan="4"
                                                                                                             class="small align-middle wo-bush-batch-toggle user-select-none"
                                                                                                             style="cursor: pointer;"
                                                                                                             data-bs-toggle="collapse"
@@ -732,7 +731,7 @@
                                                                                                             <span class="text-muted small ms-1">({{ $batchLineCount }} {{ __('lines') }})</span>
                                                                                                             <i class="bi bi-chevron-down small ms-1" aria-hidden="true"></i>
                                                                                                         </td>
-                                                                                                        <td class="align-middle" onclick="event.stopPropagation();">
+                                                                                                        <td class="align-middle wo-bush-col-ro" onclick="event.stopPropagation();">
                                                                                                             @hasanyrole('Admin|Manager')
                                                                                                             <form method="POST"
                                                                                                                   action="{{ route('wo_bushing_batches.updateRepairOrder', $batch['id']) }}"
@@ -753,7 +752,7 @@
                                                                                                             <input type="text" class="form-control form-control-sm bg-dark" value="{{ $batch['repair_order'] ?? '' }}" readonly>
                                                                                                             @endhasanyrole
                                                                                                         </td>
-                                                                                                        <td class="align-middle" onclick="event.stopPropagation();">
+                                                                                                        <td class="align-middle text-center wo-bush-col-dt" onclick="event.stopPropagation();">
                                                                                                             <form method="POST"
                                                                                                                   action="{{ route('wo_bushing_batches.updateDate', $batch['id']) }}"
                                                                                                                   class="auto-submit-form js-ajax"
@@ -766,7 +765,7 @@
                                                                                                                        placeholder="…" autocomplete="off">
                                                                                                             </form>
                                                                                                         </td>
-                                                                                                        <td class="align-middle" onclick="event.stopPropagation();">
+                                                                                                        <td class="align-middle text-center wo-bush-col-dt" onclick="event.stopPropagation();">
                                                                                                             <form method="POST"
                                                                                                                   action="{{ route('wo_bushing_batches.updateDate', $batch['id']) }}"
                                                                                                                   class="auto-submit-form js-ajax"
@@ -781,27 +780,25 @@
                                                                                                         </td>
                                                                                                     </tr>
                                                                                                     <tr class="collapse" id="{{ $batchCollapseId }}">
-                                                                                                        <td colspan="8" class="p-0 border-secondary bg-opacity-10" style="background: rgba(0,0,0,.15);">
+                                                                                                        <td colspan="7" class="p-0 border-secondary bg-opacity-10" style="background: rgba(0,0,0,.15);">
                                                                                                             <div class="p-2">
                                                                                                                 <div class="small text-muted mb-1">{{ __('Bushings in this batch') }} — {{ $batch['qty'] }} {{ __('pcs') }}</div>
                                                                                                                 <table class="table table-sm table-dark table-bordered mb-0 wo-bush-batch-nested">
                                                                                                                     <thead>
                                                                                                                     <tr class="small">
-                                                                                                                        <th>{{ __('Part number') }}</th>
-                                                                                                                        <th>{{ __('IPL') }}</th>
-                                                                                                                        <th>{{ __('Name') }}</th>
-                                                                                                                        <th>{{ __('Process') }}</th>
-                                                                                                                        <th class="text-center">{{ __('Qty') }}</th>
+                                                                                                                        <th class="wo-bush-col-part">{{ __('Part number') }}</th>
+                                                                                                                        <th class="wo-bush-col-ipl">{{ __('IPL') }}</th>
+                                                                                                                        <th class="wo-bush-col-process">{{ __('Process') }}</th>
+                                                                                                                        <th class="text-center wo-bush-col-qty">{{ __('Qty') }}</th>
                                                                                                                     </tr>
                                                                                                                     </thead>
                                                                                                                     <tbody>
                                                                                                                     @foreach($batch['line_items'] as $item)
                                                                                                                         <tr>
-                                                                                                                            <td class="small">{{ ($item['part_number'] ?? '') !== '' ? $item['part_number'] : '—' }}</td>
-                                                                                                                            <td class="small">{{ ($item['ipl_num'] ?? '') !== '' ? $item['ipl_num'] : '—' }}</td>
-                                                                                                                            <td class="small">{{ ($item['name'] ?? '') !== '' ? $item['name'] : '—' }}</td>
-                                                                                                                            <td class="small text-info">{{ ($item['process_detail'] ?? '') !== '' ? $item['process_detail'] : '—' }}</td>
-                                                                                                                            <td class="text-center small">{{ $item['qty'] ?? 0 }}</td>
+                                                                                                                            <td class="small wo-bush-col-part">{{ ($item['part_number'] ?? '') !== '' ? $item['part_number'] : '—' }}</td>
+                                                                                                                            <td class="small wo-bush-col-ipl">{{ ($item['ipl_num'] ?? '') !== '' ? $item['ipl_num'] : '—' }}</td>
+                                                                                                                            <td class="small text-info wo-bush-col-process">{{ ($item['process_detail'] ?? '') !== '' ? $item['process_detail'] : '—' }}</td>
+                                                                                                                            <td class="text-center small wo-bush-col-qty">{{ $item['qty'] ?? 0 }}</td>
                                                                                                                         </tr>
                                                                                                                     @endforeach
                                                                                                                     </tbody>
@@ -810,8 +807,8 @@
                                                                                                                     @endphp
                                                                                                                     <tfoot>
                                                                                                                     <tr class="small">
-                                                                                                                        <th colspan="4" class="text-end text-muted">{{ __('Sum') }}</th>
-                                                                                                                        <th class="text-center">{{ $lineQtySum }}</th>
+                                                                                                                        <th colspan="3" class="text-end text-muted">{{ __('Sum') }}</th>
+                                                                                                                        <th class="text-center wo-bush-col-qty">{{ $lineQtySum }}</th>
                                                                                                                     </tr>
                                                                                                                     </tfoot>
                                                                                                                 </table>
@@ -821,12 +818,11 @@
                                                                                                 @else
                                                                                                     @php $item = $batch['line_items'][0] ?? null; @endphp
                                                                                                     <tr data-bush-line-qty="{{ (int) ($item['qty'] ?? 0) }}">
-                                                                                                        <td class="small">{{ ($item['part_number'] ?? '') !== '' ? $item['part_number'] : '—' }}</td>
-                                                                                                        <td class="small">{{ ($item['ipl_num'] ?? '') !== '' ? $item['ipl_num'] : '—' }}</td>
-                                                                                                        <td class="small">{{ ($item['name'] ?? '') !== '' ? $item['name'] : '—' }}</td>
-                                                                                                        <td class="small text-info">{{ ($item['process_detail'] ?? '') !== '' ? $item['process_detail'] : '—' }}</td>
-                                                                                                        <td class="text-center">{{ $item['qty'] ?? 0 }}</td>
-                                                                                                        <td>
+                                                                                                        <td class="small wo-bush-col-part">{{ ($item['part_number'] ?? '') !== '' ? $item['part_number'] : '—' }}</td>
+                                                                                                        <td class="small wo-bush-col-ipl">{{ ($item['ipl_num'] ?? '') !== '' ? $item['ipl_num'] : '—' }}</td>
+                                                                                                        <td class="small text-info wo-bush-col-process">{{ ($item['process_detail'] ?? '') !== '' ? $item['process_detail'] : '—' }}</td>
+                                                                                                        <td class="text-center wo-bush-col-qty">{{ $item['qty'] ?? 0 }}</td>
+                                                                                                        <td class="wo-bush-col-ro">
                                                                                                             @hasanyrole('Admin|Manager')
                                                                                                             <form method="POST"
                                                                                                                   action="{{ route('wo_bushing_processes.updateRepairOrder', $batch['id']) }}"
@@ -847,7 +843,7 @@
                                                                                                             <input type="text" class="form-control form-control-sm bg-dark" value="{{ $batch['repair_order'] ?? '' }}" readonly>
                                                                                                             @endhasanyrole
                                                                                                         </td>
-                                                                                                        <td>
+                                                                                                        <td class="text-center wo-bush-col-dt">
                                                                                                             <form method="POST"
                                                                                                                   action="{{ route('wo_bushing_processes.updateDate', $batch['id']) }}"
                                                                                                                   class="auto-submit-form js-ajax"
@@ -860,7 +856,7 @@
                                                                                                                        placeholder="…" autocomplete="off">
                                                                                                             </form>
                                                                                                         </td>
-                                                                                                        <td>
+                                                                                                        <td class="text-center wo-bush-col-dt">
                                                                                                             <form method="POST"
                                                                                                                   action="{{ route('wo_bushing_processes.updateDate', $batch['id']) }}"
                                                                                                                   class="auto-submit-form js-ajax"

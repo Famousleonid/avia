@@ -8,6 +8,13 @@
     $hasNdts = isset($ndtNames) && is_array($ndtNames) && count($ndtNames) > 0;
     $hasProcess = !empty($process) || $hasNdts;
     $batchLabel = $batchLabel ?? 'Grp';
+    $sentLabelsByProcess = $sentLabelsByProcess ?? [];
+    $sentLabel = 'sent';
+    if (! empty($locked)) {
+        if ($inBatch && $batchId > 0) {
+            $sentLabel = $sentLabelsByProcess[$processKey][$batchId] ?? 'sent';
+        }
+    }
     $titleText = $detailTitle ?? '';
     if ($titleText === '' && !empty($process)) {
         $titleText = trim((string) ($process->process ?? ''));
@@ -32,6 +39,7 @@
                         style="font-size:0.65rem;"
                         data-process-key="{{ $processKey }}"
                         data-batch-id="{{ $batchId }}"
+                        data-wo-process-id="{{ $woPid ?? '' }}"
                         title="{{ __('Toggle all checkboxes in this group') }}">{{ $batchLabel }}</button>
                 <input type="checkbox" class="form-check-input bushing-batch-ungroup-checkbox mt-0"
                        data-process-key="{{ $processKey }}" data-wo-process-id="{{ $woPid ?? '' }}"
@@ -41,7 +49,18 @@
             </div>
         @elseif($locked)
             <div class="bushing-batch-inner d-flex align-items-center justify-content-center gap-1 flex-wrap">
-                <span class="badge bg-warning text-dark align-self-center" style="font-size:0.65rem;" title="{{ __('Sent — batch locked') }}">{{ $batchLabel }} / Sent</span>
+                <button type="button"
+                        class="btn btn-sm btn-warning text-dark py-0 px-1 js-bushing-batch-label align-self-center"
+                        style="font-size:0.65rem;"
+                        data-process-key="{{ $processKey }}"
+                        data-batch-id="{{ ($inBatch && $batchId > 0) ? (string) $batchId : '' }}"
+                        data-wo-process-id="{{ $woPid ?? '' }}"
+                        title="{{ __('Toggle all checkboxes in this group') }}">{{ $sentLabel }}</button>
+                <input type="checkbox" class="form-check-input bushing-batch-ungroup-checkbox mt-0"
+                       data-process-key="{{ $processKey }}" data-wo-process-id="{{ $woPid ?? '' }}"
+                       data-batch-id="{{ ($inBatch && $batchId > 0) ? (string) $batchId : '' }}"
+                       data-component-id="{{ $componentId }}"
+                       title="{{ __('Select for forms / print') }}" autocomplete="off">
             </div>
         @else
             {{-- Процесс есть в строке, но нет wo_bushing_process id в карте — группировать не с чем; как «нет партии» --}}

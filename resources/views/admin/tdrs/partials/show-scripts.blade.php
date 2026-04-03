@@ -713,11 +713,24 @@ document.addEventListener('DOMContentLoaded', function() {
             if (groupLabelBtn) {
                 e.preventDefault();
                 var grpProcessKey = groupLabelBtn.getAttribute('data-process-key') || '';
-                var grpBatchId = groupLabelBtn.getAttribute('data-batch-id') || '';
-                if (!grpProcessKey || !grpBatchId) return;
-                var groupBoxes = Array.from(document.querySelectorAll(
-                    '.bushing-batch-ungroup-checkbox[data-process-key="' + grpProcessKey + '"][data-batch-id="' + grpBatchId + '"]'
-                ));
+                var grpBatchId = groupLabelBtn.getAttribute('data-batch-id');
+                if (grpBatchId === null || typeof grpBatchId === 'undefined') {
+                    grpBatchId = '';
+                }
+                var grpWoPid = groupLabelBtn.getAttribute('data-wo-process-id') || '';
+                if (!grpProcessKey) return;
+                var groupBoxes;
+                if (grpBatchId !== '' && grpBatchId !== '0') {
+                    groupBoxes = Array.from(document.querySelectorAll(
+                        '.bushing-batch-ungroup-checkbox[data-process-key="' + grpProcessKey + '"][data-batch-id="' + grpBatchId + '"]'
+                    ));
+                } else if (grpWoPid) {
+                    groupBoxes = Array.from(document.querySelectorAll(
+                        '.bushing-batch-ungroup-checkbox[data-process-key="' + grpProcessKey + '"][data-wo-process-id="' + grpWoPid + '"]'
+                    ));
+                } else {
+                    return;
+                }
                 if (!groupBoxes.length) return;
                 var allChecked = groupBoxes.every(function (cb) { return !!cb.checked; });
                 groupBoxes.forEach(function (cb) { cb.checked = !allChecked; });

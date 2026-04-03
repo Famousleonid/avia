@@ -612,9 +612,28 @@ window.hapticTap = function (pattern = 10) {
             repairInp.dataset.original = repairInp.value ?? '';
         }
 
-        form.querySelectorAll('.finish-input').forEach(inp => {
-            const hasValue = inp.value && inp.value.trim() !== '';
+        form.querySelectorAll('input.finish-input[name="date_start"], input.finish-input[name="date_finish"]').forEach(inp => {
+            const field = inp.name;
+            const fpInst = inp._flatpickr;
+            if (data && Object.prototype.hasOwnProperty.call(data, field)) {
+                const v = data[field] ?? '';
+                inp.value = v;
+                if (fpInst) {
+                    if (v) {
+                        fpInst.setDate(v, false, 'Y-m-d');
+                    } else {
+                        fpInst.clear();
+                    }
+                }
+            }
+
+            const hasValue = String(inp.value ?? '').trim() !== '';
             inp.classList.toggle('has-finish', hasValue);
+
+            const alt = fpInst?.altInput;
+            if (alt && alt.classList.contains('finish-input')) {
+                alt.classList.toggle('has-finish', hasValue);
+            }
 
             inp.classList.add('is-saved-field');
             setTimeout(() => inp.classList.remove('is-saved-field'), 800);

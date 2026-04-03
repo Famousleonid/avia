@@ -6,7 +6,6 @@ use App\Models\TdrProcess;
 use App\Models\User;
 use Carbon\Carbon;
 use Illuminate\Support\Collection;
-use Illuminate\Support\Facades\Log;
 
 class TdrProcessOverdueStartEvent implements EventDefinition
 {
@@ -22,7 +21,7 @@ class TdrProcessOverdueStartEvent implements EventDefinition
             ->whereNotNull('date_start')
             ->whereNull('date_finish')
             ->whereHas('processName', fn($q) => $q->whereNotNull('std_days'))
-            ->with(['processName.notifyUser', 'tdr.workorder'])
+            ->with(['processName.notifyUser', 'tdr.workorder.user', 'tdr.component'])
             ->get()
             ->filter(function (TdrProcess $tp) {
                 $std = (int) ($tp->processName->std_days ?? 0);
@@ -77,6 +76,9 @@ class TdrProcessOverdueStartEvent implements EventDefinition
 
         $wo = $subject->tdr?->workorder;
         $woNo = $wo?->number ? ('WO ' . $wo->number) : 'WO ?';
+        $ownerName = $wo?->user?->name;
+        $partNumber = $subject->tdr?->component?->part_number
+            ?: $subject->tdr?->component?->assy_part_number;
 
         // deadline + overdue days
         $deadline = ($subject->date_start && $std > 0)
@@ -99,14 +101,26 @@ class TdrProcessOverdueStartEvent implements EventDefinition
             'severity' => 'danger',
 
             'ui' => [
-                'workorder' => ['id' => $wo?->id, 'no' => $wo?->number],
+                'workorder' => [
+                    'id' => $wo?->id,
+                    'no' => $wo?->number,
+                    'owner_name' => $ownerName,
+                ],
                 'process'   => ['name' => $pName],
+                'part'      => ['number' => $partNumber],
                 'dates'     => ['start' => $start],
                 'std_days'  => $std,
                 'overdue_days' => $overdueDays,
             ],
 
-            'text' => "{$woNo}. Overdue: {$pName}. Start: {$start}. Std days: {$std}. Overdue days: {$overdueDays}",
+            'text' => sprintf(
+                '%s. Overdue: %s. Start: %s. Std days: %d. Overdue days: %d',
+                $ownerName ? "{$woNo} ({$ownerName})" : $woNo,
+                $partNumber ? "{$pName} - {$partNumber}" : $pName,
+                $start ?? '',
+                $std,
+                $overdueDays
+            ),
             'url'  => $url,
         ];
     }

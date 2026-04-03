@@ -102,24 +102,29 @@ class ManualStdProcessController extends Controller
         $parts = Component::query()
             ->where('manual_id', $source->id)
             ->get()
-            ->sortBy(fn (Component $p) => StdProcess::iplNumSortRank($p->ipl_num))
+            ->sortBy(function (Component $p) {
+                return StdProcess::iplNumSortRank($p->ipl_num);
+            })
             ->values();
 
         return response()->json(
-            $parts->map(static fn (Component $p) => [
-                'id' => $p->id,
-                'ipl_num' => $p->ipl_num,
-                'part_number' => $p->part_number,
-                'name' => $p->name,
-                'units_assy' => $p->units_assy,
-            ])->all()
+            $parts->map(function (Component $p) {
+                return [
+                    'id' => $p->id,
+                    'ipl_num' => $p->ipl_num,
+                    'part_number' => $p->part_number,
+                    'name' => $p->name,
+                    'units_assy' => $p->units_assy,
+                ];
+            })->all()
         );
     }
 
     public function update(Request $request, Manual $manual, StdProcess $stdProcess): RedirectResponse
     {
         $this->ensureManualAccess($manual);
-        abort_if($stdProcess->manual_id !== $manual->id, 404);
+
+        abort_if($stdProcess->manual_id != $manual->id, 404);
 
         $data = $request->validate([
             'ipl_num' => 'required|string|max:64',

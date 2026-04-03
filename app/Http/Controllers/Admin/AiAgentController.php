@@ -135,14 +135,14 @@ class AiAgentController extends Controller
 
     protected function randomOpenAiUnavailableMessage(): string
     {
-        $nick = trim((string) config('services.openai.agent_nickname', 'Авиоша'));
+        $nick = trim((string) config('services.openai.agent_nickname', 'Aviosha'));
         if ($nick === '') {
-            $nick = 'Ассистент';
+            $nick = 'Assistant';
         }
 
         $lines = config('services.openai.unavailable_messages');
         if (! is_array($lines) || $lines === []) {
-            return sprintf('%s временно недоступен. Попробуйте чуть позже.', $nick);
+            return sprintf('%s is temporarily unavailable. Please try again shortly.', $nick);
         }
 
         $line = $lines[array_rand($lines)];
