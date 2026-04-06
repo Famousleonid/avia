@@ -42,6 +42,7 @@
         </a>
     </li>
 
+
     <li class="nav-item">
         <a class="nav-link press-spinner" href="{{route('trainings.index')}}">
             <i class="bi bi-list-check me-2"></i> <span>Training</span>
@@ -183,6 +184,13 @@
 
     @endif
 
+    @can('feature.paint')
+        <li class="nav-item">
+            <a class="nav-link press-spinner" href="{{ route('paint.index') }}">
+                <i class="bi bi-palette me-2"></i> <span>Paint</span>
+            </a>
+        </li>
+    @endcan
 
     @if (auth()->user()->roleIs('Admin'))
 

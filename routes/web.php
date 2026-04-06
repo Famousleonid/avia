@@ -27,6 +27,7 @@ use App\Http\Controllers\Admin\VendorController;
 use App\Http\Controllers\Admin\WorkorderController;
 use App\Http\Controllers\Admin\WoBushingController;
 use App\Http\Controllers\Admin\NdtCadCsvController;
+use App\Http\Controllers\Admin\PaintController;
 use App\Http\Controllers\Admin\ManualStdProcessController;
 use App\Http\Controllers\Front\FrontController;
 use App\Http\Controllers\General\MediaController;
@@ -112,6 +113,11 @@ Route::prefix('mobile')->name('mobile.')->middleware(['auth','verified'])->group
 Route::group(['middleware' => ['auth']], function () {
 
     Route::get('/cabinet', [CabinetController::class, 'index'])->name('cabinet.index');
+    Route::get('/paint', [PaintController::class, 'index'])->middleware('can:feature.paint')->name('paint.index');
+    Route::post('/paint/reorder', [PaintController::class, 'reorder'])->middleware('can:feature.paint')->name('paint.reorder');
+    Route::post('/paint/add', [PaintController::class, 'addToQueue'])->middleware('can:feature.paint')->name('paint.add');
+    Route::post('/paint/position', [PaintController::class, 'setPosition'])->middleware('can:feature.paint')->name('paint.position');
+
     Route::get('/image/show/thumb/{mediaId}/{modelId}/{mediaName}', [MediaController::class, 'showThumb'])->name('image.show.thumb');
     Route::get('/image/show/big/{mediaId}/{modelId}/{mediaName}',[MediaController::class, 'showBig'])->name('image.show.big');
     Route::patch('/workorders/media/{media}/move', [MediaController::class, 'move_workorder_media'])->name('workorders.media.move');

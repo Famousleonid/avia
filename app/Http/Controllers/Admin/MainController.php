@@ -317,7 +317,11 @@ class MainController extends Controller
             ->with(['line.component', 'process.process_name', 'batch'])
             ->get();
 
-        $bushingTotalPcs = (int) $wpCollection->sum('qty');
+        $bushingTotalPcs = (int) $wpCollection->groupBy(function (WoBushingProcess $wp) {
+            $lid = (int) ($wp->wo_bushing_line_id ?? 0);
+
+            return $lid > 0 ? 'line_'.$lid : 'wp_'.$wp->id;
+        })->map(fn ($wps) => (int) $wps->max('qty'))->sum();
 
         $bushingProcessGroupedRows = $wpCollection->groupBy(function (WoBushingProcess $wp) {
             $key = WoBushingProcessColumnKey::fromProcess($wp->process);
@@ -340,7 +344,12 @@ class MainController extends Controller
             }
 
             $batches = $group->groupBy(function (WoBushingProcess $wp) {
-                return $wp->batch_id ? 'batch_'.$wp->batch_id : 'single_'.$wp->id;
+                if (! empty($wp->batch_id)) {
+                    return 'batch_'.$wp->batch_id;
+                }
+                $lineId = (int) ($wp->wo_bushing_line_id ?? 0);
+
+                return $lineId > 0 ? 'single_line_'.$lineId : 'single_wp_'.$wp->id;
             })->map(function ($batchRows) {
                 $firstWp = $batchRows->first();
                 $batch = $firstWp->batch;
@@ -359,14 +368,51 @@ class MainController extends Controller
                     ];
                 })->sortBy(fn (array $row) => ($row['part_number'] !== '' ? $row['part_number'] : 'zzz').'|'.$row['ipl_num'])->values();
 
+                if (! $isBatch && $lineItems->count() > 1) {
+                    $firstLine = $lineItems->first();
+                    $mergedDetail = $lineItems->pluck('process_detail')
+                        ->map(fn ($d) => trim((string) $d))
+                        ->filter()
+                        ->unique()
+                        ->implode(', ');
+                    // Одна линия бушинга — одно количество; у каждого процесса своё поле qty, не суммируем.
+                    $mergedQty = (int) $lineItems->max(fn (array $r) => (int) ($r['qty'] ?? 0));
+                    $lineItems = collect([[
+                        'id' => (int) $firstLine['id'],
+                        'qty' => $mergedQty,
+                        'part_number' => $firstLine['part_number'],
+                        'ipl_num' => $firstLine['ipl_num'],
+                        'name' => $firstLine['name'],
+                        'process_detail' => $mergedDetail,
+                    ]]);
+                }
+
+                $processRows = null;
+                if (! $isBatch) {
+                    $processRows = $batchRows->map(function (WoBushingProcess $wp) {
+                        return [
+                            'id' => (int) $wp->id,
+                            'repair_order' => (string) ($wp->repair_order ?? ''),
+                            'date_start' => $wp->date_start,
+                            'date_finish' => $wp->date_finish,
+                        ];
+                    })->values()->all();
+                }
+
+                $batchQty = (int) $batchRows->sum('qty');
+                if (! $isBatch && $batchRows->count() > 1) {
+                    $batchQty = (int) $batchRows->max('qty');
+                }
+
                 return [
                     'is_batch' => $isBatch,
                     'id' => $isBatch ? (int) $firstWp->batch_id : (int) $firstWp->id,
-                    'qty' => (int) $batchRows->sum('qty'),
+                    'qty' => $batchQty,
                     'repair_order' => $isBatch ? (string) ($batch?->repair_order ?? '') : (string) ($firstWp->repair_order ?? ''),
                     'date_start' => $isBatch ? $batch?->date_start : $firstWp->date_start,
                     'date_finish' => $isBatch ? $batch?->date_finish : $firstWp->date_finish,
                     'line_items' => $lineItems,
+                    'process_rows' => $processRows,
                 ];
             })->values();
 
@@ -375,12 +421,20 @@ class MainController extends Controller
             $sentQty = (int) $batches->filter(fn (array $b) => ! empty($b['date_start']))->sum('qty');
             $finishedQty = (int) $batches->filter(fn (array $b) => ! empty($b['date_finish']))->sum('qty');
 
+            $totalQtyOnePerLine = $group->groupBy(function (WoBushingProcess $wp) {
+                $lid = (int) ($wp->wo_bushing_line_id ?? 0);
+
+                return $lid > 0 ? 'line_'.$lid : 'wp_'.$wp->id;
+            })->map(function ($lineWps) {
+                return (int) $lineWps->max('qty');
+            })->sum();
+
             return [
                 'process_id' => (int) $first->process_id,
                 'process_label' => $label,
                 'process_group_key' => $groupKey,
                 'process_group_label' => $this->bushingProcessGroupLabel($groupKey),
-                'total_qty' => (int) $group->sum('qty'),
+                'total_qty' => $totalQtyOnePerLine,
                 'sent_qty' => $sentQty,
                 'finished_qty' => $finishedQty,
                 'date_start' => $starts->isNotEmpty() ? $starts->min() : null,

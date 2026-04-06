@@ -372,7 +372,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const form = cb.closest('form');
         if (!form) return;
 
-        // js-main-inline-ajax forms are submitted by unified handler in main.blade.php
+        // js-main-inline-ajax + js-ajax: submit через window.ajaxSubmit (public/js/main.js)
         if (form.classList.contains('js-main-inline-ajax')) return;
 
         if (form.requestSubmit) form.requestSubmit();

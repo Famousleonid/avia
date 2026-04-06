@@ -339,6 +339,7 @@ function showErrorMessage(message, duration)   { showNotification(message, 'erro
 function showInfoMessage(message, duration)    { showNotification(message, 'info', duration); }
 function showWarningMessage(message, duration) { showNotification(message, 'warning', duration); }
 
+window.showNotification = showNotification;
 
 
 window.notify = function (message, type = 'info', durationMs = 6000) {
@@ -599,10 +600,30 @@ window.hapticTap = function (pattern = 10) {
     window.refreshWoBushingStripCounts = refreshWoBushingStripCounts;
 
 // ===== helper =====
+    function applyGeneralTaskButtonState(form, data) {
+        if (!form?.classList?.contains('js-main-inline-ajax')) return;
+        const raw = data?.general_task_all_finished;
+        if (raw === undefined || raw === null) return;
+        const allFinished = raw === true || raw === 1 || raw === '1' || raw === 'true';
+
+        let gtId = form?.dataset?.gtId;
+        if (!gtId) {
+            gtId = form?.closest?.('.js-gt-pane')?.dataset?.gtId;
+        }
+        if (!gtId) return;
+
+        const btn = document.querySelector(`.js-gt-btn[data-gt-id="${gtId}"]`);
+        if (!btn) return;
+        btn.classList.toggle('btn-outline-success', allFinished);
+        btn.classList.toggle('btn-outline-danger', !allFinished);
+    }
+
     function applySavedState(form, data) {
         const tr = form.closest('tr');
         const userCell = tr?.querySelector('.js-last-user');
-        if (userCell && data?.user) userCell.textContent = data.user;
+        if (userCell && data && (Object.prototype.hasOwnProperty.call(data, 'user_name') || Object.prototype.hasOwnProperty.call(data, 'user'))) {
+            userCell.textContent = data.user_name ?? data.user ?? '';
+        }
 
         const icon = form.querySelector('.save-indicator');
         if (icon) icon.classList.add('d-none');
@@ -629,6 +650,9 @@ window.hapticTap = function (pattern = 10) {
 
             const hasValue = String(inp.value ?? '').trim() !== '';
             inp.classList.toggle('has-finish', hasValue);
+            if (inp.classList && inp.classList.contains('paint-native-date')) {
+                inp.classList.toggle('paint-date-empty', !hasValue);
+            }
 
             const alt = fpInst?.altInput;
             if (alt && alt.classList.contains('finish-input')) {
@@ -642,6 +666,7 @@ window.hapticTap = function (pattern = 10) {
         });
 
         refreshWoBushingStripCounts(form);
+        applyGeneralTaskButtonState(form, data);
     }
 
     function applyNotesSavedState(form, data) {
@@ -697,29 +722,31 @@ window.hapticTap = function (pattern = 10) {
                     window.notifyError(firstMsg, 2500);
                 }
 
-                // 2) подсветка видимого инпута (flatpickr altInput)
+                // 2) сразу очистить невалидные поля (flatpickr + data-original)
                 Object.keys(data.errors || {}).forEach((field) => {
                     const input = form.querySelector(`[name="${field}"]`);
                     if (!input) return;
 
                     const fp = input._flatpickr || null;
                     const visible = fp?.altInput || input;
-
                     visible.classList.add('is-invalid');
+                    setTimeout(() => visible.classList.remove('is-invalid'), 1200);
 
-                    setTimeout(() => {
-                        visible.classList.remove('is-invalid');
-
-                        // 🔥 очистка значения
-                        if (fp) {
-                            fp.clear();               // flatpickr правильно очистится
-                        } else {
-                            input.value = '';
-                        }
-
-                        // обновить data-original, чтобы не считалось "изменённым"
-                        input.dataset.original = '';
-                    }, 2000);
+                    if (fp) {
+                        fp.clear();
+                    } else {
+                        input.value = '';
+                    }
+                    const hasValue = String(input.value ?? '').trim() !== '';
+                    input.classList.toggle('has-finish', hasValue);
+                    if (input.classList && input.classList.contains('paint-native-date')) {
+                        input.classList.toggle('paint-date-empty', !hasValue);
+                    }
+                    const alt = fp?.altInput;
+                    if (alt && alt.classList.contains('finish-input')) {
+                        alt.classList.toggle('has-finish', hasValue);
+                    }
+                    input.setAttribute('data-original', input.value ?? '');
                 });
                 return;
             }
@@ -735,8 +762,14 @@ window.hapticTap = function (pattern = 10) {
                 applySavedState(form, data);
             }
 
-            if (!form.querySelector('textarea[name="notes"]') && typeof window.showNotification === 'function') {
-                window.showNotification(data?.message || 'Saved', 'success', 2000);
+            // Notes: только индикатор 💾 / «Saving…», без зелёного toast (см. data-no-success-toast на форме).
+            const suppressSuccessToast =
+                form.hasAttribute('data-no-success-toast')
+                || Boolean(form.querySelector('textarea[name="notes"]'));
+
+            if (!suppressSuccessToast && typeof window.showNotification === 'function') {
+                const okText = data?.message || form.getAttribute('data-success') || 'Saved';
+                window.showNotification(okText, 'success', 2000);
             }
 
         } catch (e) {
@@ -749,43 +782,8 @@ window.hapticTap = function (pattern = 10) {
         }
     }
 
-// ===============================
-// NOTES autosave (blur + Ctrl+Enter)
-// ===============================
-    (function () {
-        if (window.__notesAutosaveBound) return;
-        window.__notesAutosaveBound = true;
-
-        document.addEventListener('blur', (e) => {
-            const ta = e.target;
-            if (ta?.name !== 'notes') return;
-
-            const form = ta.closest('form.js-ajax');
-            if (!form) return;
-
-            const original = ta.dataset.original ?? '';
-            if ((ta.value ?? '') === original) return;
-
-            window.ajaxSubmit(form);
-        }, true);
-
-        document.addEventListener('keydown', (e) => {
-            const ta = e.target;
-            if (ta?.name !== 'notes') return;
-
-            if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
-                e.preventDefault();
-
-                const form = ta.closest('form.js-ajax');
-                if (!form) return;
-
-                const original = ta.dataset.original ?? '';
-                if ((ta.value ?? '') === original) return;
-                window.ajaxSubmit(form);
-            }
-        }, true);
-    })();
-
+// Notes autosave (blur / Ctrl+Enter): слушатели в resources/views/admin/mains/partials/js/mains-common.blade.php
+// (дубликат здесь убран — иначе двойной ajaxSubmit и лишний success-toast после blur).
 
 
 

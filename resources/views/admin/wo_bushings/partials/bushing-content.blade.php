@@ -202,12 +202,16 @@
                             $batchLabelsByProcess[$pKey] = $labels;
                         }
                         $sentLabelsByProcess = [];
+                        $retLabelsByProcess = [];
                         foreach ($batchLabelsByProcess as $pKey => $labels) {
                             $ids = array_keys($labels);
                             sort($ids, SORT_NUMERIC);
                             $sentLabelsByProcess[$pKey] = [];
+                            $retLabelsByProcess[$pKey] = [];
                             foreach ($ids as $idx => $idVal) {
-                                $sentLabelsByProcess[$pKey][(int) $idVal] = 'sent'.($idx + 1);
+                                $n = $idx + 1;
+                                $sentLabelsByProcess[$pKey][(int) $idVal] = 'sent'.$n;
+                                $retLabelsByProcess[$pKey][(int) $idVal] = 'Ret('.$n.')';
                             }
                         }
                     @endphp
@@ -243,6 +247,7 @@
                                     'detailTitle' => $machiningProcess ? trim((string) $machiningProcess->process) : '',
                                     'batchLabel' => $batchLabelsByProcess['machining'][(int) (($assignments['machining']['batch_id'] ?? 0))] ?? 'Grp',
                                     'sentLabelsByProcess' => $sentLabelsByProcess,
+                                    'retLabelsByProcess' => $retLabelsByProcess,
                                 ])
                                 @include('admin.wo_bushings.partials.bushing-process-cells', [
                                     'component' => $component,
@@ -252,6 +257,7 @@
                                     'detailTitle' => $stressReliefProcess ? trim((string) $stressReliefProcess->process) : '',
                                     'batchLabel' => $batchLabelsByProcess['stress_relief'][(int) (($assignments['stress_relief']['batch_id'] ?? 0))] ?? 'Grp',
                                     'sentLabelsByProcess' => $sentLabelsByProcess,
+                                    'retLabelsByProcess' => $retLabelsByProcess,
                                 ])
                                 @include('admin.wo_bushings.partials.bushing-process-cells', [
                                     'component' => $component,
@@ -262,6 +268,7 @@
                                     'detailTitle' => count($ndtNames) ? implode(' / ', $ndtNames) : '',
                                     'batchLabel' => $batchLabelsByProcess['ndt'][(int) (($assignments['ndt']['batch_id'] ?? 0))] ?? 'Grp',
                                     'sentLabelsByProcess' => $sentLabelsByProcess,
+                                    'retLabelsByProcess' => $retLabelsByProcess,
                                 ])
                                 @include('admin.wo_bushings.partials.bushing-process-cells', [
                                     'component' => $component,
@@ -271,6 +278,7 @@
                                     'detailTitle' => $passivationProcess ? trim((string) $passivationProcess->process) : '',
                                     'batchLabel' => $batchLabelsByProcess['passivation'][(int) (($assignments['passivation']['batch_id'] ?? 0))] ?? 'Grp',
                                     'sentLabelsByProcess' => $sentLabelsByProcess,
+                                    'retLabelsByProcess' => $retLabelsByProcess,
                                 ])
                                 @include('admin.wo_bushings.partials.bushing-process-cells', [
                                     'component' => $component,
@@ -280,6 +288,7 @@
                                     'detailTitle' => $cadProcess ? trim((string) $cadProcess->process) : '',
                                     'batchLabel' => $batchLabelsByProcess['cad'][(int) (($assignments['cad']['batch_id'] ?? 0))] ?? 'Grp',
                                     'sentLabelsByProcess' => $sentLabelsByProcess,
+                                    'retLabelsByProcess' => $retLabelsByProcess,
                                 ])
                                 @include('admin.wo_bushings.partials.bushing-process-cells', [
                                     'component' => $component,
@@ -289,6 +298,7 @@
                                     'detailTitle' => $anodizingProcess ? trim((string) $anodizingProcess->process) : '',
                                     'batchLabel' => $batchLabelsByProcess['anodizing'][(int) (($assignments['anodizing']['batch_id'] ?? 0))] ?? 'Grp',
                                     'sentLabelsByProcess' => $sentLabelsByProcess,
+                                    'retLabelsByProcess' => $retLabelsByProcess,
                                 ])
                                 @include('admin.wo_bushings.partials.bushing-process-cells', [
                                     'component' => $component,
@@ -298,6 +308,7 @@
                                     'detailTitle' => $xylanProcess ? trim((string) $xylanProcess->process) : '',
                                     'batchLabel' => $batchLabelsByProcess['xylan'][(int) (($assignments['xylan']['batch_id'] ?? 0))] ?? 'Grp',
                                     'sentLabelsByProcess' => $sentLabelsByProcess,
+                                    'retLabelsByProcess' => $retLabelsByProcess,
                                 ])
                             </tr>
                         @endforeach

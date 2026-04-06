@@ -3,17 +3,26 @@
     $inBatch = !empty($a['batch_id'] ?? null);
     $batchId = (int) ($a['batch_id'] ?? 0);
     $locked = !empty($a['locked'] ?? false);
+    $finished = !empty($a['finished'] ?? false);
     $woPid = $a['wo_process_id'] ?? null;
     $componentId = (int) ($component->id ?? 0);
     $hasNdts = isset($ndtNames) && is_array($ndtNames) && count($ndtNames) > 0;
     $hasProcess = !empty($process) || $hasNdts;
     $batchLabel = $batchLabel ?? 'Grp';
     $sentLabelsByProcess = $sentLabelsByProcess ?? [];
+    $retLabelsByProcess = $retLabelsByProcess ?? [];
     $sentLabel = 'sent';
     if (! empty($locked)) {
         if ($inBatch && $batchId > 0) {
-            $sentLabel = $sentLabelsByProcess[$processKey][$batchId] ?? 'sent';
+            if ($finished) {
+                $sentLabel = $retLabelsByProcess[$processKey][$batchId] ?? 'Ret(1)';
+            } else {
+                $sentLabel = $sentLabelsByProcess[$processKey][$batchId] ?? 'sent';
+            }
+        } elseif ($finished) {
+            $sentLabel = 'ret';
         }
+        // иначе одиночная без партии, только Sent: остаётся начальное 'sent'
     }
     $titleText = $detailTitle ?? '';
     if ($titleText === '' && !empty($process)) {
@@ -25,7 +34,7 @@
 @endphp
 <td class="bushing-subcol-batch align-middle text-center" @if($titleText !== '') title="{{ $titleText }}" @endif>
     @if($hasProcess)
-        @if(!$inBatch && !empty($woPid))
+        @if(!$inBatch && !empty($woPid) && !$locked)
             <div class="bushing-batch-inner d-flex align-items-center justify-content-center gap-1 flex-wrap">
                 <input type="checkbox" class="form-check-input bushing-batch-group-checkbox mt-0"
                        data-process-key="{{ $processKey }}" data-wo-process-id="{{ $woPid }}"
@@ -50,7 +59,7 @@
         @elseif($locked)
             <div class="bushing-batch-inner d-flex align-items-center justify-content-center gap-1 flex-wrap">
                 <button type="button"
-                        class="btn btn-sm btn-warning text-dark py-0 px-1 js-bushing-batch-label align-self-center"
+                        class="btn btn-sm py-0 px-1 js-bushing-batch-label align-self-center {{ $finished ? 'btn-success' : 'btn-warning text-dark' }}"
                         style="font-size:0.65rem;"
                         data-process-key="{{ $processKey }}"
                         data-batch-id="{{ ($inBatch && $batchId > 0) ? (string) $batchId : '' }}"

@@ -474,6 +474,15 @@
             });
             const data = await r.json();
             renderUsers(Array.isArray(data) ? data : (data.items || []));
+
+            if (window.__msgPreselectUserIds && window.__msgPreselectUserIds.length) {
+                const pre = new Set(window.__msgPreselectUserIds.map(Number).filter(Boolean));
+                listEl.querySelectorAll('input[type="checkbox"]').forEach(cb => {
+                    if (pre.has(Number(cb.value))) cb.checked = true;
+                });
+                window.__msgPreselectUserIds = null;
+                updateSelectedCount();
+            }
         }
 
         btnAll?.addEventListener('click', () => {

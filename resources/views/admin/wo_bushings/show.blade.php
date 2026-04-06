@@ -190,6 +190,20 @@
 
     <script>
         document.addEventListener('DOMContentLoaded', function() {
+            function bushingToastWarn(m) {
+                if (typeof window.notifyWarn === 'function') {
+                    window.notifyWarn(m);
+                } else {
+                    alert(m);
+                }
+            }
+            function bushingToastErr(m) {
+                if (typeof window.notifyError === 'function') {
+                    window.notifyError(m);
+                } else {
+                    alert(m);
+                }
+            }
             document.querySelectorAll('.form-btn').forEach(function(btn) {
                 btn.addEventListener('click', function(e) {
                     e.preventDefault();
@@ -213,7 +227,7 @@
                             }
                         });
                         if (queryParts.length === 0) {
-                            alert({!! json_encode(__('Select at least one bushing for this process using Group checkboxes in the table.')) !!});
+                            bushingToastWarn({!! json_encode(__('Select at least one bushing for this process using Group checkboxes in the table.')) !!});
                             return;
                         }
                     }
@@ -261,14 +275,14 @@
                     return { processKey: cb.getAttribute('data-process-key') || '', id: cb.getAttribute('data-wo-process-id') || '' };
                 }).filter(function (row) { return !!row.id; });
                 if (selected.length === 0) {
-                    alert(createBatchBtn
+                    bushingToastWarn(createBatchBtn
                         ? {!! json_encode(__('Select rows using the small “batch” checkbox (not grouped yet).')) !!}
                         : {!! json_encode(__('Select rows using the small checkbox next to “Grp” to ungroup.')) !!});
                     return;
                 }
                 var processKeys = Array.from(new Set(selected.map(function (r) { return r.processKey; })));
                 if (processKeys.length !== 1) {
-                    alert({!! json_encode(__('Please select rows from one process column only.')) !!});
+                    bushingToastWarn({!! json_encode(__('Please select rows from one process column only.')) !!});
                     return;
                 }
                 var tokenEl = document.querySelector('meta[name="csrf-token"]');
@@ -293,9 +307,13 @@
                         return;
                     }
                     var msg = (res.json && (res.json.message || res.json.error)) ? (res.json.message || res.json.error) : ('HTTP ' + res.status);
-                    alert(msg);
+                    if (res.status >= 500) {
+                        bushingToastErr(msg);
+                    } else {
+                        bushingToastWarn(msg);
+                    }
                 }).catch(function () {
-                    alert('Batch operation failed.');
+                    bushingToastErr('Batch operation failed.');
                 });
             });
         });

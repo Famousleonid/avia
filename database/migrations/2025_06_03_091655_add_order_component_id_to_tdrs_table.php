@@ -15,8 +15,6 @@ return new class extends Migration
     {
         Schema::table('tdrs', function (Blueprint $table) {
             $table->unsignedBigInteger('order_component_id')->nullable()->after('id');
-            // Если нужен внешний ключ:
-            // $table->foreign('order_component_id')->references('id')->on('order_components')->onDelete('set null');
         });
     }
 

@@ -64,14 +64,18 @@ class WoBushingController extends Controller
                     continue;
                 }
                 $batch = $wp->batch;
-                $sent = $batch
+                $dateStartSet = $batch
                     ? ! empty($batch->date_start)
                     : ! empty($wp->date_start);
+                $dateFinishSet = $batch
+                    ? ! empty($batch->date_finish)
+                    : ! empty($wp->date_finish);
 
                 $rows[$lineId][$key] = [
                     'wo_process_id' => (int) $wp->id,
                     'batch_id' => $wp->batch_id ? (int) $wp->batch_id : null,
-                    'locked' => $sent,
+                    'locked' => $dateStartSet,
+                    'finished' => $dateStartSet && $dateFinishSet,
                 ];
             }
         }

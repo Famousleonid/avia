@@ -1,0 +1,755 @@
+<?php
+
+// 2023_09_17_005755_create_manuals_table
+public
+function up(): void
+{
+    Schema::create('manuals', function (Blueprint $table) {
+        $table->id();
+        $table->string('number')->unique();
+        $table->string('title')->nullable();
+        $table->string('lib')->nullable();
+        $table->date('revision_date')->nullable();
+        $table->string('unit_name')->nullable();
+        $table->string('unit_name_training')->nullable();
+        $table->string('training_hours')->nullable();
+        $table->foreignId('planes_id')->nullable()->constrained()->onDelete('set null');
+        $table->foreignId('builders_id')->nullable()->constrained()->onDelete('set null');
+        $table->foreignId('scopes_id')->nullable()->constrained()->onDelete('set null');
+        $table->timestamps();
+        $table->softDeletes();
+
+    });
+
+}
+
+//-------------------------------------------------------------------------------
+// 2023_09_17_005758_create_components_table
+public
+function up()
+{
+    if (!Schema::hasTable('components')) {
+        Schema::create('components', function (Blueprint $table) {
+            $table->id();
+            $table->string('part_number');
+            $table->string('assy_part_number')->nullable();
+            $table->string('name');
+            $table->string('ipl_num');
+            $table->string('assy_ipl_num')->nullable();
+            $table->boolean('log_card')->default(false);
+            $table->foreignId('manual_id')->nullable()->constrained()->onDelete('set null');
+            $table->timestamps();
+            $table->softDeletes();
+        });
+    }
+}
+
+//-------------------------------------------------------------------------------
+// 2023_09_17_005823_create_workorders_table
+Schema::create('workorders', function (Blueprint $table) {
+    $table->id();
+    $table->integer('number')->unique();
+    $table->timestamp('approve_at')->nullable();
+    $table->string('approve_name')->nullable();
+    $table->string('serial_number')->nullable();
+    $table->string('description')->nullable();
+    $table->string('amdt')->nullable();
+    $table->string('place')->nullable();
+    $table->timestamp('open_at')->nullable();
+    $table->foreignId('unit_id')->constrained();
+    $table->foreignId('instruction_id')->constrained();
+    $table->foreignId('customer_id')->constrained();
+    $table->foreignId('user_id')->constrained();
+
+    $table->boolean('external_damage')->default(false);
+    $table->boolean('received_disassembly')->default(false);
+    $table->boolean('nameplate_missing')->default(false);
+    $table->boolean('preliminary_test_false')->default(false);
+    $table->boolean('part_missing')->default(false);
+    $table->boolean('new_parts')->default(false);
+
+    $table->boolean('extra_parts')->default(false);
+    $table->boolean('disassembly_upon_arrival')->default(false);
+
+
+    $table->timestamps();
+    $table->softDeletes();
+});
+
+//-------------------------------------------------------------------------------
+// 2025_01_10_173435_create_tdrs_table
+Schema::create('tdrs', function (Blueprint $table) {
+    $table->id();
+
+
+    $table->foreignId('workorder_id')->nullable()->constrained()->onDelete('set null');
+    $table->foreignId('component_id')->nullable()->constrained()->onDelete('set null');
+    $table->string('serial_number')->nullable();
+    $table->string('assy_serial_number')->nullable();
+
+    $table->foreignId('codes_id')->nullable()->constrained()->onDelete('set null');
+    $table->foreignId('conditions_id')->nullable()->constrained()->onDelete('set null');
+    $table->foreignId('necessaries_id')->nullable()->constrained()->onDelete('set null');
+//            $table->string('description')->nullable();
+
+    $table->unsignedInteger('qty')->default(1);
+
+    $table->boolean('use_tdr')->default(false);
+    $table->boolean('use_process_forms')->default(false);
+    $table->boolean('use_log_card')->default(false);
+    $table->boolean('use_extra_forms')->default(false);
+
+    $table->timestamps();
+    $table->softDeletes();
+});
+//-------------------------------------------------------------------------------
+// 2025_02_03_185143_create_manual_processes_table
+Schema::create('manual_processes', function (Blueprint $table) {
+    $table->id();
+    $table->timestamps();
+    $table->foreignId('manual_id')->nullable()->constrained()->onDelete('set null');
+    $table->foreignId('processes_id')->nullable()->constrained()->onDelete('set null');
+});
+//-------------------------------------------------------------------------------
+// 2025_01_10_173435_create_tdrs_table
+Schema::create('tdrs', function (Blueprint $table) {
+    $table->id();
+
+
+    $table->foreignId('workorder_id')->nullable()->constrained()->onDelete('set null');
+    $table->foreignId('component_id')->nullable()->constrained()->onDelete('set null');
+    $table->string('serial_number')->nullable();
+    $table->string('assy_serial_number')->nullable();
+
+    $table->foreignId('codes_id')->nullable()->constrained()->onDelete('set null');
+    $table->foreignId('conditions_id')->nullable()->constrained()->onDelete('set null');
+    $table->foreignId('necessaries_id')->nullable()->constrained()->onDelete('set null');
+//            $table->string('description')->nullable();
+
+    $table->unsignedInteger('qty')->default(1);
+
+    $table->boolean('use_tdr')->default(false);
+    $table->boolean('use_process_forms')->default(false);
+    $table->boolean('use_log_card')->default(false);
+    $table->boolean('use_extra_forms')->default(false);
+    $table->unsignedBigInteger('order_component_id')->nullable()->after('id');
+    $table->timestamps();
+    $table->softDeletes();
+});
+
+//-------------------------------------------------------------------------------
+// 2025_02_10_160305_create_tdr_processes_table
+Schema::create('tdr_processes', function (Blueprint $table) {
+    $table->id();
+    $table->timestamps();
+    $table->foreignId('tdrs_id')->nullable()->constrained()->onDelete('set null'); // Внешний ключ для Tdr
+    $table->foreignId('process_names_id')->nullable()->constrained('process_names')->onDelete('set null'); // Внешний ключ для ProcessName
+    $table->json('processes')->nullable(); // JSON-поле для хранения массива процессов
+    $table->date('date_start')->nullable(); // Дата начала
+    $table->date('date_finish')->nullable(); // Дата завершения
+});
+
+//------ Models -------------------------------------------------------------------------
+class Component extends Model implements hasMedia
+{
+    use  InteractsWithMedia, HasMediaHelpers;
+
+    protected $fillable = [
+        'part_number',
+        'assy_part_number',
+        'name',
+        'ipl_num',
+        'assy_ipl_num',
+        'eff_code',
+        'units_assy',
+        'log_card',
+        'repair',
+        'manual_id',
+        'img',
+        'assy_img',
+        'bush_ipl_num',
+        'is_bush',
+    ];
+
+
+    public function manual()
+    {
+        return $this->belongsTo(Manual::class, 'manual_id');
+    }
+
+    public function tdrs()
+    {
+        return $this->hasMany(\App\Models\Tdr::class, 'component_id', 'id');
+    }
+
+    public function registerAllMediaConversions(): void
+    {
+        $this->addMediaConversion('thumb')
+            ->width(100)
+            ->height(100)
+            ->nonOptimized();
+
+    }
+
+}
+
+//-------------------------------------------------------------------------------
+class Manual extends Model implements  HasMedia
+{
+    use SoftDeletes, InteractsWithMedia, HasMediaHelpers, LogsActivity;
+
+    protected $fillable = [
+        'number',
+        'title',
+        'img',
+        'revision_date',
+        'unit_name',
+        'unit_name_training',
+        'training_hours',
+        'lib',
+        'planes_id',
+        'builders_id',
+        'scopes_id',
+        'ovh_life',
+        'reg_sb',
+    ];
+
+    protected $dates = ['deleted_at'];
+
+
+    public function getActivitylogOptions(): LogOptions
+    {
+        return LogOptions::defaults()
+            ->useLogName('manual')      // log_name в activity_log
+            ->logAll()                  // логировать ВСЕ поля
+            ->logOnly(['number', 'title', 'unit_name', 'training_hours', 'lib'])
+            ->logExcept(['created_at', 'updated_at'])
+            ->logOnlyDirty()            // только изменившиеся
+            ->dontSubmitEmptyLogs();    // не создавать пустых логов
+    }
+
+    protected static $recordEvents = ['created', 'updated', 'deleted'];
+
+    public $mediaUrlName = 'manuals';
+
+
+    public function plane()
+    {
+        return $this->belongsTo(Plane::class, 'planes_id');
+    }
+
+    public function processes()
+    {
+        return $this->belongsToMany(Process::class, 'manual_processes', 'manual_id', 'processes_id');
+    }
+
+    // Отношение с моделью MFR
+    public function builder()
+    {
+        return $this->belongsTo(Builder::class, 'builders_id');
+    }
+
+    // Отношение с моделью Scope
+    public function scope()
+    {
+        return $this->belongsTo(Scope::class, 'scopes_id');
+    }
+
+    // Отношение с моделью Training
+    public function trainings()
+    {
+        return $this->hasMany(Training::class, 'manuals_id');
+    }
+
+    // Отношение с моделью Unit
+    public function units()
+    {
+        return $this->hasMany(Unit::class, 'manual_id');
+    }
+
+    public function components()
+    {
+        return $this->hasMany(Component::class, 'manual_id');
+    }
+
+    public function registerAllMediaConversions(): void
+    {
+        $this->addMediaConversion('thumb')
+            ->width(100)
+            ->height(100)
+            ->nonOptimized();
+    }
+
+    public function registerMediaCollections(): void
+    {
+        $this->addMediaCollection('csv_files')
+            ->acceptsMimeTypes(['text/csv', 'application/csv', 'text/plain']);
+
+        $this->addMediaCollection('component_csv_files')
+            ->acceptsMimeTypes(['text/csv', 'application/csv', 'text/plain']);
+    }
+
+    public function getCsvFileUrl()
+    {
+        $media = $this->getMedia('csv_files')->first();
+        return $media ? $media->getUrl() : null;
+    }
+
+    public function getCsvFileName()
+    {
+        $media = $this->getMedia('csv_files')->first();
+        return $media ? $media->file_name : null;
+    }
+}
+//-------------------------------------------------------------------------------
+class ManualProcess extends Model
+{
+    use HasFactory;
+    protected $fillable = [
+
+        'manual_id',
+        'processes_id',
+    ];
+
+    public function process()
+    {
+        return $this->belongsTo(Process::class, 'processes_id');
+    }
+}
+
+//-------------------------------------------------------------------------------
+class Tdr extends Model
+{
+    use HasFactory;
+    protected $fillable = [
+        'workorder_id',
+        'component_id',
+        'order_component_id',
+        'serial_number',
+        'assy_serial_number',
+        'codes_id',
+        'conditions_id',
+        'necessaries_id',
+        'description',
+        'qty',
+        'po_num',
+        'received',
+        'use_tdr',
+        'use_process_forms',
+    ];
+    public function workorder()
+    {
+        return $this->belongsTo(Workorder::class, 'workorder_id');
+    }
+    //
+    public function component()
+    {
+        return $this->belongsTo(Component::class);
+    }
+
+    public function orderComponent()
+    {
+        return $this->belongsTo(Component::class, 'order_component_id');
+    }
+
+    public function conditions()
+    {
+        return $this->belongsTo(Condition::class, 'conditions_id');
+    }
+
+    public function necessaries()
+    {
+        return $this->belongsTo(Necessary::class, 'necessaries_id');
+    }
+
+    public function codes()
+    {
+        return $this->belongsTo(Code::class, 'codes_id');
+    }
+    public function tdrProcesses()
+    {
+        return $this->hasMany(TdrProcess::class, 'tdrs_id')->orderBy('sort_order');
+    }
+    public function processName()
+    {
+        return $this->belongsTo(ProcessName::class, 'process_names_id');
+    }
+
+    public function process()
+    {
+        return $this->belongsTo(Process::class, 'process_id'); // Предполагаем, что process_id связывает с Process
+    }
+
+}
+//-------------------------------------------------------------------------------
+class TdrProcess extends Model
+{
+    use HasFactory, LogsActivity;
+
+    // Поля, которые можно массово назначать
+    protected $fillable = [
+        'tdrs_id',
+        'process_names_id',
+        'plus_process', // Дополнительные NDT process_names_id через запятую (например, "2,4")
+        'processes', // JSON-поле для хранения массива процессов
+        'description',
+        'notes',
+        'repair_order',
+        'sort_order', // Поле для сортировки
+        'date_start',
+        'date_finish',
+        'ec',// Boolean поле для EC
+    ];
+    protected $casts = [
+        'processes'   => 'array',
+        'date_start'  => 'date',   // <-- важно
+        'date_finish' => 'date',   // <-- важно
+    ];
+
+
+    // Отношение к модели Tdr
+    public function tdr()
+    {
+        return $this->belongsTo(Tdr::class, 'tdrs_id');
+    }
+
+    // Отношение к модели ProcessName
+    public function processName()
+    {
+        return $this->belongsTo(ProcessName::class, 'process_names_id');
+    }
+
+    public function getActivitylogOptions(): LogOptions
+    {
+        return LogOptions::defaults()
+            ->useLogName('tdr_process')
+            ->logOnly([
+                'date_start',
+                'date_finish',
+            ])
+            ->logOnlyDirty()                // логировать ТОЛЬКО изменившиеся поля
+            ->dontSubmitEmptyLogs();        // не создавать пустые записи
+    }
+    public function tapActivity(Activity $activity, string $eventName)
+    {
+        if (auth()->check()) {
+            $activity->causer()->associate(auth()->user());
+        }
+    }
+
+    public function updatedBy()
+    {
+        return $this->belongsTo(User::class, 'user_id');
+    }
+}
+
+//-------------------------------------------------------------------------------
+class Workorder extends Model implements HasMedia
+{
+    use InteractsWithMedia, LogsActivity, SoftDeletes, HasMediaHelpers;
+
+    protected $fillable = ['number', 'user_id', 'unit_id', 'instruction_id', 'external_damage','received_disassembly','nameplate_missing','disassembly_upon_arrival',
+        'preliminary_test_false','part_missing','extra_parts','new_parts', 'open_at', 'customer_id', 'approve', 'approve_at', 'description', 'manual',
+        'serial_number', 'place', 'amdt', 'rm_report', 'customer_po','modified','is_draft','storage_rack','storage_level','storage_column',];
+
+    protected $casts = [
+        'approve_at' => 'datetime',
+        'open_at'    => 'datetime',
+        'is_draft'   => 'boolean',
+        'approve'    => 'boolean',
+    ];
+
+    public $mediaUrlName = 'workorders';
+
+
+    public function tdrs()
+    {
+        return $this->hasMany(Tdr::class,'workorder_id');
+    }
+
+    public function user()
+    {
+        return $this->belongsTo(User::class);
+    }
+
+    public function unit()
+    {
+        return $this->belongsTo(\App\Models\Unit::class, 'unit_id', 'id');
+    }
+
+
+    public function instruction()
+    {
+        return $this->belongsTo(Instruction::class);
+    }
+
+    public function customer()
+    {
+        return $this->belongsTo(Customer::class);
+    }
+
+    public function main()
+    {
+        return $this->hasMany(Main::class);
+    }
+
+    public function ndtCadCsv()
+    {
+        return $this->hasOne(NdtCadCsv::class);
+    }
+
+    public function registerMediaConversions(\Spatie\MediaLibrary\MediaCollections\Models\Media $media = null): void
+    {
+        $this->addMediaConversion('thumb')
+            ->width(80)
+            ->height(80)
+            ->nonOptimized();
+
+    }
+
+    public function getActivitylogOptions(): LogOptions
+    {
+        return LogOptions::defaults()
+            ->useLogName('workorder')
+            ->logOnly([
+                'number',
+                'unit_id',
+                'customer_id',
+                'instruction_id',
+                'user_id',
+                'approve_at',
+                'approve_name',
+                'description',
+                'serial_number',
+            ])
+            ->logExcept(['created_at','updated_at'])
+            ->logOnlyDirty()                // логировать ТОЛЬКО изменившиеся поля
+            ->dontSubmitEmptyLogs();        // не создавать пустые записи
+    }
+
+    public function getDoneMainRecord()
+    {
+        $mains = $this->relationLoaded('main')
+            ? $this->main
+            : $this->main()->with('task')->get();
+
+        return $mains
+            ->filter(function ($m) {
+                return !$m->ignore_row                              // не игнорированная строка
+                    && $m->task                                     // есть связанная задача
+                    && $m->task->name === 'Completed'              // или 'Complete' — как у тебя в БД
+                    && $m->date_finish !== null;                   // завершена
+            })
+            ->sortByDesc('date_finish')    // на всякий случай — самая поздняя дата
+            ->first();
+    }
+
+    public function isDone(): bool
+    {
+        return (bool) $this->getDoneMainRecord();
+    }
+
+    public function doneDate()
+    {
+        $done = $this->getDoneMainRecord();
+        return $done ? $done->date_finish : null;
+    }
+
+    public function generalTaskStatuses()
+    {
+        return $this->hasMany(\App\Models\WorkorderGeneralTaskStatus::class);
+    }
+
+    public function syncDoneByCompletedTask(): void
+    {
+        // 1) находим id задачи Completed (один раз на вызов; при 20 tasks это ок)
+        $completedTaskId = \App\Models\Task::where('name', 'Completed')->value('id');
+
+        if (!$completedTaskId) {
+            // если нет задачи — считаем не done
+            $this->done_at = null;
+            $this->done_user_id = null;
+            $this->saveQuietly();
+            return;
+        }
+
+        // 2) берем main запись по этой задаче
+        $main = \App\Models\Main::where('workorder_id', $this->id)
+            ->where('task_id', $completedTaskId)
+            ->first();
+
+        // DONE только если date_finish есть и строка не игнорируется
+        if ($main && !$main->ignore_row && !empty($main->date_finish)) {
+            $this->done_at = $main->date_finish;
+            $this->done_user_id = $main->user_id;
+        } else {
+            $this->done_at = null;
+            $this->done_user_id = null;
+        }
+
+        $this->saveQuietly();
+    }
+
+    public function recalcGeneralTaskStatuses(?int $onlyGeneralTaskId = null): void
+    {
+        // Берём задачи (нужно имя, чтобы найти "Completed")
+        $tasksQuery = \App\Models\Task::query()->select('id', 'name', 'general_task_id');
+
+        if ($onlyGeneralTaskId) {
+            $tasksQuery->where('general_task_id', $onlyGeneralTaskId);
+        }
+
+        $tasksByGeneral = $tasksQuery->get()->groupBy('general_task_id');
+
+        // Берём mains по workorder для task-строк
+        $mainsByTask = \App\Models\Main::where('workorder_id', $this->id)
+            ->whereNotNull('task_id')
+            ->get()
+            ->keyBy('task_id');
+
+        $now    = now();
+        $userId = auth()->id();
+
+        foreach ($tasksByGeneral as $gtId => $gtTasks) {
+
+            // если в этапе нет задач — не done
+            if ($gtTasks->isEmpty()) {
+                $isDone = false;
+            } else {
+
+                // ✅ Если в этом general_task есть задача "Completed" — этап done = isDone()
+                $hasCompletedTask = $gtTasks->contains(fn($t) => $t->name === 'Completed');
+
+                if ($hasCompletedTask) {
+                    $isDone = $this->isDone(); // твоя существующая логика (Completed.date_finish)
+                } else {
+                    // Обычное правило: все задачи этапа закрыты (или ignore_row)
+                    $isDone = $gtTasks->pluck('id')->every(function ($taskId) use ($mainsByTask) {
+                        $m = $mainsByTask->get($taskId);
+
+                        if (!$m) return false;           // нет строки main -> не done
+                        if ($m->ignore_row) return true; // игнор -> считается done
+
+                        return !empty($m->date_finish);  // иначе нужен finish
+                    });
+                }
+            }
+
+            \App\Models\WorkorderGeneralTaskStatus::updateOrCreate(
+                ['workorder_id' => $this->id, 'general_task_id' => $gtId],
+                [
+                    'is_done'      => $isDone,
+                    'done_at'      => $isDone ? $now : null,
+                    'done_user_id' => $isDone ? $userId : null,
+                ]
+            );
+        }
+    }
+
+    protected static function booted(): void
+    {
+        static::addGlobalScope('exclude_drafts', function (Builder $builder) {
+            $builder->where('is_draft', false);
+        });
+    }
+
+    public function scopeOnlyDrafts(Builder $query): Builder
+    {
+        return $query
+            ->withoutGlobalScope('exclude_drafts')
+            ->where('is_draft', true);
+    }
+
+    public function scopeWithDrafts(Builder $query): Builder
+    {
+        return $query->withoutGlobalScope('exclude_drafts');
+    }
+
+
+    public static function createDraft(array $attributes = []): self
+    {
+        // На случай редких коллизий (если два человека одновременно)
+        $attempts = 0;
+
+        while ($attempts < 5) {
+            $attempts++;
+
+            $last = self::withTrashed() // ✅ учитываем deleted_at
+            ->withoutGlobalScope('exclude_drafts')
+                ->where('is_draft', true)
+                ->whereBetween('number', [1, 99999])
+                ->max('number');
+
+            $next = (int)($last ?? 0) + 1;
+
+            if ($next > 99999) {
+                throw new \RuntimeException('Draft number range 1..99999 exhausted');
+            }
+
+            try {
+                $wo = new self();
+                $wo->fill($attributes);
+                $wo->number = $next;
+                $wo->is_draft = true;
+
+                if (empty($wo->user_id) && auth()->check()) {
+                    $wo->user_id = auth()->id();
+                }
+
+                $wo->save();
+
+                return $wo;
+
+            } catch (QueryException $e) {
+                // MySQL duplicate key
+                if ((int)($e->errorInfo[1] ?? 0) === 1062) {
+                    usleep(150000);
+                    continue;
+                }
+                throw $e;
+            }
+        }
+
+        throw new \RuntimeException('Could not allocate a draft number, try again.');
+    }
+
+
+    public static function nextDraftNumber(): int
+    {
+        $last = self::withTrashed() // ✅ учитываем deleted_at
+        ->withoutGlobalScope('exclude_drafts')
+            ->where('is_draft', true)
+            ->whereBetween('number', [1, 99999])
+            ->lockForUpdate()
+            ->max('number');
+
+        $next = (int)($last ?? 0) + 1;
+
+        if ($next > 99999) {
+            throw new \RuntimeException('Draft number range 1..99999 exhausted');
+        }
+
+        return $next;
+    }
+
+    public function getStorageLocationAttribute(): ?string
+    {
+        if (!$this->storage_rack && !$this->storage_level && !$this->storage_column) return null;
+
+        $parts = [];
+
+        if ($this->storage_rack) {
+            $parts[] = 'Rack: ' . $this->storage_rack;
+        }
+
+        if ($this->storage_level) {
+            $parts[] = 'Level: ' . $this->storage_level;
+        }
+
+        if ($this->storage_column) {
+            $parts[] = 'Column: ' . $this->storage_column;
+        }
+
+        return empty($parts) ? null : implode(' _ ', $parts);
+    }
+}
