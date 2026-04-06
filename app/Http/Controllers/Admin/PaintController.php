@@ -82,29 +82,58 @@ class PaintController extends Controller
             $starts = $forAgg->pluck('date_start')->filter();
             $finishes = $forAgg->pluck('date_finish')->filter();
 
-            $editPaintProcess = null;
-            if ($forAgg->isNotEmpty()) {
-                $editPaintProcess = $forAgg
-                    ->sortBy(function (TdrProcess $p) {
-                        return [(int) ($p->sort_order ?? 0), (int) $p->id];
-                    })
-                    ->values()
-                    ->first();
+            // Строка «List» всегда редактирует STD Paint List (тот же tdr_process, что и блок Paint на main).
+            // Раньше сюда попадал «первый» не-STD процесс — он совпадал с первой строкой-деталью → дублирование дат.
+            $listEditProcess = $this->findStdPaintListProcess($wo);
+            if ($listEditProcess === null) {
+                $listEditProcess = $this->ensureStdPaintTdrProcess($wo);
+                if ($listEditProcess !== null) {
+                    $wo->unsetRelation('tdrs');
+                    $wo->load([
+                        'tdrs' => function ($q) {
+                            $q->with([
+                                'component:id,part_number,name,ipl_num',
+                                'tdrProcesses.processName',
+                            ]);
+                        },
+                    ]);
+                    $listEditProcess->refresh();
+                    $listEditProcess->load(['processName', 'tdr.component']);
+                }
             }
 
-            $baseRow = (object) [
-                'workorder' => $wo,
-                'detail_label' => 'List',
-                'date_start' => $starts->isNotEmpty() ? $starts->min() : null,
-                'date_finish' => $finishes->isNotEmpty() ? $finishes->max() : null,
-                'edit_paint_process' => $editPaintProcess,
-                'paint_queue_position' => null,
-                'is_queue_master' => false,
-            ];
+            if ($listEditProcess !== null) {
+                $baseRow = (object) [
+                    'workorder' => $wo,
+                    'detail_label' => 'List',
+                    'date_start' => $listEditProcess->date_start,
+                    'date_finish' => $listEditProcess->date_finish,
+                    'edit_paint_process' => $listEditProcess,
+                    'paint_queue_position' => null,
+                    'is_queue_master' => false,
+                ];
+            } else {
+                $baseRow = (object) [
+                    'workorder' => $wo,
+                    'detail_label' => 'List',
+                    'date_start' => $starts->isNotEmpty() ? $starts->min() : null,
+                    'date_finish' => $finishes->isNotEmpty() ? $finishes->max() : null,
+                    'edit_paint_process' => null,
+                    'paint_queue_position' => null,
+                    'is_queue_master' => false,
+                ];
+            }
 
             $detailRows = $active
-                ->filter(static function (TdrProcess $tp) {
-                    return trim((string) ($tp->tdr?->component?->part_number ?? '')) !== '';
+                ->filter(static function (TdrProcess $tp) use ($listEditProcess) {
+                    if (trim((string) ($tp->tdr?->component?->part_number ?? '')) === '') {
+                        return false;
+                    }
+                    if ($listEditProcess !== null && (int) $tp->id === (int) $listEditProcess->id) {
+                        return false;
+                    }
+
+                    return true;
                 })
                 ->map(static function (TdrProcess $tp) use ($wo) {
                     $detailPn = trim((string) ($tp->tdr?->component?->part_number ?? ''));
@@ -367,6 +396,25 @@ class PaintController extends Controller
         }
 
         return response()->json(['success' => true]);
+    }
+
+    /**
+     * Процесс «STD Paint List» для строки List (совпадает с main).
+     */
+    private function findStdPaintListProcess(Workorder $wo): ?TdrProcess
+    {
+        $name = WorkorderStdListProcessesService::NAME_BY_KEY['paint'];
+        foreach ($wo->tdrs as $tdr) {
+            foreach ($tdr->tdrProcesses as $tp) {
+                if (($tp->processName?->name ?? '') === $name) {
+                    $tp->setRelation('tdr', $tdr);
+
+                    return $tp;
+                }
+            }
+        }
+
+        return null;
     }
 
     /**

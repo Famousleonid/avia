@@ -250,7 +250,6 @@
 @endsection
 
 @php
-    $queueCount = $rows->count();
     $queuedCount = $queuedCount ?? 0;
 @endphp
 
@@ -261,10 +260,12 @@
                 <div class="dir-topbar px-3 py-2">
                     <div class="row g-2 align-items-center flex-nowrap">
                         <div class="col-auto flex-shrink-0">
-                            <h5 class="mb-0 text-info text-nowrap">
+                            <h5 class="mb-0 text-info text-nowrap"
+                                title="{{ $queuedCount }} workorder(s) in paint queue">
                                 Paint
                                 <span class="text-secondary">(</span>
-                                <span class="text-success">{{ $queueCount }}</span>
+                                <span class="text-success">{{ $queuedCount }}</span>
+                                <span class="text-secondary small"> in queue</span>
                                 <span class="text-secondary">)</span>
                             </h5>
                         </div>

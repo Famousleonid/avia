@@ -305,7 +305,7 @@
                                                      data-tippy-content="Opened: {{ $openedValue }}">
                                                     <span class="dir-top-k">Opened:</span>
                                                     <span class="dir-top-v">{{ $openedValue }}</span>
-                                                    <span class="dir-top-v text-white"> <span class="text-info">Paint: &nbsp;</span> {{ $current_workorder->paint_queue_order  }}</span>
+                                                    <span class="dir-top-v text-white"> <span class="text-info">Paint queue: &nbsp;</span> {{ ($current_workorder->paint_queue_order+1) ?? '—' }}</span>
                                                 </div>
                                             </div>
                                         </div>
