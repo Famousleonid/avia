@@ -305,6 +305,7 @@
                                                      data-tippy-content="Opened: {{ $openedValue }}">
                                                     <span class="dir-top-k">Opened:</span>
                                                     <span class="dir-top-v">{{ $openedValue }}</span>
+                                                    <span class="dir-top-v text-white"> <span class="text-info">Paint: &nbsp;</span> {{ $current_workorder->paint_queue_order  }}</span>
                                                 </div>
                                             </div>
                                         </div>
@@ -396,7 +397,7 @@
 
                                                             <form method="POST"
                                                                   action="{{ $action }}"
-                                                                  class="js-row-form js-main-inline-ajax"
+                                                                  class="js-row-form js-main-inline-ajax js-ajax"
                                                                   data-gt-id="{{ $gt->id }}"
                                                                   data-no-spinner
                                                                   data-success="Ignore state saved">
@@ -461,7 +462,7 @@
                                                                     <form method="POST"
                                                                           action="{{ $action }}"
                                                                           data-no-spinner
-                                                                          class="js-main-inline-ajax"
+                                                                          class="js-main-inline-ajax js-ajax"
                                                                           data-gt-id="{{ $gt->id }}"
                                                                           data-success="Start date saved">
                                                                         @csrf
@@ -507,7 +508,7 @@
                                                                 <form method="POST"
                                                                       action="{{ $action }}"
                                                                       data-no-spinner
-                                                                      class="js-main-inline-ajax"
+                                                                      class="js-main-inline-ajax js-ajax"
                                                                       data-gt-id="{{ $gt->id }}"
                                                                       data-success="Finish date saved"
                                                                       @if($task->id === 10) data-tippy-content="Edit in the Workrorder section"@endif
@@ -609,7 +610,8 @@
                                                     <form method="POST"
                                                           action="{{ route('workorders.notes.update', $current_workorder) }}"
                                                           class="js-ajax"
-                                                          data-no-spinner>
+                                                          data-no-spinner
+                                                          data-no-success-toast>
                                                         @csrf
                                                         @method('PATCH')
 
@@ -674,25 +676,25 @@
                                                                                         $rowDone = $row['total_qty'] > 0
                                                                                             && (int) ($row['finished_qty'] ?? 0) === (int) $row['total_qty'];
                                                                                     @endphp
-                                                                                    <div class="d-flex align-items-center justify-content-between flex-wrap gap-2 mb-1">
-                                                                                        <div class="small text-info text-truncate">{{ $row['process_label'] }}</div>
-                                                                                        <div class="d-flex align-items-center gap-2">
-                                                                                            <span class="wo-bush-strip-count wo-bush-strip-count--sm {{ $rowDone ? 'wo-bush-strip-count--done' : '' }}">
-                                                                                                <span class="wo-bush-strip-count-a">{{ $row['finished_qty'] ?? 0 }}</span><span class="wo-bush-strip-count-sep">/</span><span class="wo-bush-strip-count-b">{{ $row['total_qty'] }}</span>
-                                                                                            </span>
-                                                                                        </div>
-                                                                                    </div>
+{{--                                                                                    <div class="d-flex align-items-center justify-content-between flex-wrap gap-2 mb-1">--}}
+{{--                                                                                        <div class="small text-info text-truncate">{{ $row['process_label'] }}</div>--}}
+{{--                                                                                        <div class="d-flex align-items-center gap-2">--}}
+{{--                                                                                            <span class="wo-bush-strip-count wo-bush-strip-count--sm {{ $rowDone ? 'wo-bush-strip-count--done' : '' }}">--}}
+{{--                                                                                                <span class="wo-bush-strip-count-a">{{ $row['finished_qty'] ?? 0 }}</span><span class="wo-bush-strip-count-sep">/</span><span class="wo-bush-strip-count-b">{{ $row['total_qty'] }}</span>--}}
+{{--                                                                                            </span>--}}
+{{--                                                                                        </div>--}}
+{{--                                                                                    </div>--}}
                                                                                     <div class="table-responsive">
                                                                                         <table class="table table-sm table-dark table-bordered table-hover mb-0 align-middle wo-bushings-table dir-table">
                                                                                             <thead>
                                                                                             <tr>
-                                                                                                <th class="wo-bush-col-part">Part number</th>
-                                                                                                <th class="wo-bush-col-ipl">IPL</th>
+                                                                                                <th class="wo-bush-col-part">Part №</th>
+                                                                                                <th class="wo-bush-col-ipl text-center">IPL</th>
                                                                                                 <th class="wo-bush-col-process">{{ __('Process') }}</th>
                                                                                                 <th class="text-center wo-bush-col-qty">Qty</th>
-                                                                                                <th class="wo-bush-col-ro">Repair order</th>
+                                                                                                <th class="wo-bush-col-ro">Rep order</th>
                                                                                                 <th class="text-center wo-bush-col-dt">Sent</th>
-                                                                                                <th class="text-center wo-bush-col-dt">Returned</th>
+                                                                                                <th class="text-center wo-bush-col-dt">Return</th>
                                                                                             </tr>
                                                                                             </thead>
                                                                                             <tbody>
@@ -715,9 +717,13 @@
                                                                                                         } else {
                                                                                                             $batchGroupLabel = 'Grp';
                                                                                                         }
+                                                                                                        $batchQtySum = collect($batch['line_items'] ?? [])->sum(fn ($i) => (int) ($i['qty'] ?? 0));
+                                                                                                        if ($batchQtySum === 0 && isset($batch['qty'])) {
+                                                                                                            $batchQtySum = (int) $batch['qty'];
+                                                                                                        }
                                                                                                     @endphp
                                                                                                     <tr class="wo-bush-batch-row">
-                                                                                                        <td colspan="4"
+                                                                                                        <td colspan="3"
                                                                                                             class="small align-middle wo-bush-batch-toggle user-select-none"
                                                                                                             style="cursor: pointer;"
                                                                                                             data-bs-toggle="collapse"
@@ -726,12 +732,12 @@
                                                                                                             tabindex="0"
                                                                                                             title="{{ __('Click to show bushings in this batch') }}">
                                                                                                             <span class="fw-bold text-uppercase">{{ __('Batch') }} {{ $batchGroupLabel }}</span>
-                                                                                                            <span class="text-muted mx-1">·</span>
-                                                                                                            <span class="badge bg-info text-dark">{{ $batch['qty'] }} {{ __('pcs') }}</span>
                                                                                                             <span class="text-muted small ms-1">({{ $batchLineCount }} {{ __('lines') }})</span>
                                                                                                             <i class="bi bi-chevron-down small ms-1" aria-hidden="true"></i>
                                                                                                         </td>
-                                                                                                        <td class="align-middle wo-bush-col-ro" onclick="event.stopPropagation();">
+                                                                                                        <td class="text-center small wo-bush-col-qty align-middle fw-semibold text-info"
+                                                                                                            title="{{ __('Sum of quantities in this batch') }}">{{ $batchQtySum }}</td>
+                                                                                                        <td class="align-middle wo-bush-col-ro px-1" onclick="event.stopPropagation();">
                                                                                                             @hasanyrole('Admin|Manager')
                                                                                                             <form method="POST"
                                                                                                                   action="{{ route('wo_bushing_batches.updateRepairOrder', $batch['id']) }}"
@@ -752,7 +758,7 @@
                                                                                                             <input type="text" class="form-control form-control-sm bg-dark" value="{{ $batch['repair_order'] ?? '' }}" readonly>
                                                                                                             @endhasanyrole
                                                                                                         </td>
-                                                                                                        <td class="align-middle text-center wo-bush-col-dt" onclick="event.stopPropagation();">
+                                                                                                        <td class="align-middle text-center wo-bush-col-dt px-1" onclick="event.stopPropagation();">
                                                                                                             <form method="POST"
                                                                                                                   action="{{ route('wo_bushing_batches.updateDate', $batch['id']) }}"
                                                                                                                   class="auto-submit-form js-ajax"
@@ -765,7 +771,7 @@
                                                                                                                        placeholder="…" autocomplete="off">
                                                                                                             </form>
                                                                                                         </td>
-                                                                                                        <td class="align-middle text-center wo-bush-col-dt" onclick="event.stopPropagation();">
+                                                                                                        <td class="align-middle text-center wo-bush-col-dt px-1" onclick="event.stopPropagation();">
                                                                                                             <form method="POST"
                                                                                                                   action="{{ route('wo_bushing_batches.updateDate', $batch['id']) }}"
                                                                                                                   class="auto-submit-form js-ajax"
@@ -781,51 +787,50 @@
                                                                                                     </tr>
                                                                                                     <tr class="collapse" id="{{ $batchCollapseId }}">
                                                                                                         <td colspan="7" class="p-0 border-secondary bg-opacity-10" style="background: rgba(0,0,0,.15);">
-                                                                                                            <div class="p-2">
-                                                                                                                <div class="small text-muted mb-1">{{ __('Bushings in this batch') }} — {{ $batch['qty'] }} {{ __('pcs') }}</div>
+                                                                                                            <div class="wo-bush-batch-nested-wrap">
                                                                                                                 <table class="table table-sm table-dark table-bordered mb-0 wo-bush-batch-nested">
-                                                                                                                    <thead>
-                                                                                                                    <tr class="small">
-                                                                                                                        <th class="wo-bush-col-part">{{ __('Part number') }}</th>
-                                                                                                                        <th class="wo-bush-col-ipl">{{ __('IPL') }}</th>
-                                                                                                                        <th class="wo-bush-col-process">{{ __('Process') }}</th>
-                                                                                                                        <th class="text-center wo-bush-col-qty">{{ __('Qty') }}</th>
-                                                                                                                    </tr>
-                                                                                                                    </thead>
                                                                                                                     <tbody>
                                                                                                                     @foreach($batch['line_items'] as $item)
+                                                                                                                        @php
+                                                                                                                            $__bpn = (string) ($item['part_number'] ?? '');
+                                                                                                                            $__bipl = (string) ($item['ipl_num'] ?? '');
+                                                                                                                            $__bpd = (string) ($item['process_detail'] ?? '');
+                                                                                                                        @endphp
                                                                                                                         <tr>
-                                                                                                                            <td class="small wo-bush-col-part">{{ ($item['part_number'] ?? '') !== '' ? $item['part_number'] : '—' }}</td>
-                                                                                                                            <td class="small wo-bush-col-ipl">{{ ($item['ipl_num'] ?? '') !== '' ? $item['ipl_num'] : '—' }}</td>
-                                                                                                                            <td class="small text-info wo-bush-col-process">{{ ($item['process_detail'] ?? '') !== '' ? $item['process_detail'] : '—' }}</td>
+                                                                                                                            <td class="small wo-bush-col-part px-1" @if($__bpn !== '') title="{{ e($__bpn) }}" @endif>{{ $__bpn !== '' ? $__bpn : '—' }}</td>
+                                                                                                                            <td class="small wo-bush-col-ipl" @if($__bipl !== '') title="{{ e($__bipl) }}" @endif>{{ $__bipl !== '' ? $__bipl : '—' }}</td>
+                                                                                                                            <td class="small text-info wo-bush-col-process" @if($__bpd !== '') title="{{ e($__bpd) }}" @endif>{{ $__bpd !== '' ? $__bpd : '—' }}</td>
                                                                                                                             <td class="text-center small wo-bush-col-qty">{{ $item['qty'] ?? 0 }}</td>
                                                                                                                         </tr>
                                                                                                                     @endforeach
                                                                                                                     </tbody>
-                                                                                                                    @php
-                                                                                                                        $lineQtySum = collect($batch['line_items'] ?? [])->sum(fn ($i) => (int) ($i['qty'] ?? 0));
-                                                                                                                    @endphp
-                                                                                                                    <tfoot>
-                                                                                                                    <tr class="small">
-                                                                                                                        <th colspan="3" class="text-end text-muted">{{ __('Sum') }}</th>
-                                                                                                                        <th class="text-center wo-bush-col-qty">{{ $lineQtySum }}</th>
-                                                                                                                    </tr>
-                                                                                                                    </tfoot>
                                                                                                                 </table>
                                                                                                             </div>
                                                                                                         </td>
                                                                                                     </tr>
                                                                                                 @else
-                                                                                                    @php $item = $batch['line_items'][0] ?? null; @endphp
+                                                                                                    @php
+                                                                                                        $item = $batch['line_items'][0] ?? null;
+                                                                                                        $__pn = $item ? (string) ($item['part_number'] ?? '') : '';
+                                                                                                        $__ipl = $item ? (string) ($item['ipl_num'] ?? '') : '';
+                                                                                                        $__pd = $item ? (string) ($item['process_detail'] ?? '') : '';
+                                                                                                        $woBushProcRows = $batch['process_rows'] ?? [[
+                                                                                                            'id' => (int) ($batch['id'] ?? 0),
+                                                                                                            'repair_order' => (string) ($batch['repair_order'] ?? ''),
+                                                                                                            'date_start' => $batch['date_start'] ?? null,
+                                                                                                            'date_finish' => $batch['date_finish'] ?? null,
+                                                                                                        ]];
+                                                                                                        $wbr = $woBushProcRows[0] ?? [];
+                                                                                                    @endphp
                                                                                                     <tr data-bush-line-qty="{{ (int) ($item['qty'] ?? 0) }}">
-                                                                                                        <td class="small wo-bush-col-part">{{ ($item['part_number'] ?? '') !== '' ? $item['part_number'] : '—' }}</td>
-                                                                                                        <td class="small wo-bush-col-ipl">{{ ($item['ipl_num'] ?? '') !== '' ? $item['ipl_num'] : '—' }}</td>
-                                                                                                        <td class="small text-info wo-bush-col-process">{{ ($item['process_detail'] ?? '') !== '' ? $item['process_detail'] : '—' }}</td>
+                                                                                                        <td class="small wo-bush-col-part" @if($__pn !== '') title="{{ e($__pn) }}" @endif>{{ $__pn !== '' ? $__pn : '—' }}</td>
+                                                                                                        <td class="small wo-bush-col-ipl" @if($__ipl !== '') title="{{ e($__ipl) }}" @endif>{{ $__ipl !== '' ? $__ipl : '—' }}</td>
+                                                                                                        <td class="small text-info wo-bush-col-process" @if($__pd !== '') title="{{ e($__pd) }}" @endif>{{ $__pd !== '' ? $__pd : '—' }}</td>
                                                                                                         <td class="text-center wo-bush-col-qty">{{ $item['qty'] ?? 0 }}</td>
                                                                                                         <td class="wo-bush-col-ro">
                                                                                                             @hasanyrole('Admin|Manager')
                                                                                                             <form method="POST"
-                                                                                                                  action="{{ route('wo_bushing_processes.updateRepairOrder', $batch['id']) }}"
+                                                                                                                  action="{{ route('wo_bushing_processes.updateRepairOrder', $wbr['id']) }}"
                                                                                                                   class="auto-submit-form js-auto-submit auto-submit-order position-relative js-ajax"
                                                                                                                   data-no-spinner>
                                                                                                                 @csrf
@@ -833,39 +838,39 @@
                                                                                                                 <input type="text"
                                                                                                                        name="repair_order"
                                                                                                                        class="form-control form-control-sm pe-4"
-                                                                                                                       value="{{ $batch['repair_order'] ?? '' }}"
+                                                                                                                       value="{{ $wbr['repair_order'] ?? '' }}"
                                                                                                                        placeholder="…"
                                                                                                                        autocomplete="off"
-                                                                                                                       data-original="{{ $batch['repair_order'] ?? '' }}">
+                                                                                                                       data-original="{{ $wbr['repair_order'] ?? '' }}">
                                                                                                                 <i class="bi bi-save save-indicator d-none"></i>
                                                                                                             </form>
                                                                                                             @else
-                                                                                                            <input type="text" class="form-control form-control-sm bg-dark" value="{{ $batch['repair_order'] ?? '' }}" readonly>
+                                                                                                            <input type="text" class="form-control form-control-sm bg-dark" value="{{ $wbr['repair_order'] ?? '' }}" readonly>
                                                                                                             @endhasanyrole
                                                                                                         </td>
                                                                                                         <td class="text-center wo-bush-col-dt">
                                                                                                             <form method="POST"
-                                                                                                                  action="{{ route('wo_bushing_processes.updateDate', $batch['id']) }}"
+                                                                                                                  action="{{ route('wo_bushing_processes.updateDate', $wbr['id']) }}"
                                                                                                                   class="auto-submit-form js-ajax"
                                                                                                                   data-no-spinner>
                                                                                                                 @csrf
                                                                                                                 @method('PATCH')
                                                                                                                 <input type="text" data-fp name="date_start" class="form-control form-control-sm finish-input"
-                                                                                                                       value="{{ $batch['date_start']?->format('Y-m-d') }}"
-                                                                                                                       data-original="{{ $batch['date_start']?->format('Y-m-d') ?? '' }}"
+                                                                                                                       value="{{ optional($wbr['date_start'] ?? null)->format('Y-m-d') }}"
+                                                                                                                       data-original="{{ optional($wbr['date_start'] ?? null)->format('Y-m-d') }}"
                                                                                                                        placeholder="…" autocomplete="off">
                                                                                                             </form>
                                                                                                         </td>
                                                                                                         <td class="text-center wo-bush-col-dt">
                                                                                                             <form method="POST"
-                                                                                                                  action="{{ route('wo_bushing_processes.updateDate', $batch['id']) }}"
+                                                                                                                  action="{{ route('wo_bushing_processes.updateDate', $wbr['id']) }}"
                                                                                                                   class="auto-submit-form js-ajax"
                                                                                                                   data-no-spinner>
                                                                                                                 @csrf
                                                                                                                 @method('PATCH')
                                                                                                                 <input type="text" data-fp name="date_finish" class="form-control form-control-sm finish-input"
-                                                                                                                       value="{{ $batch['date_finish']?->format('Y-m-d') }}"
-                                                                                                                       data-original="{{ $batch['date_finish']?->format('Y-m-d') ?? '' }}"
+                                                                                                                       value="{{ optional($wbr['date_finish'] ?? null)->format('Y-m-d') }}"
+                                                                                                                       data-original="{{ optional($wbr['date_finish'] ?? null)->format('Y-m-d') }}"
                                                                                                                        placeholder="…" autocomplete="off">
                                                                                                             </form>
                                                                                                         </td>
@@ -1323,6 +1328,13 @@
                 if (input.name === 'repair_order') return;
                 if (input.name === 'notes') return;
 
+                // js-main-inline-ajax: даты сохраняются через flatpickr onChange → requestSubmit → submit
+                // (иначе дубль ajaxSubmit вместе с этим change).
+                if (form.classList.contains('js-main-inline-ajax') &&
+                    (input.name === 'date_start' || input.name === 'date_finish')) {
+                    return;
+                }
+
                 if (typeof window.ajaxSubmit === 'function') window.ajaxSubmit(form);
             }, true);
 
@@ -1502,204 +1514,8 @@
             });
         });
     </script>
-    <script>
-        document.addEventListener('DOMContentLoaded', () => {
-            const csrf = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
-
-            async function submitMainInlineForm(form) {
-                if (!form || form.dataset.sending === '1') return;
-
-                form.dataset.sending = '1';
-
-                try {
-                    const formData = new FormData(form);
-
-                    const response = await fetch(form.action, {
-                        method: 'POST',
-                        headers: {
-                            'X-CSRF-TOKEN': csrf || '',
-                            'X-Requested-With': 'XMLHttpRequest',
-                            'Accept': 'application/json'
-                        },
-                        body: formData
-                    });
-
-                    let data = null;
-                    const contentType = response.headers.get('content-type') || '';
-                    if (contentType.includes('application/json')) {
-                        data = await response.json();
-                    }
-
-                    if (!response.ok) {
-                        let errorMessage = 'Save error';
-
-                        if (data?.message) {
-                            errorMessage = data.message;
-                        } else if (data?.errors) {
-                            const firstKey = Object.keys(data.errors)[0];
-                            if (firstKey && data.errors[firstKey]?.[0]) {
-                                errorMessage = data.errors[firstKey][0];
-                            }
-                        }
-
-                        throw new Error(errorMessage);
-                    }
-
-                    refreshFinishInputState(form, data);
-                    applyGeneralTaskButtonState(form, data);
-
-                    form.querySelectorAll('input[type="text"], textarea').forEach(input => {
-                        input.setAttribute('data-original', input.value ?? '');
-                    });
-
-                    const successText = data?.message || form.getAttribute('data-success') || 'Saved';
-
-                    if (typeof showNotification === 'function') {
-                        showNotification(successText, 'success', 2500);
-
-                    }
-
-                } catch (error) {
-                    if (typeof showNotification === 'function') {
-                        showNotification(error.message || 'Save error', 'error', 4000);
-                    }
-                    console.error(error);
-                } finally {
-                    delete form.dataset.sending;
-                }
-            }
-
-            function refreshFinishInputState(form, responseData = null) {
-                if (!form) return;
-
-                form.querySelectorAll('input.finish-input').forEach(input => {
-                    let value = input.value ?? '';
-
-                    if (responseData) {
-                        if (input.name === 'date_start' && typeof responseData.date_start !== 'undefined') {
-                            value = responseData.date_start ?? '';
-                            input.value = value;
-                        }
-
-                        if (input.name === 'date_finish' && typeof responseData.date_finish !== 'undefined') {
-                            value = responseData.date_finish ?? '';
-                            input.value = value;
-                        }
-                    }
-
-                    input.classList.toggle('has-finish', String(value).trim() !== '');
-                });
-            }
-
-            function applyGeneralTaskButtonState(form, responseData = null) {
-                const raw = responseData?.general_task_all_finished;
-                if (raw === undefined || raw === null) return;
-                const allFinished = raw === true || raw === 1 || raw === '1' || raw === 'true';
-
-                let gtId = form?.dataset?.gtId;
-                if (!gtId) {
-                    gtId = form?.closest?.('.js-gt-pane')?.dataset?.gtId;
-                }
-                if (!gtId) return;
-
-                const btn = document.querySelector(`.js-gt-btn[data-gt-id="${gtId}"]`);
-                if (!btn) return;
-                btn.classList.toggle('btn-outline-success', allFinished);
-                btn.classList.toggle('btn-outline-danger', !allFinished);
-            }
-
-            // submit
-            document.addEventListener('submit', (e) => {
-                const form = e.target;
-                if (!form?.classList?.contains('js-main-inline-ajax')) return;
-
-                e.preventDefault();
-                if (form.dataset.sending === '1') return;
-                submitMainInlineForm(form);
-            }, true);
-
-            // change для дат
-            document.addEventListener('change', (e) => {
-                const input = e.target;
-                if (!input?.closest) return;
-
-                if (
-                    input.matches('input[name="date_start"]') ||
-                    input.matches('input[name="date_finish"]')
-                ) {
-                    const form = input.closest('form.js-main-inline-ajax');
-                    if (!form) return;
-                    if (form.dataset.sending === '1') return;
-
-                    const original = input.getAttribute('data-original') ?? '';
-                    const current = input.value ?? '';
-
-                    if (original === current) return;
-
-                    e.preventDefault();
-                    submitMainInlineForm(form);
-                }
-            }, true);
-
-            // blur для дат
-            document.addEventListener('blur', (e) => {
-                const input = e.target;
-                if (!input?.closest) return;
-
-                if (
-                    input.matches('input[name="date_start"]') ||
-                    input.matches('input[name="date_finish"]')
-                ) {
-                    const form = input.closest('form.js-main-inline-ajax');
-                    if (!form) return;
-                    if (form.dataset.sending === '1') return;
-
-                    const original = input.getAttribute('data-original') ?? '';
-                    const current = input.value ?? '';
-
-                    if (original === current) return;
-
-                    submitMainInlineForm(form);
-                }
-            }, true);
-
-            // Enter для дат
-            document.addEventListener('keydown', (e) => {
-                const input = e.target;
-                if (!input?.closest) return;
-
-                if (
-                    e.key === 'Enter' &&
-                    (
-                        input.matches('input[name="date_start"]') ||
-                        input.matches('input[name="date_finish"]')
-                    )
-                ) {
-                    const form = input.closest('form.js-main-inline-ajax');
-                    if (!form) return;
-
-                    e.preventDefault();
-                    submitMainInlineForm(form);
-                }
-            }, true);
-
-            // ignore_row
-            document.addEventListener('change', (e) => {
-                const checkbox = e.target;
-                if (!checkbox?.classList?.contains('js-ignore-row')) return;
-
-                const form = checkbox.closest('form.js-main-inline-ajax');
-                if (!form) return;
-                if (form.dataset.sending === '1') return;
-
-                const hidden = form.querySelector('.js-ignore-hidden');
-                if (hidden) {
-                    hidden.value = checkbox.checked ? '1' : '0';
-                }
-
-                submitMainInlineForm(form);
-            }, true);
-        });
-    </script>
+    {{-- TODO(remove): дубль inline AJAX (submitMainInlineForm, refreshFinishInputState, clearFlatpickrField,
+         отдельные listeners для js-main-inline-ajax) заменён на window.ajaxSubmit в public/js/main.js.
+         Удалите этот комментарий после проверки, что везде достаточно классов js-ajax + js-main-inline-ajax. --}}
 
 @endsection

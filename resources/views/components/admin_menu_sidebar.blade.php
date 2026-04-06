@@ -42,6 +42,7 @@
         </a>
     </li>
 
+
     <li class="nav-item">
         <a class="nav-link press-spinner" href="{{route('trainings.index')}}">
             <i class="bi bi-list-check me-2"></i> <span>Training</span>
@@ -183,6 +184,13 @@
 
     @endif
 
+    @can('feature.paint')
+        <li class="nav-item">
+            <a class="nav-link press-spinner" href="{{ route('paint.index') }}">
+                <i class="bi bi-palette me-2"></i> <span>Paint</span>
+            </a>
+        </li>
+    @endcan
 
     @if (auth()->user()->roleIs('Admin'))
 
@@ -200,6 +208,19 @@
         </li>
         @endif
 
+        <li class="nav-item press-spinner">
+            <form action="{{ route('admin.database.backup') }}" method="post" class="m-0" id="admin-database-backup-form">
+                @csrf
+                <button type="submit"
+                        class="nav-link w-100 text-start border-0 bg-transparent"
+                        style="color: inherit;"
+                        title="Create full database backup (stored under storage/app/backups)"
+                        onclick="return confirm('Create a full database backup now? This may take a minute.');">
+                    <i class="bi bi-database-down me-2"></i><span>Database backup</span>
+                </button>
+            </form>
+        </li>
+
         <li class="nav-item border-top">
             <a class="nav-link " href="#" id="{{ $themeToggleId }}">
                 <i class="bi bi-moon me-2"></i>&nbsp; <span>Thema</span>
@@ -209,6 +230,23 @@
 
 
 </ul>
+
+@if (session('success') || session('error'))
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            @if (session('success'))
+            if (typeof window.showNotification === 'function') {
+                window.showNotification(@json(session('success')), 'success', 5000);
+            }
+            @endif
+            @if (session('error'))
+            if (typeof window.notifyError === 'function') {
+                window.notifyError(@json(session('error')), 8000);
+            }
+            @endif
+        });
+    </script>
+@endif
 
 <script>
     (function () {

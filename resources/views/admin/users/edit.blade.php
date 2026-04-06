@@ -17,7 +17,7 @@
         }
     </style>
 
-    <div class="container mt-0 page-wrap">
+    <div class="container mt-2 page-wrap">
         <div class="card bg-gradient">
 
             {{-- Header with avatar --}}
@@ -35,7 +35,7 @@
                          alt="Default Avatar">
                 @endif
 
-                <h6 class="text-primary mb-0">Edit technik</h6>
+                <h6 class="text-primary mb-0">Edit technik <span class="text-white">id={{$user->id}}</span></h6>
             </div>
 
             <div class="card-body p-2">
@@ -142,7 +142,7 @@
                             </select>
                         </div>
 
-                        <div class="col-12 col-md-6 d-flex align-items-end">
+                        <div class="col-12 col-md-2 d-flex align-items-end">
                             <div class="form-check">
                                 <input type="checkbox"
                                        name="is_admin"
@@ -152,6 +152,20 @@
                                 <label for="is_admin" class="form-check-label">admin</label>
                             </div>
                         </div>
+
+                        <div class="col-12 col-md-4 d-flex align-items-end">
+                            <div class="form-check">
+                                <input type="checkbox"
+                                       name="email_verified_at"
+                                       id="email_verified_at"
+                                       class="form-check-input"
+                                       value="1"
+                                    {{ old('email_verified_at', $user->email_verified_at) ? 'checked' : '' }}>
+                                <label for="email_verified_at" class="form-check-label">Email verified</label>
+                            </div>
+                        </div>
+
+
                     </div>
 
 

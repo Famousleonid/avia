@@ -16,11 +16,11 @@ return new class extends Migration {
             $table->id();
             $table->foreignId('user_id')->nullable()->constrained()->onDelete('cascade');
             $table->foreignId('workorder_id')->constrained()->onDelete('cascade');
-            $table->foreignId('general_task_id')->constrained()->onDelete('cascade');
-            $table->unsignedBigInteger('task_id')->nullable()->after('workorder_id');
+            $table->unsignedBigInteger('task_id')->nullable();
             $table->foreign('task_id')->references('id')->on('tasks')->nullOnDelete();
+            $table->foreignId('general_task_id')->constrained()->onDelete('cascade');
             $table->date('date_start')->nullable();
-            $table->date('date_finish')->nullable();;
+            $table->date('date_finish')->nullable();
             $table->string('description')->nullable();
             $table->timestamps();
         });

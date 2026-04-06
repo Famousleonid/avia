@@ -169,7 +169,7 @@
                     <div class="h5 ms-2 mt-2 text-white user-info-text">
                         <span>{{ Auth::user()->name }}</span>
                         <span class="text-secondary fs-6 user-role-text">
-                            {{ Auth::user()->role->name }}
+                            {{ Auth::user()->roleName() ?? '—' }}
                         </span>
                     </div>
                 </div>
@@ -474,6 +474,15 @@
             });
             const data = await r.json();
             renderUsers(Array.isArray(data) ? data : (data.items || []));
+
+            if (window.__msgPreselectUserIds && window.__msgPreselectUserIds.length) {
+                const pre = new Set(window.__msgPreselectUserIds.map(Number).filter(Boolean));
+                listEl.querySelectorAll('input[type="checkbox"]').forEach(cb => {
+                    if (pre.has(Number(cb.value))) cb.checked = true;
+                });
+                window.__msgPreselectUserIds = null;
+                updateSelectedCount();
+            }
         }
 
         btnAll?.addEventListener('click', () => {

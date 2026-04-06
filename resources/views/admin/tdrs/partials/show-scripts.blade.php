@@ -663,6 +663,20 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
     if (bushingTabBody) {
+        function bushingToastWarn(m) {
+            if (typeof window.notifyWarn === 'function') {
+                window.notifyWarn(m);
+            } else {
+                alert(m);
+            }
+        }
+        function bushingToastErr(m) {
+            if (typeof window.notifyError === 'function') {
+                window.notifyError(m);
+            } else {
+                alert(m);
+            }
+        }
         bushingTabBody.addEventListener('click', function(e) {
             var addProcessesBtn = e.target.closest('.open-add-processes-modal');
             if (addProcessesBtn && addProcessesBtn.getAttribute('data-add-processes-url')) {
@@ -697,7 +711,7 @@ document.addEventListener('DOMContentLoaded', function() {
                         }
                     });
                     if (queryParts.length === 0) {
-                        alert({!! json_encode(__('Select at least one bushing for this process using Group checkboxes in the table.')) !!});
+                        bushingToastWarn({!! json_encode(__('Select at least one bushing for this process using Group checkboxes in the table.')) !!});
                         return;
                     }
                 }
@@ -766,7 +780,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     .filter(function (row) { return !!row.id; });
 
                 if (selected.length === 0) {
-                    alert(createBatchBtn
+                    bushingToastWarn(createBatchBtn
                         ? {!! json_encode(__('Select rows using the small “batch” checkbox (not grouped yet).')) !!}
                         : {!! json_encode(__('Select rows using the small checkbox next to “Grp” to ungroup.')) !!});
                     return;
@@ -774,7 +788,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
                 var processKeys = Array.from(new Set(selected.map(function (r) { return r.processKey; })));
                 if (processKeys.length !== 1) {
-                    alert({!! json_encode(__('Please select rows from one process column only.')) !!});
+                    bushingToastWarn({!! json_encode(__('Please select rows from one process column only.')) !!});
                     return;
                 }
 
@@ -807,10 +821,14 @@ document.addEventListener('DOMContentLoaded', function() {
                     if (res.json && res.json.errors) {
                         try { msg += '\n' + JSON.stringify(res.json.errors); } catch (e2) {}
                     }
-                    alert(msg);
+                    if (res.status >= 500) {
+                        bushingToastErr(msg);
+                    } else {
+                        bushingToastWarn(msg);
+                    }
                 })
                 .catch(function (err) {
-                    alert('Batch operation failed' + (err && err.message ? ': ' + err.message : '.'));
+                    bushingToastErr('Batch operation failed' + (err && err.message ? ': ' + err.message : '.'));
                 });
             }
         });
@@ -818,9 +836,13 @@ document.addEventListener('DOMContentLoaded', function() {
             var form = e.target;
             if (form.id !== 'bushings-form' || form.dataset.embed !== '1') return;
             e.preventDefault();
+            function hideGlobalSpinner() {
+                if (typeof window.hideLoadingSpinner === 'function') window.hideLoadingSpinner();
+            }
             var selected = form.querySelectorAll('.component-checkbox:checked');
             if (selected.length === 0) {
                 alert('{{ __("Please select at least one component before submitting.") }}');
+                hideGlobalSpinner();
                 return;
             }
             var groups = new Set();
@@ -833,11 +855,11 @@ document.addEventListener('DOMContentLoaded', function() {
             });
             if (hasErr) {
                 alert('{{ __("Please enter quantity for all groups with selected components.") }}');
+                hideGlobalSpinner();
                 return;
             }
             var submitBtn = document.querySelector('button[form="bushings-form"]');
-            var origHtml = submitBtn ? submitBtn.innerHTML : '';
-            if (submitBtn) { submitBtn.disabled = true; submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm"></span>'; }
+            if (submitBtn) { submitBtn.disabled = true; }
             var fd = new FormData(form);
             var controller = new AbortController();
             var timeoutId = setTimeout(function() { controller.abort(); }, 30000);
@@ -854,8 +876,6 @@ document.addEventListener('DOMContentLoaded', function() {
                 });
             })
             .then(function(result) {
-                clearTimeout(timeoutId);
-                if (submitBtn) { submitBtn.disabled = false; submitBtn.innerHTML = origHtml; }
                 if (result.json) {
                     if (result.json.success) {
                         if (typeof loadBushingPartial === 'function') loadBushingPartial();
@@ -867,9 +887,12 @@ document.addEventListener('DOMContentLoaded', function() {
                 }
             })
             .catch(function(err) {
-                clearTimeout(timeoutId);
-                if (submitBtn) { submitBtn.disabled = false; submitBtn.innerHTML = origHtml; }
                 alert(err.name === 'AbortError' ? '{{ __("Request timed out. Please try again.") }}' : ('{{ __("Failed to submit.") }}' + (err.message ? ': ' + err.message : '')));
+            })
+            .finally(function() {
+                clearTimeout(timeoutId);
+                hideGlobalSpinner();
+                if (submitBtn) { submitBtn.disabled = false; }
             });
         });
     }
@@ -1257,8 +1280,7 @@ document.addEventListener('DOMContentLoaded', function() {
                         ev.preventDefault();
                         var fd = new FormData(form);
                         var submitBtn = form.querySelector('button[type="submit"]');
-                        var origHtml = submitBtn ? submitBtn.innerHTML : '';
-                        if (submitBtn) { submitBtn.disabled = true; submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm"></span>'; }
+                        if (submitBtn) { submitBtn.disabled = true; }
                         fetch(form.action, {
                             method: 'POST',
                             body: fd,
@@ -1267,7 +1289,6 @@ document.addEventListener('DOMContentLoaded', function() {
                         })
                         .then(function(r) { return r.json().catch(function() { return {}; }); })
                         .then(function(data) {
-                            if (submitBtn) { submitBtn.disabled = false; submitBtn.innerHTML = origHtml; }
                             if (data.success) {
                                 var m = bootstrap.Modal.getInstance(modal);
                                 if (m) m.hide();
@@ -1280,8 +1301,11 @@ document.addEventListener('DOMContentLoaded', function() {
                             }
                         })
                         .catch(function() {
-                            if (submitBtn) { submitBtn.disabled = false; submitBtn.innerHTML = origHtml; }
                             alert('{{ __("Failed to submit.") }}');
+                        })
+                        .finally(function() {
+                            if (typeof window.hideLoadingSpinner === 'function') window.hideLoadingSpinner();
+                            if (submitBtn) { submitBtn.disabled = false; }
                         });
                     });
                 }

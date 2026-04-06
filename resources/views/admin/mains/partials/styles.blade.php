@@ -875,18 +875,92 @@
     }
 
     /* Вложенная таблица batch */
-    .wo-bush-batch-nested .wo-bush-col-part{ width: 22%; }
-    .wo-bush-batch-nested .wo-bush-col-ipl{ width: 12%; }
-    .wo-bush-batch-nested .wo-bush-col-process{
-        width: 48%;
-        white-space: normal;
-        word-wrap: break-word;
-        overflow-wrap: anywhere;
-    }
-    .wo-bush-batch-nested .wo-bush-col-qty{ width: 18%; }
+    .wo-bush-batch-nested .wo-bush-col-part{ width: 20%; }
+    .wo-bush-batch-nested .wo-bush-col-ipl{ width: 15%; }
+    .wo-bush-batch-nested .wo-bush-col-process{width: 50%; white-space: normal; word-wrap: break-word; overflow-wrap: anywhere;}
+    .wo-bush-batch-nested .wo-bush-col-qty{ width: 5%;  }
     .wo-bush-batch-nested th,
-    .wo-bush-batch-nested td{
-        min-width: 0;
+    .wo-bush-batch-nested td{min-width: 0;}
+
+    /* Вложенная таблица batch: одинаковый зазор со всех сторон (не только сверху) */
+    .wo-bush-batch-nested-wrap{
+        box-sizing: border-box;
+        padding-top: 2px;
+        padding-right: 2px;
+        padding-bottom: 2px;
+        padding-left: 2px;
+    }
+
+    /* WO bushing: после раскрытия аккордеона — шапка таблицы мельче, не жирная; ячейки px-1 (0.25rem) */
+    .wo-bush-strip-accordion .accordion-body .wo-bushings-table thead th {
+        font-weight: 400;
+        font-size: 0.7rem;
+        line-height: 1.25;
+        padding: 0.25rem !important;
+    }
+    .wo-bush-strip-accordion .accordion-body .wo-bushings-table tbody td,
+    .wo-bush-strip-accordion .accordion-body .wo-bushings-table tbody th {
+        padding: 0.25rem !important;
+    }
+    .wo-bush-strip-accordion .accordion-body .wo-bush-batch-nested tbody td {
+        padding: 0.25rem !important;
+    }
+
+    /* ~1280: плотнее только основная таблица (одиночные строки без batch-группы, шапка, строка BATCH).
+       Раскрытая .wo-bush-batch-nested — как при большом разрешении (не трогаем). */
+    @media (max-width: 1280px) {
+        .wo-bush-strip-accordion .accordion-body {
+            padding: 0.35rem 0.4rem !important;
+        }
+        .wo-bush-strip-accordion .accordion-body .wo-bush-process-block {
+            margin-bottom: 0.5rem !important;
+        }
+        .wo-bush-strip-accordion .accordion-body table.wo-bushings-table {
+            font-size: 0.68rem;
+        }
+        /* Вложенная batch не наследует ужимание шрифта основной таблицы */
+        .wo-bush-strip-accordion .accordion-body .wo-bush-batch-nested {
+            font-size: 0.875rem;
+        }
+        .wo-bush-strip-accordion .accordion-body table.wo-bushings-table > thead > tr > th {
+            font-size: 0.62rem;
+            padding: 0.12rem 0.15rem !important;
+            line-height: 1.15;
+        }
+        .wo-bush-strip-accordion .accordion-body table.wo-bushings-table > tbody > tr:not(.collapse) > td,
+        .wo-bush-strip-accordion .accordion-body table.wo-bushings-table > tbody > tr:not(.collapse) > th {
+            padding: 0.12rem 0.15rem !important;
+            line-height: 1.2;
+        }
+        /* Rep order — компактнее; Sent/Return как при большом разрешении */
+        .wo-bush-strip-accordion .accordion-body table.wo-bushings-table > tbody > tr > td.wo-bush-col-ro .form-control-sm {
+            font-size: 0.65rem;
+            padding: 0.08rem 0.2rem;
+            min-height: 1.45rem;
+            line-height: 1.2;
+        }
+        .wo-bush-strip-accordion .accordion-body table.wo-bushings-table > tbody > tr > td.wo-bush-col-dt .finish-input,
+        .wo-bush-strip-accordion .accordion-body table.wo-bushings-table > tbody > tr > td.wo-bush-col-dt .fp-alt {
+            font-size: clamp(0.65rem, 1.1vw, 0.75rem) !important;
+            padding-left: 0.15rem !important;
+            padding-right: 1.5rem !important;
+            min-height: unset !important;
+        }
+        /* Строка BATCH */
+        .wo-bush-strip-accordion .accordion-body table.wo-bushings-table > tbody > tr.wo-bush-batch-row > td.wo-bush-batch-toggle,
+        .wo-bush-strip-accordion .accordion-body table.wo-bushings-table > tbody > tr.wo-bush-batch-row > td.wo-bush-col-qty {
+            font-size: 0.88rem;
+            line-height: 1.4;
+        }
+        .wo-bush-strip-accordion .accordion-body table.wo-bushings-table > tbody > tr.wo-bush-batch-row > td.wo-bush-batch-toggle .fw-bold {
+            font-size: 0.9rem;
+        }
+        /* Process: ellipsis только в строках основной таблицы (не во вложенной batch) */
+        .wo-bush-strip-accordion .accordion-body table.wo-bushings-table > tbody > tr > td.wo-bush-col-process {
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
     }
 
 </style>

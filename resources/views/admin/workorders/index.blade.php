@@ -612,7 +612,7 @@
                             </td>
                             @endhasanyrole
 
-                            <td class="text-center">{{ $workorder->unit->part_number }}</td>
+                            <td class="text-center">{{ data_get($workorder, 'unit.part_number', '-') }}</td>
 
                             <td class="text-center"
                                 data-bs-toggle="tooltip"
@@ -627,8 +627,10 @@
                             </td>
 
                             <td class="text-center no-print">
-                                {{ $workorder->unit->manuals->number }}&nbsp
-                                <span class="text-white-50">({{ $workorder->unit->manuals->lib }})</span>
+                                {{ data_get($workorder, 'unit.manuals.number', '-') }}
+                                @if(data_get($workorder, 'unit.manuals.lib'))
+                                    <span class="text-white-50">({{ data_get($workorder, 'unit.manuals.lib') }})</span>
+                                @endif
                             </td>
 
                             <td class="text-center"
