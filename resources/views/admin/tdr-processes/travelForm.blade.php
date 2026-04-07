@@ -1,9 +1,12 @@
+@php
+    $formConfig = $formConfig ?? config('process_forms.travel-form', config('process_forms.tdr-processes'));
+@endphp
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Process Form</title>
+    <title>Traveler</title>
     <link rel="stylesheet" href="{{asset('assets/Bootstrap 5/bootstrap.min.css')}}">
 
     <style>
@@ -14,19 +17,26 @@
         }
 
         .container-fluid {
-            max-width: 960px;
+            max-width: var(--print-container-max-width, 960px);
+            height: var(--print-container-max-height, 99%);
+            padding: var(--print-container-padding, 5px);
+            margin-left: var(--print-container-margin-left, 10px);
+            margin-right: var(--print-container-margin-right, 10px);
+        }
 
-            height: 99%;
-            padding: 5px;
-            margin-left: 10px;
-            margin-right: 10px;
+        .parent {
+            font-size: var(--component-name-font-size, 12px);
+        }
+
+        .table {
+            font-size: var(--other-table-data-font-size, 10px);
         }
 
         @media print {
             /* Фиксированный размер страницы Letter в альбомной ориентации (11 x 8.5 дюймов = 279.4 x 215.9 мм) */
             @page {
                 size: letter landscape;
-                margin: 0.5cm 0.5cm 0.5cm 0.5cm; /* Фиксированные поля для всех браузеров */
+                margin: var(--print-page-margin, 0.5cm);
                 padding: 0;
             }
 
@@ -39,8 +49,8 @@
 
             /* Фиксированные размеры для body и html */
             html, body {
-                width: 100% !important;
-                height: 100% !important;
+                width: var(--print-body-width, 100%) !important;
+                height: var(--print-body-height, 100%) !important;
                 margin: 0 !important;
                 padding: 0 !important;
                 font-size: 12pt !important; /* Фиксированный размер шрифта */
@@ -50,9 +60,10 @@
             /* Контейнер с фиксированной шириной */
             .container-fluid {
                 width: 100% !important;
-                max-width: 100% !important;
-                margin: 0 !important;
-                padding: 0.3cm !important;
+                max-width: var(--print-container-max-width, 100%) !important;
+                margin-left: var(--print-container-margin-left, 0) !important;
+                margin-right: var(--print-container-margin-right, 0) !important;
+                padding: var(--print-container-padding, 0.3cm) !important;
                 height: auto !important;
             }
 
@@ -69,13 +80,13 @@
             /* Колонтитул внизу страницы с фиксированными размерами */
             footer {
                 position: fixed !important;
-                bottom: 0.3cm !important;
-                width: 100% !important;
+                bottom: var(--print-footer-bottom, 0.3cm) !important;
+                width: var(--print-footer-width, 100%) !important;
                 max-width: 27cm !important;
                 text-align: center !important;
-                font-size: 8pt !important;
+                font-size: var(--print-footer-font-size, 8pt) !important;
                 background-color: #fff !important;
-                padding: 2pt !important;
+                padding: var(--print-footer-padding, 2pt) !important;
             }
 
             /* Обрезка контента и размещение на одной странице */
@@ -279,14 +290,10 @@
 
     </style>
 </head>
-
 <body>
-<!-- Кнопка для печати -->
-<div class="text-start m-3">
-    <button class="btn btn-primary no-print" onclick="window.print()">
-        Print Form
-    </button>
-
+<div class="text-start m-3 no-print">
+    <button class="btn btn-outline-primary" type="button" onclick="window.print()">Print Form</button>
+    <button class="btn btn-secondary ms-2" type="button" data-bs-toggle="modal" data-bs-target="#printSettingsModal">⚙️ Print Settings</button>
 </div>
 
 <div class="container-fluid">
@@ -317,7 +324,7 @@
             <div class="div12 border-b ps-2" >{{ $current_tdr->serial_number }}</div>
         </div>
 
-        <div class="table mt-2">
+        <div class="table mt-2 traveler-process-table">
             <div class="div1 border-all " style="min-height: 36px;  align-content: center"></div>
             <div class="div2 border-t-r-b " style="min-height: 36px;  align-content: center"> <strong>Task require</strong>d</div>
             <div class="div3 border-t-r-b " style="min-height: 36px;  align-content: center"> <strong>Process</strong></div>
@@ -330,253 +337,142 @@
 
             @php
                 $dateRows = 0;
-                $totalRow = 14;
+                $processLines = [];
+                foreach ($tdrProcesses as $tp) {
+                    if (!$tp->processName) {
+                        continue;
+                    }
+                    $processNameLine = $tp->processName->name;
+                    $processData = json_decode($tp->processes, true);
+                    if (!is_array($processData)) {
+                        $processData = [];
+                    }
+                    $inTravelerLine = (bool) $tp->in_traveler;
+                    if (count($processData) === 0) {
+                        $processLines[] = [
+                            'tp' => $tp,
+                            'processName' => $processNameLine,
+                            'subId' => null,
+                            'inTraveler' => $inTravelerLine,
+                        ];
+                        continue;
+                    }
+                    foreach ($processData as $subId) {
+                        $processLines[] = [
+                            'tp' => $tp,
+                            'processName' => $processNameLine,
+                            'subId' => $subId,
+                            'inTraveler' => $inTravelerLine,
+                        ];
+                    }
+                }
+                $prevTraveler = null;
+            @endphp
 
-                // Находим первую строку с vendor по sort_order
-                $firstVendorSortOrder = null;
-                if(isset($vendorsData) && !empty($vendorsData)) {
-                    foreach($tdrProcesses as $processes) {
-                        if($processes->tdrs_id == $current_tdr->id && isset($vendorsData[$processes->id])) {
-                            $processData = json_decode($processes->processes, true);
-                            foreach($processData as $process) {
-                                if(isset($vendorsData[$processes->id][$process]) && isset($vendorsData[$processes->id][$process]['vendor_name'])) {
-                                    if($firstVendorSortOrder === null || $processes->sort_order < $firstVendorSortOrder) {
-                                        $firstVendorSortOrder = $processes->sort_order;
-                                    }
-                                }
+            @foreach($processLines as $line)
+                @php
+                    $tp = $line['tp'];
+                    $processName = $line['processName'];
+                    $inTraveler = $line['inTraveler'];
+                    $subId = $line['subId'];
+                    $subLabel = '';
+                    if ($subId !== null) {
+                        foreach ($proces as $proc) {
+                            if ((int) $proc->id === (int) $subId) {
+                                $subLabel = $proc->process;
+                                break;
                             }
                         }
                     }
-                }
-            @endphp
+                @endphp
 
-            {{-- Формируем строки с отмеченными чекбоксами AT, которые идут ДО первого отмеченного vendor --}}
-            @if(isset($atData) && !empty($atData))
-                @foreach($tdrProcesses as $processes)
-                    @if($processes->tdrs_id == $current_tdr->id && isset($atData[$processes->id]))
-                        @php
-                            $processData = json_decode($processes->processes, true);
-                            $processName = $processes->processName->name;
-                            // Показываем только те AT строки, которые идут до первого vendor
-                            $showAtBeforeVendor = ($firstVendorSortOrder === null) || ($processes->sort_order < $firstVendorSortOrder);
-                        @endphp
-
-                        @if(strpos($processName, 'EC') === false && $showAtBeforeVendor)
-                            @foreach($processData as $process)
-                                @php
-                                    $isAtChecked = in_array($process, $atData[$processes->id]);
-                                @endphp
-
-                                @if($isAtChecked)
-                                    @php $dateRows++; @endphp
-                                    <div class="div1 border-l-b-r " style="min-height: 36px; align-content: center">{{$dateRows}}</div>
-                                    <div class="div2 border-r-b fs-9" style="min-height: 36px; align-content: center">
-                                        <strong>
-                                            @if($processName == 'NDT-1' ||  $processName == 'NDT-4' )
-                                                {{__('NDT')}}
-                                            @else
-                                                {{ $processName }}
-                                            @endif
-                                        </strong>
-                                    </div>
-                                    <div class="div3 border-r-b fs-75" style="min-height: 36px; align-content: center">
-                                        @foreach($proces as $proc)
-                                            @if($proc->id == $process)
-                                                {{$proc->process}}
-                                            @endif
-                                        @endforeach
-
-                                    </div>
-                                    <div class="div4 border-r-b " style="min-height: 36px; align-content: center">
-                                        W{{$current_tdr->workorder->number}}
-                                    </div>
-                                    <div class="div5 border-r-b " style="min-height: 36px; align-content: center">
-                                        {{__('AT')}}
-                                    </div>
-                                    <div class="div6 border-r-b " style="min-height: 36px; align-content: center"> </div>
-                                    <div class="div7 border-r-b" style="min-height: 36px; align-content: center"> </div>
-                                    <div class="div8 border-r-b fs-8" style="min-height: 36px; align-content: center">
-                                        @if($processes->notes)
-                                            {{ $processes->notes }}
-                                        @endif
-                                    </div>
-                                @endif
-                            @endforeach
-                        @endif
-                    @endif
-                @endforeach
-            @endif
-
-            {{-- Строка "Outcoming inspection" --}}
-            @php $dateRows++; @endphp
-            <div class="div1 border-l-b-r " style="min-height: 36px; align-content: center">{{$dateRows}}</div>
-            <div class="div2 border-r-b fs-9" style="min-height: 36px; align-content: center"><strong>{{__('Outcoming
-            inspection')}}</strong></div>
-            <div class="div3 border-r-b fs-9" style="min-height: 36px; align-content: center">{{__('Visual')}}</div>
-            <div class="div4 border-r-b " style="min-height: 36px; align-content: center">{{__('N/A')}}</div>
-            <div class="div5 border-r-b " style="min-height: 36px; align-content: center">{{__('AT')}}</div>
-            <div class="div6 border-r-b " style="min-height: 36px; align-content: center"> </div>
-            <div class="div7 border-r-b" style="min-height: 36px; align-content: center"> </div>
-            <div class="div8 border-r-b " style="min-height: 36px; align-content: center"> </div>
-
-            {{-- Формируем строки с отмеченными чекбоксами vendor после "Outcoming inspection" --}}
-            @if(isset($vendorsData) && !empty($vendorsData))
-                @foreach($tdrProcesses as $processes)
-                    @if($processes->tdrs_id == $current_tdr->id && isset($vendorsData[$processes->id]))
-                        @php
-                            $processData = json_decode($processes->processes, true);
-                            $processName = $processes->processName->name;
-                        @endphp
-
-                        @if(strpos($processName, 'EC') === false)
-                            @foreach($processData as $process)
-                                @if(isset($vendorsData[$processes->id][$process]) && isset($vendorsData[$processes->id][$process]['vendor_name']))
-                                    @php $dateRows++; @endphp
-                                    <div class="div1 border-l-b-r " style="min-height: 36px; align-content: center">{{$dateRows}}</div>
-                                    <div class="div2 border-r-b fs-9" style="min-height: 36px; align-content: center">
-                                        <strong>
-                                            @if($processName == 'NDT-1' ||  $processName == 'NDT-4' )
-                                                {{__('NDT')}}
-                                            @else
-                                                {{ $processName }}
-                                            @endif
-                                        </strong>
-                                    </div>
-                                    <div class="div3 border-r-b fs-75" style="min-height: 36px; align-content: center">
-                                        @foreach($proces as $proc)
-                                            @if($proc->id == $process)
-                                                {{$proc->process}}
-                                            @endif
-                                        @endforeach
-                                        <div class="fs-8">
-                                            @if($processes->description)
-                                                {{ $processes->description }}
-                                            @endif
-                                        </div>
-
-                                    </div>
-                                    <div class="div4 border-r-b " style="min-height: 36px; align-content: center">
-                                        @if($processName == 'Paint ')
-                                            W{{$current_wo->number}}
-                                        @endif
-                                    </div>
-                                    <div class="div5 border-r-b " style="min-height: 36px; align-content: center">
-{{--                                        @if($processName == 'Paint ')--}}
-{{--                                            {{__('AT')}}--}}
-{{--                                        @elseif($processName == 'Silver plate')--}}
-{{--                                            {{__("")}}--}}
-{{--                                        @else--}}
-{{--                                            {{ $vendorsData[$processes->id][$process]['vendor_name'] }}--}}
-{{--                                        @endif--}}
-
-                                            {{ $vendorsData[$processes->id][$process]['vendor_name'] }}
-
-                                    </div>
-                                    <div class="div6 border-r-b " style="min-height: 36px; align-content: center"> </div>
-                                    <div class="div7 border-r-b" style="min-height: 36px; align-content: center"> </div>
-                                    <div class="div8 border-r-b  fs-8" style="min-height: 36px; align-content: center">
-                                        @if($processes->notes)
-                                            {{ $processes->notes }}
-                                        @endif
-                                    </div>
-                                @endif
-                            @endforeach
-                        @endif
-                    @endif
-                @endforeach
-            @endif
-
-            {{-- Строка "Receiving inspection" после последней строки с vendor --}}
-            @php $dateRows++; @endphp
-            <div class="div1 border-l-b-r" style="min-height: 36px; align-content: center">{{ $dateRows }}</div>
-            <div class="div2 border-r-b fs-9" style="min-height: 36px; align-content: center"><strong>{{ __('Receiving
-            inspection') }}</strong></div>
-            <div class="div3 border-r-b fs-9" style="min-height: 36px; align-content: center">{{__('Visual')}}</div>
-            <div class="div4 border-r-b" style="min-height: 36px; align-content: center">{{__('N/A')}}</div>
-            <div class="div5 border-r-b" style="min-height: 36px; align-content: center">{{__('AT')}}</div>
-            <div class="div6 border-r-b" style="min-height: 36px; align-content: center"></div>
-            <div class="div7 border-r-b" style="min-height: 36px; align-content: center"></div>
-            <div class="div8 border-r-b" style="min-height: 36px; align-content: center"></div>
-
-            @foreach($tdrProcesses as $processes)
-                @if($processes->tdrs_id == $current_tdr->id)
-                    @php
-                        // Декодируем JSON-поле processes
-                        $processData = json_decode($processes->processes, true);
-                        // Получаем имя процесса из связанной модели ProcessName
-                        $processName = $processes->processName->name;
-                    @endphp
-
-                    @if(strpos($processName, 'EC') === false)
-                        @foreach($processData as $process)
-                            @php
-                                // Проверяем, не была ли эта строка уже обработана
-                                $isAtChecked = isset($atData[$processes->id]) && in_array($process, $atData[$processes->id]);
-                                $isVendorProcessed = isset($vendorsData[$processes->id]) && isset($vendorsData[$processes->id][$process]) && isset($vendorsData[$processes->id][$process]['vendor_name']);
-
-                                // Исключаем строки с vendor (они обрабатываются после "Outcoming inspection")
-                                // Исключаем строки с AT, которые были показаны до первого vendor
-                                $wasAtShownBeforeVendor = $isAtChecked && (($firstVendorSortOrder === null) || ($processes->sort_order < $firstVendorSortOrder));
-                            @endphp
-
-                            @if(!$isVendorProcessed && !$wasAtShownBeforeVendor)
-                                @php $dateRows++; @endphp
-                                <div class="div1 border-l-b-r " style="min-height: 36px; align-content: center">{{$dateRows}}</div>
-                                <div class="div2 border-r-b fs-9" style="min-height: 36px; align-content: center">
-                                    <strong>
-                                        @if($processName == 'NDT-1' ||  $processName == 'NDT-4' )
-                                            {{__('NDT')}}
-                                        @else
-                                            {{ $processName }}
-                                        @endif
-                                    </strong></div>
-                                <div class="div3 border-r-b fs-8" style="min-height: 36px; align-content: center">
-                                    @foreach($proces as $proc)
-                                        @if($proc->id == $process)
-                                        {{$proc->process}}
-                                        @endif
-                                    @endforeach
-                                        <div class="fs-8">
-                                            @if($processes->description)
-                                                {{ $processes->description }}
-                                            @endif
-                                        </div>
-                                </div>
-                                <div class="div4 border-r-b " style="min-height: 36px; align-content: center">
-
-                                            @if($processName == 'Paint ')
-                                        W{{$current_wo->number}}
-                                            @endif
-                                </div>
-                                <div class="div5 border-r-b " style="min-height: 36px; align-content: center">
-                                    @if($processName == 'Paint ')
-                                       {{__('AT')}}
-                                    @elseif($processName == 'Silver plate')
-                                        {{__("")}}
-                                    @elseif(isset($vendorName) && $vendorName)
-                                       {{ $vendorName }}
-                                    @endif
-                                </div>
-                                <div class="div6 border-r-b " style="min-height: 36px; align-content: center"> </div>
-                                <div class="div7 border-r-b" style="min-height: 36px; align-content: center"> </div>
-                                <div class="div8 border-r-b " style="min-height: 36px; align-content: center">
-                                    @if($processes->notes)
-                                        {{ $processes->notes }}
-                                    @endif
-                                </div>
-                            @endif
-
-
-
-
-
-                        @endforeach
-                    @endif
-
+                @if($inTraveler && $prevTraveler !== true)
+                    @php $dateRows++; @endphp
+                    <div class="div1 border-l-b-r " style="min-height: 36px; align-content: center">{{ $dateRows }}</div>
+                    <div class="div2 border-r-b fs-9" style="min-height: 36px; align-content: center"><strong>{{ __('Outcoming inspection') }}</strong></div>
+                    <div class="div3 border-r-b fs-9" style="min-height: 36px; align-content: center">{{ __('Visual') }}</div>
+                    <div class="div4 border-r-b " style="min-height: 36px; align-content: center">{{ __('N/A') }}</div>
+                    <div class="div5 border-r-b " style="min-height: 36px; align-content: center">{{ __('AT') }}</div>
+                    <div class="div6 border-r-b " style="min-height: 36px; align-content: center"></div>
+                    <div class="div7 border-r-b" style="min-height: 36px; align-content: center"></div>
+                    <div class="div8 border-r-b " style="min-height: 36px; align-content: center"></div>
                 @endif
 
+                @if(!$inTraveler && $prevTraveler === true)
+                    @php $dateRows++; @endphp
+                    <div class="div1 border-l-b-r" style="min-height: 36px; align-content: center">{{ $dateRows }}</div>
+                    <div class="div2 border-r-b fs-9" style="min-height: 36px; align-content: center"><strong>{{ __('Receiving inspection') }}</strong></div>
+                    <div class="div3 border-r-b fs-9" style="min-height: 36px; align-content: center">{{ __('Visual') }}</div>
+                    <div class="div4 border-r-b" style="min-height: 36px; align-content: center">{{ __('N/A') }}</div>
+                    <div class="div5 border-r-b" style="min-height: 36px; align-content: center">{{ __('AT') }}</div>
+                    <div class="div6 border-r-b" style="min-height: 36px; align-content: center"></div>
+                    <div class="div7 border-r-b" style="min-height: 36px; align-content: center"></div>
+                    <div class="div8 border-r-b" style="min-height: 36px; align-content: center"></div>
+                @endif
+
+                @php $dateRows++; @endphp
+                <div class="div1 border-l-b-r " style="min-height: 36px; align-content: center">{{ $dateRows }}</div>
+                <div class="div2 border-r-b fs-9" style="min-height: 36px; align-content: center">
+                    <strong>
+                        @if($processName == 'NDT-1' || $processName == 'NDT-4')
+                            {{ __('NDT') }}
+                        @else
+                            {{ $processName }}
+                        @endif
+                    </strong>
+                </div>
+                <div class="div3 border-r-b fs-75" style="min-height: 36px; align-content: center">
+                    @if($subLabel !== '')
+                        {{ $subLabel }}
+                        @if($tp->ec) ( EC ) @endif
+                    @endif
+                    <div class="fs-8">
+                        @if($tp->description)
+                            {{ $tp->description }}
+                        @endif
+                    </div>
+                </div>
+                <div class="div4 border-r-b " style="min-height: 36px; align-content: center">
+                    @if(!empty($tp->repair_order))
+                        {{ $tp->repair_order }}
+                    @elseif(!$inTraveler)
+                        W{{ $current_tdr->workorder->number }}
+                    @elseif($processName == 'Paint ')
+                        W{{ $current_wo->number }}
+                    @endif
+                </div>
+                <div class="div5 border-r-b " style="min-height: 36px; align-content: center">
+                    @if($inTraveler)
+                        {{ $vendorName }}
+                    @else
+                        {{ __('AT') }}
+                    @endif
+                </div>
+                <div class="div6 border-r-b " style="min-height: 36px; align-content: center"></div>
+                <div class="div7 border-r-b" style="min-height: 36px; align-content: center"></div>
+                <div class="div8 border-r-b fs-8" style="min-height: 36px; align-content: center">
+                    @if($tp->notes)
+                        {{ $tp->notes }}
+                    @endif
+                </div>
+
+                @php $prevTraveler = $inTraveler; @endphp
             @endforeach
+
+            @if($prevTraveler === true)
+                @php $dateRows++; @endphp
+                <div class="div1 border-l-b-r" style="min-height: 36px; align-content: center">{{ $dateRows }}</div>
+                <div class="div2 border-r-b fs-9" style="min-height: 36px; align-content: center"><strong>{{ __('Receiving inspection') }}</strong></div>
+                <div class="div3 border-r-b fs-9" style="min-height: 36px; align-content: center">{{ __('Visual') }}</div>
+                <div class="div4 border-r-b" style="min-height: 36px; align-content: center">{{ __('N/A') }}</div>
+                <div class="div5 border-r-b" style="min-height: 36px; align-content: center">{{ __('AT') }}</div>
+                <div class="div6 border-r-b" style="min-height: 36px; align-content: center"></div>
+                <div class="div7 border-r-b" style="min-height: 36px; align-content: center"></div>
+                <div class="div8 border-r-b" style="min-height: 36px; align-content: center"></div>
+            @endif
             @php
+                $travelerMinTotal = (int) ($formConfig['traveler_table_total_rows'] ?? $formConfig['other_table_rows'] ?? 14);
+                $totalRow = max($dateRows, $travelerMinTotal);
                 $emptyRow = $totalRow - $dateRows;
             @endphp
             @for($i=0; $i < $emptyRow; $i++)
@@ -591,6 +487,52 @@
             @endfor
 
         </div>
+        <div id="traveler-table-meta" class="d-none" data-date-rows="{{ $dateRows }}" data-total-rows="{{ $totalRow }}" aria-hidden="true"></div>
+
+        <template id="traveler-empty-rows-fragment">
+            <div class="div1 border-l-b-r traveler-empty-line" style="min-height: 36px; align-content: center"></div>
+            <div class="div2 border-r-b fs-9 traveler-empty-line" style="min-height: 36px; align-content: center"><strong></strong></div>
+            <div class="div3 border-r-b fs-9 traveler-empty-line" style="min-height: 36px; align-content: center"></div>
+            <div class="div4 border-r-b traveler-empty-line" style="min-height: 36px; align-content: center"></div>
+            <div class="div5 border-r-b traveler-empty-line" style="min-height: 36px; align-content: center"></div>
+            <div class="div6 border-r-b traveler-empty-line" style="min-height: 36px; align-content: center"></div>
+            <div class="div7 border-r-b traveler-empty-line" style="min-height: 36px; align-content: center"></div>
+            <div class="div8 border-r-b traveler-empty-line" style="min-height: 36px; align-content: center"></div>
+        </template>
+        <script>
+            (function () {
+                function applyTravelerRowsFromPrintSettings() {
+                    var table = document.querySelector('.traveler-process-table');
+                    var meta = document.getElementById('traveler-table-meta');
+                    var tpl = document.getElementById('traveler-empty-rows-fragment');
+                    if (!table || !meta || !tpl || !tpl.content) return;
+                    var dateRows = parseInt(meta.getAttribute('data-date-rows'), 10) || 0;
+                    var serverTotal = parseInt(meta.getAttribute('data-total-rows'), 10) || 0;
+                    var target = serverTotal;
+                    try {
+                        var key = @json($formConfig['storage_key'] ?? 'travelForm_print_settings');
+                        var raw = localStorage.getItem(key);
+                        if (raw) {
+                            var saved = JSON.parse(raw);
+                            var w = parseInt(String(saved.otherTableRows != null ? saved.otherTableRows : '').replace(/\D/g, ''), 10);
+                            if (w > 0) {
+                                target = Math.max(serverTotal, dateRows, w);
+                            }
+                        }
+                    } catch (e) {}
+                    var extra = target - serverTotal;
+                    for (var i = 0; i < extra; i++) {
+                        table.appendChild(tpl.content.cloneNode(true));
+                    }
+                    meta.setAttribute('data-total-rows', String(serverTotal + extra));
+                }
+                if (document.readyState === 'loading') {
+                    document.addEventListener('DOMContentLoaded', applyTravelerRowsFromPrintSettings);
+                } else {
+                    applyTravelerRowsFromPrintSettings();
+                }
+            })();
+        </script>
 
 
 
@@ -608,13 +550,18 @@
         </div>
 
     </footer>
-
-    <!-- Скрипт для печати -->
-    <script>
-        function printForm() {
-            window.print();
-        }
-    </script>
 </div>
+
+@include('shared.process-forms._print-settings-modal', ['module' => 'travel-form', 'formConfig' => $formConfig, 'showFormTypes' => ['other']])
+@include('shared.process-forms._scripts', ['module' => 'travel-form', 'formConfig' => $formConfig])
+<script>
+    if (typeof window.bootstrapLoaded === 'undefined') {
+        window.bootstrapLoaded = true;
+        const script = document.createElement('script');
+        script.src = "{{ asset('assets/Bootstrap 5/bootstrap.bundle.min.js') }}";
+        script.async = true;
+        document.head.appendChild(script);
+    }
+</script>
 </body>
 </html>

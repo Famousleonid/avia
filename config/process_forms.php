@@ -19,6 +19,18 @@ return [
         'storage_key' => 'processesForm_print_settings',
     ],
 
+    'travel-form' => [
+        'container_max_width' => 960,
+        'ndt_table_rows' => 17,
+        'stress_table_rows' => 21,
+        /* Для Traveler: всего строк в таблице (процессы + пустые). Дублируется в Print Settings как «Other Table (row)». */
+        'other_table_rows' => 14,
+        'traveler_table_total_rows' => 14,
+        'component_name_font_size' => 12,
+        'header_title' => 'PART TRAVELER',
+        'storage_key' => 'travelForm_print_settings',
+    ],
+
     'extra_processes' => [
         'container_max_width' => 920,
         'ndt_table_rows' => 16,

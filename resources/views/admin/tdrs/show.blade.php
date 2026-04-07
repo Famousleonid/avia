@@ -106,6 +106,23 @@
         #addPartProcessesModal, #editTdrProcessModal, #editExtraProcessModal, #addExtraProcessModal, #addExtraPartModal, #createLogCardModal, #editLogCardModal, #editBushingModal, #addProcessesModal, #addPartModal, #changeSnModal { z-index: 1080 !important; }
         #addProcessesModal.modal.show, #addPartModal.modal.show { z-index: 1090 !important; }
         #addPartProcessesModal ~ .modal-backdrop, #editTdrProcessModal ~ .modal-backdrop, #editExtraProcessModal ~ .modal-backdrop, #addExtraProcessModal ~ .modal-backdrop, #addExtraPartModal ~ .modal-backdrop, #createLogCardModal ~ .modal-backdrop, #editLogCardModal ~ .modal-backdrop, #editBushingModal ~ .modal-backdrop, #addProcessesModal ~ .modal-backdrop, #addPartModal ~ .modal-backdrop, #changeSnModal ~ .modal-backdrop { z-index: 1075 !important; }
+
+        /* Part / Extra processes (AJAX block) — заметнее подсветка строки при наведении */
+        .processes-modal-body .sortable-table.table-hover > tbody > tr:hover > td,
+        .processes-modal-body .sortable-table.table-hover > tbody > tr:hover > th,
+        .extra-processes-modal-body .sortable-table.table-hover > tbody > tr:hover > td,
+        .extra-processes-modal-body .sortable-table.table-hover > tbody > tr:hover > th {
+            --bs-table-hover-color: var(--bs-body-color);
+            --bs-table-hover-bg: rgba(13, 110, 253, 0.18);
+            background-color: rgba(13, 110, 253, 0.16) !important;
+        }
+        html[data-bs-theme="dark"] .processes-modal-body .sortable-table.table-hover > tbody > tr:hover > td,
+        html[data-bs-theme="dark"] .processes-modal-body .sortable-table.table-hover > tbody > tr:hover > th,
+        html[data-bs-theme="dark"] .extra-processes-modal-body .sortable-table.table-hover > tbody > tr:hover > td,
+        html[data-bs-theme="dark"] .extra-processes-modal-body .sortable-table.table-hover > tbody > tr:hover > th {
+            --bs-table-hover-bg: rgba(110, 168, 254, 0.28);
+            background-color: rgba(110, 168, 254, 0.24) !important;
+        }
     </style>
 
     @php

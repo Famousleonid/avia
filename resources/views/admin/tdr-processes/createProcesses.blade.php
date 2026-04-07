@@ -250,7 +250,7 @@
                                         <label for="description" class="form-label" style="margin-bottom:
                                         -5px">Description</label>
                                         <input type="text" class="form-control" id="description_0"
-                                               name="processes[0][description]" placeholder="CMM fig.___ pg. ___">
+                                               name="processes[0][description]" placeholder="CMM fig.___ pg. ___" >
 
                                         <label for="notes" class="form-label" style="margin-bottom: -5px">Notes</label>
                                         <input type="text" class="form-control" id="notes" name="processes[0][notes]"

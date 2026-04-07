@@ -316,12 +316,14 @@ Route::group(['middleware' => ['auth']], function () {
     Route::get('/tdr/{tdrId}/traveler', [TdrProcessController::class, 'traveler'])->name('tdr-processes.traveler');
     Route::get('/get-process/{processNameId}', [TdrProcessController::class, 'getProcess'])->name('tdr-processes.get-process');
     Route::post('/tdr-processes/update-order', [TdrProcessController::class, 'updateOrder'])->name('tdr-processes.update-order');
+    Route::post('/tdr/{tdrId}/traveler-group', [TdrProcessController::class, 'travelerGroup'])->name('tdr-processes.traveler-group');
+    Route::post('/tdr/{tdrId}/traveler-ungroup', [TdrProcessController::class, 'travelerUngroup'])->name('tdr-processes.traveler-ungroup');
 
     Route::get('wo_bushings/processesForm/{id}/{processNameId}', [WoBushingController::class, 'processesForm'])->name('wo_bushings.processesForm');
 
     Route::get('wo_bushings/specProcessForm/{id}', [WoBushingController::class, 'specProcessForm'])->name('wo_bushings.specProcessForm');
 
-    Route::get('api/get-components-by-manual', [TdrController::class, 'getComponentsByManual'])->name('api.get-components-by-manual');
+//    Route::get('api/get-components-by-manual', [TdrController::class, 'getComponentsByManual'])->name('api.get-components-by-manual');
 
     // NDT/CAD CSV Management Routes
     Route::get('/{workorder}/ndt-cad-csv/partial', [NdtCadCsvController::class, 'partial'])->name('ndt-cad-csv.partial');

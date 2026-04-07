@@ -24,6 +24,7 @@ class TdrProcess extends Model
         'date_start',
         'date_finish',
         'ignore_row',
+        'in_traveler',
         'ec',
         'user_id',
     ];
@@ -32,6 +33,7 @@ class TdrProcess extends Model
         'date_start'  => 'date',   // <-- важно
         'date_finish' => 'date',   // <-- важно
         'ignore_row'  => 'boolean',
+        'in_traveler' => 'boolean',
     ];
 
 

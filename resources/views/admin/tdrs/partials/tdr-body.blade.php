@@ -130,11 +130,13 @@
                             </td>
                             <td class="text-center">
                                 <div class="d-flex justify-content-center">
-                                    <button type="button" class="btn btn-outline-primary btn-sm me-2 open-part-processes-tab" title="{{ __('Component Processes') }}"
+                                    <button type="button" class="btn btn-outline-primary btn-sm me-2 open-part-processes-tab"
+                                            title="{{ __('Part Processes') }}"
                                             data-tdr-id="{{ $tdr->id }}">
                                         <i class="bi bi-bar-chart-steps"></i>
                                     </button>
-                                    <button type="button" class="btn btn-outline-primary btn-sm me-2" title="{{ __('Component Inspection Edit') }}"
+                                    <button type="button" class="btn btn-outline-primary btn-sm me-2" title="{{ __('Part
+                                    Inspection Edit') }}"
                                             data-bs-toggle="modal" data-bs-target="#editTdrModal"
                                             data-tdr-id="{{ $tdr->id }}">
                                         <i class="bi bi-pencil-square"></i>

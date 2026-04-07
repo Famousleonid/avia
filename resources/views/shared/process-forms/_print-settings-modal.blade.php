@@ -3,6 +3,8 @@
     Переменные: $module, $formConfig, $showFormTypes — какие настройки таблиц показывать:
     ['ndt'] — только NDT, ['stress'] — только Stress Relief, ['other'] — только Other,
     ['ndt','stress','other'] — все (для packageForms)
+    $showOtherTableRowLimit — показывать поле «Other Table (row)» (лимит строк для .data-page/.data-row).
+    На формах без такой разметки (например Part Traveler) передайте false.
 --}}
 @php
     $formConfig = $formConfig ?? config('process_forms.' . ($module ?? 'tdr-processes'), config('process_forms.tdr-processes'));
@@ -10,6 +12,12 @@
     $showNdt = in_array('ndt', $showFormTypes);
     $showStress = in_array('stress', $showFormTypes);
     $showOther = in_array('other', $showFormTypes);
+    $showOtherTableRowLimit = $showOtherTableRowLimit ?? true;
+    $showTableRowCountInputs = $showNdt || $showStress || ($showOther && $showOtherTableRowLimit);
+    $isTravelForm = ($module ?? '') === 'travel-form';
+    $otherTableRowsInputValue = $isTravelForm
+        ? (int) ($formConfig['traveler_table_total_rows'] ?? $formConfig['other_table_rows'] ?? 14)
+        : (int) ($formConfig['other_table_rows'] ?? 21);
 @endphp
 <div class="modal fade print-settings-modal" id="printSettingsModal" tabindex="-1" aria-labelledby="printSettingsModalLabel" aria-hidden="true">
     <div class="modal-dialog modal-lg">
@@ -26,6 +34,7 @@
             <div class="modal-body">
                 <form id="printSettingsForm">
                     <div class="mb-4">
+                        @if($showTableRowCountInputs)
                         <h5 class="mb-3" data-bs-toggle="tooltip" data-bs-placement="top"
                             title="Настройки количества строк в таблицах. Строки сверх лимита скрываются при печати."
                             data-tooltip-ru="Настройки количества строк в таблицах. Строки сверх лимита скрываются при печати."
@@ -61,21 +70,32 @@
                                 </div>
                             </div>
                             @endif
-                            @if($showOther)
+                            @if($showOther && $showOtherTableRowLimit)
                             <div class="{{ ($showOther && !$showNdt && !$showStress) ? 'col-12' : 'col-md-4' }}">
                                 <label for="otherTableRows" class="form-label" data-bs-toggle="tooltip" data-bs-placement="top"
+                                    @if($isTravelForm)
+                                    title="Сколько всего строк в таблице Part Traveler (заполненные и пустые). Автоматически не меньше числа строк с процессами."
+                                    data-tooltip-ru="Сколько всего строк в таблице Part Traveler (заполненные и пустые). Автоматически не меньше числа строк с процессами."
+                                    data-tooltip-en="Total rows on Part Traveler (filled and blank). Never less than the number of process rows."
+                                    @else
                                     title="Максимальное количество строк в таблицах других процессов."
                                     data-tooltip-ru="Максимальное количество строк в таблицах других процессов."
-                                    data-tooltip-en="Maximum number of rows in other process tables.">
-                                    Other Table (row)
+                                    data-tooltip-en="Maximum number of rows in other process tables."
+                                    @endif>
+                                    @if($isTravelForm)
+                                        Traveler table — total rows
+                                    @else
+                                        Other Table (row)
+                                    @endif
                                 </label>
                                 <div class="input-group">
                                     <input type="number" class="form-control" id="otherTableRows" name="otherTableRows"
-                                        min="1" max="100" step="1" value="{{ $formConfig['other_table_rows'] ?? 21 }}">
+                                        min="1" max="100" step="1" value="{{ $otherTableRowsInputValue }}">
                                 </div>
                             </div>
                             @endif
                         </div>
+                        @endif
                         <div class="row mb-3">
                             <div class="col-md-4">
                                 <label for="componentNameFontSize" class="form-label" data-bs-toggle="tooltip" data-bs-placement="top"

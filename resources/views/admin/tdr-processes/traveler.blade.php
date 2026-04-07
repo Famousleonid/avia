@@ -112,6 +112,18 @@
         .vendor-header-dropdown-item.active:hover {
             background-color: #0b5ed7;
         }
+
+        .table-wrapper .table.table-hover > tbody > tr:hover > td,
+        .table-wrapper .table.table-hover > tbody > tr:hover > th {
+            --bs-table-hover-color: var(--bs-body-color);
+            --bs-table-hover-bg: rgba(13, 110, 253, 0.18);
+            background-color: rgba(13, 110, 253, 0.16) !important;
+        }
+        html[data-bs-theme="dark"] .table-wrapper .table.table-hover > tbody > tr:hover > td,
+        html[data-bs-theme="dark"] .table-wrapper .table.table-hover > tbody > tr:hover > th {
+            --bs-table-hover-bg: rgba(110, 168, 254, 0.28);
+            background-color: rgba(110, 168, 254, 0.24) !important;
+        }
     </style>
 
     <div class="container mt-3">
@@ -632,13 +644,18 @@
                 });
             });
 
-            // Обработчик клика на кнопку Part Traveler
+            // Обработчик клика на кнопку Part Traveler (формирование travelForm: vendor_id + repair_num)
             document.getElementById('travelFormBtn')?.addEventListener('click', function(e) {
                 e.preventDefault();
 
-                // Проверяем, выбран ли vendor
                 const activeVendorItem = document.querySelector('.vendor-header-dropdown-item.active');
                 if (!activeVendorItem) {
+                    showNotification('Please select a vendor first', 'warning');
+                    return;
+                }
+
+                const vendorId = activeVendorItem.getAttribute('data-vendor-id');
+                if (!vendorId) {
                     showNotification('Please select a vendor first', 'warning');
                     return;
                 }
@@ -647,83 +664,12 @@
                 const baseUrl = '{{ route("tdr-processes.travelForm", ["id" => $current_tdr->id]) }}';
                 const params = new URLSearchParams();
 
+                params.append('vendor_id', vendorId);
                 if (repairNum) {
                     params.append('repair_num', repairNum);
                 }
 
-                // Собираем все данные о выбранных vendor
-                const vendorDataInputs = document.querySelectorAll('.vendor-data-input');
-                const vendorsData = {};
-                let vendorDataCount = 0;
-
-                vendorDataInputs.forEach(input => {
-                    if (input.value) {
-                        try {
-                            const vendorData = JSON.parse(input.value);
-                            const tdrProcessId = input.getAttribute('data-tdr-process-id');
-                            const process = input.getAttribute('data-process');
-
-                            if (!vendorsData[tdrProcessId]) {
-                                vendorsData[tdrProcessId] = {};
-                            }
-                            vendorsData[tdrProcessId][process] = vendorData;
-                            vendorDataCount++;
-
-                            console.log('Collected vendor data:', {
-                                tdrProcessId: tdrProcessId,
-                                process: process,
-                                vendorData: vendorData
-                            });
-                        } catch (e) {
-                            console.error('Error parsing vendor data:', e);
-                        }
-                    }
-                });
-
-                console.log(`Total vendor data collected: ${vendorDataCount} rows`);
-
-                // Собираем данные о отмеченных чекбоксах AT
-                const atCheckboxes = document.querySelectorAll('.at-checkbox');
-                const atData = {};
-                let atDataCount = 0;
-
-                atCheckboxes.forEach(checkbox => {
-                    if (checkbox.checked) {
-                        const tdrProcessId = checkbox.getAttribute('data-tdr-process-id');
-                        const process = checkbox.getAttribute('data-process');
-
-                        if (!atData[tdrProcessId]) {
-                            atData[tdrProcessId] = [];
-                        }
-                        atData[tdrProcessId].push(process);
-                        atDataCount++;
-
-                        console.log('Collected AT checkbox data:', {
-                            tdrProcessId: tdrProcessId,
-                            process: process
-                        });
-                    }
-                });
-
-                console.log(`Total AT checkboxes collected: ${atDataCount} rows`);
-
-                // Передаем данные о vendor через параметр
-                if (Object.keys(vendorsData).length > 0) {
-                    params.append('vendors_data', JSON.stringify(vendorsData));
-                    console.log('Vendors data to send:', vendorsData);
-                } else {
-                    console.log('No vendor data to send');
-                }
-
-                // Передаем данные о AT чекбоксах через параметр
-                if (Object.keys(atData).length > 0) {
-                    params.append('at_data', JSON.stringify(atData));
-                    console.log('AT data to send:', atData);
-                } else {
-                    console.log('No AT data to send');
-                }
-
-                const url = params.toString() ? `${baseUrl}?${params.toString()}` : baseUrl;
+                const url = `${baseUrl}?${params.toString()}`;
                 window.open(url, '_blank');
             });
         });

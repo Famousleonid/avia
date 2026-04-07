@@ -496,58 +496,57 @@ class TdrProcessController extends Controller
 
     public function travelForm(Request $request, $id)
     {
-        $current_tdr = Tdr::findOrFail($id);
+        $current_tdr = Tdr::with(['component', 'workorder'])->findOrFail($id);
 
-        // Получаем workorder_id из текущей записи Tdr
         $workorder_id = $current_tdr->workorder_id;
-
-        // Находим связанный Workorder
         $current_wo = Workorder::find($workorder_id);
+
+        if (!$current_wo) {
+            abort(404);
+        }
 
         $manual = $current_wo->unit->manuals;
 
-        $tdrProcesses = TdrProcess::orderBy('sort_order')->get();
+        $vendorId = $request->input('vendor_id', $request->input('vendor'));
+        if (!$vendorId) {
+            return redirect()
+                ->route('tdr-processes.traveler', ['tdrId' => $current_tdr->id])
+                ->with('error', __('Please select a vendor.'));
+        }
+
+        $vendor = Vendor::find($vendorId);
+        if (!$vendor) {
+            return redirect()
+                ->route('tdr-processes.traveler', ['tdrId' => $current_tdr->id])
+                ->with('error', __('Invalid vendor.'));
+        }
+
+        $vendorName = $vendor->name;
+
+        $tdrProcesses = TdrProcess::with('processName')
+            ->where('tdrs_id', $current_tdr->id)
+            ->where('ignore_row', false)
+            ->orderBy('sort_order')
+            ->orderBy('id')
+            ->get();
 
         $proces = Process::all();
 
-        // Получаем всех поставщиков
-        $vendors = Vendor::all();
+        $repairNum = $request->input('repair_num');
+        $repairNum = ($repairNum !== null && $repairNum !== '') ? $repairNum : 'N/A';
 
-        // Получаем параметры из запроса
-        $repairNum = $request->input('repair_num', 'N/A');
-        $vendorId = $request->input('vendor');
+        $formConfig = config('process_forms.travel-form', config('process_forms.tdr-processes'));
 
-        // Получаем данные о vendor для каждой строки
-        $vendorsData = [];
-        $vendorsDataJson = $request->input('vendors_data');
-        if ($vendorsDataJson) {
-            try {
-                $vendorsData = json_decode($vendorsDataJson, true);
-            } catch (\Exception $e) {
-                \Log::error('Error parsing vendors_data: ' . $e->getMessage());
-            }
-        }
-
-        // Получаем данные о отмеченных чекбоксах AT
-        $atData = [];
-        $atDataJson = $request->input('at_data');
-        if ($atDataJson) {
-            try {
-                $atData = json_decode($atDataJson, true);
-            } catch (\Exception $e) {
-                \Log::error('Error parsing at_data: ' . $e->getMessage());
-            }
-        }
-
-        // Получаем имя вендора если передан ID (для обратной совместимости)
-        $vendorName = null;
-        if ($vendorId) {
-            $vendor = Vendor::find($vendorId);
-            $vendorName = $vendor ? $vendor->name : null;
-        }
-
-        return view('admin.tdr-processes.travelForm',compact('current_tdr',
-            'current_wo','tdrProcesses','proces','vendors', 'manual', 'repairNum', 'vendorName', 'vendorsData', 'atData' ));
+        return view('admin.tdr-processes.travelForm', compact(
+            'current_tdr',
+            'current_wo',
+            'tdrProcesses',
+            'proces',
+            'manual',
+            'repairNum',
+            'vendorName',
+            'formConfig'
+        ));
     }
 
     public function processesForm(Request $request, $id)
@@ -890,6 +889,52 @@ class TdrProcessController extends Controller
         ));
     }
 
+    public function travelerGroup(Request $request, $tdrId)
+    {
+        $validated = $request->validate([
+            'process_ids' => 'required|array|min:1',
+            'process_ids.*' => 'integer|exists:tdr_processes,id',
+        ]);
+
+        $current_tdr = Tdr::findOrFail($tdrId);
+        $ids = array_values(array_unique(array_map('intval', $validated['process_ids'])));
+
+        $hasBlock = TdrProcess::where('tdrs_id', $current_tdr->id)->where('in_traveler', true)->exists();
+        if ($hasBlock) {
+            return response()->json([
+                'success' => false,
+                'message' => __('A Traveler group already exists. UnGroup it first.'),
+            ], 422);
+        }
+
+        $processes = TdrProcess::whereIn('id', $ids)->where('tdrs_id', $current_tdr->id)->get();
+        if ($processes->count() !== count($ids)) {
+            return response()->json([
+                'success' => false,
+                'message' => __('Invalid process selection for this part.'),
+            ], 422);
+        }
+
+        if ($processes->contains(fn ($p) => (bool) $p->in_traveler)) {
+            return response()->json([
+                'success' => false,
+                'message' => __('Selected processes must not already be in a Traveler group.'),
+            ], 422);
+        }
+
+        TdrProcess::whereIn('id', $ids)->update(['in_traveler' => true]);
+
+        return response()->json(['success' => true]);
+    }
+
+    public function travelerUngroup(Request $request, $tdrId)
+    {
+        $current_tdr = Tdr::findOrFail($tdrId);
+        TdrProcess::where('tdrs_id', $current_tdr->id)->where('in_traveler', true)->update(['in_traveler' => false]);
+
+        return response()->json(['success' => true]);
+    }
+
     public function traveler(Request $request, $tdrId)
     {
         // Находим запись Tdr по ID
@@ -901,14 +946,21 @@ class TdrProcessController extends Controller
         // Находим связанный Workorder
         $current_wo = Workorder::find($workorder_id);
 
-        $tdrProcesses = TdrProcess::orderBy('sort_order')->get();
+        $tdrProcesses = TdrProcess::with('processName')
+            ->where('tdrs_id', $current_tdr->id)
+            ->orderBy('sort_order')
+            ->orderBy('id')
+            ->get();
         $proces = Process::all();
 
-        // Получаем всех поставщиков
         $vendors = Vendor::all();
 
-        return view('admin.tdr-processes.traveler',compact('current_tdr',
-            'current_wo','tdrProcesses','proces','vendors'
+        return view('admin.tdr-processes.traveler', compact(
+            'current_tdr',
+            'current_wo',
+            'tdrProcesses',
+            'proces',
+            'vendors'
         ));
     }
 
@@ -1112,6 +1164,15 @@ class TdrProcessController extends Controller
 
         // Находим запись по ID
         $tdrProcess = TdrProcess::findOrFail($tdr_process);
+
+        if ($tdrProcess->in_traveler) {
+            $msg = __('Cannot delete a process that is part of a Traveler group. UnGroup first.');
+            if ($request->wantsJson() || $request->ajax()) {
+                return response()->json(['success' => false, 'message' => $msg], 422);
+            }
+
+            return redirect()->back()->with('error', $msg);
+        }
 
         $ecEligibleIds = $this->getEcEligibleProcessNameIds();
 

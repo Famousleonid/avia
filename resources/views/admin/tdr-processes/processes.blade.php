@@ -96,8 +96,16 @@
             transition: all 0.3s ease;
         }
 
-        .sortable-table tbody tr:hover {
-            background-color: #f8f9fa;
+        .sortable-table.table-hover > tbody > tr:hover > td,
+        .sortable-table.table-hover > tbody > tr:hover > th {
+            --bs-table-hover-color: var(--bs-body-color);
+            --bs-table-hover-bg: rgba(13, 110, 253, 0.18);
+            background-color: rgba(13, 110, 253, 0.16) !important;
+        }
+        html[data-bs-theme="dark"] .sortable-table.table-hover > tbody > tr:hover > td,
+        html[data-bs-theme="dark"] .sortable-table.table-hover > tbody > tr:hover > th {
+            --bs-table-hover-bg: rgba(110, 168, 254, 0.28);
+            background-color: rgba(110, 168, 254, 0.24) !important;
         }
 
         .sortable-table tbody tr.dragging {
@@ -235,7 +243,6 @@
             .no-print,
             .select2-container,
             .select2-selection,
-            .sortable-table tbody tr:hover,
             .sortable-table tbody tr.dragging {
                 display: none !important;
             }
