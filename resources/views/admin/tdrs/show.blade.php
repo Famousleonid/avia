@@ -9,8 +9,8 @@
         #tdr_inspect_Table thead { position: sticky; top: 0; z-index: 10; }
         #tdr_inspect_Table thead th {  box-shadow: 0 2px 2px -1px rgba(0, 0, 0, 0.1); }
         #tdr__Table thead th { background-color: #030334 !important; box-shadow: 0 2px 2px -1px rgba(0, 0, 0, 0.1); }
-        .order-modal .modal-dialog { max-height: 70vh; }
-        .order-modal .modal-content { max-height: 70vh; display: flex; flex-direction: column; }
+        .order-modal .modal-dialog { max-height: 85vh; }
+        .order-modal .modal-content { max-height: 85vh; display: flex; flex-direction: column; }
         .order-modal .modal-header { flex-shrink: 0; }
         .order-modal .order-modal-table-wrapper { overflow-y: auto; flex: 1; min-height: 0; }
         .order-modal .order-modal-table thead { position: sticky; top: 0; z-index: 10; }
@@ -122,6 +122,18 @@
         html[data-bs-theme="dark"] .extra-processes-modal-body .sortable-table.table-hover > tbody > tr:hover > th {
             --bs-table-hover-bg: rgba(110, 168, 254, 0.28);
             background-color: rgba(110, 168, 254, 0.24) !important;
+        }
+
+        /* Traveler-блок: фон без table-secondary, чтобы hover совпадал с остальными строками */
+        .processes-modal-body .sortable-table > tbody > tr.traveler-block-row > td,
+        .processes-modal-body .sortable-table > tbody > tr.traveler-block-row > th {
+            background-color: rgba(108, 117, 125, 0.12);
+            box-shadow: inset 3px 0 0 rgba(108, 117, 125, 0.45);
+        }
+        html[data-bs-theme="dark"] .processes-modal-body .sortable-table > tbody > tr.traveler-block-row > td,
+        html[data-bs-theme="dark"] .processes-modal-body .sortable-table > tbody > tr.traveler-block-row > th {
+            background-color: rgba(255, 255, 255, 0.06);
+            box-shadow: inset 3px 0 0 rgba(173, 181, 189, 0.5);
         }
     </style>
 

@@ -5,13 +5,41 @@
     $comp = $current_tdr->component;
     $tdrScopeProcesses = $tdrProcesses->where('tdrs_id', $current_tdr->id);
     $hasTravelerBlock = $tdrScopeProcesses->contains(fn ($p) => (bool) $p->in_traveler);
-    $travelerAnchorProcessId = null;
-    if ($hasTravelerBlock) {
-        $travelerAnchorProcessId = $tdrScopeProcesses->filter(fn ($p) => (bool) $p->in_traveler)
-            ->sortBy([['sort_order', 'asc'], ['id', 'asc']])
-            ->first()
-            ?->id;
+
+    $travelerVisualRowCount = 0;
+    foreach ($tdrProcesses as $_tp) {
+        if ((int) $_tp->tdrs_id !== (int) $current_tdr->id || ! $_tp->processName) {
+            continue;
+        }
+        $_processData = json_decode($_tp->processes, true) ?: [];
+        $_processName = $_tp->processName->name;
+        $_isEc = ($ecProcessNameId !== null && (int) $_tp->process_names_id === (int) $ecProcessNameId);
+        $_isNdtWithPlus = strpos($_processName, 'NDT-') === 0 && ! empty($_tp->plus_process);
+        if ($_isEc) {
+            if ((bool) $_tp->in_traveler) {
+                $travelerVisualRowCount++;
+            }
+            continue;
+        }
+        if ($_isNdtWithPlus) {
+            if ((bool) $_tp->in_traveler) {
+                $travelerVisualRowCount++;
+            }
+            continue;
+        }
+        if (is_array($_processData) && $_processData !== []) {
+            foreach ($_processData as $_) {
+                if ((bool) $_tp->in_traveler) {
+                    $travelerVisualRowCount++;
+                }
+            }
+            continue;
+        }
+        if ((bool) $_tp->in_traveler) {
+            $travelerVisualRowCount++;
+        }
     }
+    $travelerFormMergedDone = false;
 @endphp
 
 <div class="processes-modal-body" data-tdr-id="{{ $current_tdr->id }}"
@@ -23,29 +51,28 @@
      data-traveler-block="{{ $hasTravelerBlock ? '1' : '0' }}"
      data-traveler-group-url="{{ route('tdr-processes.traveler-group', ['tdrId' => $current_tdr->id]) }}"
      data-traveler-ungroup-url="{{ route('tdr-processes.traveler-ungroup', ['tdrId' => $current_tdr->id]) }}">
-    @if($hasTravelerBlock)
-        <div class="traveler-toolbar mb-2">
-            <button type="button" class="btn btn-sm btn-outline-warning" id="btnUngroupTraveler">{{ __('UnGroup') }}</button>
-        </div>
-    @else
-        <div class="traveler-toolbar mb-2 d-flex align-items-center gap-2 flex-wrap">
-            <button type="button" class="btn btn-sm btn-outline-primary" id="btnCreateTraveler" disabled>{{ __('Create Traveler') }}</button>
-            <small class="text-muted">{{ __('Select one or more processes using the checkboxes, then create a Traveler group.') }}</small>
-        </div>
-    @endif
     <div class="table-wrapper me-3" style="max-height: 55vh; overflow-y: auto; overflow-x: auto;">
-        <table class="display table table-sm table-hover align-middle table-bordered bg-gradient sortable-table dir-table">
+        <table class="display table table-sm table-hover align-middle table-bordered bg-gradient dir-table">
             <thead>
             <tr>
                 <th class="text-primary text-center" style="width: 10%">Process Name</th>
                 <th class="text-primary text-center" style="width: 30%;">Process</th>
                 <th class="text-primary text-center" style="width: 22%">Description</th>
-                <th class="text-primary text-center" style="width: 8%">Notes</th>
+                <th class="text-primary text-center" style="width: 8%">Traveler Notes</th>
                 @if($hasTravelerBlock)
                     <th class="text-primary text-center" style="width: 7%"
                         title="{{ __('AT rows: include on Part Traveler print. Traveler block rows are always included.') }}">{{ __('PT print') }}</th>
                 @endif
-                <th class="text-primary text-center" style="width: 8%">{{ __('Traveler') }}</th>
+                <th class="text-primary text-center align-middle" style="width: 10%">
+                    <div class="d-flex flex-column align-items-center gap-1 py-1">
+                        <span class="d-block">{{ __('Traveler') }}</span>
+                        @if($hasTravelerBlock)
+                            <button type="button" class="btn btn-sm btn-outline-warning text-nowrap" id="btnUngroupTraveler">{{ __('UnGroup') }}</button>
+                        @else
+                            <button type="button" class="btn btn-sm btn-outline-primary text-nowrap" id="btnCreateTraveler" disabled>{{ __('Create') }}</button>
+                        @endif
+                    </div>
+                </th>
                 <th class="text-primary text-center" style="width: 11%">Action</th>
                 <th class="text-primary text-center" style="width: 11%">Form</th>
             </tr>
@@ -72,7 +99,8 @@
                             }
                         }
                         $inTr = (bool) $processes->in_traveler;
-                        $trClass = $inTr ? ' table-secondary traveler-locked' : '';
+                        /* без table-secondary — иначе Bootstrap даёт свой бледный hover */
+                        $trClass = $inTr ? ' traveler-block-row traveler-locked' : '';
                     @endphp
 
                     @if(!$processes->processName) @continue @endif
@@ -118,24 +146,18 @@
                                     <button type="button" class="btn btn-outline-danger btn-sm disabled"><i class="bi bi-trash"></i></button>
                                 @endif
                             </td>
-                            <td class="text-center">
-                                @if($inTr && (int) $processes->id === (int) $travelerAnchorProcessId)
-                                    <div class="d-flex flex-wrap gap-1 justify-content-center align-items-center">
-                                        <input type="text" class="form-control form-control-sm travel-repair-num" style="width:108px" placeholder="{{ __('Rep.#') }}" maxlength="64">
-                                        <select class="form-select form-select-sm travel-vendor-select" style="max-width:100px">
-                                            <option value="">{{ __('Vendor') }}</option>
-                                            @foreach($vendors as $vendor)
-                                                <option value="{{ $vendor->id }}">{{ $vendor->name }}</option>
-                                            @endforeach
-                                        </select>
-                                        <a href="{{ route('tdr-processes.travelForm', ['id' => $current_tdr->id]) }}" class="btn btn-sm btn-outline-primary travel-form-link" target="_blank">{{ __('Traveler') }}</a>
-                                    </div>
-                                @elseif($inTr)
-                                    <span class="text-muted">—</span>
-                                @else
-                                    <div class="d-flex gap-2 justify-content-center"></div>
+                            @if($inTr)
+                                @if(! $travelerFormMergedDone)
+                                    @php $travelerFormMergedDone = true; @endphp
+                                    <td rowspan="{{ max(1, $travelerVisualRowCount) }}" class="text-center align-middle p-2 traveler-merged-form-cell">
+                                        @include('admin.tdr-processes.partials.processes-body-traveler-form-controls')
+                                    </td>
                                 @endif
+                            @else
+                            <td class="text-center">
+                                <div class="d-flex gap-2 justify-content-center"></div>
                             </td>
+                            @endif
                         </tr>
                     @elseif($isNdtWithPlus)
                         <tr data-id="{{ $processes->id }}" class="{{ trim($trClass) }}">
@@ -171,32 +193,26 @@
                                     <button type="button" class="btn btn-outline-danger btn-sm ajax-delete-process" data-tdr-process-id="{{ $processes->id }}" data-tdr-id="{{ $current_tdr->id }}"><i class="bi bi-trash"></i></button>
                                 @endif
                             </td>
-                            <td class="text-center">
-                                @if($inTr && (int) $processes->id === (int) $travelerAnchorProcessId)
-                                    <div class="d-flex flex-wrap gap-1 justify-content-center align-items-center">
-                                        <input type="text" class="form-control form-control-sm travel-repair-num" style="width:108px" placeholder="{{ __('Rep.#') }}" maxlength="64">
-                                        <select class="form-select form-select-sm travel-vendor-select" style="max-width:100px">
-                                            <option value="">{{ __('Vendor') }}</option>
-                                            @foreach($vendors as $vendor)
-                                                <option value="{{ $vendor->id }}">{{ $vendor->name }}</option>
-                                            @endforeach
-                                        </select>
-                                        <a href="{{ route('tdr-processes.travelForm', ['id' => $current_tdr->id]) }}" class="btn btn-sm btn-outline-primary travel-form-link" target="_blank">{{ __('Traveler') }}</a>
-                                    </div>
-                                @elseif($inTr)
-                                    <span class="text-muted">—</span>
-                                @else
-                                    <div class="d-flex gap-2 justify-content-center">
-                                        <select class="form-select form-select-sm vendor-select" style="width: 85px" data-tdr-process-id="{{ $processes->id }}">
-                                            <option value="">Select Vendor</option>
-                                            @foreach($vendors as $vendor)
-                                                <option value="{{ $vendor->id }}">{{ $vendor->name }}</option>
-                                            @endforeach
-                                        </select>
-                                        <a href="{{ route('tdr-processes.show', ['tdr_process' => $processes->id]) }}" class="btn btn-sm btn-outline-primary form-link" style="width: 60px" data-tdr-process-id="{{ $processes->id }}" target="_blank">{{ __('Form') }}</a>
-                                    </div>
+                            @if($inTr)
+                                @if(! $travelerFormMergedDone)
+                                    @php $travelerFormMergedDone = true; @endphp
+                                    <td rowspan="{{ max(1, $travelerVisualRowCount) }}" class="text-center align-middle p-2 traveler-merged-form-cell">
+                                        @include('admin.tdr-processes.partials.processes-body-traveler-form-controls')
+                                    </td>
                                 @endif
+                            @else
+                            <td class="text-center">
+                                <div class="d-flex gap-2 justify-content-center">
+                                    <select class="form-select form-select-sm vendor-select" style="width: 85px" data-tdr-process-id="{{ $processes->id }}">
+                                        <option value="">Select Vendor</option>
+                                        @foreach($vendors as $vendor)
+                                            <option value="{{ $vendor->id }}">{{ $vendor->name }}</option>
+                                        @endforeach
+                                    </select>
+                                    <a href="{{ route('tdr-processes.show', ['tdr_process' => $processes->id]) }}" class="btn btn-sm btn-outline-primary form-link" style="width: 60px" data-tdr-process-id="{{ $processes->id }}" target="_blank">{{ __('Form') }}</a>
+                                </div>
                             </td>
+                            @endif
                         </tr>
                     @else
                         @if(is_array($processData) && !empty($processData))
@@ -226,32 +242,26 @@
                                             <button type="button" class="btn btn-outline-danger btn-sm ajax-delete-process" data-tdr-process-id="{{ $processes->id }}" data-tdr-id="{{ $current_tdr->id }}" data-process="{{ $process }}"><i class="bi bi-trash"></i></button>
                                         @endif
                                     </td>
-                                    <td class="text-center">
-                                        @if($inTr && (int) $processes->id === (int) $travelerAnchorProcessId && $loop->first)
-                                            <div class="d-flex flex-wrap gap-1 justify-content-center align-items-center">
-                                                <input type="text" class="form-control form-control-sm travel-repair-num" style="width:108px" placeholder="{{ __('Rep.#') }}" maxlength="64">
-                                                <select class="form-select form-select-sm travel-vendor-select" style="max-width:100px">
-                                                    <option value="">{{ __('Vendor') }}</option>
-                                                    @foreach($vendors as $vendor)
-                                                        <option value="{{ $vendor->id }}">{{ $vendor->name }}</option>
-                                                    @endforeach
-                                                </select>
-                                                <a href="{{ route('tdr-processes.travelForm', ['id' => $current_tdr->id]) }}" class="btn btn-sm btn-outline-primary travel-form-link" target="_blank">{{ __('Traveler') }}</a>
-                                            </div>
-                                        @elseif($inTr)
-                                            <span class="text-muted">—</span>
-                                        @else
-                                            <div class="d-flex gap-2 justify-content-center">
-                                                <select class="form-select form-select-sm vendor-select" style="width: 85px" data-tdr-process-id="{{ $processes->id }}" data-process="{{ $process }}">
-                                                    <option value="">Select Vendor</option>
-                                                    @foreach($vendors as $vendor)
-                                                        <option value="{{ $vendor->id }}">{{ $vendor->name }}</option>
-                                                    @endforeach
-                                                </select>
-                                                <a href="{{ route('tdr-processes.show', ['tdr_process' => $processes->id, 'process_id' => $process]) }}" class="btn btn-sm btn-outline-primary form-link" style="width: 60px" data-tdr-process-id="{{ $processes->id }}" data-process="{{ $process }}" target="_blank">{{ __('Form') }}</a>
-                                            </div>
+                                    @if($inTr)
+                                        @if(! $travelerFormMergedDone)
+                                            @php $travelerFormMergedDone = true; @endphp
+                                            <td rowspan="{{ max(1, $travelerVisualRowCount) }}" class="text-center align-middle p-2 traveler-merged-form-cell">
+                                                @include('admin.tdr-processes.partials.processes-body-traveler-form-controls')
+                                            </td>
                                         @endif
+                                    @else
+                                    <td class="text-center">
+                                        <div class="d-flex gap-2 justify-content-center">
+                                            <select class="form-select form-select-sm vendor-select" style="width: 85px" data-tdr-process-id="{{ $processes->id }}" data-process="{{ $process }}">
+                                                <option value="">Select Vendor</option>
+                                                @foreach($vendors as $vendor)
+                                                    <option value="{{ $vendor->id }}">{{ $vendor->name }}</option>
+                                                @endforeach
+                                            </select>
+                                            <a href="{{ route('tdr-processes.show', ['tdr_process' => $processes->id, 'process_id' => $process]) }}" class="btn btn-sm btn-outline-primary form-link" style="width: 60px" data-tdr-process-id="{{ $processes->id }}" data-process="{{ $process }}" target="_blank">{{ __('Form') }}</a>
+                                        </div>
                                     </td>
+                                    @endif
                                 </tr>
                             @endforeach
                         @else
@@ -277,32 +287,26 @@
                                         <button type="button" class="btn btn-outline-danger btn-sm ajax-delete-process" data-tdr-process-id="{{ $processes->id }}" data-tdr-id="{{ $current_tdr->id }}"><i class="bi bi-trash"></i></button>
                                     @endif
                                 </td>
-                                <td class="text-center">
-                                    @if($inTr && (int) $processes->id === (int) $travelerAnchorProcessId)
-                                        <div class="d-flex flex-wrap gap-1 justify-content-center align-items-center">
-                                            <input type="text" class="form-control form-control-sm travel-repair-num" style="width:108px" placeholder="{{ __('Rep.#') }}" maxlength="64">
-                                            <select class="form-select form-select-sm travel-vendor-select" style="max-width:100px">
-                                                <option value="">{{ __('Vendor') }}</option>
-                                                @foreach($vendors as $vendor)
-                                                    <option value="{{ $vendor->id }}">{{ $vendor->name }}</option>
-                                                @endforeach
-                                            </select>
-                                            <a href="{{ route('tdr-processes.travelForm', ['id' => $current_tdr->id]) }}" class="btn btn-sm btn-outline-primary travel-form-link" target="_blank">{{ __('Traveler') }}</a>
-                                        </div>
-                                    @elseif($inTr)
-                                        <span class="text-muted">—</span>
-                                    @else
-                                        <div class="d-flex gap-2 justify-content-center">
-                                            <select class="form-select form-select-sm vendor-select" style="width: 85px" data-tdr-process-id="{{ $processes->id }}">
-                                                <option value="">Select Vendor</option>
-                                                @foreach($vendors as $vendor)
-                                                    <option value="{{ $vendor->id }}">{{ $vendor->name }}</option>
-                                                @endforeach
-                                            </select>
-                                            <a href="{{ route('tdr-processes.show', ['tdr_process' => $processes->id]) }}" class="btn btn-sm btn-outline-primary form-link" style="width: 60px" data-tdr-process-id="{{ $processes->id }}" target="_blank">{{ __('Form') }}</a>
-                                        </div>
+                                @if($inTr)
+                                    @if(! $travelerFormMergedDone)
+                                        @php $travelerFormMergedDone = true; @endphp
+                                        <td rowspan="{{ max(1, $travelerVisualRowCount) }}" class="text-center align-middle p-2 traveler-merged-form-cell">
+                                            @include('admin.tdr-processes.partials.processes-body-traveler-form-controls')
+                                        </td>
                                     @endif
+                                @else
+                                <td class="text-center">
+                                    <div class="d-flex gap-2 justify-content-center">
+                                        <select class="form-select form-select-sm vendor-select" style="width: 85px" data-tdr-process-id="{{ $processes->id }}">
+                                            <option value="">Select Vendor</option>
+                                            @foreach($vendors as $vendor)
+                                                <option value="{{ $vendor->id }}">{{ $vendor->name }}</option>
+                                            @endforeach
+                                        </select>
+                                        <a href="{{ route('tdr-processes.show', ['tdr_process' => $processes->id]) }}" class="btn btn-sm btn-outline-primary form-link" style="width: 60px" data-tdr-process-id="{{ $processes->id }}" target="_blank">{{ __('Form') }}</a>
+                                    </div>
                                 </td>
+                                @endif
                             </tr>
                         @endif
                     @endif

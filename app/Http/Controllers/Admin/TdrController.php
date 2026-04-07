@@ -1589,13 +1589,14 @@ class TdrController extends Controller
             'assy_serial_number' => 'nullable|string',
             'codes_id' => 'nullable|exists:codes,id',
             'necessaries_id' => 'nullable|exists:necessaries,id',
-            'description'=>'nullable|string',
+            'description' => 'nullable|string',
+            'qty' => 'sometimes|nullable|integer|min:1|max:999999',
         ]);
 
         // Проверяем, если выбран необходимый пункт "Order New"
         $necessary = Necessary::where('name', 'Order New')->first();
 
-        if ($necessary && $validated['necessaries_id'] == $necessary->id) {
+        if ($necessary && isset($validated['necessaries_id']) && (int) $validated['necessaries_id'] === (int) $necessary->id) {
             $validated['use_process_forms'] = false; // Исправлено присваивание
         }
 

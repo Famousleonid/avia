@@ -43,41 +43,66 @@
 </div>
 
 {{-- Order Modal --}}
-<div class="modal fade order-modal" id="orderModal{{$current_wo->number}}" tabindex="-1" role="dialog" aria-labelledby="orderModalLabel{{$current_wo->number}}" aria-hidden="true">
-    <div class="modal-dialog modal-dialog-centered" role="document">
-        <div class="modal-content bg-gradient" style="width: 700px">
+<div class="modal fade order-modal" id="orderModal{{$current_wo->number}}" tabindex="-1" role="dialog"
+     aria-labelledby="orderModalLabel{{$current_wo->number}}" aria-hidden="true">
+    <div class="modal-dialog modal-xl modal-dialog-centered" role="document" style="max-width: min(1200px, 98vw); width: 98%;">
+        <div class="modal-content bg-gradient" style="width: 100%">
             <div class="modal-header">
                 <h4 class="modal-title">{{__('Work order W')}}{{$current_wo->number}} - {{__('Ordered Parts')}}</h4>
                 <button type="button" class="btn-close pb-2" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
             @if(count($ordersPartsNew))
                 <div class="table-wrapper order-modal-table-wrapper">
-                    <table class="table table-cm table-hover table-striped align-middle table-bordered order-modal-table dir-table">
+                    <table class="table  table-hover table-striped align-middle table-bordered
+                    dir-table">
                         <thead class="bg-gradient">
                         <tr>
-                            <th class="text-primary bg-gradient">{{__('IPL')}}</th>
-                            <th class="text-primary bg-gradient">{{__('Part Description')}}</th>
-                            <th class="text-primary bg-gradient" style="width: 250px">{{__('Part Number')}}</th>
-                            <th class="text-primary bg-gradient">{{__('QTY')}}</th>
-                            <th class="text-primary bg-gradient">{{__('Conditions')}}</th>
-                            <th class="text-primary bg-gradient">{{__('Delete')}}</th>
+                            <th class="text-primary bg-gradient" style="width: 8%">{{__('IPL')}}</th>
+                            <th class="text-primary bg-gradient" style="width: 20%">{{__('Part Description')}}</th>
+                            <th class="text-primary bg-gradient" style="width: 15%">{{__('Part Number')}}</th>
+                            <th class="text-primary bg-gradient" style="min-width: 30%;">{{ __('Description') }}</th>
+                            <th class="text-primary bg-gradient" style="width: 5%">{{__('QTY')}}</th>
+                            <th class="text-primary bg-gradient" style="width: 7%">{{__('Conditions')}}</th>
+                            <th class="text-primary bg-gradient " style="width: 13%">{{__('Actions')}}</th>
                         </tr>
                         </thead>
                         <tbody>
                         @foreach($ordersPartsNew as $part)
+                            @php $orderPartFormId = 'orderPartForm'.$part->id; @endphp
                             <tr>
                                 <td class="p-3">{{ $part->orderComponent->ipl_num ?? '' }}</td>
                                 <td class="p-3">{{ $part->orderComponent->name ?? '' }}</td>
                                 <td class="p-3">{{ $part->orderComponent->part_number ?? '' }}</td>
-                                <td class="p-3">{{ $part->qty }}</td>
-                                <td class="p-3">{{ $part->codes->name ?? '' }}</td>
-                                <td class="p-3">
-                                    <form action="{{ route('tdrs.destroy', $part->id) }}" method="POST" onsubmit="return confirm('Are you sure you want to delete this item?');">
-                                        @csrf
-                                        @method('DELETE')
-                                        <input type="hidden" name="return_to" value="show">
-                                        <button type="submit" class="btn btn-danger btn-sm">{{__('Delete')}}</button>
-                                    </form>
+                                <td class="p-2 align-middle" style="min-width: 10rem;">
+                                    <textarea name="description" rows="2" class="form-control form-control-sm" form="{{ $orderPartFormId }}"
+                                              placeholder="{{ __('Description') }}">{{ $part->description ?? '' }}</textarea>
+                                </td>
+                                <td class="p-2 align-middle" style="min-width: 5.5rem;">
+                                    <input type="number" name="qty" value="{{ $part->qty }}" min="1" max="999999"
+                                           class="form-control form-control-sm" form="{{ $orderPartFormId }}">
+                                </td>
+                                <td class="p-2 align-middle" style="min-width: 8rem;">
+                                    <select name="codes_id" class="form-select form-select-sm" form="{{ $orderPartFormId }}">
+                                        @foreach($codes as $code)
+                                            <option value="{{ $code->id }}" @selected($code->id == $part->codes_id)>{{ $code->name }}</option>
+                                        @endforeach
+                                    </select>
+                                </td>
+                                <td class="p-2 align-middle">
+                                    <div class="d-flex flex-wrap gap-1 text-center">
+                                        <form id="{{ $orderPartFormId }}" method="POST" action="{{ route('tdrs.update', $part->id) }}" class="d-inline">
+                                            @csrf
+                                            @method('PUT')
+                                            <input type="hidden" name="workorder_id" value="{{ $current_wo->id }}">
+                                            <button type="submit" class="btn btn-outline-primary btn-sm">{{ __('Save') }}</button>
+                                        </form>
+                                        <form action="{{ route('tdrs.destroy', $part->id) }}" method="POST" class="d-inline" onsubmit="return confirm('Are you sure you want to delete this item?');">
+                                            @csrf
+                                            @method('DELETE')
+                                            <input type="hidden" name="return_to" value="show">
+                                            <button type="submit" class="btn btn-danger btn-sm">{{__('Delete')}}</button>
+                                        </form>
+                                    </div>
                                 </td>
                             </tr>
                         @endforeach
