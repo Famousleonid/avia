@@ -1612,6 +1612,11 @@ class TdrProcessController extends Controller
             }
         }
 
+        $fromPaintIndex = (int) $request->input('from_paint_index', 0) === 1;
+        $fromMachiningIndex = (int) $request->input('from_machining_index', 0) === 1;
+        $oldStart = $tdrProcess->date_start ? $tdrProcess->date_start->format('Y-m-d') : null;
+        $oldFinish = $tdrProcess->date_finish ? $tdrProcess->date_finish->format('Y-m-d') : null;
+
         // 4) Обновляем только те поля, которые реально пришли в запросе
         if (array_key_exists('date_start', $data)) {
             $tdrProcess->date_start = $data['date_start'] ?: null;
@@ -1627,10 +1632,136 @@ class TdrProcessController extends Controller
             $tdrProcess->date_finish = $data['date_finish'] ?: null;
         }
 
+        $finishSetNow = array_key_exists('date_finish', $data) && ! empty($data['date_finish']);
+
         // фиксируем пользователя
         $tdrProcess->user_id = auth()->id();
 
         $tdrProcess->save();
+
+        if ($fromPaintIndex) {
+            $newStart = $tdrProcess->date_start ? $tdrProcess->date_start->format('Y-m-d') : null;
+            $newFinish = $tdrProcess->date_finish ? $tdrProcess->date_finish->format('Y-m-d') : null;
+
+            $startChanged = $oldStart !== $newStart;
+            $finishChanged = $oldFinish !== $newFinish;
+
+            if ($startChanged || $finishChanged) {
+                $tdrProcess->loadMissing(['tdr.workorder', 'tdr.component', 'processName']);
+
+                activity('paint_date_change')
+                    ->causedBy(auth()->user())
+                    ->performedOn($tdrProcess)
+                    ->event('updated')
+                    ->withProperties([
+                        'workorder_id' => (int) ($tdrProcess->tdr?->workorder_id ?? 0),
+                        'workorder_number' => (int) ($tdrProcess->tdr?->workorder?->number ?? 0),
+                        'tdr_id' => (int) ($tdrProcess->tdrs_id ?? 0),
+                        'tdr_process_id' => (int) $tdrProcess->id,
+                        'process_name' => (string) ($tdrProcess->processName?->name ?? ''),
+                        'detail_part_number' => (string) ($tdrProcess->tdr?->component?->part_number ?? ''),
+                        'old' => [
+                            'date_start' => $oldStart,
+                            'date_finish' => $oldFinish,
+                        ],
+                        'new' => [
+                            'date_start' => $newStart,
+                            'date_finish' => $newFinish,
+                        ],
+                    ])
+                    ->log('Paint date updated');
+            }
+        }
+
+        if ($fromMachiningIndex) {
+            $newStart = $tdrProcess->date_start ? $tdrProcess->date_start->format('Y-m-d') : null;
+            $newFinish = $tdrProcess->date_finish ? $tdrProcess->date_finish->format('Y-m-d') : null;
+
+            $startChanged = $oldStart !== $newStart;
+            $finishChanged = $oldFinish !== $newFinish;
+
+            if ($startChanged || $finishChanged) {
+                $tdrProcess->loadMissing(['tdr.workorder', 'tdr.component', 'processName']);
+
+                activity('machining_date_change')
+                    ->causedBy(auth()->user())
+                    ->performedOn($tdrProcess)
+                    ->event('updated')
+                    ->withProperties([
+                        'workorder_id' => (int) ($tdrProcess->tdr?->workorder_id ?? 0),
+                        'workorder_number' => (int) ($tdrProcess->tdr?->workorder?->number ?? 0),
+                        'tdr_id' => (int) ($tdrProcess->tdrs_id ?? 0),
+                        'tdr_process_id' => (int) $tdrProcess->id,
+                        'process_name' => (string) ($tdrProcess->processName?->name ?? ''),
+                        'detail_part_number' => (string) ($tdrProcess->tdr?->component?->part_number ?? ''),
+                        'old' => [
+                            'date_start' => $oldStart,
+                            'date_finish' => $oldFinish,
+                        ],
+                        'new' => [
+                            'date_start' => $newStart,
+                            'date_finish' => $newFinish,
+                        ],
+                    ])
+                    ->log('Machining date updated');
+            }
+        }
+
+        if ($fromPaintIndex && $finishSetNow) {
+            $tdrProcess->loadMissing('tdr');
+            $workorderId = (int) ($tdrProcess->tdr?->workorder_id ?? 0);
+
+            if ($workorderId > 0) {
+                $queuedWo = Workorder::query()
+                    ->select(['id', 'paint_queue_order'])
+                    ->whereKey($workorderId)
+                    ->first();
+
+                if ($queuedWo !== null && $queuedWo->paint_queue_order !== null) {
+                    $oldPosition = (int) $queuedWo->paint_queue_order;
+
+                    Workorder::query()
+                        ->whereKey($workorderId)
+                        ->update(['paint_queue_order' => null]);
+
+                    Workorder::query()
+                        ->whereNotNull('approve_at')
+                        ->whereNull('done_at')
+                        ->where('is_draft', 0)
+                        ->whereNotNull('paint_queue_order')
+                        ->where('paint_queue_order', '>', $oldPosition)
+                        ->decrement('paint_queue_order');
+                }
+            }
+        }
+
+        if ($fromMachiningIndex && $finishSetNow) {
+            $tdrProcess->loadMissing('tdr');
+            $workorderId = (int) ($tdrProcess->tdr?->workorder_id ?? 0);
+
+            if ($workorderId > 0) {
+                $queuedWo = Workorder::query()
+                    ->select(['id', 'machining_queue_order'])
+                    ->whereKey($workorderId)
+                    ->first();
+
+                if ($queuedWo !== null && $queuedWo->machining_queue_order !== null) {
+                    $oldPosition = (int) $queuedWo->machining_queue_order;
+
+                    Workorder::query()
+                        ->whereKey($workorderId)
+                        ->update(['machining_queue_order' => null]);
+
+                    Workorder::query()
+                        ->whereNotNull('approve_at')
+                        ->whereNull('done_at')
+                        ->where('is_draft', 0)
+                        ->whereNotNull('machining_queue_order')
+                        ->where('machining_queue_order', '>', $oldPosition)
+                        ->decrement('machining_queue_order');
+                }
+            }
+        }
 
         if ($isAjax) {
             return response()->json([
@@ -1642,7 +1773,137 @@ class TdrProcessController extends Controller
         return back()->with('success', 'Process dates updated');
     }
 
+    /**
+     * Даты для группы Traveler (все tdr_processes с in_traveler у одного TDR) — main, правая панель.
+     */
+    public function updateTravelerGroupDates(Request $request, Tdr $tdr)
+    {
+        $isAjax = $request->ajax()
+            || $request->expectsJson()
+            || $request->header('X-Requested-With') === 'XMLHttpRequest';
 
+        $processes = TdrProcess::query()
+            ->where('tdrs_id', (int) $tdr->id)
+            ->where('in_traveler', true)
+            ->orderBy('id')
+            ->get();
+
+        if ($processes->isEmpty()) {
+            if ($isAjax) {
+                return response()->json(['success' => false, 'message' => 'No traveler processes'], 422);
+            }
+
+            abort(404);
+        }
+
+        $v = Validator::make($request->all(), [
+            'date_start'  => ['nullable', 'date'],
+            'date_finish' => ['nullable', 'date'],
+        ]);
+
+        if ($v->fails()) {
+            if ($isAjax) {
+                return response()->json([
+                    'success' => false,
+                    'errors'  => $v->errors(),
+                ], 422);
+            }
+
+            return back()->withErrors($v)->withInput();
+        }
+
+        $data = $v->validated();
+
+        if (! array_key_exists('date_start', $data) && ! array_key_exists('date_finish', $data)) {
+            if ($isAjax) {
+                return response()->json(['success' => false, 'message' => 'No date fields'], 422);
+            }
+
+            return back()->withErrors(['date' => 'No date fields'])->withInput();
+        }
+
+        return DB::transaction(function () use ($data, $tdr, $isAjax, $processes) {
+            $uid = auth()->id();
+
+            if (array_key_exists('date_start', $data)) {
+                $newStart = $data['date_start'] !== null && $data['date_start'] !== ''
+                    ? $data['date_start']
+                    : null;
+
+                $fresh = TdrProcess::query()
+                    ->where('tdrs_id', (int) $tdr->id)
+                    ->where('in_traveler', true)
+                    ->orderBy('id')
+                    ->get();
+
+                foreach ($fresh as $p) {
+                    $p->date_start = $newStart;
+                    if ($newStart === null) {
+                        $p->date_finish = null;
+                    }
+                    $p->user_id = $uid;
+                    $p->save();
+                }
+            }
+
+            if (array_key_exists('date_finish', $data)) {
+                $fresh = TdrProcess::query()
+                    ->where('tdrs_id', (int) $tdr->id)
+                    ->where('in_traveler', true)
+                    ->orderBy('id')
+                    ->get();
+
+                $finishVal = $data['date_finish'] !== null && $data['date_finish'] !== ''
+                    ? $data['date_finish']
+                    : null;
+
+                $starts = $fresh->map(static function (TdrProcess $p) {
+                    return $p->date_start ? $p->date_start->format('Y-m-d') : null;
+                })->filter()->values();
+
+                $effectiveStart = $starts->isNotEmpty() ? $starts->sort()->first() : null;
+
+                if ($finishVal !== null && $finishVal !== '' && ($effectiveStart === null || $effectiveStart === '')) {
+                    $errors = [
+                        'date_finish' => ['The start date must be filled in before setting the end date.'],
+                    ];
+                    if ($isAjax) {
+                        return response()->json(['success' => false, 'errors' => $errors], 422);
+                    }
+
+                    return back()->withErrors($errors)->withInput();
+                }
+
+                if ($finishVal !== null && $finishVal !== '' && $effectiveStart) {
+                    if (Carbon::parse($finishVal)->lt(Carbon::parse($effectiveStart))) {
+                        $errors = [
+                            'date_finish' => ['The end date cannot be earlier than the start date.'],
+                        ];
+                        if ($isAjax) {
+                            return response()->json(['success' => false, 'errors' => $errors], 422);
+                        }
+
+                        return back()->withErrors($errors)->withInput();
+                    }
+                }
+
+                foreach ($fresh as $p) {
+                    $p->date_finish = ($finishVal === null || $finishVal === '') ? null : $finishVal;
+                    $p->user_id = $uid;
+                    $p->save();
+                }
+            }
+
+            if ($isAjax) {
+                return response()->json([
+                    'success' => true,
+                    'user'    => auth()->user()->name ?? 'system',
+                ], 200);
+            }
+
+            return back()->with('success', 'Traveler dates updated');
+        });
+    }
 
     /**
      * Генерирует многостраничную страницу из выбранных форм процессов

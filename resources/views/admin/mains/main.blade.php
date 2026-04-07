@@ -1083,6 +1083,16 @@
                                                     return optional($p->processName)->show_in_process_picker !== false
                                                         && !((bool) ($p->ignore_row ?? false));
                                                 });
+                                                $travelerProcesses = $prs->filter(function ($p) {
+                                                    return (bool) ($p->in_traveler ?? false);
+                                                })->sortBy('id')->values();
+                                                $nonTravelerProcesses = $prs->filter(function ($p) {
+                                                    return ! (bool) ($p->in_traveler ?? false);
+                                                })->values();
+                                                $travelerLeader = $travelerProcesses->first();
+                                                $travelerUpdatedByRow = $travelerProcesses->sortByDesc(function ($p) {
+                                                    return $p->updated_at?->timestamp ?? 0;
+                                                })->first();
                                             @endphp
                                             @if($prs->isNotEmpty())
                                                 <div class="mt-2 ps-2">
@@ -1113,7 +1123,88 @@
                                                         </tr>
                                                         </thead>
                                                         <tbody>
-                                                        @foreach($prs as $pr)
+                                                        @if($travelerProcesses->isNotEmpty() && $travelerLeader)
+                                                            @php
+                                                                $trClosed = $travelerProcesses->every(function ($p) {
+                                                                    return ! empty($p->date_finish);
+                                                                });
+                                                                $trUserRow = $travelerUpdatedByRow ?? $travelerLeader;
+                                                            @endphp
+                                                            <tr data-closed="{{ $trClosed ? 1 : 0 }}"
+                                                                data-traveler-row="1">
+                                                                <td class="text-center small text-info js-last-user"
+                                                                    data-tippy-content="
+                                                                    <span style='color:#adb5bd'>Updated by:</span>
+                                                                    <span style='color:#0dcaf0;font-weight:500'>
+                                                                        {{ $trUserRow->updatedBy?->name ?? '—' }}
+                                                                        </span>
+                                                                        <br>
+                                                                        <span style='color:#adb5bd'>Updated at:</span>
+                                                                        <span style='color:#20c997;font-weight:500'>
+                                                                        {{ $trUserRow->updated_at?->format('d-M-Y H:i') ?? '—' }}
+                                                                        </span>">
+                                                                    {{ $trUserRow->updatedBy?->name ?? '—' }}
+                                                                </td>
+                                                                <td><span class="text-info">Traveler</span></td>
+
+                                                                <td>
+                                                                    @hasanyrole('Admin|Manager')
+                                                                    <form method="POST"
+                                                                          action="{{ route('tdrprocesses.updateTravelerGroupRepairOrder', $tdr) }}"
+                                                                          class="auto-submit-form js-auto-submit auto-submit-order position-relative js-ajax"
+                                                                          data-no-spinner>
+                                                                        @csrf
+                                                                        @method('PATCH')
+
+                                                                        <input type="text"
+                                                                               name="repair_order"
+                                                                               class="form-control form-control-sm pe-4"
+                                                                               value="{{ $travelerLeader->repair_order ?? '' }}"
+                                                                               placeholder="..."
+                                                                               autocomplete="off"
+                                                                               data-original="{{ $travelerLeader->repair_order ?? '' }}">
+
+                                                                        <i class="bi bi-save save-indicator d-none"></i>
+                                                                    </form>
+                                                                    @else
+                                                                        <input type="text"
+                                                                               class="form-control form-control-sm pe-4 bg-dark"
+                                                                               value="{{ $travelerLeader->repair_order ?? '' }}"
+                                                                               readonly>
+                                                                        @endhasanyrole
+                                                                </td>
+
+                                                                <td>
+                                                                    <form method="POST"
+                                                                          action="{{ route('tdrprocesses.updateTravelerGroupDates', $tdr) }}"
+                                                                          class="auto-submit-form js-ajax"
+                                                                          data-no-spinner>
+                                                                        @csrf
+                                                                        @method('PATCH')
+                                                                        <input type="text" data-fp name="date_start"
+                                                                               class="form-control form-control-sm finish-input"
+                                                                               value="{{ $travelerLeader->date_start?->format('Y-m-d') }}"
+                                                                               data-original="{{ $travelerLeader->date_start?->format('Y-m-d') ?? '' }}"
+                                                                               placeholder="...">
+                                                                    </form>
+                                                                </td>
+                                                                <td>
+                                                                    <form method="POST"
+                                                                          action="{{ route('tdrprocesses.updateTravelerGroupDates', $tdr) }}"
+                                                                          class="auto-submit-form js-ajax"
+                                                                          data-no-spinner>
+                                                                        @csrf
+                                                                        @method('PATCH')
+                                                                        <input type="text" data-fp name="date_finish"
+                                                                               class="form-control form-control-sm finish-input"
+                                                                               value="{{ $travelerLeader->date_finish?->format('Y-m-d') }}"
+                                                                               data-original="{{ $travelerLeader->date_finish?->format('Y-m-d') ?? '' }}"
+                                                                               placeholder="...">
+                                                                    </form>
+                                                                </td>
+                                                            </tr>
+                                                        @endif
+                                                        @foreach($nonTravelerProcesses as $pr)
                                                             @php
                                                                 $isClosed = !empty($pr->date_finish);
                                                             @endphp

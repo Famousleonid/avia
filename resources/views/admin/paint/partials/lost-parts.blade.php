@@ -10,7 +10,7 @@
               class="paint-lost-count flex-shrink-0"
               data-total="{{ $lostTotal }}"
               aria-live="polite">
-            <span id="paintLostCountText">{{ $lostTotal }} {{ $lostTotal === 1 ? 'part' : 'parts' }}</span>
+            <span id="paintLostCountText">{{ $lostTotal }} {{ $lostTotal === 1 ? 'part lost' : 'parts lost' }}</span>
         </span>
         <input type="search"
                id="paintLostSearch"
@@ -24,7 +24,7 @@
             @if($lostParts->isEmpty())
                 <p class="text-muted small mb-0 py-2 px-1">No lost parts recorded.</p>
             @else
-                <div class="d-flex flex-nowrap gap-3 pb-1 align-items-start paint-lost-track">
+                <div class="d-flex flex-nowrap gap-3 pb-2 align-items-start paint-lost-track">
                     @foreach ($lostParts as $lost)
                         @php
                             $thumb = $lost->getFirstMediaThumbnailUrl('lost');
@@ -37,14 +37,14 @@
                              style="width: 100px;"
                              data-paint-lost-search="{{ e($lostSearchHay) }}">
                             <div class="small text-secondary text-truncate mb-1 px-0" title="{{ $lost->part_number }}">{{ $lost->part_number }}</div>
-                            <div class="position-relative d-inline-block">
+                            <div class="position-relative d-inline-block px-1 ">
                                 <a href="{{ $big }}"
                                    class="d-block"
                                    data-fancybox="paint-lost"
                                    data-caption="{{ $caption }}">
                                     <img src="{{ $thumb }}"
-                                         width="100"
-                                         height="100"
+                                         width="80"
+                                         height="80"
                                          class="rounded border border-secondary border-opacity-50 paint-lost-thumb"
                                          alt=""
                                          loading="lazy">
@@ -52,7 +52,7 @@
                                 @if($canDel)
                                     <button type="button"
                                             class="btn btn-danger btn-sm p-0 rounded-circle position-absolute js-paint-lost-delete"
-                                            style="top: -4px; right: -4px; width: 22px; height: 22px; line-height: 1; font-size: 14px; z-index: 2;"
+                                            style="top: -4px; right: -4px; width: 18px; height: 18px; line-height: 1; font-size: 14px; z-index: 2;"
                                             data-delete-url="{{ route('paint.lost.destroy', $lost) }}"
                                             title="Delete"
                                             aria-label="Delete">&times;</button>
@@ -63,7 +63,7 @@
                 </div>
             @endif
         </div>
-        <div class="flex-shrink-0 pt-1">
+        <div class="flex-shrink-0 pt-0">
             <button type="button"
                     class="btn btn-outline-success btn-sm"
                     data-bs-toggle="modal"

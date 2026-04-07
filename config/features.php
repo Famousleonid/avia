@@ -12,20 +12,21 @@
 return [
 
     'paint' => [
-        'roles' => ['Admin', 'Manager'],
-        'user_ids' => [2, 5, 8],
+        'roles' => ['Admin', 'Manager','Paint'],
+        //'user_ids' => [2, 5, 8],
         'allow_is_admin' => true,
     ],
 
-    'reports_beta' => [
-        'roles' => ['Admin', 'Manager'],
-        'user_ids' => [12, 47, 103],
+    'machining' => [
+        'roles' => ['Admin', 'Manager', 'Machining'],
+        'allow_is_admin' => true,
     ],
 
+
     // пример: только перечисленные пользователи (роли не используются)
-    'one_off_tool' => [
-        'roles' => [],
-        'user_ids' => [1, 2],
-    ],
+   // 'one_off_tool' => [
+    //    'roles' => [],
+  //      'user_ids' => [1, 2],
+  //  ],
 
 ];

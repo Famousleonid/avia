@@ -11,6 +11,7 @@ use App\Models\Necessary;
 use App\Models\Process;
 use App\Models\Task;
 use App\Models\Tdr;
+use App\Models\TdrProcess;
 use App\Models\Training;
 use App\Models\User;
 use App\Models\WoBushingBatch;
@@ -157,8 +158,8 @@ class MainController extends Controller
                 })
                 ->with(['tdrs' => function ($q) use ($current_workorder) {
                     $q->where('workorder_id', $current_workorder->id)
-                        ->with(['tdrProcesses' => function ($qq)  {
-                            $qq->with('processName')->orderBy('id');
+                        ->with(['tdrProcesses' => function ($qq) {
+                            $qq->with(['processName', 'updatedBy'])->orderBy('id');
                         }])
                         ->orderBy('id');
                 }])
@@ -1103,6 +1104,37 @@ class MainController extends Controller
         $tdrProcess->repair_order = $request->repair_order;
         $tdrProcess->user_id = auth()->id();
         $tdrProcess->save();
+
+        return response()->json([
+            'success' => true,
+            'user' => auth()->user()?->name ?? 'system',
+            'updated_at' => now()->format('d.m.Y H:i'),
+        ]);
+    }
+
+    /**
+     * Repair order для всех процессов TDR с флагом in_traveler (строка Traveler на main).
+     */
+    public function updateTravelerGroupRepairOrder(Request $request, Tdr $tdr)
+    {
+        $request->validate([
+            'repair_order' => 'nullable|string|max:255',
+        ]);
+
+        $processes = TdrProcess::query()
+            ->where('tdrs_id', (int) $tdr->id)
+            ->where('in_traveler', true)
+            ->get();
+
+        if ($processes->isEmpty()) {
+            return response()->json(['success' => false, 'message' => 'No traveler processes'], 422);
+        }
+
+        foreach ($processes as $tdrProcess) {
+            $tdrProcess->repair_order = $request->repair_order;
+            $tdrProcess->user_id = auth()->id();
+            $tdrProcess->save();
+        }
 
         return response()->json([
             'success' => true,

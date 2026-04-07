@@ -27,6 +27,7 @@ use App\Http\Controllers\Admin\VendorController;
 use App\Http\Controllers\Admin\WorkorderController;
 use App\Http\Controllers\Admin\WoBushingController;
 use App\Http\Controllers\Admin\NdtCadCsvController;
+use App\Http\Controllers\Admin\MachiningController;
 use App\Http\Controllers\Admin\PaintController;
 use App\Http\Controllers\Admin\ManualStdProcessController;
 use App\Http\Controllers\Front\FrontController;
@@ -96,6 +97,11 @@ Route::prefix('mobile')->name('mobile.')->middleware(['auth','verified'])->group
     Route::get('/materials', [MobileController::class, 'materials'])->name('materials');
     Route::post('/materials/{id}/update-description', [MobileController::class, 'updateMaterialDescription'])
         ->name('materials.updateDescription'); // фикс имени (без mobile.mobile...)
+    Route::get('/paint', [MobileController::class, 'paint'])->name('paint');
+    Route::post('/paint/lost', [MobileController::class, 'storePaintLost'])->name('paint.lost.store');
+    Route::delete('/paint/lost/{paint}', [MobileController::class, 'destroyPaintLost'])->name('paint.lost.destroy');
+
+    Route::get('/machining', [MobileController::class, 'machining'])->name('machining');
 
     // --- media ---
     Route::post('/workorders/photo/{workorder}', [MediaController::class, 'store_photo_workorders'])->name('workorders.media.store');
@@ -120,6 +126,11 @@ Route::group(['middleware' => ['auth']], function () {
     Route::post('/paint/position', [PaintController::class, 'setPosition'])->middleware('can:feature.paint')->name('paint.position');
     Route::post('/paint/lost', [PaintController::class, 'storeLost'])->middleware('can:feature.paint')->name('paint.lost.store');
     Route::delete('/paint/lost/{paint}', [PaintController::class, 'destroyLost'])->middleware('can:feature.paint')->name('paint.lost.destroy');
+
+    Route::get('/machining', [MachiningController::class, 'index'])->middleware('can:feature.machining')->name('machining.index');
+    Route::post('/machining/reorder', [MachiningController::class, 'reorder'])->middleware('can:feature.machining')->name('machining.reorder');
+    Route::post('/machining/add', [MachiningController::class, 'addToQueue'])->middleware('can:feature.machining')->name('machining.add');
+    Route::post('/machining/position', [MachiningController::class, 'setPosition'])->middleware('can:feature.machining')->name('machining.position');
 
     Route::get('/image/show/thumb/{mediaId}/{modelId}/{mediaName}', [MediaController::class, 'showThumb'])->name('image.show.thumb');
     Route::get('/image/show/big/{mediaId}/{modelId}/{mediaName}',[MediaController::class, 'showBig'])->name('image.show.big');
@@ -278,6 +289,8 @@ Route::group(['middleware' => ['auth']], function () {
     Route::patch('/wo-bushing-batches/{woBushingBatch}/dates', [MainController::class, 'updateWoBushingBatchDate'])->name('wo_bushing_batches.updateDate');
 
     Route::patch('/tdr-processes/{tdrProcess}/dates', [TdrProcessController::class, 'updateDate'])->name('tdrprocesses.updateDate');
+    Route::patch('/tdrs/{tdr}/traveler-group/dates', [TdrProcessController::class, 'updateTravelerGroupDates'])->name('tdrprocesses.updateTravelerGroupDates');
+    Route::patch('/tdrs/{tdr}/traveler-group/repair-order', [MainController::class, 'updateTravelerGroupRepairOrder'])->name('tdrprocesses.updateTravelerGroupRepairOrder');
     Route::patch('/tdr-processes/{tdrProcess}/repair-order', [MainController::class, 'updateRepairOrder'])->name('tdrprocesses.updateRepairOrder');
     Route::patch('/tdr-processes/{tdrProcess}/ignore-row', [MainController::class, 'updateIgnoreRow'])->name('tdrprocesses.updateIgnoreRow');
 

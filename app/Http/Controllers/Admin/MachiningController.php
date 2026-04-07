@@ -3,17 +3,16 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
-use App\Models\Paint;
+use App\Models\TdrProcess;
 use App\Models\Workorder;
-use App\Services\PaintIndexRowsBuilder;
-use App\Services\WorkorderStdListProcessesService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
 use Illuminate\View\View;
 
-class PaintController extends Controller
+class MachiningController extends Controller
 {
+
     public function index(): View
     {
         $workorders = Workorder::query()
@@ -34,95 +33,82 @@ class PaintController extends Controller
                     ]);
                 },
             ])
-            ->orderByRaw('CASE WHEN paint_queue_order IS NULL THEN 1 ELSE 0 END ASC')
-            ->orderBy('paint_queue_order', 'asc')
+            ->orderByRaw('CASE WHEN machining_queue_order IS NULL THEN 1 ELSE 0 END ASC')
+            ->orderBy('machining_queue_order', 'asc')
             ->orderBy('number', 'asc')
             ->get();
 
-        $rows = app(PaintIndexRowsBuilder::class)->build($workorders);
+        $rows = $workorders->flatMap(function (Workorder $wo) {
+            $wo->unsetRelation('tdrs');
+            $wo->load([
+                'tdrs' => function ($q) {
+                    $q->with([
+                        'component:id,part_number,name,ipl_num',
+                        'tdrProcesses.processName',
+                    ]);
+                },
+            ]);
+
+            $machiningProcesses = $this->collectMachiningProcessesForRow($wo);
+
+            $active = $machiningProcesses->filter(fn (TdrProcess $tp) => ! ($tp->ignore_row ?? false))->values();
+
+            return $active
+                ->filter(static fn (TdrProcess $tp) => trim((string) ($tp->tdr?->component?->part_number ?? '')) !== '')
+                ->map(static function (TdrProcess $tp) use ($wo) {
+                    $detailPn = trim((string) ($tp->tdr?->component?->part_number ?? ''));
+
+                    return (object) [
+                        'workorder' => $wo,
+                        'detail_label' => $detailPn,
+                        'date_start' => $tp->date_start,
+                        'date_finish' => $tp->date_finish,
+                        'edit_machining_process' => $tp,
+                        'machining_queue_position' => null,
+                        'is_queue_master' => false,
+                    ];
+                })
+                ->values();
+        })->values();
+
+        $withQueue = $rows->filter(static fn ($r) => $r->workorder->machining_queue_order !== null)->values();
+        $withoutQueue = $rows
+            ->filter(static fn ($r) => $r->workorder->machining_queue_order === null)
+            ->sortBy(static fn ($r) => (int) $r->workorder->number)
+            ->values();
+
+        $pos = 0;
+        $seenWo = [];
+        $rows = $withQueue->concat($withoutQueue)->map(static function ($row) use (&$pos, &$seenWo) {
+            $woId = (int) $row->workorder->id;
+            if (! isset($seenWo[$woId])) {
+                $seenWo[$woId] = true;
+                $row->is_queue_master = true;
+                if ($row->workorder->machining_queue_order !== null) {
+                    $pos++;
+                }
+            }
+
+            if ($row->workorder->machining_queue_order !== null) {
+                $row->machining_queue_position = $pos;
+            }
+
+            return $row;
+        });
 
         $queuedCount = $rows
-            ->filter(static fn ($r) => $r->workorder->paint_queue_order !== null)
+            ->filter(static fn ($r) => $r->workorder->machining_queue_order !== null)
             ->pluck('workorder.id')
             ->unique()
             ->count();
 
         $user = auth()->user();
 
-        $lostParts = Paint::query()
-            ->with(['user:id,name', 'media'])
-            ->latest()
-            ->limit(100)
-            ->get();
-
-        return view('admin.paint.index', [
+        return view('admin.machining.index', [
             'rows' => $rows,
             'queuedCount' => $queuedCount,
-            'canReorderPaint' => $user !== null && $user->roleIs(['Admin', 'Manager']),
-            'lostParts' => $lostParts,
+            'canReorderMachining' => $user !== null && $user->roleIs(['Admin', 'Manager']),
         ]);
-    }
-
-    public function storeLost(Request $request): JsonResponse
-    {
-        $user = auth()->user();
-        if ($user === null) {
-            abort(403);
-        }
-
-        $validated = $request->validate([
-            'part_number' => ['required', 'string', 'max:255'],
-            'serial_number' => ['nullable', 'string', 'max:255'],
-            'comment' => ['nullable', 'string', 'max:2000'],
-            'photo' => ['required', 'image', 'max:10240'],
-        ]);
-
-        $paint = Paint::query()->create([
-            'user_id' => $user->id,
-            'part_number' => $validated['part_number'],
-            'serial_number' => $validated['serial_number'] !== null && $validated['serial_number'] !== ''
-                ? $validated['serial_number']
-                : null,
-            'comment' => $validated['comment'] !== null && $validated['comment'] !== ''
-                ? $validated['comment']
-                : null,
-        ]);
-
-        $paint->addMediaFromRequest('photo')->toMediaCollection('lost');
-
-        return response()->json(['success' => true, 'message' => 'Saved']);
-    }
-
-    public function destroyLost(Paint $paint): JsonResponse
-    {
-        $user = auth()->user();
-        if ($user === null) {
-            abort(403);
-        }
-
-        if ((int) $paint->user_id !== (int) $user->id && ! $user->roleIs('Admin')) {
-            abort(403);
-        }
-
-        $mediaIds = $paint->media()->pluck('id')->map(static fn ($id) => (int) $id)->values()->all();
-        activity('paint_lost_delete')
-            ->causedBy($user)
-            ->performedOn($paint)
-            ->event('deleted')
-            ->withProperties([
-                'paint_id' => (int) $paint->id,
-                'part_number' => (string) ($paint->part_number ?? ''),
-                'serial_number' => (string) ($paint->serial_number ?? ''),
-                'comment' => (string) ($paint->comment ?? ''),
-                'owner_user_id' => (int) ($paint->user_id ?? 0),
-                'media_ids' => $mediaIds,
-                'source' => 'admin.paint.index',
-            ])
-            ->log('Paint lost image deleted');
-
-        $paint->delete();
-
-        return response()->json(['success' => true]);
     }
 
     public function reorder(Request $request): JsonResponse
@@ -146,34 +132,25 @@ class PaintController extends Controller
             return response()->json(['success' => false, 'message' => 'Empty list'], 422);
         }
 
-        $normalizePaintQueueWoIds = static function (array $idList): array {
-            $idList = array_values(array_unique(array_filter(
-                array_map(static fn ($v) => (int) $v, $idList),
-                static fn (int $id) => $id > 0
-            )));
-            sort($idList, SORT_NUMERIC);
+        $expectedIds = Workorder::query()
+            ->whereNotNull('approve_at')
+            ->whereNull('done_at')
+            ->where('is_draft', 0)
+            ->whereNotNull('machining_queue_order')
+            ->pluck('id')
+            ->map(static fn ($id) => (int) $id)
+            ->sort()
+            ->values()
+            ->all();
 
-            return $idList;
-        };
-
-        $expectedIds = $normalizePaintQueueWoIds(
-            Workorder::query()
-                ->whereNotNull('approve_at')
-                ->whereNull('done_at')
-                ->where('is_draft', 0)
-                ->whereNotNull('paint_queue_order')
-                ->pluck('id')
-                ->all()
-        );
-
-        $incomingIds = $normalizePaintQueueWoIds($ids);
+        $incomingIds = collect($ids)->map(static fn ($id) => (int) $id)->sort()->values()->all();
 
         if ($expectedIds !== $incomingIds) {
             return response()->json(['success' => false, 'message' => 'Invalid workorder list'], 422);
         }
 
         foreach ($ids as $position => $id) {
-            Workorder::whereKey((int) $id)->update(['paint_queue_order' => (int) $position]);
+            Workorder::whereKey((int) $id)->update(['machining_queue_order' => (int) $position]);
         }
 
         return response()->json(['success' => true]);
@@ -200,19 +177,19 @@ class PaintController extends Controller
             return response()->json(['success' => false, 'message' => 'Workorder must be approved, not completed, not draft'], 422);
         }
 
-        if ($wo->paint_queue_order !== null) {
-            return response()->json(['success' => false, 'message' => 'Already in paint queue'], 422);
+        if ($wo->machining_queue_order !== null) {
+            return response()->json(['success' => false, 'message' => 'Already in machining queue'], 422);
         }
 
         $max = Workorder::query()
             ->whereNotNull('approve_at')
             ->whereNull('done_at')
             ->where('is_draft', 0)
-            ->whereNotNull('paint_queue_order')
-            ->max('paint_queue_order');
+            ->whereNotNull('machining_queue_order')
+            ->max('machining_queue_order');
 
         $next = $max === null ? 0 : ((int) $max + 1);
-        $wo->update(['paint_queue_order' => $next]);
+        $wo->update(['machining_queue_order' => $next]);
 
         return response()->json(['success' => true, 'message' => 'Added']);
     }
@@ -245,8 +222,8 @@ class PaintController extends Controller
             ->whereNotNull('approve_at')
             ->whereNull('done_at')
             ->where('is_draft', 0)
-            ->whereNotNull('paint_queue_order')
-            ->orderBy('paint_queue_order', 'asc')
+            ->whereNotNull('machining_queue_order')
+            ->orderBy('machining_queue_order', 'asc')
             ->orderBy('number', 'asc')
             ->pluck('id')
             ->map(static fn ($id) => (int) $id)
@@ -262,14 +239,13 @@ class PaintController extends Controller
 
             $rest = array_values(array_filter($queuedIds, static fn (int $id) => $id !== $wid));
             foreach ($rest as $i => $id) {
-                Workorder::whereKey($id)->update(['paint_queue_order' => $i]);
+                Workorder::whereKey($id)->update(['machining_queue_order' => $i]);
             }
-            $wo->update(['paint_queue_order' => null]);
+            $wo->update(['machining_queue_order' => null]);
 
             return response()->json(['success' => true]);
         }
 
-        // $pos >= 1: встать в очередь (новая строка) или сменить место
         $list = $inQueue
             ? array_values(array_filter($queuedIds, static fn (int $id) => $id !== $wid))
             : $queuedIds;
@@ -278,10 +254,29 @@ class PaintController extends Controller
         array_splice($list, $insertIndex, 0, [$wid]);
 
         foreach ($list as $i => $id) {
-            Workorder::whereKey($id)->update(['paint_queue_order' => $i]);
+            Workorder::whereKey($id)->update(['machining_queue_order' => $i]);
         }
 
         return response()->json(['success' => true]);
     }
 
+    /**
+     * @return Collection<int, TdrProcess>
+     */
+    private function collectMachiningProcessesForRow(Workorder $wo): Collection
+    {
+        $out = collect();
+        foreach ($wo->tdrs as $tdr) {
+            foreach ($tdr->tdrProcesses as $tp) {
+                $name = trim((string) ($tp->processName?->name ?? ''));
+                if ($name !== 'Machining') {
+                    continue;
+                }
+                $tp->setRelation('tdr', $tdr);
+                $out->push($tp);
+            }
+        }
+
+        return $out;
+    }
 }

@@ -31,9 +31,11 @@ use App\Models\Unit;
 //use App\Models\WoCode;
 use App\Models\Workorder;
 use App\Models\NdtCadCsv;
+use App\Services\WorkorderStdListProcessesService;
 use Illuminate\Contracts\Foundation\Application;
 use Illuminate\Contracts\View\Factory;
 use Illuminate\Contracts\View\View;
+use Illuminate\Database\Eloquent\Builder as EloquentBuilder;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -830,8 +832,10 @@ class TdrController extends Controller
             ->pluck('id');
 
         // Загружаем только процессы для этих TDR, с сортировкой и названием процесса
-        $tdrProcesses = TdrProcess::whereIn('tdrs_id', $tdrIds)
-            ->with('processName')
+        $tdrProcessesQuery = TdrProcess::query()
+            ->whereIn('tdrs_id', $tdrIds);
+        $this->applyStdListProcessesVisibilityForWorkorder($current_wo, $tdrProcessesQuery);
+        $tdrProcesses = $tdrProcessesQuery->with('processName')
             ->orderBy('sort_order')
             ->get();
 
@@ -959,8 +963,10 @@ class TdrController extends Controller
             ->pluck('id');
 
         // Загружаем только процессы для этих TDR, с сортировкой и названием процесса
-        $tdrProcesses = TdrProcess::whereIn('tdrs_id', $tdrIds)
-            ->with('processName')
+        $tdrProcessesQuery = TdrProcess::query()
+            ->whereIn('tdrs_id', $tdrIds);
+        $this->applyStdListProcessesVisibilityForWorkorder($current_wo, $tdrProcessesQuery);
+        $tdrProcesses = $tdrProcessesQuery->with('processName')
             ->orderBy('sort_order')
             ->get();
 
@@ -1115,8 +1121,10 @@ class TdrController extends Controller
         }
 
         // Получаем все TdrProcess для этих TDR
-        $tdrProcesses = TdrProcess::whereIn('tdrs_id', $tdrIds)
-            ->with(['tdr.component', 'processName'])
+        $tdrProcessesQuery = TdrProcess::query()
+            ->whereIn('tdrs_id', $tdrIds);
+        $this->applyStdListProcessesVisibilityForWorkorder($current_wo, $tdrProcessesQuery);
+        $tdrProcesses = $tdrProcessesQuery->with(['tdr.component', 'processName'])
             ->orderBy('sort_order')
             ->get();
 
@@ -4942,6 +4950,26 @@ class TdrController extends Controller
             'success' => true,
             'message' => 'Field updated successfully'
         ]);
+    }
+
+    /**
+     * Четыре процесса STD List (имена из WorkorderStdListProcessesService) в выборке —
+     * только если воркордер Overhaul (как main / Paint).
+     */
+    private function applyStdListProcessesVisibilityForWorkorder(Workorder $currentWo, EloquentBuilder $query): void
+    {
+        $overhaulId = Instruction::overhaulId();
+        if ($overhaulId !== null && (int) $currentWo->instruction_id === (int) $overhaulId) {
+            return;
+        }
+
+        $stdNames = array_values(WorkorderStdListProcessesService::NAME_BY_KEY);
+        $query->where(function ($q) use ($stdNames) {
+            $q->whereDoesntHave('processName')
+                ->orWhereHas('processName', function ($pn) use ($stdNames) {
+                    $pn->whereNotIn('name', $stdNames);
+                });
+        });
     }
 
 }

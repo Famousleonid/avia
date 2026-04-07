@@ -5,6 +5,36 @@
     $currentWorkorderId = $workorder->id ?? null;
 
     $onShowPage = request()->routeIs('mobile.show','mobile.tasks', 'mobile.components','mobile.process'); // страница одного воркордера
+    $isPaintUser = auth()->check() && auth()->user()->roleIs('Paint');
+    $isPaintRoute = request()->routeIs('mobile.paint');
+    $isMachiningUser = auth()->check() && auth()->user()->roleIs('Machining');
+    $isMachiningRoute = request()->routeIs('mobile.machining');
+    $usePaintMenu = $isPaintUser || $isPaintRoute;
+    $useMachiningMenu = $isMachiningUser || $isMachiningRoute;
+    $useShopDeptMenu = $usePaintMenu || $useMachiningMenu;
+    $showDeptLost = $usePaintMenu;
+    if ($isPaintRoute) {
+        $deptWoUrl = route('mobile.paint', ['tab' => 'wo']);
+        $deptLostUrl = route('mobile.paint', ['tab' => 'lost']);
+        $deptActive = 'paint';
+    } elseif ($isMachiningRoute) {
+        $deptWoUrl = route('mobile.machining', ['tab' => 'wo']);
+        $deptLostUrl = route('mobile.index');
+        $deptActive = 'machining';
+    } elseif ($isPaintUser) {
+        $deptWoUrl = route('mobile.paint', ['tab' => 'wo']);
+        $deptLostUrl = route('mobile.paint', ['tab' => 'lost']);
+        $deptActive = 'paint';
+    } elseif ($isMachiningUser) {
+        $deptWoUrl = route('mobile.machining', ['tab' => 'wo']);
+        $deptLostUrl = route('mobile.index');
+        $deptActive = 'machining';
+    } else {
+        $deptWoUrl = route('mobile.index');
+        $deptLostUrl = route('mobile.index');
+        $deptActive = null;
+    }
+    $paintTab = request()->query('tab', 'wo');
 @endphp
 
 <style>
@@ -62,18 +92,77 @@
 
 <div class="{{ $borderClass }} bg-primary d-flex justify-content-between align-items-center" style="height: 60px;">
 
-    <a href="{{ route('mobile.index') }}" data-spinner
+    <a href="{{ $useShopDeptMenu ? $deptWoUrl : route('mobile.index') }}" data-spinner
        class="flex-fill text-center d-flex flex-column align-items-center justify-content-center text-white">
-        <div class="menu-icon-wrapper {{ $isActive('mobile.index') ? 'active' : '' }}">
-            <i class="bi bi-list-ol"></i>
+        <div class="menu-icon-wrapper {{ (($isPaintRoute || $isMachiningRoute) && $paintTab === 'wo') || (!$useShopDeptMenu && $isActive('mobile.index')) ? 'active' : '' }}">
+            <i class="bi {{ $deptActive === 'machining' ? 'bi-hammer' : 'bi-brush' }}"></i>
             <svg viewBox="0 0 36 36">
                 <circle cx="18" cy="18" r="18"/>
             </svg>
         </div>
-        <span class="menu-label">WO List</span>
+        <span class="menu-label">{{ $useShopDeptMenu ? 'WO' : 'WO List' }}</span>
     </a>
 
-    @if($onShowPage)
+    @if($showDeptLost)
+        <a href="{{ $deptLostUrl }}" data-spinner
+           class="flex-fill text-center d-flex flex-column align-items-center justify-content-center text-white">
+            <div class="menu-icon-wrapper {{ (($isPaintRoute || $isMachiningRoute) && $paintTab === 'lost') ? 'active' : '' }}">
+                <i class="bi bi-camera"></i>
+                <svg viewBox="0 0 36 36">
+                    <circle cx="18" cy="18" r="18"/>
+                </svg>
+            </div>
+            <span class="menu-label">Lost</span>
+        </a>
+
+        <a href="{{ route('mobile.profile') }}" data-spinner
+           class="flex-fill text-center d-flex flex-column align-items-center justify-content-center text-white">
+            <div class="menu-icon-wrapper {{ $isActive('mobile.profile') ? 'active' : '' }}">
+                <i class="bi bi-person-bounding-box"></i>
+                <svg viewBox="0 0 36 36">
+                    <circle cx="18" cy="18" r="18"/>
+                </svg>
+            </div>
+            <span class="menu-label">Profile</span>
+        </a>
+
+        <form id="{{ $menuId }}" action="{{ route('logout') }}" method="POST" style="display: none;">@csrf</form>
+        <a href="#"
+           class="flex-fill text-center d-flex flex-column align-items-center justify-content-center text-white"
+           onclick="event.preventDefault(); document.getElementById('{{ $menuId }}').submit();">
+            <div class="menu-icon-wrapper">
+                <i class="bi bi-box-arrow-right"></i>
+                <svg viewBox="0 0 36 36">
+                    <circle cx="18" cy="18" r="18"/>
+                </svg>
+            </div>
+            <span class="menu-label">Logout</span>
+        </a>
+    @elseif($useMachiningMenu)
+        <a href="{{ route('mobile.profile') }}" data-spinner
+           class="flex-fill text-center d-flex flex-column align-items-center justify-content-center text-white">
+            <div class="menu-icon-wrapper {{ $isActive('mobile.profile') ? 'active' : '' }}">
+                <i class="bi bi-person-bounding-box"></i>
+                <svg viewBox="0 0 36 36">
+                    <circle cx="18" cy="18" r="18"/>
+                </svg>
+            </div>
+            <span class="menu-label">Profile</span>
+        </a>
+
+        <form id="{{ $menuId }}" action="{{ route('logout') }}" method="POST" style="display: none;">@csrf</form>
+        <a href="#"
+           class="flex-fill text-center d-flex flex-column align-items-center justify-content-center text-white"
+           onclick="event.preventDefault(); document.getElementById('{{ $menuId }}').submit();">
+            <div class="menu-icon-wrapper">
+                <i class="bi bi-box-arrow-right"></i>
+                <svg viewBox="0 0 36 36">
+                    <circle cx="18" cy="18" r="18"/>
+                </svg>
+            </div>
+            <span class="menu-label">Logout</span>
+        </a>
+    @elseif($onShowPage && !$useShopDeptMenu)
 
         @if($onShowPage && isset($workorder))
             <a href="{{ route('mobile.show', $currentWorkorderId) }}" data-spinner

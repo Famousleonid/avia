@@ -575,7 +575,16 @@ class WorkorderController extends Controller
         }
 
         $oldUnitId = $workorder->unit_id;
+        $overhaulId = Instruction::overhaulId();
+        $wasOverhaul = $overhaulId !== null && (int) $workorder->instruction_id === (int) $overhaulId;
+        $newInstructionId = (int) $request->instruction_id;
+        $isNowOverhaul = $overhaulId !== null && $newInstructionId === (int) $overhaulId;
+
         $workorder->update($request->all());
+
+        if ($wasOverhaul && ! $isNowOverhaul) {
+            $this->deleteStdListTdrProcessesForWorkorder($workorder);
+        }
 
         // При смене unit — обновить NdtCadCsv компонентами из нового manual
         if ((int)$request->unit_id !== (int)$oldUnitId) {
@@ -595,11 +604,8 @@ class WorkorderController extends Controller
             }
         }
 
-        if (!$newIsDraft) {
-            $overhaulId = Instruction::overhaulId();
-            if ($overhaulId && (int) $workorder->instruction_id === (int) $overhaulId) {
-                app(WorkorderStdListProcessesService::class)->resolveForWorkorder($workorder);
-            }
+        if (! $newIsDraft && $isNowOverhaul) {
+            app(WorkorderStdListProcessesService::class)->resolveForWorkorder($workorder);
         }
 
         return redirect()->route('workorders.index')->with('success', 'Workorder was edited successfully');
@@ -987,5 +993,24 @@ class WorkorderController extends Controller
             'success' => true,
             'storage_location' => $workorder->storage_location,
         ]);
+    }
+
+    /**
+     * Удаляет процессы STD List (имена из WorkorderStdListProcessesService) по всем TDR воркордера.
+     */
+    private function deleteStdListTdrProcessesForWorkorder(Workorder $workorder): void
+    {
+        $names = array_values(WorkorderStdListProcessesService::NAME_BY_KEY);
+        $nameIds = ProcessName::query()->whereIn('name', $names)->pluck('id');
+        if ($nameIds->isEmpty()) {
+            return;
+        }
+
+        TdrProcess::query()
+            ->whereIn('process_names_id', $nameIds)
+            ->whereHas('tdr', static function ($q) use ($workorder) {
+                $q->where('workorder_id', (int) $workorder->id);
+            })
+            ->delete();
     }
 }

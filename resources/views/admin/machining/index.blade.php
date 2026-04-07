@@ -3,24 +3,24 @@
 @section('style')
     @include('admin.mains.partials.styles')
     <style>
-        .paint-page-root {
+        .machining-page-root {
             min-height: calc(100dvh - 100px);
             display: flex;
             flex-direction: column;
         }
-        .paint-page-root .dir-panel {
+        .machining-page-root .dir-panel {
             height: auto;
             max-height: calc(100dvh - 120px);
             min-width: 0;
         }
-        .paint-table-scroll {
+        .machining-table-scroll {
             max-height: calc(100dvh - 220px);
         }
-        .paint-table-outer.paint-table-scroll {
+        .machining-table-outer.machining-table-scroll {
             max-height: calc(100dvh - 220px);
         }
         /* Нижний блок lost parts — одна рамка (без вложенного .paint-page-bottom) */
-        .paint-lost-fieldset {
+        .machining-lost-fieldset {
             flex: 1 1 auto;
             min-height: 120px;
             margin: .75rem 0 0;
@@ -30,7 +30,7 @@
             padding: .55rem .65rem .65rem;
             background: linear-gradient(180deg, rgba(0, 0, 0, .12), rgba(0, 0, 0, .42));
         }
-        .paint-lost-fieldset .paint-lost-legend {
+        .machining-lost-fieldset .machining-lost-legend {
             float: none;
             width: auto;
             max-width: 100%;
@@ -45,84 +45,85 @@
             /* фон как у блока — «разрыв» линии рамки у легенды */
             background: linear-gradient(180deg, rgba(0, 0, 0, .12), rgba(0, 0, 0, .42));
         }
-        .paint-lost-fieldset .paint-lost-search-input {
+        .machining-lost-fieldset .machining-lost-search-input {
             flex: 1 1 10rem;
             min-width: 9rem;
             max-width: 22rem;
         }
-        .paint-lost-scroll {
+        .machining-lost-scroll {
             -webkit-overflow-scrolling: touch;
             scrollbar-width: thin;
         }
-        .paint-lost-thumb {
+        .machining-lost-thumb {
             object-fit: cover;
             display: block;
         }
-        .paint-drag-handle {
+        .machining-drag-handle {
             cursor: grab;
             color: var(--dir-muted, #adb5bd);
             user-select: none;
         }
-        .paint-drag-handle:active { cursor: grabbing; }
+        .machining-drag-handle:active { cursor: grabbing; }
         /* Ширина колонок — colgroup + table-layout:fixed; без горизонтальной прокрутки */
-        .paint-table-outer {
+        .machining-table-outer {
             width: 100%;
             max-width: 100%;
             overflow-x: hidden;
             overflow-y: auto;
         }
-        #paint-wo-table {
+        #machining-wo-table {
             table-layout: fixed;
             width: 100%;
             max-width: 100%;
         }
         /* Тело таблицы (без шапки): 14px; при ширине ≤1280px — 12px */
-        #paint-wo-table tbody {
+        #machining-wo-table tbody {
             font-size: 16px;
         }
-        #paint-wo-table tbody td.small {
+        #machining-wo-table tbody td.small {
             font-size: 1em;
         }
-        #paint-wo-table tbody .form-control,
-        #paint-wo-table tbody .form-control-sm {
+        #machining-wo-table tbody .form-control,
+        #machining-wo-table tbody .form-control-sm {
             font-size: 1em;
         }
-        #paint-wo-table tbody .btn-sm {
+        #machining-wo-table tbody .btn-sm {
             font-size: 1em;
         }
         @media (max-width: 1280px) {
-            #paint-wo-table tbody {
+            #machining-wo-table tbody {
                 font-size: 12px;
             }
         }
-        #paint-wo-table th,
-        #paint-wo-table td {
+        #machining-wo-table th,
+        #machining-wo-table td {
             overflow: hidden;
             vertical-align: middle;
         }
-        #paint-wo-table .paint-col-wrap {
+        #machining-wo-table .machining-col-wrap {
             white-space: normal;
             word-break: break-word;
             overflow-wrap: anywhere;
         }
-        #paint-wo-table .paint-col-ellipsis {
+        #machining-wo-table .machining-col-ellipsis {
             white-space: nowrap;
             text-overflow: ellipsis;
         }
         /* Сумма ~100%: фиксированное распределение без min-width в rem → без горизонтального скролла */
-        #paint-wo-table col.paint-col-drag { width: 35px;}
-        #paint-wo-table col.paint-col-num { width: 35px; }
-        #paint-wo-table col.paint-col-wo { width: 60px; }
-        #paint-wo-table col.paint-col-customer { width: 12%; }
-        #paint-wo-table col.paint-col-aircraft { width: 12%; }
-        #paint-wo-table col.paint-col-owner { width: 12%; }
-        #paint-wo-table col.paint-col-detail { width: 10%; }
-        #paint-wo-table col.paint-col-date { width: 125px; }
-        #paint-wo-table:not(.paint-table-has-drag) col.paint-col-num { width: 125px; }
-        .paint-col-priority {
+        #machining-wo-table col.machining-col-drag { width: 35px;}
+        #machining-wo-table col.machining-col-num { width: 8%; }
+        #machining-wo-table col.machining-col-wo { width: 14%; }
+        #machining-wo-table col.machining-col-customer { width: 20%; }
+        #machining-wo-table col.machining-col-aircraft { width: 15%; }
+        #machining-wo-table col.machining-col-pn { width: 18%; }
+        #machining-wo-table col.machining-col-owner { width: 10%; }
+        #machining-wo-table col.machining-col-detail { width: 10%; }
+        #machining-wo-table col.machining-col-date { width: 145px; }
+        #machining-wo-table:not(.machining-table-has-drag) col.machining-col-num { width: 145px; }
+        .machining-col-priority {
             max-width: 100%;
         }
-        .js-paint-position-input {
+        .js-machining-position-input {
             min-width: 0;
             max-width: 100%;
             width: 100%;
@@ -133,35 +134,35 @@
             border-color: var(--dir-input-border) !important;
             color: var(--dir-text) !important;
         }
-        .js-paint-msg-owner {
+        .js-machining-msg-owner {
             cursor: pointer;
             text-decoration: underline dotted;
             text-underline-offset: 2px;
         }
-        .js-paint-msg-owner:hover { color: #0dcaf0 !important; }
-        .paint-dir-table thead th {
+        .js-machining-msg-owner:hover { color: #0dcaf0 !important; }
+        .machining-dir-table thead th {
             color: var(--bs-info) !important;
             background: var(--dir-thead-bg, #343A40) !important;
         }
-        .paint-wo-label {
+        .machining-wo-label {
             font-variant-numeric: tabular-nums;
             letter-spacing: 0.02em;
         }
-        .paint-date-readonly.finish-input {
+        .machining-date-readonly.finish-input {
             cursor: default;
             pointer-events: none;
         }
-        .paint-date-readonly.finish-input:not(.has-finish) {
+        .machining-date-readonly.finish-input:not(.has-finish) {
             background-image: none !important;
             padding-right: 0.35em !important;
         }
-        #paint-wo-table input.paint-date-readonly.finish-input.has-finish {
+        #machining-wo-table input.machining-date-readonly.finish-input.has-finish {
             background-image: none !important;
             background-color: rgba(25, 135, 84, .1);
             padding-right: 0.35em !important;
         }
         /* Видимая дата: dd.mon.yyyy; отступы в em — с масштабом tbody (≤1280px = 12px), без «запаса» mains 3.5rem под галочку */
-        #paint-wo-table tbody input[type="text"].paint-date-display.finish-input {
+        #machining-wo-table tbody input[type="text"].machining-date-display.finish-input {
             cursor: pointer;
             padding-right: 1.65em !important;
             text-align: left;
@@ -171,7 +172,7 @@
             background-position: right 0.15em center;
             background-size: 1em 1em;
         }
-        #paint-wo-table tbody input[type="text"].paint-date-display.finish-input.has-finish {
+        #machining-wo-table tbody input[type="text"].machining-date-display.finish-input.has-finish {
             background-color: rgba(25, 135, 84, .1);
             /* только календарь, без галочки mains */
             background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='%236c757d' viewBox='0 0 16 16'%3E%3Cpath d='M3 0a1 1 0 0 0-1 1v1H1.5A1.5 1.5 0 0 0 0 3.5v11A1.5 1.5 0 0 0 1.5 16h13a1.5 1.5 0 0 0 1.5-1.5v-11A1.5 1.5 0 0 0 14.5 2H14V1a1 1 0 0 0-2 0v1H4V1a1 1 0 0 0-1-1zM1 5h14v9.5a.5.5 0 0 1-.5.5h-13a.5.5 0 0 1-.5-.5V5z'/%3E%3C/svg%3E");
@@ -181,7 +182,7 @@
             padding-right: 1.65em !important;
         }
         /* Служебный нативный input[type=date]: скрыт визуально, но открывается через showPicker по клику на display */
-        .paint-date-input-wrap .js-paint-picker-aid {
+        .machining-date-input-wrap .js-machining-picker-aid {
             position: absolute;
             width: 1px;
             height: 1px;
@@ -194,14 +195,14 @@
             opacity: 0;
             pointer-events: none;
         }
-        .paint-date-input-wrap .js-paint-picker-aid::-webkit-datetime-edit-fields-wrapper {
+        .machining-date-input-wrap .js-machining-picker-aid::-webkit-datetime-edit-fields-wrapper {
             opacity: 0;
         }
-        .paint-date-input-wrap {
+        .machining-date-input-wrap {
             position: relative;
             min-width: 0;
         }
-        #paint-wo-table tbody input[type="text"].paint-date-display {
+        #machining-wo-table tbody input[type="text"].machining-date-display {
             color-scheme: dark;
             min-height: calc(1.8125rem + 2px);
             padding: 0.25em 1.65em 0.25em 0.35em !important;
@@ -210,7 +211,7 @@
             z-index: 1;
             width: 100%;
         }
-        .paint-date-fake-ph {
+        .machining-date-fake-ph {
             display: none;
             position: absolute;
             left: 0.5rem;
@@ -222,17 +223,17 @@
             z-index: 0;
             line-height: 1;
         }
-        .paint-date-input-wrap input.paint-date-display.paint-date-empty:not(:focus) + .paint-date-fake-ph {
+        .machining-date-input-wrap input.machining-date-display.machining-date-empty:not(:focus) + .machining-date-fake-ph {
             display: block;
         }
-        #paint-wo-table td:has(.paint-date-display) {
+        #machining-wo-table td:has(.machining-date-display) {
             position: relative;
             z-index: 1;
         }
-        .paint-header-search {
+        .machining-header-search {
             min-width: 0;
         }
-        #paint-wo-table .paint-col-owner .btn-link {
+        #machining-wo-table .machining-col-owner .btn-link {
             display: inline-block;
             max-width: 100%;
             overflow: hidden;
@@ -240,7 +241,7 @@
             white-space: nowrap;
             vertical-align: bottom;
         }
-        #paint-wo-table .paint-col-date-cell .paint-date-readonly {
+        #machining-wo-table .machining-col-date-cell .machining-date-readonly {
             font-size: 1em;
             padding-left: 0.35em !important;
             padding-right: 0.35em !important;
@@ -253,25 +254,25 @@
 @endphp
 
 @section('content')
-    <div class="container-fluid py-2 paint-page-root">
+    <div class="container-fluid py-2 machining-page-root">
         <div class="card border-0 dir-page shadow-sm">
             <div class="card-header p-0 mx-0 bg-transparent border-0 dir-topbar">
                 <div class="dir-topbar px-3 py-2">
                     <div class="row g-2 align-items-center flex-nowrap">
                         <div class="col-auto flex-shrink-0">
                             <h5 class="mb-0 text-info text-nowrap"
-                                title="{{ $queuedCount }} workorder(s) in paint queue">
-                                Paint
+                                title="{{ $queuedCount }} workorder(s) in machining queue">
+                                Machining
                                 <span class="text-secondary">(</span>
                                 <span class="text-success">{{ $queuedCount }}</span>
                                 <span class="text-secondary small"> in queue</span>
                                 <span class="text-secondary">)</span>
                             </h5>
                         </div>
-                        <div class="col min-w-0 paint-header-search">
-                            <label for="paintTableSearch" class="visually-hidden">Search table</label>
+                        <div class="col min-w-0 machining-header-search">
+                            <label for="machiningTableSearch" class="visually-hidden">Search table</label>
                             <input type="search"
-                                   id="paintTableSearch"
+                                   id="machiningTableSearch"
                                    class="form-control form-control-sm dir-input w-100"
                                    placeholder="Search (WO, customer, P/N, owner, dates…)"
                                    autocomplete="off">
@@ -282,55 +283,57 @@
 
             <div class="card-body pt-1 px-3 m-0 flex-grow-1 d-flex flex-column">
                 <div class="dir-panel border p-0 px-2 pb-2">
-                    <div class="dir-table-wrap paint-table-scroll paint-table-outer">
-                        <table class="table table-sm table-hover align-middle mb-0 dir-table paint-dir-table {{ ($canReorderPaint ?? false) ? 'paint-table-has-drag' : '' }} " id="paint-wo-table">
+                    <div class="dir-table-wrap machining-table-scroll machining-table-outer">
+                        <table class="table table-sm table-hover align-middle mb-0 dir-table machining-dir-table {{ ($canReorderMachining ?? false) ? 'machining-table-has-drag' : '' }} " id="machining-wo-table">
                             <colgroup>
-                                @if($canReorderPaint ?? false)
-                                    <col class="paint-col-drag">
+                                @if($canReorderMachining ?? false)
+                                    <col class="machining-col-drag">
                                 @endif
-                                <col class="paint-col-num">
-                                <col class="paint-col-wo">
-                                <col class="paint-col-customer">
-                                <col class="paint-col-aircraft">
-                                <col class="paint-col-owner">
-                                <col class="paint-col-detail">
-                                <col class="paint-col-date">
-                                <col class="paint-col-date">
+                                <col class="machining-col-num">
+                                <col class="machining-col-wo">
+                                <col class="machining-col-customer">
+                                <col class="machining-col-aircraft">
+                                <col class="machining-col-pn">
+                                <col class="machining-col-owner">
+                                <col class="machining-col-detail">
+                                <col class="machining-col-date">
+                                <col class="machining-col-date">
                             </colgroup>
                             <thead>
                                 <tr class="text-center text-small text-nowrap" style="font-size: 12px">
-                                    @if($canReorderPaint ?? false)
-                                        <th class="paint-col-drag" title="Drag"></th>
+                                    @if($canReorderMachining ?? false)
+                                        <th class="machining-col-drag" title="Drag"></th>
                                     @endif
-                                    <th class="paint-col-priority" title="Queue position (from workorder)">№</th>
+                                    <th class="machining-col-priority" title="Queue position (from workorder)">№</th>
                                     <th>WO #</th>
                                     <th>Customer</th>
                                     <th>AirCraft Type</th>
+                                    <th>Part number</th>
                                     <th>Owner</th>
                                     <th>Detail (P/N)</th>
                                     <th>Date start</th>
                                     <th>Date finish</th>
                                 </tr>
                             </thead>
-                            <tbody id="paint-sortable-tbody">
+                            <tbody id="machining-sortable-tbody">
                             @forelse ($rows as $row)
                                 @php
                                     $wo = $row->workorder;
-                                    $editTp = $row->edit_paint_process;
-                                    $fmtPaintDisp = static function ($d) {
+                                    $editTp = $row->edit_machining_process;
+                                    $fmtMachiningDisp = static function ($d) {
                                         if ($d === null) {
                                             return '';
                                         }
 
                                         return $d->format('d') . '.' . strtolower($d->format('M')) . '.' . $d->format('Y');
                                     };
-                                    $startStr = $fmtPaintDisp($row->date_start);
-                                    $finishStr = $fmtPaintDisp($row->date_finish);
+                                    $startStr = $fmtMachiningDisp($row->date_start);
+                                    $finishStr = $fmtMachiningDisp($row->date_finish);
                                     $tpStartYmd = $editTp?->date_start?->format('Y-m-d') ?? '';
-                                    $tpStartDisp = $fmtPaintDisp($editTp?->date_start);
+                                    $tpStartDisp = $fmtMachiningDisp($editTp?->date_start);
                                     $tpFinishYmd = $editTp?->date_finish?->format('Y-m-d') ?? '';
-                                    $tpFinishDisp = $fmtPaintDisp($editTp?->date_finish);
-                                    $paintSearchBlob = implode(' ', array_filter([
+                                    $tpFinishDisp = $fmtMachiningDisp($editTp?->date_finish);
+                                    $machiningSearchBlob = implode(' ', array_filter([
                                         'w' . $wo->number,
                                         (string) ($wo->customer?->name ?? ''),
                                         (string) ($wo->unit?->manual?->plane?->type ?? ''),
@@ -340,74 +343,75 @@
                                         $startStr,
                                         $finishStr,
                                     ]));
-                                    $paintSearch = function_exists('mb_strtolower')
-                                        ? mb_strtolower($paintSearchBlob, 'UTF-8')
-                                        : strtolower($paintSearchBlob);
+                                    $machiningSearch = function_exists('mb_strtolower')
+                                        ? mb_strtolower($machiningSearchBlob, 'UTF-8')
+                                        : strtolower($machiningSearchBlob);
                                 @endphp
                                 <tr data-wo-id="{{ (int) $wo->id }}"
-                                    data-paint-search="{{ $paintSearch }}"
-                                    class="{{ $wo->paint_queue_order !== null ? 'paint-row-queued' : 'paint-row-unqueued' }} {{ ($row->is_queue_master ?? false) ? 'paint-row-master' : '' }}">
-                                    @if($canReorderPaint ?? false)
-                                        <td class="text-center {{ $wo->paint_queue_order !== null && ($row->is_queue_master ?? false) ? 'paint-drag-handle' : '' }}"
-                                            @if($wo->paint_queue_order !== null && ($row->is_queue_master ?? false)) title="Drag" @endif>
-                                            @if($wo->paint_queue_order !== null && ($row->is_queue_master ?? false))
+                                    data-machining-search="{{ $machiningSearch }}"
+                                    class="{{ $wo->machining_queue_order !== null ? 'machining-row-queued' : 'machining-row-unqueued' }} {{ ($row->is_queue_master ?? false) ? 'machining-row-master' : '' }}">
+                                    @if($canReorderMachining ?? false)
+                                        <td class="text-center {{ $wo->machining_queue_order !== null && ($row->is_queue_master ?? false) ? 'machining-drag-handle' : '' }}"
+                                            @if($wo->machining_queue_order !== null && ($row->is_queue_master ?? false)) title="Drag" @endif>
+                                            @if($wo->machining_queue_order !== null && ($row->is_queue_master ?? false))
                                                 <i class="bi bi-three-dots-vertical " aria-hidden="true"></i>
                                             @endif
                                         </td>
                                     @endif
-                                    <td class="text-center align-middle paint-col-priority">
-                                        @if($canReorderPaint ?? false)
-                                            @if($wo->paint_queue_order !== null && ($row->is_queue_master ?? false))
+                                    <td class="text-center align-middle machining-col-priority">
+                                        @if($canReorderMachining ?? false)
+                                            @if($wo->machining_queue_order !== null && ($row->is_queue_master ?? false))
                                                 <input type="text"
                                                        inputmode="numeric"
                                                        autocomplete="off"
-                                                       class="form-control js-paint-position-input dir-input"
+                                                       class="form-control js-machining-position-input dir-input"
                                                        data-wo-id="{{ (int) $wo->id }}"
                                                        data-in-queue="1"
-                                                       data-was="{{ (int) $row->paint_queue_position }}"
-                                                       value="{{ (int) $row->paint_queue_position }}"
+                                                       data-was="{{ (int) $row->machining_queue_position }}"
+                                                       value="{{ (int) $row->machining_queue_position }}"
                                                        title="Position in queue (0 = remove from queue)">
-                                            @elseif($wo->paint_queue_order === null && ($row->is_queue_master ?? false))
+                                            @elseif($wo->machining_queue_order === null && ($row->is_queue_master ?? false))
                                                 <input type="text"
                                                        inputmode="numeric"
                                                        autocomplete="off"
-                                                       class="form-control js-paint-position-input dir-input"
+                                                       class="form-control js-machining-position-input dir-input"
                                                        data-wo-id="{{ (int) $wo->id }}"
                                                        data-in-queue="0"
                                                        data-was="0"
                                                        value=""
                                                        title="Enter queue position (0 = not in queue)">
-                                            @elseif($wo->paint_queue_order !== null)
-                                                {{ (int) $row->paint_queue_position }}
+                                            @elseif($wo->machining_queue_order !== null)
+                                                {{ (int) $row->machining_queue_position }}
                                             @else
                                                 <span class="text-muted">—</span>
                                             @endif
                                         @else
-                                            @if($wo->paint_queue_order !== null)
-                                                {{ $row->paint_queue_position }}
+                                            @if($wo->machining_queue_order !== null)
+                                                {{ $row->machining_queue_position }}
                                             @else
                                                 <span class="text-muted">—</span>
                                             @endif
                                         @endif
                                     </td>
-                                    <td class="text-center text-light paint-wo-label paint-col-ellipsis">
+                                    <td class="text-center text-light machining-wo-label machining-col-ellipsis">
                                         w{{ $wo->number }}
                                     </td>
-                                    <td class="text-center small paint-col-wrap">{{ $wo->customer?->name ?? '' }}</td>
-                                    <td class="text-center small paint-col-wrap">{{ $wo->unit?->manual?->plane?->type ?? '' }}</td>
-                                    <td class="text-center paint-col-owner">
+                                    <td class="text-center small machining-col-wrap">{{ $wo->customer?->name ?? '' }}</td>
+                                    <td class="text-center small machining-col-wrap">{{ $wo->unit?->manual?->plane?->type ?? '' }}</td>
+                                    <td class="text-center machining-col-wrap">{{ $wo->unit?->part_number ?? '' }}</td>
+                                    <td class="text-center machining-col-owner">
                                         @if($wo->user_id && $wo->user)
                                             <button type="button"
-                                                    class="btn btn-link btn-sm text-light p-0 js-paint-msg-owner"
+                                                    class="btn btn-link btn-sm text-light p-0 js-machining-msg-owner"
                                                     data-user-id="{{ (int) $wo->user_id }}">
                                                 {{ $wo->user->name }}
                                             </button>
                                         @endif
                                     </td>
-                                    <td class="text-center small paint-col-wrap">
+                                    <td class="text-center small machining-col-wrap">
                                         {{ $row->detail_label ?? 'List' }}
                                     </td>
-                                    <td class="paint-col-date-cell">
+                                    <td class="machining-col-date-cell">
                                         @if ($editTp)
                                             <form method="POST"
                                                   action="{{ route('tdrprocesses.updateDate', $editTp) }}"
@@ -417,23 +421,23 @@
                                                   autocomplete="off">
                                                 @csrf
                                                 @method('PATCH')
-                                                <input type="hidden" name="from_paint_index" value="1">
-                                                <div class="paint-date-input-wrap">
+                                                <input type="hidden" name="from_machining_index" value="1">
+                                                <div class="machining-date-input-wrap">
                                                     <input type="hidden"
                                                            name="date_start"
                                                            value="{{ $tpStartYmd }}"
-                                                           class="js-paint-date-ymd"
+                                                           class="js-machining-date-ymd"
                                                            data-original="{{ $tpStartYmd }}">
                                                     <input type="text"
                                                            readonly
                                                            value="{{ $tpStartDisp }}"
-                                                           class="form-control form-control-sm finish-input paint-native-date paint-date-display {{ $tpStartYmd !== '' ? 'has-finish' : '' }} {{ $tpStartYmd !== '' ? '' : 'paint-date-empty' }}"
+                                                           class="form-control form-control-sm finish-input machining-native-date machining-date-display {{ $tpStartYmd !== '' ? 'has-finish' : '' }} {{ $tpStartYmd !== '' ? '' : 'machining-date-empty' }}"
                                                            tabindex="0"
                                                            inputmode="none"
                                                            autocomplete="off">
-                                                    <span class="paint-date-fake-ph" aria-hidden="true">…</span>
+                                                    <span class="machining-date-fake-ph" aria-hidden="true">…</span>
                                                     <input type="date"
-                                                           class="js-paint-picker-aid"
+                                                           class="js-machining-picker-aid"
                                                            value="{{ $tpStartYmd }}"
                                                            tabindex="-1"
                                                            aria-hidden="true">
@@ -443,13 +447,18 @@
                                             <input type="text"
                                                    readonly
                                                    tabindex="-1"
-                                                   class="form-control form-control-sm finish-input has-finish paint-date-readonly w-100"
+                                                   class="form-control form-control-sm finish-input has-finish machining-date-readonly w-100"
                                                    value="{{ $startStr }}">
                                         @else
-                                            <span class="text-muted small d-block py-1">—</span>
+                                            <input type="text"
+                                                   readonly
+                                                   tabindex="-1"
+                                                   class="form-control form-control-sm finish-input machining-date-readonly w-100"
+                                                   placeholder="…"
+                                                   value="">
                                         @endif
                                     </td>
-                                    <td class="paint-col-date-cell">
+                                    <td class="machining-col-date-cell">
                                         @if ($editTp)
                                             <form method="POST"
                                                   action="{{ route('tdrprocesses.updateDate', $editTp) }}"
@@ -459,23 +468,23 @@
                                                   autocomplete="off">
                                                 @csrf
                                                 @method('PATCH')
-                                                <input type="hidden" name="from_paint_index" value="1">
-                                                <div class="paint-date-input-wrap">
+                                                <input type="hidden" name="from_machining_index" value="1">
+                                                <div class="machining-date-input-wrap">
                                                     <input type="hidden"
                                                            name="date_finish"
                                                            value="{{ $tpFinishYmd }}"
-                                                           class="js-paint-date-ymd"
+                                                           class="js-machining-date-ymd"
                                                            data-original="{{ $tpFinishYmd }}">
                                                     <input type="text"
                                                            readonly
                                                            value="{{ $tpFinishDisp }}"
-                                                           class="form-control form-control-sm finish-input paint-native-date paint-date-display {{ $tpFinishYmd !== '' ? 'has-finish' : '' }} {{ $tpFinishYmd !== '' ? '' : 'paint-date-empty' }}"
+                                                           class="form-control form-control-sm finish-input machining-native-date machining-date-display {{ $tpFinishYmd !== '' ? 'has-finish' : '' }} {{ $tpFinishYmd !== '' ? '' : 'machining-date-empty' }}"
                                                            tabindex="0"
                                                            inputmode="none"
                                                            autocomplete="off">
-                                                    <span class="paint-date-fake-ph" aria-hidden="true">…</span>
+                                                    <span class="machining-date-fake-ph" aria-hidden="true">…</span>
                                                     <input type="date"
-                                                           class="js-paint-picker-aid"
+                                                           class="js-machining-picker-aid"
                                                            value="{{ $tpFinishYmd }}"
                                                            tabindex="-1"
                                                            aria-hidden="true">
@@ -485,23 +494,27 @@
                                             <input type="text"
                                                    readonly
                                                    tabindex="-1"
-                                                   class="form-control form-control-sm finish-input has-finish paint-date-readonly w-100"
+                                                   class="form-control form-control-sm finish-input has-finish machining-date-readonly w-100"
                                                    value="{{ $finishStr }}">
                                         @else
-                                            <span class="text-muted small d-block py-1">—</span>
+                                            <input type="text"
+                                                   readonly
+                                                   tabindex="-1"
+                                                   class="form-control form-control-sm finish-input machining-date-readonly w-100"
+                                                   placeholder="…"
+                                                   value="">
                                         @endif
                                     </td>
                                 </tr>
                             @empty
                                 <tr>
-                                    <td colspan="{{ ($canReorderPaint ?? false) ? 10 : 9 }}" class="text-center text-muted py-4">No workorders (approved, open, not draft).</td>
+                                    <td colspan="{{ ($canReorderMachining ?? false) ? 10 : 9 }}" class="text-center text-muted py-4">No workorders (approved, open, not draft).</td>
                                 </tr>
                             @endforelse
                             </tbody>
                         </table>
                     </div>
                 </div>
-                @include('admin.paint.partials.lost-parts', ['lostParts' => $lostParts ?? collect()])
             </div>
         </div>
     </div>
@@ -509,5 +522,5 @@
 @endsection
 
 @section('scripts')
-    @include('admin.paint.partials.scripts')
+    @include('admin.machining.partials.scripts')
 @endsection

@@ -1,7 +1,7 @@
 <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/Sortable.min.js"></script>
 <script>
 (function () {
-    window.paintOpenMessageToOwner = function (userId) {
+    window.machiningOpenMessageToOwner = function (userId) {
         var id = parseInt(userId, 10);
         if (!id) return;
         window.__msgPreselectUserIds = [id];
@@ -11,11 +11,11 @@
     };
 
     document.addEventListener('click', function (e) {
-        var btn = e.target.closest('.js-paint-msg-owner');
+        var btn = e.target.closest('.js-machining-msg-owner');
         if (!btn) return;
         e.preventDefault();
         var uid = btn.getAttribute('data-user-id');
-        if (uid) window.paintOpenMessageToOwner(uid);
+        if (uid) window.machiningOpenMessageToOwner(uid);
     }, true);
 
     document.addEventListener('submit', function (e) {
@@ -29,7 +29,7 @@
      * Дата на экране: dd.mon.yyyy (напр. 02.feb.2026); в PATCH уходит Y-m-d со скрытого поля.
      * Выбор — нативный input[type=date] (скрыт), вызов через showPicker по клику на ячейку.
      */
-    function formatPaintDateFromYmd(ymd) {
+    function formatMachiningDateFromYmd(ymd) {
         var s = String(ymd || '').trim();
         if (!/^\d{4}-\d{2}-\d{2}$/.test(s)) return '';
         var p = s.split('-');
@@ -38,13 +38,13 @@
         return String(d.getDate()).padStart(2, '0') + '.' + months[d.getMonth()] + '.' + d.getFullYear();
     }
 
-    function syncPaintDateDisplayState(display) {
+    function syncMachiningDateDisplayState(display) {
         var empty = !String(display.value || '').trim();
-        display.classList.toggle('paint-date-empty', empty);
+        display.classList.toggle('machining-date-empty', empty);
         display.classList.toggle('has-finish', !empty);
     }
 
-    function openPaintDatePicker(aid) {
+    function openMachiningDatePicker(aid) {
         if (typeof aid.showPicker === 'function') {
             try {
                 aid.showPicker();
@@ -54,16 +54,16 @@
         aid.focus();
     }
 
-    function initPaintNativeDateInputs() {
-        function clearPaintDateWrap(wrap) {
-            var ymd = wrap.querySelector('.js-paint-date-ymd');
-            var display = wrap.querySelector('.paint-date-display');
-            var aid = wrap.querySelector('.js-paint-picker-aid');
+    function initMachiningNativeDateInputs() {
+        function clearMachiningDateWrap(wrap) {
+            var ymd = wrap.querySelector('.js-machining-date-ymd');
+            var display = wrap.querySelector('.machining-date-display');
+            var aid = wrap.querySelector('.js-machining-picker-aid');
             if (ymd) ymd.value = '';
             if (aid) aid.value = '';
             if (display) {
                 display.value = '';
-                syncPaintDateDisplayState(display);
+                syncMachiningDateDisplayState(display);
                 display.classList.add('is-invalid');
                 setTimeout(function () { display.classList.remove('is-invalid'); }, 1200);
             }
@@ -80,7 +80,7 @@
             return String(data.message || '');
         }
 
-        async function submitPaintDateForm(form, wrap) {
+        async function submitMachiningDateForm(form, wrap) {
             var url = form && form.getAttribute ? form.getAttribute('action') : '';
             if (!url) return;
             if (form.classList.contains('is-saving')) return;
@@ -104,28 +104,28 @@
                     if (typeof window.notifyError === 'function') window.notifyError(msg, 2500);
 
                     if (msg === 'The end date cannot be earlier than the start date.') {
-                        clearPaintDateWrap(wrap);
-                        var clearedYmd = wrap.querySelector('.js-paint-date-ymd');
+                        clearMachiningDateWrap(wrap);
+                        var clearedYmd = wrap.querySelector('.js-machining-date-ymd');
                         if (clearedYmd) clearedYmd.dataset.original = '';
                         return;
                     }
 
-                    var ymd = wrap.querySelector('.js-paint-date-ymd');
-                    var display = wrap.querySelector('.paint-date-display');
-                    var aid = wrap.querySelector('.js-paint-picker-aid');
+                    var ymd = wrap.querySelector('.js-machining-date-ymd');
+                    var display = wrap.querySelector('.machining-date-display');
+                    var aid = wrap.querySelector('.js-machining-picker-aid');
                     var prev = String(wrap.dataset.prevYmd || '');
                     if (ymd) ymd.value = prev;
                     if (aid) aid.value = prev;
                     if (display) {
-                        display.value = prev ? formatPaintDateFromYmd(prev) : '';
-                        syncPaintDateDisplayState(display);
+                        display.value = prev ? formatMachiningDateFromYmd(prev) : '';
+                        syncMachiningDateDisplayState(display);
                     }
                     return;
                 }
 
                 if (!res.ok) throw new Error('Request failed');
 
-                var okYmd = wrap.querySelector('.js-paint-date-ymd');
+                var okYmd = wrap.querySelector('.js-machining-date-ymd');
                 if (okYmd) okYmd.dataset.original = okYmd.value || '';
                 if (typeof window.showNotification === 'function') {
                     var okText = (data && data.message) ? data.message : (form.getAttribute('data-success') || 'Saved');
@@ -139,259 +139,90 @@
             }
         }
 
-        document.querySelectorAll('#paint-wo-table form.js-ajax .paint-date-input-wrap').forEach(function (wrap) {
-            if (wrap.dataset.paintDateBound === '1') return;
-            wrap.dataset.paintDateBound = '1';
-            var ymd = wrap.querySelector('.js-paint-date-ymd');
-            var display = wrap.querySelector('.paint-date-display');
-            var aid = wrap.querySelector('.js-paint-picker-aid');
+        document.querySelectorAll('#machining-wo-table form.js-ajax .machining-date-input-wrap').forEach(function (wrap) {
+            if (wrap.dataset.machiningDateBound === '1') return;
+            wrap.dataset.machiningDateBound = '1';
+            var ymd = wrap.querySelector('.js-machining-date-ymd');
+            var display = wrap.querySelector('.machining-date-display');
+            var aid = wrap.querySelector('.js-machining-picker-aid');
             if (!ymd || !display || !aid) return;
 
             aid.value = ymd.value || '';
-            syncPaintDateDisplayState(display);
+            syncMachiningDateDisplayState(display);
 
             wrap.addEventListener('click', function (e) {
-                if (e.target && e.target.closest('.paint-date-display')) {
+                if (e.target && e.target.closest('.machining-date-display')) {
                     e.preventDefault();
-                    openPaintDatePicker(aid);
+                    openMachiningDatePicker(aid);
                 }
             });
 
             display.addEventListener('click', function (e) {
                 e.preventDefault();
-                openPaintDatePicker(aid);
+                openMachiningDatePicker(aid);
             });
 
             display.addEventListener('keydown', function (e) {
                 if (e.key === 'Enter' || e.key === ' ') {
                     e.preventDefault();
-                    openPaintDatePicker(aid);
+                    openMachiningDatePicker(aid);
                 }
             });
 
             aid.addEventListener('change', function () {
                 wrap.dataset.prevYmd = String(ymd.value || '');
                 ymd.value = aid.value || '';
-                display.value = aid.value ? formatPaintDateFromYmd(aid.value) : '';
-                syncPaintDateDisplayState(display);
+                display.value = aid.value ? formatMachiningDateFromYmd(aid.value) : '';
+                syncMachiningDateDisplayState(display);
                 var form = wrap.closest('form');
                 if (!form) return;
-                submitPaintDateForm(form, wrap);
+                submitMachiningDateForm(form, wrap);
             });
         });
     }
 
-    function initPaintTableSearch() {
-        var inp = document.getElementById('paintTableSearch');
+    function initMachiningTableSearch() {
+        var inp = document.getElementById('machiningTableSearch');
         if (!inp) return;
         inp.addEventListener('input', function () {
             var q = String(inp.value || '').trim().toLowerCase();
-            document.querySelectorAll('#paint-sortable-tbody tr[data-paint-search]').forEach(function (tr) {
-                var hay = tr.getAttribute('data-paint-search') || '';
+            document.querySelectorAll('#machining-sortable-tbody tr[data-machining-search]').forEach(function (tr) {
+                var hay = tr.getAttribute('data-machining-search') || '';
                 tr.classList.toggle('d-none', q !== '' && hay.indexOf(q) === -1);
             });
         });
     }
 
-    function initPaintLostSearch() {
-        var wrap = document.getElementById('paintLostCountWrap');
-        var inp = document.getElementById('paintLostSearch');
-        var textEl = document.getElementById('paintLostCountText');
-        if (!wrap || !inp || !textEl) return;
+    function bootMachiningPage() {
+        initMachiningNativeDateInputs();
+        initMachiningTableSearch();
 
-        function applyFilter() {
-            var total = parseInt(wrap.getAttribute('data-total') || '0', 10) || 0;
-            var q = String(inp.value || '').trim().toLowerCase();
-            var items = document.querySelectorAll('#paintLostPanel .paint-lost-item');
-            var visible = 0;
-            items.forEach(function (el) {
-                var hay = String(el.getAttribute('data-paint-lost-search') || '').toLowerCase();
-                var show = q === '' || hay.indexOf(q) !== -1;
-                el.classList.toggle('d-none', !show);
-                if (show) visible++;
-            });
-            if (q === '') {
-                textEl.textContent = total + (total === 1 ? ' part' : ' parts');
-            } else {
-                textEl.textContent = visible + ' of ' + total + (total === 1 ? ' part' : ' parts');
-            }
-        }
-
-        inp.addEventListener('input', applyFilter);
-    }
-
-    function initPaintLostDelete() {
-        if (!document.getElementById('paintLostPanel')) return;
-        var token = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
-
-        function runPaintLostDelete(url) {
-            if (typeof window.safeShowSpinner === 'function') window.safeShowSpinner();
-            fetch(url, {
-                method: 'DELETE',
-                headers: {
-                    'X-CSRF-TOKEN': token,
-                    'X-Requested-With': 'XMLHttpRequest',
-                    'Accept': 'application/json'
-                }
-            }).then(function (r) {
-                if (r.ok) {
-                    window.location.reload();
-                    return;
-                }
-                return r.json().then(function (d) {
-                    var msg = (d && d.message) ? d.message : 'Delete failed';
-                    if (typeof window.notifyError === 'function') window.notifyError(msg, 2500);
-                });
-            }).catch(function () {
-                if (typeof window.notifyError === 'function') window.notifyError('Network error', 2500);
-            }).finally(function () {
-                if (typeof window.safeHideSpinner === 'function') window.safeHideSpinner();
-            });
-        }
-
-        document.querySelectorAll('.js-paint-lost-delete').forEach(function (btnDel) {
-            btnDel.addEventListener('click', function (e) {
-                e.preventDefault();
-                e.stopPropagation();
-                var url = btnDel.getAttribute('data-delete-url');
-                if (!url) return;
-
-                if (typeof window.confirmDialog === 'function') {
-                    window.confirmDialog({
-                        title: 'Delete',
-                        message: 'Delete this lost part record?',
-                        okText: 'Delete',
-                        cancelText: 'Cancel',
-                        danger: true
-                    }).then(function (ok) {
-                        if (ok) runPaintLostDelete(url);
-                    });
-                } else {
-                    if (!window.confirm('Delete this record?')) return;
-                    runPaintLostDelete(url);
-                }
-            });
-        });
-    }
-
-    function initPaintLostParts() {
-        var form = document.getElementById('paintLostForm');
-        if (!form) return;
-
-        var storeUrl = @json(route('paint.lost.store'));
-        var errEl = document.getElementById('paintLostErr');
-        var btn = document.getElementById('paintLostSubmit');
-        var token = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
-        var lostModalEl = document.getElementById('paintLostAddModal');
-
-        function showErr(msg) {
-            if (!errEl) return;
-            errEl.textContent = msg || 'Error';
-            errEl.classList.remove('d-none');
-        }
-        function hideErr() {
-            if (!errEl) return;
-            errEl.classList.add('d-none');
-            errEl.textContent = '';
-        }
-
-        if (lostModalEl) {
-            lostModalEl.addEventListener('show.bs.modal', function () {
-                form.reset();
-                hideErr();
-            });
-        }
-
-        form.addEventListener('submit', function (e) {
-            e.preventDefault();
-            hideErr();
-            if (btn) btn.disabled = true;
-
-            var fd = new FormData(form);
-            fetch(storeUrl, {
-                method: 'POST',
-                headers: {
-                    'X-CSRF-TOKEN': token,
-                    'X-Requested-With': 'XMLHttpRequest',
-                    'Accept': 'application/json'
-                },
-                body: fd
-            }).then(function (r) {
-                return r.text().then(function (text) {
-                    var d = {};
-                    try {
-                        d = text ? JSON.parse(text) : {};
-                    } catch (e) {
-                        d = {};
-                    }
-                    if (!r.ok) {
-                        var msg = (d && d.message) ? String(d.message) : '';
-                        if (d && d.errors) {
-                            var k = Object.keys(d.errors)[0];
-                            if (k && d.errors[k] && d.errors[k][0]) msg = d.errors[k][0];
-                        }
-                        if (!msg) {
-                            msg = r.status === 422 ? 'Validation failed' : ('Request failed' + (r.status ? ' (' + r.status + ')' : ''));
-                        }
-                        showErr(msg);
-                        return;
-                    }
-                    if (typeof window.showNotification === 'function') {
-                        window.showNotification((d && d.message) ? d.message : 'Saved', 'success', 2000);
-                    }
-                    if (lostModalEl && typeof bootstrap !== 'undefined') {
-                        var m = bootstrap.Modal.getInstance(lostModalEl);
-                        if (m) m.hide();
-                    }
-                    window.location.reload();
-                });
-            }).catch(function () {
-                showErr('Network error');
-            }).finally(function () {
-                if (btn) btn.disabled = false;
-            });
-        });
-    }
-
-    function bootPaintPage() {
-        initPaintNativeDateInputs();
-        initPaintTableSearch();
-        initPaintLostSearch();
-        initPaintLostDelete();
-        initPaintLostParts();
-
-        @if($canReorderPaint ?? false)
-        (function initPaintSortable() {
-            var tbody = document.getElementById('paint-sortable-tbody');
+        @if($canReorderMachining ?? false)
+        (function initMachiningSortable() {
+            var tbody = document.getElementById('machining-sortable-tbody');
             if (!tbody || typeof Sortable === 'undefined') return;
-            if (!tbody.querySelector('tr.paint-row-queued.paint-row-master')) return;
+            if (!tbody.querySelector('tr.machining-row-queued.machining-row-master')) return;
 
-            var reorderUrl = @json(route('paint.reorder'));
+            var reorderUrl = @json(route('machining.reorder'));
             var token = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
 
             Sortable.create(tbody, {
-                handle: '.paint-drag-handle',
-                draggable: 'tr.paint-row-queued.paint-row-master',
+                handle: '.machining-drag-handle',
+                draggable: 'tr.machining-row-queued.machining-row-master',
                 animation: 150,
                 ghostClass: 'table-active',
                 onMove: function (evt) {
                     var rel = evt.related;
-                    if (rel && rel.classList.contains('paint-row-unqueued') && evt.willInsertAfter) {
+                    if (rel && rel.classList.contains('machining-row-unqueued') && evt.willInsertAfter) {
                         return false;
                     }
                     return true;
                 },
                 onEnd: function () {
                     if (typeof window.safeShowSpinner === 'function') window.safeShowSpinner();
-                    var rawIds = Array.from(tbody.querySelectorAll('tr.paint-row-queued.paint-row-master')).map(function (tr) {
+                    var ids = Array.from(tbody.querySelectorAll('tr.machining-row-queued.machining-row-master')).map(function (tr) {
                         return parseInt(tr.getAttribute('data-wo-id'), 10);
                     }).filter(function (id) { return id > 0; });
-                    var seen = {};
-                    var ids = rawIds.filter(function (id) {
-                        if (seen[id]) return false;
-                        seen[id] = true;
-                        return true;
-                    });
 
                     fetch(reorderUrl, {
                         method: 'POST',
@@ -420,8 +251,8 @@
             });
         })();
 
-        (function initPaintPositionInputs() {
-            var positionUrl = @json(route('paint.position'));
+        (function initMachiningPositionInputs() {
+            var positionUrl = @json(route('machining.position'));
             var token = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
 
             function showSpin() {
@@ -479,7 +310,7 @@
                 });
             }
 
-            document.querySelectorAll('.js-paint-position-input').forEach(function (inp) {
+            document.querySelectorAll('.js-machining-position-input').forEach(function (inp) {
                 inp.addEventListener('input', function () {
                     var cur = inp.selectionStart;
                     var filtered = String(inp.value || '').replace(/\D/g, '');
@@ -503,9 +334,9 @@
     }
 
     if (document.readyState === 'loading') {
-        document.addEventListener('DOMContentLoaded', bootPaintPage);
+        document.addEventListener('DOMContentLoaded', bootMachiningPage);
     } else {
-        bootPaintPage();
+        bootMachiningPage();
     }
 })();
 </script>

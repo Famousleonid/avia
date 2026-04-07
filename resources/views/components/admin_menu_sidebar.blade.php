@@ -36,6 +36,37 @@
 
 
 <ul class="nav flex-column" data-accordion="false">
+@php
+    $sidebarUser = auth()->user();
+    $minimalShopSidebar = $sidebarUser
+        && $sidebarUser->roleIs(['Paint', 'Machining'])
+        && ! $sidebarUser->roleIs(['Admin', 'Manager']);
+@endphp
+@if($minimalShopSidebar)
+    <li class="nav-item">
+        <a class="nav-link press-spinner" href="{{ route('users.index') }}">
+            <i class="bi bi-person-arms-up me-2"></i> <span>Techniks</span>
+        </a>
+    </li>
+    @can('feature.paint')
+        @if($sidebarUser->roleIs('Paint'))
+            <li class="nav-item">
+                <a class="nav-link press-spinner" href="{{ route('paint.index') }}">
+                    <i class="bi bi-palette me-2"></i> <span>Paint</span>
+                </a>
+            </li>
+        @endif
+    @endcan
+    @can('feature.machining')
+        @if($sidebarUser->roleIs('Machining'))
+            <li class="nav-item">
+                <a class="nav-link press-spinner" href="{{ route('machining.index') }}">
+                    <i class="bi bi-hammer me-2"></i> <span>Machining</span>
+                </a>
+            </li>
+        @endif
+    @endcan
+@else
     <li class="nav-item">
         <a class="nav-link press-spinner" href="{{route('workorders.index')}}">
             <i class="bi bi-file-earmark-word fs-6 me-2 "></i> <span>Workorder</span>
@@ -192,6 +223,14 @@
         </li>
     @endcan
 
+    @can('feature.machining')
+        <li class="nav-item">
+            <a class="nav-link press-spinner" href="{{ route('machining.index') }}">
+                <i class="bi bi-hammer me-2"></i> <span>Machining</span>
+            </a>
+        </li>
+    @endcan
+
     @if (auth()->user()->roleIs('Admin'))
 
         @if(is_admin())
@@ -228,25 +267,11 @@
         </li>
     @endif
 
+@endif
 
 </ul>
 
-@if (session('success') || session('error'))
-    <script>
-        document.addEventListener('DOMContentLoaded', function () {
-            @if (session('success'))
-            if (typeof window.showNotification === 'function') {
-                window.showNotification(@json(session('success')), 'success', 5000);
-            }
-            @endif
-            @if (session('error'))
-            if (typeof window.notifyError === 'function') {
-                window.notifyError(@json(session('error')), 8000);
-            }
-            @endif
-        });
-    </script>
-@endif
+{{-- Flash success/error: только components/status в admin.master (тёмный тост с таймером), без дубля showNotification из main.js --}}
 
 <script>
     (function () {
