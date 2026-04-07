@@ -41,6 +41,10 @@
                 <th class="text-primary text-center" style="width: 30%;">Process</th>
                 <th class="text-primary text-center" style="width: 22%">Description</th>
                 <th class="text-primary text-center" style="width: 8%">Notes</th>
+                @if($hasTravelerBlock)
+                    <th class="text-primary text-center" style="width: 7%"
+                        title="{{ __('AT rows: include on Part Traveler print. Traveler block rows are always included.') }}">{{ __('PT print') }}</th>
+                @endif
                 <th class="text-primary text-center" style="width: 8%">{{ __('Traveler') }}</th>
                 <th class="text-primary text-center" style="width: 11%">Action</th>
                 <th class="text-primary text-center" style="width: 11%">Form</th>
@@ -90,6 +94,9 @@
                             </td>
                             <td class="text-center">{{ $processes->description ?? '' }}</td>
                             <td class="text-center">{{ $processes->notes ?? '' }}</td>
+                            @if($hasTravelerBlock)
+                                @include('admin.tdr-processes.partials.processes-body-omit-travel-form-cell', ['processes' => $processes, 'inTr' => $inTr])
+                            @endif
                             <td class="text-center align-middle">
                                 @if(!$hasTravelerBlock && !$inTr)
                                     <input type="checkbox" class="form-check-input traveler-select-cb" data-tdr-process-id="{{ $processes->id }}">
@@ -147,6 +154,9 @@
                             </td>
                             <td class="text-center">{{ $processes->description ?? '' }}</td>
                             <td class="text-center">{{ $processes->notes ?? '' }}</td>
+                            @if($hasTravelerBlock)
+                                @include('admin.tdr-processes.partials.processes-body-omit-travel-form-cell', ['processes' => $processes, 'inTr' => $inTr])
+                            @endif
                             <td class="text-center align-middle">
                                 @if(!$hasTravelerBlock && !$inTr)
                                     <input type="checkbox" class="form-check-input traveler-select-cb" data-tdr-process-id="{{ $processes->id }}">
@@ -199,6 +209,9 @@
                                     </td>
                                     <td class="text-center">{{ $processes->description ?? '' }}</td>
                                     <td class="text-center">{{ $processes->notes ?? '' }}</td>
+                                    @if($hasTravelerBlock)
+                                        @include('admin.tdr-processes.partials.processes-body-omit-travel-form-cell', ['processes' => $processes, 'inTr' => $inTr, 'showOmitCheckbox' => $loop->first])
+                                    @endif
                                     <td class="text-center align-middle">
                                         @if(!$hasTravelerBlock && !$inTr && $loop->first)
                                             <input type="checkbox" class="form-check-input traveler-select-cb" data-tdr-process-id="{{ $processes->id }}">
@@ -247,6 +260,9 @@
                                 <td class="ps-2 text-muted">—</td>
                                 <td class="text-center">{{ $processes->description ?? '' }}</td>
                                 <td class="text-center">{{ $processes->notes ?? '' }}</td>
+                                @if($hasTravelerBlock)
+                                    @include('admin.tdr-processes.partials.processes-body-omit-travel-form-cell', ['processes' => $processes, 'inTr' => $inTr])
+                                @endif
                                 <td class="text-center align-middle">
                                     @if(!$hasTravelerBlock && !$inTr)
                                         <input type="checkbox" class="form-check-input traveler-select-cb" data-tdr-process-id="{{ $processes->id }}">

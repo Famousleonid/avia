@@ -523,9 +523,21 @@ class TdrProcessController extends Controller
 
         $vendorName = $vendor->name;
 
+        $excludeInput = $request->input('exclude_process_ids', []);
+        if (is_string($excludeInput)) {
+            $excludeInput = array_filter(array_map('intval', explode(',', $excludeInput)));
+        } elseif (! is_array($excludeInput)) {
+            $excludeInput = [];
+        }
+        $excludeIds = array_values(array_unique(array_map('intval', $excludeInput)));
+        $excludeIds = array_values(array_filter($excludeIds, fn ($id) => $id > 0));
+        $allowedIds = TdrProcess::where('tdrs_id', $current_tdr->id)->pluck('id')->all();
+        $excludeIds = array_values(array_intersect($excludeIds, $allowedIds));
+
         $tdrProcesses = TdrProcess::with('processName')
             ->where('tdrs_id', $current_tdr->id)
             ->where('ignore_row', false)
+            ->when(count($excludeIds) > 0, fn ($q) => $q->whereNotIn('id', $excludeIds))
             ->orderBy('sort_order')
             ->orderBy('id')
             ->get();

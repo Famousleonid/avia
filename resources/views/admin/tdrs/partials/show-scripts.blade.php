@@ -618,6 +618,14 @@ document.addEventListener('DOMContentLoaded', function() {
                 var u = new URL(link.getAttribute('href'), window.location.origin);
                 u.searchParams.set('vendor_id', vendorSel.value);
                 if (repInp && repInp.value.trim()) u.searchParams.set('repair_num', repInp.value.trim());
+                var seenEx = {};
+                body.querySelectorAll('.omit-traveler-form-cb:not(:checked)').forEach(function(cb) {
+                    var pid = cb.getAttribute('data-tdr-process-id');
+                    if (pid && !seenEx[pid]) {
+                        seenEx[pid] = true;
+                        u.searchParams.append('exclude_process_ids[]', pid);
+                    }
+                });
                 window.open(u.toString(), '_blank');
             });
         });
