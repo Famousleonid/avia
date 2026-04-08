@@ -12,7 +12,4 @@ class LogCard extends Model
         'workorder_id',
         'component_data',
     ];
-    protected $casts = [
-        'components_data' => 'array',
-    ];
 }
