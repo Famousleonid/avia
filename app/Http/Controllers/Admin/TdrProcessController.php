@@ -12,6 +12,7 @@ use App\Models\Tdr;
 use App\Models\TdrProcess;
 use App\Models\Vendor;
 use App\Models\Workorder;
+use App\Services\PaintIndexRowsBuilder;
 use Carbon\Carbon;
 use Illuminate\Contracts\Foundation\Application;
 use Illuminate\Contracts\View\Factory;
@@ -1707,30 +1708,42 @@ class TdrProcessController extends Controller
             }
         }
 
-        if ($fromPaintIndex && $finishSetNow) {
+        // Снятие с очереди Paint: после сохранения любой даты — если по WO закрыты все строки
+        // (List + детали, обе даты), как на экране. Раньше требовался непустой date_finish в ЭТОМ
+        // запросе — при сохранении только Start поле finish не приходило, очередь не сбрасывалась.
+        $paintQueueDequeued = false;
+        if ($fromPaintIndex) {
             $tdrProcess->loadMissing('tdr');
             $workorderId = (int) ($tdrProcess->tdr?->workorder_id ?? 0);
 
             if ($workorderId > 0) {
-                $queuedWo = Workorder::query()
-                    ->select(['id', 'paint_queue_order'])
-                    ->whereKey($workorderId)
-                    ->first();
+                $freshWo = Workorder::query()->find($workorderId);
+                $allPaintClosed = $freshWo !== null
+                    && app(PaintIndexRowsBuilder::class)->isWorkorderPaintFullyClosed($freshWo);
 
-                if ($queuedWo !== null && $queuedWo->paint_queue_order !== null) {
-                    $oldPosition = (int) $queuedWo->paint_queue_order;
-
-                    Workorder::query()
+                if ($allPaintClosed) {
+                    $queuedWo = Workorder::query()
+                        ->select(['id', 'paint_queue_order'])
                         ->whereKey($workorderId)
-                        ->update(['paint_queue_order' => null]);
+                        ->first();
 
-                    Workorder::query()
-                        ->whereNotNull('approve_at')
-                        ->whereNull('done_at')
-                        ->where('is_draft', 0)
-                        ->whereNotNull('paint_queue_order')
-                        ->where('paint_queue_order', '>', $oldPosition)
-                        ->decrement('paint_queue_order');
+                    if ($queuedWo !== null && $queuedWo->paint_queue_order !== null) {
+                        $oldPosition = (int) $queuedWo->paint_queue_order;
+
+                        Workorder::query()
+                            ->whereKey($workorderId)
+                            ->update(['paint_queue_order' => null]);
+
+                        Workorder::query()
+                            ->whereNotNull('approve_at')
+                            ->whereNull('done_at')
+                            ->where('is_draft', 0)
+                            ->whereNotNull('paint_queue_order')
+                            ->where('paint_queue_order', '>', $oldPosition)
+                            ->decrement('paint_queue_order');
+
+                        $paintQueueDequeued = true;
+                    }
                 }
             }
         }
@@ -1765,8 +1778,9 @@ class TdrProcessController extends Controller
 
         if ($isAjax) {
             return response()->json([
-                'success' => true,
-                'user'    => auth()->user()->name ?? 'system',
+                'success'               => true,
+                'user'                  => auth()->user()->name ?? 'system',
+                'paint_queue_changed'   => $paintQueueDequeued,
             ], 200);
         }
 

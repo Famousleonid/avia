@@ -341,7 +341,11 @@
         $rows = $rows ?? collect();
         $lostParts = $lostParts ?? collect();
         $fmt = static function ($d) {
-            return $d ? $d->format('d.m.Y') : '—';
+            if (!$d) {
+                return '—';
+            }
+
+            return $d->format('d') . '.' . strtolower($d->format('M')) . '.' . $d->format('Y');
         };
     @endphp
 
@@ -379,8 +383,12 @@
                                 $editTp = $row->edit_paint_process ?? null;
                                 $startYmd = $editTp?->date_start?->format('Y-m-d') ?? '';
                                 $finishYmd = $editTp?->date_finish?->format('Y-m-d') ?? '';
-                                $startDisp = $editTp?->date_start?->format('m/d/Y') ?? '';
-                                $finishDisp = $editTp?->date_finish?->format('m/d/Y') ?? '';
+                                $startDisp = $editTp?->date_start
+                                    ? ($editTp->date_start->format('d') . '.' . strtolower($editTp->date_start->format('M')) . '.' . $editTp->date_start->format('Y'))
+                                    : '';
+                                $finishDisp = $editTp?->date_finish
+                                    ? ($editTp->date_finish->format('d') . '.' . strtolower($editTp->date_finish->format('M')) . '.' . $editTp->date_finish->format('Y'))
+                                    : '';
                                 $lineStart = $editTp?->date_start ?? $row->date_start;
                                 $lineFinish = $editTp?->date_finish ?? $row->date_finish;
                                 $dataStartYmd = $lineStart ? $lineStart->format('Y-m-d') : '';
@@ -559,8 +567,7 @@
                         <form id="mobilePaintLostAddForm"
                               method="POST"
                               action="{{ route('mobile.paint.lost.store') }}"
-                              enctype="multipart/form-data"
-                              data-no-spinner>
+                              enctype="multipart/form-data">
                             @csrf
                             <div class="modal-header border-secondary py-2">
                                 <h6 class="modal-title">Add lost part</h6>
@@ -586,7 +593,10 @@
                             </div>
                             <div class="modal-footer border-secondary py-2">
                                 <button type="button" class="btn btn-outline-secondary btn-sm" data-bs-dismiss="modal">Cancel</button>
-                                <button type="button" class="btn btn-success btn-sm js-mobile-paint-lost-save">Save</button>
+                                <button type="submit" class="btn btn-success btn-sm js-mobile-paint-lost-save">
+                                    <span class="js-mobile-paint-lost-save-label">Save</span>
+                                    <span class="js-mobile-paint-lost-save-progress spinner-border spinner-border-sm d-none ms-1" role="status" aria-hidden="true"></span>
+                                </button>
                             </div>
                         </form>
                     </div>
@@ -599,6 +609,41 @@
 
 @section('scripts')
     <script>
+        function formatMobilePaintDateYmd(ymd) {
+            const s = String(ymd || '').trim();
+            if (!/^\d{4}-\d{2}-\d{2}$/.test(s)) {
+                return '';
+            }
+            const parts = s.split('-');
+            const y = Number.parseInt(parts[0], 10);
+            const m = Number.parseInt(parts[1], 10) - 1;
+            const d = Number.parseInt(parts[2], 10);
+            const months = ['jan', 'feb', 'mar', 'apr', 'may', 'jun', 'jul', 'aug', 'sep', 'oct', 'nov', 'dec'];
+            if (m < 0 || m > 11 || Number.isNaN(y) || Number.isNaN(d)) {
+                return '';
+            }
+            return String(d).padStart(2, '0') + '.' + months[m] + '.' + y;
+        }
+
+        function mobilePaintLocalTodayYmd() {
+            const n = new Date();
+            return n.getFullYear()
+                + '-' + String(n.getMonth() + 1).padStart(2, '0')
+                + '-' + String(n.getDate()).padStart(2, '0');
+        }
+
+        function mobilePaintRevertPhantomEmptyChange(input, real, display) {
+            input.value = '';
+            if (real) {
+                real.value = '';
+            }
+            if (display) {
+                display.value = '';
+                display.classList.remove('has-finish');
+            }
+            delete input.dataset.openedAt;
+        }
+
         (function initMobilePaintLostModal() {
             const el = document.getElementById('mobilePaintLostAddModal');
             if (!el || !window.bootstrap || typeof window.bootstrap.Modal !== 'function') {
@@ -616,16 +661,21 @@
             if (!btn || !form) {
                 return;
             }
-            btn.addEventListener('click', function (e) {
-                e.preventDefault();
-                if (!form.checkValidity()) {
-                    form.reportValidity();
+            const labelEl = btn.querySelector('.js-mobile-paint-lost-save-label');
+            const progressEl = btn.querySelector('.js-mobile-paint-lost-save-progress');
+
+            form.addEventListener('submit', function (e) {
+                if (form.dataset.mobileLostSubmitting === '1') {
+                    e.preventDefault();
                     return;
                 }
-                if (typeof form.requestSubmit === 'function') {
-                    form.requestSubmit();
-                } else {
-                    form.submit();
+                form.dataset.mobileLostSubmitting = '1';
+                btn.disabled = true;
+                if (labelEl) {
+                    labelEl.textContent = 'Saving…';
+                }
+                if (progressEl) {
+                    progressEl.classList.remove('d-none');
                 }
             });
         })();
@@ -663,20 +713,27 @@
             const prevHasFinish = display ? display.classList.contains('has-finish') : false;
             const openedAt = parseInt(String(input.dataset.openedAt || '0'), 10);
             const msSinceOpen = openedAt ? (Date.now() - openedAt) : 999999;
-            if (!prevRealValue && input.value && msSinceOpen < 600) {
-                input.value = '';
-                if (real) {
-                    real.value = '';
+            // Почему «второй раз» ведёт себя нормально: prevRealValue уже не пустой — это не первый
+            // ввод с пустого состояния, условия ниже не выполняются, уходит только реальный выбор.
+            //
+            // На iOS/WebKit при ПЕРВОМ вводе в пустое поле часто приходит ложный change с «сегодня»
+            // сразу после открытия календаря (дефолт колеса), иногда через 200–400 ms — короткого
+            // порога 80 ms недостаточно. Отсекаем быстрый «сегодня» из пустого; осознанный выбор
+            // «сегодня» обычно позже ~450 ms или со второго открытия.
+            if (!prevRealValue && input.value) {
+                const todayYmd = mobilePaintLocalTodayYmd();
+                if (input.value === todayYmd && msSinceOpen < 450) {
+                    mobilePaintRevertPhantomEmptyChange(input, real, display);
+                    return;
                 }
-                if (display) {
-                    display.value = '';
-                    display.classList.remove('has-finish');
+                if (msSinceOpen < 85) {
+                    mobilePaintRevertPhantomEmptyChange(input, real, display);
+                    return;
                 }
-                return;
             }
             if (real) real.value = input.value || '';
             if (display) {
-                display.value = input.value ? new Date(input.value + 'T00:00:00').toLocaleDateString('en-US') : '';
+                display.value = input.value ? formatMobilePaintDateYmd(input.value) : '';
                 display.classList.toggle('has-finish', !!input.value);
             }
             const formData = new FormData(form);
@@ -708,6 +765,11 @@
                         }
                     }
                     throw new Error(msg);
+                }
+
+                if (payload.paint_queue_changed) {
+                    window.location.reload();
+                    return;
                 }
 
                 if (row) {

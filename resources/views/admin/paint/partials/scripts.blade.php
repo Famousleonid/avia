@@ -125,6 +125,11 @@
 
                 if (!res.ok) throw new Error('Request failed');
 
+                if (data && data.paint_queue_changed) {
+                    window.location.reload();
+                    return;
+                }
+
                 var okYmd = wrap.querySelector('.js-paint-date-ymd');
                 if (okYmd) okYmd.dataset.original = okYmd.value || '';
                 if (typeof window.showNotification === 'function') {

@@ -130,6 +130,21 @@ final class PaintIndexRowsBuilder
     }
 
     /**
+     * Все строки Paint для WO (как на paint.index) имеют и start, и finish — как data-paint-closed.
+     */
+    public function isWorkorderPaintFullyClosed(Workorder $wo): bool
+    {
+        $rows = $this->build(collect([$wo]));
+        if ($rows->isEmpty()) {
+            return false;
+        }
+
+        return $rows->every(static function (object $row): bool {
+            return $row->date_start !== null && $row->date_finish !== null;
+        });
+    }
+
+    /**
      * @return Collection<int, TdrProcess>
      */
     private function collectExactPaintProcesses(Workorder $wo): Collection

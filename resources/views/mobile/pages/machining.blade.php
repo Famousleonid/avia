@@ -110,7 +110,11 @@
     @php
         $rows = $rows ?? collect();
         $fmt = static function ($d) {
-            return $d ? $d->format('d.m.Y') : '—';
+            if (!$d) {
+                return '—';
+            }
+
+            return $d->format('d') . '.' . strtolower($d->format('M')) . '.' . $d->format('Y');
         };
     @endphp
 
@@ -218,6 +222,31 @@
             return `${String(dt.getDate()).padStart(2, '0')}.${months[dt.getMonth()]}.${dt.getFullYear()}`;
         }
 
+        function machiningLocalTodayYmd() {
+            const n = new Date();
+            return n.getFullYear()
+                + '-' + String(n.getMonth() + 1).padStart(2, '0')
+                + '-' + String(n.getDate()).padStart(2, '0');
+        }
+
+        document.addEventListener('pointerdown', function (e) {
+            const picker = e.target.closest('.js-mobile-date-picker');
+            if (!picker) {
+                return;
+            }
+            picker.dataset.openedAt = String(Date.now());
+        }, true);
+
+        document.addEventListener('focusin', function (e) {
+            const picker = e.target.closest('.js-mobile-date-picker');
+            if (!picker) {
+                return;
+            }
+            if (!picker.dataset.openedAt) {
+                picker.dataset.openedAt = String(Date.now());
+            }
+        }, true);
+
         document.addEventListener('click', function (e) {
             const display = e.target.closest('.js-mobile-date-display');
             if (!display) return;
@@ -225,6 +254,7 @@
             if (!form) return;
             const picker = form.querySelector('.js-mobile-date-picker');
             if (!picker) return;
+            picker.dataset.openedAt = String(Date.now());
             if (typeof picker.showPicker === 'function') {
                 picker.showPicker();
             } else {
@@ -245,6 +275,35 @@
             const prevRealValue = real ? real.value : '';
             const prevDisplayValue = display ? display.value : '';
             const prevHasFinish = display ? display.classList.contains('has-finish') : false;
+            const openedAt = Number.parseInt(String(input.dataset.openedAt || '0'), 10);
+            const msSinceOpen = openedAt ? (Date.now() - openedAt) : 999999;
+            if (!prevRealValue && input.value) {
+                const todayYmd = machiningLocalTodayYmd();
+                if (input.value === todayYmd && msSinceOpen < 450) {
+                    input.value = '';
+                    if (real) {
+                        real.value = '';
+                    }
+                    if (display) {
+                        display.value = '...';
+                        display.classList.remove('has-finish');
+                    }
+                    delete input.dataset.openedAt;
+                    return;
+                }
+                if (msSinceOpen < 85) {
+                    input.value = '';
+                    if (real) {
+                        real.value = '';
+                    }
+                    if (display) {
+                        display.value = '...';
+                        display.classList.remove('has-finish');
+                    }
+                    delete input.dataset.openedAt;
+                    return;
+                }
+            }
             if (real) real.value = input.value || '';
             if (display) {
                 display.value = input.value ? formatMachiningDateYmd(input.value) : '...';
