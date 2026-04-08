@@ -16,6 +16,7 @@ use Illuminate\Contracts\View\Factory;
 use Illuminate\Contracts\View\View;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Validation\ValidationException;
 
 class LogCardController extends Controller
 {
@@ -206,7 +207,7 @@ class LogCardController extends Controller
                 return $matches[1];
             }
             return $component->ipl_num;
-        })->map(function ($group) use ($tdrs, $code, $necessary) {
+        })->map(function ($group, $baseIplKey) use ($tdrs, $code, $necessary) {
             // Фильтруем компоненты - оставляем только те, у которых units_assy = 1
             $filteredGroup = $group->filter(function ($component) {
                 return ($component->units_assy ?? 1) == 1;
@@ -215,8 +216,9 @@ class LogCardController extends Controller
 //            dd($filteredGroup);
 
             return [
-                'ipl_group' => $group->keys()->first(), // Используем ключ группы (базовый номер)
-                'group_key' => $group->keys()->first(), // Дублируем для удобства
+                // $baseIplKey — ключ groupBy: «1-20» для вариантов 1-20, 1-20A, 1-20B (один выбор на группу)
+                'ipl_group' => $baseIplKey,
+                'group_key' => $baseIplKey,
                 'components' => $filteredGroup->sortBy('ipl_num')->map(function ($component) use ($tdrs, $code, $necessary) {
                     // Ищем TDR для данного компонента
                     $tdr = $tdrs->where('component_id', $component->id)->first();
@@ -359,8 +361,17 @@ class LogCardController extends Controller
             'workorder_id' => 'required|integer|exists:workorders,id',
             'component_data' => 'required|string',
         ]);
+        $this->validateLogCardComponentData($request);
 
         $workorder_id = $request->input('workorder_id');
+        if (LogCard::where('workorder_id', $workorder_id)->exists()) {
+            $message = __('Log Card for this workorder already exists.');
+            if ($request->ajax() || $request->wantsJson()) {
+                return response()->json(['success' => false, 'message' => $message], 422);
+            }
+            return redirect()->back()->withErrors(['workorder_id' => $message])->withInput();
+        }
+
         $componentData = $request->input('component_data'); // это уже JSON-строка
 
 //        dd($componentData);
@@ -480,15 +491,15 @@ class LogCardController extends Controller
                 return $matches[1];
             }
             return $component->ipl_num;
-        })->map(function ($group) use ($tdrs, $componentData) {
+        })->map(function ($group, $baseIplKey) use ($tdrs, $componentData) {
             // Фильтруем компоненты - оставляем только те, у которых units_assy = 1
             $filteredGroup = $group->filter(function ($component) {
                 return ($component->units_assy ?? 1) == 1;
             });
 
             return [
-                'ipl_group' => $group->keys()->first(), // Используем ключ группы (базовый номер)
-                'group_key' => $group->keys()->first(), // Дублируем для удобства
+                'ipl_group' => $baseIplKey,
+                'group_key' => $baseIplKey,
                 'components' => $filteredGroup->sortBy('ipl_num')->map(function ($component) use ($tdrs, $componentData) {
                     // Ищем существующие данные для компонента
                     // Пробуем найти по числовому ID
@@ -611,6 +622,7 @@ class LogCardController extends Controller
             'workorder_id' => 'required|integer|exists:workorders,id',
             'component_data' => 'required|string',
         ]);
+        $this->validateLogCardComponentData($request);
 
         $log_card = \App\Models\LogCard::findOrFail($id);
         $log_card->workorder_id = $request->input('workorder_id');
@@ -634,6 +646,39 @@ class LogCardController extends Controller
     public function destroy($id)
     {
         //
+    }
+
+    /**
+     * Разрешает сохранить Log Card с любым непустым подмножеством позиций (минимум одна).
+     *
+     * @throws ValidationException
+     */
+    private function validateLogCardComponentData(Request $request): void
+    {
+        $raw = $request->input('component_data');
+        if (!is_string($raw) || $raw === '') {
+            throw ValidationException::withMessages([
+                'component_data' => [__('Заполните component_data.')],
+            ]);
+        }
+        $decoded = json_decode($raw, true);
+        if (json_last_error() !== JSON_ERROR_NONE) {
+            throw ValidationException::withMessages([
+                'component_data' => [__('Недопустимый JSON в component_data.')],
+            ]);
+        }
+        if (!is_array($decoded) || count($decoded) < 1) {
+            throw ValidationException::withMessages([
+                'component_data' => [__('Добавьте в Log Card хотя бы одну позицию (выберите компонент).')],
+            ]);
+        }
+        foreach ($decoded as $row) {
+            if (!is_array($row) || (!isset($row['component_id']) || $row['component_id'] === '' || $row['component_id'] === null)) {
+                throw ValidationException::withMessages([
+                    'component_data' => [__('Каждая строка должна содержать component_id.')],
+                ]);
+            }
+        }
     }
 
 }

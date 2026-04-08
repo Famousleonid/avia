@@ -235,27 +235,27 @@
                 });
             }
 
-            // Создаем карту индексов групп
             let groupMap = {};
             @foreach($groupedComponents as $groupIndex => $group)
-                groupMap[{{ $groupIndex }}] = '{{ $group['ipl_group'] }}';
+                groupMap[@json($groupIndex)] = @json($group['ipl_group']);
             @endforeach
 
+            var formEl = document.getElementById('createForm');
+
             function buildComponentData() {
+                let form = formEl;
                 let data = [];
-                let allGroups = new Set();
-                document.querySelectorAll('input[type=radio][name^="selected_component["]').forEach(function(radio) {
-                    let index = radio.name.match(/selected_component\[(.*)\]/)[1];
-                    if (!index.includes('separate_')) allGroups.add(index);
-                });
-                document.querySelectorAll('input[type=radio]:checked').forEach(function(radio) {
-                    let index = radio.name.match(/selected_component\[(.*)\]/)[1];
+                form.querySelectorAll('input[type=radio][name^="selected_component["]:checked').forEach(function(radio) {
+                    let m = radio.name.match(/selected_component\[(.*)\]/);
+                    if (!m) return;
+                    let index = m[1];
                     let component_id = radio.value;
-                    let serial_number = (document.querySelector('input[name="serial_numbers[' + index + ']"]') || {}).value || '';
+                    let serialEl = form.querySelector('input[name="serial_numbers[' + index + ']"]');
+                    let serial_number = serialEl ? serialEl.value : '';
                     let assy_serial_number = '';
-                    let assyInput = document.querySelector('input[name="assy_serial_numbers[' + index + ']"]');
+                    let assyInput = form.querySelector('input[name="assy_serial_numbers[' + index + ']"]');
                     if (assyInput) assy_serial_number = assyInput.value;
-                    let reasonSelect = document.querySelector('select[name="reasons[' + index + ']"]');
+                    let reasonSelect = form.querySelector('select[name="reasons[' + index + ']"]');
                     let reason = reasonSelect ? reasonSelect.value : '';
                     if (!index.includes('separate_')) {
                         data.push({ component_id: component_id, ipl_group: groupMap[index], serial_number: serial_number, assy_serial_number: assy_serial_number, reason: reason });
@@ -263,7 +263,7 @@
                         data.push({ component_id: component_id, serial_number: serial_number, assy_serial_number: assy_serial_number, reason: reason });
                     }
                 });
-                if (data.length !== allGroups.size + (document.querySelectorAll('input[type=radio][name*="separate_"]:checked').length || 0)) {
+                if (data.length < 1) {
                     return null;
                 }
                 return data;
@@ -272,7 +272,7 @@
             document.getElementById('createForm').addEventListener('submit', function(e) {
                 let data = buildComponentData();
                 if (!data) {
-                    (typeof showNotification === 'function' ? showNotification : alert)('Выберите компонент в каждой группе!', 'warning');
+                    (typeof showNotification === 'function' ? showNotification : alert)('Отметьте хотя бы один компонент (радиокнопку) для Log Card.', 'warning');
                     e.preventDefault();
                     return false;
                 }
